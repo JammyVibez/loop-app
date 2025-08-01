@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -22,8 +22,9 @@ import {
 import { LoopCard } from "@/components/loop-card"
 import { ProfileThemeCustomizer } from "@/components/profile/profile-theme-customizer"
 import Link from "next/link"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/hooks/use-auth.tsx"
 import { useToast } from "@/hooks/use-toast"
+import { createClient } from "@supabase/supabase-js"
 
 interface UserProfileProps {
   username: string
@@ -34,31 +35,44 @@ export function UserProfile({ username }: UserProfileProps) {
   const { toast } = useToast()
   const [isFollowing, setIsFollowing] = useState(false)
   const [showThemeCustomizer, setShowThemeCustomizer] = useState(false)
+  const [profile, setProfile] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
-  // Mock user data - in real app, this would come from API
-  const user = {
-    id: "1",
-    username: username,
-    display_name: "Sarah Chen",
-    bio: "Full-stack developer passionate about React and Node.js. Building the future of web development, one loop at a time. 🚀",
-    avatar_url: "/placeholder.svg?height=120&width=120",
-    banner_url: "/placeholder.svg?height=200&width=800",
-    location: "San Francisco, CA",
-    website: "https://sarahchen.dev",
-    joined_date: "2023-01-15",
-    is_verified: true,
-    verification_level: "influencer" as const,
-    is_premium: true,
-    stats: {
-      followers: 15420,
-      following: 892,
-      loops: 234,
-      likes_received: 45600,
-    },
-    theme: {
-      primary_color: "#8B5CF6",
-      background_gradient: "from-purple-100 to-blue-100",
-    },
+  useEffect(() => {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    const fetchProfile = async () => {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("username", username)
+        .single()
+      if (!error && data) {
+        setProfile(data)
+      }
+      setLoading(false)
+    }
+    fetchProfile()
+    // Optionally, subscribe to changes for realtime updates
+    const subscription = supabase
+      .channel('public:profiles')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `username=eq.${username}` }, payload => {
+        fetchProfile()
+      })
+      .subscribe()
+    return () => {
+      supabase.removeChannel(subscription)
+    }
+  }, [username])
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading profile...</div>
+  }
+  if (!profile) {
+    return <div className="min-h-screen flex items-center justify-center">Profile not found</div>
   }
 
   const isOwnProfile = currentUser?.username === username
@@ -66,24 +80,18 @@ export function UserProfile({ username }: UserProfileProps) {
   const mockLoops = [
     {
       id: "1",
-      author: user,
-      content: {
-        type: "text" as const,
-        text: "Just finished building a new React component library! 🎉 It includes 50+ reusable components with full TypeScript support. The goal was to create something that could be used across multiple projects while maintaining consistency and performance.\n\n#react #typescript #componentlibrary",
-      },
-      created_at: new Date("2024-01-15T10:30:00Z"),
-      stats: { likes: 1247, branches: 23, comments: 89, saves: 234 },
-    },
-    {
-      id: "2",
-      author: user,
-      content: {
-        type: "image" as const,
-        image_url: "/placeholder.svg?height=400&width=600",
-        caption: "Working on some new UI designs for our upcoming project. What do you think of this color scheme? 🎨",
-      },
-      created_at: new Date("2024-01-14T15:20:00Z"),
-      stats: { likes: 892, branches: 12, comments: 56, saves: 178 },
+      user: profile,
+      content: "Just finished building a new React component library! 🎉 It includes 50+ reusable components with full TypeScript support. The goal was to create something that could be used across multiple projects while maintaining consistency and performance.\n\n#react #typescript #componentlibrary",
+      media_url: undefined,
+      media_type: undefined,
+      likes: 1247,
+      comments: 89,
+      branches: 23,
+      created_at: new Date("2024-01-15T10:30:00Z").toISOString(),
+      hashtags: ["react", "typescript", "componentlibrary"],
+      is_liked: false,
+      is_bookmarked: false,
+      parent_loop_id: undefined,
     },
   ]
 
@@ -108,9 +116,9 @@ export function UserProfile({ username }: UserProfileProps) {
         <Card className="mb-6 overflow-hidden">
           {/* Banner */}
           <div
-            className={`h-48 bg-gradient-to-r ${user.theme.background_gradient} relative`}
+            className={`h-48 bg-gradient-to-r ${profile.theme_data?.background_gradient || "from-purple-100 to-blue-100"} relative`}
             style={{
-              backgroundImage: user.banner_url ? `url(${user.banner_url})` : undefined,
+              backgroundImage: profile.banner_url ? `url(${profile.banner_url})` : undefined,
               backgroundSize: "cover",
               backgroundPosition: "center",
             }}
@@ -134,34 +142,34 @@ export function UserProfile({ username }: UserProfileProps) {
             <div className="flex flex-col md:flex-row items-start md:items-end justify-between -mt-16 mb-6">
               <div className="flex items-end space-x-4">
                 <Avatar className="w-32 h-32 border-4 border-white dark:border-gray-800">
-                  <AvatarImage src={user.avatar_url || "/placeholder.svg"} alt={user.display_name} />
-                  <AvatarFallback className="text-2xl">{user.display_name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={profile.avatar_url || "/placeholder.svg"} alt={profile.display_name} />
+                  <AvatarFallback className="text-2xl">{profile.display_name?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="pb-4">
                   <div className="flex items-center space-x-2 mb-2">
                     <h1 className="text-3xl font-bold text-white md:text-gray-900 dark:md:text-white">
-                      {user.display_name}
+                      {profile.display_name}
                     </h1>
-                    {user.is_verified && (
+                    {profile.is_verified && (
                       <Badge
                         variant="secondary"
                         className={
-                          user.verification_level === "root"
+                          profile.is_admin
                             ? "bg-green-100 text-green-700 border-green-200"
                             : "bg-blue-100 text-blue-700 border-blue-200"
                         }
                       >
-                        {user.verification_level === "root" ? "🌱 Root" : "⭐ Verified"}
+                        {profile.is_admin ? "🌱 Root" : "⭐ Verified"}
                       </Badge>
                     )}
-                    {user.is_premium && (
+                    {profile.is_premium && (
                       <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
                         <Crown className="w-3 h-3 mr-1" />
                         Premium
                       </Badge>
                     )}
                   </div>
-                  <p className="text-gray-300 md:text-gray-600 dark:md:text-gray-400">@{user.username}</p>
+                  <p className="text-gray-300 md:text-gray-600 dark:md:text-gray-400">@{profile.username}</p>
                 </div>
               </div>
 
@@ -204,50 +212,50 @@ export function UserProfile({ username }: UserProfileProps) {
 
             {/* Bio and Info */}
             <div className="space-y-4">
-              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{user.bio}</p>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{profile.bio}</p>
 
               <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                {user.location && (
+                {profile.location && (
                   <div className="flex items-center space-x-1">
                     <MapPin className="w-4 h-4" />
-                    <span>{user.location}</span>
+                    <span>{profile.location}</span>
                   </div>
                 )}
-                {user.website && (
+                {profile.website && (
                   <div className="flex items-center space-x-1">
                     <LinkIcon className="w-4 h-4" />
                     <a
-                      href={user.website}
+                      href={profile.website}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-purple-600 hover:underline"
                     >
-                      {user.website.replace("https://", "")}
+                      {profile.website.replace("https://", "")}
                     </a>
                   </div>
                 )}
                 <div className="flex items-center space-x-1">
                   <Calendar className="w-4 h-4" />
-                  <span>Joined {new Date(user.joined_date).toLocaleDateString()}</span>
+                  <span>Joined {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : "-"}</span>
                 </div>
               </div>
 
               {/* Stats */}
               <div className="flex space-x-6">
                 <Link href={`/profile/${username}/following`} className="hover:underline transition-colors">
-                  <span className="font-bold">{user.stats.following.toLocaleString()}</span>
+                  <span className="font-bold">{profile.following?.toLocaleString() ?? 0}</span>
                   <span className="text-gray-600 dark:text-gray-400 ml-1">Following</span>
                 </Link>
                 <Link href={`/profile/${username}/followers`} className="hover:underline transition-colors">
-                  <span className="font-bold">{user.stats.followers.toLocaleString()}</span>
+                  <span className="font-bold">{profile.followers?.toLocaleString() ?? 0}</span>
                   <span className="text-gray-600 dark:text-gray-400 ml-1">Followers</span>
                 </Link>
                 <div>
-                  <span className="font-bold">{user.stats.loops.toLocaleString()}</span>
+                  <span className="font-bold">{profile.loops?.toLocaleString() ?? 0}</span>
                   <span className="text-gray-600 dark:text-gray-400 ml-1">Loops</span>
                 </div>
                 <div>
-                  <span className="font-bold">{user.stats.likes_received.toLocaleString()}</span>
+                  <span className="font-bold">{profile.likes_received?.toLocaleString() ?? 0}</span>
                   <span className="text-gray-600 dark:text-gray-400 ml-1">Likes</span>
                 </div>
               </div>
@@ -279,7 +287,12 @@ export function UserProfile({ username }: UserProfileProps) {
           <TabsContent value="loops" className="mt-6">
             <div className="space-y-6">
               {mockLoops.map((loop) => (
-                <LoopCard key={loop.id} loop={loop} />
+                <LoopCard
+                  key={loop.id}
+                  loop={loop}
+                  onLike={() => {}}
+                  onBookmark={() => {}}
+                />
               ))}
             </div>
           </TabsContent>
@@ -313,9 +326,12 @@ export function UserProfile({ username }: UserProfileProps) {
       {/* Theme Customizer Modal */}
       {showThemeCustomizer && (
         <ProfileThemeCustomizer
-          isOpen={showThemeCustomizer}
-          onClose={() => setShowThemeCustomizer(false)}
-          currentTheme={user.theme}
+          open={showThemeCustomizer}
+          onOpenChange={setShowThemeCustomizer}
+          currentTheme={profile.theme_data}
+          onThemeUpdate={(theme) => {
+            setProfile({ ...profile, theme_data: theme })
+          }}
         />
       )}
     </div>

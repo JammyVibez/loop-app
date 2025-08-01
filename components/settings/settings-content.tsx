@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { User, Bell, Shield, Palette, Trash2, Moon, Sun, Upload, Crown, Mail, Lock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
-import { useTheme } from "@/providers/theme-provider"
+import { useTheme } from "next-themes"
 
 export function SettingsContent() {
   const { user } = useAuth()
