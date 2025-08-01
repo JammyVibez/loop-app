@@ -140,14 +140,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!response.ok) {
       throw new Error(data.error || "Signup failed")
     }
-
-    // Automatically log in after signup
-    if (data.session?.access_token && data.session?.refresh_token) {
-      await supabase.auth.setSession({
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
-      })
-    }
   }
 
   const logout = async () => {
@@ -163,32 +155,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error
 
-      // Refresh user profile after update
-      const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-      if (profile) {
-        setUser({ ...user, ...profile })
-      }
+      setUser({ ...user, ...updates })
     } catch (error) {
       console.error("Error updating profile:", error)
       throw error
     }
   }
 
- const authContextValue: AuthContextType = {
-  user,
-  loading,
-  login,
-  signup,
-  logout,
-  updateProfile,
-}
-
-return (
-  <AuthContext.Provider value={authContextValue}>
-    {children}
-  </AuthContext.Provider>
-)
-
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        signup,
+        logout,
+        updateProfile,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {
