@@ -37,6 +37,9 @@ export function UserProfile({ username }: UserProfileProps) {
   const [showThemeCustomizer, setShowThemeCustomizer] = useState(false)
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [loops, setLoops] = useState<any[]>([])
+  const [loopsLoading, setLoopsLoading] = useState(true)
+  const [loopsError, setLoopsError] = useState<string>("")
 
   useEffect(() => {
     const supabase = createClient(
@@ -55,7 +58,29 @@ export function UserProfile({ username }: UserProfileProps) {
       }
       setLoading(false)
     }
+    const fetchLoops = async () => {
+      setLoopsLoading(true)
+      setLoopsError("")
+      try {
+        const { data, error } = await supabase
+          .from("loops")
+          .select("*")
+          .eq("author", username)
+          .order("created_at", { ascending: false })
+        if (error) {
+          setLoopsError("Failed to fetch loops.")
+          setLoops([])
+        } else {
+          setLoops(data || [])
+        }
+      } catch (err) {
+        setLoopsError("Error loading loops.")
+        setLoops([])
+      }
+      setLoopsLoading(false)
+    }
     fetchProfile()
+    fetchLoops()
     // Optionally, subscribe to changes for realtime updates
     const subscription = supabase
       .channel('public:profiles')
@@ -77,23 +102,23 @@ export function UserProfile({ username }: UserProfileProps) {
 
   const isOwnProfile = currentUser?.username === username
 
-  const mockLoops = [
-    {
-      id: "1",
-      user: profile,
-      content: "Just finished building a new React component library! 🎉 It includes 50+ reusable components with full TypeScript support. The goal was to create something that could be used across multiple projects while maintaining consistency and performance.\n\n#react #typescript #componentlibrary",
-      media_url: undefined,
-      media_type: undefined,
-      likes: 1247,
-      comments: 89,
-      branches: 23,
-      created_at: new Date("2024-01-15T10:30:00Z").toISOString(),
-      hashtags: ["react", "typescript", "componentlibrary"],
-      is_liked: false,
-      is_bookmarked: false,
-      parent_loop_id: undefined,
-    },
-  ]
+  // const mockLoops = [
+  //   {
+  //     id: "1",
+  //     user: profile,
+  //     content: "Just finished building a new React component library! 🎉 It includes 50+ reusable components with full TypeScript support. The goal was to create something that could be used across multiple projects while maintaining consistency and performance.\n\n#react #typescript #componentlibrary",
+  //     media_url: undefined,
+  //     media_type: undefined,
+  //     likes: 1247,
+  //     comments: 89,
+  //     branches: 23,
+  //     created_at: new Date("2024-01-15T10:30:00Z").toISOString(),
+  //     hashtags: ["react", "typescript", "componentlibrary"],
+  //     is_liked: false,
+  //     is_bookmarked: false,
+  //     parent_loop_id: undefined,
+  //   },
+  // ]
 
   const handleFollow = () => {
     setIsFollowing(!isFollowing)
@@ -286,14 +311,22 @@ export function UserProfile({ username }: UserProfileProps) {
 
           <TabsContent value="loops" className="mt-6">
             <div className="space-y-6">
-              {mockLoops.map((loop) => (
-                <LoopCard
-                  key={loop.id}
-                  loop={loop}
-                  onLike={() => {}}
-                  onBookmark={() => {}}
-                />
-              ))}
+              {loopsLoading ? (
+                <div className="text-center py-12 text-gray-500">Loading loops...</div>
+              ) : loopsError ? (
+                <div className="text-center py-12 text-red-500">{loopsError}</div>
+              ) : loops.length > 0 ? (
+                loops.map((loop) => (
+                  <LoopCard
+                    key={loop.id}
+                    loop={loop}
+                    onLike={() => {}}
+                    onBookmark={() => {}}
+                  />
+                ))
+              ) : (
+                <div className="text-center py-12 text-gray-500">No loops found.</div>
+              )}
             </div>
           </TabsContent>
 
