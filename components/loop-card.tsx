@@ -41,7 +41,19 @@ interface LoopCardProps {
 export function LoopCard({ loop, onLike, onBookmark }: LoopCardProps) {
   const [showFullContent, setShowFullContent] = useState(false)
 
-  const contentPreview = loop.content.length > 200 ? loop.content.substring(0, 200) + "..." : loop.content
+  // Defensive fallback for missing user
+  const user = loop.user || {
+    username: "unknown",
+    display_name: "Unknown User",
+    avatar_url: "/placeholder.svg",
+    is_verified: false,
+  }
+
+  // Defensive fallback for content and hashtags
+  const content = typeof loop.content === "string" ? loop.content : ""
+  const hashtags = Array.isArray(loop.hashtags) ? loop.hashtags : []
+
+  const contentPreview = content.length > 200 ? content.substring(0, 200) + "..." : content
 
   const renderMedia = () => {
     if (!loop.media_url) return null
@@ -91,25 +103,25 @@ export function LoopCard({ loop, onLike, onBookmark }: LoopCardProps) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-3">
-            <Link href={`/profile/${loop.user.username}`}>
+            <Link href={`/profile/${user.username}`}>
               <Avatar className="h-10 w-10">
-                <AvatarImage src={loop.user.avatar_url || "/placeholder.svg"} alt={loop.user.display_name} />
-                <AvatarFallback>{loop.user.display_name.charAt(0)}</AvatarFallback>
+                <AvatarImage src={user.avatar_url || "/placeholder.svg"} alt={user.display_name} />
+                <AvatarFallback>{user.display_name.charAt(0)}</AvatarFallback>
               </Avatar>
             </Link>
             <div>
               <div className="flex items-center space-x-1">
-                <Link href={`/profile/${loop.user.username}`}>
-                  <span className="font-semibold hover:underline">{loop.user.display_name}</span>
+                <Link href={`/profile/${user.username}`}>
+                  <span className="font-semibold hover:underline">{user.display_name}</span>
                 </Link>
-                {loop.user.is_verified && (
+                {user.is_verified && (
                   <Badge variant="secondary" className="h-4 w-4 p-0 bg-blue-500">
                     <span className="text-white text-xs">✓</span>
                   </Badge>
                 )}
               </div>
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <span>@{loop.user.username}</span>
+                <span>@{user.username}</span>
                 <span>•</span>
                 <span>{formatDistanceToNow(new Date(loop.created_at), { addSuffix: true })}</span>
               </div>
@@ -135,8 +147,8 @@ export function LoopCard({ loop, onLike, onBookmark }: LoopCardProps) {
         <div className="space-y-3">
           {/* Content */}
           <div>
-            <p className="text-sm leading-relaxed">{showFullContent ? loop.content : contentPreview}</p>
-            {loop.content.length > 200 && (
+            <p className="text-sm leading-relaxed">{showFullContent ? content : contentPreview}</p>
+            {content.length > 200 && (
               <Button
                 variant="link"
                 size="sm"
@@ -149,9 +161,9 @@ export function LoopCard({ loop, onLike, onBookmark }: LoopCardProps) {
           </div>
 
           {/* Hashtags */}
-          {loop.hashtags.length > 0 && (
+          {hashtags.length > 0 && (
             <div className="flex flex-wrap gap-1">
-              {loop.hashtags.map((tag) => (
+              {hashtags.map((tag) => (
                 <Link key={tag} href={`/hashtag/${tag}`}>
                   <Badge variant="outline" className="text-purple-600 hover:bg-purple-50">
                     #{tag}

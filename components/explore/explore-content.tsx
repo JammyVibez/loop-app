@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { createClient } from "@supabase/supabase-js"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -8,134 +9,49 @@ import { Clock, TreePine, Sparkles, TrendingUp, Hash } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
 import { LoopTreeViewer } from "@/components/loop-tree-viewer"
 
-// Mock data for different explore categories
-const recentLoops = [
-  {
-    id: "recent-1",
-    author: {
-      id: "1",
-      username: "newcreator",
-      display_name: "New Creator",
-      avatar_url: "/placeholder.svg?height=40&width=40",
-      is_verified: false,
-      is_premium: false,
-    },
-    content: {
-      type: "text" as const,
-      text: "Just discovered Loop and I'm amazed by the collaborative storytelling possibilities! Starting my first tree about #digitalart and #creativity 🎨",
-    },
-    created_at: new Date("2024-01-15T16:30:00Z"),
-    stats: { likes: 23, branches: 2, comments: 8, saves: 12 },
-    branches: [],
-  },
-  {
-    id: "recent-2",
-    author: {
-      id: "2",
-      username: "techwriter",
-      display_name: "Tech Writer",
-      avatar_url: "/placeholder.svg?height=40&width=40",
-      is_verified: true,
-      verification_level: "influencer" as const,
-      is_premium: true,
-    },
-    content: {
-      type: "text" as const,
-      text: "The future of AI and human creativity: What happens when machines can branch our thoughts? #ai #future #philosophy",
-    },
-    created_at: new Date("2024-01-15T16:15:00Z"),
-    stats: { likes: 156, branches: 8, comments: 34, saves: 67 },
-    branches: [],
-  },
-]
-
-const deepestTrees = [
-  {
-    id: "deep-1",
-    author: {
-      id: "1",
-      username: "storyteller",
-      display_name: "Story Teller",
-      avatar_url: "/placeholder.svg?height=40&width=40",
-      is_verified: true,
-      verification_level: "root" as const,
-      is_premium: true,
-    },
-    content: {
-      type: "text" as const,
-      text: "Once upon a time, in a world where stories could grow like trees... #storytelling #collaborative",
-    },
-    created_at: new Date("2024-01-10T10:30:00Z"),
-    stats: { likes: 2340, branches: 47, comments: 234, saves: 567 },
-    tree_depth: 12,
-    total_branches: 47,
-    branches: [
-      {
-        id: "deep-1-branch-1",
-        author: {
-          id: "2",
-          username: "fantasyfan",
-          display_name: "Fantasy Fan",
-          avatar_url: "/placeholder.svg?height=40&width=40",
-          is_verified: false,
-          is_premium: false,
-        },
-        content: {
-          type: "text" as const,
-          text: "The protagonist discovered that each choice created a new branch in reality itself...",
-        },
-        created_at: new Date("2024-01-10T11:15:00Z"),
-        stats: { likes: 456, branches: 12, comments: 67, saves: 123 },
-        branches: [],
-      },
-    ],
-  },
-]
-
-const mostCreative = [
-  {
-    id: "creative-1",
-    author: {
-      id: "1",
-      username: "mixedmedia",
-      display_name: "Mixed Media Artist",
-      avatar_url: "/placeholder.svg?height=40&width=40",
-      is_verified: true,
-      verification_level: "influencer" as const,
-      is_premium: true,
-    },
-    content: {
-      type: "image" as const,
-      image_url: "/placeholder.svg?height=400&width=600",
-      caption:
-        "What if colors had emotions? This piece explores synesthesia through digital art. Add your interpretation! #synesthesia #digitalart #emotions",
-    },
-    created_at: new Date("2024-01-14T14:20:00Z"),
-    stats: { likes: 1890, branches: 23, comments: 156, saves: 445 },
-    creativity_score: 98.5,
-    unique_tags: ["synesthesia", "digitalart", "emotions", "interpretation"],
-    branches: [],
-  },
-]
-
-const trendingHashtags = [
-  { tag: "timetravel", count: 15600, growth: "+234%" },
-  { tag: "digitalart", count: 12400, growth: "+189%" },
-  { tag: "musiccollab", count: 9800, growth: "+156%" },
-  { tag: "scifi", count: 8900, growth: "+134%" },
-  { tag: "philosophy", count: 7600, growth: "+112%" },
-  { tag: "creativity", count: 6800, growth: "+98%" },
-  { tag: "storytelling", count: 5900, growth: "+87%" },
-  { tag: "collaboration", count: 5200, growth: "+76%" },
-]
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export function ExploreContent() {
+  const [loops, setLoops] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedTab, setSelectedTab] = useState("recent")
+
+  useEffect(() => {
+    const fetchLoops = async () => {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from("loops")
+        .select("*, user:profiles!inner(*)")
+        .order("created_at", { ascending: false })
+        .limit(20)
+      if (!error && data) {
+        setLoops(data)
+      }
+      setLoading(false)
+    }
+    fetchLoops()
+
+    // Real-time subscription
+    const subscription = supabase
+      .channel('public:loops')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'loops' }, (payload) => {
+        fetchLoops()
+      })
+      .subscribe()
+    return () => {
+      supabase.removeChannel(subscription)
+    }
+  }, [])
 
   const formatNumber = (num: number) => {
     if (num >= 1000) return (num / 1000).toFixed(1) + "K"
     return num.toString()
   }
+
+  if (loading) return <div>Loading...</div>
 
   return (
     <div className="space-y-6">
@@ -178,8 +94,28 @@ export function ExploreContent() {
               <h2 className="text-xl font-semibold">Recent Loops</h2>
               <Badge variant="secondary">Newest first</Badge>
             </div>
-            {recentLoops.map((loop) => (
-              <LoopCard key={loop.id} loop={loop} />
+            {loops.length === 0 && <div>No loops found.</div>}
+            {loops.map((loop) => (
+              <LoopCard
+                key={loop.id}
+                loop={{
+                  id: loop.id,
+                  user: loop.user || loop.author || {},
+                  content: loop.content || "",
+                  media_url: loop.media_url || "",
+                  media_type: loop.media_type || "text",
+                  likes: loop.likes || 0,
+                  comments: loop.comments || 0,
+                  branches: loop.branches || 0,
+                  created_at: loop.created_at,
+                  hashtags: loop.hashtags || [],
+                  is_liked: false,
+                  is_bookmarked: false,
+                  parent_loop_id: loop.parent_loop_id,
+                }}
+                onLike={() => {}}
+                onBookmark={() => {}}
+              />
             ))}
           </div>
         </TabsContent>
@@ -191,7 +127,8 @@ export function ExploreContent() {
               <h2 className="text-xl font-semibold">Deepest Trees</h2>
               <Badge variant="secondary">Most branches</Badge>
             </div>
-            {deepestTrees.map((tree) => (
+            {loops.length === 0 && <div>No loops found.</div>}
+            {loops.map((tree) => (
               <div key={tree.id} className="space-y-4">
                 <Card className="border-l-4 border-l-green-500">
                   <CardContent className="p-4">
@@ -220,7 +157,8 @@ export function ExploreContent() {
               <h2 className="text-xl font-semibold">Most Creative</h2>
               <Badge variant="secondary">Highest engagement</Badge>
             </div>
-            {mostCreative.map((loop) => (
+            {loops.length === 0 && <div>No loops found.</div>}
+            {loops.map((loop) => (
               <div key={loop.id} className="space-y-4">
                 <Card className="border-l-4 border-l-yellow-500">
                   <CardContent className="p-4">
@@ -253,7 +191,8 @@ export function ExploreContent() {
               <Badge variant="secondary">24h growth</Badge>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {trendingHashtags.map((hashtag, index) => (
+              {loops.length === 0 && <div>No loops found.</div>}
+              {loops.map((hashtag, index) => (
                 <Card key={hashtag.tag} className="hover:shadow-lg transition-shadow cursor-pointer">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
