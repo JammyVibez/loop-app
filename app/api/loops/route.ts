@@ -1,10 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { FormData } from "formdata-node"
-import fetch from "node-fetch"
 
 // Initialize Supabase client
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 // Helper function to get user from token
 async function getUserFromToken(token: string) {
@@ -21,7 +19,7 @@ async function getUserFromToken(token: string) {
 }
 
 // Helper function to upload file to Cloudinary
-async function uploadToCloudinary(file: File, resourceType: "image" | "video" | "raw" = "raw") {
+async function uploadToCloudinary(file: File, resourceType: "image" | "video" | "raw" = "raw"): Promise<any> {
   const formData = new FormData()
   formData.append("file", file)
   formData.append("upload_preset", process.env.CLOUDINARY_UPLOAD_PRESET!)
@@ -31,7 +29,7 @@ async function uploadToCloudinary(file: File, resourceType: "image" | "video" | 
     `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`,
     {
       method: "POST",
-      body: formData,
+      body: formData as any,
     },
   )
 
@@ -54,17 +52,19 @@ export async function GET(request: NextRequest) {
       .from("loops")
       .select(`
         *,
-        author:profiles(id, username, display_name, avatar_url, is_verified, verification_level, is_premium),
-        loop_stats(likes, branches, comments, saves, views),
-        branches:loops!parent_id(
+        author:profiles(id, username, display_name, avatar_url, is_verified, is_premium),
+        loop_stats(likes_count, branches_count, comments_count, shares_count, views_count),
+        branches:loops!parent_loop_id(
           id,
           author:profiles(id, username, display_name, avatar_url),
           content,
+          media_url,
+          media_type,
           created_at,
-          loop_stats(likes, branches, comments)
+          loop_stats(likes_count, branches_count, comments_count)
         )
       `)
-      .is("parent_id", null) // Only root loops
+      .is("parent_loop_id", null) // Only root loops
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -113,15 +113,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const formData = await request.formData()
-    const content = formData.get("content") as string
-    const title = formData.get("title") as string
-    const type = formData.get("type") as string
-    const file = formData.get("file") as File | null
+   let content: string | null = null
+    let title: string | null = null
+    let type: string | null = null
+    let file: File | null = null
+
+    // 🔥 Detect if request is JSON or multipart
+    const contentType = request.headers.get("content-type") || ""
+
+    if (contentType.includes("application/json")) {
+      // Handle JSON body
+      const body = await request.json()
+      content = body.content ?? null
+      title = body.title ?? null
+      type = body.type ?? null
+    } else if (contentType.includes("multipart/form-data")) {
+      // Handle form-data body
+      const formData = await request.formData()
+      content = formData.get("content") as string
+      title = formData.get("title") as string
+      type = formData.get("type") as string
+      file = formData.get("file") as File | null
+    } else {
+      return NextResponse.json({ error: "Unsupported Content-Type" }, { status: 400 })
+    }
 
     if (!content && !file) {
       return NextResponse.json({ error: "Content or file is required" }, { status: 400 })
     }
+
 
     let fileUrl = null
     let fileType = null
@@ -188,17 +208,15 @@ export async function POST(request: NextRequest) {
       .from("loops")
       .insert({
         author_id: user.id,
-        content: loopContent,
-        parent_id: null,
-        circle_id: null,
+        content: content,             // store text in content
+        media_url: fileUrl || null,   // store uploaded file here
+        media_type: fileType || type || "text",
+        parent_loop_id: null,
       })
-      .select(`
-        *,
-        author:profiles(id, username, display_name, avatar_url, is_verified, verification_level, is_premium)
-      `)
+      .select("id") // Only get the new loop id
       .single()
 
-    if (insertError) {
+    if (insertError || !loop) {
       console.error("Database insert error:", insertError)
       return NextResponse.json({ error: "Failed to create loop" }, { status: 500 })
     }
@@ -206,16 +224,49 @@ export async function POST(request: NextRequest) {
     // Initialize loop stats
     await supabase.from("loop_stats").insert({
       loop_id: loop.id,
-      likes: 0,
-      branches: 0,
-      comments: 0,
-      saves: 0,
-      views: 0,
+      likes_count: 0,
+      branches_count: 0,
+      comments_count: 0,
+      shares_count: 0,
+      views_count: 0,
     })
+
+    // Fetch the full loop object with author and stats
+    const { data: fullLoop, error: fetchError } = await supabase
+      .from("loops")
+      .select(`
+        *,
+        author:profiles(id, username, display_name, avatar_url, is_verified, is_premium),
+        stats:loop_stats(likes_count, branches_count, comments_count, shares_count, views_count)
+      `)
+      .eq("id", loop.id)
+      .single()
+
+    if (fetchError || !fullLoop) {
+      console.error("Fetch error after insert:", fetchError)
+      return NextResponse.json({ error: "Failed to fetch created loop" }, { status: 500 })
+    }
+
+    // Fetch user interactions for this loop
+    const { data: interactions, error: interactionError } = await supabase
+      .from("loop_interactions")
+      .select("interaction_type")
+      .eq("user_id", user.id)
+      .eq("loop_id", loop.id)
+
+    if (interactionError) {
+      console.error("Interaction fetch error:", interactionError)
+    }
+
+    // Build user_interactions object from loop_interactions
+    fullLoop.user_interactions = {
+      is_liked: interactions?.some(i => i.interaction_type === "like") || false,
+      is_saved: interactions?.some(i => i.interaction_type === "save") || false,
+    }
 
     return NextResponse.json({
       success: true,
-      loop,
+      loop: fullLoop,
     })
   } catch (error) {
     console.error("Error creating loop:", error)

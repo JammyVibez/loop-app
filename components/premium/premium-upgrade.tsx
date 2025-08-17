@@ -171,9 +171,9 @@ export function PremiumUpgrade() {
           size="lg"
           className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white px-8 py-3"
         >
-          Upgrade to Premium
+          Request Premium Upgrade
         </Button>
-        <p className="text-sm text-gray-500 mt-2">Cancel anytime • 30-day money-back guarantee</p>
+        <p className="text-sm text-gray-500 mt-2">Admin approval required • 30-day money-back guarantee</p>
       </div>
 
       <PaymentModal

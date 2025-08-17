@@ -1,60 +1,70 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { Search, MessageCircle, User, Settings, LogOut, Menu, X } from "lucide-react"
-import { Button } from "./ui/button"
-import { Input } from "./ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "./ui/dropdown-menu"
-import { Badge } from "./ui/badge"
-import { useAuth } from "../providers/auth-provider"
-import { NotificationDropdown } from "./notifications/notification-dropdown"
+} from "@/components/ui/dropdown-menu"
+import {
+  Search,
+  Bell,
+  MessageCircle,
+  Settings,
+  User,
+  LogOut,
+  Plus,
+  Coins,
+  Crown,
+  Menu,
+} from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
+import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
+import Link from "next/link"
 
 export function Header() {
-  const { user, logout } = useAuth()
-  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { user, logout } = useAuth()
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      router.push(`/search/${encodeURIComponent(searchQuery)}`)
-      setSearchQuery("")
+      window.location.href = `/search/${encodeURIComponent(searchQuery.trim())}`
     }
   }
 
   const handleLogout = async () => {
-    await logout()
-    router.push("/")
+    try {
+      await logout()
+      window.location.href = "/landing"
+    } catch (error) {
+      console.error("Logout error:", error)
+    }
   }
 
   if (!user) {
     return (
-      <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:bg-gray-900/95 dark:supports-[backdrop-filter]:bg-gray-900/60">
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-sm">L</span>
             </div>
-            <span className="font-bold text-xl bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+            <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
               Loop
             </span>
           </Link>
 
           <div className="flex items-center space-x-4">
             <Link href="/login">
-              <Button variant="ghost">Login</Button>
+              <Button variant="ghost">Log In</Button>
             </Link>
             <Link href="/signup">
               <Button>Sign Up</Button>
@@ -66,22 +76,22 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:bg-gray-900/95 dark:supports-[backdrop-filter]:bg-gray-900/60">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container mx-auto px-2 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
-            <span className="text-white font-bold text-sm">L</span>
+        <Link href="/" className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+            <span className="text-white font-bold text-xs sm:text-sm">L</span>
           </div>
-          <span className="font-bold text-xl bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+          <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
             Loop
           </span>
         </Link>
 
-        {/* Search Bar - Desktop */}
-        <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-md mx-8">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+        {/* Search Bar - Hidden on mobile, shown on tablet+ */}
+        <div className="hidden md:flex flex-1 max-w-md mx-4 lg:mx-8">
+          <form onSubmit={handleSearch} className="relative w-full">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
               type="text"
               placeholder="Search loops, users, circles..."
@@ -89,108 +99,110 @@ export function Header() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 pr-4 w-full"
             />
-          </div>
-        </form>
+          </form>
+        </div>
 
-        {/* Navigation - Desktop */}
-        <nav className="hidden md:flex items-center space-x-4">
-          <Link href="/messages">
-            <Button variant="ghost" size="sm" className="relative">
-              <MessageCircle className="h-5 w-5" />
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">3</Badge>
+        {/* Mobile Search Button */}
+        <div className="md:hidden">
+          <Link href="/search">
+            <Button variant="ghost" size="sm">
+              <Search className="w-4 h-4" />
+            </Button>
+          </Link>
+        </div>
+
+        {/* Navigation */}
+        <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4">
+          {/* Create Button - Hidden text on mobile */}
+          <Button size="sm" className="bg-gradient-to-r from-purple-500 to-blue-500">
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Create</span>
+          </Button>
+
+          {/* Loop Coins - Hidden on mobile */}
+          <Link href="/shop" className="hidden sm:block">
+            <Button variant="outline" size="sm" className="flex items-center space-x-2">
+              <Coins className="w-4 h-4 text-yellow-500" />
+              <span className="font-semibold hidden lg:inline">{user.loop_coins.toLocaleString()}</span>
             </Button>
           </Link>
 
+          {/* Messages */}
+          <Link href="/messages">
+            <Button variant="ghost" size="sm">
+              <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+            </Button>
+          </Link>
+
+          {/* Notifications */}
           <NotificationDropdown />
 
+          {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.avatar_url || "/placeholder.svg"} alt={user.display_name} />
-                  <AvatarFallback>{user.display_name.charAt(0)}</AvatarFallback>
+              <Button variant="ghost" className="relative h-6 w-6 sm:h-8 sm:w-8 rounded-full">
+                <Avatar className="h-6 w-6 sm:h-8 sm:w-8">
+                  <AvatarImage src={user.avatar_url} alt={user.display_name} />
+                  <AvatarFallback className="text-xs sm:text-sm">
+                    {user.display_name.charAt(0).toUpperCase()}
+                  </AvatarFallback>
                 </Avatar>
+                {user.is_premium && (
+                  <Crown className="absolute -top-1 -right-1 w-2 h-2 sm:w-3 sm:h-3 text-yellow-500" />
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
-              <div className="flex items-center justify-start gap-2 p-2">
-                <div className="flex flex-col space-y-1 leading-none">
-                  <p className="font-medium">{user.display_name}</p>
-                  <p className="w-[200px] truncate text-sm text-muted-foreground">@{user.username}</p>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <p className="text-sm font-medium leading-none">
+                      {user.display_name}
+                    </p>
+                    {user.is_verified && (
+                      <Badge variant="secondary" className="text-xs">
+                        ✓
+                      </Badge>
+                    )}
+                    {user.is_premium && (
+                      <Badge variant="outline" className="text-xs">
+                        Premium
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    @{user.username}
+                  </p>
                 </div>
-              </div>
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href={`/profile/${user.username}`}>
                   <User className="mr-2 h-4 w-4" />
-                  Profile
+                  <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/settings">
                   <Settings className="mr-2 h-4 w-4" />
-                  Settings
+                  <span>Settings</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/shop">
+                  <Coins className="mr-2 h-4 w-4" />
+                  <span>Shop</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
-                Log out
+                <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </nav>
-
-        {/* Mobile Menu Button */}
-        <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
-      </div>
-
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden border-t bg-white dark:bg-gray-900">
-          <div className="container mx-auto px-4 py-4 space-y-4">
-            <form onSubmit={handleSearch}>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  type="text"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </form>
-
-            <div className="flex flex-col space-y-2">
-              <Link href={`/profile/${user.username}`} onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start">
-                  <User className="mr-2 h-4 w-4" />
-                  Profile
-                </Button>
-              </Link>
-              <Link href="/messages" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start">
-                  <MessageCircle className="mr-2 h-4 w-4" />
-                  Messages
-                </Button>
-              </Link>
-              <Link href="/settings" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </Button>
-              </Link>
-              <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Log out
-              </Button>
-            </div>
-          </div>
         </div>
-      )}
+      </div>
     </header>
   )
 }

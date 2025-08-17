@@ -1,169 +1,36 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Coins, Palette, Sparkles, Zap, Crown, Star } from "lucide-react"
+import { Coins, Palette, Sparkles, Zap, Crown, Star, Loader2 } from "lucide-react"
 import { LoopCoinsBalance } from "@/components/shop/loop-coins-balance"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 
-const shopItems = {
-  themes: [
-    {
-      id: "neon-cyber",
-      name: "Neon Cyber",
-      description: "Futuristic neon colors with cyberpunk vibes",
-      price: 500,
-      preview: "linear-gradient(45deg, #00ff88, #00ccff)",
-      category: "theme",
-      rarity: "rare",
-      premium_only: false,
-    },
-    {
-      id: "sunset-dream",
-      name: "Sunset Dream",
-      description: "Warm sunset colors for a dreamy profile",
-      price: 300,
-      preview: "linear-gradient(45deg, #ff6b6b, #ffa500)",
-      category: "theme",
-      rarity: "common",
-      premium_only: false,
-    },
-    {
-      id: "galaxy-explorer",
-      name: "Galaxy Explorer",
-      description: "Deep space colors with stellar effects",
-      price: 800,
-      preview: "linear-gradient(45deg, #667eea, #764ba2)",
-      category: "theme",
-      rarity: "legendary",
-      premium_only: true,
-    },
-    {
-      id: "discord-dark",
-      name: "Discord Dark",
-      description: "Classic Discord dark theme colors",
-      price: 400,
-      preview: "linear-gradient(45deg, #36393f, #2f3136)",
-      category: "theme",
-      rarity: "rare",
-      premium_only: false,
-    },
-  ],
-  animations: [
-    {
-      id: "rainbow-pulse",
-      name: "Rainbow Pulse",
-      description: "Animated rainbow effect for your avatar",
-      price: 750,
-      preview: "🌈",
-      category: "animation",
-      rarity: "epic",
-      premium_only: false,
-    },
-    {
-      id: "sparkle-trail",
-      name: "Sparkle Trail",
-      description: "Magical sparkles that follow your avatar",
-      price: 600,
-      preview: "✨",
-      category: "animation",
-      rarity: "rare",
-      premium_only: false,
-    },
-    {
-      id: "floating-glow",
-      name: "Floating Glow",
-      description: "Gentle floating motion with soft glow",
-      price: 400,
-      preview: "🎈",
-      category: "animation",
-      rarity: "common",
-      premium_only: false,
-    },
-    {
-      id: "premium-aura",
-      name: "Premium Aura",
-      description: "Exclusive golden aura effect",
-      price: 1200,
-      preview: "👑",
-      category: "animation",
-      rarity: "legendary",
-      premium_only: true,
-    },
-  ],
-  effects: [
-    {
-      id: "tree-skin-golden",
-      name: "Golden Tree Skin",
-      description: "Make your loop trees shine with golden branches",
-      price: 1000,
-      preview: "🌳✨",
-      category: "effect",
-      rarity: "legendary",
-      premium_only: false,
-    },
-    {
-      id: "branch-particles",
-      name: "Branch Particles",
-      description: "Animated particles around your branches",
-      price: 650,
-      preview: "🌿💫",
-      category: "effect",
-      rarity: "epic",
-      premium_only: false,
-    },
-    {
-      id: "loop-glow",
-      name: "Loop Glow",
-      description: "Subtle glow effect for your loop posts",
-      price: 350,
-      preview: "💡",
-      category: "effect",
-      rarity: "common",
-      premium_only: false,
-    },
-  ],
-  coins: [
-    {
-      id: "coins-1000",
-      name: "1,000 Loop Coins",
-      description: "Perfect for getting started with customizations",
-      price: 4.99,
-      preview: "💰",
-      category: "coins",
-      rarity: "common",
-      premium_only: false,
-      coins_amount: 1000,
-    },
-    {
-      id: "coins-2500",
-      name: "2,500 Loop Coins",
-      description: "Great value pack with bonus coins",
-      price: 9.99,
-      preview: "💎",
-      category: "coins",
-      rarity: "rare",
-      premium_only: false,
-      coins_amount: 2500,
-      bonus: 500,
-    },
-    {
-      id: "coins-5000",
-      name: "5,000 Loop Coins",
-      description: "Premium pack for serious customizers",
-      price: 19.99,
-      preview: "👑",
-      category: "coins",
-      rarity: "epic",
-      premium_only: false,
-      coins_amount: 5000,
-      bonus: 1500,
-    },
-  ],
+interface ShopItem {
+  id: string
+  name: string
+  description: string
+  price: number
+  price_coins?: number | null
+  price_usd?: number | null
+  category: string
+  item_type: string
+  rarity: string
+  premium_only: boolean
+  item_data: any
+  preview_data?: any
+  is_active: boolean
+}
+
+interface ShopItems {
+  themes: ShopItem[]
+  animations: ShopItem[]
+  effects: ShopItem[]
+  coins: ShopItem[]
 }
 
 const rarityColors = {
@@ -174,11 +41,99 @@ const rarityColors = {
 }
 
 export function ShopContent() {
+  const [shopItems, setShopItems] = useState<ShopItems>({
+    themes: [],
+    animations: [],
+    effects: [],
+    coins: [],
+  })
   const [purchasedItems, setPurchasedItems] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
+  const [purchasing, setPurchasing] = useState<string | null>(null)
   const { toast } = useToast()
   const { user } = useAuth()
 
-  const handlePurchase = (item: any) => {
+  useEffect(() => {
+    fetchShopItems()
+    if (user) {
+      fetchUserInventory()
+    }
+  }, [user])
+
+  const fetchShopItems = async () => {
+    try {
+      const response = await fetch("/api/shop/items")
+      const data = await response.json()
+
+      if (data.success) {
+        const categorizedItems: ShopItems = {
+          themes: [],
+          animations: [],
+          effects: [],
+          coins: [],
+        }
+
+        data.items.forEach((item: ShopItem) => {
+          switch (item.category) {
+            case "theme":
+              categorizedItems.themes.push(item)
+              break
+            case "animation":
+              categorizedItems.animations.push(item)
+              break
+            case "effect":
+              categorizedItems.effects.push(item)
+              break
+            case "coins":
+              categorizedItems.coins.push(item)
+              break
+          }
+        })
+
+        setShopItems(categorizedItems)
+      }
+    } catch (error) {
+      console.error("Error fetching shop items:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load shop items",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchUserInventory = async () => {
+    if (!user?.token) return
+
+    try {
+      const response = await fetch("/api/inventory", {
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      })
+      const data = await response.json()
+
+      if (data.success) {
+        const ownedItemIds = new Set(data.items.map((item: any) => item.item_id))
+        setPurchasedItems(ownedItemIds)
+      }
+    } catch (error) {
+      console.error("Error fetching inventory:", error)
+    }
+  }
+
+  const handlePurchase = async (item: ShopItem) => {
+    if (!user?.token) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to make purchases.",
+        variant: "destructive",
+      })
+      return
+    }
+
     if (purchasedItems.has(item.id)) {
       toast({
         title: "Already Owned",
@@ -197,34 +152,73 @@ export function ShopContent() {
       return
     }
 
-    if (item.category === "coins") {
-      // Handle Stripe payment for coins
-      toast({
-        title: "Redirecting to Payment",
-        description: "You'll be redirected to complete your purchase.",
-      })
-      // TODO: Integrate Stripe payment
-      return
-    }
+    setPurchasing(item.id)
 
-    if ((user?.loop_coins || 0) < item.price) {
+    try {
+      const paymentMethod = item.category === "coins" ? "stripe" : "coins"
+      const itemPrice = item.price || item.price_coins || 0
+
+      if (paymentMethod === "coins" && (user?.loop_coins || 0) < itemPrice) {
+        toast({
+          title: "Insufficient Loop Coins",
+          description: "You don't have enough Loop Coins for this purchase.",
+          variant: "destructive",
+        })
+        setPurchasing(null)
+        return
+      }
+
+      const response = await fetch("/api/shop/purchase", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({
+          item_id: item.id,
+          payment_method: paymentMethod,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        if (paymentMethod === "coins") {
+          setPurchasedItems((prev) => new Set([...prev, item.id]))
+          toast({
+            title: "Purchase Successful!",
+            description: `You've purchased ${item.name} for ${itemPrice} Loop Coins.`,
+          })
+          // Refresh user data to update coin balance
+          window.location.reload()
+        } else {
+          // Handle Stripe payment
+          toast({
+            title: "Redirecting to Payment",
+            description: "You'll be redirected to complete your purchase.",
+          })
+          // TODO: Integrate Stripe Elements here
+        }
+      } else {
+        toast({
+          title: "Purchase Failed",
+          description: data.error || "Failed to complete purchase",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error purchasing item:", error)
       toast({
-        title: "Insufficient Loop Coins",
-        description: "You don't have enough Loop Coins for this purchase.",
+        title: "Purchase Failed",
+        description: "An error occurred while processing your purchase",
         variant: "destructive",
       })
-      return
+    } finally {
+      setPurchasing(null)
     }
-
-    // Simulate purchase
-    setPurchasedItems((prev) => new Set([...prev, item.id]))
-    toast({
-      title: "Purchase Successful!",
-      description: `You've purchased ${item.name} for ${item.price} Loop Coins.`,
-    })
   }
 
-  const renderItemCard = (item: any) => (
+  const renderItemCard = (item: ShopItem) => (
     <Card key={item.id} className="hover:shadow-lg transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
@@ -245,10 +239,14 @@ export function ShopContent() {
         <div
           className="h-20 rounded-lg flex items-center justify-center text-4xl border"
           style={{
-            background: item.preview.startsWith("linear-gradient") ? item.preview : "#f3f4f6",
+            background: item.preview_data?.preview?.startsWith("linear-gradient")
+              ? item.preview_data.preview
+              : "#f3f4f6",
           }}
         >
-          {!item.preview.startsWith("linear-gradient") && item.preview}
+          {item.preview_data?.preview && !item.preview_data.preview.startsWith("linear-gradient")
+            ? item.preview_data.preview
+            : "🎨"}
         </div>
 
         <p className="text-sm text-gray-600 dark:text-gray-400">{item.description}</p>
@@ -257,13 +255,13 @@ export function ShopContent() {
           <div className="flex items-center space-x-2">
             {item.category === "coins" ? (
               <>
-                <span className="font-bold text-lg text-green-600">${item.price}</span>
+                <span className="font-bold text-lg text-green-600">${item.price_usd || item.price}</span>
                 <span className="text-sm text-gray-500">USD</span>
               </>
             ) : (
               <>
                 <Coins className="w-5 h-5 text-yellow-500" />
-                <span className="font-bold text-lg text-purple-600">{item.price}</span>
+                <span className="font-bold text-lg text-purple-600">{item.price || item.price_coins}</span>
                 <span className="text-sm text-gray-500">Loop Coins</span>
               </>
             )}
@@ -271,7 +269,7 @@ export function ShopContent() {
 
           <Button
             onClick={() => handlePurchase(item)}
-            disabled={purchasedItems.has(item.id)}
+            disabled={purchasedItems.has(item.id) || purchasing === item.id}
             className={
               purchasedItems.has(item.id)
                 ? "bg-green-500 hover:bg-green-600"
@@ -280,20 +278,40 @@ export function ShopContent() {
                   : "bg-gradient-to-r from-purple-500 to-blue-500"
             }
           >
-            {purchasedItems.has(item.id) ? "Owned" : item.category === "coins" ? "Buy Now" : "Purchase"}
+            {purchasing === item.id ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : purchasedItems.has(item.id) ? (
+              "Owned"
+            ) : item.category === "coins" ? (
+              "Buy Now"
+            ) : (
+              "Purchase"
+            )}
           </Button>
         </div>
 
-        {item.bonus && (
+        {item.item_data?.bonus && (
           <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2 text-center">
             <span className="text-sm text-green-700 dark:text-green-300 font-medium">
-              +{item.bonus} bonus coins included!
+              +{item.item_data.bonus} bonus coins included!
             </span>
           </div>
         )}
       </CardContent>
     </Card>
   )
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin" />
+        <span className="ml-2">Loading shop items...</span>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

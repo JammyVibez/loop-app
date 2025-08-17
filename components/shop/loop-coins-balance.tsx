@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Coins, Plus, Star } from "lucide-react"
+import { Coins, Plus, Star, Loader2 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 
@@ -13,25 +13,104 @@ interface LoopCoinsBalanceProps {
   showDetails?: boolean
 }
 
-const coinPackages = [
-  { id: "starter", coins: 1000, price: 4.99, bonus: 0, popular: false },
-  { id: "popular", coins: 2500, price: 9.99, bonus: 500, popular: true },
-  { id: "premium", coins: 5000, price: 19.99, bonus: 1500, popular: false },
-  { id: "ultimate", coins: 10000, price: 34.99, bonus: 4000, popular: false },
-]
+interface CoinPackage {
+  id: string
+  name: string
+  description: string
+  price_usd: number
+  item_data: {
+    coins_amount: number
+    bonus: number
+  }
+  rarity: string
+}
 
 export function LoopCoinsBalance({ showDetails = false }: LoopCoinsBalanceProps) {
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false)
+  const [coinPackages, setCoinPackages] = useState<CoinPackage[]>([])
+  const [loading, setLoading] = useState(false)
+  const [purchasing, setPurchasing] = useState<string | null>(null)
   const { user } = useAuth()
   const { toast } = useToast()
 
-  const handlePurchase = (pkg: (typeof coinPackages)[0]) => {
-    // Simulate purchase
-    toast({
-      title: "Purchase Successful!",
-      description: `You've purchased ${pkg.coins + pkg.bonus} Loop Coins for $${pkg.price}`,
-    })
-    setShowPurchaseDialog(false)
+  useEffect(() => {
+    if (showPurchaseDialog) {
+      fetchCoinPackages()
+    }
+  }, [showPurchaseDialog])
+
+  const fetchCoinPackages = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch("/api/shop/items?category=coins")
+      const data = await response.json()
+
+      if (data.success) {
+        setCoinPackages(data.items)
+      }
+    } catch (error) {
+      console.error("Error fetching coin packages:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load coin packages",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePurchase = async (pkg: CoinPackage) => {
+    if (!user?.token) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to purchase coins.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setPurchasing(pkg.id)
+
+    try {
+      const response = await fetch("/api/shop/purchase", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({
+          item_id: pkg.id,
+          payment_method: "stripe",
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Redirecting to Payment",
+          description: "You'll be redirected to complete your purchase.",
+        })
+        // TODO: Integrate Stripe Elements here
+        setShowPurchaseDialog(false)
+      } else {
+        toast({
+          title: "Purchase Failed",
+          description: data.error || "Failed to initiate purchase",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error purchasing coins:", error)
+      toast({
+        title: "Purchase Failed",
+        description: "An error occurred while processing your purchase",
+        variant: "destructive",
+      })
+    } finally {
+      setPurchasing(null)
+    }
   }
 
   const formatCoins = (coins: number) => {
@@ -59,40 +138,55 @@ export function LoopCoinsBalance({ showDetails = false }: LoopCoinsBalanceProps)
           </DialogHeader>
 
           <div className="space-y-4">
-            {coinPackages.map((pkg) => (
-              <Card
-                key={pkg.id}
-                className={`cursor-pointer transition-all hover:shadow-md ${pkg.popular ? "ring-2 ring-purple-500" : ""}`}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center space-x-1">
-                        <Coins className="w-5 h-5 text-yellow-500" />
-                        <span className="font-bold">{pkg.coins.toLocaleString()}</span>
-                        {pkg.bonus > 0 && (
-                          <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700">
-                            +{pkg.bonus} bonus
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <span className="ml-2">Loading coin packages...</span>
+              </div>
+            ) : (
+              coinPackages.map((pkg) => (
+                <Card
+                  key={pkg.id}
+                  className={`cursor-pointer transition-all hover:shadow-md ${pkg.rarity === "rare" ? "ring-2 ring-purple-500" : ""}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-1">
+                          <Coins className="w-5 h-5 text-yellow-500" />
+                          <span className="font-bold">{pkg.item_data.coins_amount.toLocaleString()}</span>
+                          {pkg.item_data.bonus > 0 && (
+                            <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700">
+                              +{pkg.item_data.bonus} bonus
+                            </Badge>
+                          )}
+                        </div>
+                        {pkg.rarity === "rare" && (
+                          <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
+                            <Star className="w-3 h-3 mr-1" />
+                            Popular
                           </Badge>
                         )}
                       </div>
-                      {pkg.popular && (
-                        <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
-                          <Star className="w-3 h-3 mr-1" />
-                          Popular
-                        </Badge>
-                      )}
+                      <Button
+                        onClick={() => handlePurchase(pkg)}
+                        disabled={purchasing === pkg.id}
+                        className="bg-gradient-to-r from-purple-500 to-blue-500"
+                      >
+                        {purchasing === pkg.id ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          `$${pkg.price_usd}`
+                        )}
+                      </Button>
                     </div>
-                    <Button
-                      onClick={() => handlePurchase(pkg)}
-                      className="bg-gradient-to-r from-purple-500 to-blue-500"
-                    >
-                      ${pkg.price}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </DialogContent>
       </Dialog>

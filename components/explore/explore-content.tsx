@@ -22,29 +22,101 @@ export function ExploreContent() {
   useEffect(() => {
     const fetchLoops = async () => {
       setLoading(true)
-      const { data, error } = await supabase
-        .from("loops")
-        .select("*, user:profiles!inner(*)")
-        .order("created_at", { ascending: false })
-        .limit(20)
-      if (!error && data) {
-        setLoops(data)
+      try {
+        let query = supabase
+          .from("loops")
+          .select(`
+            *,
+            user:profiles!inner(*),
+            interactions:loop_interactions(count),
+            comments:comments(count)
+          `)
+
+        // Apply different sorting based on selected tab
+        switch (selectedTab) {
+          case 'recent':
+            query = query.order("created_at", { ascending: false })
+            break
+          case 'deepest':
+            query = query.order("tree_depth", { ascending: false })
+            break
+          case 'creative':
+            query = query.order("likes", { ascending: false })
+            break
+          case 'hashtags':
+            // For hashtags, we'll fetch trending hashtags from API
+            const hashtagResponse = await fetch('/api/explore/trending?type=hashtags&limit=20')
+            if (hashtagResponse.ok) {
+              const { data: hashtagData } = await hashtagResponse.json()
+              if (hashtagData) {
+                setLoops(hashtagData)
+              }
+            }
+            setLoading(false)
+            return
+        }
+
+        const { data, error } = await query.limit(20)
+        
+        if (!error && data) {
+          setLoops(data)
+        }
+      } catch (error) {
+        console.error('Error fetching loops:', error)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
+
     fetchLoops()
 
-    // Real-time subscription
-    const subscription = supabase
+    // Enhanced real-time subscription with multiple channels
+    const loopsChannel = supabase
       .channel('public:loops')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'loops' }, (payload) => {
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'loops'
+      }, (payload) => {
+        console.log('Loop change detected:', payload)
         fetchLoops()
       })
       .subscribe()
+
+    const interactionsChannel = supabase
+      .channel('public:loop_interactions')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'loop_interactions'
+      }, (payload) => {
+        console.log('Interaction change detected:', payload)
+        fetchLoops()
+      })
+      .subscribe()
+
+    const commentsChannel = supabase
+      .channel('public:comments')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'comments'
+      }, (payload) => {
+        console.log('Comment change detected:', payload)
+        fetchLoops()
+      })
+      .subscribe()
+
+    // Periodic refresh every 30 seconds for additional real-time feel
+    const refreshInterval = setInterval(fetchLoops, 30000)
+
     return () => {
-      supabase.removeChannel(subscription)
+      supabase.removeChannel(loopsChannel)
+      supabase.removeChannel(interactionsChannel)
+      supabase.removeChannel(commentsChannel)
+      clearInterval(refreshInterval)
     }
-  }, [])
+  }, [selectedTab])
 
   const formatNumber = (num: number) => {
     if (num >= 1000) return (num / 1000).toFixed(1) + "K"

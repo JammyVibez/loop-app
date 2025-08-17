@@ -46,8 +46,19 @@ export function SettingsContent() {
 
   const handleProfileUpdate = async () => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const response = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user?.access_token}`
+        },
+        body: JSON.stringify(profileData)
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile')
+      }
+
       toast({
         title: "Profile Updated",
         description: "Your profile has been updated successfully.",

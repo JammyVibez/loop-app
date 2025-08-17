@@ -16,11 +16,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Check if username is already taken
-    const { data: existingUser } = await supabase.from("profiles").select("username").eq("username", username).single()
+    // Check if username or email is already taken
+    const { data: existingUser } = await supabase
+      .from("profiles")
+      .select("id, username, email")
+      .or(`username.eq.${username},email.eq.${email}`)
+      .single()
 
-    if (existingUser) {
+    if (existingUser?.username === username) {
       return NextResponse.json({ error: "Username already taken" }, { status: 400 })
+    }
+    if (existingUser?.email === email) {
+      return NextResponse.json({ error: "Email already registered" }, { status: 400 })
     }
 
     // Create user account
@@ -37,23 +44,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to create user" }, { status: 400 })
     }
 
-    // Create user profile
+    // Create user profile with enhanced schema fields
     const { error: profileError } = await supabase.from("profiles").insert({
       id: authData.user.id,
       email,
       username,
       display_name,
-      loop_coins: 500, // Starting coins
+      avatar_url: null,
+      banner_url: null,
+      bio: null,
+      location: null,
+      website: null,
+      loop_coins: 500,
+      xp_points: 0,
+      level: 1,
       is_premium: false,
+      premium_expires_at: null,
       is_verified: false,
       is_admin: false,
+      active_theme: 'default',
+      theme_data: null,
+      privacy_settings: { profile_visibility: "public", message_privacy: "everyone" },
+      notification_settings: { email: true, push: true, in_app: true },
+      last_active: new Date().toISOString(),
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
 
     if (profileError) {
       // Clean up auth user if profile creation fails
       await supabase.auth.admin.deleteUser(authData.user.id)
-      return NextResponse.json({ error: "Failed to create profile" }, { status: 500 })
+      return NextResponse.json({ error: "Failed to create profile: " + profileError.message }, { status: 500 })
     }
 
     return NextResponse.json({
@@ -65,8 +86,8 @@ export async function POST(request: NextRequest) {
         display_name,
       },
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Signup error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 })
   }
 }

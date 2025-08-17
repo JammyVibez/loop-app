@@ -1,62 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase"
 
-function getUserFromToken(token: string) {
-  return {
-    id: "1",
-    username: "demo_user",
-    display_name: "Demo User",
-  }
+async function getUserFromToken(supabaseUrl: string, supabaseKey: string, token: string) {
+  const supabase = createClient(supabaseUrl, supabaseKey)
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(token)
+  if (error || !user) return null
+  return user
 }
-
-// Mock conversations data
-const mockConversations = [
-  {
-    id: "1",
-    type: "direct",
-    participants: [
-      {
-        id: "2",
-        username: "storyteller",
-        display_name: "Story Teller",
-        avatar_url: "/placeholder.svg?height=40&width=40",
-        is_online: true,
-        last_seen: new Date(),
-      },
-    ],
-    last_message: {
-      id: "4",
-      content: "That's a fascinating loop idea! Want to collaborate?",
-      sender_id: "2",
-      created_at: "2024-01-15T14:30:00Z",
-    },
-    unread_count: 2,
-    created_at: "2024-01-10T00:00:00Z",
-    updated_at: "2024-01-15T14:30:00Z",
-  },
-  {
-    id: "2",
-    type: "direct",
-    participants: [
-      {
-        id: "3",
-        username: "musicmaker",
-        display_name: "Music Maker",
-        avatar_url: "/placeholder.svg?height=40&width=40",
-        is_online: false,
-        last_seen: new Date("2024-01-15T13:45:00Z"),
-      },
-    ],
-    last_message: {
-      id: "8",
-      content: "Thanks for the feedback on my audio loop!",
-      sender_id: "3",
-      created_at: "2024-01-15T12:15:00Z",
-    },
-    unread_count: 0,
-    created_at: "2024-01-12T00:00:00Z",
-    updated_at: "2024-01-15T12:15:00Z",
-  },
-]
 
 export async function GET(request: NextRequest) {
   try {
@@ -66,15 +19,42 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.replace("Bearer ", "")
-    const user = getUserFromToken(token)
+    const supabase = createClient()
 
-    if (!user) {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser(token)
+    if (userError || !user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    }
+
+    const { data: conversations, error } = await supabase
+      .from("conversations")
+      .select(`
+        *,
+        participants:conversation_participants(
+          user:profiles(*)
+        ),
+        last_message:messages(
+          id,
+          content,
+          sender_id,
+          created_at,
+          sender:profiles(*)
+        )
+      `)
+      .eq("conversation_participants.user_id", user.id)
+      .order("updated_at", { ascending: false })
+
+    if (error) {
+      console.error("Database error:", error)
+      return NextResponse.json({ error: "Failed to fetch conversations" }, { status: 500 })
     }
 
     return NextResponse.json({
       success: true,
-      conversations: mockConversations,
+      conversations: conversations || [],
     })
   } catch (error) {
     console.error("Error fetching conversations:", error)
@@ -90,9 +70,13 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.replace("Bearer ", "")
-    const user = getUserFromToken(token)
+    const supabase = createClient()
 
-    if (!user) {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser(token)
+    if (userError || !user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
@@ -107,26 +91,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const newConversation = {
-      id: Date.now().toString(),
-      type,
-      participants: participant_ids.map((id) => ({
-        id,
-        username: `user_${id}`,
-        display_name: `User ${id}`,
-        avatar_url: "/placeholder.svg?height=40&width=40",
-        is_online: Math.random() > 0.5,
-        last_seen: new Date(),
-      })),
-      last_message: null,
-      unread_count: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+    const { data: conversation, error: convError } = await supabase
+      .from("conversations")
+      .insert({
+        type,
+        created_by: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single()
+
+    if (convError) {
+      console.error("Error creating conversation:", convError)
+      return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 })
+    }
+
+    const participantData = [user.id, ...participant_ids].map((userId) => ({
+      conversation_id: conversation.id,
+      user_id: userId,
+      joined_at: new Date().toISOString(),
+    }))
+
+    const { error: participantError } = await supabase.from("conversation_participants").insert(participantData)
+
+    if (participantError) {
+      console.error("Error adding participants:", participantError)
+      return NextResponse.json({ error: "Failed to add participants" }, { status: 500 })
     }
 
     return NextResponse.json({
       success: true,
-      conversation: newConversation,
+      conversation,
     })
   } catch (error) {
     console.error("Error creating conversation:", error)

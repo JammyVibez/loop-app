@@ -22,7 +22,7 @@ import {
 import { LoopCard } from "@/components/loop-card"
 import { ProfileThemeCustomizer } from "@/components/profile/profile-theme-customizer"
 import Link from "next/link"
-import { useAuth } from "@/hooks/use-auth.tsx"
+import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@supabase/supabase-js"
 
@@ -64,8 +64,12 @@ export function UserProfile({ username }: UserProfileProps) {
       try {
         const { data, error } = await supabase
           .from("loops")
-          .select("*")
-          .eq("author", username)
+          .select(`
+            *,
+            author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+            loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
+          `)
+          .eq("author_id", profile?.id)
           .order("created_at", { ascending: false })
         if (error) {
           setLoopsError("Failed to fetch loops.")
@@ -120,11 +124,41 @@ export function UserProfile({ username }: UserProfileProps) {
   //   },
   // ]
 
-  const handleFollow = () => {
-    setIsFollowing(!isFollowing)
-    toast({
-      description: isFollowing ? "Unfollowed user" : "Following user",
-    })
+  const handleFollow = async () => {
+    if (!currentUser || !profile) return
+
+    try {
+      const response = await fetch('/api/users/follow', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token}`,
+        },
+        body: JSON.stringify({
+          user_id: profile.id,
+          action: isFollowing ? 'unfollow' : 'follow',
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setIsFollowing(data.is_following)
+        toast({
+          description: data.message,
+        })
+      } else {
+        toast({
+          description: data.error || 'Failed to update follow status',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        description: 'Network error occurred',
+        variant: 'destructive',
+      })
+    }
   }
 
   const handleShare = () => {
@@ -268,20 +302,20 @@ export function UserProfile({ username }: UserProfileProps) {
               {/* Stats */}
               <div className="flex space-x-6">
                 <Link href={`/profile/${username}/following`} className="hover:underline transition-colors">
-                  <span className="font-bold">{profile.following?.toLocaleString() ?? 0}</span>
+                  <span className="font-bold">{profile.following_count?.toLocaleString() ?? 0}</span>
                   <span className="text-gray-600 dark:text-gray-400 ml-1">Following</span>
                 </Link>
                 <Link href={`/profile/${username}/followers`} className="hover:underline transition-colors">
-                  <span className="font-bold">{profile.followers?.toLocaleString() ?? 0}</span>
+                  <span className="font-bold">{profile.followers_count?.toLocaleString() ?? 0}</span>
                   <span className="text-gray-600 dark:text-gray-400 ml-1">Followers</span>
                 </Link>
                 <div>
-                  <span className="font-bold">{profile.loops?.toLocaleString() ?? 0}</span>
+                  <span className="font-bold">{profile.loops_count?.toLocaleString() ?? 0}</span>
                   <span className="text-gray-600 dark:text-gray-400 ml-1">Loops</span>
                 </div>
                 <div>
-                  <span className="font-bold">{profile.likes_received?.toLocaleString() ?? 0}</span>
-                  <span className="text-gray-600 dark:text-gray-400 ml-1">Likes</span>
+                  <span className="font-bold">{loops.length?.toLocaleString() ?? 0}</span>
+                  <span className="text-gray-600 dark:text-gray-400 ml-1">Total Loops</span>
                 </div>
               </div>
             </div>

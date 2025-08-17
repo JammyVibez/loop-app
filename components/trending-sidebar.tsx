@@ -1,68 +1,99 @@
 "use client"
 
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { TrendingUp, Hash, Users, Loader2 } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
 import Link from "next/link"
-import { TrendingUp, Hash, Users, Calendar } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
-import { Badge } from "./ui/badge"
-import { Button } from "./ui/button"
+
+interface TrendingUser {
+  id: string
+  username: string
+  display_name: string
+  avatar_url?: string
+  is_verified?: boolean
+  follower_count?: number
+}
+
+interface TrendingHashtag {
+  tag: string
+  count: number
+}
 
 export function TrendingSidebar() {
-  const trendingHashtags = [
-    { tag: "AI", posts: 1234 },
-    { tag: "WebDev", posts: 892 },
-    { tag: "Design", posts: 756 },
-    { tag: "Music", posts: 643 },
-    { tag: "Photography", posts: 521 },
-  ]
+  const [trendingUsers, setTrendingUsers] = useState<TrendingUser[]>([])
+  const [trendingHashtags, setTrendingHashtags] = useState<TrendingHashtag[]>([])
+  const [loading, setLoading] = useState(true)
+  const [following, setFollowing] = useState<{ [id: string]: boolean }>({})
+  const { user } = useAuth()
 
-  const suggestedUsers = [
-    {
-      id: "1",
-      username: "designguru",
-      display_name: "Design Guru",
-      avatar_url: "/placeholder.svg?height=32&width=32",
-      is_verified: true,
-      followers: 12500,
-    },
-    {
-      id: "2",
-      username: "codemaster",
-      display_name: "Code Master",
-      avatar_url: "/placeholder.svg?height=32&width=32",
-      is_verified: false,
-      followers: 8900,
-    },
-    {
-      id: "3",
-      username: "artcreator",
-      display_name: "Art Creator",
-      avatar_url: "/placeholder.svg?height=32&width=32",
-      is_verified: true,
-      followers: 15600,
-    },
-  ]
+  useEffect(() => {
+    if (user) {
+      fetchTrendingData()
+    }
+  }, [user])
 
-  const trendingCircles = [
-    {
-      id: "1",
-      name: "Web Developers",
-      members: 2500,
-      avatar_url: "/placeholder.svg?height=32&width=32",
-    },
-    {
-      id: "2",
-      name: "Digital Artists",
-      members: 1800,
-      avatar_url: "/placeholder.svg?height=32&width=32",
-    },
-    {
-      id: "3",
-      name: "Music Producers",
-      members: 1200,
-      avatar_url: "/placeholder.svg?height=32&width=32",
-    },
-  ]
+  const fetchTrendingData = async () => {
+    if (!user?.token) return
+
+    try {
+      // Fetch trending hashtags
+      const hashtagResponse = await fetch("/api/search?q=*&type=hashtags&limit=5", {
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      })
+      const hashtagData = await hashtagResponse.json()
+      if (hashtagData.success) {
+        setTrendingHashtags(hashtagData.results.hashtags || [])
+      }
+
+      // Fetch latest registered users (not trending)
+      const userResponse = await fetch("/api/users?sort=newest&limit=5", {
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      })
+      const userData = await userResponse.json()
+      if (userData.success) {
+        setTrendingUsers(userData.users || [])
+      } else {
+        setTrendingUsers([])
+      }
+    } catch (error) {
+      console.error("Error fetching trending data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleFollow = async (userId: string) => {
+    if (!user?.token) return
+    setFollowing(prev => ({ ...prev, [userId]: true }))
+    try {
+      const res = await fetch(`/api/users/${userId}/follow`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+      })
+      const data = await res.json()
+      if (!data.success) {
+        setFollowing(prev => ({ ...prev, [userId]: false }))
+      } else {
+        // After following, reload new users
+        fetchTrendingData()
+      }
+    } catch (err) {
+      setFollowing(prev => ({ ...prev, [userId]: false }))
+    }
+  }
+
+  if (!user) return null
 
   return (
     <div className="space-y-6">
@@ -70,23 +101,40 @@ export function TrendingSidebar() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center space-x-2">
-            <TrendingUp className="h-5 w-5 text-purple-600" />
-            <span>Trending</span>
+            <Hash className="w-5 h-5" />
+            <span>Trending Hashtags</span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {trendingHashtags.map((item, index) => (
-            <Link key={item.tag} href={`/hashtag/${item.tag}`}>
-              <div className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm font-medium text-gray-500">#{index + 1}</span>
-                  <Hash className="h-4 w-4 text-purple-600" />
-                  <span className="font-medium">{item.tag}</span>
-                </div>
-                <span className="text-sm text-muted-foreground">{item.posts}</span>
-              </div>
-            </Link>
-          ))}
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="w-4 h-4 animate-spin" />
+            </div>
+          ) : trendingHashtags.length === 0 ? (
+            <p className="text-sm text-gray-500">No trending hashtags yet</p>
+          ) : (
+            <div className="space-y-3">
+              {trendingHashtags.map((hashtag, index) => (
+                <Link
+                  key={hashtag.tag}
+                  href={`/hashtag/${encodeURIComponent(hashtag.tag)}`}
+                  className="block hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-2 -m-2 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-sm">#{hashtag.tag}</p>
+                      <p className="text-xs text-gray-500">
+                        {hashtag.count} loops
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      #{index + 1}
+                    </Badge>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -94,71 +142,99 @@ export function TrendingSidebar() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center space-x-2">
-            <Users className="h-5 w-5 text-blue-600" />
+            <Users className="w-5 h-5" />
             <span>Who to Follow</span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {suggestedUsers.map((user) => (
-            <div key={user.id} className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.avatar_url || "/placeholder.svg"} alt={user.display_name} />
-                  <AvatarFallback>{user.display_name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="flex items-center space-x-1">
-                    <Link href={`/profile/${user.username}`}>
-                      <span className="font-medium text-sm hover:underline">{user.display_name}</span>
-                    </Link>
-                    {user.is_verified && (
-                      <Badge variant="secondary" className="h-3 w-3 p-0 bg-blue-500">
-                        <span className="text-white text-xs">✓</span>
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">@{user.username}</p>
-                  <p className="text-xs text-muted-foreground">{user.followers.toLocaleString()} followers</p>
-                </div>
-              </div>
-              <Button size="sm" variant="outline">
-                Follow
-              </Button>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="w-4 h-4 animate-spin" />
             </div>
-          ))}
+          ) : (
+            <div className="space-y-4">
+              {trendingUsers.map((suggestedUser) => (
+                <div key={suggestedUser.id} className="flex items-center justify-between">
+                  <Link
+                    href={`/profile/${suggestedUser.username}`}
+                    className="flex items-center space-x-3 flex-1 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-2 -m-2 transition-colors"
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={suggestedUser.avatar_url} alt={suggestedUser.display_name} />
+                      <AvatarFallback>
+                        {suggestedUser.display_name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-1">
+                        <p className="text-sm font-medium truncate">
+                          {suggestedUser.display_name}
+                        </p>
+                        {suggestedUser.is_verified && (
+                          <Badge variant="secondary" className="text-xs">
+                            ✓
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 truncate">
+                        @{suggestedUser.username}
+                      </p>
+                      {suggestedUser.follower_count && (
+                        <p className="text-xs text-gray-500">
+                          {suggestedUser.follower_count.toLocaleString()} followers
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={following[suggestedUser.id]}
+                    onClick={() => handleFollow(suggestedUser.id)}
+                  >
+                    {following[suggestedUser.id] ? "Following" : "Follow"}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Trending Circles */}
+      {/* Quick Stats */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center space-x-2">
-            <Calendar className="h-5 w-5 text-green-600" />
-            <span>Popular Circles</span>
+            <TrendingUp className="w-5 h-5" />
+            <span>Your Stats</span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {trendingCircles.map((circle) => (
-            <div key={circle.id} className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={circle.avatar_url || "/placeholder.svg"} alt={circle.name} />
-                  <AvatarFallback>{circle.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <Link href={`/circles/${circle.id}`}>
-                    <span className="font-medium text-sm hover:underline">{circle.name}</span>
-                  </Link>
-                  <p className="text-xs text-muted-foreground">{circle.members.toLocaleString()} members</p>
-                </div>
-              </div>
-              <Button size="sm" variant="outline">
-                Join
-              </Button>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600">Loop Coins</span>
+              <Badge variant="secondary">
+                {user.loop_coins.toLocaleString()}
+              </Badge>
             </div>
-          ))}
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600">Account Type</span>
+              <Badge variant={user.is_premium ? "default" : "outline"}>
+                {user.is_premium ? "Premium" : "Free"}
+              </Badge>
+            </div>
+            {user.is_verified && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Status</span>
+                <Badge variant="secondary">
+                  ✓ Verified
+                </Badge>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
   )
 }
+

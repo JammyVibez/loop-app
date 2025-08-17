@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -18,7 +18,6 @@ interface Comment {
     display_name: string
     avatar_url: string
     is_verified: boolean
-    verification_level?: "root" | "influencer"
   }
   content: string
   created_at: Date
@@ -32,118 +31,133 @@ interface CommentsSectionProps {
   comments?: Comment[]
 }
 
-// Mock comments data
-const mockComments: Comment[] = [
-  {
-    id: "comment-1",
-    author: {
-      id: "2",
-      username: "storyteller",
-      display_name: "Story Teller",
-      avatar_url: "/placeholder.svg?height=32&width=32",
-      is_verified: true,
-      verification_level: "influencer",
-    },
-    content:
-      "This is such a fascinating concept! I love how you've explored the philosophical implications of time travel.",
-    created_at: new Date("2024-01-15T11:30:00Z"),
-    likes: 23,
-    replies: [
-      {
-        id: "reply-1",
-        author: {
-          id: "3",
-          username: "philosopher",
-          display_name: "Deep Thinker",
-          avatar_url: "/placeholder.svg?height=32&width=32",
-          is_verified: true,
-          verification_level: "influencer",
-        },
-        content: "Exactly! The observer paradox in time travel is something that deserves more exploration.",
-        created_at: new Date("2024-01-15T12:00:00Z"),
-        likes: 8,
-        replies: [],
-      },
-    ],
-  },
-  {
-    id: "comment-2",
-    author: {
-      id: "4",
-      username: "scifiwriter",
-      display_name: "Sci-Fi Writer",
-      avatar_url: "/placeholder.svg?height=32&width=32",
-      is_verified: false,
-    },
-    content:
-      "This reminds me of the concept in quantum mechanics where observation changes the outcome. What if time travel works the same way?",
-    created_at: new Date("2024-01-15T13:15:00Z"),
-    likes: 15,
-    replies: [],
-  },
-]
+// Comment interface
+interface CommentWithReplies extends Comment {
+  replies: CommentWithReplies[]
+}
 
-export function CommentsSection({ loopId, comments = mockComments }: CommentsSectionProps) {
+export function CommentsSection({ loopId, comments }: CommentsSectionProps) {
   const [newComment, setNewComment] = useState("")
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState("")
-  const [commentsData, setCommentsData] = useState(comments)
+  const [commentsData, setCommentsData] = useState<Comment[]>(comments || [])
   const [likedComments, setLikedComments] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
   const { toast } = useToast()
   const { user } = useAuth()
+  
+  // Load comments from API
+  useEffect(() => {
+    const loadComments = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(`/api/loops/${loopId}/comments`, {
+          headers: {
+            'Authorization': `Bearer ${user?.token}`
+          }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setCommentsData(data.comments || [])
+        }
+      } catch (error) {
+        console.error('Failed to load comments:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load comments",
+          variant: "destructive"
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    if (loopId && user) {
+      loadComments()
+    }
+  }, [loopId, user])
 
-  const handleSubmitComment = () => {
+  const handleSubmitComment = async () => {
     if (!newComment.trim()) return
 
-    const comment: Comment = {
-      id: `comment-${Date.now()}`,
-      author: {
-        id: user?.id || "current-user",
-        username: user?.username || "currentuser",
-        display_name: user?.display_name || "Current User",
-        avatar_url: user?.avatar_url || "/placeholder.svg?height=32&width=32",
-        is_verified: user?.is_verified || false,
-        verification_level: user?.verification_level,
-      },
-      content: newComment,
-      created_at: new Date(),
-      likes: 0,
-      replies: [],
+    // Send comment to API
+    try {
+      const response = await fetch(`/api/loops/${loopId}/comments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${user?.token}`
+        },
+        body: JSON.stringify({
+          content: newComment
+        })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCommentsData([data.comment, ...commentsData])
+        setNewComment("")
+        toast({ description: "Comment added successfully!" })
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to add comment",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error("Failed to add comment:", error)
+      toast({
+        title: "Error",
+        description: "Failed to add comment",
+        variant: "destructive"
+      })
     }
-
-    setCommentsData([comment, ...commentsData])
-    setNewComment("")
-    toast({ description: "Comment added successfully!" })
   }
 
-  const handleSubmitReply = (parentId: string) => {
+  const handleSubmitReply = async (parentId: string) => {
     if (!replyContent.trim()) return
 
-    const reply: Comment = {
-      id: `reply-${Date.now()}`,
-      author: {
-        id: user?.id || "current-user",
-        username: user?.username || "currentuser",
-        display_name: user?.display_name || "Current User",
-        avatar_url: user?.avatar_url || "/placeholder.svg?height=32&width=32",
-        is_verified: user?.is_verified || false,
-        verification_level: user?.verification_level,
-      },
-      content: replyContent,
-      created_at: new Date(),
-      likes: 0,
-      replies: [],
+    // Send reply to API
+    try {
+      const response = await fetch(`/api/loops/${loopId}/comments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${user?.token}`
+        },
+        body: JSON.stringify({
+          content: replyContent,
+          parent_comment_id: parentId
+        })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCommentsData(
+          commentsData.map((comment) =>
+            comment.id === parentId ? { ...comment, replies: [...comment.replies, data.comment] } : comment,
+          ),
+        )
+        setReplyContent("")
+        setReplyingTo(null)
+        toast({ description: "Reply added successfully!" })
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to add reply",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error("Failed to add reply:", error)
+      toast({
+        title: "Error",
+        description: "Failed to add reply",
+        variant: "destructive"
+      })
     }
-
-    setCommentsData(
-      commentsData.map((comment) =>
-        comment.id === parentId ? { ...comment, replies: [...comment.replies, reply] } : comment,
-      ),
-    )
-
-    setReplyContent("")
-    setReplyingTo(null)
-    toast({ description: "Reply added successfully!" })
   }
 
   const handleLikeComment = (commentId: string) => {
@@ -176,13 +190,9 @@ export function CommentsSection({ loopId, comments = mockComments }: CommentsSec
     return (
       <Badge
         variant="secondary"
-        className={`ml-1 text-xs ${
-          author.verification_level === "root"
-            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-            : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-        }`}
+        className="ml-1 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
       >
-        {author.verification_level === "root" ? "🌱" : "⭐"}
+        ⭐
       </Badge>
     )
   }

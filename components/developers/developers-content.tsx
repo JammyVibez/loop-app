@@ -194,6 +194,35 @@ export function DevelopersContent() {
   const [selectedFramework, setSelectedFramework] = useState("All")
   const [sortBy, setSortBy] = useState("recent")
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  // Fetch projects from API
+  const fetchProjects = async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams()
+      if (selectedLanguage !== "All") params.append('language', selectedLanguage)
+      if (selectedFramework !== "All") params.append('framework', selectedFramework)
+      params.append('sortBy', sortBy)
+
+      const response = await fetch(`/api/developers/projects?${params}`)
+      if (response.ok) {
+        const data = await response.json()
+        setProjects(data.projects || mockProjects)
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error)
+      // Fallback to mock data
+      setProjects(mockProjects)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Fetch projects when filters change
+  React.useEffect(() => {
+    fetchProjects()
+  }, [selectedLanguage, selectedFramework, sortBy])
 
   const filteredProjects = projects.filter((project) => {
     const matchesLanguage = selectedLanguage === "All" || project.language === selectedLanguage

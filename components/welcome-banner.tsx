@@ -1,41 +1,58 @@
 "use client"
 
 import { useState } from "react"
-import { X, Sparkles } from "lucide-react"
-import { Button } from "./ui/button"
-import { Card, CardContent } from "./ui/card"
-import { useAuth } from "../providers/auth-provider"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Sparkles, X, Gift, Coins } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
 
 export function WelcomeBanner() {
+  const [dismissed, setDismissed] = useState(false)
   const { user } = useAuth()
-  const [isVisible, setIsVisible] = useState(true)
 
-  if (!isVisible || !user) return null
+  if (dismissed || !user) return null
 
   return (
-    <Card className="bg-gradient-to-r from-purple-500 to-blue-600 text-white border-0 relative overflow-hidden">
+    <Card className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-purple-200 dark:border-purple-800">
       <CardContent className="p-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="absolute top-2 right-2 text-white hover:bg-white/20"
-          onClick={() => setIsVisible(false)}
-        >
-          <X className="h-4 w-4" />
-        </Button>
-
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-white/20 rounded-full">
-            <Sparkles className="h-6 w-6" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Welcome back, {user.display_name}! 🎉
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                You have{" "}
+                <Badge variant="secondary" className="mx-1">
+                  <Coins className="w-3 h-3 mr-1" />
+                  {user.loop_coins.toLocaleString()}
+                </Badge>
+                Loop Coins to spend in the shop!
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold">Welcome back, {user.display_name}!</h2>
-            <p className="text-white/90">You have {user.loop_coins} Loop Coins. Ready to create something amazing?</p>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.location.href = "/shop"}
+            >
+              <Gift className="w-4 h-4 mr-2" />
+              Visit Shop
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDismissed(true)}
+            >
+              <X className="w-4 h-4" />
+            </Button>
           </div>
         </div>
-
-        <div className="absolute -right-10 -bottom-10 w-32 h-32 bg-white/10 rounded-full"></div>
-        <div className="absolute -right-5 -bottom-5 w-20 h-20 bg-white/5 rounded-full"></div>
       </CardContent>
     </Card>
   )

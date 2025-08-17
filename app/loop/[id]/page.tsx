@@ -24,6 +24,12 @@ import {
 import { CommentsSection } from "@/components/comments/comments-section"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { createClient } from "@supabase/supabase-js"
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 interface LoopData {
   id: string
@@ -81,155 +87,151 @@ export default function LoopDetailPage() {
   const [showFullTree, setShowFullTree] = useState(false)
 
   useEffect(() => {
-    // Simulate API call to fetch loop details
     const fetchLoop = async () => {
       setLoading(true)
-
-      // Mock loop data
-      const mockLoop: LoopData = {
-        id: loopId,
-        title: "Building a Modern React Component Library",
-        content: `Just finished creating a comprehensive React component library with TypeScript support! 🚀
-
-This library includes:
-- 50+ reusable components
-- Full TypeScript definitions
-- Storybook documentation
-- Jest testing suite
-- Automated CI/CD pipeline
-
-The goal was to create something that could be used across multiple projects while maintaining consistency and performance. The components are built with accessibility in mind and follow modern React patterns.
-
-Key features:
-✅ Tree-shakeable imports
-✅ Theme customization
-✅ Dark mode support
-✅ Mobile responsive
-✅ WAI-ARIA compliant
-
-Would love to hear your thoughts and feedback! Planning to open-source this soon.
-
-#react #typescript #componentlibrary #opensource`,
-        author: {
-          id: "user1",
-          username: "sarahdev",
-          displayName: "Sarah Chen",
-          avatar: "/placeholder.svg?height=40&width=40",
-          verified: true,
-          premium: true,
-        },
-        createdAt: "2024-01-15T10:30:00Z",
-        updatedAt: "2024-01-15T10:30:00Z",
-        stats: {
-          likes: 1247,
-          comments: 89,
-          shares: 156,
-          views: 5420,
-          branches: 23,
-        },
-        tags: ["react", "typescript", "componentlibrary", "opensource"],
-        parentLoop: {
-          id: "parent1",
-          title: "Best Practices for React Development",
-          author: "reactmaster",
-        },
-        branches: [
-          {
-            id: "branch1",
-            title: "Added Dark Mode Support",
-            author: "darkmode_dev",
-            avatar: "/placeholder.svg?height=32&width=32",
-            createdAt: "2024-01-16T08:15:00Z",
-          },
-          {
-            id: "branch2",
-            title: "Mobile Optimization Tips",
-            author: "mobile_expert",
-            avatar: "/placeholder.svg?height=32&width=32",
-            createdAt: "2024-01-16T14:22:00Z",
-          },
-          {
-            id: "branch3",
-            title: "Testing Strategy Implementation",
-            author: "test_guru",
-            avatar: "/placeholder.svg?height=32&width=32",
-            createdAt: "2024-01-17T09:45:00Z",
-          },
-        ],
-        codeSnippet: {
-          language: "typescript",
-          code: `// Example component from the library
-import React from 'react';
-import { Button, ButtonProps } from './Button';
-
-export interface CardProps {
-  title: string;
-  children: React.ReactNode;
-  actions?: React.ReactNode;
-  variant?: 'default' | 'outlined' | 'elevated';
-}
-
-export const Card: React.FC<CardProps> = ({
-  title,
-  children,
-  actions,
-  variant = 'default'
-}) => {
-  return (
-    <div className={\`card card--\${variant}\`}>
-      <div className="card__header">
-        <h3 className="card__title">{title}</h3>
-        {actions && (
-          <div className="card__actions">{actions}</div>
-        )}
-      </div>
-      <div className="card__content">
-        {children}
-      </div>
-    </div>
-  );
-};`,
-        },
-        isLiked: false,
-        isBookmarked: true,
-        isFollowing: false,
-      }
-
-      setTimeout(() => {
-        setLoop(mockLoop)
+      // Fetch main loop with author info
+      const { data: loopData, error: loopError } = await supabase
+        .from("loops")
+        .select(`
+          *,
+          author:profiles!author_id(*),
+          loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
+        `)
+        .eq("id", loopId)
+        .single()
+      if (loopError || !loopData) {
+        setLoop(null)
         setLoading(false)
-      }, 1000)
+        return
+      }
+      // Fetch branches (children)
+      const { data: branchData } = await supabase
+        .from("loops")
+        .select(`
+          id, content_title, author:profiles!author_id(username, display_name, avatar_url), created_at
+        `)
+        .eq("parent_loop_id", loopId)
+        .order("created_at", { ascending: false })
+      // Fetch parent loop info if exists
+      let parentLoop: { id: string; title: string; author: string } | undefined = undefined
+      if (loopData.parent_id) {
+        const { data: parentData } = await supabase
+          .from("loops")
+          .select(`id, content_title, author:profiles!author_id(username)`)
+          .eq("id", loopData.parent_loop_id)
+          .single()
+        if (parentData) {
+          parentLoop = {
+            id: parentData.id,
+            title: parentData.content_title || "Untitled Loop",
+            author: parentData.author?.username || "",
+          }
+        }
+      }
+      setLoop({
+        id: loopData.id,
+        title: loopData.content_title || "Untitled Loop",
+        content: loopData.content_text || "",
+        author: {
+          id: loopData.author?.id || "",
+          username: loopData.author?.username || "",
+          displayName: loopData.author?.display_name || "",
+          avatar: loopData.author?.avatar_url || "/placeholder.svg",
+          verified: loopData.author?.is_verified || false,
+          premium: loopData.author?.is_premium || false,
+        },
+        createdAt: loopData.created_at,
+        updatedAt: loopData.updated_at || loopData.created_at,
+        stats: {
+          likes: loopData.loop_stats?.likes_count || 0,
+          comments: loopData.loop_stats?.comments_count || 0,
+          shares: loopData.loop_stats?.shares_count || 0,
+          views: loopData.loop_stats?.views_count || 0,
+          branches: branchData?.length || 0,
+        },
+        tags: loopData.hashtags || [],
+        parentLoop,
+        branches: (branchData || []).map((b: any) => ({
+          id: b.id,
+          title: b.content_title || "Untitled Loop",
+          author: b.author?.username || "",
+          avatar: b.author?.avatar_url || "/placeholder.svg",
+          createdAt: b.created_at,
+        })),
+        codeSnippet: loopData.code_snippet
+          ? { language: loopData.code_snippet_language, code: loopData.code_snippet }
+          : undefined,
+        isLiked: false,
+        isBookmarked: false,
+        isFollowing: false,
+      })
+      setLoading(false)
     }
-
     fetchLoop()
   }, [loopId])
 
-  const handleLike = () => {
+  const handleLike = async () => {
     if (!loop) return
-    setLoop((prev) =>
-      prev
-        ? {
-            ...prev,
-            isLiked: !prev.isLiked,
-            stats: {
-              ...prev.stats,
-              likes: prev.isLiked ? prev.stats.likes - 1 : prev.stats.likes + 1,
-            },
-          }
-        : null,
-    )
+
+    try {
+      const response = await fetch(`/api/loops/${loop.id}/interactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+        body: JSON.stringify({ action: 'like' }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setLoop((prev) =>
+          prev
+            ? {
+                ...prev,
+                isLiked: data.is_liked,
+                stats: {
+                  ...prev.stats,
+                  likes: data.is_liked ? prev.stats.likes + 1 : prev.stats.likes - 1,
+                },
+              }
+            : null,
+        )
+      }
+    } catch (error) {
+      console.error('Failed to like loop:', error)
+    }
   }
 
-  const handleBookmark = () => {
+  const handleBookmark = async () => {
     if (!loop) return
-    setLoop((prev) =>
-      prev
-        ? {
-            ...prev,
-            isBookmarked: !prev.isBookmarked,
-          }
-        : null,
-    )
+
+    try {
+      const response = await fetch(`/api/loops/${loop.id}/interactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+        body: JSON.stringify({ action: 'save' }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setLoop((prev) =>
+          prev
+            ? {
+                ...prev,
+                isBookmarked: data.is_saved,
+              }
+            : null,
+        )
+      }
+    } catch (error) {
+      console.error('Failed to bookmark loop:', error)
+    }
   }
 
   const handleShare = () => {

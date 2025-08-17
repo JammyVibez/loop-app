@@ -1,0 +1,430 @@
+/* Enhanced 3D Utilities - Additional animations and effects */
+
+/* =============================================
+   ADVANCED 3D ANIMATIONS
+   ============================================= */
+
+@keyframes float3D {
+  0%, 100% { 
+    transform: translateY(0px) rotateX(0deg) rotateY(0deg); 
+  }
+  25% { 
+    transform: translateY(-5px) rotateX(1deg) rotateY(1deg); 
+  }
+  50% { 
+    transform: translateY(-10px) rotateX(2deg) rotateY(-1deg); 
+  }
+  75% { 
+    transform: translateY(-5px) rotateX(-1deg) rotateY(2deg); 
+  }
+}
+
+@keyframes tilt3D {
+  0%, 100% { 
+    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); 
+  }
+  25% { 
+    transform: rotateX(2deg) rotateY(2deg) rotateZ(1deg); 
+  }
+  50% { 
+    transform: rotateX(-1deg) rotateY(-2deg) rotateZ(-1deg); 
+  }
+  75% { 
+    transform: rotateX(1deg) rotateY(-1deg) rotateZ(2deg); 
+  }
+}
+
+@keyframes morphing3D {
+  0%, 100% { 
+    transform: scale(1) rotateX(0deg) rotateY(0deg);
+    border-radius: 12px;
+  }
+  33% { 
+    transform: scale(1.02) rotateX(2deg) rotateY(-2deg);
+    border-radius: 16px;
+  }
+  66% { 
+    transform: scale(0.98) rotateX(-1deg) rotateY(2deg);
+    border-radius: 8px;
+  }
+}
+
+@keyframes particleOrbit {
+  0% { 
+    transform: rotate(0deg) translateX(20px) rotate(0deg); 
+  }
+  100% { 
+    transform: rotate(360deg) translateX(20px) rotate(-360deg); 
+  }
+}
+
+@keyframes glowPulse {
+  0%, 100% { 
+    box-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor;
+    opacity: 0.8;
+  }
+  50% { 
+    box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor, 0 0 40px currentColor;
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn3D {
+  0% { 
+    transform: translateX(-100%) rotateY(-90deg);
+    opacity: 0;
+  }
+  100% { 
+    transform: translateX(0) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes flipIn3D {
+  0% { 
+    transform: rotateY(-90deg) scale(0.5);
+    opacity: 0;
+  }
+  50% { 
+    transform: rotateY(-45deg) scale(0.8);
+    opacity: 0.5;
+  }
+  100% { 
+    transform: rotateY(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes bounceIn3D {
+  0% { 
+    transform: scale(0.3) rotateX(-30deg);
+    opacity: 0;
+  }
+  50% { 
+    transform: scale(1.05) rotateX(10deg);
+    opacity: 0.8;
+  }
+  70% { 
+    transform: scale(0.9) rotateX(-5deg);
+    opacity: 0.9;
+  }
+  100% { 
+    transform: scale(1) rotateX(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes zoomIn3D {
+  0% { 
+    transform: scale(0) rotateX(180deg) rotateY(180deg);
+    opacity: 0;
+  }
+  100% { 
+    transform: scale(1) rotateX(0deg) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes wiggle3D {
+  0%, 100% { transform: rotateZ(0deg) rotateX(0deg) rotateY(0deg); }
+  25% { transform: rotateZ(5deg) rotateX(2deg) rotateY(-2deg); }
+  50% { transform: rotateZ(-5deg) rotateX(-2deg) rotateY(2deg); }
+  75% { transform: rotateZ(3deg) rotateX(1deg) rotateY(-1deg); }
+}
+
+/* =============================================
+   UTILITY CLASSES
+   ============================================= */
+
+.animate-float-3d { animation: float3D 4s ease-in-out infinite; }
+.animate-tilt-3d { animation: tilt3D 6s ease-in-out infinite; }
+.animate-morphing-3d { animation: morphing3D 8s ease-in-out infinite; }
+.animate-glow-pulse { animation: glowPulse 2s ease-in-out infinite; }
+.animate-slide-in-3d { animation: slideIn3D 0.6s ease-out; }
+.animate-flip-in-3d { animation: flipIn3D 0.8s ease-out; }
+.animate-bounce-in-3d { animation: bounceIn3D 0.6s ease-out; }
+.animate-zoom-in-3d { animation: zoomIn3D 0.5s ease-out; }
+.animate-wiggle-3d { animation: wiggle3D 0.8s ease-in-out; }
+
+/* Slow animations */
+.animate-spin-slow { animation: spin 3s linear infinite; }
+.animate-pulse-slow { animation: pulse 3s ease-in-out infinite; }
+.animate-bounce-slow { animation: bounce 2s ease-in-out infinite; }
+
+/* =============================================
+   3D TRANSFORM UTILITIES
+   ============================================= */
+
+.rotate-x-1 { transform: rotateX(1deg); }
+.rotate-x-2 { transform: rotateX(2deg); }
+.rotate-x-3 { transform: rotateX(3deg); }
+.rotate-x-5 { transform: rotateX(5deg); }
+.rotate-x-12 { transform: rotateX(12deg); }
+.rotate-x-45 { transform: rotateX(45deg); }
+.rotate-x-90 { transform: rotateX(90deg); }
+
+.rotate-y-1 { transform: rotateY(1deg); }
+.rotate-y-2 { transform: rotateY(2deg); }
+.rotate-y-3 { transform: rotateY(3deg); }
+.rotate-y-5 { transform: rotateY(5deg); }
+.rotate-y-12 { transform: rotateY(12deg); }
+.rotate-y-45 { transform: rotateY(45deg); }
+.rotate-y-90 { transform: rotateY(90deg); }
+
+.rotate-z-1 { transform: rotateZ(1deg); }
+.rotate-z-2 { transform: rotateZ(2deg); }
+.rotate-z-3 { transform: rotateZ(3deg); }
+.rotate-z-5 { transform: rotateZ(5deg); }
+.rotate-z-12 { transform: rotateZ(12deg); }
+
+.translate-z-1 { transform: translateZ(1px); }
+.translate-z-2 { transform: translateZ(2px); }
+.translate-z-4 { transform: translateZ(4px); }
+.translate-z-8 { transform: translateZ(8px); }
+.translate-z-12 { transform: translateZ(12px); }
+.translate-z-16 { transform: translateZ(16px); }
+.translate-z-20 { transform: translateZ(20px); }
+
+.-translate-z-1 { transform: translateZ(-1px); }
+.-translate-z-2 { transform: translateZ(-2px); }
+.-translate-z-4 { transform: translateZ(-4px); }
+.-translate-z-8 { transform: translateZ(-8px); }
+.-translate-z-12 { transform: translateZ(-12px); }
+
+/* =============================================
+   PERSPECTIVE UTILITIES
+   ============================================= */
+
+.perspective-500 { perspective: 500px; }
+.perspective-750 { perspective: 750px; }
+.perspective-1000 { perspective: 1000px; }
+.perspective-1500 { perspective: 1500px; }
+.perspective-2000 { perspective: 2000px; }
+
+.perspective-origin-center { perspective-origin: center center; }
+.perspective-origin-top { perspective-origin: center top; }
+.perspective-origin-bottom { perspective-origin: center bottom; }
+.perspective-origin-left { perspective-origin: left center; }
+.perspective-origin-right { perspective-origin: right center; }
+
+/* =============================================
+   HOVER EFFECTS
+   ============================================= */
+
+.hover-lift-sm:hover { transform: translateY(-2px) translateZ(4px); }
+.hover-lift:hover { transform: translateY(-4px) translateZ(8px); }
+.hover-lift-lg:hover { transform: translateY(-8px) translateZ(12px); }
+.hover-lift-xl:hover { transform: translateY(-12px) translateZ(16px); }
+
+.hover-tilt-sm:hover { transform: rotateX(2deg) rotateY(2deg); }
+.hover-tilt:hover { transform: rotateX(5deg) rotateY(5deg); }
+.hover-tilt-lg:hover { transform: rotateX(8deg) rotateY(8deg); }
+
+.hover-float:hover { animation: float3D 2s ease-in-out infinite; }
+.hover-wiggle:hover { animation: wiggle3D 0.5s ease-in-out; }
+.hover-glow:hover { animation: glowPulse 1s ease-in-out infinite; }
+
+.hover-scale-102:hover { transform: scale(1.02); }
+.hover-scale-105:hover { transform: scale(1.05); }
+.hover-scale-110:hover { transform: scale(1.1); }
+.hover-scale-125:hover { transform: scale(1.25); }
+
+/* =============================================
+   GLASS MORPHISM EFFECTS
+   ============================================= */
+
+.glass-light {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-colored {
+  background: rgba(99, 102, 241, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+/* =============================================
+   PARTICLE EFFECTS
+   ============================================= */
+
+.particle-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.particle-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(6, 182, 212, 0.3) 0%, transparent 50%);
+  animation: particleOrbit 10s linear infinite;
+  pointer-events: none;
+}
+
+.particle-orbit {
+  animation: particleOrbit 4s linear infinite;
+}
+
+/* =============================================
+   GRADIENT BORDERS
+   ============================================= */
+
+.border-gradient-purple {
+  border: 2px solid transparent;
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(45deg, #8b5cf6, #ec4899) border-box;
+}
+
+.border-gradient-blue {
+  border: 2px solid transparent;
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(45deg, #3b82f6, #06b6d4) border-box;
+}
+
+.border-gradient-rainbow {
+  border: 2px solid transparent;
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(45deg, #ef4444, #f97316, #eab308, #22c55e, #3b82f6, #8b5cf6, #ec4899) border-box;
+}
+
+/* =============================================
+   TEXT EFFECTS
+   ============================================= */
+
+.text-3d-shadow {
+  text-shadow: 
+    1px 1px 0 rgba(0, 0, 0, 0.3),
+    2px 2px 0 rgba(0, 0, 0, 0.2),
+    3px 3px 0 rgba(0, 0, 0, 0.1),
+    4px 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.text-glow-blue {
+  text-shadow: 
+    0 0 5px #3b82f6,
+    0 0 10px #3b82f6,
+    0 0 15px #3b82f6,
+    0 0 20px #3b82f6;
+}
+
+.text-glow-purple {
+  text-shadow: 
+    0 0 5px #8b5cf6,
+    0 0 10px #8b5cf6,
+    0 0 15px #8b5cf6,
+    0 0 20px #8b5cf6;
+}
+
+.text-glow-rainbow {
+  background: linear-gradient(45deg, #ef4444, #f97316, #eab308, #22c55e, #3b82f6, #8b5cf6, #ec4899);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: rainbow 3s ease-in-out infinite;
+}
+
+@keyframes rainbow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* =============================================
+   RESPONSIVE 3D EFFECTS
+   ============================================= */
+
+@media (max-width: 768px) {
+  .hover-lift:hover { transform: translateY(-2px) translateZ(4px); }
+  .hover-lift-lg:hover { transform: translateY(-4px) translateZ(6px); }
+  .hover-lift-xl:hover { transform: translateY(-6px) translateZ(8px); }
+  
+  .hover-tilt:hover { transform: rotateX(2deg) rotateY(2deg); }
+  .hover-tilt-lg:hover { transform: rotateX(3deg) rotateY(3deg); }
+  
+  .card-3d:hover { transform: translateY(-2px) scale(1.01); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-3d,
+  .animate-tilt-3d,
+  .animate-morphing-3d,
+  .animate-glow-pulse,
+  .animate-spin-slow,
+  .animate-pulse-slow,
+  .animate-bounce-slow,
+  .hover-float:hover,
+  .hover-wiggle:hover,
+  .hover-glow:hover {
+    animation: none;
+  }
+  
+  .hover-lift:hover,
+  .hover-lift-sm:hover,
+  .hover-lift-lg:hover,
+  .hover-lift-xl:hover,
+  .hover-tilt:hover,
+  .hover-tilt-sm:hover,
+  .hover-tilt-lg:hover {
+    transform: none;
+  }
+}
+
+/* =============================================
+   LOADING STATES
+   ============================================= */
+
+.loading-3d {
+  position: relative;
+  overflow: hidden;
+}
+
+.loading-3d::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* =============================================
+   FOCUS STATES FOR ACCESSIBILITY
+   ============================================= */
+
+.focus-3d:focus {
+  outline: none;
+  box-shadow: 
+    0 0 0 2px rgba(99, 102, 241, 0.5),
+    0 4px 12px rgba(99, 102, 241, 0.3);
+  transform: translateZ(4px);
+}
+
+.focus-3d:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}

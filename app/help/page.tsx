@@ -125,17 +125,42 @@ export default function HelpPage() {
       faq.answer.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const handleSupportSubmit = (e: React.FormEvent) => {
+  const handleSupportSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle support ticket submission
-    console.log("Support ticket submitted:", supportForm)
-    // Reset form
-    setSupportForm({
-      subject: "",
-      category: "",
-      message: "",
-      priority: "medium",
-    })
+    
+    try {
+      const response = await fetch('/api/support/tickets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subject: supportForm.subject,
+          category: supportForm.category,
+          message: supportForm.message,
+          priority: supportForm.priority,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit support ticket')
+      }
+
+      // Show success message
+      alert('Support ticket submitted successfully! You will receive a response within 24 hours.')
+      
+      // Reset form
+      setSupportForm({
+        subject: "",
+        category: "",
+        message: "",
+        priority: "medium",
+      })
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to submit support ticket')
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -360,7 +385,11 @@ export default function HelpPage() {
                     <div>
                       <p className="font-medium">Live Chat</p>
                       <p className="text-sm text-muted-foreground">Available 24/7</p>
-                      <Button size="sm" className="mt-2">
+                      <Button
+                        size="sm"
+                        className="mt-2"
+                        onClick={() => window.open('/support/chat', '_blank', 'width=400,height=600')}
+                      >
                         Start Chat
                       </Button>
                     </div>

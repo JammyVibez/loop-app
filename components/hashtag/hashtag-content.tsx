@@ -1,86 +1,80 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Hash, TrendingUp } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
+import { createClient } from "@/lib/supabase"
 
 interface HashtagContentProps {
   tag: string
 }
 
-// Mock hashtag data
-const mockHashtagData = {
-  timetravel: {
-    count: 1234,
-    trending: true,
-    description: "Explore the possibilities of time travel through creative loops",
-    relatedTags: ["philosophy", "scifi", "future", "past"],
-    loops: [
-      {
-        id: "1",
-        author: {
-          id: "1",
-          username: "creativemind",
-          display_name: "Creative Mind",
-          avatar_url: "/placeholder.svg?height=40&width=40",
-          is_verified: true,
-          verification_level: "root" as const,
-          is_premium: true,
-        },
-        content: {
-          type: "text" as const,
-          text: "What if we could travel through time but only to witness, never to change anything? 🤔 This thought has been looping in my mind all day... #timetravel #philosophy",
-        },
-        created_at: new Date("2024-01-15T10:30:00Z"),
-        stats: {
-          likes: 234,
-          branches: 12,
-          comments: 45,
-          saves: 67,
-        },
-      },
-      {
-        id: "2",
-        author: {
-          id: "2",
-          username: "scifiwriter",
-          display_name: "Sci-Fi Writer",
-          avatar_url: "/placeholder.svg?height=40&width=40",
-          is_verified: false,
-          is_premium: false,
-        },
-        content: {
-          type: "text" as const,
-          text: "Time travel paradox: If you go back and prevent your own birth, who went back in the first place? 🌀 #timetravel #paradox #philosophy",
-        },
-        created_at: new Date("2024-01-15T09:15:00Z"),
-        stats: {
-          likes: 189,
-          branches: 8,
-          comments: 34,
-          saves: 45,
-        },
-      },
-    ],
-  },
-}
-
 export function HashtagContent({ tag }: HashtagContentProps) {
   const [sortBy, setSortBy] = useState("recent")
   const [isFollowing, setIsFollowing] = useState(false)
-
-  // Get hashtag data (in real app, this would be fetched from API)
-  const hashtagData = mockHashtagData[tag as keyof typeof mockHashtagData] || {
+  const [hashtagData, setHashtagData] = useState({
     count: 0,
     trending: false,
     description: `Explore loops tagged with #${tag}`,
     relatedTags: [],
     loops: [],
-  }
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchHashtagData = async () => {
+      try {
+        const supabase = createClient()
+
+        // Get hashtag info and loop count
+        const { data: hashtagInfo, error: hashtagError } = await supabase
+          .from("hashtags")
+          .select("*")
+          .eq("tag", tag)
+          .single()
+
+        // Get loops with this hashtag
+        const { data: loops, error: loopsError } = await supabase
+          .from("loops")
+          .select(`
+            *,
+            author:profiles(*),
+            loop_hashtags!inner(hashtag_id),
+            hashtags!inner(tag),
+            stats:loop_stats(*)
+          `)
+          .eq("hashtags.tag", tag)
+          .order("created_at", { ascending: false })
+
+        // Get related hashtags
+        const { data: relatedTags, error: relatedError } = await supabase
+          .from("hashtags")
+          .select("tag")
+          .neq("tag", tag)
+          .limit(10)
+
+        if (!hashtagError && !loopsError) {
+          setHashtagData({
+            count: loops?.length || 0,
+            trending: hashtagInfo?.is_trending || false,
+            description: hashtagInfo?.description || `Explore loops tagged with #${tag}`,
+            relatedTags: relatedTags?.map((t) => t.tag) || [],
+            loops: loops || [],
+          })
+        }
+      } catch (error) {
+        console.error("Error fetching hashtag data:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchHashtagData()
+  }, [tag])
 
   const formatNumber = (num: number) => {
     if (num >= 1000) return (num / 1000).toFixed(1) + "K"
@@ -90,15 +84,44 @@ export function HashtagContent({ tag }: HashtagContentProps) {
   const sortedLoops = [...hashtagData.loops].sort((a, b) => {
     switch (sortBy) {
       case "recent":
-        return b.created_at.getTime() - a.created_at.getTime()
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       case "popular":
-        return b.stats.likes - a.stats.likes
+        return (b.stats?.likes || 0) - (a.stats?.likes || 0)
       case "branches":
-        return b.stats.branches - a.stats.branches
+        return (b.stats?.branches || 0) - (a.stats?.branches || 0)
       default:
         return 0
     }
   })
+
+  const handleFollowHashtag = async () => {
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) return
+
+      if (isFollowing) {
+        await supabase.from("hashtag_follows").delete().eq("user_id", user.id).eq("hashtag_tag", tag)
+      } else {
+        await supabase.from("hashtag_follows").insert({
+          user_id: user.id,
+          hashtag_tag: tag,
+          created_at: new Date().toISOString(),
+        })
+      }
+
+      setIsFollowing(!isFollowing)
+    } catch (error) {
+      console.error("Error following hashtag:", error)
+    }
+  }
+
+  if (loading) {
+    return <div className="flex justify-center p-8">Loading...</div>
+  }
 
   return (
     <div className="space-y-6">
@@ -124,7 +147,7 @@ export function HashtagContent({ tag }: HashtagContentProps) {
                 </div>
               </div>
             </div>
-            <Button variant={isFollowing ? "outline" : "default"} onClick={() => setIsFollowing(!isFollowing)}>
+            <Button variant={isFollowing ? "outline" : "default"} onClick={handleFollowHashtag}>
               {isFollowing ? "Following" : "Follow"}
             </Button>
           </div>
@@ -196,7 +219,7 @@ export function HashtagContent({ tag }: HashtagContentProps) {
         <TabsContent value="top" className="mt-6">
           <div className="space-y-4">
             {sortedLoops
-              .sort((a, b) => b.stats.likes - a.stats.likes)
+              .sort((a, b) => (b.stats?.likes || 0) - (a.stats?.likes || 0))
               .map((loop) => (
                 <LoopCard key={loop.id} loop={loop} />
               ))}
@@ -206,7 +229,7 @@ export function HashtagContent({ tag }: HashtagContentProps) {
         <TabsContent value="recent" className="mt-6">
           <div className="space-y-4">
             {sortedLoops
-              .sort((a, b) => b.created_at.getTime() - a.created_at.getTime())
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
               .map((loop) => (
                 <LoopCard key={loop.id} loop={loop} />
               ))}

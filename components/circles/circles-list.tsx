@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,105 +8,171 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Users, Calendar, Trophy, Lock, Globe } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-
-const mockCircles = [
-  {
-    id: "1",
-    name: "Creative Writers",
-    description: "A community for writers to share stories and collaborate on narrative loops",
-    avatar_url: "/placeholder.svg?height=60&width=60",
-    banner_url: "/placeholder.svg?height=200&width=400",
-    member_count: 1247,
-    is_private: false,
-    is_member: true,
-    category: "Writing",
-    current_challenge: {
-      title: "Time Travel Stories",
-      ends_at: new Date("2024-01-22T23:59:59Z"),
-    },
-    recent_activity: "2 hours ago",
-  },
-  {
-    id: "2",
-    name: "Digital Artists Hub",
-    description: "Share your digital art and get feedback from fellow artists",
-    avatar_url: "/placeholder.svg?height=60&width=60",
-    banner_url: "/placeholder.svg?height=200&width=400",
-    member_count: 892,
-    is_private: false,
-    is_member: false,
-    category: "Art",
-    current_challenge: {
-      title: "Abstract Emotions",
-      ends_at: new Date("2024-01-25T23:59:59Z"),
-    },
-    recent_activity: "1 hour ago",
-  },
-  {
-    id: "3",
-    name: "Music Producers",
-    description: "Collaborate on beats, share samples, and create musical loops together",
-    avatar_url: "/placeholder.svg?height=60&width=60",
-    banner_url: "/placeholder.svg?height=200&width=400",
-    member_count: 634,
-    is_private: true,
-    is_member: false,
-    category: "Music",
-    current_challenge: {
-      title: "Lo-Fi Beats Challenge",
-      ends_at: new Date("2024-01-20T23:59:59Z"),
-    },
-    recent_activity: "30 minutes ago",
-  },
-  {
-    id: "4",
-    name: "Philosophy Discussions",
-    description: "Deep conversations about life, existence, and everything in between",
-    avatar_url: "/placeholder.svg?height=60&width=60",
-    banner_url: "/placeholder.svg?height=200&width=400",
-    member_count: 456,
-    is_private: false,
-    is_member: true,
-    category: "Philosophy",
-    current_challenge: {
-      title: "What is Reality?",
-      ends_at: new Date("2024-01-28T23:59:59Z"),
-    },
-    recent_activity: "5 minutes ago",
-  },
-]
+import { createClient } from "@/lib/supabase"
 
 export function CirclesList() {
-  const [joinedCircles, setJoinedCircles] = useState<Set<string>>(
-    new Set(mockCircles.filter((c) => c.is_member).map((c) => c.id)),
-  )
+  const [circles, setCircles] = useState([])
+  const [joinedCircles, setJoinedCircles] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
-  const handleJoinCircle = (circle: (typeof mockCircles)[0]) => {
-    if (circle.is_private) {
+  useEffect(() => {
+    const fetchCircles = async () => {
+      try {
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        const { data: circlesData, error: circlesError } = await supabase
+          .from("circles")
+          .select(`
+            *,
+            member_count:circle_members(count),
+            current_challenge:circle_challenges(
+              title,
+              ends_at
+            ),
+            user_membership:circle_members!inner(
+              user_id,
+              role,
+              joined_at
+            )
+          `)
+          .order("created_at", { ascending: false })
+
+        if (circlesError) {
+          console.error("Error fetching circles:", circlesError)
+          return
+        }
+
+        if (user) {
+          const { data: userCircles, error: userCirclesError } = await supabase
+            .from("circle_members")
+            .select("circle_id")
+            .eq("user_id", user.id)
+
+          if (!userCirclesError && userCircles) {
+            setJoinedCircles(new Set(userCircles.map((uc) => uc.circle_id)))
+          }
+        }
+
+        setCircles(circlesData || [])
+      } catch (error) {
+        console.error("Error fetching circles:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCircles()
+  }, [])
+
+  const handleJoinCircle = async (circle: any) => {
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to join circles.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (circle.is_private) {
+        const { error } = await supabase.from("circle_join_requests").insert({
+          circle_id: circle.id,
+          user_id: user.id,
+          status: "pending",
+          created_at: new Date().toISOString(),
+        })
+
+        if (error) {
+          console.error("Error creating join request:", error)
+          toast({
+            title: "Error",
+            description: "Failed to send join request.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        toast({
+          title: "Request Sent",
+          description: "Your request to join this private circle has been sent to the moderators.",
+        })
+      } else {
+        const { error } = await supabase.from("circle_members").insert({
+          circle_id: circle.id,
+          user_id: user.id,
+          role: "member",
+          joined_at: new Date().toISOString(),
+        })
+
+        if (error) {
+          console.error("Error joining circle:", error)
+          toast({
+            title: "Error",
+            description: "Failed to join circle.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        setJoinedCircles((prev) => new Set([...prev, circle.id]))
+        toast({
+          title: "Joined Circle!",
+          description: `You've successfully joined ${circle.name}`,
+        })
+      }
+    } catch (error) {
+      console.error("Error joining circle:", error)
       toast({
-        title: "Request Sent",
-        description: "Your request to join this private circle has been sent to the moderators.",
-      })
-    } else {
-      setJoinedCircles((prev) => new Set([...prev, circle.id]))
-      toast({
-        title: "Joined Circle!",
-        description: `You've successfully joined ${circle.name}`,
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
       })
     }
   }
 
-  const handleLeaveCircle = (circleId: string) => {
-    setJoinedCircles((prev) => {
-      const newSet = new Set(prev)
-      newSet.delete(circleId)
-      return newSet
-    })
-    toast({
-      title: "Left Circle",
-      description: "You've left the circle successfully.",
-    })
+  const handleLeaveCircle = async (circleId: string) => {
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) return
+
+      const { error } = await supabase.from("circle_members").delete().eq("circle_id", circleId).eq("user_id", user.id)
+
+      if (error) {
+        console.error("Error leaving circle:", error)
+        toast({
+          title: "Error",
+          description: "Failed to leave circle.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      setJoinedCircles((prev) => {
+        const newSet = new Set(prev)
+        newSet.delete(circleId)
+        return newSet
+      })
+      toast({
+        title: "Left Circle",
+        description: "You've left the circle successfully.",
+      })
+    } catch (error) {
+      console.error("Error leaving circle:", error)
+    }
   }
 
   const formatMemberCount = (count: number) => {
@@ -116,9 +182,10 @@ export function CirclesList() {
     return count.toString()
   }
 
-  const getTimeUntilChallenge = (endDate: Date) => {
+  const getTimeUntilChallenge = (endDate: string) => {
     const now = new Date()
-    const diff = endDate.getTime() - now.getTime()
+    const end = new Date(endDate)
+    const diff = end.getTime() - now.getTime()
     const days = Math.floor(diff / (1000 * 60 * 60 * 24))
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
 
@@ -127,7 +194,7 @@ export function CirclesList() {
     return "Ending soon"
   }
 
-  const renderCircleCard = (circle: (typeof mockCircles)[0]) => (
+  const renderCircleCard = (circle: any) => (
     <Card key={circle.id} className="hover:shadow-lg transition-shadow">
       <div
         className="h-32 bg-gradient-to-r from-purple-400 to-blue-500 rounded-t-lg relative"
@@ -171,22 +238,22 @@ export function CirclesList() {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-1">
                 <Users className="w-4 h-4" />
-                <span>{formatMemberCount(circle.member_count)} members</span>
+                <span>{formatMemberCount(circle.member_count?.[0]?.count || 0)} members</span>
               </div>
-              <span>Active {circle.recent_activity}</span>
+              <span>Active {circle.recent_activity || "recently"}</span>
             </div>
           </div>
 
-          {circle.current_challenge && (
+          {circle.current_challenge?.[0] && (
             <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Trophy className="w-4 h-4 text-purple-600" />
-                  <span className="font-medium text-sm">{circle.current_challenge.title}</span>
+                  <span className="font-medium text-sm">{circle.current_challenge[0].title}</span>
                 </div>
                 <div className="flex items-center space-x-1 text-xs text-gray-600">
                   <Calendar className="w-3 h-3" />
-                  <span>{getTimeUntilChallenge(circle.current_challenge.ends_at)}</span>
+                  <span>{getTimeUntilChallenge(circle.current_challenge[0].ends_at)}</span>
                 </div>
               </div>
             </div>
@@ -218,8 +285,12 @@ export function CirclesList() {
     </Card>
   )
 
-  const myCircles = mockCircles.filter((circle) => joinedCircles.has(circle.id))
-  const discoverCircles = mockCircles.filter((circle) => !joinedCircles.has(circle.id))
+  if (loading) {
+    return <div className="flex justify-center p-8">Loading circles...</div>
+  }
+
+  const myCircles = circles.filter((circle: any) => joinedCircles.has(circle.id))
+  const discoverCircles = circles.filter((circle: any) => !joinedCircles.has(circle.id))
 
   return (
     <Tabs defaultValue="discover" className="w-full">

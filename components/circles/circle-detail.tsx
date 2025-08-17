@@ -1,6 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import type React from "react"
+
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -24,6 +26,10 @@ import {
   Hash,
   Bell,
   BellOff,
+  ImageIcon,
+  Video,
+  FileText,
+  BarChart3,
 } from "lucide-react"
 import { CircleChat } from "@/components/circles/circle-chat"
 import { CircleEvents } from "@/components/circles/circle-events"
@@ -35,169 +41,288 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
+import { createClient } from "@/lib/supabase"
 
 interface CircleDetailProps {
   circleId: string
 }
 
-// Mock circle data
-const mockCircle = {
-  id: "1",
-  name: "Creative Writers",
-  description:
-    "A community for writers to share stories and collaborate on narrative loops. Join us for weekly writing challenges, feedback sessions, and collaborative storytelling projects.",
-  avatar_url: "/placeholder.svg?height=80&width=80",
-  banner_url: "/placeholder.svg?height=200&width=800",
-  member_count: 1247,
-  is_private: false,
-  is_member: true,
-  is_admin: false,
-  is_moderator: false,
-  is_owner: false,
-  category: "Writing",
-  created_at: new Date("2023-06-15"),
-  owner: {
-    id: "owner1",
-    username: "writingmaster",
-    display_name: "Writing Master",
-    avatar_url: "/placeholder.svg?height=40&width=40",
-  },
-  admins: [
-    {
-      id: "admin1",
-      username: "storykeeper",
-      display_name: "Story Keeper",
-      avatar_url: "/placeholder.svg?height=40&width=40",
-    },
-  ],
-  moderators: [
-    {
-      id: "mod1",
-      username: "plottwist",
-      display_name: "Plot Twist",
-      avatar_url: "/placeholder.svg?height=40&width=40",
-    },
-  ],
-  rules: [
-    "Be respectful to all members",
-    "No spam or self-promotion without permission",
-    "Keep content relevant to writing and storytelling",
-    "Use appropriate content warnings for mature themes",
-    "Credit original authors when sharing work",
-  ],
-  current_challenge: {
-    title: "Time Travel Stories",
-    description: "Write a story involving time travel with an unexpected twist",
-    ends_at: new Date("2024-01-22T23:59:59Z"),
-    participants: 89,
-    prize: "500 Loop Coins + Premium Badge",
-  },
-  stats: {
-    total_posts: 2847,
-    total_comments: 15632,
-    active_members: 892,
-    weekly_growth: 12,
-  },
-  recent_posts: [
-    {
-      id: "post1",
-      author: {
-        id: "user1",
-        username: "novelist",
-        display_name: "Aspiring Novelist",
-        avatar_url: "/placeholder.svg?height=32&width=32",
-      },
-      content:
-        "Just finished my first chapter! Looking for feedback on character development and pacing. The story follows a detective who discovers they can see the last 24 hours of a murder victim's life...",
-      timestamp: new Date("2024-01-15T14:30:00Z"),
-      likes: 23,
-      comments: 8,
-      type: "text",
-    },
-    {
-      id: "post2",
-      author: {
-        id: "user2",
-        username: "poet",
-        display_name: "Midnight Poet",
-        avatar_url: "/placeholder.svg?height=32&width=32",
-      },
-      content: "New poem inspired by our writing prompt: 'Whispers in the Digital Age'",
-      timestamp: new Date("2024-01-15T13:15:00Z"),
-      likes: 45,
-      comments: 12,
-      type: "text",
-    },
-  ],
-}
-
 export function CircleDetail({ circleId }: CircleDetailProps) {
-  const [circle, setCircle] = useState(mockCircle)
+  const [circle, setCircle] = useState<any>(null)
   const [activeTab, setActiveTab] = useState("posts")
-  const [isJoined, setIsJoined] = useState(circle.is_member)
+  const [isJoined, setIsJoined] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showMemberManagement, setShowMemberManagement] = useState(false)
   const [notifications, setNotifications] = useState(true)
   const [newPost, setNewPost] = useState("")
+  const [postType, setPostType] = useState("text")
+  const [mediaFiles, setMediaFiles] = useState<File[]>([])
+  const [pollOptions, setPollOptions] = useState(["", ""])
+  const [loading, setLoading] = useState(true)
   const { toast } = useToast()
   const { user } = useAuth()
 
-  const isStaff = circle.is_owner || circle.is_admin || circle.is_moderator
+  useEffect(() => {
+    const fetchCircleData = async () => {
+      try {
+        const supabase = createClient()
 
-  const handleJoinLeave = () => {
-    if (isJoined) {
-      setIsJoined(false)
-      setCircle((prev) => ({ ...prev, member_count: prev.member_count - 1 }))
-      toast({ description: "Left the circle" })
-    } else {
-      if (circle.is_private) {
-        toast({
-          title: "Request Sent",
-          description: "Your request to join this private circle has been sent to moderators.",
-        })
-      } else {
-        setIsJoined(true)
-        setCircle((prev) => ({ ...prev, member_count: prev.member_count + 1 }))
-        toast({ description: "Joined the circle!" })
+        const { data: circleData, error: circleError } = await supabase
+          .from("circles")
+          .select(`
+            *,
+            owner:profiles!circles_owner_id_fkey(*),
+            member_count:circle_members(count),
+            current_challenge:circle_challenges(
+              title,
+              description,
+              ends_at,
+              participants:circle_challenge_participants(count),
+              prize
+            ),
+            stats:circle_stats(*),
+            recent_posts:circle_posts(
+              *,
+              author:profiles(*),
+              stats:circle_post_stats(*)
+            )
+          `)
+          .eq("id", circleId)
+          .single()
+
+        if (circleError) {
+          console.error("Error fetching circle:", circleError)
+          return
+        }
+
+        if (user) {
+          const { data: membershipData } = await supabase
+            .from("circle_members")
+            .select("role")
+            .eq("circle_id", circleId)
+            .eq("user_id", user.id)
+            .single()
+
+          setIsJoined(!!membershipData)
+          if (membershipData) {
+            circleData.user_role = membershipData.role
+          }
+        }
+
+        const { data: staffData } = await supabase
+          .from("circle_members")
+          .select(`
+            role,
+            user:profiles(*)
+          `)
+          .eq("circle_id", circleId)
+          .in("role", ["admin", "moderator"])
+
+        circleData.staff = staffData || []
+        setCircle(circleData)
+      } catch (error) {
+        console.error("Error fetching circle data:", error)
+      } finally {
+        setLoading(false)
       }
     }
-  }
 
-  const handleCreatePost = () => {
-    if (!newPost.trim()) return
+    fetchCircleData()
+  }, [circleId, user])
 
-    const post = {
-      id: Date.now().toString(),
-      author: {
-        id: user?.id || "current",
-        username: user?.username || "user",
-        display_name: user?.display_name || "User",
-        avatar_url: user?.avatar_url || "/placeholder.svg",
-      },
-      content: newPost,
-      timestamp: new Date(),
-      likes: 0,
-      comments: 0,
-      type: "text" as const,
+  const handleJoinLeave = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to join circles.",
+        variant: "destructive",
+      })
+      return
     }
 
-    setCircle((prev) => ({
-      ...prev,
-      recent_posts: [post, ...prev.recent_posts],
-    }))
+    try {
+      const supabase = createClient()
 
-    setNewPost("")
-    toast({ description: "Post shared with the circle!" })
+      if (isJoined) {
+        const { error } = await supabase
+          .from("circle_members")
+          .delete()
+          .eq("circle_id", circleId)
+          .eq("user_id", user.id)
+
+        if (error) throw error
+
+        setIsJoined(false)
+        setCircle((prev: any) => ({ ...prev, member_count: [{ count: (prev.member_count[0]?.count || 1) - 1 }] }))
+        toast({ description: "Left the circle" })
+      } else {
+        if (circle.is_private) {
+          const { error } = await supabase.from("circle_join_requests").insert({
+            circle_id: circleId,
+            user_id: user.id,
+            status: "pending",
+            created_at: new Date().toISOString(),
+          })
+
+          if (error) throw error
+
+          toast({
+            title: "Request Sent",
+            description: "Your request to join this private circle has been sent to moderators.",
+          })
+        } else {
+          const { error } = await supabase.from("circle_members").insert({
+            circle_id: circleId,
+            user_id: user.id,
+            role: "member",
+            joined_at: new Date().toISOString(),
+          })
+
+          if (error) throw error
+
+          setIsJoined(true)
+          setCircle((prev: any) => ({ ...prev, member_count: [{ count: (prev.member_count[0]?.count || 0) + 1 }] }))
+          toast({ description: "Joined the circle!" })
+        }
+      }
+    } catch (error) {
+      console.error("Error joining/leaving circle:", error)
+      toast({
+        title: "Error",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
+
+  const handleCreatePost = async () => {
+    if (!newPost.trim() && mediaFiles.length === 0) return
+
+    try {
+      const supabase = createClient()
+
+      const mediaUrls: string[] = []
+      if (mediaFiles.length > 0) {
+        for (const file of mediaFiles) {
+          const fileExt = file.name.split(".").pop()
+          const fileName = `${Date.now()}-${Math.random()}.${fileExt}`
+          const filePath = `circle-posts/${circleId}/${fileName}`
+
+          const { error: uploadError } = await supabase.storage.from("media").upload(filePath, file)
+
+          if (uploadError) throw uploadError
+
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from("media").getPublicUrl(filePath)
+
+          mediaUrls.push(publicUrl)
+        }
+      }
+
+      const postData: any = {
+        circle_id: circleId,
+        author_id: user?.id,
+        content: newPost,
+        post_type: postType,
+        created_at: new Date().toISOString(),
+      }
+
+      if (mediaUrls.length > 0) {
+        postData.media_urls = mediaUrls
+      }
+
+      if (postType === "poll" && pollOptions.filter((opt) => opt.trim()).length >= 2) {
+        postData.poll_options = pollOptions.filter((opt) => opt.trim())
+      }
+
+      const { data: newPostData, error } = await supabase
+        .from("circle_posts")
+        .insert(postData)
+        .select(`
+          *,
+          author:profiles(*),
+          stats:circle_post_stats(*)
+        `)
+        .single()
+
+      if (error) throw error
+
+      setCircle((prev: any) => ({
+        ...prev,
+        recent_posts: [newPostData, ...prev.recent_posts],
+      }))
+
+      setNewPost("")
+      setMediaFiles([])
+      setPollOptions(["", ""])
+      setPostType("text")
+
+      toast({ description: "Post shared with the circle!" })
+    } catch (error) {
+      console.error("Error creating post:", error)
+      toast({
+        title: "Error",
+        description: "Failed to create post. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleMediaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || [])
+    const maxFiles = user?.is_premium || user?.is_verified ? 4 : 1
+
+    if (files.length > maxFiles) {
+      toast({
+        title: "File Limit Exceeded",
+        description: `${user?.is_premium || user?.is_verified ? "Premium users" : "Free users"} can upload up to ${maxFiles} file${maxFiles > 1 ? "s" : ""} per post.`,
+        variant: "destructive",
+      })
+      return
+    }
+
+    setMediaFiles(files)
+    setPostType(files[0]?.type.startsWith("video/") ? "video" : "image")
+  }
+
+  const addPollOption = () => {
+    if (pollOptions.length < 6) {
+      setPollOptions([...pollOptions, ""])
+    }
+  }
+
+  const updatePollOption = (index: number, value: string) => {
+    const newOptions = [...pollOptions]
+    newOptions[index] = value
+    setPollOptions(newOptions)
+  }
+
+  const removePollOption = (index: number) => {
+    if (pollOptions.length > 2) {
+      setPollOptions(pollOptions.filter((_, i) => i !== index))
+    }
+  }
+
+  if (loading) {
+    return <div className="flex justify-center p-8">Loading circle...</div>
+  }
+
+  if (!circle) {
+    return <div className="text-center p-8">Circle not found</div>
+  }
+
+  const isStaff = circle.user_role === "owner" || circle.user_role === "admin" || circle.user_role === "moderator"
 
   const formatMemberCount = (count: number) => {
     if (count >= 1000) return (count / 1000).toFixed(1) + "K"
     return count.toString()
   }
 
-  const formatTimeAgo = (date: Date) => {
+  const formatTimeAgo = (date: string) => {
     const now = new Date()
-    const diff = now.getTime() - date.getTime()
+    const postDate = new Date(date)
+    const diff = now.getTime() - postDate.getTime()
     const days = Math.floor(diff / (1000 * 60 * 60 * 24))
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
@@ -206,19 +331,6 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
     if (hours > 0) return `${hours}h ago`
     if (minutes > 0) return `${minutes}m ago`
     return "Just now"
-  }
-
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case "owner":
-        return <Crown className="w-4 h-4 text-yellow-500" />
-      case "admin":
-        return <Shield className="w-4 h-4 text-red-500" />
-      case "moderator":
-        return <Shield className="w-4 h-4 text-blue-500" />
-      default:
-        return null
-    }
   }
 
   return (
@@ -266,11 +378,11 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
                   <div className="flex items-center space-x-4 text-gray-300">
                     <div className="flex items-center space-x-1">
                       <Users className="w-4 h-4" />
-                      <span>{formatMemberCount(circle.member_count)} members</span>
+                      <span>{formatMemberCount(circle.member_count[0]?.count || 0)} members</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <Calendar className="w-4 h-4" />
-                      <span>Created {circle.created_at.toLocaleDateString()}</span>
+                      <span>Created {new Date(circle.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
                 </div>
@@ -298,7 +410,7 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
                     {isJoined ? (
                       <>
                         <UserMinus className="w-4 h-4 mr-2" />
-                        {circle.is_private ? "Leave" : "Leave"}
+                        Leave
                       </>
                     ) : (
                       <>
@@ -357,20 +469,22 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
       </div>
 
       {/* Current Challenge */}
-      {circle.current_challenge && (
+      {circle.current_challenge?.[0] && (
         <Card className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 border-purple-500/30">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Trophy className="w-6 h-6 text-yellow-500" />
                 <div>
-                  <h3 className="text-xl font-bold text-white">{circle.current_challenge.title}</h3>
-                  <p className="text-gray-300">{circle.current_challenge.description}</p>
+                  <h3 className="text-xl font-bold text-white">{circle.current_challenge[0].title}</h3>
+                  <p className="text-gray-300">{circle.current_challenge[0].description}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-sm text-gray-400">Prize: {circle.current_challenge.prize}</p>
-                <p className="text-sm text-gray-400">{circle.current_challenge.participants} participants</p>
+                <p className="text-sm text-gray-400">Prize: {circle.current_challenge[0].prize}</p>
+                <p className="text-sm text-gray-400">
+                  {circle.current_challenge[0].participants?.[0]?.count || 0} participants
+                </p>
                 <Button size="sm" className="mt-2 bg-gradient-to-r from-yellow-500 to-orange-500">
                   Join Challenge
                 </Button>
@@ -416,6 +530,46 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
                     <AvatarFallback>{user?.display_name?.charAt(0) || "U"}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 space-y-3">
+                    {/* Post Type Selector */}
+                    <div className="flex space-x-2">
+                      <Button
+                        variant={postType === "text" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPostType("text")}
+                        className="text-xs"
+                      >
+                        <FileText className="w-3 h-3 mr-1" />
+                        Text
+                      </Button>
+                      <Button
+                        variant={postType === "image" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPostType("image")}
+                        className="text-xs"
+                      >
+                        <ImageIcon className="w-3 h-3 mr-1" />
+                        Image
+                      </Button>
+                      <Button
+                        variant={postType === "video" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPostType("video")}
+                        className="text-xs"
+                      >
+                        <Video className="w-3 h-3 mr-1" />
+                        Video
+                      </Button>
+                      <Button
+                        variant={postType === "poll" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPostType("poll")}
+                        className="text-xs"
+                      >
+                        <BarChart3 className="w-3 h-3 mr-1" />
+                        Poll
+                      </Button>
+                    </div>
+
                     <Textarea
                       placeholder="Share something with the circle..."
                       value={newPost}
@@ -423,28 +577,86 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
                       className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-400 resize-none"
                       rows={3}
                     />
+
+                    {/* Media Upload */}
+                    {(postType === "image" || postType === "video") && (
+                      <div>
+                        <input
+                          type="file"
+                          accept={postType === "image" ? "image/*" : "video/*"}
+                          multiple={user?.is_premium || user?.is_verified}
+                          onChange={handleMediaUpload}
+                          className="hidden"
+                          id="media-upload"
+                        />
+                        <label
+                          htmlFor="media-upload"
+                          className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-600 rounded-lg cursor-pointer hover:border-gray-500"
+                        >
+                          <div className="text-center">
+                            <Plus className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm text-gray-400">
+                              Click to upload {postType}
+                              {user?.is_premium || user?.is_verified ? " (up to 4 files)" : ""}
+                            </p>
+                          </div>
+                        </label>
+                        {mediaFiles.length > 0 && (
+                          <div className="mt-2 text-sm text-gray-400">
+                            {mediaFiles.length} file{mediaFiles.length > 1 ? "s" : ""} selected
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Poll Options */}
+                    {postType === "poll" && (
+                      <div className="space-y-2">
+                        {pollOptions.map((option, index) => (
+                          <div key={index} className="flex items-center space-x-2">
+                            <Input
+                              placeholder={`Option ${index + 1}`}
+                              value={option}
+                              onChange={(e) => updatePollOption(index, e.target.value)}
+                              className="bg-gray-800 border-gray-600 text-white"
+                            />
+                            {pollOptions.length > 2 && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => removePollOption(index)}
+                                className="text-red-400 hover:text-red-300"
+                              >
+                                ×
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                        {pollOptions.length < 6 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={addPollOption}
+                            className="border-gray-600 text-gray-300 hover:bg-gray-800 bg-transparent"
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            Add Option
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex justify-between items-center">
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-gray-600 text-gray-300 hover:bg-gray-800 bg-transparent"
-                        >
-                          <Plus className="w-4 h-4 mr-1" />
-                          Media
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-gray-600 text-gray-300 hover:bg-gray-800 bg-transparent"
-                        >
-                          <Hash className="w-4 h-4 mr-1" />
-                          Poll
-                        </Button>
+                      <div className="text-xs text-gray-400">
+                        {user?.is_premium || user?.is_verified ? (
+                          <span className="text-purple-400">Premium: Multi-media posts enabled</span>
+                        ) : (
+                          <span>Upgrade to Premium for multi-media posts</span>
+                        )}
                       </div>
                       <Button
                         onClick={handleCreatePost}
-                        disabled={!newPost.trim()}
+                        disabled={!newPost.trim() && mediaFiles.length === 0}
                         className="bg-gradient-to-r from-purple-500 to-blue-500"
                       >
                         Share
@@ -458,30 +670,74 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
 
           {/* Posts Feed */}
           <div className="space-y-4">
-            {circle.recent_posts.map((post) => (
+            {circle.recent_posts?.map((post: any) => (
               <Card key={post.id} className="bg-gray-900/50 border-gray-700">
                 <CardContent className="p-6">
                   <div className="flex items-start space-x-3">
                     <Avatar className="w-10 h-10">
-                      <AvatarImage src={post.author.avatar_url || "/placeholder.svg"} />
-                      <AvatarFallback>{post.author.display_name.charAt(0)}</AvatarFallback>
+                      <AvatarImage src={post.author?.avatar_url || "/placeholder.svg"} />
+                      <AvatarFallback>{post.author?.display_name?.charAt(0) || "U"}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-2">
-                        <p className="font-semibold text-white">{post.author.display_name}</p>
-                        <p className="text-gray-400 text-sm">@{post.author.username}</p>
+                        <p className="font-semibold text-white">{post.author?.display_name}</p>
+                        <p className="text-gray-400 text-sm">@{post.author?.username}</p>
                         <span className="text-gray-500">•</span>
-                        <p className="text-gray-400 text-sm">{formatTimeAgo(post.timestamp)}</p>
+                        <p className="text-gray-400 text-sm">{formatTimeAgo(post.created_at)}</p>
+                        {post.post_type !== "text" && (
+                          <Badge variant="outline" className="text-xs">
+                            {post.post_type}
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-gray-300 leading-relaxed mb-4">{post.content}</p>
+
+                      {/* Media Display */}
+                      {post.media_urls && post.media_urls.length > 0 && (
+                        <div
+                          className={`grid gap-2 mb-4 ${post.media_urls.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}
+                        >
+                          {post.media_urls.map((url: string, index: number) => (
+                            <div key={index} className="rounded-lg overflow-hidden">
+                              {post.post_type === "video" ? (
+                                <video controls className="w-full h-auto">
+                                  <source src={url} />
+                                </video>
+                              ) : (
+                                <img
+                                  src={url || "/placeholder.svg"}
+                                  alt="Post media"
+                                  className="w-full h-auto object-cover"
+                                />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Poll Display */}
+                      {post.post_type === "poll" && post.poll_options && (
+                        <div className="space-y-2 mb-4">
+                          {post.poll_options.map((option: string, index: number) => (
+                            <Button
+                              key={index}
+                              variant="outline"
+                              className="w-full justify-start text-left border-gray-600 hover:bg-gray-800 bg-transparent"
+                            >
+                              {option}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+
                       <div className="flex items-center space-x-6">
                         <button className="flex items-center space-x-2 text-gray-400 hover:text-red-400 transition-colors">
                           <span>❤️</span>
-                          <span className="text-sm">{post.likes}</span>
+                          <span className="text-sm">{post.stats?.[0]?.likes || 0}</span>
                         </button>
                         <button className="flex items-center space-x-2 text-gray-400 hover:text-blue-400 transition-colors">
                           <MessageCircle className="w-4 h-4" />
-                          <span className="text-sm">{post.comments}</span>
+                          <span className="text-sm">{post.stats?.[0]?.comments || 0}</span>
                         </button>
                         <button className="flex items-center space-x-2 text-gray-400 hover:text-green-400 transition-colors">
                           <span>🌿</span>
@@ -510,7 +766,9 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
             <Card className="bg-gray-900/50 border-gray-700">
               <CardContent className="p-4 text-center">
                 <Users className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-white">{formatMemberCount(circle.member_count)}</div>
+                <div className="text-2xl font-bold text-white">
+                  {formatMemberCount(circle.member_count[0]?.count || 0)}
+                </div>
                 <div className="text-sm text-gray-400">Total Members</div>
               </CardContent>
             </Card>
@@ -519,20 +777,23 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
                 <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
                   <div className="w-3 h-3 bg-white rounded-full" />
                 </div>
-                <div className="text-2xl font-bold text-white">{circle.stats.active_members}</div>
+                <div className="text-2xl font-bold text-white">{circle.stats?.[0]?.active_members || 0}</div>
                 <div className="text-sm text-gray-400">Active This Week</div>
               </CardContent>
             </Card>
             <Card className="bg-gray-900/50 border-gray-700">
               <CardContent className="p-4 text-center">
                 <Crown className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-white">{circle.admins.length + 1}</div>
+                <div className="text-2xl font-bold text-white">
+                  {circle.staff?.filter((member: any) => member.role === "admin").length +
+                    (circle.user_role === "owner" ? 1 : 0)}
+                </div>
                 <div className="text-sm text-gray-400">Staff Members</div>
               </CardContent>
             </Card>
             <Card className="bg-gray-900/50 border-gray-700">
               <CardContent className="p-4 text-center">
-                <div className="text-green-500 text-2xl font-bold">+{circle.stats.weekly_growth}%</div>
+                <div className="text-green-500 text-2xl font-bold">+{circle.stats?.[0]?.weekly_growth || 0}%</div>
                 <div className="text-sm text-gray-400">Weekly Growth</div>
               </CardContent>
             </Card>
@@ -548,12 +809,12 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
               <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <Avatar className="w-10 h-10">
-                    <AvatarImage src={circle.owner.avatar_url || "/placeholder.svg"} />
-                    <AvatarFallback>{circle.owner.display_name.charAt(0)}</AvatarFallback>
+                    <AvatarImage src={circle.owner?.avatar_url || "/placeholder.svg"} />
+                    <AvatarFallback>{circle.owner?.display_name?.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-semibold text-white">{circle.owner.display_name}</p>
-                    <p className="text-sm text-gray-400">@{circle.owner.username}</p>
+                    <p className="font-semibold text-white">{circle.owner?.display_name}</p>
+                    <p className="text-sm text-gray-400">@{circle.owner?.username}</p>
                   </div>
                 </div>
                 <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white">
@@ -563,44 +824,48 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
               </div>
 
               {/* Admins */}
-              {circle.admins.map((admin) => (
-                <div key={admin.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Avatar className="w-10 h-10">
-                      <AvatarImage src={admin.avatar_url || "/placeholder.svg"} />
-                      <AvatarFallback>{admin.display_name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-semibold text-white">{admin.display_name}</p>
-                      <p className="text-sm text-gray-400">@{admin.username}</p>
+              {circle.staff
+                ?.filter((member: any) => member.role === "admin")
+                .map((admin: any) => (
+                  <div key={admin.user.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={admin.user?.avatar_url || "/placeholder.svg"} />
+                        <AvatarFallback>{admin.user?.display_name?.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold text-white">{admin.user?.display_name}</p>
+                        <p className="text-sm text-gray-400">@{admin.user?.username}</p>
+                      </div>
                     </div>
+                    <Badge className="bg-red-600 text-white">
+                      <Shield className="w-3 h-3 mr-1" />
+                      Admin
+                    </Badge>
                   </div>
-                  <Badge className="bg-red-600 text-white">
-                    <Shield className="w-3 h-3 mr-1" />
-                    Admin
-                  </Badge>
-                </div>
-              ))}
+                ))}
 
               {/* Moderators */}
-              {circle.moderators.map((mod) => (
-                <div key={mod.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Avatar className="w-10 h-10">
-                      <AvatarImage src={mod.avatar_url || "/placeholder.svg"} />
-                      <AvatarFallback>{mod.display_name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-semibold text-white">{mod.display_name}</p>
-                      <p className="text-sm text-gray-400">@{mod.username}</p>
+              {circle.staff
+                ?.filter((member: any) => member.role === "moderator")
+                .map((moderator: any) => (
+                  <div key={moderator.user.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={moderator.user?.avatar_url || "/placeholder.svg"} />
+                        <AvatarFallback>{moderator.user?.display_name?.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold text-white">{moderator.user?.display_name}</p>
+                        <p className="text-sm text-gray-400">@{moderator.user?.username}</p>
+                      </div>
                     </div>
+                    <Badge className="bg-blue-600 text-white">
+                      <Shield className="w-3 h-3 mr-1" />
+                      Moderator
+                    </Badge>
                   </div>
-                  <Badge className="bg-blue-600 text-white">
-                    <Shield className="w-3 h-3 mr-1" />
-                    Moderator
-                  </Badge>
-                </div>
-              ))}
+                ))}
             </CardContent>
           </Card>
         </TabsContent>
@@ -613,7 +878,7 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {circle.rules.map((rule, index) => (
+                {circle.rules?.map((rule: string, index: number) => (
                   <div key={index} className="flex items-start space-x-3">
                     <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                       <span className="text-white text-sm font-bold">{index + 1}</span>
@@ -633,19 +898,23 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-400">{circle.stats.total_posts.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-purple-400">
+                    {circle.stats?.[0]?.total_posts?.toLocaleString() || 0}
+                  </div>
                   <div className="text-sm text-gray-400">Total Posts</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-400">{circle.stats.total_comments.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-blue-400">
+                    {circle.stats?.[0]?.total_comments?.toLocaleString() || 0}
+                  </div>
                   <div className="text-sm text-gray-400">Total Comments</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-400">{circle.stats.active_members}</div>
+                  <div className="text-2xl font-bold text-green-400">{circle.stats?.[0]?.active_members || 0}</div>
                   <div className="text-sm text-gray-400">Active Members</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-yellow-400">+{circle.stats.weekly_growth}%</div>
+                  <div className="text-2xl font-bold text-yellow-400">+{circle.stats?.[0]?.weekly_growth || 0}%</div>
                   <div className="text-sm text-gray-400">Weekly Growth</div>
                 </div>
               </div>

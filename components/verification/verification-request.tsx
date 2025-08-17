@@ -30,25 +30,51 @@ export function VerificationRequest() {
     e.preventDefault()
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    try {
+      const response = await fetch('/api/verification/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          realName: formData.realName,
+          username: formData.username,
+          socialLinks: formData.socialLinks,
+          reason: formData.reason,
+          verificationType: formData.category,
+          documents: formData.documents?.name || null, // In real app, upload file first
+        }),
+      })
 
-    // Mock successful submission
-    toast({
-      title: "Verification Request Submitted!",
-      description: "We'll review your application within 3-5 business days.",
-    })
+      const data = await response.json()
 
-    // Reset form
-    setFormData({
-      realName: "",
-      username: "",
-      socialLinks: "",
-      reason: "",
-      category: "influencer",
-      documents: null,
-    })
-    setIsSubmitting(false)
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit verification request')
+      }
+
+      toast({
+        title: "Verification Request Submitted!",
+        description: "We'll review your application within 3-5 business days.",
+      })
+
+      // Reset form
+      setFormData({
+        realName: "",
+        username: "",
+        socialLinks: "",
+        reason: "",
+        category: "influencer",
+        documents: null,
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to submit verification request",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

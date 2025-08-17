@@ -1,5 +1,6 @@
 import { Suspense } from "react"
-import { EnhancedChatWindow } from "@/components/messages/enhanced-chat-window"
+import { RealTimeChat } from "@/components/messages/real-time-chat"
+import { Theme3DProvider } from "@/providers/theme-3d-provider"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -62,19 +63,21 @@ function MessagesLoading() {
 
 export default function MessagesPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-indigo-900/20">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-            Messages
-          </h1>
-          <p className="text-gray-400 mt-2">Connect with your community</p>
-        </div>
+    <Theme3DProvider>
+      <div className="min-h-screen bg-gradient-to-br from-[var(--theme-bg-start,#581c87)]/20 via-[var(--theme-bg-mid,#1e40af)]/20 to-[var(--theme-bg-end,#4338ca)]/20 dark:from-[var(--theme-bg-dark-start,#581c87)]/20 dark:via-[var(--theme-bg-dark-mid,#1e40af)]/20 dark:to-[var(--theme-bg-dark-end,#4338ca)]/20 transition-colors duration-500">
+        <div className="container mx-auto px-4 py-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-[var(--theme-primary,#a855f7)] to-[var(--theme-secondary,#3b82f6)] bg-clip-text text-transparent">
+              Messages
+            </h1>
+            <p className="text-muted-foreground mt-2">Connect with your community in real-time</p>
+          </div>
 
-        <Suspense fallback={<MessagesLoading />}>
-          <EnhancedChatWindow />
-        </Suspense>
+          <Suspense fallback={<MessagesLoading />}>
+            <RealTimeChat />
+          </Suspense>
+        </div>
       </div>
-    </div>
+    </Theme3DProvider>
   )
 }

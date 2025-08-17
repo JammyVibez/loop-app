@@ -123,14 +123,15 @@ export async function POST(request: NextRequest) {
       joined_at: new Date().toISOString(),
     })
 
-    // Create default general chat room
-    await supabase.from("circle_rooms").insert({
-      circle_id: circle.id,
-      name: "general",
-      description: "General discussion",
-      type: "text",
-      created_by: user.id,
-    })
+    // Note: circle_rooms table needs to be created in database schema
+    // For now, we'll skip this until the table is available
+    // await supabase.from("circle_rooms").insert({
+    //   circle_id: circle.id,
+    //   name: "general",
+    //   description: "General discussion",
+    //   type: "text",
+    //   created_by: user.id,
+    // })
 
     return NextResponse.json({
       success: true,

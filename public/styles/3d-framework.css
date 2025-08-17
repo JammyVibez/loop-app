@@ -1,0 +1,518 @@
+/* 3D Framework CSS - Enhanced Social Platform */
+/* This file provides the foundation for 3D effects and animations */
+
+/* =============================================
+   CSS VARIABLES FOR 3D THEMING
+   ============================================= */
+
+:root {
+  /* Default 3D effect values - will be overridden by theme engine */
+  --theme-card-depth: 8px;
+  --theme-hover-lift: 12px;
+  --theme-shadow-intensity: 0.3;
+  --theme-transition-duration: 0.3s;
+  --theme-ease-function: cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Perspective settings */
+  --perspective: 1000px;
+  --perspective-origin: center center;
+  
+  /* 3D transform origins */
+  --transform-origin-center: 50% 50% 0;
+  --transform-origin-top: 50% 0% 0;
+  --transform-origin-bottom: 50% 100% 0;
+}
+
+/* =============================================
+   GLOBAL 3D SETUP
+   ============================================= */
+
+* {
+  transform-style: preserve-3d;
+}
+
+body {
+  perspective: var(--perspective);
+  perspective-origin: var(--perspective-origin);
+}
+
+/* =============================================
+   3D CARD SYSTEM
+   ============================================= */
+
+.card-3d {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform var(--theme-transition-duration) var(--theme-ease-function),
+              box-shadow var(--theme-transition-duration) var(--theme-ease-function);
+  transform-origin: var(--transform-origin-center);
+  will-change: transform;
+}
+
+.card-3d::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: inherit;
+  border-radius: inherit;
+  transform: translateZ(-2px);
+  opacity: 0.5;
+  z-index: -1;
+}
+
+.card-3d:hover {
+  transform: translateY(calc(-1 * var(--theme-hover-lift))) 
+             rotateX(2deg) 
+             rotateY(2deg) 
+             scale(1.02);
+  box-shadow: 0 calc(var(--theme-card-depth) * 2) calc(var(--theme-card-depth) * 4) 
+              rgba(0, 0, 0, var(--theme-shadow-intensity));
+}
+
+/* Card depth variations */
+.card-3d-shallow {
+  --theme-card-depth: 4px;
+  --theme-hover-lift: 6px;
+}
+
+.card-3d-deep {
+  --theme-card-depth: 16px;
+  --theme-hover-lift: 20px;
+}
+
+/* =============================================
+   3D BUTTON SYSTEM
+   ============================================= */
+
+.btn-3d {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: all var(--theme-transition-duration) var(--theme-ease-function);
+  cursor: pointer;
+  border: none;
+  outline: none;
+  overflow: hidden;
+}
+
+.btn-3d::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.2) 0%, 
+    rgba(255, 255, 255, 0.1) 50%, 
+    rgba(0, 0, 0, 0.1) 100%);
+  transform: translateZ(1px);
+  opacity: 0;
+  transition: opacity var(--theme-transition-duration) var(--theme-ease-function);
+}
+
+.btn-3d:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.btn-3d:hover::before {
+  opacity: 1;
+}
+
+.btn-3d:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* =============================================
+   3D TEXT EFFECTS
+   ============================================= */
+
+.text-3d {
+  position: relative;
+  display: inline-block;
+  transform-style: preserve-3d;
+}
+
+.text-3d-glow {
+  text-shadow: 
+    0 0 5px currentColor,
+    0 0 10px currentColor,
+    0 0 15px currentColor,
+    0 0 20px currentColor;
+  animation: textGlow 2s ease-in-out infinite alternate;
+}
+
+.text-3d-depth {
+  text-shadow: 
+    1px 1px 0 rgba(0, 0, 0, 0.3),
+    2px 2px 0 rgba(0, 0, 0, 0.2),
+    3px 3px 0 rgba(0, 0, 0, 0.1),
+    4px 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.text-3d-floating {
+  animation: textFloat 3s ease-in-out infinite;
+}
+
+/* =============================================
+   3D NAVIGATION EFFECTS
+   ============================================= */
+
+.nav-3d {
+  position: relative;
+  transform-style: preserve-3d;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.nav-3d::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.1) 0%, 
+    rgba(255, 255, 255, 0.05) 100%);
+  transform: translateZ(-1px);
+  border-radius: inherit;
+}
+
+.nav-item-3d {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: all var(--theme-transition-duration) var(--theme-ease-function);
+  overflow: hidden;
+}
+
+.nav-item-3d::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.2), 
+    transparent);
+  transition: left 0.5s ease;
+}
+
+.nav-item-3d:hover {
+  transform: translateZ(4px);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-item-3d:hover::before {
+  left: 100%;
+}
+
+/* =============================================
+   3D AVATAR SYSTEM
+   ============================================= */
+
+.avatar-3d {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: all var(--theme-transition-duration) var(--theme-ease-function);
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.avatar-3d::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: conic-gradient(
+    from 0deg,
+    var(--theme-color-primary, #6366f1),
+    var(--theme-color-secondary, #8b5cf6),
+    var(--theme-color-accent, #06b6d4),
+    var(--theme-color-primary, #6366f1)
+  );
+  border-radius: 50%;
+  z-index: -1;
+  animation: avatarRotate 3s linear infinite;
+}
+
+.avatar-3d:hover {
+  transform: scale(1.1) rotateY(15deg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* =============================================
+   3D NOTIFICATION SYSTEM
+   ============================================= */
+
+.notification-3d {
+  position: relative;
+  transform-style: preserve-3d;
+  transform: translateX(100%);
+  transition: all var(--theme-transition-duration) var(--theme-ease-function);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.notification-3d.show {
+  transform: translateX(0) rotateY(0deg);
+}
+
+.notification-3d.bounce {
+  animation: notificationBounce 0.6s ease-out;
+}
+
+.notification-3d.slide {
+  animation: notificationSlide 0.5s ease-out;
+}
+
+.notification-3d.fade {
+  animation: notificationFade 0.4s ease-out;
+}
+
+/* =============================================
+   3D MODAL SYSTEM
+   ============================================= */
+
+.modal-3d {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  perspective: var(--perspective);
+}
+
+.modal-3d-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  animation: backdropFade 0.3s ease-out;
+}
+
+.modal-3d-content {
+  position: relative;
+  transform-style: preserve-3d;
+  max-width: 90vw;
+  max-height: 90vh;
+  background: var(--theme-color-surface, #1e293b);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: modalEnter 0.4s ease-out;
+}
+
+/* =============================================
+   3D LOADING ANIMATIONS
+   ============================================= */
+
+.loader-3d {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  transform-style: preserve-3d;
+  animation: loaderRotate 2s linear infinite;
+}
+
+.loader-3d::before,
+.loader-3d::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 3px solid transparent;
+  border-top: 3px solid var(--theme-color-primary, #6366f1);
+  border-radius: 50%;
+}
+
+.loader-3d::before {
+  transform: rotateX(90deg);
+}
+
+.loader-3d::after {
+  transform: rotateY(90deg);
+}
+
+/* =============================================
+   3D PARTICLE EFFECTS
+   ============================================= */
+
+.particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: var(--theme-color-primary, #6366f1);
+  border-radius: 50%;
+  animation: particleFloat 4s ease-in-out infinite;
+  opacity: 0.6;
+}
+
+/* =============================================
+   KEYFRAME ANIMATIONS
+   ============================================= */
+
+@keyframes textGlow {
+  0%, 100% { 
+    text-shadow: 
+      0 0 5px currentColor,
+      0 0 10px currentColor,
+      0 0 15px currentColor;
+  }
+  50% { 
+    text-shadow: 
+      0 0 10px currentColor,
+      0 0 20px currentColor,
+      0 0 30px currentColor,
+      0 0 40px currentColor;
+  }
+}
+
+@keyframes textFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes avatarRotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes notificationBounce {
+  0% { transform: translateX(100%) scale(0.8); }
+  60% { transform: translateX(-10%) scale(1.1); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+@keyframes notificationSlide {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes notificationFade {
+  0% { opacity: 0; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes backdropFade {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes modalEnter {
+  0% { 
+    opacity: 0; 
+    transform: scale(0.8) rotateX(-10deg); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: scale(1) rotateX(0deg); 
+  }
+}
+
+@keyframes loaderRotate {
+  0% { transform: rotateX(0deg) rotateY(0deg); }
+  100% { transform: rotateX(360deg) rotateY(360deg); }
+}
+
+@keyframes particleFloat {
+  0%, 100% { 
+    transform: translateY(0px) translateX(0px) scale(1);
+    opacity: 0.6;
+  }
+  25% { 
+    transform: translateY(-20px) translateX(10px) scale(1.2);
+    opacity: 1;
+  }
+  50% { 
+    transform: translateY(-40px) translateX(-5px) scale(0.8);
+    opacity: 0.8;
+  }
+  75% { 
+    transform: translateY(-20px) translateX(-10px) scale(1.1);
+    opacity: 0.9;
+  }
+}
+
+/* =============================================
+   RESPONSIVE 3D EFFECTS
+   ============================================= */
+
+@media (max-width: 768px) {
+  :root {
+    --theme-card-depth: 4px;
+    --theme-hover-lift: 6px;
+    --perspective: 800px;
+  }
+  
+  .card-3d:hover {
+    transform: translateY(-4px) scale(1.01);
+  }
+  
+  .btn-3d:hover {
+    transform: translateY(-1px) scale(1.01);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .card-3d:hover,
+  .btn-3d:hover,
+  .avatar-3d:hover {
+    transform: none;
+  }
+}
+
+/* =============================================
+   UTILITY CLASSES
+   ============================================= */
+
+.transform-3d { transform-style: preserve-3d; }
+.backface-hidden { backface-visibility: hidden; }
+.perspective-1000 { perspective: 1000px; }
+.perspective-2000 { perspective: 2000px; }
+
+.rotate-x-5 { transform: rotateX(5deg); }
+.rotate-x-10 { transform: rotateX(10deg); }
+.rotate-y-5 { transform: rotateY(5deg); }
+.rotate-y-10 { transform: rotateY(10deg); }
+
+.translate-z-10 { transform: translateZ(10px); }
+.translate-z-20 { transform: translateZ(20px); }
+.translate-z-n10 { transform: translateZ(-10px); }
+
+.hover-lift:hover { transform: translateY(-8px); }
+.hover-tilt:hover { transform: rotateX(5deg) rotateY(5deg); }
+.hover-scale:hover { transform: scale(1.05); }
+
+/* Theme-specific overrides will be injected here by the theme engine */

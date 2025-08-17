@@ -1,0 +1,261 @@
+{
+  "timestamp": "2025-08-08T16:30:23.522Z",
+  "summary": {
+    "passed": 50,
+    "failed": 0,
+    "warnings": 0
+  },
+  "tests": [
+    {
+      "name": "Database Schema: scripts/enhanced-database-schema.sql",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Database Schema: scripts/enhanced-database-schema-part2.sql",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Database Schema: scripts/enhanced-database-schema-part3.sql",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Database Schema: scripts/rls-policies.sql",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Database Schema: scripts/enhanced-database-functions.sql",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Database Schema: scripts/trending-hashtags-function.sql",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Core Database Tables",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Row Level Security Policies",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "API Route: app/api/admin/verification/route.ts",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "API Route: app/api/admin/premium/route.ts",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "API Route: app/api/verification/request/route.ts",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "API Route: app/api/premium/request/route.ts",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "API Route: app/api/support/messages/route.ts",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "API Route: app/api/developers/projects/route.ts",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "API Route: app/api/invitations/route.ts",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "API Route: app/api/streams/notifications/route.ts",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "API Route: app/api/explore/trending/route.ts",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Admin Verification API Structure",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Component: components/admin/admin-dashboard.tsx",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Component: components/verification/verification-request.tsx",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Component: components/premium/premium-upgrade.tsx",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Component: components/games/mini-games.tsx",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Component: components/invitations/invite-modal.tsx",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Component: components/notifications/live-stream-notifications.tsx",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Component: components/developers/developers-content.tsx",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Admin Dashboard Component Structure",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Responsive CSS File",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Responsive Hooks",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Responsive Components",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Tailwind Responsive Breakpoints",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Layout Includes Responsive CSS",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Explore Real-time Subscriptions",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Support Chat Real-time",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Live Stream Notifications",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Error Boundary Component",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Loading States Component",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Error Handling in app/api/admin/verification/route.ts",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Error Handling in app/api/support/messages/route.ts",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Row Level Security Policies",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Authentication in app/api/admin/verification/route.ts",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Authentication in components/admin/admin-dashboard.tsx",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Config File: tailwind.config.ts",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Config File: next.config.js",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Config File: package.json",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Dependency: @supabase/supabase-js",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Dependency: next",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Dependency: react",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Dependency: tailwindcss",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Documentation: README.md",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "name": "Documentation: docs/API_DOCUMENTATION.md",
+      "status": "pass",
+      "message": ""
+    }
+  ],
+  "successRate": 100
+}

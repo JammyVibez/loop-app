@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -9,84 +9,116 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Hash, Users, GitBranch, Search } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
 import Link from "next/link"
+import { createClient } from "@/lib/supabase"
 
 interface SearchResultsProps {
   query: string
 }
 
-// Mock search results
-const mockResults = {
-  loops: [
-    {
-      id: "1",
-      author: {
-        id: "1",
-        username: "creativemind",
-        display_name: "Creative Mind",
-        avatar_url: "/placeholder.svg?height=40&width=40",
-        is_verified: true,
-        verification_level: "root" as const,
-        is_premium: true,
-      },
-      content: {
-        type: "text" as const,
-        text: "What if we could travel through time but only to witness, never to change anything? 🤔 This thought has been looping in my mind all day... #timetravel #philosophy",
-      },
-      created_at: new Date("2024-01-15T10:30:00Z"),
-      stats: {
-        likes: 234,
-        branches: 12,
-        comments: 45,
-        saves: 67,
-      },
-    },
-  ],
-  users: [
-    {
-      id: "1",
-      username: "creativemind",
-      display_name: "Creative Mind",
-      avatar_url: "/placeholder.svg?height=60&width=60",
-      bio: "Exploring the intersection of creativity and technology",
-      is_verified: true,
-      verification_level: "root" as const,
-      is_premium: true,
-      followers: 12500,
-      following: 890,
-    },
-    {
-      id: "2",
-      username: "codemaster",
-      display_name: "Code Master",
-      avatar_url: "/placeholder.svg?height=60&width=60",
-      bio: "Full-stack developer sharing coding tips and tricks",
-      is_verified: true,
-      verification_level: "influencer" as const,
-      is_premium: false,
-      followers: 8900,
-      following: 1200,
-    },
-  ],
-  hashtags: [
-    { tag: "timetravel", count: 1234, trending: true },
-    { tag: "philosophy", count: 987, trending: false },
-    { tag: "creativity", count: 756, trending: true },
-  ],
-}
-
 export function SearchResults({ query }: SearchResultsProps) {
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set())
+  const [searchResults, setSearchResults] = useState({
+    loops: [],
+    users: [],
+    hashtags: [],
+  })
+  const [loading, setLoading] = useState(true)
 
-  const handleFollow = (userId: string) => {
-    setFollowedUsers((prev) => {
-      const newSet = new Set(prev)
-      if (newSet.has(userId)) {
-        newSet.delete(userId)
-      } else {
-        newSet.add(userId)
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!query.trim()) return
+
+      try {
+        const supabase = createClient()
+
+        const { data: loops, error: loopsError } = await supabase
+          .from("loops")
+          .select(`
+            *,
+            author:profiles(*),
+            stats:loop_stats(*)
+          `)
+          .or(`content.ilike.%${query}%,author.display_name.ilike.%${query}%,author.username.ilike.%${query}%`)
+          .limit(20)
+
+        const { data: users, error: usersError } = await supabase
+          .from("profiles")
+          .select(`
+            *,
+            followers:follows!followed_id(count),
+            following:follows!follower_id(count)
+          `)
+          .or(`display_name.ilike.%${query}%,username.ilike.%${query}%,bio.ilike.%${query}%`)
+          .limit(20)
+
+        const { data: hashtags, error: hashtagsError } = await supabase
+          .from("hashtags")
+          .select(`
+            *,
+            loop_count:loop_hashtags(count)
+          `)
+          .ilike("tag", `%${query}%`)
+          .limit(20)
+
+        if (!loopsError && !usersError && !hashtagsError) {
+          setSearchResults({
+            loops: loops || [],
+            users: users || [],
+            hashtags: hashtags || [],
+          })
+        }
+
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (user) {
+          const { data: followedData } = await supabase.from("follows").select("followed_id").eq("follower_id", user.id)
+
+          if (followedData) {
+            setFollowedUsers(new Set(followedData.map((f) => f.followed_id)))
+          }
+        }
+      } catch (error) {
+        console.error("Error performing search:", error)
+      } finally {
+        setLoading(false)
       }
-      return newSet
-    })
+    }
+
+    performSearch()
+  }, [query])
+
+  const handleFollow = async (userId: string) => {
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) return
+
+      if (followedUsers.has(userId)) {
+        await supabase.from("follows").delete().eq("follower_id", user.id).eq("followed_id", userId)
+      } else {
+        await supabase.from("follows").insert({
+          follower_id: user.id,
+          followed_id: userId,
+          created_at: new Date().toISOString(),
+        })
+      }
+
+      setFollowedUsers((prev) => {
+        const newSet = new Set(prev)
+        if (newSet.has(userId)) {
+          newSet.delete(userId)
+        } else {
+          newSet.add(userId)
+        }
+        return newSet
+      })
+    } catch (error) {
+      console.error("Error following/unfollowing user:", error)
+    }
   }
 
   const formatNumber = (num: number) => {
@@ -110,24 +142,9 @@ export function SearchResults({ query }: SearchResultsProps) {
     )
   }
 
-  // Filter results based on query
-  const filteredLoops = mockResults.loops.filter(
-    (loop) =>
-      loop.content.text?.toLowerCase().includes(query.toLowerCase()) ||
-      loop.author.display_name.toLowerCase().includes(query.toLowerCase()) ||
-      loop.author.username.toLowerCase().includes(query.toLowerCase()),
-  )
-
-  const filteredUsers = mockResults.users.filter(
-    (user) =>
-      user.display_name.toLowerCase().includes(query.toLowerCase()) ||
-      user.username.toLowerCase().includes(query.toLowerCase()) ||
-      user.bio?.toLowerCase().includes(query.toLowerCase()),
-  )
-
-  const filteredHashtags = mockResults.hashtags.filter((hashtag) =>
-    hashtag.tag.toLowerCase().includes(query.toLowerCase()),
-  )
+  if (loading) {
+    return <div className="flex justify-center p-8">Searching...</div>
+  }
 
   return (
     <Tabs defaultValue="all" className="w-full">
@@ -135,26 +152,26 @@ export function SearchResults({ query }: SearchResultsProps) {
         <TabsTrigger value="all">All</TabsTrigger>
         <TabsTrigger value="loops" className="flex items-center space-x-2">
           <GitBranch className="w-4 h-4" />
-          <span>Loops ({filteredLoops.length})</span>
+          <span>Loops ({searchResults.loops.length})</span>
         </TabsTrigger>
         <TabsTrigger value="users" className="flex items-center space-x-2">
           <Users className="w-4 h-4" />
-          <span>Users ({filteredUsers.length})</span>
+          <span>Users ({searchResults.users.length})</span>
         </TabsTrigger>
         <TabsTrigger value="hashtags" className="flex items-center space-x-2">
           <Hash className="w-4 h-4" />
-          <span>Hashtags ({filteredHashtags.length})</span>
+          <span>Hashtags ({searchResults.hashtags.length})</span>
         </TabsTrigger>
       </TabsList>
 
       <TabsContent value="all" className="mt-6">
         <div className="space-y-8">
           {/* Top Results */}
-          {filteredUsers.length > 0 && (
+          {searchResults.users.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold mb-4">People</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredUsers.slice(0, 2).map((user) => (
+                {searchResults.users.slice(0, 2).map((user: any) => (
                   <Card key={user.id}>
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
@@ -171,8 +188,12 @@ export function SearchResults({ query }: SearchResultsProps) {
                             <p className="text-sm text-gray-500">@{user.username}</p>
                             <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{user.bio}</p>
                             <div className="flex items-center space-x-4 mt-1">
-                              <span className="text-xs text-gray-500">{formatNumber(user.followers)} followers</span>
-                              <span className="text-xs text-gray-500">{formatNumber(user.following)} following</span>
+                              <span className="text-xs text-gray-500">
+                                {formatNumber(user.followers?.[0]?.count || 0)} followers
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {formatNumber(user.following?.[0]?.count || 0)} following
+                              </span>
                             </div>
                           </div>
                         </Link>
@@ -192,11 +213,11 @@ export function SearchResults({ query }: SearchResultsProps) {
           )}
 
           {/* Loops */}
-          {filteredLoops.length > 0 && (
+          {searchResults.loops.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold mb-4">Loops</h3>
               <div className="space-y-4">
-                {filteredLoops.slice(0, 3).map((loop) => (
+                {searchResults.loops.slice(0, 3).map((loop: any) => (
                   <LoopCard key={loop.id} loop={loop} />
                 ))}
               </div>
@@ -204,18 +225,20 @@ export function SearchResults({ query }: SearchResultsProps) {
           )}
 
           {/* Hashtags */}
-          {filteredHashtags.length > 0 && (
+          {searchResults.hashtags.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold mb-4">Hashtags</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {filteredHashtags.slice(0, 3).map((hashtag) => (
+                {searchResults.hashtags.slice(0, 3).map((hashtag: any) => (
                   <Link key={hashtag.tag} href={`/hashtag/${hashtag.tag}`}>
                     <Card className="hover:shadow-md transition-shadow cursor-pointer">
                       <CardContent className="p-4 text-center">
                         <Hash className="w-8 h-8 text-purple-600 mx-auto mb-2" />
                         <h4 className="font-semibold">#{hashtag.tag}</h4>
-                        <p className="text-sm text-gray-500">{formatNumber(hashtag.count)} loops</p>
-                        {hashtag.trending && <Badge className="mt-2 bg-green-100 text-green-700">Trending</Badge>}
+                        <p className="text-sm text-gray-500">
+                          {formatNumber(hashtag.loop_count?.[0]?.count || 0)} loops
+                        </p>
+                        {hashtag.is_trending && <Badge className="mt-2 bg-green-100 text-green-700">🔥 Trending</Badge>}
                       </CardContent>
                     </Card>
                   </Link>
@@ -227,9 +250,9 @@ export function SearchResults({ query }: SearchResultsProps) {
       </TabsContent>
 
       <TabsContent value="loops" className="mt-6">
-        {filteredLoops.length > 0 ? (
+        {searchResults.loops.length > 0 ? (
           <div className="space-y-4">
-            {filteredLoops.map((loop) => (
+            {searchResults.loops.map((loop: any) => (
               <LoopCard key={loop.id} loop={loop} />
             ))}
           </div>
@@ -243,9 +266,9 @@ export function SearchResults({ query }: SearchResultsProps) {
       </TabsContent>
 
       <TabsContent value="users" className="mt-6">
-        {filteredUsers.length > 0 ? (
+        {searchResults.users.length > 0 ? (
           <div className="space-y-4">
-            {filteredUsers.map((user) => (
+            {searchResults.users.map((user: any) => (
               <Card key={user.id}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -266,10 +289,10 @@ export function SearchResults({ query }: SearchResultsProps) {
                         <p className="text-gray-700 dark:text-gray-300 mb-3">{user.bio}</p>
                         <div className="flex items-center space-x-6">
                           <span className="text-sm">
-                            <strong>{formatNumber(user.followers)}</strong> followers
+                            <strong>{formatNumber(user.followers?.[0]?.count || 0)}</strong> followers
                           </span>
                           <span className="text-sm">
-                            <strong>{formatNumber(user.following)}</strong> following
+                            <strong>{formatNumber(user.following?.[0]?.count || 0)}</strong> following
                           </span>
                         </div>
                       </div>
@@ -295,16 +318,18 @@ export function SearchResults({ query }: SearchResultsProps) {
       </TabsContent>
 
       <TabsContent value="hashtags" className="mt-6">
-        {filteredHashtags.length > 0 ? (
+        {searchResults.hashtags.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredHashtags.map((hashtag) => (
+            {searchResults.hashtags.map((hashtag: any) => (
               <Link key={hashtag.tag} href={`/hashtag/${hashtag.tag}`}>
                 <Card className="hover:shadow-lg transition-shadow cursor-pointer">
                   <CardContent className="p-6 text-center">
                     <Hash className="w-12 h-12 text-purple-600 mx-auto mb-4" />
                     <h3 className="text-xl font-semibold mb-2">#{hashtag.tag}</h3>
-                    <p className="text-gray-600 dark:text-gray-400 mb-3">{formatNumber(hashtag.count)} loops</p>
-                    {hashtag.trending && <Badge className="bg-green-100 text-green-700">🔥 Trending</Badge>}
+                    <p className="text-gray-600 dark:text-gray-400 mb-3">
+                      {formatNumber(hashtag.loop_count?.[0]?.count || 0)} loops
+                    </p>
+                    {hashtag.is_trending && <Badge className="bg-green-100 text-green-700">🔥 Trending</Badge>}
                   </CardContent>
                 </Card>
               </Link>

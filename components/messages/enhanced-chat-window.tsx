@@ -21,6 +21,11 @@ import {
   Angry,
   FrownIcon as Sad,
   Crown,
+  Phone,
+  Video,
+  Mic,
+  MicOff,
+  PhoneOff,
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
@@ -66,6 +71,8 @@ interface Message {
     amount?: number
     duration?: string
   }
+  type?: "voice_note"
+  audio_url?: string
 }
 
 interface Conversation {
@@ -100,109 +107,65 @@ export function EnhancedChatWindow() {
   const [typingUsers, setTypingUsers] = useState<string[]>([])
   const [showGiftDialog, setShowGiftDialog] = useState(false)
   const [giftRecipient, setGiftRecipient] = useState<string | null>(null)
+
+  const [isInCall, setIsInCall] = useState(false)
+  const [callType, setCallType] = useState<"voice" | "video" | null>(null)
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false)
+  const [recordingTime, setRecordingTime] = useState(0)
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Mock conversations data
-  const [conversations] = useState<Conversation[]>([
-    {
-      id: "1",
-      name: "John Doe",
-      is_group: false,
-      participants: [
-        {
-          id: "2",
-          username: "johndoe",
-          display_name: "John Doe",
-          avatar_url: "/placeholder.svg?height=40&width=40",
-          is_premium: true,
-          is_online: true,
-        },
-      ],
-    },
-    {
-      id: "2",
-      name: "Loop Developers",
-      is_group: true,
-      participants: [
-        {
-          id: "3",
-          username: "alice",
-          display_name: "Alice Smith",
-          avatar_url: "/placeholder.svg?height=40&width=40",
-          is_premium: false,
-          is_online: true,
-        },
-        {
-          id: "4",
-          username: "bob",
-          display_name: "Bob Johnson",
-          avatar_url: "/placeholder.svg?height=40&width=40",
-          is_premium: true,
-          is_online: false,
-        },
-      ],
-    },
-  ])
+  // Conversations data - will be loaded from API
+  const [conversations, setConversations] = useState<Conversation[]>([])
 
-  // Mock messages data
+  // Load conversations and messages from API
   useEffect(() => {
-    if (selectedConversation) {
-      setMessages([
-        {
-          id: "1",
-          content: "Hey! How's the new Loop feature coming along?",
-          sender: {
-            id: "2",
-            username: "johndoe",
-            display_name: "John Doe",
-            avatar_url: "/placeholder.svg?height=40&width=40",
-            is_premium: true,
+    if (!user) return
+
+    const loadConversations = async () => {
+      try {
+        const response = await fetch("/api/conversations", {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
           },
-          timestamp: new Date(Date.now() - 3600000).toISOString(),
-          reactions: [{ emoji: "👍", count: 2, users: ["1", "3"] }],
-        },
-        {
-          id: "2",
-          content: "It's going great! Just finished the branching system. Want to see a demo?",
-          sender: {
-            id: "1",
-            username: user?.username || "you",
-            display_name: user?.display_name || "You",
-            avatar_url: user?.avatar_url,
-            is_premium: user?.is_premium || false,
-          },
-          timestamp: new Date(Date.now() - 3000000).toISOString(),
-          reactions: [
-            { emoji: "❤️", count: 1, users: ["2"] },
-            { emoji: "😂", count: 1, users: ["2"] },
-          ],
-          reply_to: {
-            id: "1",
-            content: "Hey! How's the new Loop feature coming along?",
-            sender: "John Doe",
-          },
-        },
-        {
-          id: "3",
-          content: "🎁 Gifted you 1 month of Loop Premium!",
-          sender: {
-            id: "2",
-            username: "johndoe",
-            display_name: "John Doe",
-            avatar_url: "/placeholder.svg?height=40&width=40",
-            is_premium: true,
-          },
-          timestamp: new Date(Date.now() - 1800000).toISOString(),
-          reactions: [],
-          is_gift: true,
-          gift_data: {
-            type: "premium",
-            duration: "1 month",
-          },
-        },
-      ])
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setConversations(data.conversations || [])
+        }
+      } catch (error) {
+        console.error("Failed to load conversations:", error)
+      }
     }
+
+    loadConversations()
+  }, [user])
+
+  useEffect(() => {
+    if (!user || !selectedConversation) return
+
+    const loadMessages = async () => {
+      try {
+        const response = await fetch(`/api/conversations/${selectedConversation}/messages`, {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setMessages(data.messages || [])
+        }
+      } catch (error) {
+        console.error("Failed to load messages:", error)
+      }
+    }
+
+    loadMessages()
   }, [selectedConversation, user])
 
   useEffect(() => {
@@ -237,17 +200,24 @@ export function EnhancedChatWindow() {
     setNewMessage("")
     setReplyingTo(null)
 
-    // TODO: Send to API
+    // Send message to API
     try {
-      await fetch("/api/messages", {
+      const response = await fetch("/api/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user?.token}`,
+        },
         body: JSON.stringify({
           conversation_id: selectedConversation,
           content: newMessage,
           reply_to_id: replyingTo?.id,
         }),
       })
+
+      if (!response.ok) {
+        console.error("Failed to send message:", await response.text())
+      }
     } catch (error) {
       console.error("Failed to send message:", error)
     }
@@ -292,16 +262,23 @@ export function EnhancedChatWindow() {
       }),
     )
 
-    // TODO: Send to API
+    // Send reaction to API
     try {
-      await fetch("/api/messages/reactions", {
+      const response = await fetch("/api/messages/reactions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user?.token}`,
+        },
         body: JSON.stringify({
           message_id: messageId,
           emoji,
         }),
       })
+
+      if (!response.ok) {
+        console.error("Failed to add reaction:", await response.text())
+      }
     } catch (error) {
       console.error("Failed to add reaction:", error)
     }
@@ -322,12 +299,122 @@ export function EnhancedChatWindow() {
     setGiftRecipient(null)
   }
 
+  const startVoiceRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      const chunks: BlobPart[] = []
+
+      recorder.ondataavailable = (e) => chunks.push(e.data)
+      recorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: "audio/webm" })
+        await sendVoiceNote(blob)
+        stream.getTracks().forEach((track) => track.stop())
+      }
+
+      recorder.start()
+      setMediaRecorder(recorder)
+      setIsRecordingVoice(true)
+      setRecordingTime(0)
+
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1)
+      }, 1000)
+    } catch (error) {
+      console.error("Failed to start recording:", error)
+    }
+  }
+
+  const stopVoiceRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.stop()
+    }
+    setIsRecordingVoice(false)
+    setRecordingTime(0)
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current)
+    }
+  }
+
+  const sendVoiceNote = async (audioBlob: Blob) => {
+    if (!selectedConversation) return
+
+    const formData = new FormData()
+    formData.append("audio", audioBlob, "voice-note.webm")
+    formData.append("conversation_id", selectedConversation)
+    formData.append("type", "voice_note")
+
+    try {
+      const response = await fetch("/api/messages/voice-note", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user?.token}`,
+        },
+        body: formData,
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setMessages((prev) => [...prev, data.message])
+      }
+    } catch (error) {
+      console.error("Failed to send voice note:", error)
+    }
+  }
+
+  const startCall = async (type: "voice" | "video") => {
+    if (!selectedConversation) return
+
+    try {
+      const response = await fetch("/api/calls/start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user?.token}`,
+        },
+        body: JSON.stringify({
+          conversation_id: selectedConversation,
+          call_type: type,
+        }),
+      })
+
+      if (response.ok) {
+        setIsInCall(true)
+        setCallType(type)
+      }
+    } catch (error) {
+      console.error("Failed to start call:", error)
+    }
+  }
+
+  const endCall = async () => {
+    try {
+      await fetch("/api/calls/end", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user?.token}`,
+        },
+        body: JSON.stringify({
+          conversation_id: selectedConversation,
+        }),
+      })
+    } catch (error) {
+      console.error("Failed to end call:", error)
+    } finally {
+      setIsInCall(false)
+      setCallType(null)
+    }
+  }
+
   const selectedConv = conversations.find((c) => c.id === selectedConversation)
 
   return (
-    <div className="flex h-[600px] border rounded-lg overflow-hidden bg-white">
+    <div className="flex h-[600px] md:h-[700px] border rounded-lg overflow-hidden bg-white dark:bg-gray-900">
       {/* Conversations List */}
-      <div className="w-80 border-r bg-gray-50">
+      <div
+        className={`${selectedConversation ? "hidden md:block" : "block"} w-full md:w-80 border-r bg-gray-50 dark:bg-gray-800`}
+      >
         <div className="p-4 border-b">
           <h2 className="font-semibold text-lg">Messages</h2>
         </div>
@@ -370,13 +457,22 @@ export function EnhancedChatWindow() {
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className={`${selectedConversation ? "flex" : "hidden md:flex"} flex-1 flex-col`}>
         {selectedConv ? (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b bg-white">
+            <div className="p-3 md:p-4 border-b bg-white dark:bg-gray-900">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2 md:space-x-3">
+                  {/* Back button for mobile */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="md:hidden p-1"
+                    onClick={() => setSelectedConversation(null)}
+                  >
+                    ←
+                  </Button>
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={selectedConv.participants[0]?.avatar_url || "/placeholder.svg"} />
                     <AvatarFallback>{selectedConv.name.charAt(0).toUpperCase()}</AvatarFallback>
@@ -391,49 +487,90 @@ export function EnhancedChatWindow() {
                     </p>
                   </div>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <MoreHorizontal className="h-4 w-4" />
+
+                <div className="flex items-center space-x-2">
+                  {!isInCall ? (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => startCall("voice")}
+                        className="text-green-600 hover:text-green-700"
+                      >
+                        <Phone className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => startCall("video")}
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        <Video className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <Button variant="ghost" size="sm" onClick={endCall} className="text-red-600 hover:text-red-700">
+                      <PhoneOff className="h-4 w-4" />
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setGiftRecipient(selectedConv.participants[0]?.id || null)
-                        setShowGiftDialog(true)
-                      }}
-                    >
-                      <Gift className="h-4 w-4 mr-2" />
-                      Gift Premium
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  )}
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setGiftRecipient(selectedConv.participants[0]?.id || null)
+                          setShowGiftDialog(true)
+                        }}
+                      >
+                        <Gift className="h-4 w-4 mr-2" />
+                        Gift Premium
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
+
+              {isInCall && (
+                <div className="mt-2 p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+                  <div className="flex items-center justify-center space-x-2">
+                    {callType === "video" ? <Video className="h-4 w-4" /> : <Phone className="h-4 w-4" />}
+                    <span className="text-sm font-medium">
+                      {callType === "video" ? "Video Call" : "Voice Call"} in progress
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Messages */}
-            <ScrollArea className="flex-1 p-4">
-              <div className="space-y-4">
+            <ScrollArea className="flex-1 p-2 md:p-4">
+              <div className="space-y-3 md:space-y-4">
                 {messages.map((message) => (
                   <div key={message.id} className="group">
                     {message.reply_to && (
-                      <div className="ml-12 mb-1 p-2 bg-gray-100 rounded text-xs text-gray-600 border-l-2 border-gray-300">
+                      <div className="ml-8 md:ml-12 mb-1 p-2 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-300 border-l-2 border-gray-300 dark:border-gray-600">
                         <span className="font-medium">{message.reply_to.sender}:</span> {message.reply_to.content}
                       </div>
                     )}
 
-                    <div className="flex items-start space-x-3">
-                      <Avatar className="h-8 w-8">
+                    <div className="flex items-start space-x-2 md:space-x-3">
+                      <Avatar className="h-6 w-6 md:h-8 md:w-8 flex-shrink-0">
                         <AvatarImage src={message.sender.avatar_url || "/placeholder.svg"} />
                         <AvatarFallback>{message.sender.display_name.charAt(0).toUpperCase()}</AvatarFallback>
                       </Avatar>
 
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <span className="font-medium text-sm">{message.sender.display_name}</span>
-                          {message.sender.is_premium && <Crown className="h-3 w-3 text-yellow-500" />}
-                          <span className="text-xs text-gray-500">
+                        <div className="flex items-center space-x-1 md:space-x-2 mb-1">
+                          <span className="font-medium text-xs md:text-sm truncate">{message.sender.display_name}</span>
+                          {message.sender.is_premium && (
+                            <Crown className="h-2 w-2 md:h-3 md:w-3 text-yellow-500 flex-shrink-0" />
+                          )}
+                          <span className="text-xs text-gray-500 hidden sm:inline">
                             {new Date(message.timestamp).toLocaleTimeString()}
                           </span>
                         </div>
@@ -445,9 +582,16 @@ export function EnhancedChatWindow() {
                               <span className="font-medium text-purple-800">{message.content}</span>
                             </div>
                           </div>
+                        ) : message.type === "voice_note" ? (
+                          <div className="bg-gray-100 dark:bg-gray-700 p-2 md:p-3 rounded-lg max-w-xs md:max-w-md flex items-center">
+                            <Mic className="h-5 w-5 text-gray-500 mr-2" />
+                            <a href={message.audio_url} download className="text-sm md:text-base break-words">
+                              Voice Note
+                            </a>
+                          </div>
                         ) : (
-                          <div className="bg-gray-100 p-3 rounded-lg max-w-md">
-                            <p className="text-sm">{message.content}</p>
+                          <div className="bg-gray-100 dark:bg-gray-700 p-2 md:p-3 rounded-lg max-w-xs md:max-w-md">
+                            <p className="text-xs md:text-sm break-words">{message.content}</p>
                           </div>
                         )}
 
@@ -551,8 +695,30 @@ export function EnhancedChatWindow() {
             )}
 
             {/* Message Input */}
-            <div className="p-4 border-t bg-white">
-              <div className="flex items-end space-x-2">
+            <div className="p-2 md:p-4 border-t bg-white dark:bg-gray-900">
+              {isRecordingVoice && (
+                <div className="mb-2 p-2 bg-red-100 dark:bg-red-900 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                      <span className="text-sm font-medium">Recording voice note</span>
+                      <span className="text-sm text-gray-600">
+                        {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, "0")}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={stopVoiceRecording}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      Stop
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-end space-x-1 md:space-x-2">
                 <div className="flex-1">
                   <Textarea
                     placeholder="Type a message..."
@@ -564,23 +730,39 @@ export function EnhancedChatWindow() {
                         handleSendMessage()
                       }
                     }}
-                    className="min-h-[40px] max-h-32 resize-none"
+                    className="min-h-[36px] md:min-h-[40px] max-h-24 md:max-h-32 resize-none text-sm"
+                    disabled={isRecordingVoice}
                   />
                 </div>
 
                 <div className="flex space-x-1">
                   <input type="file" ref={fileInputRef} onChange={handleFileUpload} multiple className="hidden" />
 
-                  <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="hidden sm:flex"
+                  >
                     <Paperclip className="h-4 w-4" />
                   </Button>
 
                   <Button
-                    onClick={handleSendMessage}
-                    disabled={!newMessage.trim()}
-                    className="bg-purple-600 hover:bg-purple-700"
+                    variant="ghost"
+                    size="sm"
+                    onClick={isRecordingVoice ? stopVoiceRecording : startVoiceRecording}
+                    className={isRecordingVoice ? "text-red-600 hover:text-red-700" : ""}
                   >
-                    <Send className="h-4 w-4" />
+                    {isRecordingVoice ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  </Button>
+
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim() || isRecordingVoice}
+                    className="bg-purple-600 hover:bg-purple-700 px-2 md:px-4"
+                    size="sm"
+                  >
+                    <Send className="h-3 w-3 md:h-4 md:w-4" />
                   </Button>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import { Header } from "@/components/header"
-import { SettingsContent } from "@/components/settings/settings-content"
+import { EnhancedSettings } from "@/components/settings/enhanced-settings"
 
 export default function SettingsPage() {
   return (
@@ -14,7 +14,7 @@ export default function SettingsPage() {
             <p className="text-gray-600 text-lg">Manage your account and preferences</p>
           </div>
 
-          <SettingsContent />
+          <EnhancedSettings />
         </div>
       </main>
     </div>

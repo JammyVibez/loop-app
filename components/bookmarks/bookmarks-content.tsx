@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -9,118 +9,62 @@ import { Bookmark, Search, Grid, List, Trash2, Share } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
 import { useToast } from "@/hooks/use-toast"
 
-// Mock bookmarked content
-const mockBookmarks = [
-  {
-    id: "bookmark-1",
-    type: "loop",
-    saved_at: new Date("2024-01-15T14:30:00Z"),
-    category: "Philosophy",
-    loop: {
-      id: "1",
-      author: {
-        id: "1",
-        username: "creativemind",
-        display_name: "Creative Mind",
-        avatar_url: "/placeholder.svg?height=40&width=40",
-        is_verified: true,
-        verification_level: "root" as const,
-        is_premium: true,
-      },
-      content: {
-        type: "text" as const,
-        text: "What if we could travel through time but only to witness, never to change anything? 🤔",
-      },
-      created_at: new Date("2024-01-15T10:30:00Z"),
-      stats: { likes: 234, branches: 12, comments: 45, saves: 67 },
-    },
-  },
-  {
-    id: "bookmark-2",
-    type: "tree",
-    saved_at: new Date("2024-01-15T13:20:00Z"),
-    category: "Music",
-    loop: {
-      id: "2",
-      author: {
-        id: "2",
-        username: "musicmaker",
-        display_name: "Music Maker",
-        avatar_url: "/placeholder.svg?height=40&width=40",
-        is_verified: true,
-        verification_level: "influencer" as const,
-        is_premium: true,
-      },
-      content: {
-        type: "audio" as const,
-        audio_url: "/placeholder-audio.mp3",
-        title: "Collaborative Beat Session",
-        duration: 120,
-      },
-      created_at: new Date("2024-01-15T09:20:00Z"),
-      stats: { likes: 456, branches: 8, comments: 78, saves: 123 },
-    },
-    branch_count: 15,
-  },
-  {
-    id: "bookmark-3",
-    type: "loop",
-    saved_at: new Date("2024-01-15T12:10:00Z"),
-    category: "Art",
-    loop: {
-      id: "3",
-      author: {
-        id: "3",
-        username: "visualartist",
-        display_name: "Visual Artist",
-        avatar_url: "/placeholder.svg?height=40&width=40",
-        is_verified: false,
-        is_premium: true,
-      },
-      content: {
-        type: "image" as const,
-        image_url: "/placeholder.svg?height=400&width=600",
-        caption: "Digital dreams in neon colors",
-      },
-      created_at: new Date("2024-01-15T08:45:00Z"),
-      stats: { likes: 189, branches: 5, comments: 23, saves: 45 },
-    },
-  },
-  {
-    id: "bookmark-4",
-    type: "loop",
-    saved_at: new Date("2024-01-14T16:45:00Z"),
-    category: "Technology",
-    loop: {
-      id: "4",
-      author: {
-        id: "4",
-        username: "coder",
-        display_name: "Code Master",
-        avatar_url: "/placeholder.svg?height=40&width=40",
-        is_verified: true,
-        verification_level: "influencer" as const,
-        is_premium: false,
-      },
-      content: {
-        type: "text" as const,
-        text: "// Recursive function to traverse loop trees\nfunction traverseTree(node) {\n  if (!node) return;\n  console.log(node.content);\n  node.branches.forEach(traverseTree);\n}",
-      },
-      created_at: new Date("2024-01-14T15:30:00Z"),
-      stats: { likes: 345, branches: 23, comments: 67, saves: 89 },
-    },
-  },
-]
+// Bookmark interface
+interface Bookmark {
+  id: string
+  type: "loop" | "tree"
+  saved_at: Date
+  category: string
+  loop: any // Using any for now, but should be properly typed
+  branch_count?: number
+}
 
 const categories = ["All", "Philosophy", "Music", "Art", "Technology", "Stories", "Tutorials"]
 
 export function BookmarksContent() {
-  const [bookmarks, setBookmarks] = useState(mockBookmarks)
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [viewMode, setViewMode] = useState<"grid" | "list">("list")
   const [sortBy, setSortBy] = useState("recent")
+  const [loading, setLoading] = useState(true)
   const { toast } = useToast()
+  
+  // Load bookmarks from API
+  useEffect(() => {
+    const loadBookmarks = async () => {
+      try {
+        setLoading(true)
+        const token = localStorage.getItem('auth-token')
+        if (!token) {
+          setLoading(false)
+          return
+        }
+        
+        const response = await fetch('/api/bookmarks', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setBookmarks(data.bookmarks || [])
+        }
+      } catch (error) {
+        console.error('Failed to load bookmarks:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load bookmarks",
+          variant: "destructive"
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadBookmarks()
+  }, [])
 
   const filteredBookmarks = bookmarks.filter((bookmark) => {
     const matchesSearch =

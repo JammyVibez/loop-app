@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Plus, ImageIcon, Video, Music, FileText, Code } from "lucide-react"
+import { Plus, ImageIcon, Video, Music, FileText, Code, X, Upload } from "lucide-react"
 import { Button } from "./ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Textarea } from "./ui/textarea"
@@ -12,51 +12,139 @@ import { Label } from "./ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
 import { Badge } from "./ui/badge"
 import { useAuth } from "../providers/auth-provider"
+import { createClient } from "@supabase/supabase-js"
 
-export function CreateLoopButton() {
+// Use NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY for client-side code
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+
+interface CreateLoopButtonProps {
+  onLoopCreated?: () => void
+}
+
+export function CreateLoopButton({ onLoopCreated }: CreateLoopButtonProps) {
   const { user } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [content, setContent] = useState("")
   const [hashtags, setHashtags] = useState("")
-  const [mediaFile, setMediaFile] = useState<File | null>(null)
+  const [mediaFiles, setMediaFiles] = useState<File[]>([])
   const [mediaType, setMediaType] = useState<"text" | "image" | "video" | "audio" | "code">("text")
+  const [creating, setCreating] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<number[]>([])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    // Mock submission - replace with real API call
-    console.log("Creating loop:", {
-      content,
-      hashtags: hashtags.split(" ").filter((tag) => tag.startsWith("#")),
-      mediaFile,
-      mediaType,
-      userId: user?.id,
-    })
-
-    // Reset form
-    setContent("")
-    setHashtags("")
-    setMediaFile(null)
-    setMediaType("text")
-    setIsOpen(false)
+  const getMaxFiles = () => {
+    return user?.is_premium || user?.is_verified ? 4 : 1
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setMediaFile(file)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-      // Auto-detect media type
-      if (file.type.startsWith("image/")) {
+    if (!user || !user.token) {
+      alert("You must be logged in to create a loop.");
+      setCreating(false);
+      return;
+    }
+    setCreating(true);
+
+    try {
+      let res;
+
+      if (mediaFiles.length > 0) {
+        // ✅ OPTION B: send file(s) directly to backend
+        const formData = new FormData();
+        formData.append("content", content);
+        formData.append("title", content.slice(0, 80) || "");
+        formData.append("type", mediaType);
+        formData.append("author_id", user.id);
+
+        // only append first file for now (backend expects one)
+        formData.append("file", mediaFiles[0]);
+
+        res = await fetch("/api/loops", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${user.token}`, // ⚠️ no Content-Type here, browser sets it
+          },
+          body: formData,
+        });
+      } else {
+        // ✅ OPTION A: no file → send JSON
+        res = await fetch("/api/loops", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user.token}`,
+          },
+          body: JSON.stringify({
+            content,
+            title: content.slice(0, 80) || null,
+            type: mediaType,
+            hashtags: hashtags
+              .split(/[ ,#]+/)
+              .filter((tag) => tag.length > 0)
+              .map((tag) => tag.toLowerCase()),
+            author_id: user.id,
+          }),
+        });
+      }
+
+      const result = await res.json();
+      if (res.ok) {
+        setContent("");
+        setHashtags("");
+        setMediaFiles([]);
+        setMediaType("text");
+        setUploadProgress([]);
+        setIsOpen(false);
+        // Call the callback after successful creation
+        if (onLoopCreated) onLoopCreated();
+      } else {
+        alert("Failed to create loop: " + (result.error || res.statusText));
+      }
+    } catch (err: any) {
+      alert("Failed to create loop: " + err.message);
+    }
+
+    setCreating(false);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    const maxFiles = getMaxFiles()
+
+    if (files.length > maxFiles) {
+      alert(
+        `${user?.is_premium || user?.is_verified ? "Premium users" : "Free users"} can upload up to ${maxFiles} file${maxFiles > 1 ? "s" : ""} per post.`,
+      )
+      return
+    }
+
+    if (files.length > 0) {
+      setMediaFiles(files)
+
+      // Auto-detect media type from first file
+      const firstFile = files[0]
+      if (firstFile.type.startsWith("image/")) {
         setMediaType("image")
-      } else if (file.type.startsWith("video/")) {
+      } else if (firstFile.type.startsWith("video/")) {
         setMediaType("video")
-      } else if (file.type.startsWith("audio/")) {
+      } else if (firstFile.type.startsWith("audio/")) {
         setMediaType("audio")
-      } else if (file.name.endsWith(".zip") || file.name.endsWith(".js") || file.name.endsWith(".py")) {
+      } else if (firstFile.name.endsWith(".zip") || firstFile.name.endsWith(".js") || firstFile.name.endsWith(".py")) {
         setMediaType("code")
       }
     }
+  }
+
+  const removeFile = (index: number) => {
+    setMediaFiles((prev) => prev.filter((_, i) => i !== index))
+    setUploadProgress((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const getFileIcon = (file: File) => {
+    if (file.type.startsWith("image/")) return <ImageIcon className="h-4 w-4" />
+    if (file.type.startsWith("video/")) return <Video className="h-4 w-4" />
+    if (file.type.startsWith("audio/")) return <Music className="h-4 w-4" />
+    return <Code className="h-4 w-4" />
   }
 
   if (!isOpen) {
@@ -69,6 +157,11 @@ export function CreateLoopButton() {
             </div>
             <div className="flex-1">
               <p className="text-gray-500 dark:text-gray-400">What's on your mind, {user?.display_name}?</p>
+              {user?.is_premium || user?.is_verified ? (
+                <p className="text-xs text-purple-600 mt-1">Premium: Upload up to 4 media files per post</p>
+              ) : (
+                <p className="text-xs text-gray-400 mt-1">Upgrade to Premium for multi-media posts</p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -138,8 +231,19 @@ export function CreateLoopButton() {
                 />
               </div>
               <div>
-                <Label htmlFor="image-file">Upload Image</Label>
-                <Input id="image-file" type="file" accept="image/*" onChange={handleFileChange} />
+                <Label htmlFor="image-file">Upload Images</Label>
+                <Input
+                  id="image-file"
+                  type="file"
+                  accept="image/*"
+                  multiple={user?.is_premium || user?.is_verified}
+                  onChange={handleFileChange}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {user?.is_premium || user?.is_verified
+                    ? `Upload up to ${getMaxFiles()} images`
+                    : "Upgrade to Premium for multiple images"}
+                </p>
               </div>
             </TabsContent>
 
@@ -155,8 +259,19 @@ export function CreateLoopButton() {
                 />
               </div>
               <div>
-                <Label htmlFor="video-file">Upload Video</Label>
-                <Input id="video-file" type="file" accept="video/*" onChange={handleFileChange} />
+                <Label htmlFor="video-file">Upload Videos</Label>
+                <Input
+                  id="video-file"
+                  type="file"
+                  accept="video/*"
+                  multiple={user?.is_premium || user?.is_verified}
+                  onChange={handleFileChange}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {user?.is_premium || user?.is_verified
+                    ? `Upload up to ${getMaxFiles()} videos`
+                    : "Upgrade to Premium for multiple videos"}
+                </p>
               </div>
             </TabsContent>
 
@@ -173,7 +288,18 @@ export function CreateLoopButton() {
               </div>
               <div>
                 <Label htmlFor="audio-file">Upload Audio</Label>
-                <Input id="audio-file" type="file" accept="audio/*" onChange={handleFileChange} />
+                <Input
+                  id="audio-file"
+                  type="file"
+                  accept="audio/*"
+                  multiple={user?.is_premium || user?.is_verified}
+                  onChange={handleFileChange}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {user?.is_premium || user?.is_verified
+                    ? `Upload up to ${getMaxFiles()} audio files`
+                    : "Upgrade to Premium for multiple audio files"}
+                </p>
               </div>
             </TabsContent>
 
@@ -194,8 +320,14 @@ export function CreateLoopButton() {
                   id="code-file"
                   type="file"
                   accept=".zip,.js,.py,.html,.css,.json,.md,.txt"
+                  multiple={user?.is_premium || user?.is_verified}
                   onChange={handleFileChange}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  {user?.is_premium || user?.is_verified
+                    ? `Upload up to ${getMaxFiles()} files`
+                    : "Upgrade to Premium for multiple files"}
+                </p>
               </div>
             </TabsContent>
           </Tabs>
@@ -211,32 +343,68 @@ export function CreateLoopButton() {
             <p className="text-sm text-muted-foreground mt-1">Add hashtags to help others discover your loop</p>
           </div>
 
-          {mediaFile && (
-            <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  {mediaType === "image" && <ImageIcon className="h-4 w-4" />}
-                  {mediaType === "video" && <Video className="h-4 w-4" />}
-                  {mediaType === "audio" && <Music className="h-4 w-4" />}
-                  {mediaType === "code" && <Code className="h-4 w-4" />}
-                  <span className="text-sm font-medium">{mediaFile.name}</span>
-                  <Badge variant="secondary">{mediaType}</Badge>
+          {mediaFiles.length > 0 && (
+            <div className="space-y-2">
+              <Label>
+                Selected Files ({mediaFiles.length}/{getMaxFiles()})
+              </Label>
+              {mediaFiles.map((file, index) => (
+                <div key={index} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      {getFileIcon(file)}
+                      <span className="text-sm font-medium">{file.name}</span>
+                      <Badge variant="secondary">{mediaType}</Badge>
+                      <span className="text-xs text-gray-500">({(file.size / 1024 / 1024).toFixed(1)} MB)</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFile(index)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {creating && uploadProgress[index] !== undefined && (
+                    <div className="mt-2">
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${uploadProgress[index]}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Uploading... {Math.round(uploadProgress[index])}%</p>
+                    </div>
+                  )}
                 </div>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setMediaFile(null)}>
-                  Remove
-                </Button>
-              </div>
+              ))}
             </div>
           )}
 
           <div className="flex items-center justify-between pt-4 border-t">
-            <div className="text-sm text-muted-foreground">{content.length}/500 characters</div>
+            <div className="text-sm text-muted-foreground">
+              {content.length}/500 characters
+              {user?.is_premium || user?.is_verified ? (
+                <span className="ml-2 text-purple-600">• Premium Multi-media</span>
+              ) : (
+                <span className="ml-2 text-gray-400">• Single file limit</span>
+              )}
+            </div>
             <div className="flex space-x-2">
               <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={!content.trim()}>
-                Create Loop
+              <Button type="submit" disabled={!content.trim() || creating}>
+                {creating ? (
+                  <>
+                    <Upload className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Loop"
+                )}
               </Button>
             </div>
           </div>
