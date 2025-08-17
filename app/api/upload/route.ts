@@ -101,6 +101,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
 
+    // Validate file type
+    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
+    const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/avi', 'video/mov']
+    const allowedAudioTypes = ['audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a']
+
+    if (type === 'image' && !allowedImageTypes.includes(file.type)) {
+      return NextResponse.json({ 
+        error: "Invalid image format. Supported: JPEG, PNG, GIF, WebP, SVG" 
+      }, { status: 400 })
+    }
+
+    if (type === 'video' && !allowedVideoTypes.includes(file.type)) {
+      return NextResponse.json({ 
+        error: "Invalid video format. Supported: MP4, WebM, OGG, AVI, MOV" 
+      }, { status: 400 })
+    }
+
+    if (type === 'audio' && !allowedAudioTypes.includes(file.type)) {
+      return NextResponse.json({ 
+        error: "Invalid audio format. Supported: MP3, WAV, OGG, M4A" 
+      }, { status: 400 })
+    }
+
     // Convert file to base64
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
@@ -111,10 +134,17 @@ export async function POST(request: NextRequest) {
     try {
       // Upload to Cloudinary based on type
       if (type === 'image') {
+        // Special handling for GIFs to preserve animation
+        const isGif = file.type === 'image/gif'
+        
         uploadResult = await cloudinary.uploader.upload(base64, {
           folder: `loop-app/${folder}/images`,
           resource_type: 'image',
-          transformation: [
+          transformation: isGif ? [
+            { width: 800, height: 800, crop: 'limit' },
+            { quality: 'auto' },
+            { flags: 'animated' } // Preserve GIF animation
+          ] : [
             { width: 1200, height: 1200, crop: 'limit' },
             { quality: 'auto' },
             { format: 'auto' }
