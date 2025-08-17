@@ -77,7 +77,7 @@ export default function OnboardingPage() {
     bio: "",
     interests: [] as string[],
     theme: THEMES[0],
-    avatar: "",
+    avatar_url: "",
   })
   const { user, updateProfile } = useAuth()
   const router = useRouter()
@@ -91,6 +91,33 @@ export default function OnboardingPage() {
         ? prev.interests.filter((i) => i !== interest)
         : [...prev.interests, interest],
     }))
+  }
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'image')
+      formData.append('folder', 'avatars')
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user?.access_token}`
+        },
+        body: formData
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setProfileData(prev => ({ ...prev, avatar_url: result.url }))
+      }
+    } catch (error) {
+      console.error("Avatar upload failed:", error)
+    }
   }
 
   const handleComplete = async () => {
@@ -114,6 +141,7 @@ export default function OnboardingPage() {
       await updateProfile({
         bio: profileData.bio,
         interests: profileData.interests,
+        avatar_url: profileData.avatar_url,
         profile_theme: {
           primary_color: profileData.theme.primary,
           secondary_color: profileData.theme.secondary,
@@ -162,12 +190,24 @@ export default function OnboardingPage() {
               <div className="text-center">
                 <div className="relative inline-block">
                   <Avatar className="w-24 h-24">
-                    <AvatarImage src={user?.avatar_url || "/placeholder.svg"} />
+                    <AvatarImage src={profileData.avatar_url || user?.avatar_url || "/placeholder.svg"} />
                     <AvatarFallback className="text-2xl">{user?.display_name?.charAt(0)}</AvatarFallback>
                   </Avatar>
-                  <Button size="icon" className="absolute -bottom-2 -right-2 rounded-full w-8 h-8" variant="secondary">
+                  <Button 
+                    size="icon" 
+                    className="absolute -bottom-2 -right-2 rounded-full w-8 h-8" 
+                    variant="secondary"
+                    onClick={() => document.getElementById('onboarding-avatar-upload')?.click()}
+                  >
                     <Camera className="w-4 h-4" />
                   </Button>
+                  <input
+                    id="onboarding-avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarUpload}
+                  />
                 </div>
                 <h3 className="text-xl font-semibold mt-4">{user?.display_name}</h3>
                 <p className="text-gray-600 dark:text-gray-400">@{user?.username}</p>

@@ -44,6 +44,76 @@ export function SettingsContent() {
     show_online_status: true,
   })
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'image')
+      formData.append('folder', 'avatars')
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user?.access_token}`
+        },
+        body: formData
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setProfileData({ ...profileData, avatar_url: result.url })
+        toast({
+          title: "Avatar Updated",
+          description: "Your avatar has been updated successfully.",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to upload avatar.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleBannerUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'image')
+      formData.append('folder', 'banners')
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user?.access_token}`
+        },
+        body: formData
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setProfileData({ ...profileData, banner_url: result.url })
+        toast({
+          title: "Banner Updated",
+          description: "Your banner has been updated successfully.",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to upload banner.",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleProfileUpdate = async () => {
     try {
       const response = await fetch('/api/users/profile', {
@@ -135,18 +205,61 @@ export function SettingsContent() {
             <CardContent className="space-y-4">
               <div className="flex items-center space-x-4">
                 <Avatar className="w-20 h-20">
-                  <AvatarImage src={user?.avatar_url || "/placeholder.svg"} />
+                  <AvatarImage src={profileData.avatar_url || user?.avatar_url || "/placeholder.svg"} />
                   <AvatarFallback className="text-2xl">{user?.display_name?.charAt(0) || "U"}</AvatarFallback>
                 </Avatar>
                 <div className="space-y-2">
-                  <Button variant="outline" className="flex items-center space-x-2">
+                  <Button variant="outline" className="flex items-center space-x-2" onClick={() => document.getElementById('avatar-upload')?.click()}>
                     <Upload className="w-4 h-4" />
                     <span>Upload New Picture</span>
                   </Button>
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarUpload}
+                  />
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {user?.is_premium
                       ? "Premium users can upload GIFs and videos up to 10s"
                       : "Upgrade to Premium for animated avatars"}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Banner */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile Banner</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-4">
+                <div className="w-full h-32 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg overflow-hidden">
+                  {profileData.banner_url ? (
+                    <img src={profileData.banner_url} alt="Banner" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white">
+                      <span>No banner uploaded</span>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Button variant="outline" className="flex items-center space-x-2" onClick={() => document.getElementById('banner-upload')?.click()}>
+                    <Upload className="w-4 h-4" />
+                    <span>Upload Banner</span>
+                  </Button>
+                  <input
+                    id="banner-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleBannerUpload}
+                  />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Recommended size: 1500x500 pixels
                   </p>
                 </div>
               </div>

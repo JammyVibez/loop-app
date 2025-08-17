@@ -4,11 +4,11 @@ import type { Database } from "./database.types"
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+// Configure supabase client
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true,
+    autoRefreshToken: true,
   },
   realtime: {
     params: {
@@ -16,6 +16,17 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     },
   },
 })
+
+// Google OAuth configuration
+export const signInWithGoogle = async () => {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/api/auth/callback`,
+    },
+  })
+  return { data, error }
+}
 
 // Server-side client for API routes
 export const createServerClient = () => {
