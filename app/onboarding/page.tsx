@@ -121,24 +121,31 @@ export default function OnboardingPage() {
   }
 
   const handleComplete = async () => {
-    setSaving(true)
-    setErrors({})
-    
-    try {
-      // Validate data
-      if (!profileData.bio.trim()) {
-        setErrors({ bio: "Bio is required" })
-        setSaving(false)
-        return
-      }
+  setSaving(true)
+  setErrors({})
+  
+  try {
+    // Validation
+    if (!profileData.bio.trim()) {
+      setErrors({ bio: "Bio is required" })
+      setSaving(false)
+      return
+    }
 
-      if (profileData.interests.length === 0) {
-        setErrors({ interests: "Please select at least one interest" })
-        setSaving(false)
-        return
-      }
+    if (!profileData.avatar_url) {
+      setErrors({ avatar_url: "Please upload an avatar" })
+      setSaving(false)
+      return
+    }
 
-      await updateProfile({
+    // Send to backend API
+    const response = await fetch("/api/users/update-profile", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${user?.token}`, // or access_token depending on your auth
+      },
+      body: JSON.stringify({
         bio: profileData.bio,
         interests: profileData.interests,
         avatar_url: profileData.avatar_url,
@@ -148,29 +155,36 @@ export default function OnboardingPage() {
           animation: "pulse-glow",
         },
         onboarding_completed: true,
-      })
-      
-      // Award welcome bonus
-      await fetch('/api/users/coins/weekly', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${user?.token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          type: 'onboarding_bonus',
-          amount: 100 
-        })
-      })
-      
-      router.push("/")
-    } catch (error) {
-      console.error("Failed to update profile:", error)
-      setErrors({ general: "Failed to complete onboarding. Please try again." })
-    } finally {
-      setSaving(false)
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to save profile")
     }
+
+    // (Optional) award coins
+    await fetch('/api/users/coins/weekly', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${user?.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        type: 'onboarding_bonus',
+        amount: 100 
+      })
+    })
+
+    // Redirect to their profile page
+    router.push(`/`)
+  } catch (error) {
+    console.error("Failed to complete onboarding:", error)
+    setErrors({ general: "Failed to complete onboarding. Please try again." })
+  } finally {
+    setSaving(false)
   }
+}
+
 
   const renderStep = () => {
     switch (step) {
