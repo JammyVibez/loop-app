@@ -10,6 +10,7 @@ import { Theme3DProvider } from "../providers/theme-3d-provider"
 // import { RealtimeProvider } from "@/providers/realtime-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { OnboardingRedirect } from "@/components/onboarding-redirect"
+import { checkEnvironmentVariables, logEnvironmentStatus } from "@/lib/env-check"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -50,6 +51,8 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  checkEnvironmentVariables()
+  logEnvironmentStatus()
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

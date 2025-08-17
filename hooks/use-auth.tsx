@@ -8,17 +8,31 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables:', {
+    url: !!supabaseUrl,
+    key: !!supabaseAnonKey
+  })
   throw new Error('Missing Supabase environment variables')
 }
 
-// Single Supabase client instance to prevent multiple instances
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false,
-  },
-})
+// Global Supabase client instance to prevent multiple instances
+let supabaseClient: any = null
+
+function getSupabaseClient() {
+  if (!supabaseClient) {
+    supabaseClient = createClient(supabaseUrl!, supabaseAnonKey!, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+        flowType: 'pkce'
+      },
+    })
+  }
+  return supabaseClient
+}
+
+const supabase = getSupabaseClient()
 
 interface User {
   id: string
@@ -54,6 +68,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadUserProfile = async (session: any) => {
     try {
+      if (!session?.user?.id) {
+        console.log('No valid session provided to loadUserProfile')
+        return null
+      }
+
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("*")
@@ -62,6 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error("Error loading profile:", error)
+        return null
+      }
+
+      if (!profile) {
+        console.error("No profile found for user:", session.user.id)
         return null
       }
 
@@ -89,22 +113,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true
+    let authSubscription: any = null
 
     const initAuth = async () => {
       try {
+        setLoading(true)
+        
         const { data: { session }, error } = await supabase.auth.getSession()
 
         if (error) {
           console.error("Session error:", error)
-          if (mounted) setLoading(false)
           return
         }
 
         if (session?.user && mounted) {
+          console.log("Initial session found for user:", session.user.id)
           const userProfile = await loadUserProfile(session)
           if (userProfile && mounted) {
             setUser(userProfile)
           }
+        } else {
+          console.log("No initial session found")
         }
       } catch (error) {
         console.error("Init auth error:", error)
@@ -113,47 +142,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    const setupAuthListener = () => {
+      // Listen for auth changes
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log("Auth state change:", event, session?.user?.id)
+
+        if (!mounted) return
+
+        setLoading(true)
+
+        try {
+          if (event === "SIGNED_IN" && session?.user) {
+            console.log("User signed in:", session.user.id)
+            const userProfile = await loadUserProfile(session)
+            if (userProfile && mounted) {
+              setUser(userProfile)
+            }
+          } else if (event === "SIGNED_OUT") {
+            console.log("User signed out")
+            setUser(null)
+          } else if (event === "TOKEN_REFRESHED" && session?.user) {
+            console.log("Token refreshed for user:", session.user.id)
+            const userProfile = await loadUserProfile(session)
+            if (userProfile && mounted) {
+              setUser(userProfile)
+            }
+          }
+        } catch (error) {
+          console.error("Auth state change error:", error)
+        } finally {
+          if (mounted) {
+            setLoading(false)
+          }
+        }
+      })
+
+      authSubscription = subscription
+    }
+
     initAuth()
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state change:", event, session?.user?.id)
-
-      if (!mounted) return
-
-      try {
-        if (event === "SIGNED_IN" && session?.user) {
-          const userProfile = await loadUserProfile(session)
-          if (userProfile && mounted) {
-            setUser(userProfile)
-          }
-        } else if (event === "SIGNED_OUT") {
-          setUser(null)
-        } else if (event === "TOKEN_REFRESHED" && session?.user) {
-          const userProfile = await loadUserProfile(session)
-          if (userProfile && mounted) {
-            setUser(userProfile)
-          }
-        } else if (event === "INITIAL_SESSION" && session?.user) {
-          const userProfile = await loadUserProfile(session)
-          if (userProfile && mounted) {
-            setUser(userProfile)
-          }
-        }
-      } catch (error) {
-        console.error("Auth state change error:", error)
-      } finally {
-        if (mounted) {
-          setLoading(false)
-        }
-      }
-    })
+    setupAuthListener()
 
     return () => {
       mounted = false
-      subscription.unsubscribe()
+      if (authSubscription) {
+        authSubscription.unsubscribe()
+      }
     }
   }, [])
 

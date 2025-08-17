@@ -40,17 +40,31 @@ function createServerClient() {
 }
 
 async function getUserFromToken(token: string | null) {
-  if (!token) return null
+  if (!token) {
+    console.log('No token provided for auth verification')
+    return null
+  }
+  
+  console.log('Verifying token with length:', token.length)
+  
   try {
     const supabase = createServerClient()
     const { data: { user }, error } = await supabase.auth.getUser(token)
-    if (error || !user) {
-      console.error('Auth verification error:', error)
+    
+    if (error) {
+      console.error('Supabase auth verification error:', error.message)
       return null
     }
+    
+    if (!user) {
+      console.error('No user found for provided token')
+      return null
+    }
+    
+    console.log('Successfully verified user:', user.id)
     return user
   } catch (error) {
-    console.error('Auth error:', error)
+    console.error('Auth verification exception:', error)
     return null
   }
 }
