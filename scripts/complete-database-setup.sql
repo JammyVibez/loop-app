@@ -1,324 +1,355 @@
--- Complete Database Setup for Loop Social Platform Enhanced Features
--- Run this script in your Supabase SQL editor
 
--- =====================================================
--- STEP 1: CREATE TABLES
--- =====================================================
+-- Complete Database Setup for Loop Social Platform
+-- Run this in your Supabase SQL editor
 
--- Shop Items Table
-CREATE TABLE IF NOT EXISTS shop_items (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    price INTEGER DEFAULT 0,
-    price_coins INTEGER,
-    price_usd DECIMAL(10,2),
-    category VARCHAR(50) NOT NULL,
-    item_type VARCHAR(50) NOT NULL,
-    rarity VARCHAR(20) DEFAULT 'common',
-    premium_only BOOLEAN DEFAULT false,
-    item_data JSONB DEFAULT '{}',
-    preview_data JSONB DEFAULT '{}',
-    image_url TEXT,
-    animation_url TEXT,
-    is_active BOOLEAN DEFAULT true,
+-- Enable necessary extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Create custom types
+DO $$ BEGIN
+    CREATE TYPE content_type AS ENUM ('text', 'image', 'video', 'audio', 'file');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE visibility_type AS ENUM ('public', 'private', 'circle');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE interaction_type AS ENUM ('like', 'save', 'view', 'share');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE notification_type AS ENUM ('like', 'comment', 'follow', 'branch', 'mention', 'system', 'gift', 'achievement');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE message_type AS ENUM ('text', 'image', 'file', 'system');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE member_role AS ENUM ('member', 'moderator', 'admin');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE shop_category AS ENUM ('theme', 'animation', 'effect', 'premium', 'coins');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Create profiles table (main user table)
+CREATE TABLE IF NOT EXISTS profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username VARCHAR(50) UNIQUE NOT NULL,
+    display_name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    avatar_url TEXT,
+    banner_url TEXT,
+    bio TEXT,
+    loop_coins INTEGER DEFAULT 500,
+    xp_points INTEGER DEFAULT 0,
+    level INTEGER DEFAULT 1,
+    is_premium BOOLEAN DEFAULT FALSE,
+    is_verified BOOLEAN DEFAULT FALSE,
+    is_admin BOOLEAN DEFAULT FALSE,
+    theme_data JSONB DEFAULT '{}',
+    last_active TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- User Inventory Table
-CREATE TABLE IF NOT EXISTS user_inventory (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    item_id UUID REFERENCES shop_items(id) ON DELETE CASCADE,
-    quantity INTEGER DEFAULT 1,
-    is_equipped BOOLEAN DEFAULT false,
-    acquired_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, item_id)
-);
-
--- Gift Transactions Table
-CREATE TABLE IF NOT EXISTS gift_transactions (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    sender_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    recipient_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    gift_id UUID REFERENCES shop_items(id) ON DELETE CASCADE,
-    message TEXT,
-    is_anonymous BOOLEAN DEFAULT false,
-    context VARCHAR(50),
-    context_id UUID,
-    status VARCHAR(20) DEFAULT 'sent',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Video Calls Table
-CREATE TABLE IF NOT EXISTS video_calls (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    caller_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    callee_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    call_type VARCHAR(10) NOT NULL CHECK (call_type IN ('video', 'audio')),
-    status VARCHAR(20) DEFAULT 'initiated',
-    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    ended_at TIMESTAMP WITH TIME ZONE,
-    duration INTEGER DEFAULT 0,
-    call_data JSONB DEFAULT '{}'
-);
-
--- User Themes Table
-CREATE TABLE IF NOT EXISTS user_themes (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    theme_id VARCHAR(50) NOT NULL,
-    is_active BOOLEAN DEFAULT false,
-    acquired_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, theme_id)
-);
-
--- Admin Settings Table
-CREATE TABLE IF NOT EXISTS admin_settings (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    setting_key VARCHAR(100) UNIQUE NOT NULL,
-    setting_value JSONB NOT NULL,
-    updated_by UUID REFERENCES auth.users(id),
+-- Create loops table (main content)
+CREATE TABLE IF NOT EXISTS loops (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    author_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    parent_loop_id UUID REFERENCES loops(id) ON DELETE CASCADE,
+    content_type content_type NOT NULL DEFAULT 'text',
+    content_text TEXT,
+    content_media_url TEXT,
+    content_metadata JSONB DEFAULT '{}',
+    content_title TEXT,
+    content JSONB DEFAULT '{}',
+    visibility visibility_type DEFAULT 'public',
+    circle_id UUID,
+    tree_depth INTEGER DEFAULT 0,
+    hashtags TEXT[] DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- PWA Install Tracking Table
-CREATE TABLE IF NOT EXISTS pwa_installs (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    platform VARCHAR(50),
-    user_agent TEXT,
-    installed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Create loop statistics table
+CREATE TABLE IF NOT EXISTS loop_stats (
+    loop_id UUID PRIMARY KEY REFERENCES loops(id) ON DELETE CASCADE,
+    likes_count INTEGER DEFAULT 0,
+    comments_count INTEGER DEFAULT 0,
+    branches_count INTEGER DEFAULT 0,
+    shares_count INTEGER DEFAULT 0,
+    views_count INTEGER DEFAULT 0,
+    saves_count INTEGER DEFAULT 0,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Call Participants Table (for group calls)
-CREATE TABLE IF NOT EXISTS call_participants (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    call_id UUID REFERENCES video_calls(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+-- Create loop interactions table
+CREATE TABLE IF NOT EXISTS loop_interactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    loop_id UUID NOT NULL REFERENCES loops(id) ON DELETE CASCADE,
+    interaction_type interaction_type NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, loop_id, interaction_type)
+);
+
+-- Create comments table
+CREATE TABLE IF NOT EXISTS comments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    loop_id UUID NOT NULL REFERENCES loops(id) ON DELETE CASCADE,
+    author_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    parent_comment_id UUID REFERENCES comments(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create follows table
+CREATE TABLE IF NOT EXISTS follows (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    follower_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    following_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(follower_id, following_id),
+    CHECK (follower_id != following_id)
+);
+
+-- Create circles table (communities)
+CREATE TABLE IF NOT EXISTS circles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    avatar_url TEXT,
+    banner_url TEXT,
+    is_private BOOLEAN DEFAULT FALSE,
+    owner_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    member_count INTEGER DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create circle members table
+CREATE TABLE IF NOT EXISTS circle_members (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    circle_id UUID NOT NULL REFERENCES circles(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    role member_role DEFAULT 'member',
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    left_at TIMESTAMP WITH TIME ZONE,
-    is_muted BOOLEAN DEFAULT false,
-    is_video_enabled BOOLEAN DEFAULT true
+    UNIQUE(circle_id, user_id)
 );
 
--- =====================================================
--- STEP 2: ADD MISSING COLUMNS TO EXISTING TABLES
--- =====================================================
-
--- Add columns to profiles table if they don't exist
-DO $$ 
-BEGIN
-    -- Add loop_coins column if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'loop_coins') THEN
-        ALTER TABLE profiles ADD COLUMN loop_coins INTEGER DEFAULT 500;
-    END IF;
-    
-    -- Add is_admin column if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'is_admin') THEN
-        ALTER TABLE profiles ADD COLUMN is_admin BOOLEAN DEFAULT false;
-    END IF;
-    
-    -- Add premium_until column if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'premium_until') THEN
-        ALTER TABLE profiles ADD COLUMN premium_until TIMESTAMP WITH TIME ZONE;
-    END IF;
-    
-    -- Add theme_id column if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'theme_id') THEN
-        ALTER TABLE profiles ADD COLUMN theme_id VARCHAR(50) DEFAULT 'default';
-    END IF;
-END $$;
-
--- =====================================================
--- STEP 3: ENABLE ROW LEVEL SECURITY
--- =====================================================
-
-ALTER TABLE shop_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_inventory ENABLE ROW LEVEL SECURITY;
-ALTER TABLE gift_transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE video_calls ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_themes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE admin_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pwa_installs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE call_participants ENABLE ROW LEVEL SECURITY;
-
--- =====================================================
--- STEP 4: CREATE RLS POLICIES
--- =====================================================
-
--- Shop Items Policies
-DROP POLICY IF EXISTS "Shop items are viewable by everyone" ON shop_items;
-CREATE POLICY "Shop items are viewable by everyone" ON shop_items FOR SELECT USING (is_active = true);
-
-DROP POLICY IF EXISTS "Admins can manage shop items" ON shop_items;
-CREATE POLICY "Admins can manage shop items" ON shop_items FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
-);
-
--- User Inventory Policies
-DROP POLICY IF EXISTS "Users can view their own inventory" ON user_inventory;
-CREATE POLICY "Users can view their own inventory" ON user_inventory FOR SELECT USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Users can update their own inventory" ON user_inventory;
-CREATE POLICY "Users can update their own inventory" ON user_inventory FOR UPDATE USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "System can insert into inventory" ON user_inventory;
-CREATE POLICY "System can insert into inventory" ON user_inventory FOR INSERT WITH CHECK (true);
-
--- Gift Transactions Policies
-DROP POLICY IF EXISTS "Users can view gifts they sent or received" ON gift_transactions;
-CREATE POLICY "Users can view gifts they sent or received" ON gift_transactions FOR SELECT USING (
-    auth.uid() = sender_id OR auth.uid() = recipient_id
-);
-
-DROP POLICY IF EXISTS "Users can send gifts" ON gift_transactions;
-CREATE POLICY "Users can send gifts" ON gift_transactions FOR INSERT WITH CHECK (auth.uid() = sender_id);
-
--- Video Calls Policies
-DROP POLICY IF EXISTS "Users can view their own calls" ON video_calls;
-CREATE POLICY "Users can view their own calls" ON video_calls FOR SELECT USING (
-    auth.uid() = caller_id OR auth.uid() = callee_id
-);
-
-DROP POLICY IF EXISTS "Users can create calls" ON video_calls;
-CREATE POLICY "Users can create calls" ON video_calls FOR INSERT WITH CHECK (auth.uid() = caller_id);
-
-DROP POLICY IF EXISTS "Users can update their calls" ON video_calls;
-CREATE POLICY "Users can update their calls" ON video_calls FOR UPDATE USING (
-    auth.uid() = caller_id OR auth.uid() = callee_id
-);
-
--- User Themes Policies
-DROP POLICY IF EXISTS "Users can view their own themes" ON user_themes;
-CREATE POLICY "Users can view their own themes" ON user_themes FOR SELECT USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Users can manage their themes" ON user_themes;
-CREATE POLICY "Users can manage their themes" ON user_themes FOR ALL USING (auth.uid() = user_id);
-
--- Admin Settings Policies
-DROP POLICY IF EXISTS "Only admins can view settings" ON admin_settings;
-CREATE POLICY "Only admins can view settings" ON admin_settings FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
-);
-
-DROP POLICY IF EXISTS "Only admins can manage settings" ON admin_settings;
-CREATE POLICY "Only admins can manage settings" ON admin_settings FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
-);
-
--- PWA Installs Policies
-DROP POLICY IF EXISTS "Users can track their PWA installs" ON pwa_installs;
-CREATE POLICY "Users can track their PWA installs" ON pwa_installs FOR ALL USING (auth.uid() = user_id);
-
--- Call Participants Policies
-DROP POLICY IF EXISTS "Users can view call participants" ON call_participants;
-CREATE POLICY "Users can view call participants" ON call_participants FOR SELECT USING (
-    EXISTS (
-        SELECT 1 FROM video_calls 
-        WHERE id = call_id AND (caller_id = auth.uid() OR callee_id = auth.uid())
+-- Create messages table
+CREATE TABLE IF NOT EXISTS messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sender_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    recipient_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    circle_id UUID REFERENCES circles(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    message_type message_type DEFAULT 'text',
+    file_url TEXT,
+    reply_to_id UUID REFERENCES messages(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CHECK (
+        (recipient_id IS NOT NULL AND circle_id IS NULL) OR 
+        (recipient_id IS NULL AND circle_id IS NOT NULL)
     )
 );
 
--- =====================================================
--- STEP 5: INSERT DEFAULT SHOP ITEMS
--- =====================================================
+-- Create notifications table
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    type notification_type NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    data JSONB DEFAULT '{}',
+    is_read BOOLEAN DEFAULT FALSE,
+    animation_type VARCHAR(50) DEFAULT 'slide',
+    priority VARCHAR(20) DEFAULT 'normal',
+    expires_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Clear existing items first (optional)
--- DELETE FROM shop_items;
+-- Create shop items table
+CREATE TABLE IF NOT EXISTS shop_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    price INTEGER DEFAULT 0,
+    price_coins INTEGER,
+    price_usd DECIMAL(10,2),
+    category shop_category NOT NULL,
+    item_type VARCHAR(50) NOT NULL,
+    rarity VARCHAR(20) DEFAULT 'common',
+    premium_only BOOLEAN DEFAULT FALSE,
+    item_data JSONB NOT NULL DEFAULT '{}',
+    preview_data JSONB DEFAULT '{}',
+    metadata JSONB DEFAULT '{}',
+    is_active BOOLEAN DEFAULT TRUE,
+    download_count INTEGER DEFAULT 0,
+    rating_average DECIMAL(3,2) DEFAULT 0.0,
+    rating_count INTEGER DEFAULT 0,
+    created_by UUID REFERENCES profiles(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Insert Dragon Theme Items
-INSERT INTO shop_items (name, description, price_coins, category, item_type, rarity, premium_only, item_data, preview_data, animation_url) VALUES
-('Baby Dragon', 'A cute baby dragon companion that follows your cursor', 300, 'animation', 'companion', 'rare', false, '{"effects": ["follows_cursor", "breathing_animation"], "size": "128x128"}', '{"preview": "🐉"}', '/assets/gifts/dragons/baby-dragon.gif'),
-('Dragon Egg', 'Mysterious dragon egg that hatches over time', 150, 'animation', 'interactive', 'common', false, '{"effects": ["glowing", "hatching_timer"], "hatch_time": 86400}', '{"preview": "🥚"}', '/assets/gifts/dragons/dragon-egg.gif'),
-('Fire Breath', 'Breathe fire across your profile', 500, 'animation', 'effect', 'epic', true, '{"effects": ["screen_fire", "burn_effect"], "duration": 5}', '{"preview": "🔥"}', '/assets/gifts/dragons/fire-breath.gif'),
-('Dragon Wings', 'Majestic dragon wings for your avatar', 400, 'animation', 'avatar', 'epic', true, '{"effects": ["wing_flap", "wind_particles"], "attachment": "avatar"}', '{"preview": "🪶"}', '/assets/gifts/dragons/dragon-wings.gif'),
-('Ancient Dragon', 'Legendary ancient dragon guardian', 1000, 'animation', 'legendary', 'legendary', true, '{"effects": ["screen_takeover", "roar_sound", "treasure_rain"], "duration": 10}', '{"preview": "🐲"}', '/assets/gifts/dragons/ancient-dragon.gif')
-ON CONFLICT (name) DO NOTHING;
+-- Create user inventory table
+CREATE TABLE IF NOT EXISTS user_inventory (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    item_id UUID NOT NULL REFERENCES shop_items(id) ON DELETE CASCADE,
+    is_active BOOLEAN DEFAULT FALSE,
+    purchased_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    purchase_price INTEGER,
+    payment_method VARCHAR(20),
+    UNIQUE(user_id, item_id)
+);
 
--- Insert Forest Theme Items
-INSERT INTO shop_items (name, description, price_coins, category, item_type, rarity, premium_only, item_data, preview_data, animation_url) VALUES
-('Growing Tree', 'A magical tree that grows on your profile', 250, 'animation', 'decoration', 'rare', false, '{"effects": ["growth_animation", "seasonal_changes"], "growth_stages": 5}', '{"preview": "🌳"}', '/assets/gifts/forest/growing-tree.gif'),
-('Forest Sprite', 'A playful forest sprite companion', 200, 'animation', 'companion', 'rare', false, '{"effects": ["flying_animation", "sparkle_trail"], "flight_pattern": "random"}', '{"preview": "🧚"}', '/assets/gifts/forest/forest-sprite.gif'),
-('Flower Bloom', 'Beautiful flowers that bloom across your profile', 150, 'animation', 'effect', 'common', false, '{"effects": ["blooming_animation", "petal_fall"], "flower_types": ["rose", "lily", "daisy"]}', '{"preview": "🌸"}', '/assets/gifts/forest/flower-bloom.gif'),
-('Ancient Oak', 'Majestic ancient oak tree guardian', 500, 'animation', 'guardian', 'epic', true, '{"effects": ["wisdom_aura", "bird_nests", "seasonal_foliage"], "seasons": 4}', '{"preview": "🌲"}', '/assets/gifts/forest/ancient-oak.gif'),
-('Nature Crown', 'Crown of leaves and flowers for your avatar', 300, 'animation', 'avatar', 'epic', true, '{"effects": ["leaf_crown", "flower_petals", "nature_blessing"], "attachment": "head"}', '{"preview": "👑"}', '/assets/gifts/forest/nature-crown.gif'),
-('World Tree', 'Legendary world tree that connects all life', 800, 'animation', 'legendary', 'legendary', true, '{"effects": ["screen_takeover", "life_energy", "cosmic_connection"], "duration": 15}', '{"preview": "🌍"}', '/assets/gifts/forest/world-tree.gif')
-ON CONFLICT (name) DO NOTHING;
+-- Create themes table
+CREATE TABLE IF NOT EXISTS themes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    theme_data JSONB NOT NULL DEFAULT '{}',
+    preview_url TEXT,
+    price_coins INTEGER DEFAULT 0,
+    price_usd DECIMAL(10,2) DEFAULT 0.00,
+    is_active BOOLEAN DEFAULT TRUE,
+    download_count INTEGER DEFAULT 0,
+    rating_average DECIMAL(3,2) DEFAULT 0.0,
+    rating_count INTEGER DEFAULT 0,
+    created_by UUID REFERENCES profiles(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Insert Special Items
-INSERT INTO shop_items (name, description, price_coins, category, item_type, rarity, premium_only, item_data, preview_data, animation_url) VALUES
-('100 Loop Coins', 'Gift 100 Loop Coins to another user', 50, 'coins', 'currency', 'common', false, '{"coin_amount": 100}', '{"preview": "💰"}', NULL),
-('500 Loop Coins', 'Gift 500 Loop Coins to another user', 200, 'coins', 'currency', 'rare', false, '{"coin_amount": 500}', '{"preview": "💰"}', NULL),
-('1000 Loop Coins', 'Gift 1000 Loop Coins to another user', 350, 'coins', 'currency', 'epic', false, '{"coin_amount": 1000, "bonus": 100}', '{"preview": "💰"}', NULL),
-('Birthday Cake', 'Special birthday celebration gift', 100, 'special', 'celebration', 'common', false, '{"occasion": "birthday", "candles": true}', '{"preview": "🎂"}', '/assets/gifts/special/birthday-cake.gif'),
-('Diamond Ring', 'Luxury diamond ring gift', 1000, 'special', 'luxury', 'legendary', true, '{"luxury_tier": "diamond", "sparkle_effect": true}', '{"preview": "💎"}', '/assets/gifts/special/diamond-ring.gif'),
-('Floating Heart', 'Romantic floating heart animation', 75, 'special', 'emotion', 'common', false, '{"emotion": "love", "float_duration": 3}', '{"preview": "💖"}', '/assets/gifts/special/floating-heart.gif')
-ON CONFLICT (name) DO NOTHING;
+-- Create gifts table
+CREATE TABLE IF NOT EXISTS gifts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    price_coins INTEGER NOT NULL,
+    category VARCHAR(50) DEFAULT 'general',
+    rarity VARCHAR(20) DEFAULT 'common',
+    animation_url TEXT,
+    sound_url TEXT,
+    effect_data JSONB DEFAULT '{}',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Insert Premium Items
-INSERT INTO shop_items (name, description, price_coins, category, item_type, rarity, premium_only, item_data, preview_data) VALUES
-('Premium Month', 'Gift 1 month of Loop Premium', 500, 'premium', 'subscription', 'epic', false, '{"duration": "1 month", "benefits": ["ad_free", "exclusive_themes", "priority_support"]}', '{"preview": "👑"}'),
-('Premium Year', 'Gift 1 year of Loop Premium', 5000, 'premium', 'subscription', 'legendary', false, '{"duration": "1 year", "benefits": ["ad_free", "exclusive_themes", "priority_support", "bonus_coins"], "bonus_coins": 1000}', '{"preview": "👑"}')
-ON CONFLICT (name) DO NOTHING;
+-- Create gift transactions table
+CREATE TABLE IF NOT EXISTS gift_transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sender_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    recipient_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    gift_id UUID NOT NULL REFERENCES gifts(id) ON DELETE CASCADE,
+    loop_id UUID REFERENCES loops(id) ON DELETE CASCADE,
+    quantity INTEGER DEFAULT 1,
+    total_cost INTEGER NOT NULL,
+    message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Insert Theme Items
-INSERT INTO shop_items (name, description, price_coins, category, item_type, rarity, premium_only, item_data, preview_data) VALUES
-('Dragon Lord Theme', 'Complete dragon-themed profile makeover', 800, 'theme', 'cosmetic', 'legendary', true, '{"theme_id": "dragon-lord", "includes": ["background", "particles", "sounds", "animations"]}', '{"preview": "🐉", "colors": ["#8B0000", "#FFD700", "#FF4500"]}'),
-('Forest Guardian Theme', 'Nature-themed profile with seasonal effects', 600, 'theme', 'cosmetic', 'epic', true, '{"theme_id": "forest-guardian", "includes": ["background", "particles", "sounds", "seasonal"], "seasonal": true}', '{"preview": "🌳", "colors": ["#228B22", "#8FBC8F", "#32CD32"]}'),
-('Ocean Depths Theme', 'Deep sea theme with aquatic effects', 500, 'theme', 'cosmetic', 'epic', true, '{"theme_id": "ocean-depths", "includes": ["background", "bubbles", "waves", "sea_creatures"]}', '{"preview": "🌊", "colors": ["#006994", "#4682B4", "#87CEEB"]}'),
-('Space Explorer Theme', 'Cosmic theme with stars and planets', 700, 'theme', 'cosmetic', 'legendary', true, '{"theme_id": "space-explorer", "includes": ["background", "stars", "planets", "nebula"]}', '{"preview": "🚀", "colors": ["#191970", "#4B0082", "#8A2BE2"]}')
-ON CONFLICT (name) DO NOTHING;
+-- Create achievements table
+CREATE TABLE IF NOT EXISTS achievements (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    icon_url TEXT,
+    xp_reward INTEGER DEFAULT 0,
+    coin_reward INTEGER DEFAULT 0,
+    requirements JSONB NOT NULL DEFAULT '{}',
+    is_active BOOLEAN DEFAULT TRUE,
+    rarity VARCHAR(20) DEFAULT 'common',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- =====================================================
--- STEP 6: INSERT DEFAULT ADMIN SETTINGS
--- =====================================================
+-- Create user achievements table
+CREATE TABLE IF NOT EXISTS user_achievements (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    achievement_id UUID NOT NULL REFERENCES achievements(id) ON DELETE CASCADE,
+    progress JSONB DEFAULT '{}',
+    unlocked_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, achievement_id)
+);
 
-INSERT INTO admin_settings (setting_key, setting_value) VALUES
-('maintenance_mode', '{"enabled": false, "message": "System maintenance in progress"}'),
-('user_registration', '{"enabled": true, "require_email_verification": true}'),
-('video_calls', '{"enabled": true, "max_participants": 8, "max_duration": 3600}'),
-('gift_system', '{"enabled": true, "daily_gift_limit": 10, "max_gift_value": 1000}'),
-('pwa_features', '{"install_prompt": true, "offline_mode": true, "push_notifications": true}'),
-('shop_settings', '{"enabled": true, "featured_items": 6, "new_user_coins": 500}'),
-('theme_system', '{"enabled": true, "custom_themes": true, "theme_marketplace": true}')
-ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value;
+-- Create reputation logs table
+CREATE TABLE IF NOT EXISTS reputation_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    action_type VARCHAR(50) NOT NULL,
+    points_change INTEGER NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- =====================================================
--- STEP 7: CREATE INDEXES FOR PERFORMANCE
--- =====================================================
+-- Create admin settings table
+CREATE TABLE IF NOT EXISTS admin_settings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    setting_key VARCHAR(100) UNIQUE NOT NULL,
+    setting_value JSONB NOT NULL DEFAULT '{}',
+    description TEXT,
+    updated_by UUID REFERENCES profiles(id),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Shop Items Indexes
-CREATE INDEX IF NOT EXISTS idx_shop_items_category ON shop_items(category);
-CREATE INDEX IF NOT EXISTS idx_shop_items_rarity ON shop_items(rarity);
-CREATE INDEX IF NOT EXISTS idx_shop_items_active ON shop_items(is_active);
-CREATE INDEX IF NOT EXISTS idx_shop_items_premium ON shop_items(premium_only);
+-- Insert essential admin settings
+INSERT INTO admin_settings (setting_key, setting_value, description) VALUES
+('maintenance_mode', '{"enabled": false, "message": "Under maintenance"}', 'Maintenance mode settings'),
+('app_update_mode', '{"enabled": false, "message": "App update in progress"}', 'App update mode settings'),
+('premium_features', '{"enabled": true, "price": 9.99}', 'Premium subscription settings'),
+('coin_packages', '{"enabled": true, "packages": [{"coins": 1000, "price": 4.99}, {"coins": 2500, "price": 9.99}]}', 'Loop coin packages')
+ON CONFLICT (setting_key) DO NOTHING;
 
--- User Inventory Indexes
-CREATE INDEX IF NOT EXISTS idx_user_inventory_user_id ON user_inventory(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_inventory_item_id ON user_inventory(item_id);
-CREATE INDEX IF NOT EXISTS idx_user_inventory_equipped ON user_inventory(is_equipped);
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_loops_author_id ON loops(author_id);
+CREATE INDEX IF NOT EXISTS idx_loops_parent_loop_id ON loops(parent_loop_id);
+CREATE INDEX IF NOT EXISTS idx_loops_created_at ON loops(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_loops_visibility ON loops(visibility);
+CREATE INDEX IF NOT EXISTS idx_loops_hashtags ON loops USING GIN(hashtags);
 
--- Gift Transactions Indexes
-CREATE INDEX IF NOT EXISTS idx_gift_transactions_sender ON gift_transactions(sender_id);
-CREATE INDEX IF NOT EXISTS idx_gift_transactions_recipient ON gift_transactions(recipient_id);
-CREATE INDEX IF NOT EXISTS idx_gift_transactions_created ON gift_transactions(created_at);
+CREATE INDEX IF NOT EXISTS idx_loop_interactions_user_id ON loop_interactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_loop_interactions_loop_id ON loop_interactions(loop_id);
+CREATE INDEX IF NOT EXISTS idx_loop_interactions_type ON loop_interactions(interaction_type);
 
--- Video Calls Indexes
-CREATE INDEX IF NOT EXISTS idx_video_calls_caller ON video_calls(caller_id);
-CREATE INDEX IF NOT EXISTS idx_video_calls_callee ON video_calls(callee_id);
-CREATE INDEX IF NOT EXISTS idx_video_calls_status ON video_calls(status);
+CREATE INDEX IF NOT EXISTS idx_comments_loop_id ON comments(loop_id);
+CREATE INDEX IF NOT EXISTS idx_comments_author_id ON comments(author_id);
 
--- User Themes Indexes
-CREATE INDEX IF NOT EXISTS idx_user_themes_user_id ON user_themes(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_themes_active ON user_themes(is_active);
+CREATE INDEX IF NOT EXISTS idx_follows_follower_id ON follows(follower_id);
+CREATE INDEX IF NOT EXISTS idx_follows_following_id ON follows(following_id);
 
--- =====================================================
--- STEP 8: CREATE FUNCTIONS AND TRIGGERS
--- =====================================================
+CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_recipient_id ON messages(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
 
--- Function to update updated_at timestamp
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
+
+-- Create triggers for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -327,45 +358,255 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Add triggers for updated_at
-DROP TRIGGER IF EXISTS update_shop_items_updated_at ON shop_items;
-CREATE TRIGGER update_shop_items_updated_at BEFORE UPDATE ON shop_items FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
+CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_admin_settings_updated_at ON admin_settings;
-CREATE TRIGGER update_admin_settings_updated_at BEFORE UPDATE ON admin_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_loops_updated_at ON loops;
+CREATE TRIGGER update_loops_updated_at BEFORE UPDATE ON loops
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Function to give new users starting coins
-CREATE OR REPLACE FUNCTION give_new_user_coins()
-RETURNS TRIGGER AS $$
+DROP TRIGGER IF EXISTS update_loop_stats_updated_at ON loop_stats;
+CREATE TRIGGER update_loop_stats_updated_at BEFORE UPDATE ON loop_stats
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Database functions for interactions
+CREATE OR REPLACE FUNCTION increment_loop_likes(loop_id UUID)
+RETURNS void AS $$
 BEGIN
-    -- Give new users 500 starting coins
-    UPDATE profiles SET loop_coins = 500 WHERE id = NEW.id;
-    RETURN NEW;
+    INSERT INTO loop_stats (loop_id, likes_count, updated_at)
+    VALUES (loop_id, 1, NOW())
+    ON CONFLICT (loop_id)
+    DO UPDATE SET 
+        likes_count = loop_stats.likes_count + 1,
+        updated_at = NOW();
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
--- Trigger to give coins to new users (if profiles table exists)
-DO $$
+CREATE OR REPLACE FUNCTION decrement_loop_likes(loop_id UUID)
+RETURNS void AS $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'profiles') THEN
-        DROP TRIGGER IF EXISTS give_new_user_coins_trigger ON profiles;
-        CREATE TRIGGER give_new_user_coins_trigger 
-            AFTER INSERT ON profiles 
-            FOR EACH ROW 
-            EXECUTE FUNCTION give_new_user_coins();
-    END IF;
-END $$;
+    UPDATE loop_stats 
+    SET likes_count = GREATEST(0, likes_count - 1),
+        updated_at = NOW()
+    WHERE loop_stats.loop_id = decrement_loop_likes.loop_id;
+END;
+$$ LANGUAGE plpgsql;
 
--- =====================================================
--- COMPLETION MESSAGE
--- =====================================================
-
-DO $$
+CREATE OR REPLACE FUNCTION increment_loop_saves(loop_id UUID)
+RETURNS void AS $$
 BEGIN
-    RAISE NOTICE '✅ Database setup completed successfully!';
-    RAISE NOTICE '📊 Tables created: shop_items, user_inventory, gift_transactions, video_calls, user_themes, admin_settings, pwa_installs, call_participants';
-    RAISE NOTICE '🛡️ RLS policies enabled and configured';
-    RAISE NOTICE '🎁 Default shop items inserted (% items)', (SELECT COUNT(*) FROM shop_items);
-    RAISE NOTICE '⚙️ Admin settings configured';
-    RAISE NOTICE '🚀 Ready to use enhanced Loop Social Platform features!';
-END $$;
+    INSERT INTO loop_stats (loop_id, saves_count, updated_at)
+    VALUES (loop_id, 1, NOW())
+    ON CONFLICT (loop_id)
+    DO UPDATE SET 
+        saves_count = loop_stats.saves_count + 1,
+        updated_at = NOW();
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION decrement_loop_saves(loop_id UUID)
+RETURNS void AS $$
+BEGIN
+    UPDATE loop_stats 
+    SET saves_count = GREATEST(0, saves_count - 1),
+        updated_at = NOW()
+    WHERE loop_stats.loop_id = decrement_loop_saves.loop_id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION increment_loop_shares(loop_id UUID)
+RETURNS void AS $$
+BEGIN
+    INSERT INTO loop_stats (loop_id, shares_count, updated_at)
+    VALUES (loop_id, 1, NOW())
+    ON CONFLICT (loop_id)
+    DO UPDATE SET 
+        shares_count = loop_stats.shares_count + 1,
+        updated_at = NOW();
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION increment_loop_comments(loop_id UUID)
+RETURNS void AS $$
+BEGIN
+    INSERT INTO loop_stats (loop_id, comments_count, updated_at)
+    VALUES (loop_id, 1, NOW())
+    ON CONFLICT (loop_id)
+    DO UPDATE SET 
+        comments_count = loop_stats.comments_count + 1,
+        updated_at = NOW();
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION increment_loop_views(loop_id UUID)
+RETURNS void AS $$
+BEGIN
+    INSERT INTO loop_stats (loop_id, views_count, updated_at)
+    VALUES (loop_id, 1, NOW())
+    ON CONFLICT (loop_id)
+    DO UPDATE SET 
+        views_count = loop_stats.views_count + 1,
+        updated_at = NOW();
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to get trending loops
+CREATE OR REPLACE FUNCTION get_trending_loops(
+    time_period VARCHAR DEFAULT '24h',
+    trend_limit INTEGER DEFAULT 20,
+    trend_offset INTEGER DEFAULT 0
+)
+RETURNS TABLE (
+    id UUID,
+    author_id UUID,
+    content_type VARCHAR,
+    content_text TEXT,
+    content_media_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE,
+    likes_count INTEGER,
+    comments_count INTEGER,
+    branches_count INTEGER,
+    trend_score DECIMAL
+) AS $$
+DECLARE
+    time_filter TIMESTAMP WITH TIME ZONE;
+BEGIN
+    CASE time_period
+        WHEN '1h' THEN time_filter := NOW() - INTERVAL '1 hour';
+        WHEN '6h' THEN time_filter := NOW() - INTERVAL '6 hours';
+        WHEN '24h' THEN time_filter := NOW() - INTERVAL '24 hours';
+        WHEN '7d' THEN time_filter := NOW() - INTERVAL '7 days';
+        ELSE time_filter := NOW() - INTERVAL '24 hours';
+    END CASE;
+
+    RETURN QUERY
+    SELECT 
+        l.id,
+        l.author_id,
+        l.content_type::VARCHAR,
+        l.content_text,
+        l.content_media_url,
+        l.created_at,
+        COALESCE(ls.likes_count, 0) as likes_count,
+        COALESCE(ls.comments_count, 0) as comments_count,
+        COALESCE(ls.branches_count, 0) as branches_count,
+        (
+            COALESCE(ls.likes_count, 0) * 1.0 +
+            COALESCE(ls.comments_count, 0) * 2.0 +
+            COALESCE(ls.branches_count, 0) * 3.0 +
+            COALESCE(ls.shares_count, 0) * 1.5
+        ) * 
+        GREATEST(0.1, 1.0 - EXTRACT(EPOCH FROM (NOW() - l.created_at)) / 86400.0)
+        as trend_score
+    FROM loops l
+    LEFT JOIN loop_stats ls ON l.id = ls.loop_id
+    WHERE l.created_at >= time_filter
+    AND l.visibility = 'public'
+    ORDER BY trend_score DESC
+    LIMIT trend_limit
+    OFFSET trend_offset;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Enable Row Level Security
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE loops ENABLE ROW LEVEL SECURITY;
+ALTER TABLE loop_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE loop_interactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE follows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE circles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE circle_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shop_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_inventory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gifts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gift_transactions ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Public profiles viewable by everyone" ON profiles
+    FOR SELECT USING (true);
+
+CREATE POLICY "Users can update own profile" ON profiles
+    FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Public loops viewable by everyone" ON loops
+    FOR SELECT USING (visibility = 'public');
+
+CREATE POLICY "Users can view their own loops" ON loops
+    FOR SELECT USING (auth.uid() = author_id);
+
+CREATE POLICY "Users can create loops" ON loops
+    FOR INSERT WITH CHECK (auth.uid() = author_id);
+
+CREATE POLICY "Users can update own loops" ON loops
+    FOR UPDATE USING (auth.uid() = author_id);
+
+CREATE POLICY "Loop interactions viewable by everyone" ON loop_interactions
+    FOR SELECT USING (true);
+
+CREATE POLICY "Users can manage their own interactions" ON loop_interactions
+    FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Comments viewable by everyone" ON comments
+    FOR SELECT USING (true);
+
+CREATE POLICY "Users can create comments" ON comments
+    FOR INSERT WITH CHECK (auth.uid() = author_id);
+
+CREATE POLICY "Users can update own comments" ON comments
+    FOR UPDATE USING (auth.uid() = author_id);
+
+CREATE POLICY "Follows viewable by everyone" ON follows
+    FOR SELECT USING (true);
+
+CREATE POLICY "Users can manage their own follows" ON follows
+    FOR ALL USING (auth.uid() = follower_id);
+
+CREATE POLICY "Shop items viewable by everyone" ON shop_items
+    FOR SELECT USING (is_active = true);
+
+CREATE POLICY "Users can view their own inventory" ON user_inventory
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage their own inventory" ON user_inventory
+    FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view their own notifications" ON notifications
+    FOR ALL USING (auth.uid() = user_id);
+
+-- Insert sample data
+INSERT INTO gifts (name, description, price_coins, category, rarity, animation_url, effect_data) VALUES
+('Heart', 'Show some love!', 10, 'emotion', 'common', '/assets/gifts/heart.gif', '{"color": "#ff69b4", "duration": 2000}'),
+('Star', 'You''re a star!', 25, 'achievement', 'common', '/assets/gifts/star.gif', '{"sparkle": true, "duration": 3000}'),
+('Dragon Fire', 'Epic dragon power!', 100, 'fantasy', 'epic', '/assets/gifts/dragon-fire.gif', '{"fire": true, "sound": true, "duration": 5000}'),
+('Forest Spirit', 'Nature''s blessing', 150, 'nature', 'legendary', '/assets/gifts/forest-spirit.gif', '{"nature": true, "healing": true, "duration": 6000}')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO shop_items (name, description, price_coins, category, item_type, rarity, item_data, preview_data) VALUES
+('Neon Cyber Theme', 'Futuristic neon colors with cyberpunk vibes', 500, 'theme', 'profile_theme', 'rare', '{"colors": {"primary": "#00ff88", "secondary": "#00ccff"}}', '{"preview": "linear-gradient(45deg, #00ff88, #00ccff)"}'),
+('Dragon Lord Theme', 'Majestic dragon-inspired theme', 800, 'theme', 'profile_theme', 'legendary', '{"colors": {"primary": "#ff6b35", "secondary": "#f7931e"}}', '{"preview": "linear-gradient(45deg, #ff6b35, #f7931e)"}'),
+('Forest Guardian Theme', 'Nature-inspired theme with earth tones', 600, 'theme', 'profile_theme', 'epic', '{"colors": {"primary": "#228b22", "secondary": "#32cd32"}}', '{"preview": "linear-gradient(45deg, #228b22, #32cd32)"}'),
+('1000 Loop Coins', 'Perfect starter pack', 0, 'coins', 'currency', 'common', '{"coins_amount": 1000}', '{"preview": "💰"}'),
+('2500 Loop Coins', 'Great value pack', 0, 'coins', 'currency', 'rare', '{"coins_amount": 2500, "bonus": 500}', '{"preview": "💎"}')
+ON CONFLICT DO NOTHING;
+
+-- Update coin packages with USD prices
+UPDATE shop_items SET price_usd = 4.99 WHERE name = '1000 Loop Coins';
+UPDATE shop_items SET price_usd = 9.99 WHERE name = '2500 Loop Coins';
+
+-- Insert sample achievements
+INSERT INTO achievements (name, description, category, xp_reward, coin_reward, requirements) VALUES
+('First Loop', 'Create your first loop', 'content', 100, 50, '{"loops_created": 1}'),
+('Social Butterfly', 'Follow 10 users', 'social', 150, 75, '{"following_count": 10}'),
+('Popular Creator', 'Get 100 likes on your loops', 'engagement', 300, 100, '{"total_likes_received": 100}'),
+('Gift Giver', 'Send 5 gifts to other users', 'social', 200, 50, '{"gifts_sent": 5}')
+ON CONFLICT DO NOTHING;
+
+RAISE NOTICE '✅ Database setup completed successfully!';
+RAISE NOTICE '📊 All tables, functions, and policies have been created';
+RAISE NOTICE '🎁 Sample data inserted for gifts, shop items, and achievements';
+RAISE NOTICE '🛡️ Row Level Security policies enabled';
+RAISE NOTICE '⚡ Database functions for interactions created';
