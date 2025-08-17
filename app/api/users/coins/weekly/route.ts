@@ -7,25 +7,54 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient()
     
-    // Get user from auth header
-    const authHeader = request.headers.get('authorization')
-    const token = authHeader?.replace('Bearer ', '')
+    // Get user from session instead of auth header
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    if (!token) {
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    const body = await request.json()
+    const { type, amount } = body
+
+    // Handle onboarding bonus
+    if (type === 'onboarding_bonus') {
+      const bonusAmount = amount || 100
+      
+      // Update user's coins
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          loop_coins: supabase.raw(`COALESCE(loop_coins, 0) + ${bonusAmount}`)
+        })
+        .eq('id', user.id)
+
+      if (updateError) {
+        console.error("Error awarding onboarding bonus:", updateError)
+        return NextResponse.json({ error: "Failed to award onboarding bonus" }, { status: 500 })
+      }
+
+      // Record transaction
+      await supabase.from("coin_transactions").insert({
+        user_id: user.id,
+        amount: bonusAmount,
+        transaction_type: 'onboarding_bonus',
+        description: 'Onboarding completion bonus'
+      })
+
+      return NextResponse.json({
+        success: true,
+        bonus_amount: bonusAmount,
+        message: `Onboarding bonus of ${bonusAmount} Loop Coins awarded!`,
+      })
     }
 
-    // Check if user has already claimed weekly bonus this week
+    // Handle weekly bonus
     const startOfWeek = new Date()
     startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay())
     startOfWeek.setHours(0, 0, 0, 0)
 
-    const { data: existingClaim, error: claimError } = await supabase
+    const { data: existingClaim } = await supabase
       .from("weekly_bonus_claims")
       .select("*")
       .eq("user_id", user.id)
@@ -42,44 +71,42 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Award the weekly bonus using the function
-    const { error: updateError } = await supabase.rpc("distribute_weekly_bonus")
+    const weeklyAmount = 500
+    
+    // Update user's coins
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ 
+        loop_coins: supabase.raw(`COALESCE(loop_coins, 0) + ${weeklyAmount}`)
+      })
+      .eq('id', user.id)
 
     if (updateError) {
       console.error("Error awarding weekly bonus:", updateError)
-      
-      // Fallback to manual update if function doesn't exist
-      const { error: manualError } = await supabase
-        .from('profiles')
-        .update({ loop_coins: supabase.raw('loop_coins + 500') })
-        .eq('id', user.id)
-
-      if (manualError) {
-        return NextResponse.json({ error: "Failed to award weekly bonus" }, { status: 500 })
-      }
-
-      // Record the claim manually
-      await supabase.from("weekly_bonus_claims").insert({
-        user_id: user.id,
-        bonus_amount: 500
-      })
-
-      // Record transaction
-      await supabase.from("coin_transactions").insert({
-        user_id: user.id,
-        amount: 500,
-        transaction_type: 'weekly_bonus',
-        description: 'Weekly bonus coins'
-      })
+      return NextResponse.json({ error: "Failed to award weekly bonus" }, { status: 500 })
     }
+
+    // Record the claim
+    await supabase.from("weekly_bonus_claims").insert({
+      user_id: user.id,
+      bonus_amount: weeklyAmount
+    })
+
+    // Record transaction
+    await supabase.from("coin_transactions").insert({
+      user_id: user.id,
+      amount: weeklyAmount,
+      transaction_type: 'weekly_bonus',
+      description: 'Weekly bonus coins'
+    })
 
     return NextResponse.json({
       success: true,
-      bonus_amount: 500,
+      bonus_amount: weeklyAmount,
       message: "Weekly bonus of 500 Loop Coins awarded!",
     })
   } catch (error) {
-    console.error("Error claiming weekly bonus:", error)
+    console.error("Error processing coins request:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

@@ -58,9 +58,10 @@ interface User {
   is_verified: boolean
   is_admin: boolean
   theme_data?: any
+  onboarding_completed?: boolean
   token?: string
   access_token?: string
-  profile?: any; // Added profile to User interface
+  profile?: any
 }
 
 interface AuthContextType {
@@ -121,9 +122,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         is_verified: profileData.is_verified || false,
         is_admin: profileData.is_admin || false,
         theme_data: profileData.theme_data,
+        onboarding_completed: profileData.onboarding_completed,
         token: session.access_token,
         access_token: session.access_token,
-        profile: profileData, // Include profile data here
+        profile: profileData,
       }
     } catch (error) {
       console.error("Error in loadUserProfile:", error)
@@ -171,10 +173,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         console.log('Auth state change:', 'INITIAL_SESSION', session?.user?.id || null)
-        setUser(session?.user ?? null)
-
+        
         if (session?.user) {
-          await fetchUserProfile(session.user.id)
+          const userProfile = await loadUserProfile(session)
+          setUser(userProfile)
+        } else {
+          setUser(null)
         }
       } catch (error) {
         console.error('Error in getInitialSession:', error)
@@ -190,13 +194,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state change:', event, session?.user?.id || null)
-      setUser(session?.user ?? null)
-
-      if (session?.user && event === 'SIGNED_IN') {
-        await fetchUserProfile(session.user.id)
-      }
-
-      if (event === 'SIGNED_OUT') {
+      
+      if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        const userProfile = await loadUserProfile(session)
+        setUser(userProfile)
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null)
         setProfile(null)
       }
 

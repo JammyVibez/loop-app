@@ -121,69 +121,73 @@ export default function OnboardingPage() {
   }
 
   const handleComplete = async () => {
-  setSaving(true)
-  setErrors({})
+    setSaving(true)
+    setErrors({})
 
-  try {
-    // Validation
-    if (!profileData.bio.trim()) {
-      setErrors({ bio: "Bio is required" })
-      setSaving(false)
-      return
-    }
+    try {
+      // Validation
+      if (!profileData.bio.trim()) {
+        setErrors({ bio: "Bio is required" })
+        setSaving(false)
+        return
+      }
 
-    if (!profileData.avatar_url) {
-      setErrors({ avatar_url: "Please upload an avatar" })
-      setSaving(false)
-      return
-    }
+      // Send to backend API to update profile
+      const response = await fetch("/api/users/update-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          bio: profileData.bio,
+          interests: profileData.interests,
+          avatar_url: profileData.avatar_url,
+          profile_theme: {
+            primary_color: profileData.theme.primary,
+            secondary_color: profileData.theme.secondary,
+            animation: "pulse-glow",
+          },
+          onboarding_completed: true,
+        }),
+      })
 
-    // Send to backend API
-    const response = await fetch("/api/users/update-profile", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${user?.token}`,
-      },
-      body: JSON.stringify({
+      if (!response.ok) {
+        throw new Error("Failed to save profile")
+      }
+
+      // Award onboarding bonus coins
+      const coinsResponse = await fetch('/api/users/coins/weekly', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          type: 'onboarding_bonus',
+          amount: 100 
+        })
+      })
+
+      if (coinsResponse.ok) {
+        console.log("Onboarding bonus awarded successfully")
+      }
+
+      // Update the user context to reflect completion
+      await updateProfile({
         bio: profileData.bio,
         interests: profileData.interests,
         avatar_url: profileData.avatar_url,
-        profile_theme: {
-          primary_color: profileData.theme.primary,
-          secondary_color: profileData.theme.secondary,
-          animation: "pulse-glow",
-        },
-        onboarding_completed: true,
-      }),
-    })
-
-    if (!response.ok) {
-      throw new Error("Failed to save profile")
-    }
-
-    // (Optional) award coins
-    await fetch('/api/users/coins/weekly', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${user?.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ 
-        type: 'onboarding_bonus',
-        amount: 100 
+        onboarding_completed: true
       })
-    })
 
-    // Redirect to their profile page
-    router.push(`/`)
-  } catch (error) {
-    console.error("Failed to complete onboarding:", error)
-    setErrors({ general: "Failed to complete onboarding. Please try again." })
-  } finally {
-    setSaving(false)
+      // Redirect to home/feed
+      router.push("/")
+    } catch (error) {
+      console.error("Failed to complete onboarding:", error)
+      setErrors({ general: "Failed to complete onboarding. Please try again." })
+    } finally {
+      setSaving(false)
+    }
   }
-}
 
 
   const renderStep = () => {

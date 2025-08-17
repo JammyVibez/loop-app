@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 function createServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  
+
   if (!supabaseUrl || !supabaseKey) {
     console.error('Missing Supabase configuration:', {
       url: !!supabaseUrl,
@@ -13,7 +13,7 @@ function createServerClient() {
     })
     throw new Error('Missing Supabase configuration')
   }
-  
+
   return createClient(supabaseUrl, supabaseKey, {
     auth: {
       autoRefreshToken: false,
@@ -41,10 +41,10 @@ async function getUserFromToken(token: string | null) {
 export async function GET(request: NextRequest) {
   try {
     console.log('Feed request received')
-    
+
     const authHeader = request.headers.get("authorization")
     console.log('Auth header:', authHeader ? 'Present' : 'Missing')
-    
+
     if (!authHeader) {
       console.log('No authorization header provided')
       return NextResponse.json({ error: "Unauthorized - No auth header" }, { status: 401 })
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.replace("Bearer ", "")
     console.log('Extracted token length:', token.length)
-    
+
     const user = await getUserFromToken(token)
     console.log('User from token:', user ? `Found: ${user.id}` : 'Not found')
 

@@ -19,21 +19,21 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
 
     if (user) {
       // Check if user has completed onboarding
-      if (!user.bio && pathname !== "/onboarding") {
+      if (!user.onboarding_completed && pathname !== "/onboarding") {
         setRedirecting(true)
         router.push("/onboarding")
         return
       }
 
       // If user is on onboarding page but has completed it, redirect to home
-      if (user.bio && pathname === "/onboarding") {
+      if (user.onboarding_completed && pathname === "/onboarding") {
         setRedirecting(true)
         router.push("/")
         return
       }
 
       // If user is on login/signup page but already authenticated, redirect to home
-      if ((pathname === "/login" || pathname === "/signup") && user.bio) {
+      if ((pathname === "/login" || pathname === "/signup") && user.onboarding_completed) {
         setRedirecting(true)
         router.push("/")
         return
