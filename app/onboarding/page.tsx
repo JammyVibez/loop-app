@@ -123,7 +123,7 @@ export default function OnboardingPage() {
   const handleComplete = async () => {
   setSaving(true)
   setErrors({})
-  
+
   try {
     // Validation
     if (!profileData.bio.trim()) {

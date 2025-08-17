@@ -32,3 +32,35 @@ export function logEnvironmentStatus() {
     cloudinarySecret: !!process.env.CLOUDINARY_API_SECRET,
   })
 }
+```typescript
+// Environment variables validation
+export function validateEnvironment() {
+  const requiredEnvVars = {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  }
+
+  const missing = Object.entries(requiredEnvVars)
+    .filter(([key, value]) => !value)
+    .map(([key]) => key)
+
+  if (missing.length > 0) {
+    console.error('Missing required environment variables:', missing)
+    return false
+  }
+
+  console.log('Environment variables validated successfully')
+  return true
+}
+
+export function getSupabaseConfig() {
+  if (!validateEnvironment()) {
+    throw new Error('Supabase configuration is invalid')
+  }
+
+  return {
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  }
+}
+```

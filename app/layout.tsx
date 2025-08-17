@@ -10,7 +10,7 @@ import { Theme3DProvider } from "../providers/theme-3d-provider"
 // import { RealtimeProvider } from "@/providers/realtime-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { OnboardingRedirect } from "@/components/onboarding-redirect"
-import { checkEnvironmentVariables, logEnvironmentStatus } from "@/lib/env-check"
+import { checkEnvironmentVariables, logEnvironmentStatus, validateEnvironment } from "@/lib/env-check"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -53,6 +53,24 @@ export default function RootLayout({
 }) {
   checkEnvironmentVariables()
   logEnvironmentStatus()
+  // Validate environment variables
+  const envValid = validateEnvironment()
+
+  if (!envValid) {
+    return (
+      <html lang="en">
+        <body>
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-red-600 mb-4">Configuration Error</h1>
+              <p className="text-gray-600">Missing required environment variables. Please check your configuration.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    )
+  }
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

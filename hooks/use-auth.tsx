@@ -11,17 +11,21 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables:', {
     url: !!supabaseUrl,
-    key: !!supabaseAnonKey
+    key: !!supabaseAnonKey,
+    supabaseUrl,
+    supabaseAnonKey: supabaseAnonKey ? '[PRESENT]' : '[MISSING]'
   })
-  throw new Error('Missing Supabase environment variables')
+  
+  // Don't throw error immediately, let the component handle it gracefully
+  console.warn('Supabase not properly configured, some features may not work')
 }
 
 // Global Supabase client instance to prevent multiple instances
 let supabaseClient: any = null
 
 function getSupabaseClient() {
-  if (!supabaseClient) {
-    supabaseClient = createClient(supabaseUrl!, supabaseAnonKey!, {
+  if (!supabaseClient && supabaseUrl && supabaseAnonKey) {
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
