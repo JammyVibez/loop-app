@@ -40,11 +40,12 @@ export function TrendingSidebar() {
     if (!user?.token) return
 
     try {
-      // Fetch trending hashtags
+      // Fetch trending hashtags with cache
       const hashtagResponse = await fetch("/api/search?q=trending&type=hashtags&limit=5", {
         headers: {
           Authorization: `Bearer ${user.token}`,
         },
+        next: { revalidate: 300 } // Cache for 5 minutes
       })
       const hashtagData = await hashtagResponse.json()
       if (hashtagData.success && hashtagData.results && hashtagData.results.hashtags) {
@@ -58,6 +59,7 @@ export function TrendingSidebar() {
         headers: {
           Authorization: `Bearer ${user.token}`,
         },
+        next: { revalidate: 300 } // Cache for 5 minutes
       })
       const userData = await userResponse.json()
       if (userData.success) {

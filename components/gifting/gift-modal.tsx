@@ -2,7 +2,8 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useContext } from "react"
+import { RealtimeContext } from "@/providers/realtime-provider"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -343,6 +344,10 @@ export function GiftModal({ open, onOpenChange, recipient, context }: GiftModalP
     {} as Record<string, GiftItem[]>,
   )
 
+  // Check if RealtimeContext is available
+  const { socket: realtimeSocket, isConnected: realtimeIsConnected } = useContext(RealtimeContext) || { socket: null, isConnected: false }
+
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -350,7 +355,7 @@ export function GiftModal({ open, onOpenChange, recipient, context }: GiftModalP
           <DialogTitle className="flex items-center space-x-2">
             <Gift className="w-5 h-5 text-purple-500" />
             <span>Send a Gift</span>
-            {isConnected && (
+            {realtimeIsConnected && (
               <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse" />
                 Live

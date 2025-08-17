@@ -22,14 +22,21 @@ const API_CACHE_PATTERNS = [/^\/api\/shop\/items/, /^\/api\/quests/, /^\/api\/in
 self.addEventListener("install", (event) => {
   console.log("Service Worker: Installing...")
   event.waitUntil(
-    Promise.all([
-      caches.open(STATIC_CACHE).then((cache) => {
-        console.log("Service Worker: Caching static assets")
-        return cache.addAll(STATIC_ASSETS)
-      }),
-      self.skipWaiting(),
-    ]),
-  )
+    caches.open(STATIC_CACHE).then((cache) => {
+      console.log("Service Worker: Caching static assets")
+      return Promise.allSettled(
+        STATIC_ASSETS.map(url => {
+          return cache.add(url).catch(err => {
+            console.warn(`Failed to cache ${url}:`, err);
+            return null;
+          });
+        })
+      );
+    })
+    .catch(err => {
+      console.error('Service Worker installation failed:', err);
+    })
+  );
 })
 
 // Activate event - clean up old caches

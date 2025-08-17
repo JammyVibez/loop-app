@@ -49,3 +49,46 @@ export function useRealtime() {
   }
   return context
 }
+"use client"
+
+import React, { createContext, useContext, useEffect, useState } from "react"
+import { useAuth } from "@/hooks/use-auth"
+
+interface RealtimeContextType {
+  socket: any | null
+  isConnected: boolean
+}
+
+export const RealtimeContext = createContext<RealtimeContextType | undefined>(undefined)
+
+export function RealtimeProvider({ children }: { children: React.ReactNode }) {
+  const [socket, setSocket] = useState<any | null>(null)
+  const [isConnected, setIsConnected] = useState(false)
+  const { user } = useAuth()
+
+  useEffect(() => {
+    if (user?.token) {
+      // For now, we'll create a mock socket to prevent errors
+      // In a real implementation, you'd connect to your WebSocket server
+      const mockSocket = {
+        on: (event: string, callback: Function) => {},
+        off: (event: string) => {},
+        emit: (event: string, data: any) => {},
+      }
+      
+      setSocket(mockSocket)
+      setIsConnected(true)
+    }
+
+    return () => {
+      setSocket(null)
+      setIsConnected(false)
+    }
+  }, [user?.token])
+
+  return (
+    <RealtimeContext.Provider value={{ socket, isConnected }}>
+      {children}
+    </RealtimeContext.Provider>
+  )
+}

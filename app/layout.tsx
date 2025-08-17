@@ -7,6 +7,7 @@ import "../styles/responsive.css"
 import { AuthProvider } from "../providers/auth-provider"
 import { ThemeProvider } from "../providers/theme-provider"
 import { Theme3DProvider } from "../providers/theme-3d-provider"
+import { RealtimeProvider } from "../providers/realtime-provider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -72,23 +73,27 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
         <link rel="shortcut icon" href="/favicon.ico" />
 
-        {/* Preload critical resources */}
-        <link rel="preload" href="/styles/3d-framework.css" as="style" />
-
         {/* Performance optimizations */}
         <link rel="dns-prefetch" href="//fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className={`${inter.className} antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange={false}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange={false}
+        >
           <Theme3DProvider>
             <AuthProvider>
-              <div className="min-h-screen bg-background text-foreground">
-                <div id="theme-environment" className="fixed inset-0 pointer-events-none z-[-1]" />
-                <div className="relative z-10">{children}</div>
-                <div id="performance-monitor" className="hidden" />
-                <div id="accessibility-announcements" className="sr-only" aria-live="polite" aria-atomic="true" />
-              </div>
+              <RealtimeProvider>
+                <div className="min-h-screen bg-background text-foreground">
+                  <div id="theme-environment" className="fixed inset-0 pointer-events-none z-[-1]" />
+                  <div className="relative z-10">{children}</div>
+                  <div id="performance-monitor" className="hidden" />
+                  <div id="accessibility-announcements" className="sr-only" aria-live="polite" aria-atomic="true" />
+                </div>
+              </RealtimeProvider>
             </AuthProvider>
           </Theme3DProvider>
         </ThemeProvider>
