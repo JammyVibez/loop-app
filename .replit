@@ -1,4 +1,18 @@
 modules = ["nodejs-20", "web"]
+run = "npm run dev"
 
 [nix]
 channel = "stable-25_05"
+
+[deployment]
+run = ["sh", "-c", "npm run dev"]
+
+[workflows]
+
+[[workflows.workflow]]
+name = "npm install --legacy-peer-deps"
+mode = "parallel"
+author = 46521931
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
