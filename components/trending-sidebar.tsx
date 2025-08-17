@@ -41,14 +41,16 @@ export function TrendingSidebar() {
 
     try {
       // Fetch trending hashtags
-      const hashtagResponse = await fetch("/api/search?q=*&type=hashtags&limit=5", {
+      const hashtagResponse = await fetch("/api/search?q=trending&type=hashtags&limit=5", {
         headers: {
           Authorization: `Bearer ${user.token}`,
         },
       })
       const hashtagData = await hashtagResponse.json()
-      if (hashtagData.success) {
-        setTrendingHashtags(hashtagData.results.hashtags || [])
+      if (hashtagData.success && hashtagData.results && hashtagData.results.hashtags) {
+        setTrendingHashtags(hashtagData.results.hashtags)
+      } else {
+        setTrendingHashtags([])
       }
 
       // Fetch latest registered users (not trending)
@@ -65,6 +67,7 @@ export function TrendingSidebar() {
       }
     } catch (error) {
       console.error("Error fetching trending data:", error)
+      setTrendingHashtags([]) // Ensure hashtags are cleared on error
     } finally {
       setLoading(false)
     }
@@ -237,4 +240,3 @@ export function TrendingSidebar() {
     </div>
   )
 }
-

@@ -103,9 +103,16 @@ export function LoopFeed({ feedType = "personalized" }: LoopFeedProps) {
 
         // Merge interactions into each loop
         fetchedLoops = fetchedLoops.map((loop: Loop) => {
-          const loopInteractions = interactions.filter(i => i.loop_id === loop.id)
+          const loopInteractions = interactions ? interactions.filter(i => i.loop_id === loop.id) : []
           return {
             ...loop,
+            stats: loop.loop_stats || {
+              likes_count: 0,
+              comments_count: 0,
+              branches_count: 0,
+              shares_count: 0,
+              views_count: 0
+            },
             user_interactions: {
               is_liked: loopInteractions.some(i => i.interaction_type === "like"),
               is_saved: loopInteractions.some(i => i.interaction_type === "save"),

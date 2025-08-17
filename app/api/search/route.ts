@@ -34,16 +34,29 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const query = searchParams.get("q")
+    const q = searchParams.get("q")
     const type = searchParams.get("type") || "all" // all, users, loops, circles
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
 
-    if (!query || query.trim().length < 2) {
-      return NextResponse.json({ error: "Search query must be at least 2 characters" }, { status: 400 })
+    if (!q || q.trim() === "" || q === "*") {
+      // Return empty results for wildcard or empty queries instead of error
+      return NextResponse.json({
+        success: true,
+        query: q,
+        type,
+        results: {
+          loops: [],
+          users: [],
+          hashtags: [],
+          circles: []
+        },
+        hasMore: false,
+        total: 0,
+      })
     }
 
-    const searchTerm = query.trim()
+    const searchTerm = q.trim()
     const results: any = {
       users: [],
       loops: [],
@@ -116,7 +129,7 @@ export async function GET(request: NextRequest) {
 
       if (!hashtagError && hashtagLoops) {
         const hashtagCounts: { [key: string]: number } = {}
-        
+
         hashtagLoops.forEach(loop => {
           if (loop.hashtags) {
             loop.hashtags.forEach((hashtag: string) => {
