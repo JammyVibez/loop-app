@@ -1,24 +1,53 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { v2 as cloudinary } from 'cloudinary'
-import { createServerClient } from "@/lib/supabase"
+import { createClient } from "@supabase/supabase-js"
 
 // Configure Cloudinary
+if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+  console.error('Missing Cloudinary configuration:', {
+    cloud_name: !!process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: !!process.env.CLOUDINARY_API_KEY,
+    api_secret: !!process.env.CLOUDINARY_API_SECRET,
+  })
+}
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 })
 
+// Create server-side Supabase client
+function createServerClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('Missing Supabase configuration:', {
+      url: !!supabaseUrl,
+      key: !!supabaseKey,
+    })
+    throw new Error('Missing Supabase configuration')
+  }
+  
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+}
+
 async function getUserFromToken(token: string | null) {
   if (!token) return null
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = createServerClient()
     const { data: { user }, error } = await supabase.auth.getUser(token)
-    if (error || !user) return null
+    if (error || !user) {
+      console.error('Auth verification error:', error)
+      return null
+    }
     return user
   } catch (error) {
     console.error('Auth error:', error)
@@ -28,16 +57,25 @@ async function getUserFromToken(token: string | null) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Upload request received')
+    
     const authHeader = request.headers.get("authorization")
+    console.log('Auth header:', authHeader ? 'Present' : 'Missing')
+    
     if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      console.log('No authorization header provided')
+      return NextResponse.json({ error: "Unauthorized - No auth header" }, { status: 401 })
     }
 
     const token = authHeader.replace("Bearer ", "")
+    console.log('Extracted token length:', token.length)
+    
     const user = await getUserFromToken(token)
+    console.log('User from token:', user ? 'Found' : 'Not found')
 
     if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+      console.log('Invalid or expired token')
+      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
     }
 
     const formData = await request.formData()

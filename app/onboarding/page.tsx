@@ -106,7 +106,7 @@ export default function OnboardingPage() {
       const response = await fetch('/api/upload', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${user?.access_token}`
+          'Authorization': `Bearer ${user?.token || user?.access_token}`
         },
         body: formData
       })
