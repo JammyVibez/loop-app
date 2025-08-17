@@ -1,0 +1,159 @@
+○ Compiling /api/loops/feed ...
+ ✓ Compiled /api/loops/feed in 33.3s (872 modules)
+ ✓ Compiled (875 modules)
+TypeError: fetch failed
+    at async getUserFromToken (app\api\search\route.ts:14:8)
+    at async GET (app\api\search\route.ts:30:17)
+  12 |       data: { user },
+  13 |       error,
+> 14 |     } = await supabase.auth.getUser(token)
+     |        ^
+  15 |     if (error || !user) return null
+  16 |     return user
+  17 |   } catch { {
+  [cause]: [Error [SocketError]: other side closed] {
+    code: 'UND_ERR_SOCKET',
+    socket: {
+      localAddress: '10.138.206.48',
+      localPort: 53920,
+      remoteAddress: '172.64.149.246',
+      remotePort: 443,
+      remoteFamily: 'IPv4',
+      timeout: undefined,
+      bytesWritten: 1398,
+      bytesRead: 0
+    }
+  }
+}
+ GET /api/search?q=trending&type=hashtags&limit=5 401 in 90239ms
+TypeError: fetch failed
+    at async getUserFromToken (app\api\search\route.ts:14:8)
+    at async GET (app\api\search\route.ts:30:17)
+  12 |       data: { user },
+  13 |       error,
+> 14 |     } = await supabase.auth.getUser(token)
+     |        ^
+  15 |     if (error || !user) return null
+  16 |     return user
+  17 |   } catch { {
+  [cause]: [Error [SocketError]: other side closed] {
+    code: 'UND_ERR_SOCKET',
+    socket: {
+      localAddress: '10.138.206.48',
+      localPort: 53921,
+      remoteAddress: '172.64.149.246',
+      remotePort: 443,
+      remoteFamily: 'IPv4',
+      timeout: undefined,
+      bytesWritten: 1398,
+      bytesRead: 0
+    }
+  }
+}
+ GET /api/search?q=trending&type=hashtags&limit=5 401 in 106143ms
+TypeError: fetch failed
+    at async getUserFromToken (app\api\search\route.ts:14:8)
+    at async GET (app\api\search\route.ts:30:17)
+  12 |       data: { user },
+  13 |       error,
+> 14 |     } = await supabase.auth.getUser(token)
+     |        ^
+  15 |     if (error || !user) return null
+  16 |     return user
+  17 |   } catch { {
+  [cause]: [Error [SocketError]: other side closed] {
+    code: 'UND_ERR_SOCKET',
+    socket: {
+      localAddress: '10.138.206.48',
+      localPort: 53922,
+      remoteAddress: '172.64.149.246',
+      remotePort: 443,
+      remoteFamily: 'IPv4',
+      timeout: undefined,
+      bytesWritten: 1398,
+      bytesRead: 0
+    }
+  }
+}
+ GET /api/search?q=trending&type=hashtags&limit=5 401 in 94576ms
+TypeError: fetch failed
+    at async getUserFromToken (app\api\loops\feed\route.ts:10:8)
+    at async GET (app\api\loops\feed\route.ts:26:17)
+   8 |       data: { user },
+   9 |       error,
+> 10 |     } = await supabase.auth.getUser(token)
+     |        ^
+  11 |     if (error || !user) return null
+  12 |     return user
+  13 |   } catch { {
+  [cause]: [Error [SocketError]: other side closed] {
+    code: 'UND_ERR_SOCKET',
+    socket: {
+      localAddress: '10.138.206.48',
+      localPort: 53925,
+      remoteAddress: '172.64.149.246',
+      remotePort: 443,
+      remoteFamily: 'IPv4',
+      timeout: undefined,
+      bytesWritten: 1398,
+      bytesRead: 0
+    }
+  }
+}
+ GET /api/loops/feed?type=personalized&limit=20&offset=0 401 in 94914ms
+TypeError: fetch failed
+    at async getUserFromToken (app\api\loops\feed\route.ts:10:8)
+    at async GET (app\api\loops\feed\route.ts:26:17)
+   8 |       data: { user },
+   9 |       error,
+> 10 |     } = await supabase.auth.getUser(token)
+     |        ^
+  11 |     if (error || !user) return null
+  12 |     return user
+  13 |   } catch { {
+  [cause]: [Error [SocketError]: other side closed] {
+    code: 'UND_ERR_SOCKET',
+    socket: {
+      localAddress: '10.138.206.48',
+      localPort: 53924,
+      remoteAddress: '172.64.149.246',
+      remotePort: 443,
+      remoteFamily: 'IPv4',
+      timeout: undefined,
+      bytesWritten: 1398,
+      bytesRead: 0
+    }
+  }
+}
+ GET /api/loops/feed?type=personalized&limit=20&offset=0 401 in 93215ms
+TypeError: fetch failed
+    at async getUserFromToken (app\api\loops\feed\route.ts:10:8)
+    at async GET (app\api\loops\feed\route.ts:26:17)
+   8 |       data: { user },
+   9 |       error,
+> 10 |     } = await supabase.auth.getUser(token)
+     |        ^
+  11 |     if (error || !user) return null
+  12 |     return user
+  13 |   } catch { {
+  [cause]: [Error [SocketError]: other side closed] {
+    code: 'UND_ERR_SOCKET',
+    socket: {
+      localAddress: '10.138.206.48',
+      localPort: 53923,
+      remoteAddress: '172.64.149.246',
+      remotePort: 443,
+      remoteFamily: 'IPv4',
+      timeout: undefined,
+      bytesWritten: 1398,
+      bytesRead: 0
+    }
+  }
+}
+ GET /api/loops/feed?type=personalized&limit=20&offset=0 401 in 107270ms
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: unexpected end of file
+ ○ Compiling /api/users ...
+ ✓ Compiled /api/users in 4.8s (864 modules)
+ GET /api/users?sort=newest&limit=5 200 in 8180ms
+ GET /api/users?sort=newest&limit=5 200 in 675ms
+ GET /api/users?sort=newest&limit=5 200 in 677ms
