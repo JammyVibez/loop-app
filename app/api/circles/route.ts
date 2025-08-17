@@ -1,5 +1,21 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase"
+import { createClient } from "@supabase/supabase-js"
+
+function createServerClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase configuration')
+  }
+
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+}
 
 async function getUserFromToken(token: string | null) {
   if (!token) return null
@@ -16,57 +32,57 @@ async function getUserFromToken(token: string | null) {
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const { searchParams } = new URL(request.url)
+    const limit = Number.parseInt(searchParams.get("limit") || "20")
+    const offset = Number.parseInt(searchParams.get("offset") || "0")
+    const category = searchParams.get("category")
+    const search = searchParams.get("search")
 
     const supabase = createServerClient()
-
-    const { searchParams } = new URL(request.url)
-    const category = searchParams.get("category")
-    const limit = Number.parseInt(searchParams.get("limit") || "20")
-    const userCircles = searchParams.get("user_circles") === "true"
 
     let query = supabase
       .from("circles")
       .select(`
         *,
-        creator:profiles!creator_id(id, username, display_name, avatar_url, is_verified),
-        member_count:circle_members(count),
-        user_membership:circle_members!inner(role, status)
+        creator:profiles!creator_id(id, username, display_name, avatar_url),
+        member_count:circle_members(count)
       `)
-
-    if (userCircles && user) {
-      // Get circles user is a member of
-      query = query.eq("circle_members.user_id", user.id)
-        .eq("circle_members.status", "approved")
-    } else {
-      // Get public circles
-      query = query.eq("is_public", true)
-    }
-
-    query = query.order("created_at", { ascending: false }).limit(limit)
+      .eq("is_private", false)
+      .order("created_at", { ascending: false })
 
     if (category && category !== "all") {
       query = query.eq("category", category)
     }
 
-    const { data: circles, error } = await query
-
-    if (error) {
-      console.error("Circles fetch error:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
     }
 
-    return NextResponse.json({ success: true, circles })
+    const { data: circles, error } = await query.range(offset, offset + limit - 1)
+
+    if (error) {
+      console.error("Error fetching circles:", error)
+      return NextResponse.json({ error: "Failed to fetch circles" }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      circles: circles || [],
+      hasMore: circles?.length === limit,
+    })
   } catch (error: any) {
-    console.error("Error fetching circles:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error("Error in circles API:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    )
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Circle creation request received')
+
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -80,39 +96,81 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, description, category, is_public = true, circle_rules, banner_url } = body
+    const { name, description, category, is_private, banner_url, rules } = body
 
-    if (!name || !description) {
-      return NextResponse.json({ error: "Name and description are required" }, { status: 400 })
+    // Validation
+    if (!name || name.trim().length < 3) {
+      return NextResponse.json({ error: "Circle name must be at least 3 characters" }, { status: 400 })
+    }
+
+    if (!description || description.trim().length < 10) {
+      return NextResponse.json({ error: "Description must be at least 10 characters" }, { status: 400 })
+    }
+
+    if (!category) {
+      return NextResponse.json({ error: "Category is required" }, { status: 400 })
     }
 
     const supabase = createServerClient()
 
-    const { data: circle, error } = await supabase
+    // Check if user already has the maximum number of circles (e.g., 5)
+    const { data: existingCircles, error: countError } = await supabase
+      .from("circles")
+      .select("id")
+      .eq("creator_id", user.id)
+
+    if (countError) {
+      console.error("Error checking existing circles:", countError)
+      return NextResponse.json({ error: "Failed to check existing circles" }, { status: 500 })
+    }
+
+    if (existingCircles && existingCircles.length >= 5) {
+      return NextResponse.json({ error: "You can only create up to 5 circles" }, { status: 400 })
+    }
+
+    // Check if circle name is already taken
+    const { data: existingCircle, error: nameError } = await supabase
+      .from("circles")
+      .select("id")
+      .eq("name", name.trim())
+      .single()
+
+    if (nameError && nameError.code !== 'PGRST116') {
+      console.error("Error checking circle name:", nameError)
+      return NextResponse.json({ error: "Failed to check circle name" }, { status: 500 })
+    }
+
+    if (existingCircle) {
+      return NextResponse.json({ error: "A circle with this name already exists" }, { status: 400 })
+    }
+
+    // Create the circle
+    const { data: circle, error: createError } = await supabase
       .from("circles")
       .insert({
-        name,
-        description,
+        name: name.trim(),
+        description: description.trim(),
         category,
+        is_private: is_private || false,
         creator_id: user.id,
-        is_public,
-        circle_rules,
-        banner_url,
+        banner_url: banner_url || null,
+        rules: rules || [],
+        member_limit: 1000, // Default member limit
         settings: {
           allow_posts: true,
-          allow_events: true,
-          require_approval: !is_public
+          allow_media: true,
+          moderation_level: 'moderate'
         }
       })
       .select(`
         *,
-        creator:profiles!creator_id(id, username, display_name, avatar_url, is_verified)
+        creator:profiles!creator_id(id, username, display_name, avatar_url)
       `)
       .single()
 
-    if (error) {
-      console.error("Circle creation error:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (createError) {
+      console.error("Error creating circle:", createError)
+      return NextResponse.json({ error: "Failed to create circle" }, { status: 500 })
     }
 
     // Add creator as first member and admin
@@ -122,18 +180,38 @@ export async function POST(request: NextRequest) {
         circle_id: circle.id,
         user_id: user.id,
         role: "admin",
-        status: "approved",
-        joined_at: new Date().toISOString()
+        status: "approved"
       })
 
     if (memberError) {
-      console.error("Member creation error:", memberError)
-      // Don't fail the request, just log the error
+      console.error("Error adding creator as member:", memberError)
+      // Note: Circle is already created, but we should handle this gracefully
     }
 
-    return NextResponse.json({ success: true, circle })
+    // Update user stats for circle creation achievement
+    const { error: statsError } = await supabase.rpc('update_user_stats_and_check_achievements', {
+      target_user_id: user.id,
+      stat_type: 'circles_created',
+      increment_value: 1
+    })
+
+    if (statsError) {
+      console.error("Error updating user stats:", statsError)
+    }
+
+    console.log('Circle created successfully:', circle.id)
+
+    return NextResponse.json({
+      success: true,
+      circle,
+      message: "Circle created successfully!"
+    })
+
   } catch (error: any) {
     console.error("Error creating circle:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
   }
 }

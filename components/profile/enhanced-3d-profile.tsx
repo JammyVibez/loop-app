@@ -26,6 +26,7 @@ import {
   Trophy,
   Eye,
   Coins,
+  GitBranch,
 } from "lucide-react";
 import { LoopCard } from "@/components/loop-card";
 import { ProfileThemeCustomizer } from "@/components/profile/profile-theme-customizer";
@@ -49,6 +50,7 @@ interface ProfileTheme {
     secondary: string;
     accent: string;
     background: string;
+    text?: string;
   };
   effects: {
     glow: boolean;
@@ -90,6 +92,7 @@ const AVAILABLE_THEMES: ProfileTheme[] = [
       secondary: "#3b82f6",
       accent: "#f59e0b",
       background: "#ffffff",
+      text: "#1f2937",
     },
     effects: {
       glow: false,
@@ -106,6 +109,7 @@ const AVAILABLE_THEMES: ProfileTheme[] = [
       secondary: "#00ccff",
       accent: "#ff0080",
       background: "#0a0a0a",
+      text: "#ffffff",
     },
     effects: {
       glow: true,
@@ -123,6 +127,7 @@ const AVAILABLE_THEMES: ProfileTheme[] = [
       secondary: "#ffa500",
       accent: "#ff1744",
       background: "#fff3e0",
+      text: "#332200",
     },
     effects: {
       glow: true,
@@ -140,6 +145,7 @@ const AVAILABLE_THEMES: ProfileTheme[] = [
       secondary: "#764ba2",
       accent: "#f093fb",
       background: "#0c0c0c",
+      text: "#ffffff",
     },
     effects: {
       glow: true,
@@ -157,6 +163,7 @@ const AVAILABLE_THEMES: ProfileTheme[] = [
       secondary: "#ff8c00",
       accent: "#ffff00",
       background: "#1a1a1a",
+      text: "#ffffff",
     },
     effects: {
       glow: true,
@@ -188,6 +195,9 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
   const [loopsLoading, setLoopsLoading] = useState(true);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [likedLoops, setLikedLoops] = useState<any[]>([]);
+  const [userStats, setUserStats] = useState<any>(null);
 
   // Mouse tracking for 3D effects
   useEffect(() => {
@@ -258,13 +268,73 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
         // Fetch loops
         const { data: loopsData } = await supabase
           .from("loops")
-          .select("*")
+          .select(`
+            *,
+            stats:loop_stats(likes_count, comments_count, branches_count),
+            author:profiles(id, username, display_name, avatar_url)
+          `)
           .eq("author_id", profileData?.id)
           .order("created_at", { ascending: false })
           .limit(10);
 
         if (loopsData) {
           setLoops(loopsData);
+        }
+
+        // Fetch user's branches (loops with parent_loop_id)
+        const { data: branchesData } = await supabase
+          .from("loops")
+          .select(`
+            *,
+            stats:loop_stats(likes_count, comments_count),
+            author:profiles(id, username, display_name, avatar_url)
+          `)
+          .eq("author_id", profileData?.id)
+          .neq("parent_loop_id", null)
+          .order("created_at", { ascending: false })
+          .limit(10);
+
+        if (branchesData) {
+          setBranches(branchesData);
+        }
+
+        // Fetch user's liked loops
+        const { data: likedData } = await supabase
+          .from("likes")
+          .select(`loop_id, loops(*, stats:loop_stats(likes_count, comments_count), author:profiles(id, username, display_name, avatar_url))`)
+          .eq("user_id", profileData?.id)
+          .limit(10);
+
+        if (likedData) {
+          setLikedLoops(likedData.map((like) => like.loops));
+        }
+
+        // Fetch user's achievements
+        const { data: userAchievementsData, error: achievementsError } = await supabase
+          .from("user_achievements")
+          .select(`
+            *,
+            achievement:achievements(*)
+          `)
+          .eq("user_id", profileData?.id)
+          .limit(10);
+
+        const { data: userStatsData, error: statsError } = await supabase
+          .from("profile_stats")
+          .select("*")
+          .eq("user_id", profileData?.id)
+          .single();
+
+        if (!achievementsError && userAchievementsData) {
+          setAchievements(userAchievementsData.map((ua) => ({
+            ...ua.achievement,
+            earned_at: ua.earned_at,
+            progress: ua.progress,
+            max_progress: ua.max_progress,
+          })));
+        }
+        if (!statsError && userStatsData) {
+          setUserStats(userStatsData);
         }
 
         // Check if current user is following this user
@@ -477,7 +547,7 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
       className="min-h-screen"
       style={{
         background: currentTheme.colors.background,
-        color: currentTheme.colors.text,
+        color: currentTheme.colors.text || "#1f2937",
       }}
     >
       <div className="container mx-auto px-4 py-6 max-w-4xl">
@@ -591,7 +661,7 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
                   <div className="flex items-center space-x-2 mb-2">
                     <h1
                       className="text-3xl font-bold"
-                      style={{ color: currentTheme.colors.text }}
+                      style={{ color: currentTheme.colors.text || "#1f2937" }}
                     >
                       {profile.display_name}
                     </h1>
@@ -702,7 +772,7 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
             <div className="space-y-4">
               <p
                 className="leading-relaxed"
-                style={{ color: currentTheme.colors.text }}
+                style={{ color: currentTheme.colors.text || "#1f2937" }}
               >
                 {profile.bio}
               </p>
@@ -809,39 +879,26 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
         </Card>
 
         {/* Enhanced Profile Content */}
-        <Tabs defaultValue="loops" className="w-full">
+        <Tabs defaultValue="loops" className="mt-8">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="loops">
-              <TreePine className="w-4 h-4 mr-2" />
-              Loops
+            <TabsTrigger value="loops">Loops</TabsTrigger>
+            <TabsTrigger value="branches" className="flex items-center gap-1">
+              <GitBranch className="w-3 h-3" />
+              Branches
             </TabsTrigger>
-            <TabsTrigger
-              value="branches"
-              className="flex items-center space-x-2"
-            >
-              <TreePine className="w-4 h-4" />
-              <span>Branches</span>
-            </TabsTrigger>
-            <TabsTrigger value="achievements">
-              <Trophy className="w-4 h-4 mr-2" />
-              Achievements
-            </TabsTrigger>
-            <TabsTrigger value="themes">
-              <Palette className="w-4 h-4 mr-2" />
-              Themes
-            </TabsTrigger>
-            <TabsTrigger value="likes">
-              <Heart className="w-4 h-4 mr-2" />
+            <TabsTrigger value="likes" className="flex items-center gap-1">
+              <Heart className="w-3 h-3" />
               Likes
             </TabsTrigger>
-            <TabsTrigger value="media">
-              <Sparkles className="w-4 h-4 mr-2" />
-              Media
+            <TabsTrigger value="achievements" className="flex items-center gap-1">
+              <Trophy className="w-3 h-3" />
+              Achievements
             </TabsTrigger>
+            <TabsTrigger value="about">About</TabsTrigger>
           </TabsList>
 
           <TabsContent value="loops" className="mt-6">
-            <div className="space-y-6">
+            <div className="grid gap-4">
               {loopsLoading ? (
                 <div className="text-center py-12 text-gray-500">
                   Loading loops...
@@ -856,216 +913,216 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
                   />
                 ))
               ) : (
-                <div className="text-center py-12 text-gray-500">
-                  No loops found.
-                </div>
+                <p className="text-center text-muted-foreground py-8">
+                  No loops yet
+                </p>
               )}
             </div>
           </TabsContent>
 
           <TabsContent value="branches" className="mt-6">
-            <div className="text-center py-12">
-              <TreePine className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-400 mb-2">
-                No branches yet
-              </h3>
-              <p className="text-gray-500 dark:text-gray-500">
-                Branches from other loops will appear here
-              </p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="achievements" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {achievements.map((achievement) => (
-                <Card
-                  key={achievement.id}
-                  className={`hover:shadow-lg transition-all duration-300 ${
-                    achievement.rarity === "legendary"
-                      ? "border-yellow-400 bg-gradient-to-br from-yellow-50 to-orange-50"
-                      : achievement.rarity === "epic"
-                      ? "border-purple-400 bg-gradient-to-br from-purple-50 to-pink-50"
-                      : achievement.rarity === "rare"
-                      ? "border-blue-400 bg-gradient-to-br from-blue-50 to-cyan-50"
-                      : "border-gray-200"
-                  }`}
-                >
-                  <CardContent className="p-4 text-center">
-                    <div className="text-4xl mb-2">{achievement.icon}</div>
-                    <h3 className="font-semibold mb-1">{achievement.name}</h3>
-                    <p className="text-sm text-gray-600 mb-2">
-                      {achievement.description}
-                    </p>
-                    <Badge
-                      className={`${
-                        achievement.rarity === "legendary"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : achievement.rarity === "epic"
-                          ? "bg-purple-100 text-purple-700"
-                          : achievement.rarity === "rare"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-gray-100 text-gray-700"
-                      }`}
-                    >
-                      {achievement.rarity}
-                    </Badge>
-                    {achievement.progress !== undefined &&
-                      achievement.max_progress && (
-                        <div className="mt-2">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                              style={{
-                                width: `${
-                                  (achievement.progress /
-                                    achievement.max_progress) *
-                                  100
-                                }%`,
-                              }}
-                            />
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {achievement.progress}/{achievement.max_progress}
-                          </p>
-                        </div>
-                      )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="themes" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {AVAILABLE_THEMES.map((theme) => {
-                const isOwned = ownedThemes.includes(theme.id);
-                const isActive = activeTheme === theme.id;
-
-                return (
-                  <Card
-                    key={theme.id}
-                    className={`hover:shadow-lg transition-all duration-300 ${
-                      isActive ? "ring-2 ring-purple-500" : ""
-                    }`}
-                  >
+            <div className="grid gap-4">
+              {branches.length > 0 ? (
+                branches.map((branch) => (
+                  <Card key={branch.id} className="hover:shadow-lg transition-shadow">
                     <CardContent className="p-4">
-                      <div
-                        className="h-20 rounded-lg mb-3 relative overflow-hidden"
-                        style={{
-                          background: `linear-gradient(45deg, ${theme.colors.primary}, ${theme.colors.secondary})`,
-                        }}
-                      >
-                        {theme.effects.particles && (
-                          <div className="absolute inset-0">
-                            {Array.from({ length: 5 }, (_, i) => (
-                              <div
-                                key={i}
-                                className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
-                                style={{
-                                  left: `${20 + i * 15}%`,
-                                  top: `${30 + (i % 2) * 20}%`,
-                                  animationDelay: `${i * 0.5}s`,
-                                }}
-                              />
-                            ))}
-                          </div>
-                        )}
-                        {isActive && (
-                          <div className="absolute top-2 right-2">
-                            <Badge className="bg-green-500 text-white">
-                              Active
-                            </Badge>
-                          </div>
-                        )}
+                      <div className="flex items-center gap-2 mb-2">
+                        <GitBranch className="w-4 h-4 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">
+                          Branched from a loop • {new Date(branch.created_at).toLocaleDateString()}
+                        </p>
                       </div>
-
-                      <h3 className="font-semibold mb-2">{theme.name}</h3>
-
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex space-x-1">
-                          {theme.effects.glow && (
-                            <Zap className="w-4 h-4 text-yellow-500" />
-                          )}
-                          {theme.effects.particles && (
-                            <Sparkles className="w-4 h-4 text-purple-500" />
-                          )}
-                          {theme.effects.animations && (
-                            <Eye className="w-4 h-4 text-blue-500" />
-                          )}
-                        </div>
-                        {theme.is_premium && (
-                          <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                            <Crown className="w-3 h-3 mr-1" />
-                            Premium
-                          </Badge>
-                        )}
-                      </div>
-                      {isOwnProfile ? (
-                        <div className="flex space-x-2">
-                          {isOwned ? (
-                            <Button
-                              onClick={() => handleThemeActivation(theme.id)}
-                              disabled={isActive}
-                              className={
-                                isActive
-                                  ? "bg-green-500"
-                                  : "bg-gradient-to-r from-purple-500 to-blue-500"
-                              }
-                            >
-                              {isActive ? "Active" : "Activate"}
-                            </Button>
-                          ) : (
-                            <Button
-                              onClick={() => handleThemePurchase(theme.id)}
-                              className="bg-gradient-to-r from-purple-500 to-blue-500"
-                            >
-                              {theme.price ? (
-                                <>
-                                  <Coins className="w-4 h-4 mr-1" />
-                                  {theme.price}
-                                </>
-                              ) : (
-                                "Free"
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-center">
-                          <p className="text-sm text-gray-500">
-                            {isOwned
-                              ? "Owned"
-                              : theme.price
-                              ? `${theme.price} coins`
-                              : "Free"}
-                          </p>
-                        </div>
+                      <p className="mb-3">{branch.content_text}</p>
+                      {branch.content_media_url && (
+                        <img
+                          src={branch.content_media_url}
+                          alt="Branch content"
+                          className="rounded-lg max-w-full h-auto mb-3"
+                        />
                       )}
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Heart className="w-3 h-3" />
+                          {branch.stats?.likes_count || 0}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MessageCircle className="w-3 h-3" />
+                          {branch.stats?.comments_count || 0}
+                        </span>
+                      </div>
                     </CardContent>
                   </Card>
-                );
-              })}
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground py-8">
+                  No branches yet
+                </p>
+              )}
             </div>
           </TabsContent>
 
           <TabsContent value="likes" className="mt-6">
-            <div className="text-center py-12">
-              <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-400 mb-2">
-                No liked loops
-              </h3>
-              <p className="text-gray-500 dark:text-gray-500">
-                Liked loops will appear here
-              </p>
+            <div className="grid gap-4">
+              {likedLoops.length > 0 ? (
+                likedLoops.map((loop) => (
+                  <Card key={loop.id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Heart className="w-4 h-4 text-red-500" />
+                        <p className="text-sm text-muted-foreground">
+                          Liked • {new Date(loop.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Avatar className="w-6 h-6">
+                          <AvatarImage src={loop.author?.avatar_url} />
+                          <AvatarFallback>{loop.author?.display_name?.[0]}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium">{loop.author?.display_name}</span>
+                        <span className="text-sm text-muted-foreground">@{loop.author?.username}</span>
+                      </div>
+                      <p className="mb-3">{loop.content_text}</p>
+                      {loop.content_media_url && (
+                        <img
+                          src={loop.content_media_url}
+                          alt="Loop content"
+                          className="rounded-lg max-w-full h-auto mb-3"
+                        />
+                      )}
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground py-8">
+                  No liked loops yet
+                </p>
+              )}
             </div>
           </TabsContent>
 
-          <TabsContent value="media" className="mt-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="aspect-square bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-              <div className="aspect-square bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-              <div className="aspect-square bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+          <TabsContent value="achievements" className="mt-6">
+            <div className="space-y-6">
+              {userStats && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Star className="w-5 h-5" />
+                      Level {userStats.level}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">{userStats.loops_created}</div>
+                        <div className="text-sm text-muted-foreground">Loops Created</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">{userStats.total_likes_received}</div>
+                        <div className="text-sm text-muted-foreground">Likes Received</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">{userStats.followers_count}</div>
+                        <div className="text-sm text-muted-foreground">Followers</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">{userStats.total_xp}</div>
+                        <div className="text-sm text-muted-foreground">Total XP</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="grid gap-4">
+                {achievements.length > 0 ? (
+                  achievements.map((userAchievement) => {
+                    const achievement = userAchievement.achievement;
+                    const levelColors = {
+                      bronze: 'bg-amber-100 text-amber-800 border-amber-200',
+                      silver: 'bg-gray-100 text-gray-800 border-gray-200',
+                      gold: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                      platinum: 'bg-purple-100 text-purple-800 border-purple-200',
+                      diamond: 'bg-blue-100 text-blue-800 border-blue-200'
+                    };
+
+                    return (
+                      <Card key={userAchievement.id} className="hover:shadow-lg transition-shadow">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="text-2xl">{achievement.icon}</div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="font-semibold">{achievement.name}</h4>
+                                <Badge className={levelColors[achievement.level] || 'bg-gray-100'}>
+                                  {achievement.level}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground mb-2">
+                                {achievement.description}
+                              </p>
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                <span>+{achievement.xp_reward} XP</span>
+                                <span>+{achievement.coins_reward} coins</span>
+                                <span>Earned {new Date(userAchievement.earned_at).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    No achievements yet
+                  </p>
+                )}
+              </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="about" className="mt-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Bio</h4>
+                    <p className="mt-1">{profile.bio || "No bio available"}</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Joined</h4>
+                    <p className="mt-1">
+                      {new Date(profile.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+
+                  {profile.location && (
+                    <div>
+                      <h4 className="font-semibold text-sm text-muted-foreground">Location</h4>
+                      <p className="mt-1">{profile.location}</p>
+                    </div>
+                  )}
+
+                  {profile.website && (
+                    <div>
+                      <h4 className="font-semibold text-sm text-muted-foreground">Website</h4>
+                      <a
+                        href={profile.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 text-blue-600 hover:text-blue-800"
+                      >
+                        {profile.website}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 

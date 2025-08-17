@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { createClient } from "@supabase/supabase-js"
+import { useRouter } from 'next/navigation'; // Assuming you are using Next.js router
 
 // Ensure environment variables are available
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -49,6 +50,7 @@ interface User {
   theme_data?: any
   token?: string
   access_token?: string
+  profile?: any; // Added profile to User interface
 }
 
 interface AuthContextType {
@@ -65,6 +67,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const router = useRouter(); // Initialize router
 
   const loadUserProfile = async (session: any) => {
     try {
@@ -104,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         theme_data: profile.theme_data,
         token: session.access_token,
         access_token: session.access_token,
+        profile: profile, // Include profile data here
       }
     } catch (error) {
       console.error("Error in loadUserProfile:", error)
@@ -118,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const initAuth = async () => {
       try {
         setLoading(true)
-        
+
         const { data: { session }, error } = await supabase.auth.getSession()
 
         if (error) {
@@ -201,11 +205,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
 
       if (error) {
-        throw new Error(error.message)
+        throw error
       }
 
-      // Don't manually set loading or user here - let the auth state change handler do it
-      return data
+      if (data.user && data.session) {
+        // Fetch user profile
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", data.user.id)
+          .single()
+
+        setUser({
+          id: data.user.id,
+          email: data.user.email!,
+          token: data.session.access_token,
+          access_token: data.session.access_token,
+          profile: profile,
+        })
+
+        router.push("/")
+      }
     } catch (error) {
       console.error("Login error:", error)
       throw error
@@ -228,6 +248,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(data.error || "Signup failed")
       }
 
+      // After signup, directly log in the user.
+      // The signup API should ideally return credentials or a confirmation.
+      // For this example, we'll assume signup creates the user and then we attempt login.
+      // A more robust solution would involve verifying email before login or getting session data.
+      await login(email, password)
+
       return data
     } catch (error) {
       console.error("Signup error:", error)
@@ -242,6 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true)
       await supabase.auth.signOut()
       setUser(null)
+      router.push('/login'); // Redirect to login after logout
     } catch (error) {
       console.error("Logout error:", error)
     } finally {
