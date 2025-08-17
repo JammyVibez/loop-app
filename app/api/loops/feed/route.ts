@@ -1,16 +1,30 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase"
+import { createServerClient, createClient } from "@/lib/supabase" // Assuming createClient is available here
 
-async function getUserFromToken(token: string) {
+async function getUserFromToken(token: string | null) {
+  if (!token) return null
   try {
-    const supabase = createServerClient()
+    // Create a new supabase client instance for this request
+    const supabaseClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      }
+    )
+
     const {
       data: { user },
       error,
-    } = await supabase.auth.getUser(token)
+    } = await supabaseClient.auth.getUser(token)
     if (error || !user) return null
     return user
-  } catch {
+  } catch (error) {
+    console.error('Auth error:', error)
     return null
   }
 }
@@ -101,7 +115,7 @@ export async function GET(request: NextRequest) {
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         // remove this line if you don’t add a visibility column:
-        // .eq("visibility", "public")  
+        // .eq("visibility", "public")
         .is("parent_loop_id", null)
         .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1)

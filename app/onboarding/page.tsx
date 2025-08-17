@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { TreePine, Camera, Palette, Users, Sparkles, ArrowRight, Check } from "lucide-react"
-import { useAuth } from "@/providers/auth-provider"
+import { useAuth } from "@/hooks/use-auth"
 
 const INTERESTS = [
   "Art & Design",
@@ -81,6 +81,8 @@ export default function OnboardingPage() {
   })
   const { user, updateProfile } = useAuth()
   const router = useRouter()
+  const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const handleInterestToggle = (interest: string) => {
     setProfileData((prev) => ({
@@ -92,18 +94,53 @@ export default function OnboardingPage() {
   }
 
   const handleComplete = async () => {
+    setSaving(true)
+    setErrors({})
+    
     try {
+      // Validate data
+      if (!profileData.bio.trim()) {
+        setErrors({ bio: "Bio is required" })
+        setSaving(false)
+        return
+      }
+
+      if (profileData.interests.length === 0) {
+        setErrors({ interests: "Please select at least one interest" })
+        setSaving(false)
+        return
+      }
+
       await updateProfile({
         bio: profileData.bio,
+        interests: profileData.interests,
         profile_theme: {
           primary_color: profileData.theme.primary,
           secondary_color: profileData.theme.secondary,
           animation: "pulse-glow",
         },
+        onboarding_completed: true,
       })
+      
+      // Award welcome bonus
+      await fetch('/api/users/coins/weekly', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user?.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          type: 'onboarding_bonus',
+          amount: 100 
+        })
+      })
+      
       router.push("/")
     } catch (error) {
       console.error("Failed to update profile:", error)
+      setErrors({ general: "Failed to complete onboarding. Please try again." })
+    } finally {
+      setSaving(false)
     }
   }
 

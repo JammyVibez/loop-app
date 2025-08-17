@@ -6,15 +6,30 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-async function getUserFromToken(token: string) {
+async function getUserFromToken(token: string | null) {
+  if (!token) return null
   try {
+    // Create a new supabase client instance for this request
+    const supabaseClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      }
+    )
+
     const {
       data: { user },
       error,
-    } = await supabase.auth.getUser(token)
+    } = await supabaseClient.auth.getUser(token)
     if (error || !user) return null
     return user
-  } catch {
+  } catch (error) {
+    console.error('Auth error:', error)
     return null
   }
 }

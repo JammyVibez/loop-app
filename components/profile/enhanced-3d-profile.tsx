@@ -35,6 +35,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme3D } from "@/providers/theme-3d-provider";
 import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 
 interface Enhanced3DProfileProps {
   username: string;
@@ -205,23 +206,30 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
 
   // Load profile data
   useEffect(() => {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-
     const fetchProfile = async () => {
       setLoading(true);
       try {
         // Fetch profile
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
-          .select("*")
+          .select(`
+            *,
+            profile_stats:profile_stats!user_id(loops_count, followers_count, following_count, likes_received, profile_views, achievements_count, level, xp_points),
+            user_achievements:user_achievements(achievement:achievements(*), earned_at, progress, max_progress)
+          `)
           .eq("username", username)
           .single();
 
         if (!profileError && profileData) {
           setProfile(profileData);
+          setStats(profileData.profile_stats);
+          setAchievements(profileData.user_achievements.map((ua) => ({
+            ...ua.achievement,
+            earned_at: ua.earned_at,
+            progress: ua.progress,
+            max_progress: ua.max_progress,
+          })));
+
           setActiveTheme(profileData.active_theme || "default");
 
           // Set theme if it's different from current
@@ -231,39 +239,6 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
           ) {
             setTheme(profileData.active_theme);
           }
-        }
-
-        // Fetch stats
-        const { data: statsData } = await supabase
-          .from("profile_stats")
-          .select("*")
-          .eq("user_id", profileData?.id)
-          .single();
-
-        if (statsData) {
-          setStats(statsData);
-        }
-
-        // Fetch achievements
-        const { data: achievementsData } = await supabase
-          .from("user_achievements")
-          .select(
-            `
-            *,
-            achievement:achievements(*)
-          `
-          )
-          .eq("user_id", profileData?.id);
-
-        if (achievementsData) {
-          setAchievements(
-            achievementsData.map((ua) => ({
-              ...ua.achievement,
-              earned_at: ua.earned_at,
-              progress: ua.progress,
-              max_progress: ua.max_progress,
-            }))
-          );
         }
 
         // Fetch owned themes
@@ -291,6 +266,18 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
         if (loopsData) {
           setLoops(loopsData);
         }
+
+        // Check if current user is following this user
+        if (currentUser && profileData && currentUser.id !== profileData.id) {
+          const { data: followData } = await supabase
+            .from('followers')
+            .select('id')
+            .eq('follower_id', currentUser.id)
+            .eq('following_id', profileData.id)
+            .single();
+          setIsFollowing(!!followData);
+        }
+
       } catch (error) {
         console.error("Failed to fetch profile:", error);
       } finally {
@@ -300,7 +287,7 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
     };
 
     fetchProfile();
-  }, [username, currentTheme.id, setTheme]);
+  }, [username, currentUser?.id, currentTheme.id, setTheme]);
 
   // Handle theme purchase
   const handleThemePurchase = async (themeId: string) => {
@@ -330,7 +317,7 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${currentUser.token}`,
+          Authorization: `Bearer ${currentUser.access_token}`,
         },
         body: JSON.stringify({
           item_type: "theme",
@@ -344,6 +331,13 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
         toast({
           title: "Theme Purchased!",
           description: `You've successfully purchased the ${theme.name} theme.`,
+        });
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Purchase Failed",
+          description: errorData.error || "Failed to purchase theme. Please try again.",
+          variant: "destructive",
         });
       }
     } catch (error) {
@@ -365,7 +359,7 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${currentUser.token}`,
+          Authorization: `Bearer ${currentUser.access_token}`,
         },
         body: JSON.stringify({
           active_theme: themeId,
@@ -379,9 +373,21 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
           title: "Theme Activated!",
           description: "Your profile theme has been updated.",
         });
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Activation Failed",
+          description: errorData.error || "Failed to activate theme. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Failed to activate theme:", error);
+      toast({
+        title: "Activation Failed",
+        description: "Failed to activate theme. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -393,7 +399,7 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${currentUser.token}`,
+          Authorization: `Bearer ${currentUser.access_token}`,
         },
         body: JSON.stringify({
           user_id: profile.id,
@@ -429,7 +435,7 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
     });
   };
 
-  const isOwnProfile = currentUser?.username === username;
+  const isOwnProfile = currentUser?.id === profile?.id;
 
   // Calculate 3D transform
   const getTransform = () => {
@@ -481,7 +487,10 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
           style={{
             transformStyle: "preserve-3d",
             background: `linear-gradient(135deg, ${currentTheme.colors.primary}20, ${currentTheme.colors.secondary}20)`,
+            transform: getTransform(),
           }}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
         >
           {/* Animated Banner */}
           <div
@@ -573,7 +582,9 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
                   </Avatar>
 
                   {/* Online indicator */}
-                  <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-white animate-pulse" />
+                  {profile.is_online && (
+                    <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-white animate-pulse" />
+                  )}
                 </div>
 
                 <div className="pb-4">
@@ -635,7 +646,7 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
               </div>
 
               <div className="flex space-x-2 mt-4 md:mt-0">
-                {!isOwnProfile && (
+                {!isOwnProfile ? (
                   <>
                     <Button
                       onClick={handleFollow}
@@ -662,7 +673,7 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
                         </>
                       )}
                     </Button>
-                    <Link href="/message">
+                    <Link href={`/message/${profile.username}`}>
                       <Button variant="outline">
                         <MessageCircle className="w-4 h-4 mr-2" />
                         Message
@@ -676,8 +687,7 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
                       Gift
                     </Button>
                   </>
-                )}
-                {isOwnProfile && (
+                ) : (
                   <Link href="/settings">
                     <Button variant="outline">
                       <Settings className="w-4 h-4 mr-2" />
