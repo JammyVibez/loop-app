@@ -201,7 +201,7 @@ export function GiftModal({ open, onOpenChange, recipient, context }: GiftModalP
   const [userBalance, setUserBalance] = useState(0)
   const { toast } = useToast()
   const { user, refreshUser } = useAuth()
-  const { socket, isConnected } = useRealtime()
+  const { broadcast, isConnected } = useRealtime()
 
   useEffect(() => {
     if (user?.loop_coins) {
@@ -210,18 +210,18 @@ export function GiftModal({ open, onOpenChange, recipient, context }: GiftModalP
   }, [user?.loop_coins])
 
   useEffect(() => {
-    if (socket && isConnected) {
-      socket.on("balance_updated", (data: { user_id: string; new_balance: number }) => {
+    if (broadcast && isConnected) {
+      broadcast.on("balance_updated", (data: { user_id: string; new_balance: number }) => {
         if (data.user_id === user?.id) {
           setUserBalance(data.new_balance)
         }
       })
 
       return () => {
-        socket.off("balance_updated")
+        broadcast.off("balance_updated")
       }
     }
-  }, [socket, isConnected, user?.id])
+  }, [broadcast, isConnected, user?.id])
 
   const handleSendGift = async () => {
     if (!selectedGift || !user) return
@@ -257,13 +257,18 @@ export function GiftModal({ open, onOpenChange, recipient, context }: GiftModalP
       const data = await response.json()
 
       if (data.success) {
-        if (socket && isConnected) {
-          socket.emit("gift_sent", {
-            sender_id: user.id,
+        // Broadcast real-time notification if connected
+        if (isConnected) {
+          broadcast("gift_sent", {
             recipient_id: recipient.id,
-            gift: selectedGift,
-            message: message.trim(),
+            gift_item: selectedGift,
+            sender: {
+              id: user.id,
+              username: user.username,
+              display_name: user.display_name,
+            },
             is_anonymous: isAnonymous,
+            message: message.trim(),
             context: context,
             timestamp: new Date().toISOString(),
           })
@@ -345,7 +350,7 @@ export function GiftModal({ open, onOpenChange, recipient, context }: GiftModalP
   )
 
   // Check if RealtimeContext is available
-  const { socket: realtimeSocket, isConnected: realtimeIsConnected } = useContext(RealtimeContext) || { socket: null, isConnected: false }
+  const { broadcast: realtimeBroadcast, isConnected: realtimeIsConnected } = useContext(RealtimeContext) || { broadcast: null, isConnected: false }
 
 
   return (

@@ -1,65 +1,109 @@
+
 "use client"
 
 import React, { createContext, useContext, useEffect, useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
-import type React from "react"
-import { io, type Socket } from "socket.io-client"
+import { supabase } from "@/lib/supabase"
+import type { RealtimeChannel } from "@supabase/supabase-js"
 
 interface RealtimeContextType {
-  socket: any | null
+  channel: RealtimeChannel | null
   isConnected: boolean
+  subscribe: (event: string, callback: (payload: any) => void) => void
+  unsubscribe: (event: string) => void
+  broadcast: (event: string, payload: any) => void
 }
 
 export const RealtimeContext = createContext<RealtimeContextType | undefined>(undefined)
 
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
-  const [socket, setSocket] = useState<any | null>(null)
+  const [channel, setChannel] = useState<RealtimeChannel | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const { user } = useAuth()
 
   useEffect(() => {
-    if (user?.token) {
-      // For now, we'll create a mock socket to prevent errors
-      // In a real implementation, you'd connect to your WebSocket server
-      const mockSocket = {
-        on: (event: string, callback: Function) => {},
-        off: (event: string) => {},
-        emit: (event: string, data: any) => {},
-      }
-
-      setSocket(mockSocket)
-      setIsConnected(true)
-    } else {
-      // Initialize socket connection when user is not authenticated or token is missing
-      const socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL || "ws://localhost:3001", {
-        transports: ["websocket"],
+    if (user?.id) {
+      // Create a Supabase realtime channel for the user
+      const userChannel = supabase.channel(`user:${user.id}`, {
+        config: {
+          broadcast: { self: true },
+          presence: { key: user.id }
+        }
       })
 
-      socketInstance.on("connect", () => {
-        setIsConnected(true)
-        console.log("Connected to realtime server")
-      })
+      // Subscribe to the channel
+      userChannel
+        .on('presence', { event: 'sync' }, () => {
+          setIsConnected(true)
+          console.log('Connected to Supabase realtime')
+        })
+        .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+          console.log('User joined:', key, newPresences)
+        })
+        .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+          console.log('User left:', key, leftPresences)
+        })
+        .on('broadcast', { event: 'notification' }, (payload) => {
+          console.log('Received notification:', payload)
+        })
+        .on('broadcast', { event: 'loop_update' }, (payload) => {
+          console.log('Loop update:', payload)
+        })
+        .on('broadcast', { event: 'message' }, (payload) => {
+          console.log('New message:', payload)
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            setIsConnected(true)
+            // Track user presence
+            await userChannel.track({
+              user_id: user.id,
+              username: user.username,
+              online_at: new Date().toISOString()
+            })
+          }
+        })
 
-      socketInstance.on("disconnect", () => {
-        setIsConnected(false)
-        console.log("Disconnected from realtime server")
-      })
-
-      setSocket(socketInstance)
+      setChannel(userChannel)
 
       return () => {
-        socketInstance.disconnect()
+        userChannel.unsubscribe()
+        setChannel(null)
+        setIsConnected(false)
       }
     }
+  }, [user?.id])
 
-    return () => {
-      setSocket(null)
-      setIsConnected(false)
+  const subscribe = (event: string, callback: (payload: any) => void) => {
+    if (channel) {
+      channel.on('broadcast', { event }, callback)
     }
-  }, [user?.token])
+  }
+
+  const unsubscribe = (event: string) => {
+    if (channel) {
+      channel.off('broadcast', { event })
+    }
+  }
+
+  const broadcast = (event: string, payload: any) => {
+    if (channel) {
+      channel.send({
+        type: 'broadcast',
+        event,
+        payload
+      })
+    }
+  }
 
   return (
-    <RealtimeContext.Provider value={{ socket, isConnected }}>
+    <RealtimeContext.Provider value={{ 
+      channel, 
+      isConnected, 
+      subscribe, 
+      unsubscribe, 
+      broadcast 
+    }}>
       {children}
     </RealtimeContext.Provider>
   )
