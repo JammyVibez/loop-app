@@ -8,6 +8,7 @@ channel = "stable-25_05"
 run = ["sh", "-c", "npm run dev"]
 
 [workflows]
+runButton = "Run Development Server"
 
 [[workflows.workflow]]
 name = "npm install --legacy-peer-deps"
@@ -16,3 +17,25 @@ author = 46521931
 
 [[workflows.workflow.tasks]]
 task = "packager.installForAll"
+
+[[workflows.workflow]]
+name = "Install Dependencies"
+author = 46521931
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm install @supabase/supabase-js socket.io-client cloudinary multer sharp uuid @types/uuid @types/multer"
+
+[[workflows.workflow]]
+name = "Run Development Server"
+author = 46521931
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm install"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"

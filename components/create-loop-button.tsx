@@ -15,7 +15,7 @@ import { useAuth } from "../providers/auth-provider"
 import { createClient } from "@supabase/supabase-js"
 
 // Use NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY for client-side code
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import { supabase } from "@/lib/supabase"
 
 interface CreateLoopButtonProps {
   onLoopCreated?: () => void

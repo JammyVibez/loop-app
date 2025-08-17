@@ -20,6 +20,8 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const [channel, setChannel] = useState<RealtimeChannel | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const { user } = useAuth()
+  const [connectionAttempts, setConnectionAttempts] = useState(0)
+  const maxRetries = 5
 
   useEffect(() => {
     if (user?.id) {

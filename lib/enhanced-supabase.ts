@@ -1,11 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
-import { EnhancedDatabase } from './enhanced-database.types'
+import type { Database } from './database.types'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 // Enhanced Supabase client with full type safety
-export const enhancedSupabase = createClient<EnhancedDatabase>(
+export const enhancedSupabase = createClient<Database>(
   supabaseUrl,
   supabaseAnonKey,
   {

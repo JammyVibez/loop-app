@@ -1,12 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { createServerClient } from "@/utils/supabase/server" // Assuming this path is correct for server-side Supabase client
 
-// Initialize Supabase client
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+// Initialize Supabase client for server-side operations
+// const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 // Helper function to get user from token
 async function getUserFromToken(token: string) {
   try {
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
     const {
       data: { user },
       error,
@@ -34,6 +36,8 @@ async function uploadToCloudinary(file: File, resourceType: "image" | "video" | 
   )
 
   if (!response.ok) {
+    const errorData = await response.json()
+    console.error("Cloudinary upload error details:", errorData)
     throw new Error("Failed to upload file")
   }
 
@@ -45,57 +49,66 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
-    const type = searchParams.get("type") // 'following', 'trending', 'recent'
     const userId = searchParams.get("user_id")
+    const category = searchParams.get("category")
+
+    const supabase = createServerClient()
 
     let query = supabase
-      .from("loops")
+      .from('loops')
       .select(`
         *,
-        author:profiles(id, username, display_name, avatar_url, is_verified, is_premium),
-        loop_stats(likes_count, branches_count, comments_count, shares_count, views_count),
-        branches:loops!parent_loop_id(
+        author:profiles!author_id(
           id,
-          author:profiles(id, username, display_name, avatar_url),
-          content,
-          media_url,
-          media_type,
-          created_at,
-          loop_stats(likes_count, branches_count, comments_count)
+          username,
+          display_name,
+          avatar_url,
+          is_verified,
+          is_premium
+        ),
+        loop_stats(
+          likes_count,
+          comments_count,
+          branches_count,
+          shares_count,
+          views_count
         )
       `)
-      .is("parent_loop_id", null) // Only root loops
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1)
 
-    if (userId && type === "following") {
-      // Get loops from users that the current user follows
-      const { data: following } = await supabase.from("follows").select("following_id").eq("follower_id", userId)
+    if (userId) {
+      query = query.eq('author_id', userId)
+    }
 
-      if (following && following.length > 0) {
-        const followingIds = following.map((f) => f.following_id)
-        query = query.in("author_id", followingIds)
-      } else {
-        // If not following anyone, return empty array
-        return NextResponse.json({ success: true, loops: [], hasMore: false })
-      }
+    if (category) {
+      query = query.eq('category', category)
     }
 
     const { data: loops, error } = await query
+      .is('parent_loop_id', null)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
 
     if (error) {
-      console.error("Database error:", error)
-      return NextResponse.json({ error: "Failed to fetch loops" }, { status: 500 })
+      console.error("Supabase GET error:", error.message)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({
       success: true,
       loops: loops || [],
-      hasMore: loops?.length === limit,
+      pagination: {
+        limit,
+        offset,
+        total: loops?.length || 0
+      }
     })
-  } catch (error) {
-    console.error("Error fetching loops:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+
+  } catch (error: any) {
+    console.error("Get loops error:", error)
+    return NextResponse.json(
+      { error: "Internal server error", details: error.message },
+      { status: 500 }
+    )
   }
 }
 
@@ -113,163 +126,175 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-   let content: string | null = null
-    let title: string | null = null
-    let type: string | null = null
-    let file: File | null = null
+    const formData = await request.formData()
+    const content_text = formData.get("content_text") as string
+    const file = formData.get("media") as File | null
+    const content_type = formData.get("content_type") as string
+    const category = formData.get("category") as string
+    const hashtags = formData.get("hashtags") ? JSON.parse(formData.get("hashtags") as string) : []
+    const parent_loop_id = formData.get("parent_loop_id") as string | null
+    const is_public = formData.get("is_public") ? formData.get("is_public") === "true" : true
+    const scheduled_for = formData.get("scheduled_for") as string | null
+    const poll_options = formData.get("poll_options") ? JSON.parse(formData.get("poll_options") as string) : null
+    const media_metadata = formData.get("media_metadata") ? JSON.parse(formData.get("media_metadata") as string) : null
 
-    // 🔥 Detect if request is JSON or multipart
-    const contentType = request.headers.get("content-type") || ""
-
-    if (contentType.includes("application/json")) {
-      // Handle JSON body
-      const body = await request.json()
-      content = body.content ?? null
-      title = body.title ?? null
-      type = body.type ?? null
-    } else if (contentType.includes("multipart/form-data")) {
-      // Handle form-data body
-      const formData = await request.formData()
-      content = formData.get("content") as string
-      title = formData.get("title") as string
-      type = formData.get("type") as string
-      file = formData.get("file") as File | null
-    } else {
-      return NextResponse.json({ error: "Unsupported Content-Type" }, { status: 400 })
+    if (!content_text?.trim() && !file) {
+      return NextResponse.json(
+        { error: "Either text content or media is required" },
+        { status: 400 }
+      )
     }
 
-    if (!content && !file) {
-      return NextResponse.json({ error: "Content or file is required" }, { status: 400 })
-    }
+    const supabase = createServerClient()
 
+    let mediaUrl = null
+    let mediaType = content_type || 'text' // Default to text if not provided
 
-    let fileUrl = null
-    let fileType = null
-    let fileName = null
-
-    // Upload file if provided
     if (file) {
+      let resourceType: "image" | "video" | "raw" = "raw"
+
+      if (file.type.startsWith("image/")) {
+        resourceType = "image"
+        mediaType = "image"
+      } else if (file.type.startsWith("video/")) {
+        resourceType = "video"
+        mediaType = "video"
+      } else if (file.type.startsWith("audio/")) {
+        resourceType = "video" // Cloudinary can handle audio as video
+        mediaType = "audio"
+      } else {
+        mediaType = "file"
+      }
+
       try {
-        let resourceType: "image" | "video" | "raw" = "raw"
-
-        if (file.type.startsWith("image/")) {
-          resourceType = "image"
-          fileType = "image"
-        } else if (file.type.startsWith("video/")) {
-          resourceType = "video"
-          fileType = "video"
-        } else if (file.type.startsWith("audio/")) {
-          resourceType = "video" // Cloudinary handles audio as video
-          fileType = "audio"
-        } else {
-          fileType = "file"
-        }
-
         const uploadResult = await uploadToCloudinary(file, resourceType)
-        fileUrl = uploadResult.secure_url
-        fileName = file.name
+        mediaUrl = uploadResult.secure_url
       } catch (uploadError) {
         console.error("File upload error:", uploadError)
-        return NextResponse.json({ error: "Failed to upload file" }, { status: 500 })
+        return NextResponse.json({ error: "Failed to upload media" }, { status: 500 })
       }
     }
 
-    // Create loop content object
-    const loopContent: any = {
-      type: fileType || type,
-      text: content || null,
-      title: title || null,
-    }
-
-    if (fileUrl) {
-      switch (fileType) {
-        case "image":
-          loopContent.image_url = fileUrl
-          loopContent.caption = content
-          break
-        case "video":
-          loopContent.video_url = fileUrl
-          loopContent.description = content
-          break
-        case "audio":
-          loopContent.audio_url = fileUrl
-          loopContent.description = content
-          break
-        case "file":
-          loopContent.file_url = fileUrl
-          loopContent.file_name = fileName
-          loopContent.description = content
-          break
-      }
-    }
-
-    // Insert loop into database
-    const { data: loop, error: insertError } = await supabase
-      .from("loops")
+    // Create the loop
+    const { data: loop, error } = await supabase
+      .from('loops')
       .insert({
         author_id: user.id,
-        content: content,             // store text in content
-        media_url: fileUrl || null,   // store uploaded file here
-        media_type: fileType || type || "text",
-        parent_loop_id: null,
+        content_text: content_text?.trim(),
+        content_media_url: mediaUrl,
+        content_type: mediaType,
+        category: category || 'general',
+        hashtags: hashtags || [],
+        parent_loop_id,
+        is_public,
+        scheduled_for,
+        poll_options,
+        media_metadata
       })
-      .select("id") // Only get the new loop id
-      .single()
-
-    if (insertError || !loop) {
-      console.error("Database insert error:", insertError)
-      return NextResponse.json({ error: "Failed to create loop" }, { status: 500 })
-    }
-
-    // Initialize loop stats
-    await supabase.from("loop_stats").insert({
-      loop_id: loop.id,
-      likes_count: 0,
-      branches_count: 0,
-      comments_count: 0,
-      shares_count: 0,
-      views_count: 0,
-    })
-
-    // Fetch the full loop object with author and stats
-    const { data: fullLoop, error: fetchError } = await supabase
-      .from("loops")
       .select(`
         *,
-        author:profiles(id, username, display_name, avatar_url, is_verified, is_premium),
-        stats:loop_stats(likes_count, branches_count, comments_count, shares_count, views_count)
+        author:profiles!author_id(
+          id,
+          username,
+          display_name,
+          avatar_url,
+          is_verified,
+          is_premium
+        )
       `)
-      .eq("id", loop.id)
       .single()
 
-    if (fetchError || !fullLoop) {
-      console.error("Fetch error after insert:", fetchError)
-      return NextResponse.json({ error: "Failed to fetch created loop" }, { status: 500 })
+    if (error) {
+      console.error("Supabase POST error:", error.message)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Fetch user interactions for this loop
-    const { data: interactions, error: interactionError } = await supabase
-      .from("loop_interactions")
-      .select("interaction_type")
-      .eq("user_id", user.id)
-      .eq("loop_id", loop.id)
+    // Create initial stats record
+    await supabase
+      .from('loop_stats')
+      .insert({
+        loop_id: loop.id,
+        likes_count: 0,
+        comments_count: 0,
+        shares_count: 0,
+        views_count: 0,
+        branches_count: 0
+      })
 
-    if (interactionError) {
-      console.error("Interaction fetch error:", interactionError)
+    // If it's a branch, increment parent's branch count
+    if (parent_loop_id) {
+      // Ensure increment_loop_branches is a defined RPC function in Supabase
+      const { error: rpcError } = await supabase.rpc('increment_loop_branches', { loop_id: parent_loop_id })
+      if (rpcError) {
+        console.error("Error calling increment_loop_branches:", rpcError.message)
+      }
+
+      // Notify parent loop author
+      const { data: parentLoop, error: parentLoopError } = await supabase
+        .from('loops')
+        .select('author_id')
+        .eq('id', parent_loop_id)
+        .single()
+
+      if (parentLoopError) {
+        console.error("Error fetching parent loop:", parentLoopError.message)
+      } else if (parentLoop && parentLoop.author_id !== user.id) {
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: parentLoop.author_id,
+            type: 'branch',
+            title: `${user.user_metadata?.display_name || user.email} branched your loop`,
+            message: content_text?.substring(0, 100) + (content_text && content_text.length > 100 ? '...' : ''),
+            data: {
+              loop_id: loop.id,
+              parent_loop_id,
+              user_id: user.id
+            }
+          })
+      }
     }
 
-    // Build user_interactions object from loop_interactions
-    fullLoop.user_interactions = {
-      is_liked: interactions?.some(i => i.interaction_type === "like") || false,
-      is_saved: interactions?.some(i => i.interaction_type === "save") || false,
+    // Process hashtags
+    if (hashtags && hashtags.length > 0) {
+      for (const tag of hashtags) {
+        const cleanedTag = tag.toString().toLowerCase().trim()
+        if (cleanedTag) {
+          await supabase
+            .from('hashtags')
+            .upsert({
+              tag: cleanedTag,
+              usage_count: 1 // This should ideally be incremented if tag exists
+            }, {
+              onConflict: 'tag',
+              ignoreDuplicates: false
+            })
+        }
+      }
     }
+
+    // Broadcast real-time update
+    // Ensure 'loops' channel is correctly subscribed to by clients
+    await supabase.channel('loops')
+      .send({
+        type: 'broadcast',
+        event: 'new_loop',
+        payload: {
+          loop,
+          // user_id: user.id // Include user ID if needed by the client
+        }
+      })
 
     return NextResponse.json({
       success: true,
-      loop: fullLoop,
+      loop
     })
-  } catch (error) {
-    console.error("Error creating loop:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+
+  } catch (error: any) {
+    console.error("Create loop error:", error)
+    return NextResponse.json(
+      { error: "Internal server error", details: error.message },
+      { status: 500 }
+    )
   }
 }
