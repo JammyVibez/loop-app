@@ -38,7 +38,31 @@ export async function GET(request: NextRequest) {
 
     let loops: any[] = []
 
-    if (type === "following") {
+    if (type === "personalized") {
+      // For personalized feed, show both user's own loops and following
+      const { data: followingData } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", user.id)
+
+      const followingIds = followingData?.length ? followingData.map(f => f.following_id) : []
+      // Include user's own ID in the list
+      const authorIds = [...followingIds, user.id]
+
+      const { data, error } = await supabase
+        .from("loops")
+        .select(`
+          *,
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+          loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
+        `)
+        .in("author_id", authorIds)
+        .is("parent_loop_id", null)
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1)
+
+      if (!error) loops = data || []
+    } else if (type === "following") {
       const { data: followingData } = await supabase
         .from("follows")
         .select("following_id")

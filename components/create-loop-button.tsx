@@ -96,7 +96,9 @@ export function CreateLoopButton({ onLoopCreated }: CreateLoopButtonProps) {
         setUploadProgress([]);
         setIsOpen(false);
         // Call the callback after successful creation
-        if (onLoopCreated) onLoopCreated();
+        if (onLoopCreated) {
+          onLoopCreated();
+        }
       } else {
         alert("Failed to create loop: " + (result.error || res.statusText));
       }

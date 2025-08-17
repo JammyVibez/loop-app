@@ -200,7 +200,10 @@ export function LoopFeed({ feedType = "personalized" }: LoopFeedProps) {
 
   // Add this callback to refresh feed after loop creation
   const handleLoopCreated = () => {
-    fetchLoops(true)
+    // Add a small delay to ensure the loop is saved before fetching
+    setTimeout(() => {
+      fetchLoops(true)
+    }, 500)
   }
 
   if (loading) {
