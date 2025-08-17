@@ -51,24 +51,15 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  checkEnvironmentVariables()
-  logEnvironmentStatus()
-  // Validate environment variables
-  const envValid = validateEnvironment()
-
-  if (!envValid) {
-    return (
-      <html lang="en">
-        <body>
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-red-600 mb-4">Configuration Error</h1>
-              <p className="text-gray-600">Missing required environment variables. Please check your configuration.</p>
-            </div>
-          </div>
-        </body>
-      </html>
-    )
+  // Validate environment variables on server side only
+  if (typeof window === 'undefined') {
+    checkEnvironmentVariables()
+    logEnvironmentStatus()
+    
+    const envValid = validateEnvironment()
+    if (!envValid) {
+      console.warn('Environment validation failed - some features may not work properly')
+    }
   }
 
   return (

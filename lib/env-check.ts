@@ -32,7 +32,7 @@ export function logEnvironmentStatus() {
     cloudinarySecret: !!process.env.CLOUDINARY_API_SECRET,
   })
 }
-```typescript
+
 // Environment variables validation
 export function validateEnvironment() {
   const requiredEnvVars = {
@@ -63,4 +63,3 @@ export function getSupabaseConfig() {
     anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   }
 }
-```
