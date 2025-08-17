@@ -1,0 +1,46 @@
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://qtnbldmgdhhoqlwnmkrx.supabase.co
+SUPABASE_URL=https://qtnbldmgdhhoqlwnmkrx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF0bmJsZG1nZGhob3Fsd25ta3J4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM5NDc3ODAsImV4cCI6MjA2OTUyMzc4MH0.JMeqV_A5pRb6zNf-_bluMO8Y41WYzornfXePN1V0rBw
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF0bmJsZG1nZGhob3Fsd25ta3J4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1Mzk0Nzc4MCwiZXhwIjoyMDY5NTIzNzgwfQ.w-i1IKBZ2ANL1SbPESN3FVTxGwuBoAcoOrzJSkY9qog
+NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF0bmJsZG1nZGhob3Fsd25ta3J4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1Mzk0Nzc4MCwiZXhwIjoyMDY5NTIzNzgwfQ.w-i1IKBZ2ANL1SbPESN3FVTxGwuBoAcoOrzJSkY9qog
+
+
+# Cloudinary Configuration (for media uploads)
+CLOUDINARY_CLOUD_NAME=dnrjtnxn1
+CLOUDINARY_API_KEY=794889734327578
+CLOUDINARY_API_SECRET=xZ6ki8-Dujk6w-_LqAw6ZhIK4f8
+
+# JWT Secret (for authentication)
+JWT_SECRET=your_super_secret_jwt_key_at_least_32_characters_long
+
+# Application URLs
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:3000
+
+# Google OAuth (for social login)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# Stripe Configuration (for payments)
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
+STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+
+# CDN Configuration (for assets)
+NEXT_PUBLIC_CDN_URL=https://res.cloudinary.com/your_cloud_name
+
+# Cron Job Secret (for automated tasks)
+CRON_SECRET=your_random_cron_secret_for_weekly_coin_distribution
+
+# Node Environment
+NODE_ENV=development
+
+# Optional: For real-time features
+NEXT_PUBLIC_REALTIME_URL=wss://your-websocket-server.com
+
+# Optional: For analytics
+NEXT_PUBLIC_ANALYTICS_ID=your_analytics_id
+
+# Optional: Error reporting
+SENTRY_DSN=your_sentry_dsn
