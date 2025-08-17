@@ -1,40 +1,28 @@
-
 "use client"
 
 import { useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 
-interface OnboardingRedirectProps {
-  children: React.ReactNode
-}
-
-export function OnboardingRedirect({ children }: OnboardingRedirectProps) {
+export function OnboardingRedirect() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
   useEffect(() => {
-    if (loading) return
+    if (!loading && user) {
+      // Skip redirect if already on onboarding page or auth pages
+      const skipRoutes = ["/onboarding", "/login", "/signup", "/reset-password"]
+      if (skipRoutes.includes(pathname)) return
 
-    // Skip redirect for auth pages and onboarding
-    const authPages = ['/login', '/signup', '/onboarding', '/verify-email', '/landing']
-    const isAuthPage = authPages.some(page => pathname.startsWith(page))
-    
-    if (isAuthPage) return
+      // Check if user has completed onboarding - look for bio or onboarding_completed flag
+      const needsOnboarding = !user.bio || user.bio.trim() === ""
 
-    // Redirect to onboarding if user exists but hasn't completed onboarding
-    if (user && !user.onboarding_completed) {
-      router.push('/onboarding')
-      return
+      if (needsOnboarding && pathname !== "/onboarding") {
+        router.push("/onboarding")
+      }
     }
+  }, [user, loading, router, pathname])
 
-    // Redirect to login if no user and not on auth page
-    if (!user && !isAuthPage) {
-      router.push('/login')
-      return
-    }
-  }, [user, loading, pathname, router])
-
-  return <>{children}</>
+  return null
 }

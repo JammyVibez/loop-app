@@ -1,26 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createServerClient, createClient } from "@/lib/supabase" // Assuming createClient is available here
+import { createClient } from "@supabase/supabase-js"
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 async function getUserFromToken(token: string | null) {
   if (!token) return null
   try {
-    // Create a new supabase client instance for this request
-    const supabaseClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      }
-    )
-
-    const {
-      data: { user },
-      error,
-    } = await supabaseClient.auth.getUser(token)
+    const { data: { user }, error } = await supabase.auth.getUser(token)
     if (error || !user) return null
     return user
   } catch (error) {
@@ -46,45 +35,23 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
-    const type = searchParams.get("type") || "following"
-
-    const supabase = createServerClient()
+    const type = searchParams.get("type") || "recent"
 
     let loops: any[] = []
 
-    if (type === "personalized") {
-      // For personalized feed, show both user's own loops and following
+    if (type === "personalized" || type === "following") {
+      // Get user's following list
       const { data: followingData } = await supabase
         .from("follows")
         .select("following_id")
         .eq("follower_id", user.id)
 
       const followingIds = followingData?.length ? followingData.map(f => f.following_id) : []
-      // Include user's own ID in the list
-      const authorIds = [...followingIds, user.id]
 
-      const { data, error } = await supabase
-        .from("loops")
-        .select(`
-          *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
-          loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
-        `)
-        .in("author_id", authorIds)
-        .is("parent_loop_id", null)
-        .order("created_at", { ascending: false })
-        .range(offset, offset + limit - 1)
+      // For personalized feed, include user's own posts
+      const authorIds = type === "personalized" ? [...followingIds, user.id] : followingIds
 
-      if (!error) loops = data || []
-    } else if (type === "following") {
-      const { data: followingData } = await supabase
-        .from("follows")
-        .select("following_id")
-        .eq("follower_id", user.id)
-
-      if (followingData?.length) {
-        const followingIds = followingData.map(f => f.following_id)
-
+      if (authorIds.length > 0) {
         const { data, error } = await supabase
           .from("loops")
           .select(`
@@ -92,20 +59,13 @@ export async function GET(request: NextRequest) {
             author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
             loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
           `)
-          .in("author_id", followingIds)
+          .in("author_id", authorIds)
           .is("parent_loop_id", null)
           .order("created_at", { ascending: false })
           .range(offset, offset + limit - 1)
 
         if (!error) loops = data || []
       }
-    } else if (type === "trending") {
-      const { data, error } = await supabase.rpc("get_trending_loops", {
-        time_period: "24h",
-        trend_limit: limit,
-        trend_offset: offset,
-      })
-      if (!error) loops = data || []
     } else if (type === "recent") {
       const { data, error } = await supabase
         .from("loops")
@@ -114,8 +74,6 @@ export async function GET(request: NextRequest) {
           author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
-        // remove this line if you don’t add a visibility column:
-        // .eq("visibility", "public")
         .is("parent_loop_id", null)
         .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1)
@@ -123,7 +81,7 @@ export async function GET(request: NextRequest) {
       if (!error) loops = data || []
     }
 
-    // Map user interactions
+    // Add user interactions
     if (loops.length > 0) {
       const loopIds = loops.map(loop => loop.id)
       const { data: interactions } = await supabase
@@ -142,7 +100,13 @@ export async function GET(request: NextRequest) {
 
       loops = loops.map(loop => ({
         ...loop,
-        stats: loop.loop_stats || {}, // ✅ rename for frontend
+        stats: loop.loop_stats?.[0] || {
+          likes_count: 0,
+          comments_count: 0,
+          branches_count: 0,
+          shares_count: 0,
+          views_count: 0
+        },
         user_interactions: {
           is_liked: interactionMap.get(loop.id)?.includes("like") || false,
           is_saved: interactionMap.get(loop.id)?.includes("save") || false,
@@ -167,58 +131,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: "Internal server error",
-        details:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+        details: process.env.NODE_ENV === "development" ? error.message : undefined,
       },
       { status: 500 },
     )
-  }
-}
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '10')
-    const offset = (page - 1) * limit
-
-    const { data: loops, error } = await supabase
-      .from('loops')
-      .select(`
-        *,
-        profiles!loops_author_id_fkey (
-          id,
-          username,
-          display_name,
-          avatar_url,
-          is_verified
-        ),
-        loop_stats (
-          likes_count,
-          comments_count,
-          branches_count,
-          shares_count,
-          views_count
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
-
-    if (error) {
-      console.error('Feed fetch error:', error)
-      return NextResponse.json({ error: 'Failed to fetch feed' }, { status: 500 })
-    }
-
-    return NextResponse.json({ loops: loops || [] })
-  } catch (error) {
-    console.error('Feed API error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
