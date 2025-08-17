@@ -3,17 +3,22 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { createClient } from "@supabase/supabase-js"
 
+// Ensure environment variables are available
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables')
+}
+
 // Single Supabase client instance to prevent multiple instances
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-    },
-  }
-)
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+  },
+})
 
 interface User {
   id: string
@@ -118,19 +123,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!mounted) return
 
-      if (event === "SIGNED_IN" && session?.user) {
-        const userProfile = await loadUserProfile(session)
-        if (userProfile && mounted) {
-          setUser(userProfile)
-          setLoading(false)
+      try {
+        if (event === "SIGNED_IN" && session?.user) {
+          const userProfile = await loadUserProfile(session)
+          if (userProfile && mounted) {
+            setUser(userProfile)
+          }
+        } else if (event === "SIGNED_OUT") {
+          setUser(null)
+        } else if (event === "TOKEN_REFRESHED" && session?.user) {
+          const userProfile = await loadUserProfile(session)
+          if (userProfile && mounted) {
+            setUser(userProfile)
+          }
+        } else if (event === "INITIAL_SESSION" && session?.user) {
+          const userProfile = await loadUserProfile(session)
+          if (userProfile && mounted) {
+            setUser(userProfile)
+          }
         }
-      } else if (event === "SIGNED_OUT") {
-        setUser(null)
-        setLoading(false)
-      } else if (event === "TOKEN_REFRESHED" && session?.user) {
-        const userProfile = await loadUserProfile(session)
-        if (userProfile && mounted) {
-          setUser(userProfile)
+      } catch (error) {
+        console.error("Auth state change error:", error)
+      } finally {
+        if (mounted) {
+          setLoading(false)
         }
       }
     })
@@ -143,8 +159,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      setLoading(true)
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -154,17 +168,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(error.message)
       }
 
-      if (data.session) {
-        const userProfile = await loadUserProfile(data.session)
-        if (userProfile) {
-          setUser(userProfile)
-        }
-      }
+      // Don't manually set loading or user here - let the auth state change handler do it
+      return data
     } catch (error) {
       console.error("Login error:", error)
       throw error
-    } finally {
-      setLoading(false)
     }
   }
 

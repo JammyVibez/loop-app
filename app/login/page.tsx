@@ -30,10 +30,8 @@ export default function LoginPage() {
 
     try {
       await login(email, password)
-      // Wait a bit for auth state to update
-      setTimeout(() => {
-        router.push("/")
-      }, 500)
+      // Don't manually redirect - let the OnboardingRedirect component handle it
+      // The loading state will be updated by the auth context
     } catch (err: any) {
       setError(err.message || "Failed to sign in")
       setLoading(false)
