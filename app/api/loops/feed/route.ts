@@ -174,3 +174,51 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+import { type NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const offset = (page - 1) * limit
+
+    const { data: loops, error } = await supabase
+      .from('loops')
+      .select(`
+        *,
+        profiles!loops_author_id_fkey (
+          id,
+          username,
+          display_name,
+          avatar_url,
+          is_verified
+        ),
+        loop_stats (
+          likes_count,
+          comments_count,
+          branches_count,
+          shares_count,
+          views_count
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) {
+      console.error('Feed fetch error:', error)
+      return NextResponse.json({ error: 'Failed to fetch feed' }, { status: 500 })
+    }
+
+    return NextResponse.json({ loops: loops || [] })
+  } catch (error) {
+    console.error('Feed API error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

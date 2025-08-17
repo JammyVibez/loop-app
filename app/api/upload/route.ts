@@ -13,7 +13,10 @@ cloudinary.config({
 async function getUserFromToken(token: string | null) {
   if (!token) return null
   try {
-    const supabase = createServerClient()
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
     const { data: { user }, error } = await supabase.auth.getUser(token)
     if (error || !user) return null
     return user

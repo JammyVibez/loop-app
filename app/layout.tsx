@@ -7,7 +7,7 @@ import "../styles/responsive.css"
 import { AuthProvider } from "../providers/auth-provider"
 import { ThemeProvider } from "../providers/theme-provider"
 import { Theme3DProvider } from "../providers/theme-3d-provider"
-import { RealtimeProvider } from "../providers/realtime-provider"
+// import { RealtimeProvider } from "@/providers/realtime-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { OnboardingRedirect } from "@/components/onboarding-redirect"
 
@@ -88,16 +88,15 @@ export default function RootLayout({
         >
           <Theme3DProvider>
             <AuthProvider>
-              <RealtimeProvider>
-                <OnboardingRedirect>
-                  <div className="min-h-screen bg-background text-foreground">
-                    <div id="theme-environment" className="fixed inset-0 pointer-events-none z-[-1]" />
-                    <div className="relative z-10">{children}</div>
-                    <div id="performance-monitor" className="hidden" />
-                    <div id="accessibility-announcements" className="sr-only" aria-live="polite" aria-atomic="true" />
-                  </div>
-                </OnboardingRedirect>
-              </RealtimeProvider>
+              {/* Removed RealtimeProvider */}
+              <OnboardingRedirect>
+                <div className="min-h-screen bg-background text-foreground">
+                  <div id="theme-environment" className="fixed inset-0 pointer-events-none z-[-1]" />
+                  <div className="relative z-10">{children}</div>
+                  <div id="performance-monitor" className="hidden" />
+                  <div id="accessibility-announcements" className="sr-only" aria-live="polite" aria-atomic="true" />
+                </div>
+              </OnboardingRedirect>
             </AuthProvider>
           </Theme3DProvider>
         </ThemeProvider>

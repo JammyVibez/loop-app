@@ -143,7 +143,7 @@ export default function OnboardingPage() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${user?.token}`, // or access_token depending on your auth
+        Authorization: `Bearer ${user?.token}`,
       },
       body: JSON.stringify({
         bio: profileData.bio,
