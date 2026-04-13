@@ -13,7 +13,7 @@ async function getUserFromToken(token: string) {
 }
 
 // PUT /api/moderation/flags/[id] - Update a content flag (admin/moderator only)
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization");
     if (!authHeader) {
@@ -40,6 +40,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     const { status, action_taken, moderator_notes } = await request.json();
+    const { id } = await params;
 
     // Validate required fields
     if (!status) {
@@ -59,7 +60,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         moderator_notes: moderator_notes || null,
         reviewed_at: new Date().toISOString()
       })
-      .eq("id", params.id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -97,7 +98,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // GET /api/moderation/flags/[id] - Get a specific content flag (admin/moderator only)
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization");
     if (!authHeader) {
@@ -123,6 +124,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Admin or moderator access required" }, { status: 403 });
     }
 
+    const { id } = await params;
+
     // Fetch content flag
     const { data: flag, error } = await supabase
       .from("content_flags")
@@ -131,7 +134,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         reporter:profiles!reporter_id(username, display_name, avatar_url),
         content:profiles!content_id(username, display_name, avatar_url)
       `)
-      .eq("id", params.id)
+      .eq("id", id)
       .single();
 
     if (error) {

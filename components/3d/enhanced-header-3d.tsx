@@ -1,8 +1,7 @@
-"use client"
-
-import React, { useState, useEffect, useRef } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
+"use client";
+import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { 
   Search, 
   MessageCircle, 
@@ -16,22 +15,22 @@ import {
   Crown,
   Gift,
   Trophy
-} from "lucide-react"
-import { Button } from "../ui/button"
-import { Input } from "../ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
+} from "lucide-react";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu"
-import { Badge } from "../ui/badge"
-import { Progress } from "../ui/progress"
-import { useAuth } from "../../providers/auth-provider"
-import { useTheme3D } from "@/providers/theme-3d-provider"
-import { EnhancedNotificationDropdown3D } from "./enhanced-notification-dropdown-3d"
+} from "../ui/dropdown-menu";
+import { Badge } from "../ui/badge";
+
+import { useAuth } from "../../providers/auth-provider";
+import { useTheme3D } from "@/providers/theme-3d-provider";
+import { EnhancedNotificationDropdown3D } from "./enhanced-notification-dropdown-3d";
 
 interface XPDisplayProps {
   currentXP: number

@@ -1,5 +1,5 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { type NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -17,7 +17,8 @@ async function getUserFromToken(token: string) {
 }
 
 // Get circle events (admin view)
-export async function GET(request: NextRequest, { params }: { params: { circleId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ circleId: string }> }) {
+  const { circleId } = await params;
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -48,8 +49,6 @@ export async function GET(request: NextRequest, { params }: { params: { circleId
     const status = searchParams.get("status") // upcoming, past, ongoing
     const type = searchParams.get("type") // discussion, voice_chat, screen_share, game
     const search = searchParams.get("search")
-
-    const circleId = params.circleId
 
     // Check if circle exists
     const { data: circle } = await supabase
@@ -109,7 +108,7 @@ export async function GET(request: NextRequest, { params }: { params: { circleId
 }
 
 // Delete an event (admin override)
-export async function DELETE(request: NextRequest, { params }: { params: { circleId: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ circleId: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -134,7 +133,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { circl
       return NextResponse.json({ error: "Admin access required" }, { status: 403 })
     }
 
-    const circleId = params.circleId
+    const { circleId } = await params
     const { searchParams } = new URL(request.url)
     const eventId = searchParams.get("eventId")
 

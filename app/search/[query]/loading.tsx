@@ -1,12 +1,11 @@
-import { Header } from "@/components/header"
-import { Card, CardContent } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Header } from "@/components/header";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SearchLoading() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-
       <div className="container mx-auto px-4 py-6">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Search Header Skeleton */}
@@ -26,7 +25,7 @@ export default function SearchLoading() {
 
             {/* Results Skeleton */}
             <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
+              {[1, 2, 3]?.map((i) => (
                 <Card key={i}>
                   <CardContent className="p-6">
                     <div className="flex items-center space-x-4 mb-4">
@@ -48,5 +47,5 @@ export default function SearchLoading() {
         </div>
       </div>
     </div>
-  )
+  );
 }

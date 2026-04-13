@@ -1,13 +1,12 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Bookmark, Search, Grid, List, Trash2, Share } from "lucide-react"
-import { LoopCard } from "@/components/loop-card"
-import { useToast } from "@/hooks/use-toast"
+"use client";
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Bookmark, Search, Grid, List, Trash2, Share } from "lucide-react";
+import { LoopCard } from "@/components/loop-card";
+import { useToast } from "@/hooks/use-toast";
 
 // Bookmark interface
 interface Bookmark {
@@ -252,9 +251,7 @@ export function BookmarksContent() {
             <Bookmark className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-600 mb-2">No bookmarks found</h3>
             <p className="text-gray-500 mb-4">
-              {searchQuery || selectedCategory !== "All"
-                ? "Try adjusting your search or filters"
-                : "Start bookmarking loops and trees you want to save for later"}
+              {searchQuery || selectedCategory !== "All" ?"Try adjusting your search or filters" :"Start bookmarking loops and trees you want to save for later"}
             </p>
             {(searchQuery || selectedCategory !== "All") && (
               <Button

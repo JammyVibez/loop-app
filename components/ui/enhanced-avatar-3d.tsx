@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as AvatarPrimitive from "@radix-ui/react-avatar"
-import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "@/lib/utils"
-import { Crown, Star, Zap, Shield, Sparkles } from "lucide-react"
+import React, { useState, useEffect } from 'react';
+import * as AvatarPrimitive from "@radix-ui/react-avatar";
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils";
+import { Crown, Star, Shield } from "lucide-react";
 
 const avatar3DVariants = cva(
   "avatar-3d relative inline-flex shrink-0 overflow-hidden transition-all duration-300 transform-3d",
@@ -149,10 +149,8 @@ const Avatar3D = React.forwardRef<
               <div
                 key={i}
                 className={`absolute w-1 h-1 rounded-full animate-ping ${
-                  isAdmin ? "bg-red-300" :
-                  isPremium ? "bg-purple-300" :
-                  isVerified ? "bg-blue-300" :
-                  "bg-primary/50"
+                  isAdmin ? "bg-red-300" : isPremium ?"bg-purple-300" :
+                  isVerified ? "bg-blue-300": "bg-primary/50"
                 }`}
                 style={{
                   left: `${Math.random() * 100}%`,
@@ -169,8 +167,7 @@ const Avatar3D = React.forwardRef<
         {(isPremium || isAdmin) && (
           <div className={`absolute -inset-1 rounded-full animate-spin-slow ${
             isAdmin 
-              ? "bg-gradient-to-r from-red-500 via-orange-500 to-red-500" 
-              : "bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500"
+              ? "bg-gradient-to-r from-red-500 via-orange-500 to-red-500" :"bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500"
           } opacity-75 blur-sm`} />
         )}
 
@@ -178,8 +175,7 @@ const Avatar3D = React.forwardRef<
         {isHovered && (variant === "premium" || variant === "neon" || variant === "glow") && (
           <div className={`absolute -inset-2 rounded-full blur-md opacity-50 ${
             variant === "premium" ? "bg-purple-500" :
-            variant === "neon" ? "bg-cyan-500" :
-            "bg-white"
+            variant === "neon"? "bg-cyan-500" : "bg-white"
           }`} />
         )}
 
@@ -192,13 +188,10 @@ const Avatar3D = React.forwardRef<
         <div className={`absolute -bottom-1 -right-1 flex items-center justify-center rounded-full border-2 border-background font-bold text-xs ${
           size === "sm" ? "h-4 w-4 text-[10px]" :
           size === "default" ? "h-5 w-5" :
-          size === "lg" ? "h-6 w-6" :
-          "h-7 w-7"
+          size === "lg"? "h-6 w-6" : "h-7 w-7"
         } ${
-          isAdmin ? "bg-red-500 text-white" :
-          isPremium ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white" :
-          isVerified ? "bg-blue-500 text-white" :
-          "bg-primary text-primary-foreground"
+          isAdmin ? "bg-red-500 text-white" : isPremium ?"bg-gradient-to-r from-purple-500 to-pink-500 text-white" :
+          isVerified ? "bg-blue-500 text-white": "bg-primary text-primary-foreground"
         }`}>
           {level}
         </div>
@@ -209,12 +202,9 @@ const Avatar3D = React.forwardRef<
         <div className={`absolute -top-1 -right-1 ${
           size === "sm" ? "h-4 w-4" :
           size === "default" ? "h-5 w-5" :
-          size === "lg" ? "h-6 w-6" :
-          "h-7 w-7"
+          size === "lg"? "h-6 w-6" : "h-7 w-7"
         } flex items-center justify-center rounded-full border-2 border-background ${
-          isAdmin ? "bg-red-500" :
-          isPremium ? "bg-purple-500" :
-          "bg-blue-500"
+          isAdmin ? "bg-red-500" : isPremium ?"bg-purple-500": "bg-blue-500"
         }`}>
           {getBadgeIcon()}
         </div>
@@ -245,10 +235,8 @@ const Avatar3D = React.forwardRef<
             strokeWidth="2"
             strokeDasharray={`${(xp % 1000) / 1000 * 283} 283`}
             className={`transition-all duration-500 ${
-              isAdmin ? "text-red-500" :
-              isPremium ? "text-purple-500" :
-              isVerified ? "text-blue-500" :
-              "text-primary"
+              isAdmin ? "text-red-500" : isPremium ?"text-purple-500" :
+              isVerified ? "text-blue-500": "text-primary"
             }`}
           />
         </svg>

@@ -1,62 +1,24 @@
-"use client"
+"use client";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {  } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import {
-  Shield,
-  Crown,
-  Flag,
-  Users,
-  CheckCircle,
-  XCircle,
-  Eye,
-  AlertTriangle,
-  Settings,
-  BarChart3,
-  DollarSign,
-  Gift,
-  MessageSquare,
-  Ban,
-  UserCheck,
-  Upload,
-  Image,
-  Palette,
-  Sparkles,
-  Coins,
-  TrendingUp,
-  Activity,
-  Calendar,
-  Search,
-  Filter,
-  Download,
-  Trash2,
-  Edit,
-  Plus,
-} from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { SettingsTabContent } from "./settings-tab-content"
-import { useAuth } from "@/hooks/use-auth"
+} from "@/components/ui/select";
+import { Shield, Crown, Users, CheckCircle, Settings, DollarSign, Gift, Ban, UserCheck, Coins, Activity, Search, Trash2, Edit, Plus } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+import { useAuth } from "@/hooks/use-auth";
 
 interface AdminStats {
   totalUsers: number
@@ -494,8 +456,7 @@ export function EnhancedAdminDashboard() {
                         <Badge className={`${
                           item.rarity === 'legendary' ? 'bg-yellow-100 text-yellow-800' :
                           item.rarity === 'epic' ? 'bg-purple-100 text-purple-800' :
-                          item.rarity === 'rare' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
+                          item.rarity === 'rare'? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
                         }`}>
                           {item.rarity}
                         </Badge>
@@ -509,4 +470,99 @@ export function EnhancedAdminDashboard() {
                         </div>
                       </div>
                       
-                      <div className="text
+                      <div className="text-sm font-semibold">{item.name}</div>
+                      <div className="text-xs text-gray-500">{item.category} • {item.item_type}</div>
+                      <div className="text-sm font-bold mt-1">
+                        {item.price > 0 && <span>${item.price}</span>}
+                        {item.price_coins > 0 && <span className="ml-1 text-yellow-600">{item.price_coins} coins</span>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Reports Tab */}
+        <TabsContent value="reports">
+          <Card>
+            <CardHeader>
+              <CardTitle>Reports</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center text-gray-500 py-8">
+                <p>{stats.pendingReports} pending reports</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Analytics Tab */}
+        <TabsContent value="analytics">
+          <Card>
+            <CardHeader>
+              <CardTitle>Analytics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center text-gray-500 py-8">
+                <Activity className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p>Analytics dashboard coming soon</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="settings">
+          <Card>
+            <CardHeader>
+              <CardTitle>Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center text-gray-500 py-8">
+                <Settings className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p>Admin settings coming soon</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Create Shop Item Dialog */}
+      {showCreateItemDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md space-y-4">
+            <h2 className="text-xl font-bold">Create Shop Item</h2>
+            <Input
+              placeholder="Item name"
+              value={newShopItem.name}
+              onChange={(e) => setNewShopItem({ ...newShopItem, name: e.target.value })}
+            />
+            <Input
+              placeholder="Description"
+              value={newShopItem.description}
+              onChange={(e) => setNewShopItem({ ...newShopItem, description: e.target.value })}
+            />
+            <Input
+              type="number"
+              placeholder="Price ($)"
+              value={newShopItem.price}
+              onChange={(e) => setNewShopItem({ ...newShopItem, price: Number(e.target.value) })}
+            />
+            <Input
+              type="number"
+              placeholder="Price (coins)"
+              value={newShopItem.price_coins}
+              onChange={(e) => setNewShopItem({ ...newShopItem, price_coins: Number(e.target.value) })}
+            />
+            <div className="flex space-x-2 justify-end">
+              <Button variant="outline" onClick={() => setShowCreateItemDialog(false)}>Cancel</Button>
+              <Button onClick={handleCreateShopItem}>Create</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

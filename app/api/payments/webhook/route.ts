@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,16 +36,13 @@ export async function POST(request: NextRequest) {
     const event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET)
 
     switch (event.type) {
-      case "payment_intent.succeeded":
-        console.log("Payment succeeded:", event.data.object.id)
+      case "payment_intent.succeeded": console.log("Payment succeeded:", event.data.object.id)
         // TODO: Update user to premium status in database
         break
-      case "customer.subscription.created":
-        console.log("Subscription created:", event.data.object.id)
+      case "customer.subscription.created": console.log("Subscription created:", event.data.object.id)
         // TODO: Handle subscription creation in database
         break
-      case "customer.subscription.updated":
-        console.log("Subscription updated:", event.data.object.id)
+      case "customer.subscription.updated": console.log("Subscription updated:", event.data.object.id)
         // TODO: Handle subscription updates in database
         break
       case "customer.subscription.deleted":

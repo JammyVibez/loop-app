@@ -1,21 +1,20 @@
-"use client"
+"use client";
+import type React from "react";
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Home,
   Search,
@@ -37,9 +36,9 @@ import {
   Coins,
   Shield,
   Sparkles,
-} from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
-import { useToast } from "@/hooks/use-toast"
+} from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
 const navigationItems = [
   { href: "/", icon: Home, label: "Home", badge: null },
@@ -482,8 +481,7 @@ export function MainNavigation() {
             <span
               className={`text-xs mt-1 transition-all duration-200 ${
                 pathname.includes("/profile")
-                  ? "text-primary font-medium"
-                  : "text-muted-foreground group-hover:text-foreground"
+                  ? "text-primary font-medium" :"text-muted-foreground group-hover:text-foreground"
               }`}
             >
               Profile

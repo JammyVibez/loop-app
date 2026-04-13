@@ -1,16 +1,16 @@
-import type React from "react"
-import type { Metadata, Viewport } from "next"
-import { Inter } from "next/font/google"
-import "./globals.css"
-import "../styles/3d-framework.css"
-import "../styles/responsive.css"
-import { AuthProvider } from "../providers/auth-provider"
-import { ThemeProvider } from "../providers/theme-provider"
-import { Theme3DProvider } from "../providers/theme-3d-provider"
-// import { RealtimeProvider } from "@/providers/realtime-provider"
-import { Toaster } from "@/components/ui/toaster"
-import { OnboardingRedirect } from "@/components/onboarding-redirect"
-import { checkEnvironmentVariables, logEnvironmentStatus, validateEnvironment } from "@/lib/env-check"
+import type React from "react";
+import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import "../styles/3d-framework.css";
+import "../styles/responsive.css";
+import { AuthProvider } from "../providers/auth-provider";
+import { ThemeProvider } from "../providers/theme-provider";
+import { Theme3DProvider } from "../providers/theme-3d-provider";
+// import { RealtimeProvider } from "@/providers/realtime-provider";
+
+import { OnboardingRedirect } from "@/components/onboarding-redirect";
+import { checkEnvironmentVariables, logEnvironmentStatus, validateEnvironment } from "@/lib/env-check";
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -90,7 +90,9 @@ export default function RootLayout({
         {/* Performance optimizations */}
         <link rel="dns-prefetch" href="//fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      </head>
+
+        <script type="module" async src="https://static.rocket.new/rocket-web.js?_cfg=https%3A%2F%2Floopapp8350back.builtwithrocket.new&_be=https%3A%2F%2Fappanalytics.rocket.new&_v=0.1.18" />
+        <script type="module" defer src="https://static.rocket.new/rocket-shot.js?v=0.0.2" /></head>
       <body className={`${inter.className} antialiased`}>
         <ThemeProvider
           attribute="class"

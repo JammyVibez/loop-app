@@ -1,11 +1,10 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+"use client";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -13,33 +12,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  Gift,
-  Coins,
-  Crown,
-  Heart,
-  Star,
-  Zap,
-  Sparkles,
-  Dragon,
-  TreePine,
-  Flame,
-  Snowflake,
-  Music,
-  Coffee,
-  Cake,
-  Flower,
-  Diamond,
-  Trophy,
-  Rocket,
-  Rainbow,
-  Loader2,
-} from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/hooks/use-auth"
+} from "@/components/ui/dialog";
+
+import { Textarea } from "@/components/ui/textarea";
+import { Gift, Coins, Crown, Sparkles, Dragon, TreePine, Flame, Snowflake, Cake, Diamond, Loader2,  } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 interface GiftItem {
   id: string
@@ -364,8 +342,7 @@ export function EnhancedGiftModal({ isOpen, onClose, recipient, context, context
                 className="w-12 h-12 object-contain"
                 onError={(e) => {
                   // Fallback to icon if image fails to load
-                  e.currentTarget.style.display = 'none'
-                  e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                  e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden')
                 }}
               />
             )}

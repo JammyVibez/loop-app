@@ -1,14 +1,13 @@
-"use client"
+"use client";
+import type React from "react";
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { CheckCircle, XCircle, Mail, RefreshCw, ArrowLeft } from "lucide-react"
-import Link from "next/link"
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { CheckCircle, XCircle, Mail, RefreshCw, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 export default function EmailVerificationPage() {
   const searchParams = useSearchParams()

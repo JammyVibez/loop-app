@@ -1,6 +1,5 @@
-"use client"
-
-import { io, Socket } from 'socket.io-client'
+"use client";
+import { io, Socket } from 'socket.io-client';
 
 export interface WebSocketEvents {
   // Loop events

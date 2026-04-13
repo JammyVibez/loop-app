@@ -1,8 +1,8 @@
-"use client"
-
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
-import { createClient } from "@supabase/supabase-js"
-import { useRouter } from 'next/navigation'; // Assuming you are using Next.js router
+"use client";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createClient } from "@supabase/supabase-js";
+import { useRouter } from 'next/navigation'
+; // Assuming you are using Next.js router
 
 // Ensure environment variables are available
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL

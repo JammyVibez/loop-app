@@ -1,6 +1,6 @@
 
-import { NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase"
+import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@/lib/supabase";
 
 async function getUserFromToken(token: string | null) {
   if (!token) return null
@@ -17,13 +17,13 @@ async function getUserFromToken(token: string | null) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { searchParams } = new URL(request.url)
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
-    const loopId = params.id
+    const { id: loopId } = await params
 
     const supabase = createServerClient()
 
@@ -81,7 +81,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -97,7 +97,7 @@ export async function POST(
     }
 
     const { content, parent_comment_id, media_url } = await request.json()
-    const loopId = params.id
+    const { id: loopId } = await params
 
     if (!content?.trim()) {
       return NextResponse.json({ error: "Comment content is required" }, { status: 400 })

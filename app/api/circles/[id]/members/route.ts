@@ -1,5 +1,5 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { type NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -17,7 +17,7 @@ async function getUserFromToken(token: string) {
 }
 
 // Get circle members
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { searchParams } = new URL(request.url)
     const limit = Number.parseInt(searchParams.get("limit") || "50")
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const role = searchParams.get("role")
     const search = searchParams.get("search")
 
-    const circleId = params.id
+    const { id: circleId } = await params
 
     let query = supabase
       .from("circle_members")
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Update member role (admin/moderator actions)
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -78,7 +78,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
+    const { id: circleId } = await params
     const { targetUserId, newRole } = await request.json()
 
     // Check if requesting user has permission (owner or admin)
@@ -133,7 +133,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Remove member (kick/ban)
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -147,7 +147,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
+    const { id: circleId } = await params
     const { searchParams } = new URL(request.url)
     const targetUserId = searchParams.get("userId")
     const action = searchParams.get("action") || "remove" // remove or ban

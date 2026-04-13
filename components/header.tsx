@@ -1,10 +1,9 @@
-"use client"
-
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+"use client";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,22 +11,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Search,
-  Bell,
-  MessageCircle,
-  Settings,
-  User,
-  LogOut,
-  Plus,
-  Coins,
-  Crown,
-  Menu,
-} from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
-import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
-import Link from "next/link"
+} from "@/components/ui/dropdown-menu";
+import { Search, MessageCircle, Settings, User, LogOut, Plus, Coins, Crown, Menu,  } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { NotificationDropdown } from "@/components/notifications/notification-dropdown";
+import Link from "next/link";
 
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("")

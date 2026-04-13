@@ -1,5 +1,5 @@
-import { Header } from "@/components/header"
-import { HashtagContent } from "@/components/hashtag/hashtag-content"
+import { Header } from "@/components/header";
+import { HashtagContent } from "@/components/hashtag/hashtag-content";
 
 interface HashtagPageProps {
   params: {

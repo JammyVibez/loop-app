@@ -1,11 +1,10 @@
-"use client"
-
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Code, Plus } from "lucide-react"
-import { CreateProjectDialog } from "@/components/developers/create-project-dialog"
-import { CodeLoopCard } from "@/components/developers/code-loop-card"
+"use client";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Code, Plus } from "lucide-react";
+import { CreateProjectDialog } from "@/components/developers/create-project-dialog";
+import { CodeLoopCard } from "@/components/developers/code-loop-card";
 
 // Mock developer projects
 const mockProjects = [

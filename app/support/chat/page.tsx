@@ -1,24 +1,15 @@
-"use client"
-
-import React, { useState, useEffect, useRef } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { 
-  MessageCircle, 
-  Send, 
-  User, 
-  HeadphonesIcon,
-  Clock,
-  CheckCircle,
-  AlertCircle
-} from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
-import { formatDistanceToNow } from "date-fns"
+"use client";
+import React, { useState, useEffect, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { MessageCircle, Send, User, HeadphonesIcon, Clock, AlertCircle } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { formatDistanceToNow } from "date-fns";
 
 interface SupportMessage {
   id: string
@@ -254,8 +245,7 @@ export default function SupportChatPage() {
                           key={ticket.id}
                           className={`p-3 rounded-lg cursor-pointer transition-colors ${
                             activeTicket?.id === ticket.id
-                              ? 'bg-purple-100 dark:bg-purple-900 border-purple-300'
-                              : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
+                              ? 'bg-purple-100 dark:bg-purple-900 border-purple-300' :'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
                           }`}
                           onClick={() => setActiveTicket(ticket)}
                         >
@@ -328,8 +318,7 @@ export default function SupportChatPage() {
                               </Avatar>
                               <div className={`rounded-lg p-3 ${
                                 message.is_from_support
-                                  ? 'bg-gray-100 dark:bg-gray-800'
-                                  : 'bg-purple-600 text-white'
+                                  ? 'bg-gray-100 dark:bg-gray-800' :'bg-purple-600 text-white'
                               }`}>
                                 <p className="text-sm">{message.message}</p>
                                 <p className={`text-xs mt-1 ${

@@ -1,8 +1,7 @@
-"use client"
-
-import React from 'react'
-import { useResponsiveClasses } from '@/hooks/use-responsive'
-import { cn } from '@/lib/utils'
+"use client";
+import React from 'react';
+import { useResponsiveClasses } from '@/hooks/use-responsive';
+import { cn } from '@/lib/utils';
 
 interface ResponsiveWrapperProps {
   children: React.ReactNode

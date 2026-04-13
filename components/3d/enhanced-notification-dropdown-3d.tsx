@@ -1,6 +1,5 @@
-"use client"
-
-import { useState, useEffect, useRef } from "react"
+"use client";
+import { useState, useEffect, useRef } from "react";
 import { 
   Bell, 
   Heart, 
@@ -13,13 +12,13 @@ import {
   Star,
   Crown,
   X
-} from "lucide-react"
-import { Button } from "../ui/button"
-import { Badge } from "../ui/badge"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
-import { formatDistanceToNow } from "date-fns"
-import { Card, CardContent } from "../ui/card"
+} from "lucide-react";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { formatDistanceToNow } from "date-fns";
+
 
 interface Notification {
   id: string
@@ -195,8 +194,7 @@ export function EnhancedNotificationDropdown3D() {
               <>
                 <Badge className={`absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs transition-all duration-300 ${
                   highPriorityCount > 0 
-                    ? "bg-red-500 animate-bounce" 
-                    : "bg-blue-500 animate-pulse"
+                    ? "bg-red-500 animate-bounce" :"bg-blue-500 animate-pulse"
                 }`}>
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </Badge>

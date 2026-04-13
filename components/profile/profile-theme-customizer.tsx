@@ -1,17 +1,16 @@
-"use client"
+"use client";
+import type React from "react";
 
-import type React from "react"
-
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Crown, Palette } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/hooks/use-auth"
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Crown, Palette } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ProfileThemeCustomizerProps {
   open: boolean
@@ -229,11 +228,8 @@ export function ProfileThemeCustomizer({
               <div className="flex items-center space-x-3">
                 <div
                   className={`w-16 h-16 rounded-full border-4 border-white ${
-                    theme.animation === "pulse-glow"
-                      ? "animate-pulse-glow"
-                      : theme.animation === "float"
-                        ? "animate-float"
-                        : ""
+                    theme.animation === "pulse-glow" ?"animate-pulse-glow"
+                      : theme.animation === "float" ?"animate-float" :""
                   }`}
                   style={{
                     background: `linear-gradient(45deg, ${theme.primary_color || "#8B5CF6"}, ${theme.secondary_color || "#3B82F6"})`,

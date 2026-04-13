@@ -1,7 +1,7 @@
-import { Header } from "@/components/header"
-import { CircleOwnerDashboard } from "@/components/circles/circle-owner-dashboard"
-import { Theme3DProvider } from "@/providers/theme-3d-provider"
-import { notFound } from "next/navigation"
+import { Header } from "@/components/header";
+import { CircleOwnerDashboard } from "@/components/circles/circle-owner-dashboard";
+import { Theme3DProvider } from "@/providers/theme-3d-provider";
+
 
 interface CircleAdminPageProps {
   params: {

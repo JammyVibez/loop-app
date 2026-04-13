@@ -1,15 +1,14 @@
-"use client"
-
-import { useState, useEffect, useRef } from "react"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+"use client";
+import { useState, useEffect, useRef } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Heart,
   MessageCircle,
@@ -33,12 +32,12 @@ import {
   Loader2,
   Send,
   Gift,
-} from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { useAuth } from "@/hooks/use-auth"
-import { useToast } from "@/hooks/use-toast"
-import { useRealtime } from "@/hooks/use-realtime"
-import { GiftModal } from "@/components/gifting/gift-modal"
+} from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { useRealtime } from "@/hooks/use-realtime";
+import { GiftModal } from "@/components/gifting/gift-modal";
 
 interface ReelData {
   id: string
@@ -933,12 +932,9 @@ export function TreeReels() {
                     ref={fileInputRef}
                     type="file"
                     accept={
-                      branchType === "image"
-                        ? "image/*"
-                        : branchType === "video"
-                          ? "video/*"
-                          : branchType === "audio"
-                            ? "audio/*"
+                      branchType === "image" ?"image/*"
+                        : branchType === "video" ?"video/*"
+                          : branchType === "audio" ?"audio/*"
                             : "*/*"
                     }
                     className="hidden"

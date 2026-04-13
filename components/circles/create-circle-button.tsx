@@ -1,15 +1,14 @@
-"use client"
-
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Users } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+"use client";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Users } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const categories = [
   "Art",
@@ -37,7 +36,7 @@ export function CreateCircleButton() {
   const { toast } = useToast()
 
   const handleSubmit = async () => {
-    if (!formData.name.trim() || !formData.description.trim() || !formData.category) {
+    if (!formData?.name?.trim() || !formData?.description?.trim() || !formData?.category) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -53,7 +52,7 @@ export function CreateCircleButton() {
 
       toast({
         title: "Circle Created!",
-        description: `${formData.name} has been created successfully.`,
+        description: `${formData?.name} has been created successfully.`,
       })
 
       setIsOpen(false)
@@ -91,8 +90,8 @@ export function CreateCircleButton() {
             <Input
               id="circle-name"
               placeholder="Enter circle name..."
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              value={formData?.name}
+              onChange={(e) => setFormData({ ...formData, name: e?.target?.value })}
               className="mt-2"
             />
           </div>
@@ -102,20 +101,20 @@ export function CreateCircleButton() {
             <Textarea
               id="circle-description"
               placeholder="Describe what your circle is about..."
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              value={formData?.description}
+              onChange={(e) => setFormData({ ...formData, description: e?.target?.value })}
               className="mt-2 min-h-[80px]"
             />
           </div>
 
           <div>
             <Label htmlFor="circle-category">Category *</Label>
-            <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+            <Select value={formData?.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
               <SelectTrigger className="mt-2">
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category) => (
+                {categories?.map((category) => (
                   <SelectItem key={category} value={category}>
                     {category}
                   </SelectItem>
@@ -131,7 +130,7 @@ export function CreateCircleButton() {
             </div>
             <Switch
               id="private-circle"
-              checked={formData.is_private}
+              checked={formData?.is_private}
               onCheckedChange={(checked) => setFormData({ ...formData, is_private: checked })}
             />
           </div>
@@ -151,5 +150,5 @@ export function CreateCircleButton() {
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

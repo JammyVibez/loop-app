@@ -1,6 +1,6 @@
 
-import { NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase"
+import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@/lib/supabase";
 
 async function getUserFromToken(token: string | null) {
   if (!token) return null
@@ -17,7 +17,7 @@ async function getUserFromToken(token: string | null) {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -33,7 +33,7 @@ export async function POST(
     }
 
     const { interaction_type } = await request.json()
-    const loopId = params.id
+    const { id: loopId } = await params
 
     if (!['like', 'save', 'share', 'view'].includes(interaction_type)) {
       return NextResponse.json({ error: "Invalid interaction type" }, { status: 400 })
@@ -154,14 +154,14 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get("authorization")
     const token = authHeader?.replace("Bearer ", "")
     const user = await getUserFromToken(token)
 
-    const loopId = params.id
+    const { id: loopId } = await params
     const supabase = createServerClient()
 
     // Get loop stats

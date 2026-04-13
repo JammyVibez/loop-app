@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import {
   Heart,
@@ -144,8 +144,7 @@ export function LoopCard({
       ? "scale-[1.02] shadow-2xl"
       : "hover:shadow-lg";
     const featuredStyle = loop.is_featured
-      ? "ring-2 ring-yellow-400/50 bg-gradient-to-br from-yellow-50/50 to-orange-50/50 dark:from-yellow-900/10 dark:to-orange-900/10"
-      : "";
+      ? "ring-2 ring-yellow-400/50 bg-gradient-to-br from-yellow-50/50 to-orange-50/50 dark:from-yellow-900/10 dark:to-orange-900/10" :"";
 
     return `${baseStyle} ${themeStyle} ${hoverStyle} ${featuredStyle}`;
   };
@@ -526,8 +525,7 @@ export function LoopCard({
                   size="sm"
                   className={`space-x-1 transition-all duration-300 ${
                     loop.user_interactions.is_liked
-                      ? "text-red-500 scale-110"
-                      : "hover:text-red-500 hover:scale-105"
+                      ? "text-red-500 scale-110" :"hover:text-red-500 hover:scale-105"
                   }`}
                   onClick={handleLike}
                   disabled={interacting === `${loop.id}-like`}
@@ -578,8 +576,7 @@ export function LoopCard({
                   size="sm"
                   className={`hover:scale-105 transition-all duration-200 p-1 sm:p-2 ${
                     loop.user_interactions.is_saved
-                      ? "text-blue-500"
-                      : "hover:text-blue-500"
+                      ? "text-blue-500" :"hover:text-blue-500"
                   }`}
                   onClick={() => onInteraction(loop.id, "save")}
                   disabled={interacting === `${loop.id}-save`}

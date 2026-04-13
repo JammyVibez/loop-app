@@ -1,5 +1,5 @@
-import { Header } from "@/components/header"
-import { BookmarksContent } from "@/components/bookmarks/bookmarks-content"
+import { Header } from "@/components/header";
+import { BookmarksContent } from "@/components/bookmarks/bookmarks-content";
 
 export default function BookmarksPage() {
   return (

@@ -1,13 +1,12 @@
-"use client"
+"use client";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Loader2 } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
-import { useToast } from "@/hooks/use-toast"
-import { formatDistanceToNow } from "date-fns"
-import { LoopCard } from "@/components/loop-card"
-import { CreateLoopButton } from "@/components/create-loop-button"
+import { LoopCard } from "@/components/loop-card";
+import { CreateLoopButton } from "@/components/create-loop-button";
 
 interface LoopAuthor {
   id: string

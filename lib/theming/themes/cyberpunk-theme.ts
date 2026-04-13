@@ -1,4 +1,4 @@
-import { Theme3DConfig } from '../theme-engine'
+import { Theme3DConfig } from '../theme-engine';
 
 export const cyberpunkTheme: Theme3DConfig = {
   id: 'cyberpunk-2077',

@@ -1,68 +1,21 @@
-"use client"
+"use client";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Users, Settings, Crown, Shield, MessageCircle, Calendar, UserPlus, UserMinus, Lock, Globe, Plus, Video, Mic, Share, Pin, Search, Filter, Edit, Trash2, Eye, Check, X, AlertTriangle, UserCheck, Ban, TrendingUp } from "lucide-react";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  Users,
-  Settings,
-  Crown,
-  Shield,
-  MessageCircle,
-  Calendar,
-  Trophy,
-  Gift,
-  Star,
-  UserPlus,
-  UserMinus,
-  Lock,
-  Globe,
-  Plus,
-  Hash,
-  Bell,
-  BellOff,
-  Video,
-  Mic,
-  Phone,
-  Zap,
-  Heart,
-  Share,
-  Bookmark,
-  MoreHorizontal,
-  Pin,
-  Archive,
-  Flag,
-  Search,
-  Filter,
-  Edit,
-  Trash2,
-  Eye,
-  Check,
-  X,
-  AlertTriangle,
-  UserCheck,
-  Ban,
-  Coins,
-  Image,
-  Upload,
-  TrendingUp,
-  Pen,
-  Clock,
-  AlertCircle
-} from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import { InviteModal } from "@/components/invitations/invite-modal"
-import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/hooks/use-auth"
-import { formatDistanceToNow } from "date-fns"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { InviteModal } from "@/components/invitations/invite-modal";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { formatDistanceToNow } from "date-fns";
 
 interface Circle {
   id: string
@@ -209,7 +162,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
   const [newRoom, setNewRoom] = useState({
     name: '',
     description: '',
-    type: 'text' as 'text' | 'voice' | 'video',
+    type: 'text\' as \'text\' | \'voice\' | \'video',
     is_private: false
   })
 
@@ -891,15 +844,13 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                             <Badge className={`text-xs ${
                               member.role === 'owner' ? 'bg-yellow-100 text-yellow-700' :
                               member.role === 'admin' ? 'bg-red-100 text-red-700' :
-                              member.role === 'moderator' ? 'bg-blue-100 text-blue-700' :
-                              'bg-gray-100 text-gray-700'
+                              member.role === 'moderator'? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
                             }`}>
                               {member.role}
                             </Badge>
                             <Badge className={`text-xs ${
                               member.status === 'active' ? 'bg-green-100 text-green-700' :
-                              member.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                              'bg-red-100 text-red-700'
+                              member.status === 'pending'? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
                             }`}>
                               {member.status}
                             </Badge>

@@ -1,13 +1,12 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, MapPin, Link as LinkIcon, Trophy, Flame, Users, Heart, MessageCircle, Plus, Coins, Star, Edit } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
+"use client";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar, MapPin, Link as LinkIcon, Trophy, Flame, Users, Heart, MessageCircle, Plus, Coins, Star, Edit } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 interface UserProfile {
   id: string
@@ -217,8 +216,7 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
                         onClick={handleFollow}
                         className={`px-4 sm:px-6 py-2 font-semibold rounded-full transform hover:scale-105 transition-all duration-200 text-sm ${
                           isFollowing 
-                            ? "bg-gray-600 hover:bg-gray-700 text-white" 
-                            : "bg-white text-purple-600 hover:bg-gray-100"
+                            ? "bg-gray-600 hover:bg-gray-700 text-white" :"bg-white text-purple-600 hover:bg-gray-100"
                         }`}
                       >
                         {isFollowing ? "Unfollow" : "Follow"}
@@ -302,8 +300,7 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
                       <Card key={achievement.id} className={`border-2 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 ${
                         achievement.rarity === 'legendary' ? 'border-yellow-500 bg-gradient-to-r from-yellow-50 to-orange-50' :
                         achievement.rarity === 'epic' ? 'border-purple-500 bg-gradient-to-r from-purple-50 to-indigo-50' :
-                        achievement.rarity === 'rare' ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-cyan-50' :
-                        'border-gray-300 bg-gray-50'
+                        achievement.rarity === 'rare'? 'border-blue-500 bg-gradient-to-r from-blue-50 to-cyan-50' : 'border-gray-300 bg-gray-50'
                       }`}>
                         <CardContent className="p-3 sm:p-4 text-center">
                           <img src={achievement.badge_url} alt={achievement.name} className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3" />
@@ -312,8 +309,7 @@ export function Enhanced3DProfile({ username }: Enhanced3DProfileProps) {
                           <Badge className={`text-xs ${
                             achievement.rarity === 'legendary' ? 'bg-yellow-500' :
                             achievement.rarity === 'epic' ? 'bg-purple-500' :
-                            achievement.rarity === 'rare' ? 'bg-blue-500' :
-                            'bg-gray-500'
+                            achievement.rarity === 'rare'? 'bg-blue-500' : 'bg-gray-500'
                           } text-white`}>
                             {achievement.rarity.toUpperCase()}
                           </Badge>
