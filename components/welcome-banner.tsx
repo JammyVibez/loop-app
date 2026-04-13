@@ -1,11 +1,10 @@
-"use client"
-
-import { useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Sparkles, X, Gift, Coins } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
+"use client";
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles, X, Gift, Coins } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 export function WelcomeBanner() {
   const [dismissed, setDismissed] = useState(false)
@@ -23,13 +22,13 @@ export function WelcomeBanner() {
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Welcome back, {user.display_name}! 🎉
+                Welcome back, {user?.display_name}! 🎉
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
                 You have{" "}
                 <Badge variant="secondary" className="mx-1">
                   <Coins className="w-3 h-3 mr-1" />
-                  {user.loop_coins.toLocaleString()}
+                  {user?.loop_coins?.toLocaleString()}
                 </Badge>
                 Loop Coins to spend in the shop!
               </p>
@@ -55,5 +54,5 @@ export function WelcomeBanner() {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

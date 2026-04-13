@@ -1,13 +1,12 @@
-"use client"
+"use client";
+import type React from "react";
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users,
   Settings,
@@ -30,18 +29,18 @@ import {
   Video,
   FileText,
   BarChart3,
-} from "lucide-react"
-import { CircleChat } from "@/components/circles/circle-chat"
-import { CircleEvents } from "@/components/circles/circle-events"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/hooks/use-auth"
-import { createClient } from "@/lib/supabase"
+} from "lucide-react";
+import { CircleChat } from "@/components/circles/circle-chat";
+import { CircleEvents } from "@/components/circles/circle-events";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { createClient } from "@/lib/supabase";
 
 interface CircleDetailProps {
   circleId: string
@@ -403,8 +402,7 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
                     onClick={handleJoinLeave}
                     className={
                       isJoined
-                        ? "bg-gray-600 hover:bg-gray-700 text-white"
-                        : "bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+                        ? "bg-gray-600 hover:bg-gray-700 text-white" :"bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
                     }
                   >
                     {isJoined ? (

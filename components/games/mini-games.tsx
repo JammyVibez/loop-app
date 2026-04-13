@@ -1,23 +1,12 @@
-"use client"
+"use client";
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-import React, { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { 
-  Gamepad2, 
-  Trophy, 
-  Star, 
-  Coins, 
-  Timer, 
-  Target,
-  Zap,
-  Brain,
-  Shuffle
-} from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
-import { useToast } from "@/hooks/use-toast"
+import { Gamepad2, Trophy, Star, Coins, Target, Zap, Brain, Shuffle } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
 interface Game {
   id: string

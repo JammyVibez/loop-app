@@ -1,8 +1,7 @@
-"use client"
+"use client";
+import { useEffect } from "react";
 
-import { useEffect } from "react"
-
-import { useState } from "react"
+import { useState } from "react";
 
 export class PerformanceMonitor {
   private static instance: PerformanceMonitor

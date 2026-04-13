@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@/lib/supabase';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createServerClient()
     const { action } = await request.json() // 'accept' or 'decline'
-    const invitationId = params.id
+    const { id: invitationId } = await params
     
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()

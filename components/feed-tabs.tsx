@@ -1,10 +1,9 @@
-"use client"
-
-import { useState } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { Home, Users, TrendingUp, Clock } from "lucide-react"
-import { LoopFeed } from "./loop-feed"
+"use client";
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Home, Users, TrendingUp, Clock } from "lucide-react";
+import { LoopFeed } from "./loop-feed";
 
 export function FeedTabs() {
   const [activeTab, setActiveTab] = useState("personalized")

@@ -1,5 +1,5 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { type NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -17,7 +17,7 @@ async function getUserFromToken(token: string) {
 }
 
 // Get pending join requests
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
+    const { id: circleId } = await params
 
     // Check if user is admin/owner of the circle
     const { data: member, error: memberError } = await supabase
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Approve or reject a join request
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
+    const { id: circleId } = await params
     const { memberId, action, role = "member" } = await request.json()
 
     // Check if user is admin/owner of the circle

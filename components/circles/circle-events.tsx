@@ -1,15 +1,14 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, MapPin, Users, Plus, Clock, ExternalLink } from "lucide-react"
-import { CreateEventModal } from "./create-event-modal"
-import { createClient } from "@/lib/supabase"
-import { useAuth } from "@/hooks/use-auth"
-import { useToast } from "@/hooks/use-toast"
+"use client";
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Calendar, MapPin, Users, Plus, Clock, ExternalLink } from "lucide-react";
+import { CreateEventModal } from "./create-event-modal";
+import { createClient } from "@/lib/supabase";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
 interface CircleEventsProps {
   circleId: string

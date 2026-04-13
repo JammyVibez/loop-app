@@ -1,14 +1,13 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, Calendar, Trophy, Lock, Globe } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { createClient } from "@/lib/supabase"
+"use client";
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Users, Calendar, Trophy, Lock, Globe } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { createClient } from "@/lib/supabase";
 
 export function CirclesList() {
   const [circles, setCircles] = useState([])

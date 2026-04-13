@@ -1,6 +1,6 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase"
-import { v4 as uuidv4 } from 'uuid'
+import { type NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@/lib/supabase";
+import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(request: NextRequest) {
   try {

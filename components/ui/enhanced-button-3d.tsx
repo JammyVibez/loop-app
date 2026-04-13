@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "@/lib/utils"
-import { Sparkles, Zap, Crown, Star } from "lucide-react"
+import React, { useState, useEffect } from 'react';
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils";
+import { Zap, Crown, Star } from "lucide-react";
 
 const button3DVariants = cva(
   "btn-3d inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 relative overflow-hidden group transform-3d",
@@ -99,8 +99,7 @@ const Button3D = React.forwardRef<HTMLButtonElement, Button3DProps>(
                 className={`absolute w-1 h-1 rounded-full animate-ping ${
                   variant === "premium" ? "bg-purple-300" :
                   variant === "neon" ? "bg-cyan-300" :
-                  variant === "golden" ? "bg-yellow-300" :
-                  "bg-white"
+                  variant === "golden"? "bg-yellow-300" : "bg-white"
                 }`}
                 style={{
                   left: `${Math.random() * 100}%`,
@@ -117,8 +116,7 @@ const Button3D = React.forwardRef<HTMLButtonElement, Button3DProps>(
         {(variant === "premium" || variant === "neon" || variant === "golden") && (
           <div className={`absolute -inset-1 rounded-lg blur opacity-30 transition-opacity duration-300 ${
             variant === "premium" ? "bg-gradient-to-r from-purple-600 to-pink-600" :
-            variant === "neon" ? "bg-gradient-to-r from-cyan-500 to-blue-500" :
-            "bg-gradient-to-r from-yellow-400 to-orange-500"
+            variant === "neon"? "bg-gradient-to-r from-cyan-500 to-blue-500" : "bg-gradient-to-r from-yellow-400 to-orange-500"
           } ${isHovered ? "opacity-60" : "opacity-30"}`} />
         )}
 

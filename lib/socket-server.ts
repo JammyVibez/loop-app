@@ -1,7 +1,7 @@
-import { Server as HTTPServer } from 'http'
-import { Server as SocketIOServer } from 'socket.io'
-import { createServerClient } from './supabase'
-import jwt from 'jsonwebtoken'
+import { Server as HTTPServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
+import { createServerClient } from './supabase';
+import jwt from 'jsonwebtoken';
 
 export class SocketServer {
   private io: SocketIOServer

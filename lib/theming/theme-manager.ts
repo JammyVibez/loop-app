@@ -1,7 +1,5 @@
-
-"use client"
-
-import { supabase } from "@/lib/supabase"
+"use client";
+import { supabase } from "@/lib/supabase";
 
 export interface Theme {
   id: string

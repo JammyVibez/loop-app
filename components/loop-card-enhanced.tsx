@@ -1,18 +1,17 @@
-"use client"
-
-import { useState, useRef } from "react"
-import Link from "next/link"
-import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, GitBranch, Volume2, Sparkles, Zap, Gift, Crown, Star, Flag, Pin } from "lucide-react"
-import { Button } from "./ui/button"
-import { Card, CardContent, CardHeader } from "./ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
-import { Badge } from "./ui/badge"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu"
-import { GiftModal } from "./gifting/gift-modal"
-import { formatDistanceToNow } from "date-fns"
-import { useTheme3D } from "@/providers/theme-3d-provider"
-import { useAuth } from "@/hooks/use-auth"
-import { useToast } from "@/hooks/use-toast"
+"use client";
+import { useState, useRef } from "react";
+import Link from "next/link";
+import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, GitBranch, Volume2, Zap, Gift, Crown, Star, Flag, Pin } from "lucide-react";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader } from "./ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Badge } from "./ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { GiftModal } from "./gifting/gift-modal";
+import { formatDistanceToNow } from "date-fns";
+import { useTheme3D } from "@/providers/theme-3d-provider";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
 interface Loop {
   id: string
@@ -449,8 +448,7 @@ export function EnhancedLoopCard({
                   size="sm"
                   className={`space-x-1 transition-all duration-300 ${
                     loop.is_liked 
-                      ? "text-red-500 scale-110" 
-                      : "hover:text-red-500 hover:scale-105"
+                      ? "text-red-500 scale-110" :"hover:text-red-500 hover:scale-105"
                   }`}
                   onClick={handleLike}
                 >
@@ -496,8 +494,7 @@ export function EnhancedLoopCard({
                   size="sm"
                   className={`transition-all duration-300 ${
                     loop.is_bookmarked 
-                      ? "text-yellow-500 scale-110" 
-                      : "hover:text-yellow-500 hover:scale-105"
+                      ? "text-yellow-500 scale-110" :"hover:text-yellow-500 hover:scale-105"
                   }`}
                   onClick={() => onBookmark(loop.id)}
                 >

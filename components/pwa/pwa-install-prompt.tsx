@@ -1,11 +1,10 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { X, Download, Smartphone, Zap, Wifi, Bell } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+"use client";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { X, Download, Smartphone, Zap, Wifi, Bell } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[]

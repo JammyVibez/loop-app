@@ -1,54 +1,24 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import {
-  Users,
-  Settings,
-  Crown,
-  Shield,
-  MessageCircle,
-  Calendar,
-  Trophy,
-  Gift,
-  Star,
-  UserPlus,
-  UserMinus,
-  Lock,
-  Globe,
-  Plus,
-  Hash,
-  Bell,
-  BellOff,
-  Video,
-  Mic,
-  Phone,
-  Zap,
-  Heart,
-  Share,
-  Bookmark,
-  MoreHorizontal,
-  Pin,
-  Archive,
-  Flag
-} from "lucide-react"
-import { RealTimeChat } from "@/components/messages/real-time-chat"
-import { CircleEvents } from "@/components/circles/circle-events"
-import { GiftModal } from "@/components/gifting/gift-modal"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/hooks/use-auth"
-import { useTheme3D } from "@/providers/theme-3d-provider"
-import { formatDistanceToNow } from "date-fns"
+"use client";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Users, Settings, Crown, MessageCircle, Calendar, Trophy, Gift, Star, UserPlus, UserMinus, Lock, Globe, Plus, Hash, Bell, BellOff, Video, Mic, Heart, Share, Bookmark, MoreHorizontal, Pin } from "lucide-react";
+import { RealTimeChat } from "@/components/messages/real-time-chat";
+import { CircleEvents } from "@/components/circles/circle-events";
+import { GiftModal } from "@/components/gifting/gift-modal";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { useTheme3D } from "@/providers/theme-3d-provider";
+import { formatDistanceToNow } from "date-fns";
 
 interface EnhancedCircleDetailProps {
   circleId: string
@@ -140,7 +110,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   const [newRoom, setNewRoom] = useState({
     name: "",
     description: "",
-    type: "text" as "text" | "voice" | "video",
+    type: "text\" as \"text\" | \"voice\" | \"video",
     is_private: false
   })
 
@@ -453,8 +423,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                       onClick={handleJoinLeave}
                       className={
                         isJoined
-                          ? "bg-gray-600 hover:bg-gray-700 text-white"
-                          : "bg-gradient-to-r from-purple-500 to-blue-500"
+                          ? "bg-gray-600 hover:bg-gray-700 text-white" :"bg-gradient-to-r from-purple-500 to-blue-500"
                       }
                     >
                       {isJoined ? (
@@ -749,8 +718,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                           <Badge className={`text-xs ${
                             member.role === 'owner' ? 'bg-yellow-100 text-yellow-700' :
                             member.role === 'admin' ? 'bg-red-100 text-red-700' :
-                            member.role === 'moderator' ? 'bg-blue-100 text-blue-700' :
-                            'bg-gray-100 text-gray-700'
+                            member.role === 'moderator'? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
                           }`}>
                             {member.role}
                           </Badge>
@@ -791,8 +759,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
                           index === 0 ? 'bg-yellow-100 text-yellow-700' :
                           index === 1 ? 'bg-gray-100 text-gray-700' :
-                          index === 2 ? 'bg-orange-100 text-orange-700' :
-                          'bg-blue-100 text-blue-700'
+                          index === 2 ? 'bg-orange-100 text-orange-700': 'bg-blue-100 text-blue-700'
                         }`}>
                           {index + 1}
                         </div>
@@ -811,8 +778,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
 {index < 3 && (
                           <Trophy className={`w-5 h-5 ${
                             index === 0 ? 'text-yellow-500' :
-                            index === 1 ? 'text-gray-500' :
-                            'text-orange-500'
+                            index === 1 ? 'text-gray-500': 'text-orange-500'
                           }`} />
                         )}
                       </div>

@@ -1,17 +1,16 @@
-"use client"
+"use client";
+import type React from "react";
 
-import type React from "react"
-
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { CheckCircle, Shield, Star, Upload } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/hooks/use-auth"
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle, Shield, Star, Upload } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 export function VerificationRequest() {
   const [formData, setFormData] = useState({
@@ -19,7 +18,7 @@ export function VerificationRequest() {
     username: "",
     socialLinks: "",
     reason: "",
-    category: "influencer" as "influencer" | "root",
+    category: "influencer\" as \"influencer\" | \"root",
     documents: null as File | null,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)

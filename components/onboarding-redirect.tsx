@@ -1,9 +1,8 @@
-"use client"
-
-import { useEffect, useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
-import { useAuth } from "@/hooks/use-auth"
-import { PageLoading } from "@/components/loading-states"
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
+import { PageLoading } from "@/components/loading-states";
 
 export function OnboardingRedirect({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()

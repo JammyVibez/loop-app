@@ -1,11 +1,10 @@
-"use client"
-
-import { useState } from "react"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { TrendingUp, Hash, Users, GitBranch } from "lucide-react"
-import { LoopCard } from "@/components/loop-card"
+"use client";
+import { useState } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TrendingUp, Hash, Users, GitBranch } from "lucide-react";
+import { LoopCard } from "@/components/loop-card";
 
 // Mock trending data
 const trendingHashtags = [
@@ -129,9 +128,7 @@ export function TrendingContent() {
       <Badge
         variant="secondary"
         className={`${
-          user.verification_level === "root"
-            ? "bg-green-100 text-green-700 border-green-200"
-            : "bg-blue-100 text-blue-700 border-blue-200"
+          user.verification_level === "root" ?"bg-green-100 text-green-700 border-green-200" :"bg-blue-100 text-blue-700 border-blue-200"
         }`}
       >
         {user.verification_level === "root" ? "🌱 Root" : "⭐ Verified"}

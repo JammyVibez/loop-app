@@ -1,5 +1,5 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase"
+import { type NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@/lib/supabase";
 
 async function getUserFromToken(token: string) {
   try {

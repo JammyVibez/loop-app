@@ -1,15 +1,14 @@
-"use client"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { TreePine, Camera, Palette, Users, Sparkles, ArrowRight, Check } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { TreePine, Camera, Palette, Users, Sparkles, ArrowRight, Check } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 const INTERESTS = [
   "Art & Design",
@@ -267,8 +266,7 @@ export default function OnboardingPage() {
                     variant={profileData.interests.includes(interest) ? "default" : "outline"}
                     className={`cursor-pointer p-3 text-center justify-center transition-all ${
                       profileData.interests.includes(interest)
-                        ? "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                        : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                        ? "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700" :"hover:bg-gray-100 dark:hover:bg-gray-800"
                     }`}
                     onClick={() => handleInterestToggle(interest)}
                   >
@@ -305,8 +303,7 @@ export default function OnboardingPage() {
                     key={theme.name}
                     className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
                       profileData.theme.name === theme.name
-                        ? "border-purple-500 ring-2 ring-purple-200 dark:ring-purple-800"
-                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                        ? "border-purple-500 ring-2 ring-purple-200 dark:ring-purple-800" :"border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                     }`}
                     onClick={() => setProfileData((prev) => ({ ...prev, theme }))}
                   >
@@ -388,8 +385,7 @@ export default function OnboardingPage() {
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                   step >= stepNumber
-                    ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white"
-                    : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                    ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white" :"bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
                 }`}
               >
                 {step > stepNumber ? <Check className="w-4 h-4" /> : stepNumber}

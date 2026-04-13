@@ -1,5 +1,5 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { type NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -17,15 +17,14 @@ async function getUserFromToken(token: string) {
 }
 
 // Get event participants
-export async function GET(request: NextRequest, { params }: { params: { id: string, eventId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string, eventId: string }> }) {
   try {
     const { searchParams } = new URL(request.url)
     const limit = Number.parseInt(searchParams.get("limit") || "50")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
     const status = searchParams.get("status") // registered, attended, no_show
 
-    const circleId = params.id
-    const eventId = params.eventId
+    const { id: circleId, eventId } = await params
 
     // Check if event exists
     const { data: event } = await supabase
@@ -72,7 +71,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Register for an event
-export async function POST(request: NextRequest, { params }: { params: { id: string, eventId: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string, eventId: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -86,8 +85,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
-    const eventId = params.eventId
+    const { id: circleId, eventId } = await params
 
     // Check if event exists
     const { data: event } = await supabase
@@ -171,7 +169,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 }
 
 // Update participant status (admin/moderator only)
-export async function PUT(request: NextRequest, { params }: { params: { id: string, eventId: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string, eventId: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -185,8 +183,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
-    const eventId = params.eventId
+    const { id: circleId, eventId } = await params
     const { participantId, status } = await request.json()
 
     // Check if event exists
@@ -256,7 +253,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Unregister from an event
-export async function DELETE(request: NextRequest, { params }: { params: { id: string, eventId: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string, eventId: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -270,8 +267,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
-    const eventId = params.eventId
+    const { id: circleId, eventId } = await params
     const { searchParams } = new URL(request.url)
     const participantId = searchParams.get("participantId")
 

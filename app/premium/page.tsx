@@ -1,4 +1,4 @@
-import { PremiumUpgrade } from "@/components/premium/premium-upgrade"
+import { PremiumUpgrade } from "@/components/premium/premium-upgrade";
 
 export default function PremiumPage() {
   return (

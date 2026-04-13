@@ -1,14 +1,13 @@
-"use client"
-
-import { useAuth } from "@/hooks/use-auth"
-import { Theme3DProvider } from "@/providers/theme-3d-provider"
-import { Header } from "@/components/header"
-import { WelcomeBanner } from "@/components/welcome-banner"
-import { CreateLoopButton } from "@/components/create-loop-button"
-import { FeedTabs } from "@/components/feed-tabs"
-import { TrendingSidebar } from "@/components/trending-sidebar"
-import { LandingContent } from "@/components/landing/landing-content"
-import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt"
+"use client";
+import { useAuth } from "@/hooks/use-auth";
+import { Theme3DProvider } from "@/providers/theme-3d-provider";
+import { Header } from "@/components/header";
+import { WelcomeBanner } from "@/components/welcome-banner";
+import { CreateLoopButton } from "@/components/create-loop-button";
+import { FeedTabs } from "@/components/feed-tabs";
+import { TrendingSidebar } from "@/components/trending-sidebar";
+import { LandingContent } from "@/components/landing/landing-content";
+import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt";
 
 export default function HomePage() {
   const { user, loading } = useAuth()

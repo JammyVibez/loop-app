@@ -1,8 +1,7 @@
-"use client"
+"use client";
+import type React from "react";
 
-import type React from "react"
-
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef } from "react";
 
 // Hook for intersection observer-based lazy loading
 export function useIntersectionObserver(options: IntersectionObserverInit = { threshold: 0.1 }) {

@@ -1,14 +1,14 @@
-import { Suspense } from "react"
-import { TreeReels } from "@/components/reels/tree-reels"
-import { Card, CardContent } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Button } from "@/components/ui/button"
-import { Plus, TrendingUp, Clock, Users } from "lucide-react"
+import { Suspense } from "react";
+import { TreeReels } from "@/components/reels/tree-reels";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Plus, TrendingUp, Clock, Users } from "lucide-react";
 
 function ReelsLoading() {
   return (
     <div className="space-y-6">
-      {Array.from({ length: 3 }).map((_, i) => (
+      {Array.from({ length: 3 })?.map((_, i) => (
         <Card key={i} className="bg-gray-900/50 border-gray-700">
           <CardContent className="p-6">
             <div className="flex items-center space-x-3 mb-4">
@@ -31,7 +31,7 @@ function ReelsLoading() {
         </Card>
       ))}
     </div>
-  )
+  );
 }
 
 export default function ReelsPage() {
@@ -78,7 +78,7 @@ export default function ReelsPage() {
               <CardContent className="p-6">
                 <h3 className="text-lg font-semibold text-white mb-4">Trending Tags</h3>
                 <div className="space-y-2">
-                  {["#timetravel", "#scifi", "#mystery", "#adventure", "#comedy"].map((tag) => (
+                  {["#timetravel", "#scifi", "#mystery", "#adventure", "#comedy"]?.map((tag) => (
                     <div key={tag} className="flex items-center justify-between">
                       <span className="text-purple-400 hover:text-purple-300 cursor-pointer">{tag}</span>
                       <span className="text-xs text-gray-500">1.2k</span>
@@ -92,7 +92,7 @@ export default function ReelsPage() {
               <CardContent className="p-6">
                 <h3 className="text-lg font-semibold text-white mb-4">Active Branches</h3>
                 <div className="space-y-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
+                  {Array.from({ length: 3 })?.map((_, i) => (
                     <div key={i} className="flex items-center space-x-3">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       <div className="flex-1">
@@ -108,5 +108,5 @@ export default function ReelsPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

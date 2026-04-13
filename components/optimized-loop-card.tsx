@@ -1,15 +1,14 @@
-"use client"
-
-import { memo, useState, useCallback } from "react"
-import Link from "next/link"
-import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, GitBranch } from "lucide-react"
-import { Button } from "./ui/button"
-import { Card, CardContent, CardHeader } from "./ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
-import { Badge } from "./ui/badge"
-import { useIntersectionObserver, useOptimizedImage } from "@/hooks/use-optimized-loading"
-import { useAdaptivePerformance } from "@/lib/performance-monitor"
-import { formatDistanceToNow } from "date-fns"
+"use client";
+import { memo, useState, useCallback } from "react";
+import Link from "next/link";
+import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, GitBranch } from "lucide-react";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader } from "./ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Badge } from "./ui/badge";
+import { useIntersectionObserver, useOptimizedImage } from "@/hooks/use-optimized-loading";
+import { useAdaptivePerformance } from "@/lib/performance-monitor";
+import { formatDistanceToNow } from "date-fns";
 
 interface OptimizedLoopCardProps {
   loop: {

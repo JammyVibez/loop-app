@@ -1,9 +1,9 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { type NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
-export async function PUT(request: NextRequest, { params }: { params: { questId: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ questId: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     const token = authHeader?.replace("Bearer ", "")
@@ -29,6 +29,7 @@ export async function PUT(request: NextRequest, { params }: { params: { questId:
     }
 
     const { title, description, type, reward_amount, requirements, is_active } = await request.json()
+    const { questId } = await params
 
     // Update quest
     const { data: quest, error } = await supabase
@@ -42,7 +43,7 @@ export async function PUT(request: NextRequest, { params }: { params: { questId:
         is_active,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", params.questId)
+      .eq("id", questId)
       .select()
       .single()
 
@@ -58,7 +59,7 @@ export async function PUT(request: NextRequest, { params }: { params: { questId:
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { questId: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ questId: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     const token = authHeader?.replace("Bearer ", "")
@@ -83,8 +84,10 @@ export async function DELETE(request: NextRequest, { params }: { params: { quest
       return NextResponse.json({ error: "Admin access required" }, { status: 403 })
     }
 
+    const { questId } = await params
+
     // Delete quest
-    const { error } = await supabase.from("quests").delete().eq("id", params.questId)
+    const { error } = await supabase.from("quests").delete().eq("id", questId)
 
     if (error) {
       console.error("Error deleting quest:", error)

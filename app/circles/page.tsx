@@ -1,7 +1,7 @@
-import { Header } from "@/components/header"
-import { CirclesList } from "@/components/circles/circles-list"
-import { CreateCircleButton } from "@/components/circles/create-circle-button"
-import { Theme3DProvider } from "@/providers/theme-3d-provider"
+import { Header } from "@/components/header";
+import { CirclesList } from "@/components/circles/circles-list";
+import { CreateCircleButton } from "@/components/circles/create-circle-button";
+import { Theme3DProvider } from "@/providers/theme-3d-provider";
 
 export default function CirclesPage() {
   return (

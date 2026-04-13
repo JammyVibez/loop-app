@@ -1,19 +1,18 @@
-"use client"
-
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { User, Bell, Shield, Palette, Trash2, Moon, Sun, Upload, Crown, Mail, Lock } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/hooks/use-auth"
-import { useTheme } from "next-themes"
+"use client";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { User, Bell, Shield, Palette, Trash2, Moon, Sun, Upload, Crown, Mail, Lock } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { useTheme } from "next-themes";
 
 export function SettingsContent() {
   const { user } = useAuth()
@@ -222,8 +221,7 @@ export function SettingsContent() {
                   />
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {user?.is_premium
-                      ? "Premium users can upload GIFs and videos up to 10s"
-                      : "Upgrade to Premium for animated avatars"}
+                      ? "Premium users can upload GIFs and videos up to 10s" :"Upgrade to Premium for animated avatars"}
                   </p>
                 </div>
               </div>
@@ -346,9 +344,7 @@ export function SettingsContent() {
                     {user?.is_verified ? (
                       <Badge
                         className={
-                          user.verification_level === "root"
-                            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                            : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                          user.verification_level === "root" ?"bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" :"bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
                         }
                       >
                         {user.verification_level === "root" ? "🌱 Root Verified" : "⭐ Influencer Verified"}
@@ -629,9 +625,7 @@ export function SettingsContent() {
               <div className="grid grid-cols-3 gap-4 mt-4">
                 <div
                   className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                    theme === "light"
-                      ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20"
-                      : "border-gray-200 dark:border-gray-700"
+                    theme === "light" ?"border-purple-500 bg-purple-50 dark:bg-purple-900/20" :"border-gray-200 dark:border-gray-700"
                   }`}
                   onClick={() => setTheme("light")}
                 >
@@ -641,9 +635,7 @@ export function SettingsContent() {
 
                 <div
                   className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                    theme === "dark"
-                      ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20"
-                      : "border-gray-200 dark:border-gray-700"
+                    theme === "dark" ?"border-purple-500 bg-purple-50 dark:bg-purple-900/20" :"border-gray-200 dark:border-gray-700"
                   }`}
                   onClick={() => setTheme("dark")}
                 >
@@ -653,9 +645,7 @@ export function SettingsContent() {
 
                 <div
                   className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                    theme === "system"
-                      ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20"
-                      : "border-gray-200 dark:border-gray-700"
+                    theme === "system" ?"border-purple-500 bg-purple-50 dark:bg-purple-900/20" :"border-gray-200 dark:border-gray-700"
                   }`}
                   onClick={() => setTheme("system")}
                 >

@@ -1,5 +1,5 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { type NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -17,14 +17,14 @@ async function getUserFromToken(token: string) {
 }
 
 // Get circle rooms
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { searchParams } = new URL(request.url)
     const limit = Number.parseInt(searchParams.get("limit") || "50")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
     const type = searchParams.get("type")
 
-    const circleId = params.id
+    const { id: circleId } = await params
 
     let query = supabase
       .from("circle_rooms")
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Create a new room
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
+    const { id: circleId } = await params
     const { name, description, type, is_private } = await request.json()
 
     // Check if user has permission to create rooms (member with appropriate role)
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 }
 
 // Update a room
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -143,7 +143,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
+    const { id: circleId } = await params
     const { roomId, name, description, is_private } = await request.json()
 
     // Check if room exists and user has permission to update it
@@ -203,7 +203,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Delete a room
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -217,7 +217,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
+    const { id: circleId } = await params
     const { searchParams } = new URL(request.url)
     const roomId = searchParams.get("roomId")
 

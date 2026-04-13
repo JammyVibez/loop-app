@@ -1,5 +1,5 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { type NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -16,13 +16,13 @@ async function getUserFromToken(token: string) {
   }
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     const token = authHeader?.replace("Bearer ", "")
     const currentUser = token ? await getUserFromToken(token) : null
 
-    const circleId = params.id
+    const { id: circleId } = await params
 
     // Fetch circle details with owner info
     const { data: circle, error: circleError } = await supabase
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -126,7 +126,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
+    const { id: circleId } = await params
 
     // Check if user has permission to edit (owner or admin)
     const { data: member } = await supabase
@@ -188,7 +188,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -202,7 +202,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
+    const { id: circleId } = await params
 
     // Check if user is the owner
     const { data: circle } = await supabase

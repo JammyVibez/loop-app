@@ -1,10 +1,10 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase"
+import { type NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@/lib/supabase";
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = createServerClient()
-    const reelId = params.id
+    const { id: reelId } = await params
     const { searchParams } = new URL(request.url)
 
     const page = Number.parseInt(searchParams.get("page") || "1")
@@ -46,10 +46,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = createServerClient()
-    const reelId = params.id
+    const { id: reelId } = await params
 
     // Get user from session
     const authHeader = request.headers.get("authorization")

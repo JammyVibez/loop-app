@@ -1,13 +1,12 @@
-"use client"
-
-import { useEffect, useState } from "react"
-import { createClient } from "@supabase/supabase-js"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Clock, TreePine, Sparkles, TrendingUp, Hash } from "lucide-react"
-import { LoopCard } from "@/components/loop-card"
-import { LoopTreeViewer } from "@/components/loop-tree-viewer"
+"use client";
+import { useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Clock, TreePine, Sparkles, TrendingUp, Hash } from "lucide-react";
+import { LoopCard } from "@/components/loop-card";
+import { LoopTreeViewer } from "@/components/loop-tree-viewer";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,8 +42,7 @@ export function ExploreContent() {
           case 'creative':
             query = query.order("likes", { ascending: false })
             break
-          case 'hashtags':
-            // For hashtags, we'll fetch trending hashtags from API
+          case 'hashtags': // For hashtags, we'll fetch trending hashtags from API
             const hashtagResponse = await fetch('/api/explore/trending?type=hashtags&limit=20')
             if (hashtagResponse.ok) {
               const { data: hashtagData } = await hashtagResponse.json()

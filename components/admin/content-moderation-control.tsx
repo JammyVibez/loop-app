@@ -6,17 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  Flag, 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle,
-  Eye,
-  MessageSquare,
-  User,
-  Calendar,
-  Filter
-} from "lucide-react";
+import { Flag, CheckCircle, XCircle, Eye, User, Calendar, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ContentFlag {

@@ -1,6 +1,6 @@
 
-import { NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase"
+import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@/lib/supabase";
 
 async function getUserFromToken(token: string | null) {
   if (!token) return null
@@ -17,7 +17,7 @@ async function getUserFromToken(token: string | null) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { conversationId: string } }
+  { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -37,12 +37,13 @@ export async function GET(
     const offset = Number.parseInt(searchParams.get("offset") || "0")
 
     const supabase = createServerClient()
+    const { conversationId } = await params
 
     // Verify user is part of conversation
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
       .select('participant_ids')
-      .eq('id', params.conversationId)
+      .eq('id', conversationId)
       .single()
 
     if (convError || !conversation) {
@@ -60,7 +61,7 @@ export async function GET(
         *,
         sender:profiles!sender_id(id, username, display_name, avatar_url, is_verified)
       `)
-      .eq('conversation_id', params.conversationId)
+      .eq('conversation_id', conversationId)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -86,7 +87,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { conversationId: string } }
+  { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -108,12 +109,13 @@ export async function POST(
     }
 
     const supabase = createServerClient()
+    const { conversationId } = await params
 
     // Verify user is part of conversation
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
       .select('participant_ids')
-      .eq('id', params.conversationId)
+      .eq('id', conversationId)
       .single()
 
     if (convError || !conversation) {
@@ -128,7 +130,7 @@ export async function POST(
     const { data: message, error: messageError } = await supabase
       .from('messages')
       .insert({
-        conversation_id: params.conversationId,
+        conversation_id: conversationId,
         sender_id: user.id,
         content,
         message_type,
@@ -150,7 +152,7 @@ export async function POST(
     await supabase
       .from('conversations')
       .update({ last_message_at: new Date().toISOString() })
-      .eq('id', params.conversationId)
+      .eq('id', conversationId)
 
     return NextResponse.json({
       success: true,

@@ -1,5 +1,5 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { type NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -17,7 +17,7 @@ async function getUserFromToken(token: string) {
 }
 
 // Get circle posts
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { searchParams } = new URL(request.url)
     const limit = Number.parseInt(searchParams.get("limit") || "20")
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const sortBy = searchParams.get("sort") || "created_at"
     const order = searchParams.get("order") || "desc"
 
-    const circleId = params.id
+    const { id: circleId } = await params
 
     // Fetch posts with author info
     const { data: posts, error } = await supabase
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Create a new circle post
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
+    const { id: circleId } = await params
     const { content, media_url, media_type, hashtags } = await request.json()
 
     // Check if user is a member of the circle
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 }
 
 // Update a circle post
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -171,7 +171,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
+    const { id: circleId } = await params
     const { postId, content, media_url, media_type, hashtags } = await request.json()
 
     // Check if post exists and user is the author
@@ -224,7 +224,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Delete a circle post
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -238,7 +238,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
+    const { id: circleId } = await params
     const { searchParams } = new URL(request.url)
     const postId = searchParams.get("postId")
 

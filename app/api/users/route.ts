@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase"
+import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@/lib/supabase";
 
 // GET /api/users?sort=newest&limit=5
 export async function GET(req: NextRequest) {

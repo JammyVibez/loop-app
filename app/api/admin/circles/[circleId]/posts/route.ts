@@ -1,5 +1,5 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { type NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -17,7 +17,7 @@ async function getUserFromToken(token: string) {
 }
 
 // Get circle posts (admin view)
-export async function GET(request: NextRequest, { params }: { params: { circleId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ circleId: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest, { params }: { params: { circleId
     const sortBy = searchParams.get("sort") || "created_at"
     const order = searchParams.get("order") || "desc"
 
-    const circleId = params.circleId
+    const { circleId } = await params
 
     // Check if circle exists
     const { data: circle } = await supabase
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest, { params }: { params: { circleId
 }
 
 // Delete a post (admin override)
-export async function DELETE(request: NextRequest, { params }: { params: { circleId: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ circleId: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -153,7 +153,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { circl
       return NextResponse.json({ error: "Admin access required" }, { status: 403 })
     }
 
-    const circleId = params.circleId
+    const { circleId } = await params
     const { searchParams } = new URL(request.url)
     const postId = searchParams.get("postId")
 

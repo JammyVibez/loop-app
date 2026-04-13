@@ -1,13 +1,13 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase"
+import { type NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@/lib/supabase";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createServerClient()
-    const streamId = params.id
+    const { id: streamId } = await params
 
     const { data: stream, error } = await supabase
       .from('live_streams')
@@ -43,11 +43,11 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createServerClient()
-    const streamId = params.id
+    const { id: streamId } = await params
     
     // Get user from session
     const authHeader = request.headers.get('authorization')
@@ -125,11 +125,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createServerClient()
-    const streamId = params.id
+    const { id: streamId } = await params
     
     // Get user from session
     const authHeader = request.headers.get('authorization')

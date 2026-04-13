@@ -1,9 +1,8 @@
-"use client"
-
-import type React from "react"
-import { useState, useEffect } from "react"
-import { Header } from "@/components/header"
-import { SearchResults } from "@/components/search/search-results"
+"use client";
+import type React from "react";
+import { useState, useEffect } from "react";
+import { Header } from "@/components/header";
+import { SearchResults } from "@/components/search/search-results";
 
 interface SearchPageProps {
   params: {

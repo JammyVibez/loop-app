@@ -1,15 +1,14 @@
-"use client"
-
-import { useState, useRef, useEffect } from "react"
-import Link from "next/link"
-import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, GitBranch, Volume2, Sparkles } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { formatDistanceToNow } from "date-fns"
-import { useTheme3D, useThemeColors } from "@/providers/theme-3d-provider"
+"use client";
+import { useState, useRef } from "react";
+import Link from "next/link";
+import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, GitBranch, Volume2, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CardContent, CardHeader } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { formatDistanceToNow } from "date-fns";
+import { useTheme3D, useThemeColors } from "@/providers/theme-3d-provider";
 
 interface ThemeColors {
   primary?: string

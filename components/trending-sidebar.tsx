@@ -1,13 +1,12 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { TrendingUp, Hash, Users, Loader2 } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
-import Link from "next/link"
+"use client";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { TrendingUp, Hash, Users, Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import Link from "next/link";
 
 interface TrendingUser {
   id: string

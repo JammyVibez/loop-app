@@ -1,11 +1,10 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+"use client";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Heart,
   MessageCircle,
@@ -20,11 +19,11 @@ import {
   Flag,
   Copy,
   ExternalLink,
-} from "lucide-react"
-import { CommentsSection } from "@/components/comments/comments-section"
-import Link from "next/link"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { createClient } from "@supabase/supabase-js"
+} from "lucide-react";
+import { CommentsSection } from "@/components/comments/comments-section";
+import Link from "next/link";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

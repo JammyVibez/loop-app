@@ -1,10 +1,9 @@
-"use client"
-
-import React, { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+"use client";
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Radio, 
   Users, 
@@ -13,10 +12,10 @@ import {
   Bell,
   BellOff,
   ExternalLink
-} from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
-import { formatDistanceToNow } from "date-fns"
-import Link from "next/link"
+} from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { formatDistanceToNow } from "date-fns";
+import Link from "next/link";
 
 interface LiveStream {
   id: string

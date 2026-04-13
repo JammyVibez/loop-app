@@ -1,15 +1,14 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Card, CardContent } from "@/components/ui/card"
-import { Hash, Users, GitBranch, Search } from "lucide-react"
-import { LoopCard } from "@/components/loop-card"
-import Link from "next/link"
-import { createClient } from "@/lib/supabase"
+"use client";
+import { useState, useEffect } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
+import { Hash, Users, GitBranch, Search } from "lucide-react";
+import { LoopCard } from "@/components/loop-card";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase";
 
 interface SearchResultsProps {
   query: string
@@ -132,9 +131,7 @@ export function SearchResults({ query }: SearchResultsProps) {
       <Badge
         variant="secondary"
         className={`${
-          user.verification_level === "root"
-            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-            : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+          user.verification_level === "root" ?"bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" :"bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
         }`}
       >
         {user.verification_level === "root" ? "🌱 Root" : "⭐ Verified"}

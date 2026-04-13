@@ -1,7 +1,7 @@
 
-import { NextRequest, NextResponse } from "next/server"
-import { v2 as cloudinary } from 'cloudinary'
-import { createClient } from "@supabase/supabase-js"
+import { NextRequest, NextResponse } from "next/server";
+import { v2 as cloudinary } from 'cloudinary';
+import { createClient } from "@supabase/supabase-js";
 
 // Configure Cloudinary
 if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
