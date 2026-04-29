@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
     const { item_id, payment_method } = await request.json()
-    const supabase = createClient()
+    const supabase = createServerClient()
     
     // Get user from auth header
     const authHeader = request.headers.get('authorization')
@@ -140,9 +142,18 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ success: true })
     } else if (payment_method === 'stripe') {
-      // Handle Stripe payment for USD purchases
-      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
-      
+      if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.includes('your_stripe')) {
+        return NextResponse.json(
+          { success: false, error: 'Stripe is not configured for this environment' },
+          { status: 503 },
+        )
+      }
+
+      const Stripe = (await import('stripe')).default
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: '2023-10-16',
+      })
+
       try {
         const paymentIntent = await stripe.paymentIntents.create({
           amount: Math.round(item.price_usd * 100), // Convert to cents

@@ -52,9 +52,11 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Initialize Stripe with real key
-    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
-    
+    const Stripe = (await import('stripe')).default
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2023-10-16',
+    })
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount, // Amount in cents
       currency: currency,
