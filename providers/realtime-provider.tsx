@@ -12,6 +12,11 @@ interface RealtimeContextType {
   subscribe: (event: string, callback: (payload: any) => void) => void
   unsubscribe: (event: string) => void
   broadcast: (event: string, payload: any) => void
+  socket: {
+    on: (event: string, callback: (payload: any) => void) => void
+    off: (event: string) => void
+    emit: (event: string, payload: any) => void
+  }
 }
 
 export const RealtimeContext = createContext<RealtimeContextType | undefined>(undefined)
@@ -98,13 +103,20 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const socket = {
+    on: subscribe,
+    off: unsubscribe,
+    emit: broadcast,
+  }
+
   return (
     <RealtimeContext.Provider value={{ 
       channel, 
       isConnected, 
       subscribe, 
       unsubscribe, 
-      broadcast 
+      broadcast,
+      socket,
     }}>
       {children}
     </RealtimeContext.Provider>

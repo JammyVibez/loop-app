@@ -12,8 +12,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/hooks/use-auth"
 import { Loader2, Eye, EyeOff } from "lucide-react"
-import { useSearchParams } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export default function SignupPage() {
   const [email, setEmail] = useState("")
@@ -28,8 +26,6 @@ export default function SignupPage() {
 
   const { signup, googleSignIn } = useAuth()
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const supabase = createClientComponentClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -48,7 +48,7 @@ export function PaymentModal({ isOpen, onClose, plan, price }: PaymentModalProps
       updateUser({
         ...user!,
         is_premium: true,
-        premium_expires_at: new Date(Date.now() + (plan === "annual" ? 365 : 30) * 24 * 60 * 60 * 1000),
+        premium_expires_at: new Date(Date.now() + (plan === "annual" ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString(),
       })
     }
 

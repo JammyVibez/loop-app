@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CheckCircle, XCircle, Lock, ArrowLeft, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
+import { createClient } from "@supabase/supabase-js"
+
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams()
@@ -40,13 +43,17 @@ export default function ResetPasswordPage() {
     setErrors({})
 
     try {
-      // Mock API call to request password reset
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
 
-      // Simulate success
+      if (error) {
+        throw error
+      }
+
       setStep("success")
-    } catch (error) {
-      setErrors({ email: "Failed to send reset email. Please try again." })
+    } catch (error: any) {
+      setErrors({ email: error?.message || "Failed to send reset email. Please try again." })
     } finally {
       setLoading(false)
     }
@@ -72,21 +79,18 @@ export default function ResetPasswordPage() {
     }
 
     try {
-      // Mock API call to reset password
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const { error } = await supabase.auth.updateUser({
+        password,
+      })
 
-      // Simulate different outcomes based on token
-      if (token === "expired") {
-        setStep("error")
-        setErrors({ general: "Reset link has expired. Please request a new one." })
-      } else if (token === "invalid") {
-        setStep("error")
-        setErrors({ general: "Invalid reset link. Please request a new one." })
-      } else {
-        setStep("success")
+      if (error) {
+        throw error
       }
-    } catch (error) {
-      setErrors({ general: "Failed to reset password. Please try again." })
+
+      setStep("success")
+    } catch (error: any) {
+      setStep("error")
+      setErrors({ general: error?.message || "Failed to reset password. Please try again." })
     } finally {
       setLoading(false)
     }

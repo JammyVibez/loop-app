@@ -106,7 +106,10 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
     if (!user || !roomId) return
 
     const connectWebSocket = () => {
-      const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001'}/circle-room/${roomId}?token=${user.token}`
+      const authToken = user.access_token || user.token
+      const websocketBaseUrl =
+        process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"
+      const wsUrl = `${websocketBaseUrl}/circle-room/${roomId}?token=${authToken}`
       const ws = new WebSocket(wsUrl)
 
       ws.onopen = () => {

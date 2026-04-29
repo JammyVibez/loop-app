@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase"
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,23 +35,44 @@ export async function POST(request: NextRequest) {
     }
 
     const event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET)
+    const supabase = createServerClient()
 
     switch (event.type) {
       case "payment_intent.succeeded":
-        console.log("Payment succeeded:", event.data.object.id)
-        // TODO: Update user to premium status in database
+        const paymentIntent = event.data.object as any
+        await supabase
+          .from("payment_logs")
+          .update({ status: "succeeded" })
+          .eq("payment_intent_id", paymentIntent.id)
+
+        if (paymentIntent.metadata?.user_id && paymentIntent.metadata?.item_type === "premium") {
+          const expiryDate = new Date()
+          expiryDate.setMonth(expiryDate.getMonth() + 1)
+          await supabase
+            .from("profiles")
+            .update({
+              is_premium: true,
+              premium_expires_at: expiryDate.toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", paymentIntent.metadata.user_id)
+        }
         break
       case "customer.subscription.created":
         console.log("Subscription created:", event.data.object.id)
-        // TODO: Handle subscription creation in database
         break
       case "customer.subscription.updated":
         console.log("Subscription updated:", event.data.object.id)
-        // TODO: Handle subscription updates in database
         break
       case "customer.subscription.deleted":
         console.log("Subscription cancelled:", event.data.object.id)
-        // TODO: Handle subscription cancellation in database
+        break
+      case "payment_intent.payment_failed":
+        const failedIntent = event.data.object as any
+        await supabase
+          .from("payment_logs")
+          .update({ status: "failed" })
+          .eq("payment_intent_id", failedIntent.id)
         break
       default:
         console.log(`Unhandled event type: ${event.type}`)

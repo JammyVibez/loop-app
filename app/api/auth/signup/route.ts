@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 
 // Use server-side env vars for API routes
 const supabase = createClient(
-  process.env.SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       .from("profiles")
       .select("id, username, email")
       .or(`username.eq.${username},email.eq.${email}`)
-      .single()
+      .maybeSingle()
 
     if (existingUser?.username === username) {
       return NextResponse.json({ error: "Username already taken" }, { status: 400 })
@@ -44,7 +44,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to create user" }, { status: 400 })
     }
 
-    // Create user profile with enhanced schema fields
+    // Create profile using only stable fields.
+    // Extra fields should be added later via dedicated migrations/features.
     const { error: profileError } = await supabase.from("profiles").insert({
       id: authData.user.id,
       email,
@@ -53,28 +54,26 @@ export async function POST(request: NextRequest) {
       avatar_url: null,
       banner_url: null,
       bio: null,
-      location: null,
-      website: null,
       loop_coins: 500,
-      xp_points: 0,
-      level: 1,
       is_premium: false,
-      premium_expires_at: null,
       is_verified: false,
       is_admin: false,
-      active_theme: 'default',
       theme_data: null,
       privacy_settings: { profile_visibility: "public", message_privacy: "everyone" },
       notification_settings: { email: true, push: true, in_app: true },
-      last_active: new Date().toISOString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
 
     if (profileError) {
-      // Clean up auth user if profile creation fails
-      await supabase.auth.admin.deleteUser(authData.user.id)
-      return NextResponse.json({ error: "Failed to create profile: " + profileError.message }, { status: 500 })
+      console.error("Profile creation failed after auth signup:", profileError)
+      return NextResponse.json(
+        {
+          error:
+            "Account was created but profile setup failed. Please contact support or retry profile setup after login.",
+        },
+        { status: 500 },
+      )
     }
 
     return NextResponse.json({

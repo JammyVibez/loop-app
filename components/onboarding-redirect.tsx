@@ -11,28 +11,25 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
   const pathname = usePathname()
   const [redirecting, setRedirecting] = useState(false)
 
-  const publicRoutes = ["/login", "/signup", "/landing", "/terms", "/privacy", "/reset-password", "/verify-email"]
-  const isPublicRoute = publicRoutes.includes(pathname)
+  const publicRoutes = ["/", "/login", "/signup", "/landing", "/terms", "/privacy", "/reset-password", "/verify-email", "/onboarding"]
+  const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
 
   useEffect(() => {
     if (loading) return
 
     if (user) {
-      // Check if user has completed onboarding
       if (!user.onboarding_completed && pathname !== "/onboarding") {
         setRedirecting(true)
         router.push("/onboarding")
         return
       }
 
-      // If user is on onboarding page but has completed it, redirect to home
       if (user.onboarding_completed && pathname === "/onboarding") {
         setRedirecting(true)
         router.push("/")
         return
       }
 
-      // If user is on login/signup page but already authenticated, redirect to home
       if ((pathname === "/login" || pathname === "/signup") && user.onboarding_completed) {
         setRedirecting(true)
         router.push("/")
@@ -50,7 +47,6 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
     setRedirecting(false)
   }, [user, loading, pathname, router])
 
-  // Show loading screen while auth is being determined or redirecting
   if (loading) {
     return <PageLoading message="Loading your profile..." />
   }
@@ -59,7 +55,6 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
     return <PageLoading message="Redirecting..." />
   }
 
-  // Show loading if setting up profile
   if (user && !user.bio && pathname !== "/onboarding") {
     return <PageLoading message="Setting up your profile..." />
   }

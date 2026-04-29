@@ -26,6 +26,11 @@ export interface Database {
           is_premium: boolean
           is_verified: boolean
           is_admin: boolean
+          onboarding_completed: boolean
+          active_theme: string | null
+          xp_points: number
+          level: number
+          premium_expires_at: string | null
           verification_level: 'none' | 'basic' | 'influencer' | 'root' | null
           can_stream: boolean
           stream_key: string | null
@@ -54,6 +59,11 @@ export interface Database {
           is_premium?: boolean
           is_verified?: boolean
           is_admin?: boolean
+          onboarding_completed?: boolean
+          active_theme?: string | null
+          xp_points?: number
+          level?: number
+          premium_expires_at?: string | null
           verification_level?: 'none' | 'basic' | 'influencer' | 'root' | null
           can_stream?: boolean
           stream_key?: string | null
@@ -82,6 +92,11 @@ export interface Database {
           is_premium?: boolean
           is_verified?: boolean
           is_admin?: boolean
+          onboarding_completed?: boolean
+          active_theme?: string | null
+          xp_points?: number
+          level?: number
+          premium_expires_at?: string | null
           verification_level?: 'none' | 'basic' | 'influencer' | 'root' | null
           can_stream?: boolean
           stream_key?: string | null

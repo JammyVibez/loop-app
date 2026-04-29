@@ -2,48 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { createClient } from "@supabase/supabase-js"
-import { useRouter } from 'next/navigation'; // Assuming you are using Next.js router
-
-// Ensure environment variables are available
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables:', {
-    url: !!supabaseUrl,
-    key: !!supabaseAnonKey,
-    supabaseUrl,
-    supabaseAnonKey: supabaseAnonKey ? '[PRESENT]' : '[MISSING]'
-  })
-
-  // Don't throw error immediately, let the component handle it gracefully
-  console.warn('Supabase not properly configured, some features may not work')
-}
-
-// Global Supabase client instance to prevent multiple instances
-let supabaseClient: ReturnType<typeof createClient> | null = null
-
-function getSupabaseClient() {
-  if (!supabaseClient && supabaseUrl && supabaseAnonKey) {
-    try {
-      supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: false,
-          flowType: 'pkce'
-        },
-      })
-    } catch (error) {
-      console.error('Failed to initialize Supabase client:', error)
-      // Create a mock client to prevent crashes
-      supabaseClient = null
-    }
-  }
-  return supabaseClient
-}
-
-const supabase = getSupabaseClient()
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 interface User {
   id: string
@@ -55,22 +14,35 @@ interface User {
   bio?: string
   loop_coins: number
   is_premium: boolean
+  premium_expires_at?: string
   is_verified: boolean
   is_admin: boolean
   theme_data?: any
   onboarding_completed?: boolean
   token?: string
   access_token?: string
-  profile?: any
+  user_metadata?: {
+    username: string
+    display_name: string
+    avatar_url?: string
+    is_premium: boolean
+    is_verified: boolean
+  }
 }
 
 interface AuthContextType {
   user: User | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
+  loginWithGoogle: () => Promise<void>
+  googleSignIn: () => Promise<void>
   signup: (email: string, password: string, username: string, display_name: string) => Promise<void>
   logout: () => Promise<void>
+  signOut: () => Promise<void>
+  refreshUser: () => Promise<void>
+  getAuthHeader: () => Record<string, string>
   updateProfile: (updates: Partial<User>) => Promise<void>
+  updateUser: (updates: Partial<User>) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -78,129 +50,72 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [profile, setProfile] = useState<any>(null) // State for profile
-  const [error, setError] = useState<string | null>(null) // State for error messages
-  const router = useRouter(); // Initialize router
 
-  const loadUserProfile = async (session: any) => {
-    if (!supabase) {
-      console.error('Supabase client not available for profile loading')
-      return null
-    }
-    try {
-      if (!session?.user?.id) {
-        console.log('No valid session provided to loadUserProfile')
-        return null
-      }
+  const hydrateSessionUser = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", session.user.id)
-        .single()
-
-      if (profileError) {
-        console.error("Error loading profile:", profileError)
-        return null
-      }
-
-      if (!profileData) {
-        console.error("No profile found for user:", session.user.id)
-        return null
-      }
-
-      return {
-        id: session.user.id,
-        email: session.user.email!,
-        username: profileData.username,
-        display_name: profileData.display_name,
-        avatar_url: profileData.avatar_url,
-        banner_url: profileData.banner_url,
-        bio: profileData.bio,
-        loop_coins: profileData.loop_coins || 0,
-        is_premium: profileData.is_premium || false,
-        is_verified: profileData.is_verified || false,
-        is_admin: profileData.is_admin || false,
-        theme_data: profileData.theme_data,
-        onboarding_completed: profileData.onboarding_completed,
-        token: session.access_token,
-        access_token: session.access_token,
-        profile: profileData,
-      }
-    } catch (error) {
-      console.error("Error in loadUserProfile:", error)
-      return null
-    }
-  }
-
-  const fetchUserProfile = async (userId: string) => {
-    if (!supabase) {
-      console.error('Supabase client not available for profile fetch')
+    if (!session?.user) {
+      setUser(null)
       return
     }
 
-    try {
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
+    const { data: profile } = await supabase.from("profiles").select("*").eq("id", session.user.id).single()
 
-      if (profileError) {
-        console.error('Error fetching profile:', profileError)
-        return
-      }
-
-      setProfile(profileData)
-    } catch (error) {
-      console.error('Error in fetchUserProfile:', error)
+    if (!profile) {
+      setUser(null)
+      return
     }
+
+    setUser({
+      id: session.user.id,
+      email: session.user.email || profile.email,
+      username: profile.username,
+      display_name: profile.display_name,
+      avatar_url: profile.avatar_url,
+      banner_url: profile.banner_url,
+      bio: profile.bio,
+      loop_coins: profile.loop_coins ?? 0,
+      is_premium: profile.is_premium ?? false,
+      premium_expires_at: profile.premium_expires_at ?? undefined,
+      is_verified: profile.is_verified ?? false,
+      is_admin: profile.is_admin ?? false,
+      theme_data: profile.theme_data,
+      onboarding_completed: profile.onboarding_completed ?? false,
+      token: session.access_token,
+      access_token: session.access_token,
+      user_metadata: {
+        username: profile.username,
+        display_name: profile.display_name,
+        avatar_url: profile.avatar_url,
+        is_premium: profile.is_premium ?? false,
+        is_verified: profile.is_verified ?? false,
+      },
+    })
   }
 
   useEffect(() => {
-    if (!supabase) {
-      setLoading(false)
-      return
-    }
-
-    // Get initial session
-    const getInitialSession = async () => {
+    const checkSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        if (error) {
-          console.error('Error getting initial session:', error)
-          return
-        }
-
-        console.log('Auth state change:', 'INITIAL_SESSION', session?.user?.id || null)
-        
-        if (session?.user) {
-          const userProfile = await loadUserProfile(session)
-          setUser(userProfile)
-        } else {
-          setUser(null)
-        }
+        await hydrateSessionUser()
       } catch (error) {
-        console.error('Error in getInitialSession:', error)
+        console.error("Error checking session:", error)
       } finally {
         setLoading(false)
       }
     }
 
-    getInitialSession()
+    checkSession()
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change:', event, session?.user?.id || null)
-      
-      if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-        const userProfile = await loadUserProfile(session)
-        setUser(userProfile)
-      } else if (event === 'SIGNED_OUT') {
+    } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        await hydrateSessionUser()
+      } else if (event === "SIGNED_OUT") {
         setUser(null)
-        setProfile(null)
       }
 
       setLoading(false)
@@ -210,109 +125,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string) => {
-    if (!supabase) {
-      const errorMessage = "Authentication service is not available"
-      setError(errorMessage)
-      return { user: null, error: errorMessage }
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || "Login failed")
     }
 
-    setLoading(true)
-    setError("")
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-      if (error) throw error
-      
-      // Fetch user profile after login
-      if (data.user && data.session) {
-        await fetchUserProfile(data.user.id)
-      }
-
-      return { user: data.user, error: null }
-    } catch (err: any) {
-      const errorMessage = err.message || "Failed to sign in"
-      setError(errorMessage)
-      return { user: null, error: errorMessage }
-    } finally {
-      setLoading(false)
-    }
+    await supabase.auth.setSession({
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+    })
   }
 
-  const signup = async (email: string, password: string, username: string, displayName: string) => {
-    if (!supabase) {
-      const errorMessage = "Authentication service is not available"
-      setError(errorMessage)
-      return { user: null, error: errorMessage }
-    }
+  const signup = async (email: string, password: string, username: string, display_name: string) => {
+    const response = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, username, display_name }),
+    })
 
-    setLoading(true)
-    setError("")
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            username,
-            display_name: displayName,
-          },
-        },
-      })
-      if (error) throw error
-      
-      // After signup, attempt to login the user
-      if (data.user) {
-        await login(email, password)
-      }
+    const data = await response.json()
 
-      return { user: data.user, error: null }
-    } catch (err: any) {
-      const errorMessage = err.message || "Failed to sign up"
-      setError(errorMessage)
-      return { user: null, error: errorMessage }
-    } finally {
-      setLoading(false)
+    if (!response.ok) {
+      throw new Error(data.error || "Signup failed")
     }
   }
 
   const logout = async () => {
-    if (!supabase) {
-      setError("Authentication service is not available")
-      return
+    await supabase.auth.signOut()
+    setUser(null)
+  }
+
+  const loginWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/api/auth/callback`,
+      },
+    })
+
+    if (error) {
+      throw error
     }
-    try {
-      setLoading(true)
-      await supabase.auth.signOut()
-      setUser(null)
-      setProfile(null) // Clear profile on logout
-      router.push('/login'); // Redirect to login after logout
-    } catch (error) {
-      console.error("Logout error:", error)
-      setError("Failed to log out")
-    } finally {
-      setLoading(false)
+  }
+
+  const refreshUser = async () => {
+    await hydrateSessionUser()
+  }
+
+  const getAuthHeader = () => {
+    if (!user?.access_token) {
+      return {}
+    }
+
+    return {
+      Authorization: `Bearer ${user.access_token}`,
     }
   }
 
   const updateProfile = async (updates: Partial<User>) => {
-    if (!user || !supabase) {
-      setError("Authentication service not available or user not logged in")
-      return
-    }
+    if (!user) return
 
     try {
       const { error } = await supabase.from("profiles").update(updates).eq("id", user.id)
 
       if (error) throw error
 
-      // Update local user state with new profile data
-      setUser(prevUser => prevUser ? { ...prevUser, ...updates } : null)
-      setProfile(prevProfile => prevProfile ? { ...prevProfile, ...updates } : null)
+      setUser({ ...user, ...updates })
     } catch (error) {
       console.error("Error updating profile:", error)
-      setError("Failed to update profile")
+      throw error
     }
   }
 
@@ -322,9 +210,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         loading,
         login,
+        loginWithGoogle,
+        googleSignIn: loginWithGoogle,
         signup,
         logout,
+        signOut: logout,
+        refreshUser,
+        getAuthHeader,
         updateProfile,
+        updateUser: updateProfile,
       }}
     >
       {children}

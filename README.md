@@ -52,7 +52,7 @@ A full-stack social media platform focused on collaborative storytelling and cre
 ## 🛠 Technical Stack
 
 ### Frontend
-- **Next.js 14** with App Router
+- **Next.js 15** with App Router
 - **TypeScript** for type safety
 - **Tailwind CSS** for styling
 - **shadcn/ui** for components
@@ -63,7 +63,7 @@ A full-stack social media platform focused on collaborative storytelling and cre
 - **Supabase** for authentication and real-time
 - **Socket.io** server for live collaboration
 - **Stripe** for premium subscriptions
-- **UploadThing/Supabase Storage** for media
+- **Cloudinary** for media uploads
 
 ## 📊 Database Schema
 
@@ -119,7 +119,7 @@ yarn install
 cp .env.example .env.local
 
 # Set up the database
-# Copy the contents of scripts/complete-database-schema.sql
+# Run scripts/complete-database-setup.sql and scripts/launch-schema-alignment.sql
 # and run it in your Supabase SQL editor
 
 # Configure Cloudinary
@@ -210,7 +210,6 @@ interface Loop {
 // Authentication
 POST /api/auth/login          // User login
 POST /api/auth/signup         // User registration
-POST /api/auth/logout         // User logout
 
 // Loops (Content)
 GET  /api/loops              // Fetch loops feed

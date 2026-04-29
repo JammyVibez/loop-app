@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CheckCircle, XCircle, Mail, RefreshCw, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { createClient } from "@supabase/supabase-js"
+
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 export default function EmailVerificationPage() {
   const searchParams = useSearchParams()
@@ -22,21 +25,23 @@ export default function EmailVerificationPage() {
 
   useEffect(() => {
     if (token) {
-      // Simulate email verification API call
       const verifyEmail = async () => {
         try {
-          // Mock API call
-          await new Promise((resolve) => setTimeout(resolve, 2000))
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: token,
+            type: "email",
+          })
 
-          // Simulate different outcomes based on token
-          if (token === "expired") {
-            setVerificationStatus("expired")
-          } else if (token === "invalid") {
-            setVerificationStatus("error")
-          } else {
-            setVerificationStatus("success")
+          if (error) {
+            if (error.message.toLowerCase().includes("expired")) {
+              setVerificationStatus("expired")
+              return
+            }
+            throw error
           }
-        } catch (error) {
+
+          setVerificationStatus("success")
+        } catch {
           setVerificationStatus("error")
         }
       }
@@ -48,12 +53,18 @@ export default function EmailVerificationPage() {
   const handleResendVerification = async (e: React.FormEvent) => {
     e.preventDefault()
     setResendLoading(true)
+    setResendSuccess(false)
 
     try {
-      // Mock API call to resend verification email
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: resendEmail,
+      })
+      if (error) {
+        throw error
+      }
       setResendSuccess(true)
-    } catch (error) {
+    } catch {
       console.error("Failed to resend verification email")
     } finally {
       setResendLoading(false)

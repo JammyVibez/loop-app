@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { createServerClient } from "@/utils/supabase/server" // Assuming this path is correct for server-side Supabase client
+import { createServerClient } from "@/lib/supabase"
 
 // Initialize Supabase client for server-side operations
 // const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
