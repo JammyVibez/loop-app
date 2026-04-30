@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getStripeServer } from "@/lib/stripe-server"
 
 async function getUserFromToken(token: string) {
   try {
@@ -52,10 +53,10 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const Stripe = (await import('stripe')).default
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2023-10-16',
-    })
+    const stripe = await getStripeServer()
+    if (!stripe) {
+      return NextResponse.json({ error: "Stripe is not configured" }, { status: 503 })
+    }
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount, // Amount in cents
@@ -89,9 +90,10 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error("Error creating payment intent:", error)
+    const message = error instanceof Error ? error.message : String(error)
     return NextResponse.json({
       error: "Failed to create payment intent",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: process.env.NODE_ENV === "development" ? message : undefined,
     }, { status: 500 })
   }
 }

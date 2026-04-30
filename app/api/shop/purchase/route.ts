@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { getStripeServer } from '@/lib/stripe-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -142,17 +143,13 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ success: true })
     } else if (payment_method === 'stripe') {
-      if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.includes('your_stripe')) {
+      const stripe = await getStripeServer()
+      if (!stripe) {
         return NextResponse.json(
           { success: false, error: 'Stripe is not configured for this environment' },
           { status: 503 },
         )
       }
-
-      const Stripe = (await import('stripe')).default
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-        apiVersion: '2023-10-16',
-      })
 
       try {
         const paymentIntent = await stripe.paymentIntents.create({
