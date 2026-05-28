@@ -11,7 +11,7 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
   const pathname = usePathname()
   const [redirecting, setRedirecting] = useState(false)
 
-  const publicRoutes = ["/", "/login", "/signup", "/landing", "/terms", "/privacy", "/reset-password", "/verify-email", "/onboarding"]
+  const publicRoutes = ["/", "/login", "/signup", "/landing", "/terms", "/privacy", "/reset-password", "/verify-email"]
   const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
 
   useEffect(() => {
@@ -53,10 +53,6 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
 
   if (redirecting) {
     return <PageLoading message="Redirecting..." />
-  }
-
-  if (user && !user.bio && pathname !== "/onboarding") {
-    return <PageLoading message="Setting up your profile..." />
   }
 
   return <>{children}</>

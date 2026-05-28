@@ -14,18 +14,19 @@ export function WelcomeBanner() {
   if (dismissed || !user) return null
 
   return (
-    <Card className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-purple-200 dark:border-purple-800">
-      <CardContent className="p-6">
+    <Card className="relative overflow-hidden border-white/10 bg-[#0a1020]/85 shadow-2xl shadow-violet-950/20">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.28),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.18),transparent_38%)]" />
+      <CardContent className="relative p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="p-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-400 shadow-lg shadow-violet-500/25">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              <h3 className="text-lg font-semibold text-white">
                 Welcome back, {user.display_name}! 🎉
               </h3>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-slate-400">
                 You have{" "}
                 <Badge variant="secondary" className="mx-1">
                   <Coins className="w-3 h-3 mr-1" />
@@ -39,6 +40,7 @@ export function WelcomeBanner() {
             <Button
               variant="outline"
               size="sm"
+              className="rounded-full border-white/15 bg-white/[0.04] text-slate-100 hover:bg-white/10"
               onClick={() => window.location.href = "/shop"}
             >
               <Gift className="w-4 h-4 mr-2" />
@@ -47,6 +49,7 @@ export function WelcomeBanner() {
             <Button
               variant="ghost"
               size="sm"
+              className="rounded-full text-slate-400 hover:bg-white/10 hover:text-white"
               onClick={() => setDismissed(true)}
             >
               <X className="w-4 h-4" />

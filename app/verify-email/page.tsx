@@ -9,21 +9,26 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CheckCircle, XCircle, Mail, RefreshCw, ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import { createClient } from "@supabase/supabase-js"
+import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+const supabase = getSupabaseBrowserClient()
 
 export default function EmailVerificationPage() {
   const searchParams = useSearchParams()
-  const token = searchParams.get("token")
+  const token = searchParams.get("token") || searchParams.get("token_hash")
   const email = searchParams.get("email")
 
-  const [verificationStatus, setVerificationStatus] = useState<"pending" | "success" | "error" | "expired">("pending")
+  const [verificationStatus, setVerificationStatus] = useState<"awaiting" | "pending" | "success" | "error" | "expired">(token ? "pending" : "awaiting")
   const [resendEmail, setResendEmail] = useState("")
   const [resendLoading, setResendLoading] = useState(false)
   const [resendSuccess, setResendSuccess] = useState(false)
 
   useEffect(() => {
+    if (!token) {
+      setVerificationStatus("awaiting")
+      return
+    }
+
     if (token) {
       const verifyEmail = async () => {
         try {
@@ -73,6 +78,36 @@ export default function EmailVerificationPage() {
 
   const renderVerificationContent = () => {
     switch (verificationStatus) {
+      case "awaiting":
+        return (
+          <div className="text-center">
+            <Mail className="h-16 w-16 text-cyan-400 mx-auto mb-4" />
+            <h2 className="text-2xl font-semibold mb-2">Check your inbox</h2>
+            <p className="text-muted-foreground mb-6">
+              We sent a verification link{email ? ` to ${email}` : ""}. Open it to activate your Loop account.
+            </p>
+            <form onSubmit={handleResendVerification} className="space-y-4">
+              <Input
+                type="email"
+                value={resendEmail}
+                onChange={(e) => setResendEmail(e.target.value)}
+                placeholder="Enter your email to resend"
+                required
+              />
+              <Button type="submit" className="w-full" disabled={resendLoading}>
+                {resendLoading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  "Resend verification email"
+                )}
+              </Button>
+            </form>
+          </div>
+        )
+
       case "pending":
         return (
           <div className="text-center">
@@ -173,9 +208,12 @@ export default function EmailVerificationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card>
+    <div className="relative min-h-screen overflow-hidden bg-[#030712] text-slate-100 flex items-center justify-center p-4">
+      <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-40" />
+      <div className="landing-aurora-blob pointer-events-none absolute -left-1/4 top-[-20%] h-[70vmin] w-[70vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.45),transparent_65%)] blur-3xl" />
+      <div className="landing-aurora-blob pointer-events-none absolute -right-1/4 top-[10%] h-[60vmin] w-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.35),transparent_65%)] blur-3xl [animation-delay:-6s]" />
+      <div className="relative z-10 w-full max-w-md">
+        <Card className="landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
           <CardHeader>
             <div className="flex items-center gap-2 mb-2">
               <Link href="/">

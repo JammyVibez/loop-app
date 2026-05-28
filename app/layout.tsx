@@ -10,6 +10,7 @@ import { Theme3DProvider } from "../providers/theme-3d-provider"
 // import { RealtimeProvider } from "@/providers/realtime-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { OnboardingRedirect } from "@/components/onboarding-redirect"
+import { AppBackground } from "@/components/layout/app-background"
 import { checkEnvironmentVariables, logEnvironmentStatus, validateEnvironment } from "@/lib/env-check"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -102,7 +103,8 @@ export default function RootLayout({
             <AuthProvider>
               {/* Removed RealtimeProvider */}
               <OnboardingRedirect>
-                <div className="min-h-screen bg-background text-foreground">
+                <div className="min-h-screen bg-[#030712] text-slate-100 selection:bg-violet-500/30 selection:text-white">
+                  <AppBackground />
                   <div id="theme-environment" className="fixed inset-0 pointer-events-none z-[-1]" />
                   <div className="relative z-10">{children}</div>
                   <div id="performance-monitor" className="hidden" />

@@ -27,7 +27,7 @@ export default function HomePage() {
 
   return (
     <Theme3DProvider>
-      <div className="min-h-screen bg-gradient-to-br from-[var(--theme-bg-start,#faf5ff)] via-[var(--theme-bg-mid,#ffffff)] to-[var(--theme-bg-end,#eff6ff)] dark:from-[var(--theme-bg-dark-start,#111827)] dark:via-[var(--theme-bg-dark-mid,#1f2937)] dark:to-[var(--theme-bg-dark-end,#111827)] transition-colors duration-500">
+      <div className="min-h-screen bg-transparent text-slate-100 transition-colors duration-500">
         <Header />
 
         <main className="container mx-auto px-2 sm:px-4 py-3 sm:py-6">

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -13,21 +14,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Search,
-  Bell,
-  MessageCircle,
-  Settings,
-  User,
-  LogOut,
-  Plus,
-  Coins,
-  Crown,
-  Menu,
-} from "lucide-react"
+import { Search, MessageCircle, Settings, User, LogOut, Plus, Coins, Crown, Sparkles } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
-import Link from "next/link"
+
+function LogoMark() {
+  return (
+    <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-400 p-[1px] shadow-lg shadow-violet-500/25 transition-transform duration-300 group-hover:scale-105">
+      <div className="flex h-full w-full items-center justify-center rounded-2xl bg-[#0b1220] text-sm font-bold tracking-tight text-white">
+        L
+      </div>
+    </div>
+  )
+}
 
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -51,23 +50,26 @@ export function Header() {
 
   if (!user) {
     return (
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">L</span>
+      <header className="sticky top-0 z-50 w-full border-b border-white/[0.06] bg-[#030712]/75 backdrop-blur-xl">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
+          <Link href="/" className="group flex items-center gap-3">
+            <LogoMark />
+            <div className="flex flex-col leading-tight">
+              <span className="text-lg font-semibold tracking-tight text-white">Loop</span>
+              <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-slate-500">Social OS</span>
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              Loop
-            </span>
           </Link>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/login">
-              <Button variant="ghost">Log In</Button>
+              <Button variant="ghost" className="text-slate-300 hover:bg-white/5 hover:text-white">
+                Log In
+              </Button>
             </Link>
             <Link href="/signup">
-              <Button>Sign Up</Button>
+              <Button className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-5 font-semibold text-white shadow-lg shadow-violet-600/30 hover:from-violet-500 hover:to-cyan-400">
+                Sign Up
+              </Button>
             </Link>
           </div>
         </div>
@@ -76,126 +78,102 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-2 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
-          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-            <span className="text-white font-bold text-xs sm:text-sm">L</span>
+    <header className="sticky top-0 z-50 w-full border-b border-white/[0.06] bg-[#030712]/75 backdrop-blur-xl supports-[backdrop-filter]:bg-[#030712]/70">
+      <div className="container mx-auto flex h-16 items-center justify-between gap-3 px-3 sm:px-4 lg:px-6">
+        <Link href="/" className="group flex shrink-0 items-center gap-3">
+          <LogoMark />
+          <div className="hidden flex-col leading-tight sm:flex">
+            <span className="text-lg font-semibold tracking-tight text-white">Loop</span>
+            <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-slate-500">Social OS</span>
           </div>
-          <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-            Loop
-          </span>
         </Link>
 
-        {/* Search Bar - Hidden on mobile, shown on tablet+ */}
-        <div className="hidden md:flex flex-1 max-w-md mx-4 lg:mx-8">
-          <form onSubmit={handleSearch} className="relative w-full">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <div className="hidden flex-1 justify-center md:flex">
+          <form onSubmit={handleSearch} className="relative w-full max-w-xl">
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <Input
               type="text"
-              placeholder="Search loops, users, circles..."
+              placeholder="Search loops, people, circles..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 w-full"
+              className="h-11 rounded-full border-white/10 bg-white/[0.04] pl-11 pr-4 text-slate-100 placeholder:text-slate-500 shadow-inner shadow-black/20 backdrop-blur focus-visible:ring-cyan-400/50"
             />
           </form>
         </div>
 
-        {/* Mobile Search Button */}
-        <div className="md:hidden">
-          <Link href="/search">
-            <Button variant="ghost" size="sm">
-              <Search className="w-4 h-4" />
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <Link href="/create">
+            <Button size="sm" className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-3 font-semibold text-white shadow-lg shadow-violet-600/25 hover:from-violet-500 hover:to-cyan-400 sm:px-4">
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Create</span>
             </Button>
           </Link>
-        </div>
 
-        {/* Navigation */}
-        <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4">
-          {/* Create Button - Hidden text on mobile */}
-          <Button size="sm" className="bg-gradient-to-r from-purple-500 to-blue-500">
-            <Plus className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Create</span>
-          </Button>
-
-          {/* Loop Coins - Hidden on mobile */}
           <Link href="/shop" className="hidden sm:block">
-            <Button variant="outline" size="sm" className="flex items-center space-x-2">
-              <Coins className="w-4 h-4 text-yellow-500" />
-              <span className="font-semibold hidden lg:inline">{user.loop_coins.toLocaleString()}</span>
+            <Button variant="outline" size="sm" className="rounded-full border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/10 hover:text-white">
+              <Coins className="mr-2 h-4 w-4 text-yellow-300" />
+              <span className="hidden font-semibold lg:inline">{user.loop_coins.toLocaleString()}</span>
             </Button>
           </Link>
 
-          {/* Messages */}
           <Link href="/messages">
-            <Button variant="ghost" size="sm">
-              <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Button variant="ghost" size="sm" className="rounded-full text-slate-300 hover:bg-white/10 hover:text-white">
+              <MessageCircle className="h-5 w-5" />
             </Button>
           </Link>
 
-          {/* Notifications */}
           <NotificationDropdown />
 
-          {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-6 w-6 sm:h-8 sm:w-8 rounded-full">
-                <Avatar className="h-6 w-6 sm:h-8 sm:w-8">
+              <Button variant="ghost" className="relative h-9 w-9 rounded-full border border-white/10 bg-white/[0.04] p-0 hover:bg-white/10">
+                <Avatar className="h-8 w-8">
                   <AvatarImage src={user.avatar_url} alt={user.display_name} />
-                  <AvatarFallback className="text-xs sm:text-sm">
+                  <AvatarFallback className="bg-gradient-to-br from-violet-600 to-cyan-500 text-xs text-white">
                     {user.display_name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 {user.is_premium && (
-                  <Crown className="absolute -top-1 -right-1 w-2 h-2 sm:w-3 sm:h-3 text-yellow-500" />
+                  <Crown className="absolute -right-1 -top-1 h-3.5 w-3.5 text-yellow-300 drop-shadow" />
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
+            <DropdownMenuContent className="w-64 border-white/10 bg-[#0a1020]/95 text-slate-100 shadow-2xl shadow-black/40 backdrop-blur-xl" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <p className="text-sm font-medium leading-none">
-                      {user.display_name}
-                    </p>
-                    {user.is_verified && (
-                      <Badge variant="secondary" className="text-xs">
-                        ✓
-                      </Badge>
-                    )}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium leading-none">{user.display_name}</p>
+                    {user.is_verified && <Badge className="bg-cyan-500/15 text-cyan-200">✓</Badge>}
                     {user.is_premium && (
-                      <Badge variant="outline" className="text-xs">
-                        Premium
+                      <Badge variant="outline" className="border-yellow-400/30 text-yellow-200">
+                        <Sparkles className="mr-1 h-3 w-3" /> Premium
                       </Badge>
                     )}
                   </div>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    @{user.username}
-                  </p>
+                  <p className="text-xs leading-none text-slate-500">@{user.username}</p>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
+              <DropdownMenuSeparator className="bg-white/10" />
+              <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white">
                 <Link href={`/profile/${user.username}`}>
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white">
                 <Link href="/settings">
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Settings</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white">
                 <Link href="/shop">
                   <Coins className="mr-2 h-4 w-4" />
                   <span>Shop</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
+              <DropdownMenuSeparator className="bg-white/10" />
+              <DropdownMenuItem onClick={handleLogout} className="focus:bg-white/10 focus:text-white">
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
