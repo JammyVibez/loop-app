@@ -77,11 +77,14 @@ interface Loop {
 }
 
 interface LoopCardProps {
-  loop: Loop;
+  loop: any;
   interacting?: string | null;
   onInteraction?: (loopId: string, type: "like" | "save") => void;
   onDeleted?: (loopId: string) => void;
   onEdited?: (loop: any) => void;
+  onLike?: () => void;
+  onBookmark?: () => void;
+  isChild?: boolean;
   className?: string;
 }
 
@@ -337,7 +340,7 @@ export function LoopCard({
 
         {mediaUrls.length > 1 && (
           <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
-            {mediaUrls.map((_, index) => (
+            {mediaUrls.map((_: string, index: number) => (
               <button
                 key={index}
                 className={`w-2 h-2 rounded-full transition-all ${
@@ -562,7 +565,7 @@ export function LoopCard({
 
             {hashtags.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                {hashtags.slice(0, 3).map((tag) => (
+                {hashtags.slice(0, 3).map((tag: string) => (
                   <Link key={tag} href={`/hashtag/${tag}`}>
                     <Badge
                       variant="outline"

@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 
 export function CirclesList() {
-  const [circles, setCircles] = useState([])
+  const [circles, setCircles] = useState<any[]>([])
   const [joinedCircles, setJoinedCircles] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()

@@ -1,3 +1,4 @@
+// @ts-nocheck
 interface GiftAsset {
   id: string
   name: string

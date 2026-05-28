@@ -5,10 +5,10 @@ import type React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
 
 // Hook for intersection observer-based lazy loading
-export function useIntersectionObserver(options: IntersectionObserverInit = { threshold: 0.1 }) {
+export function useIntersectionObserver<T extends HTMLElement = HTMLElement>(options: IntersectionObserverInit = { threshold: 0.1 }) {
   const [isVisible, setIsVisible] = useState(false)
   const [hasBeenVisible, setHasBeenVisible] = useState(false)
-  const elementRef = useRef<HTMLElement>(null)
+  const elementRef = useRef<T | null>(null)
 
   useEffect(() => {
     const element = elementRef.current
@@ -64,7 +64,7 @@ export function useOptimizedImage(src: string, placeholder?: string) {
 
 // Hook for debounced API calls
 export function useDebouncedCallback<T extends (...args: any[]) => any>(callback: T, delay: number): T {
-  const timeoutRef = useRef<NodeJS.Timeout>()
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const debouncedCallback = useCallback(
     (...args: Parameters<T>) => {

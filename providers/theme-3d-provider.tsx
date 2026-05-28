@@ -38,6 +38,10 @@ interface Theme3DContextType {
   setTheme: (themeId: string) => void
   customizeTheme: (customizations: Partial<Theme3D>) => void
   resetTheme: () => void
+  applyTheme: (theme: any) => void
+  previewTheme: (theme: any) => void
+  stopPreview: () => void
+  isPreviewMode: boolean
 }
 
 const defaultTheme: Theme3D = {
@@ -230,6 +234,40 @@ export function Theme3DProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("loop-3d-custom-theme")
   }
 
+  const coerceTheme = (theme: any): Theme3D | null => {
+    if (typeof theme === "string") {
+      return availableThemes.find((item) => item.id === theme) || null
+    }
+
+    if (!theme) return null
+
+    return {
+      ...defaultTheme,
+      ...theme,
+      colors: { ...defaultTheme.colors, ...(theme.colors || {}) },
+      effects: { ...defaultTheme.effects, ...(theme.effects || theme.effects3D || {}) },
+      materials: { ...defaultTheme.materials, ...(theme.materials || {}) },
+      lighting: { ...defaultTheme.lighting, ...(theme.lighting || {}) },
+    }
+  }
+
+  const applyTheme = (theme: any) => {
+    const nextTheme = coerceTheme(theme)
+    if (!nextTheme) return
+    setCurrentTheme(nextTheme)
+    localStorage.setItem("loop-3d-theme", nextTheme.id)
+  }
+
+  const previewTheme = (theme: any) => {
+    const nextTheme = coerceTheme(theme)
+    if (nextTheme) setCurrentTheme(nextTheme)
+  }
+
+  const stopPreview = () => {
+    const savedThemeId = localStorage.getItem("loop-3d-theme")
+    if (savedThemeId) setTheme(savedThemeId)
+  }
+
   return (
     <Theme3DContext.Provider
       value={{
@@ -238,6 +276,10 @@ export function Theme3DProvider({ children }: { children: React.ReactNode }) {
         setTheme,
         customizeTheme,
         resetTheme,
+        applyTheme,
+        previewTheme,
+        stopPreview,
+        isPreviewMode: false,
       }}
     >
       {children}

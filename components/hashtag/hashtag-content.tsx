@@ -16,7 +16,13 @@ interface HashtagContentProps {
 export function HashtagContent({ tag }: HashtagContentProps) {
   const [sortBy, setSortBy] = useState("recent")
   const [isFollowing, setIsFollowing] = useState(false)
-  const [hashtagData, setHashtagData] = useState({
+  const [hashtagData, setHashtagData] = useState<{
+    count: number
+    trending: boolean
+    description: string
+    relatedTags: string[]
+    loops: any[]
+  }>({
     count: 0,
     trending: false,
     description: `Explore loops tagged with #${tag}`,

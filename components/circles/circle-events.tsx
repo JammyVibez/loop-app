@@ -17,7 +17,7 @@ interface CircleEventsProps {
 }
 
 export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
-  const [events, setEvents] = useState([])
+  const [events, setEvents] = useState<any[]>([])
   const [showCreateEvent, setShowCreateEvent] = useState(false)
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()

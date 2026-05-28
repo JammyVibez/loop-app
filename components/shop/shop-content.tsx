@@ -116,7 +116,7 @@ export function ShopContent() {
       const data = await response.json()
 
       if (data.success) {
-        const ownedItemIds = new Set(data.items.map((item: any) => item.item_id))
+        const ownedItemIds = new Set<string>(data.items.map((item: any) => item.item_id))
         setPurchasedItems(ownedItemIds)
       }
     } catch (error) {

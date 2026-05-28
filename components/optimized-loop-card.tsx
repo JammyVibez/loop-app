@@ -40,7 +40,7 @@ interface OptimizedLoopCardProps {
 
 export const OptimizedLoopCard = memo<OptimizedLoopCardProps>(({ loop, onLike, onBookmark, priority = "low" }) => {
   const [showFullContent, setShowFullContent] = useState(false)
-  const { elementRef, isVisible, hasBeenVisible } = useIntersectionObserver({
+  const { elementRef, isVisible, hasBeenVisible } = useIntersectionObserver<HTMLDivElement>({
     threshold: 0.1,
     rootMargin: "50px",
   })

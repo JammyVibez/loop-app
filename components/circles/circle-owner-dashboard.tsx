@@ -291,6 +291,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
       
       setLoading(true)
       try {
+        let loadedCircleData: any = null
         // Load circle details
         const circleResponse = await fetch(`/api/circles/${circleId}`, {
           headers: { 'Authorization': `Bearer ${user.token}` }
@@ -298,6 +299,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         
         if (circleResponse.ok) {
           const circleData = await circleResponse.json()
+          loadedCircleData = circleData
           setCircle(circleData.circle)
           setEditCircleForm({
             name: circleData.circle.name,
@@ -351,7 +353,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         }
 
         // Load pending members if circle is private
-        if (circleData && circleData.circle && circleData.circle.is_private) {
+        if (loadedCircleData?.circle?.is_private) {
           loadPendingMembers()
         }
       } catch (error) {
