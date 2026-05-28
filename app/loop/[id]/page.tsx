@@ -121,10 +121,13 @@ export default function LoopDetailPage() {
           .eq("id", loopData.parent_loop_id)
           .single()
         if (parentData) {
+          const parentAuthor = Array.isArray((parentData as any).author)
+            ? (parentData as any).author[0]
+            : (parentData as any).author
           parentLoop = {
             id: parentData.id,
             title: parentData.content_title || "Untitled Loop",
-            author: parentData.author?.username || "",
+            author: parentAuthor?.username || "",
           }
         }
       }
