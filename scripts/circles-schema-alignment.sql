@@ -59,3 +59,50 @@ $$;
 alter publication supabase_realtime add table public.circle_room_messages;
 alter publication supabase_realtime add table public.circle_posts;
 alter publication supabase_realtime add table public.circle_members;
+
+
+create table if not exists public.circle_bots (
+  id uuid primary key default gen_random_uuid(),
+  circle_id uuid references public.circles(id) on delete cascade not null,
+  name text not null,
+  bot_type text not null,
+  enabled boolean not null default true,
+  configuration jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.circle_challenges (
+  id uuid primary key default gen_random_uuid(),
+  circle_id uuid references public.circles(id) on delete cascade not null,
+  title text not null,
+  description text default '',
+  challenge_type text not null default 'creative',
+  reward_coins integer not null default 0,
+  starts_at timestamptz not null default now(),
+  ends_at timestamptz,
+  created_by uuid references public.profiles(id) on delete set null,
+  status text not null default 'active',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.circle_room_presence (
+  id uuid primary key default gen_random_uuid(),
+  circle_id uuid references public.circles(id) on delete cascade not null,
+  room_id uuid references public.circle_rooms(id) on delete cascade not null,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  media_state jsonb not null default '{}'::jsonb,
+  last_seen_at timestamptz not null default now(),
+  unique(room_id, user_id)
+);
+
+create table if not exists public.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  endpoint text not null unique,
+  subscription jsonb not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter publication supabase_realtime add table public.circle_room_presence;

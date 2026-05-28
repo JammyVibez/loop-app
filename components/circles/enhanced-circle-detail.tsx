@@ -42,6 +42,7 @@ import {
 } from "lucide-react"
 import { RealtimeCircleChat } from "@/components/circles/realtime-circle-chat"
 import { CircleEvents } from "@/components/circles/circle-events"
+import { CommunityAdvancedPanel } from "@/components/circles/community-advanced-panel"
 import { GiftModal } from "@/components/gifting/gift-modal"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -571,6 +572,10 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
               <Star className="w-4 h-4 mr-2" />
               About
             </TabsTrigger>
+            <TabsTrigger value="studio">
+              <Settings className="w-4 h-4 mr-2" />
+              Studio
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="posts" className="space-y-6">
@@ -911,6 +916,13 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="studio" className="space-y-6">
+            <CommunityAdvancedPanel
+              circleId={circleId}
+              canManage={userRole === "owner" || userRole === "admin" || userRole === "moderator"}
+            />
           </TabsContent>
         </Tabs>
 

@@ -8,7 +8,9 @@
     "lint": "next lint",
     "start": "next start",
     "test:critical": "node scripts/critical-smoke.mjs",
-    "test": "npm run test:critical"
+    "test": "npm run test:critical",
+    "db:setup:production": "node scripts/run-production-setup.mjs",
+    "db:setup:production:seed": "node scripts/run-production-setup.mjs --with-seed"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
