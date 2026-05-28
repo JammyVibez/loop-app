@@ -17,8 +17,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  Edit,
-  Trash2,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader } from "./ui/card";
@@ -73,24 +71,20 @@ interface Loop {
   engagement_score?: number;
   gifts_received?: number;
   total_gift_value?: number;
-  parent_loop_id?: string;
+  parent_loop_id?: string | null;
 }
 
 interface LoopCardProps {
   loop: Loop;
-  interacting?: string | null;
-  onInteraction?: (loopId: string, type: "like" | "save") => void;
-  onDeleted?: (loopId: string) => void;
-  onEdited?: (loop: any) => void;
+  interacting: string | null;
+  onInteraction: (loopId: string, type: "like" | "save") => void;
   className?: string;
 }
 
 export function LoopCard({
   loop,
-  interacting = null,
-  onInteraction = () => undefined,
-  onDeleted,
-  onEdited,
+  interacting,
+  onInteraction,
   className = "",
 }: LoopCardProps) {
   const [showFullContent, setShowFullContent] = useState(false);
@@ -135,59 +129,9 @@ export function LoopCard({
 
   // Handle branch creation
   const handleBranch = () => {
-    window.location.href = `/loop/${loop.id}`;
-  };
-
-  const handleEdit = async () => {
-    if (!currentUser?.token || currentUser.id !== loop.author_id) return;
-
-    const nextContent = window.prompt("Edit your loop", content);
-    if (nextContent === null || nextContent.trim() === content.trim()) return;
-
-    const response = await fetch(`/api/loops/${loop.id}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${currentUser.token}`,
-      },
-      body: JSON.stringify({ content: nextContent }),
-    });
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      toast({
-        title: "Could not update loop",
-        description: data.error || "Please try again.",
-        variant: "destructive",
-      });
-      return;
+    if (onInteraction) {
+      onInteraction(loop.id, "branch");
     }
-
-    onEdited?.(data.loop);
-    toast({ title: "Loop updated" });
-  };
-
-  const handleDelete = async () => {
-    if (!currentUser?.token || currentUser.id !== loop.author_id) return;
-    if (!window.confirm("Delete this loop? This cannot be undone.")) return;
-
-    const response = await fetch(`/api/loops/${loop.id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${currentUser.token}` },
-    });
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      toast({
-        title: "Could not delete loop",
-        description: data.error || "Please try again.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    onDeleted?.(loop.id);
-    toast({ title: "Loop deleted" });
   };
 
   const getCardStyle = () => {
@@ -516,18 +460,6 @@ export function LoopCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {currentUser?.id === loop.author_id && (
-                  <>
-                    <DropdownMenuItem onClick={handleEdit}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Loop
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleDelete} className="text-red-500 focus:text-red-500">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Loop
-                    </DropdownMenuItem>
-                  </>
-                )}
                 <DropdownMenuItem onClick={() => setShowGiftModal(true)}>
                   <Gift className="h-4 w-4 mr-2" />
                   Send Gift
