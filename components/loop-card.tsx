@@ -76,15 +76,15 @@ interface Loop {
 
 interface LoopCardProps {
   loop: Loop;
-  interacting: string | null;
-  onInteraction: (loopId: string, type: "like" | "save") => void;
+  interacting?: string | null;
+  onInteraction?: (loopId: string, type: "like" | "save") => void;
   className?: string;
 }
 
 export function LoopCard({
   loop,
-  interacting,
-  onInteraction,
+  interacting = null,
+  onInteraction = () => undefined,
   className = "",
 }: LoopCardProps) {
   const [showFullContent, setShowFullContent] = useState(false);
