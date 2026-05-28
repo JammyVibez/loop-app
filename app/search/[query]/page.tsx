@@ -128,7 +128,7 @@ export default function SearchPage({ params }: SearchPageProps) {
             <p className="text-gray-600 dark:text-gray-400">Results for "{decodedQuery}"</p>
           </div>
 
-          <SearchResults query={decodedQuery} results={results} loading={loading} />
+          <SearchResults query={decodedQuery} />
         </div>
       </main>
     </div>
