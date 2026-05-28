@@ -20,6 +20,11 @@ interface User {
   is_admin: boolean
   theme_data?: any
   interests?: string[]
+  phone?: string
+  website?: string
+  location?: string
+  profile_theme?: any
+  verification_level?: string
   onboarding_completed?: boolean
   token?: string
   access_token?: string
@@ -201,7 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await hydrateSessionUser()
   }
 
-  const getAuthHeader = () => {
+  const getAuthHeader = (): Record<string, string> => {
     if (!user?.access_token) {
       return {}
     }
