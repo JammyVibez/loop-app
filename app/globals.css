@@ -211,3 +211,124 @@
     transform: rotate(360deg);
   }
 }
+
+/* —— Landing page: depth, aurora, motion (respects .reduce-motion) —— */
+@keyframes landing-aurora {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 0.55;
+  }
+  33% {
+    transform: translate(4%, -3%) rotate(8deg) scale(1.05);
+    opacity: 0.75;
+  }
+  66% {
+    transform: translate(-3%, 4%) rotate(-6deg) scale(1.02);
+    opacity: 0.65;
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 0.55;
+  }
+}
+
+@keyframes landing-float-y {
+  0%,
+  100% {
+    transform: translateY(0) rotateX(8deg) rotateY(-12deg);
+  }
+  50% {
+    transform: translateY(-18px) rotateX(12deg) rotateY(8deg);
+  }
+}
+
+@keyframes landing-orbit {
+  0% {
+    transform: rotate(0deg) translateX(120px) rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg) translateX(120px) rotate(-360deg);
+  }
+}
+
+@keyframes landing-shimmer {
+  0% {
+    background-position: 200% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}
+
+@keyframes landing-grid-fade {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.landing-aurora-blob {
+  animation: landing-aurora 18s ease-in-out infinite;
+}
+
+.landing-hero-3d {
+  transform-style: preserve-3d;
+  animation: landing-float-y 7s ease-in-out infinite;
+}
+
+.landing-orbit-dot {
+  animation: landing-orbit 22s linear infinite;
+}
+
+.landing-shimmer-text {
+  background: linear-gradient(
+    110deg,
+    hsl(210 40% 96%) 0%,
+    hsl(263 90% 78%) 25%,
+    hsl(190 95% 70%) 50%,
+    hsl(263 90% 78%) 75%,
+    hsl(210 40% 96%) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: landing-shimmer 6s linear infinite;
+}
+
+.landing-grid-bg {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 64px 64px;
+  animation: landing-grid-fade 10s ease-in-out infinite;
+}
+
+.landing-card-3d {
+  transform-style: preserve-3d;
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s ease;
+}
+
+.landing-card-3d:hover {
+  transform: translateY(-6px) rotateX(4deg) rotateY(-4deg) scale(1.01);
+  box-shadow:
+    0 24px 48px -12px rgba(99, 102, 241, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+
+html.reduce-motion .landing-aurora-blob,
+html.reduce-motion .landing-hero-3d,
+html.reduce-motion .landing-orbit-dot,
+html.reduce-motion .landing-shimmer-text,
+html.reduce-motion .landing-grid-bg {
+  animation: none !important;
+}
+
+html.reduce-motion .landing-card-3d:hover {
+  transform: none;
+}

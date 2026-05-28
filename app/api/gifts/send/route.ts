@@ -1,14 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase"
+import { createServerClient } from "@/lib/supabase"
 
 export async function POST(request: NextRequest) {
   try {
     const { recipient_id, gift_item_id, message, is_anonymous, context, effects } = await request.json()
-    const supabase = createClient()
+    const supabase = createServerClient()
 
     // Get user from auth header
     const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
+    const token = authHeader?.replace("Bearer ", "") ?? null
 
     if (!token) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })

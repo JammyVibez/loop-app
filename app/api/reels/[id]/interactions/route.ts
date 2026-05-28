@@ -3,12 +3,12 @@ import { createServerClient } from "@/lib/supabase"
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: reelId } = await params
     const supabase = createServerClient()
-    const reelId = params.id
-    
+
     // Get user from session
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
@@ -141,11 +141,11 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createServerClient()
-    const reelId = params.id
+    const { id: reelId } = await params
     const { searchParams } = new URL(request.url)
     
     const type = searchParams.get('type')

@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     
     // Get user from auth header
     const authHeader = request.headers.get('authorization')
-    const token = authHeader?.replace('Bearer ', '')
+    const token = authHeader?.replace('Bearer ', '') ?? null
     
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

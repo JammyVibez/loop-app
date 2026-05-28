@@ -36,18 +36,39 @@ export async function POST(request: NextRequest) {
       password,
     })
 
+    let createdUser = authData.user
+
+    // In local development, Supabase email rate limits can block iterative QA.
+    // Fallback to admin createUser so testing can proceed without waiting.
     if (authError) {
-      return NextResponse.json({ error: authError.message }, { status: 400 })
+      const isDev = process.env.NODE_ENV !== "production"
+      const isRateLimited = authError.message.toLowerCase().includes("rate limit")
+
+      if (isDev && isRateLimited) {
+        const { data: adminData, error: adminError } = await supabase.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+        })
+
+        if (adminError) {
+          return NextResponse.json({ error: adminError.message }, { status: 400 })
+        }
+
+        createdUser = adminData.user ?? null
+      } else {
+        return NextResponse.json({ error: authError.message }, { status: 400 })
+      }
     }
 
-    if (!authData.user) {
+    if (!createdUser) {
       return NextResponse.json({ error: "Failed to create user" }, { status: 400 })
     }
 
     // Create profile using only stable fields.
     // Extra fields should be added later via dedicated migrations/features.
     const { error: profileError } = await supabase.from("profiles").insert({
-      id: authData.user.id,
+      id: createdUser.id,
       email,
       username,
       display_name,
@@ -58,7 +79,6 @@ export async function POST(request: NextRequest) {
       is_premium: false,
       is_verified: false,
       is_admin: false,
-      theme_data: null,
       privacy_settings: { profile_visibility: "public", message_privacy: "everyone" },
       notification_settings: { email: true, push: true, in_app: true },
       created_at: new Date().toISOString(),
@@ -66,6 +86,20 @@ export async function POST(request: NextRequest) {
     })
 
     if (profileError) {
+      // Some deployments auto-create a profile via DB trigger.
+      // If that happened first, don't fail signup.
+      if (profileError.code === "23505") {
+        return NextResponse.json({
+          message: "Account created successfully. Please check your email to verify your account.",
+          user: {
+            id: createdUser.id,
+            email,
+            username,
+            display_name,
+          },
+        })
+      }
+
       console.error("Profile creation failed after auth signup:", profileError)
       return NextResponse.json(
         {
@@ -79,7 +113,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       message: "Account created successfully. Please check your email to verify your account.",
       user: {
-        id: authData.user.id,
+        id: createdUser.id,
         email,
         username,
         display_name,

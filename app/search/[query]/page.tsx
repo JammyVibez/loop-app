@@ -1,18 +1,19 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { use, useState, useEffect } from "react"
 import { Header } from "@/components/header"
 import { SearchResults } from "@/components/search/search-results"
 
 interface SearchPageProps {
-  params: {
+  params: Promise<{
     query: string
-  }
+  }>
 }
 
 export default function SearchPage({ params }: SearchPageProps) {
-  const decodedQuery = decodeURIComponent(params.query)
+  const { query } = use(params)
+  const decodedQuery = decodeURIComponent(query)
   const [searchQuery, setSearchQuery] = useState(decodedQuery)
   const [loading, setLoading] = useState(false)
 

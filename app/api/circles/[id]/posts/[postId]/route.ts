@@ -17,10 +17,9 @@ async function getUserFromToken(token: string) {
 }
 
 // Get post details with comments
-export async function GET(request: NextRequest, { params }: { params: { id: string, postId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string, postId: string }> }) {
   try {
-    const circleId = params.id
-    const postId = params.postId
+    const { id: circleId, postId } = await params
 
     // Fetch post with author info
     const { data: post, error: postError } = await supabase
@@ -73,7 +72,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Handle post interactions (like, share, etc.)
-export async function POST(request: NextRequest, { params }: { params: { id: string, postId: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string, postId: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -87,8 +86,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
-    const postId = params.postId
+    const { id: circleId, postId } = await params
     const { action } = await request.json() // like, share, save, etc.
 
     // Check if post exists
@@ -182,7 +180,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 }
 
 // Add a comment to a post
-export async function PUT(request: NextRequest, { params }: { params: { id: string, postId: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string, postId: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -196,8 +194,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
-    const postId = params.postId
+    const { id: circleId, postId } = await params
     const { content, media_url, media_type } = await request.json()
 
     // Check if post exists

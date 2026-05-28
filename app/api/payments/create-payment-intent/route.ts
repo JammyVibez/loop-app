@@ -73,14 +73,15 @@ export async function POST(request: NextRequest) {
 
     // Log payment attempt
     const supabase = createServerClient()
-    await supabase.from('payment_logs').insert({
+    const { error: logError } = await supabase.from('payment_logs').insert({
       user_id: user.id,
       payment_intent_id: paymentIntent.id,
       amount: amount,
       currency: currency,
       status: 'created',
       metadata: metadata
-    }).catch(console.error) // Don't fail if logging fails
+    })
+    if (logError) console.error("Payment log insert:", logError)
 
     return NextResponse.json({
       success: true,

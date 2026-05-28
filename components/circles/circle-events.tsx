@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Calendar, MapPin, Users, Plus, Clock, ExternalLink } from "lucide-react"
 import { CreateEventModal } from "./create-event-modal"
-import { createClient } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 
@@ -26,8 +26,6 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const supabase = createClient()
-
         const { data: eventsData, error } = await supabase
           .from("circle_events")
           .select(`
@@ -96,8 +94,6 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
     }
 
     try {
-      const supabase = createClient()
-
       if (currentlyAttending) {
         const { error } = await supabase
           .from("circle_event_participants")

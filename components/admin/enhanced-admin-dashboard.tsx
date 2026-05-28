@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -117,14 +118,10 @@ export function EnhancedAdminDashboard() {
   const { user } = useAuth()
   const { toast } = useToast()
 
-  useEffect(() => {
-    fetchAdminData()
-  }, [])
-
-  const fetchAdminData = async () => {
+  const fetchAdminData = useCallback(async () => {
     try {
       setLoading(true)
-      
+
       // Fetch admin statistics
       const statsResponse = await fetch('/api/admin/stats', {
         headers: { Authorization: `Bearer ${user?.token}` },
@@ -161,7 +158,11 @@ export function EnhancedAdminDashboard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.token, toast])
+
+  useEffect(() => {
+    fetchAdminData()
+  }, [fetchAdminData])
 
   const handleCreateShopItem = async () => {
     try {
@@ -508,5 +509,202 @@ export function EnhancedAdminDashboard() {
                           </Button>
                         </div>
                       </div>
-                      
-                      <div className="text
+
+                      <div className="text-lg font-semibold truncate">{item.name}</div>
+                      {item.description ? (
+                        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                          {item.description}
+                        </p>
+                      ) : null}
+                      <div className="flex items-center justify-between mt-3 text-sm">
+                        <span className="text-gray-600">
+                          {`$${Number(item.price ?? 0).toFixed(2)}`}
+                        </span>
+                        {item.price_coins != null ? (
+                          <span className="flex items-center gap-1 text-amber-600">
+                            <Coins className="w-3.5 h-3.5" />
+                            {item.price_coins}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2 capitalize">
+                        {item.category} · {item.item_type}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <Card>
+            <CardHeader>
+              <CardTitle>Reports</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Pending reports: {stats.pendingReports}. Open the comprehensive admin dashboard for
+                full moderation workflows.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <Card>
+            <CardHeader>
+              <CardTitle>Analytics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-lg border p-4">
+                  <div className="text-sm text-muted-foreground">Total revenue (est.)</div>
+                  <div className="text-2xl font-bold">
+                    {`$${stats.totalRevenue.toLocaleString()}`}
+                  </div>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <div className="text-sm text-muted-foreground">Active users</div>
+                  <div className="text-2xl font-bold">{stats.activeUsers.toLocaleString()}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <SettingsTabContent />
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={showCreateItemDialog} onOpenChange={setShowCreateItemDialog}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create shop item</DialogTitle>
+            <DialogDescription>Add a new item to the shop catalog.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="shop-name">Name</Label>
+              <Input
+                id="shop-name"
+                value={newShopItem.name}
+                onChange={(e) => setNewShopItem((s) => ({ ...s, name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="shop-desc">Description</Label>
+              <Textarea
+                id="shop-desc"
+                value={newShopItem.description}
+                onChange={(e) => setNewShopItem((s) => ({ ...s, description: e.target.value }))}
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="shop-price">Price (USD)</Label>
+                <Input
+                  id="shop-price"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={newShopItem.price || ""}
+                  onChange={(e) =>
+                    setNewShopItem((s) => ({ ...s, price: parseFloat(e.target.value) || 0 }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="shop-coins">Price (coins)</Label>
+                <Input
+                  id="shop-coins"
+                  type="number"
+                  min={0}
+                  value={newShopItem.price_coins ?? ""}
+                  onChange={(e) =>
+                    setNewShopItem((s) => ({
+                      ...s,
+                      price_coins: parseInt(e.target.value, 10) || 0,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select
+                  value={newShopItem.category}
+                  onValueChange={(v) => setNewShopItem((s) => ({ ...s, category: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="theme">Theme</SelectItem>
+                    <SelectItem value="cosmetic">Cosmetic</SelectItem>
+                    <SelectItem value="boost">Boost</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Item type</Label>
+                <Select
+                  value={newShopItem.item_type}
+                  onValueChange={(v) => setNewShopItem((s) => ({ ...s, item_type: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cosmetic">Cosmetic</SelectItem>
+                    <SelectItem value="theme">Theme</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Rarity</Label>
+              <Select
+                value={newShopItem.rarity}
+                onValueChange={(v) => setNewShopItem((s) => ({ ...s, rarity: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="common">Common</SelectItem>
+                  <SelectItem value="rare">Rare</SelectItem>
+                  <SelectItem value="epic">Epic</SelectItem>
+                  <SelectItem value="legendary">Legendary</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                id="shop-premium"
+                type="checkbox"
+                checked={newShopItem.premium_only}
+                onChange={(e) =>
+                  setNewShopItem((s) => ({ ...s, premium_only: e.target.checked }))
+                }
+                className="h-4 w-4 rounded border"
+              />
+              <Label htmlFor="shop-premium">Premium only</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateItemDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateShopItem}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

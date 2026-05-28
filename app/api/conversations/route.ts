@@ -1,15 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase"
-
-async function getUserFromToken(supabaseUrl: string, supabaseKey: string, token: string) {
-  const supabase = createClient(supabaseUrl, supabaseKey)
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(token)
-  if (error || !user) return null
-  return user
-}
+import { createServerClient } from "@/lib/supabase"
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +9,7 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.replace("Bearer ", "")
-    const supabase = createClient()
+    const supabase = createServerClient()
 
     const {
       data: { user },
@@ -70,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.replace("Bearer ", "")
-    const supabase = createClient()
+    const supabase = createServerClient()
 
     const {
       data: { user },

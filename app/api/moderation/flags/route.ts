@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase";
+import { createServerClient } from "@/lib/supabase";
 
 async function getUserFromToken(token: string) {
   try {
-    const supabase = createClient();
+    const supabase = createServerClient();
     const { data: { user }, error } = await supabase.auth.getUser(token);
     if (error || !user) return null;
     return user;
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create content flag
-    const supabase = createClient();
+    const supabase = createServerClient();
     const { data: flag, error: insertError } = await supabase
       .from("content_flags")
       .insert({
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user is admin or moderator
-    const supabase = createClient();
+    const supabase = createServerClient();
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("is_admin, is_verified")

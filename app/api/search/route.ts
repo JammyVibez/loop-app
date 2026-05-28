@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category")
 
     const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
+    const token = authHeader?.replace("Bearer ", "") ?? null
     const user = await getUserFromToken(token)
 
     if (!query) {

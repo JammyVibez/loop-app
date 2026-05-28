@@ -2,13 +2,14 @@ import { Header } from "@/components/header"
 import { HashtagContent } from "@/components/hashtag/hashtag-content"
 
 interface HashtagPageProps {
-  params: {
+  params: Promise<{
     tag: string
-  }
+  }>
 }
 
-export default function HashtagPage({ params }: HashtagPageProps) {
-  const decodedTag = decodeURIComponent(params.tag)
+export default async function HashtagPage({ params }: HashtagPageProps) {
+  const { tag } = await params
+  const decodedTag = decodeURIComponent(tag)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">

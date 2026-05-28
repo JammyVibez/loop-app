@@ -17,11 +17,9 @@ async function getUserFromToken(token: string) {
 }
 
 // Get message reactions
-export async function GET(request: NextRequest, { params }: { params: { id: string, roomId: string, messageId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string, roomId: string, messageId: string }> }) {
   try {
-    const circleId = params.id
-    const roomId = params.roomId
-    const messageId = params.messageId
+    const { id: circleId, roomId, messageId } = await params
 
     // Check if message exists
     const { data: message } = await supabase
@@ -70,7 +68,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Add or remove reaction
-export async function POST(request: NextRequest, { params }: { params: { id: string, roomId: string, messageId: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string, roomId: string, messageId: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -84,9 +82,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
-    const roomId = params.roomId
-    const messageId = params.messageId
+    const { id: circleId, roomId, messageId } = await params
     const { reactionType } = await request.json()
 
     // Check if message exists
@@ -175,7 +171,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 }
 
 // Delete a specific reaction
-export async function DELETE(request: NextRequest, { params }: { params: { id: string, roomId: string, messageId: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string, roomId: string, messageId: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -189,9 +185,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
-    const roomId = params.roomId
-    const messageId = params.messageId
+    const { id: circleId, roomId, messageId } = await params
     const { searchParams } = new URL(request.url)
     const reactionId = searchParams.get("reactionId")
 

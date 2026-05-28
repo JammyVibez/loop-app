@@ -31,7 +31,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
-import { createClient } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
 
 interface CircleChatProps {
   circleId: string
@@ -60,8 +60,6 @@ export function CircleChat({ circleId, circleName }: CircleChatProps) {
   useEffect(() => {
     const fetchChatRooms = async () => {
       try {
-        const supabase = createClient()
-
         const { data: roomsData, error } = await supabase
           .from("circle_rooms")
           .select(`
@@ -90,8 +88,6 @@ export function CircleChat({ circleId, circleName }: CircleChatProps) {
 
     const fetchMessages = async () => {
       try {
-        const supabase = createClient()
-
         const { data: messagesData, error } = await supabase
           .from("circle_messages")
           .select(`
@@ -151,7 +147,6 @@ export function CircleChat({ circleId, circleName }: CircleChatProps) {
     if (!newMessage.trim() && !audioBlob) return
 
     try {
-      const supabase = createClient()
       let messageData: any = {
         room_id: selectedRoom.id,
         user_id: user?.id,
@@ -304,8 +299,6 @@ export function CircleChat({ circleId, circleName }: CircleChatProps) {
 
   const handlePinMessage = async (messageId: string) => {
     try {
-      const supabase = createClient()
-
       const message = messages.find((m: any) => m.id === messageId)
       const { error } = await supabase
         .from("circle_messages")

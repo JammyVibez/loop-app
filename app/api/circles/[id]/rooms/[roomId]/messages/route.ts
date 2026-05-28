@@ -17,15 +17,14 @@ async function getUserFromToken(token: string) {
 }
 
 // Get room messages
-export async function GET(request: NextRequest, { params }: { params: { id: string, roomId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string, roomId: string }> }) {
   try {
     const { searchParams } = new URL(request.url)
     const limit = Number.parseInt(searchParams.get("limit") || "50")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
     const before = searchParams.get("before") // cursor for pagination
 
-    const circleId = params.id
-    const roomId = params.roomId
+    const { id: circleId, roomId } = await params
 
     // Check if room exists and user has access
     const { data: room } = await supabase
@@ -97,7 +96,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Send a message
-export async function POST(request: NextRequest, { params }: { params: { id: string, roomId: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string, roomId: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -111,8 +110,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
-    const roomId = params.roomId
+    const { id: circleId, roomId } = await params
     const { content, media_url, media_type } = await request.json()
 
     // Check if room exists
@@ -177,7 +175,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 }
 
 // Update a message
-export async function PUT(request: NextRequest, { params }: { params: { id: string, roomId: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string, roomId: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -191,8 +189,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
-    const roomId = params.roomId
+    const { id: circleId, roomId } = await params
     const { messageId, content, media_url, media_type } = await request.json()
 
     // Check if message exists and user is the author
@@ -241,7 +238,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Delete a message
-export async function DELETE(request: NextRequest, { params }: { params: { id: string, roomId: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string, roomId: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
@@ -255,8 +252,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const circleId = params.id
-    const roomId = params.roomId
+    const { id: circleId, roomId } = await params
     const { searchParams } = new URL(request.url)
     const messageId = searchParams.get("messageId")
 

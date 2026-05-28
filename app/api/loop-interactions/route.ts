@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js"
 
 export async function GET(req: NextRequest) {
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-  const token = req.headers.get("authorization")?.replace("Bearer ", "")
+  const token = req.headers.get("authorization")?.replace("Bearer ", "") ?? null
 
   if (!token) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })

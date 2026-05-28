@@ -3,12 +3,12 @@ import { createServerClient } from '@/lib/supabase'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: invitationId } = await params
     const supabase = createServerClient()
     const { action } = await request.json() // 'accept' or 'decline'
-    const invitationId = params.id
     
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()

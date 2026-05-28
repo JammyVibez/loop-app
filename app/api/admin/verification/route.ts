@@ -49,7 +49,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient()
-    const { requestId, action, adminNotes } = await request.json()
+    const body = (await request.json()) as {
+      requestId: string
+      action: string
+      adminNotes?: string
+    }
+    const { requestId, action, adminNotes } = body
     
     // Get current user and verify admin status
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -68,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update verification request
-    const { data: request, error: updateError } = await supabase
+    const { data: verificationRequest, error: updateError } = await supabase
       .from('verification_requests')
       .update({
         status: action,
@@ -90,10 +95,10 @@ export async function POST(request: NextRequest) {
         .from('profiles')
         .update({
           is_verified: true,
-          verification_level: request.verification_type,
+          verification_level: verificationRequest.verification_type,
           verified_at: new Date().toISOString()
         })
-        .eq('id', request.user_id)
+        .eq('id', verificationRequest.user_id)
 
       if (profileError) {
         console.error('Error updating profile:', profileError)
@@ -103,26 +108,26 @@ export async function POST(request: NextRequest) {
       await supabase
         .from('notifications')
         .insert({
-          user_id: request.user_id,
+          user_id: verificationRequest.user_id,
           type: 'verification_approved',
           title: 'Verification Approved!',
-          message: `Your ${request.verification_type} verification has been approved.`,
-          data: { verification_type: request.verification_type }
+          message: `Your ${verificationRequest.verification_type} verification has been approved.`,
+          data: { verification_type: verificationRequest.verification_type }
         })
     } else if (action === 'rejected') {
       // Create notification for rejection
       await supabase
         .from('notifications')
         .insert({
-          user_id: request.user_id,
+          user_id: verificationRequest.user_id,
           type: 'verification_rejected',
           title: 'Verification Request Rejected',
           message: `Your verification request has been rejected. ${adminNotes || ''}`,
-          data: { verification_type: request.verification_type, admin_notes: adminNotes }
+          data: { verification_type: verificationRequest.verification_type, admin_notes: adminNotes }
         })
     }
 
-    return NextResponse.json({ success: true, request })
+    return NextResponse.json({ success: true, request: verificationRequest })
   } catch (error) {
     console.error('Error processing verification request:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

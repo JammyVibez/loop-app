@@ -41,7 +41,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
-import { createClient } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
 
 interface CircleDetailProps {
   circleId: string
@@ -65,8 +65,6 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
   useEffect(() => {
     const fetchCircleData = async () => {
       try {
-        const supabase = createClient()
-
         const { data: circleData, error: circleError } = await supabase
           .from("circles")
           .select(`
@@ -141,8 +139,6 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
     }
 
     try {
-      const supabase = createClient()
-
       if (isJoined) {
         const { error } = await supabase
           .from("circle_members")
@@ -199,8 +195,6 @@ export function CircleDetail({ circleId }: CircleDetailProps) {
     if (!newPost.trim() && mediaFiles.length === 0) return
 
     try {
-      const supabase = createClient()
-
       const mediaUrls: string[] = []
       if (mediaFiles.length > 0) {
         for (const file of mediaFiles) {

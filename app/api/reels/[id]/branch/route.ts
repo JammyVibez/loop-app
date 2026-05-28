@@ -1,10 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id: parentReelId } = await params
     const supabase = createServerClient()
-    const parentReelId = params.id
 
     // Get user from session
     const authHeader = request.headers.get("authorization")

@@ -17,26 +17,25 @@ async function getUserFromToken(token: string) {
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
-
-    if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-    }
-
     const supabase = createServerClient()
+    const username = request.nextUrl.searchParams.get("username")
+    const authHeader = request.headers.get("authorization")
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.replace("Bearer ", "") : ""
+    const authedUser = token ? await getUserFromToken(token) : null
 
-    // Get user profile
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single()
+    // Public profile lookup by username (used by /profile/[username]).
+    // If username is omitted, require auth and return the current user's profile.
+    let profileQuery = supabase.from("profiles").select("*")
+    if (username) {
+      profileQuery = profileQuery.eq("username", username)
+    } else {
+      if (!authedUser) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      }
+      profileQuery = profileQuery.eq("id", authedUser.id)
+    }
+
+    const { data: profile, error: profileError } = await profileQuery.single()
 
     if (profileError || !profile) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 })

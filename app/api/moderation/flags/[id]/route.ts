@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase";
+import { createServerClient } from "@/lib/supabase";
 
 async function getUserFromToken(token: string) {
   try {
-    const supabase = createClient();
+    const supabase = createServerClient();
     const { data: { user }, error } = await supabase.auth.getUser(token);
     if (error || !user) return null;
     return user;
@@ -13,8 +13,9 @@ async function getUserFromToken(token: string) {
 }
 
 // PUT /api/moderation/flags/[id] - Update a content flag (admin/moderator only)
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const authHeader = request.headers.get("authorization");
     if (!authHeader) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -28,7 +29,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     // Check if user is admin or moderator
-    const supabase = createClient();
+    const supabase = createServerClient();
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("is_admin, is_verified")
@@ -59,7 +60,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         moderator_notes: moderator_notes || null,
         reviewed_at: new Date().toISOString()
       })
-      .eq("id", params.id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -97,8 +98,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // GET /api/moderation/flags/[id] - Get a specific content flag (admin/moderator only)
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const authHeader = request.headers.get("authorization");
     if (!authHeader) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -112,7 +114,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     // Check if user is admin or moderator
-    const supabase = createClient();
+    const supabase = createServerClient();
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("is_admin, is_verified")
@@ -131,7 +133,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         reporter:profiles!reporter_id(username, display_name, avatar_url),
         content:profiles!content_id(username, display_name, avatar_url)
       `)
-      .eq("id", params.id)
+      .eq("id", id)
       .single();
 
     if (error) {

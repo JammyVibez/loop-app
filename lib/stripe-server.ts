@@ -11,6 +11,6 @@ export async function getStripeServer(): Promise<Stripe | null> {
   }
   const Stripe = (await import("stripe")).default
   return new Stripe(key, {
-    apiVersion: "2023-10-16",
+    apiVersion: "2025-07-30.basil",
   })
 }

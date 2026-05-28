@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Hash, TrendingUp } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
-import { createClient } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
 
 interface HashtagContentProps {
   tag: string
@@ -28,8 +28,6 @@ export function HashtagContent({ tag }: HashtagContentProps) {
   useEffect(() => {
     const fetchHashtagData = async () => {
       try {
-        const supabase = createClient()
-
         // Get hashtag info and loop count
         const { data: hashtagInfo, error: hashtagError } = await supabase
           .from("hashtags")
@@ -96,7 +94,6 @@ export function HashtagContent({ tag }: HashtagContentProps) {
 
   const handleFollowHashtag = async () => {
     try {
-      const supabase = createClient()
       const {
         data: { user },
       } = await supabase.auth.getUser()

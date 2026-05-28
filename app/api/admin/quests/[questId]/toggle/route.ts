@@ -3,10 +3,14 @@ import { createClient } from "@supabase/supabase-js"
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
-export async function POST(request: NextRequest, { params }: { params: { questId: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ questId: string }> },
+) {
   try {
+    const { questId } = await params
     const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
+    const token = authHeader?.replace("Bearer ", "") ?? null
 
     if (!token) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 })
@@ -37,7 +41,7 @@ export async function POST(request: NextRequest, { params }: { params: { questId
         is_active,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", params.questId)
+      .eq("id", questId)
       .select()
       .single()
 

@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Hash, Users, GitBranch, Search } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
 
 interface SearchResultsProps {
   query: string
@@ -29,8 +29,6 @@ export function SearchResults({ query }: SearchResultsProps) {
       if (!query.trim()) return
 
       try {
-        const supabase = createClient()
-
         const { data: loops, error: loopsError } = await supabase
           .from("loops")
           .select(`
@@ -90,7 +88,6 @@ export function SearchResults({ query }: SearchResultsProps) {
 
   const handleFollow = async (userId: string) => {
     try {
-      const supabase = createClient()
       const {
         data: { user },
       } = await supabase.auth.getUser()

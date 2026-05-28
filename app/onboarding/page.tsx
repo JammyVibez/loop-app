@@ -79,7 +79,7 @@ export default function OnboardingPage() {
     theme: THEMES[0],
     avatar_url: "",
   })
-  const { user, updateProfile } = useAuth()
+  const { user, updateProfile, getAuthHeader } = useAuth()
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -137,6 +137,7 @@ export default function OnboardingPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...getAuthHeader(),
         },
         body: JSON.stringify({
           bio: profileData.bio,

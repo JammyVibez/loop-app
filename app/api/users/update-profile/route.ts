@@ -25,20 +25,36 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { bio, interests, avatar_url, profile_theme, onboarding_completed } = body
 
+    const payload: Record<string, unknown> = {
+      bio,
+      interests,
+      avatar_url,
+      onboarding_completed,
+      updated_at: new Date().toISOString(),
+    }
+
+    if (profile_theme !== undefined) {
+      payload.theme_data = profile_theme
+    }
+
     // Update profile
-    const { data: profile, error: profileError } = await supabase
+    let { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .update({
-        bio,
-        interests,
-        avatar_url,
-        theme_data: profile_theme,
-        onboarding_completed,
-        updated_at: new Date().toISOString()
-      })
+      .update(payload)
       .eq("id", user.id)
       .select()
       .single()
+
+    // Some DB versions don't have theme_data yet; retry without it.
+    if (profileError?.code === "PGRST204" && payload.theme_data !== undefined) {
+      delete payload.theme_data
+      ;({ data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .update(payload)
+        .eq("id", user.id)
+        .select()
+        .single())
+    }
 
     if (profileError) {
       console.error("Profile update error:", profileError)

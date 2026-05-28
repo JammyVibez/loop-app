@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Users, Calendar, Trophy, Lock, Globe } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { createClient } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
 
 export function CirclesList() {
   const [circles, setCircles] = useState([])
@@ -19,7 +19,6 @@ export function CirclesList() {
   useEffect(() => {
     const fetchCircles = async () => {
       try {
-        const supabase = createClient()
         const {
           data: { user },
         } = await supabase.auth.getUser()
@@ -70,7 +69,6 @@ export function CirclesList() {
 
   const handleJoinCircle = async (circle: any) => {
     try {
-      const supabase = createClient()
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -142,7 +140,6 @@ export function CirclesList() {
 
   const handleLeaveCircle = async (circleId: string) => {
     try {
-      const supabase = createClient()
       const {
         data: { user },
       } = await supabase.auth.getUser()
