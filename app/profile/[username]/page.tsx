@@ -11,7 +11,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
   return (
     <Theme3DProvider>
-      <div className="min-h-screen bg-gradient-to-br from-[var(--theme-bg-start,#faf5ff)] via-[var(--theme-bg-mid,#eff6ff)] to-[var(--theme-bg-end,#eef2ff)] dark:from-[var(--theme-bg-dark-start,#111827)] dark:via-[var(--theme-bg-dark-mid,#1e1b4b)] dark:to-[var(--theme-bg-dark-end,#312e81)] transition-colors duration-500">
+      <div className="min-h-screen bg-transparent text-slate-100 transition-colors duration-500">
         <Header />
         <main className="container mx-auto px-4 py-6 max-w-6xl">
           <Enhanced3DProfile username={username} />

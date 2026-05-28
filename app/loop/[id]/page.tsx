@@ -25,6 +25,7 @@ import { CommentsSection } from "@/components/comments/comments-section"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { createClient } from "@supabase/supabase-js"
+import { useAuth } from "@/hooks/use-auth"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -85,6 +86,7 @@ export default function LoopDetailPage() {
   const [loop, setLoop] = useState<LoopData | null>(null)
   const [loading, setLoading] = useState(true)
   const [showFullTree, setShowFullTree] = useState(false)
+  const { user, getAuthHeader } = useAuth()
 
   useEffect(() => {
     const fetchLoop = async () => {
@@ -114,21 +116,32 @@ export default function LoopDetailPage() {
         .order("created_at", { ascending: false })
       // Fetch parent loop info if exists
       let parentLoop: { id: string; title: string; author: string } | undefined = undefined
-      if (loopData.parent_id) {
+      if (loopData.parent_loop_id) {
         const { data: parentData } = await supabase
           .from("loops")
           .select(`id, content_title, author:profiles!author_id(username)`)
           .eq("id", loopData.parent_loop_id)
           .single()
         if (parentData) {
-          const parentAuthor = Array.isArray((parentData as any).author)
-            ? (parentData as any).author[0]
-            : (parentData as any).author
           parentLoop = {
             id: parentData.id,
             title: parentData.content_title || "Untitled Loop",
-            author: parentAuthor?.username || "",
+            author: (Array.isArray((parentData as any).author) ? (parentData as any).author[0] : (parentData as any).author)?.username || "",
           }
+        }
+      }
+      const stats = Array.isArray(loopData.loop_stats) ? loopData.loop_stats[0] : loopData.loop_stats
+      let interactions = {
+        is_liked: false,
+        is_saved: false,
+      }
+      if (user?.token) {
+        const interactionsResponse = await fetch(`/api/loops/${loopId}/interactions`, {
+          headers: getAuthHeader(),
+        })
+        if (interactionsResponse.ok) {
+          const interactionsData = await interactionsResponse.json()
+          interactions = interactionsData.user_interactions || interactions
         }
       }
       setLoop({
@@ -146,10 +159,10 @@ export default function LoopDetailPage() {
         createdAt: loopData.created_at,
         updatedAt: loopData.updated_at || loopData.created_at,
         stats: {
-          likes: loopData.loop_stats?.likes_count || 0,
-          comments: loopData.loop_stats?.comments_count || 0,
-          shares: loopData.loop_stats?.shares_count || 0,
-          views: loopData.loop_stats?.views_count || 0,
+          likes: stats?.likes_count || 0,
+          comments: stats?.comments_count || 0,
+          shares: stats?.shares_count || 0,
+          views: stats?.views_count || 0,
           branches: branchData?.length || 0,
         },
         tags: loopData.hashtags || [],
@@ -164,26 +177,26 @@ export default function LoopDetailPage() {
         codeSnippet: loopData.code_snippet
           ? { language: loopData.code_snippet_language, code: loopData.code_snippet }
           : undefined,
-        isLiked: false,
-        isBookmarked: false,
+        isLiked: interactions.is_liked,
+        isBookmarked: interactions.is_saved,
         isFollowing: false,
       })
       setLoading(false)
     }
     fetchLoop()
-  }, [loopId])
+  }, [loopId, user?.token])
 
   const handleLike = async () => {
-    if (!loop) return
+    if (!loop || !user) return
 
     try {
       const response = await fetch(`/api/loops/${loop.id}/interactions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          ...getAuthHeader(),
         },
-        body: JSON.stringify({ action: 'like' }),
+        body: JSON.stringify({ interaction_type: 'like' }),
       })
 
       const data = await response.json()
@@ -193,10 +206,10 @@ export default function LoopDetailPage() {
           prev
             ? {
                 ...prev,
-                isLiked: data.is_liked,
+                isLiked: data.is_active,
                 stats: {
                   ...prev.stats,
-                  likes: data.is_liked ? prev.stats.likes + 1 : prev.stats.likes - 1,
+                  likes: data.stats?.likes_count ?? prev.stats.likes,
                 },
               }
             : null,
@@ -208,16 +221,16 @@ export default function LoopDetailPage() {
   }
 
   const handleBookmark = async () => {
-    if (!loop) return
+    if (!loop || !user) return
 
     try {
       const response = await fetch(`/api/loops/${loop.id}/interactions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          ...getAuthHeader(),
         },
-        body: JSON.stringify({ action: 'save' }),
+        body: JSON.stringify({ interaction_type: 'save' }),
       })
 
       const data = await response.json()
@@ -227,7 +240,7 @@ export default function LoopDetailPage() {
           prev
             ? {
                 ...prev,
-                isBookmarked: data.is_saved,
+                isBookmarked: data.is_active,
               }
             : null,
         )

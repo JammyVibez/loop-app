@@ -33,7 +33,8 @@ export async function POST(
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const { interaction_type } = await request.json()
+    const body = await request.json().catch(() => ({}))
+    const interaction_type = body.interaction_type || body.type || body.action
 
     if (!['like', 'save', 'share', 'view'].includes(interaction_type)) {
       return NextResponse.json({ error: "Invalid interaction type" }, { status: 400 })
@@ -140,6 +141,9 @@ export async function POST(
       success: true,
       interaction_type,
       is_active: existingInteraction ? false : true,
+      action: existingInteraction ? "removed" : "added",
+      is_liked: interaction_type === "like" ? !existingInteraction : undefined,
+      is_saved: interaction_type === "save" ? !existingInteraction : undefined,
       stats
     })
 
