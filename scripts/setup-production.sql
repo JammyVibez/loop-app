@@ -1,0 +1,30 @@
+-- Loop production database setup entrypoint.
+--
+-- Run these files in order from the Supabase SQL editor or via your migration
+-- process. If you have a direct Postgres connection string, run:
+--   DATABASE_URL="postgres://..." npm run db:setup:production
+-- or for local/demo seed data:
+--   DATABASE_URL="postgres://..." npm run db:setup:production:seed
+--
+-- This file is intentionally a manifest rather than a concatenated migration
+-- because Supabase SQL editor does not support \i includes.
+--
+-- 1. scripts/complete-database-setup.sql
+-- 2. scripts/launch-schema-alignment.sql
+-- 3. scripts/loops-and-media.sql
+-- 4. scripts/moderation-schema.sql
+-- 4b. scripts/circles-schema-alignment.sql (create content_flags if not already present)
+-- 5. scripts/rls-policies.sql
+-- 6. scripts/realtime-functions.sql
+-- 7. scripts/seed-data-v2.sql (development/demo only)
+--
+-- Production checklist:
+-- - profiles.is_admin exists and only trusted accounts have it set.
+-- - profiles.is_moderator exists if non-admin moderators should review flags.
+-- - content_flags exists before enabling moderation routes.
+-- - circle_bots, circle_challenges, circle_room_presence, and push_subscriptions exist.
+-- - loop_stats and loop_interactions RLS policies are enabled.
+-- - Stripe webhook endpoint is configured with STRIPE_WEBHOOK_SECRET.
+-- - Cloudinary credentials and upload size policies are configured.
+
+select 'Run the listed scripts in order; this manifest documents the canonical production setup.' as setup_production_manifest;

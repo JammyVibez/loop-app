@@ -17,7 +17,7 @@ interface SearchResultsProps {
 
 export function SearchResults({ query }: SearchResultsProps) {
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set())
-  const [searchResults, setSearchResults] = useState({
+  const [searchResults, setSearchResults] = useState<{ loops: any[]; users: any[]; hashtags: any[] }>({
     loops: [],
     users: [],
     hashtags: [],

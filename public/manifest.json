@@ -1,18 +1,26 @@
 {
   "name": "Loop Social Platform",
   "short_name": "Loop",
-  "description": "Connect, share, and grow with Loop - the social platform for creators",
+  "description": "Connect, create, and collaborate in Loop's next-gen social storytelling platform",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#8b5cf6",
   "orientation": "portrait-primary",
-  "categories": ["social", "entertainment", "lifestyle"],
+  "categories": [
+    "social",
+    "entertainment",
+    "lifestyle"
+  ],
   "lang": "en",
   "dir": "ltr",
   "scope": "/",
   "id": "loop-social-platform",
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
   "edge_side_panel": {
     "preferred_width": 400
   },
@@ -21,21 +29,9 @@
   },
   "icons": [
     {
-      "src": "/icons/icon-72x72.png",
-      "sizes": "72x72",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-96x96.png",
-      "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-128x128.png",
-      "sizes": "128x128",
-      "type": "image/png",
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "maskable any"
     },
     {
@@ -45,57 +41,10 @@
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-152x152.png",
-      "sizes": "152x152",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
       "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-384x384.png",
-      "sizes": "384x384",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshots/desktop-1.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Loop Social Platform Desktop View"
-    },
-    {
-      "src": "/screenshots/mobile-1.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Loop Social Platform Mobile View"
-    },
-    {
-      "src": "/screenshots/mobile-2.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Loop Shop Mobile View"
     }
   ],
   "shortcuts": [
@@ -106,8 +55,9 @@
       "url": "/?action=create",
       "icons": [
         {
-          "src": "/icons/create-shortcut.png",
-          "sizes": "96x96"
+          "src": "/icons/icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
         }
       ]
     },
@@ -118,8 +68,9 @@
       "url": "/messages",
       "icons": [
         {
-          "src": "/icons/messages-shortcut.png",
-          "sizes": "96x96"
+          "src": "/icons/icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
         }
       ]
     },
@@ -130,8 +81,9 @@
       "url": "/shop",
       "icons": [
         {
-          "src": "/icons/shop-shortcut.png",
-          "sizes": "96x96"
+          "src": "/icons/icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
         }
       ]
     },
@@ -142,31 +94,34 @@
       "url": "/quests",
       "icons": [
         {
-          "src": "/icons/quest-shortcut.png",
-          "sizes": "96x96"
+          "src": "/icons/icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
         }
       ]
     }
   ],
-  "related_applications": [
-    {
-      "platform": "play",
-      "url": "https://play.google.com/store/apps/details?id=com.loop.social",
-      "id": "com.loop.social"
-    },
-    {
-      "platform": "itunes",
-      "url": "https://apps.apple.com/app/loop-social/id123456789"
-    }
-  ],
+  "related_applications": [],
   "prefer_related_applications": false,
   "file_handlers": [
     {
       "action": "/share",
       "accept": {
-        "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
-        "video/*": [".mp4", ".webm", ".mov"],
-        "text/plain": [".txt"]
+        "image/*": [
+          ".jpg",
+          ".jpeg",
+          ".png",
+          ".gif",
+          ".webp"
+        ],
+        "video/*": [
+          ".mp4",
+          ".webm",
+          ".mov"
+        ],
+        "text/plain": [
+          ".txt"
+        ]
       }
     }
   ],
@@ -181,7 +136,10 @@
       "files": [
         {
           "name": "files",
-          "accept": ["image/*", "video/*"]
+          "accept": [
+            "image/*",
+            "video/*"
+          ]
         }
       ]
     }

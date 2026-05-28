@@ -79,7 +79,7 @@ export default function OnboardingPage() {
     theme: THEMES[0],
     avatar_url: "",
   })
-  const { user, updateProfile, getAuthHeader } = useAuth()
+  const { user, refreshUser, getAuthHeader } = useAuth()
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -160,7 +160,8 @@ export default function OnboardingPage() {
       const coinsResponse = await fetch('/api/users/coins/weekly', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
         },
         body: JSON.stringify({ 
           type: 'onboarding_bonus',
@@ -172,13 +173,8 @@ export default function OnboardingPage() {
         console.log("Onboarding bonus awarded successfully")
       }
 
-      // Update the user context to reflect completion
-      await updateProfile({
-        bio: profileData.bio,
-        interests: profileData.interests,
-        avatar_url: profileData.avatar_url,
-        onboarding_completed: true
-      })
+      // Refresh the user context from the saved server profile.
+      await refreshUser()
 
       // Redirect to home/feed
       router.push("/")
@@ -195,7 +191,7 @@ export default function OnboardingPage() {
     switch (step) {
       case 1:
         return (
-          <Card className="w-full max-w-2xl">
+          <Card className="w-full max-w-2xl landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
             <CardHeader className="text-center">
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <TreePine className="text-white w-8 h-8" />
@@ -252,7 +248,7 @@ export default function OnboardingPage() {
 
       case 2:
         return (
-          <Card className="w-full max-w-2xl">
+          <Card className="w-full max-w-2xl landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
             <CardHeader className="text-center">
               <Users className="w-12 h-12 text-purple-600 mx-auto mb-4" />
               <CardTitle className="text-2xl">What interests you?</CardTitle>
@@ -293,7 +289,7 @@ export default function OnboardingPage() {
 
       case 3:
         return (
-          <Card className="w-full max-w-2xl">
+          <Card className="w-full max-w-2xl landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
             <CardHeader className="text-center">
               <Palette className="w-12 h-12 text-purple-600 mx-auto mb-4" />
               <CardTitle className="text-2xl">Choose your theme</CardTitle>
@@ -331,14 +327,14 @@ export default function OnboardingPage() {
 
       case 4:
         return (
-          <Card className="w-full max-w-2xl">
+          <Card className="w-full max-w-2xl landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
             <CardHeader className="text-center">
               <Sparkles className="w-12 h-12 text-purple-600 mx-auto mb-4" />
               <CardTitle className="text-2xl">You're all set!</CardTitle>
               <CardDescription>Welcome to the Loop community. Start creating and connecting!</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg p-6">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur">
                 <h3 className="font-semibold mb-4">What's next?</h3>
                 <ul className="space-y-3 text-sm">
                   <li className="flex items-center gap-2">
@@ -367,8 +363,14 @@ export default function OnboardingPage() {
                 </p>
               </div>
 
-              <Button onClick={handleComplete} className="w-full" size="lg">
-                Enter Loop <Sparkles className="w-4 h-4 ml-2" />
+              {errors.general && (
+                <div className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">
+                  {errors.general}
+                </div>
+              )}
+
+              <Button onClick={handleComplete} className="w-full rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-violet-600/30 hover:from-violet-500 hover:to-cyan-400" size="lg" disabled={saving}>
+                {saving ? "Saving..." : "Enter Loop"} <Sparkles className="w-4 h-4 ml-2" />
               </Button>
             </CardContent>
           </Card>
@@ -380,8 +382,11 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 p-4">
-      <div className="w-full flex flex-col items-center">
+    <div className="relative min-h-screen overflow-hidden bg-[#030712] text-slate-100 flex items-center justify-center p-4">
+      <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-40" />
+      <div className="landing-aurora-blob pointer-events-none absolute -left-1/4 top-[-20%] h-[70vmin] w-[70vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.45),transparent_65%)] blur-3xl" />
+      <div className="landing-aurora-blob pointer-events-none absolute -right-1/4 top-[10%] h-[60vmin] w-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.35),transparent_65%)] blur-3xl [animation-delay:-6s]" />
+      <div className="relative z-10 w-full flex flex-col items-center">
         {/* Progress indicator */}
         <div className="flex items-center space-x-2 mb-8">
           {[1, 2, 3, 4].map((stepNumber) => (

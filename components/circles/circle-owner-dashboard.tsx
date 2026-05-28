@@ -291,6 +291,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
       
       setLoading(true)
       try {
+        let loadedCircleData: any = null
         // Load circle details
         const circleResponse = await fetch(`/api/circles/${circleId}`, {
           headers: { 'Authorization': `Bearer ${user.token}` }
@@ -298,6 +299,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         
         if (circleResponse.ok) {
           const circleData = await circleResponse.json()
+          loadedCircleData = circleData
           setCircle(circleData.circle)
           setEditCircleForm({
             name: circleData.circle.name,
@@ -351,7 +353,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         }
 
         // Load pending members if circle is private
-        if (circleData && circleData.circle && circleData.circle.is_private) {
+        if (loadedCircleData?.circle?.is_private) {
           loadPendingMembers()
         }
       } catch (error) {
@@ -478,12 +480,24 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
     if (!user) return
 
     try {
-      const response = await fetch(`/api/circles/${circleId}/members/${memberId}/${action}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${user.token}`
-        }
-      })
+      const roleForAction = action === 'promote' ? 'admin' : action === 'demote' ? 'member' : null
+      const response = roleForAction
+        ? await fetch(`/api/circles/${circleId}/members`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${user.token}`
+            },
+            body: JSON.stringify({ targetUserId: memberId, newRole: roleForAction })
+          })
+        : await fetch(`/api/circles/${circleId}/members?userId=${memberId}&action=${action === 'ban' ? 'ban' : action === 'unban' ? 'unban' : 'remove'}`, {
+            method: action === 'unban' ? 'PUT' : 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${user.token}`
+            },
+            body: action === 'unban' ? JSON.stringify({ targetUserId: memberId, newRole: 'member', status: 'active' }) : undefined
+          })
 
       if (response.ok) {
         // Update local state
@@ -513,11 +527,13 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
     if (!user) return
 
     try {
-      const response = await fetch(`/api/circles/${circleId}/posts/${postId}/${action}`, {
-        method: 'POST',
+      const response = await fetch(action === 'delete' ? `/api/circles/${circleId}/posts?postId=${postId}` : `/api/circles/${circleId}/posts`, {
+        method: action === 'delete' ? 'DELETE' : 'PUT',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${user.token}`
-        }
+        },
+        body: action === 'pin' ? JSON.stringify({ postId, is_pinned: true }) : undefined
       })
 
       if (response.ok) {
@@ -546,8 +562,8 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
     if (!user) return
 
     try {
-      const response = await fetch(`/api/circles/${circleId}/events/${eventId}/${action}`, {
-        method: 'POST',
+      const response = await fetch(`/api/circles/${circleId}/events?eventId=${eventId}`, {
+        method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${user.token}`
         }

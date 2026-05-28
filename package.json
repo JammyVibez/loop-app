@@ -8,7 +8,9 @@
     "lint": "next lint",
     "start": "next start",
     "test:critical": "node scripts/critical-smoke.mjs",
-    "test": "npm run test:critical"
+    "test": "npm run test:critical",
+    "db:setup:production": "node scripts/run-production-setup.mjs",
+    "db:setup:production:seed": "node scripts/run-production-setup.mjs --with-seed"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -40,6 +42,7 @@
     "@radix-ui/react-toggle-group": "latest",
     "@radix-ui/react-tooltip": "latest",
     "@supabase/auth-helpers-nextjs": "latest",
+    "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "latest",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",

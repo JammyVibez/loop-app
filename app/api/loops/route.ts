@@ -1,18 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { createServerClient } from "@/lib/supabase"
+import { normalizeLoop, normalizeLoops } from "@/lib/normalize-loop"
 
-// Initialize Supabase client for server-side operations
-// const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+async function getUserFromToken(token: string | null) {
+  if (!token) return null
 
-// Helper function to get user from token
-async function getUserFromToken(token: string) {
   try {
     const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
+    const { data: { user }, error } = await supabase.auth.getUser(token)
     if (error || !user) return null
     return user
   } catch {
@@ -20,28 +16,36 @@ async function getUserFromToken(token: string) {
   }
 }
 
-// Helper function to upload file to Cloudinary
-async function uploadToCloudinary(file: File, resourceType: "image" | "video" | "raw" = "raw"): Promise<any> {
+async function uploadToCloudinary(file: File, resourceType: "image" | "video" | "raw" = "raw") {
   const formData = new FormData()
   formData.append("file", file)
   formData.append("upload_preset", process.env.CLOUDINARY_UPLOAD_PRESET!)
-  formData.append("resource_type", resourceType)
 
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`,
-    {
-      method: "POST",
-      body: formData as any,
-    },
+    { method: "POST", body: formData as any },
   )
 
   if (!response.ok) {
-    const errorData = await response.json()
+    const errorData = await response.json().catch(() => ({}))
     console.error("Cloudinary upload error details:", errorData)
     throw new Error("Failed to upload file")
   }
 
-  return await response.json()
+  return response.json()
+}
+
+function parseHashtags(value: unknown) {
+  if (Array.isArray(value)) return value.map(String)
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value)
+      if (Array.isArray(parsed)) return parsed.map(String)
+    } catch {
+      return value.split(/[ ,#]+/)
+    }
+  }
+  return []
 }
 
 export async function GET(request: NextRequest) {
@@ -53,40 +57,21 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category")
 
     const supabase = createServerClient()
-
     let query = supabase
-      .from('loops')
+      .from("loops")
       .select(`
         *,
-        author:profiles!author_id(
-          id,
-          username,
-          display_name,
-          avatar_url,
-          is_verified,
-          is_premium
-        ),
-        loop_stats(
-          likes_count,
-          comments_count,
-          branches_count,
-          shares_count,
-          views_count
-        )
+        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+        loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
+      .is("parent_loop_id", null)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1)
 
-    if (userId) {
-      query = query.eq('author_id', userId)
-    }
-
-    if (category) {
-      query = query.eq('category', category)
-    }
+    if (userId) query = query.eq("author_id", userId)
+    if (category) query = query.eq("category", category)
 
     const { data: loops, error } = await query
-      .is('parent_loop_id', null)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
 
     if (error) {
       console.error("Supabase GET error:", error.message)
@@ -95,64 +80,77 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      loops: loops || [],
-      pagination: {
-        limit,
-        offset,
-        total: loops?.length || 0
-      }
+      loops: normalizeLoops(loops || []),
+      pagination: { limit, offset, total: loops?.length || 0 },
     })
-
   } catch (error: any) {
     console.error("Get loops error:", error)
-    return NextResponse.json(
-      { error: "Internal server error", details: error.message },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Internal server error", details: error.message }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const token = authHeader.replace("Bearer ", "")
+    const token = authHeader?.replace("Bearer ", "") ?? null
     const user = await getUserFromToken(token)
 
     if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const formData = await request.formData()
-    const content_text = formData.get("content_text") as string
-    const file = formData.get("media") as File | null
-    const content_type = formData.get("content_type") as string
-    const category = formData.get("category") as string
-    const hashtags = formData.get("hashtags") ? JSON.parse(formData.get("hashtags") as string) : []
-    const parent_loop_id = formData.get("parent_loop_id") as string | null
-    const is_public = formData.get("is_public") ? formData.get("is_public") === "true" : true
-    const scheduled_for = formData.get("scheduled_for") as string | null
-    const poll_options = formData.get("poll_options") ? JSON.parse(formData.get("poll_options") as string) : null
-    const media_metadata = formData.get("media_metadata") ? JSON.parse(formData.get("media_metadata") as string) : null
+    const headerContentType = request.headers.get("content-type") || ""
+    let contentText = ""
+    let contentTitle: string | null = null
+    let file: File | null = null
+    let loopType = "text"
+    let category = "general"
+    let hashtags: string[] = []
+    let parentLoopId: string | null = null
+    let visibility = "public"
+    let scheduledFor: string | null = null
+    let pollOptions: any = null
+    let mediaMetadata: any = null
 
-    if (!content_text?.trim() && !file) {
-      return NextResponse.json(
-        { error: "Either text content or media is required" },
-        { status: 400 }
-      )
+    if (headerContentType.includes("multipart/form-data")) {
+      const formData = await request.formData()
+      contentText = String(formData.get("content_text") || formData.get("content") || "")
+      contentTitle = (formData.get("content_title") || formData.get("title") || null) as string | null
+      file = (formData.get("media") || formData.get("file")) as File | null
+      loopType = String(formData.get("content_type") || formData.get("type") || "text")
+      category = String(formData.get("category") || "general")
+      hashtags = parseHashtags(formData.get("hashtags"))
+      parentLoopId = (formData.get("parent_loop_id") as string | null) || null
+      visibility = String(formData.get("visibility") || (formData.get("is_public") === "false" ? "private" : "public"))
+      scheduledFor = (formData.get("scheduled_for") as string | null) || null
+      pollOptions = formData.get("poll_options") ? JSON.parse(String(formData.get("poll_options"))) : null
+      mediaMetadata = formData.get("media_metadata") ? JSON.parse(String(formData.get("media_metadata"))) : null
+    } else {
+      const body = await request.json().catch(() => ({}))
+      contentText = String(body.content_text ?? body.content ?? "")
+      contentTitle = body.content_title ?? body.title ?? null
+      loopType = body.content_type ?? body.type ?? "text"
+      category = body.category ?? "general"
+      hashtags = parseHashtags(body.hashtags)
+      parentLoopId = body.parent_loop_id ?? null
+      visibility = body.visibility ?? (body.is_public === false ? "private" : "public")
+      scheduledFor = body.scheduled_for ?? null
+      pollOptions = body.poll_options ?? null
+      mediaMetadata = body.media_metadata ?? null
+    }
+
+    hashtags = hashtags.map((tag) => String(tag).replace(/^#/, "").toLowerCase().trim()).filter(Boolean)
+
+    if (!contentText.trim() && (!file || file.size === 0)) {
+      return NextResponse.json({ error: "Either text content or media is required" }, { status: 400 })
     }
 
     const supabase = createServerClient()
+    let mediaUrl: string | null = null
+    let mediaType = loopType || "text"
 
-    let mediaUrl = null
-    let mediaType = content_type || 'text' // Default to text if not provided
-
-    if (file) {
+    if (file && file.size > 0) {
       let resourceType: "image" | "video" | "raw" = "raw"
-
       if (file.type.startsWith("image/")) {
         resourceType = "image"
         mediaType = "image"
@@ -160,47 +158,36 @@ export async function POST(request: NextRequest) {
         resourceType = "video"
         mediaType = "video"
       } else if (file.type.startsWith("audio/")) {
-        resourceType = "video" // Cloudinary can handle audio as video
+        resourceType = "video"
         mediaType = "audio"
       } else {
         mediaType = "file"
       }
 
-      try {
-        const uploadResult = await uploadToCloudinary(file, resourceType)
-        mediaUrl = uploadResult.secure_url
-      } catch (uploadError) {
-        console.error("File upload error:", uploadError)
-        return NextResponse.json({ error: "Failed to upload media" }, { status: 500 })
-      }
+      const uploadResult = await uploadToCloudinary(file, resourceType)
+      mediaUrl = uploadResult.secure_url
     }
 
-    // Create the loop
     const { data: loop, error } = await supabase
-      .from('loops')
+      .from("loops")
       .insert({
         author_id: user.id,
-        content_text: content_text?.trim(),
+        content_text: contentText.trim(),
+        content_title: contentTitle || contentText.trim().slice(0, 80) || null,
         content_media_url: mediaUrl,
         content_type: mediaType,
-        category: category || 'general',
-        hashtags: hashtags || [],
-        parent_loop_id,
-        is_public,
-        scheduled_for,
-        poll_options,
-        media_metadata
+        category,
+        hashtags,
+        parent_loop_id: parentLoopId,
+        visibility,
+        scheduled_for: scheduledFor,
+        poll_options: pollOptions,
+        media_metadata: mediaMetadata,
       })
       .select(`
         *,
-        author:profiles!author_id(
-          id,
-          username,
-          display_name,
-          avatar_url,
-          is_verified,
-          is_premium
-        )
+        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+        loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
       .single()
 
@@ -209,92 +196,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Create initial stats record
-    await supabase
-      .from('loop_stats')
-      .insert({
-        loop_id: loop.id,
-        likes_count: 0,
-        comments_count: 0,
-        shares_count: 0,
-        views_count: 0,
-        branches_count: 0
-      })
-
-    // If it's a branch, increment parent's branch count
-    if (parent_loop_id) {
-      // Ensure increment_loop_branches is a defined RPC function in Supabase
-      const { error: rpcError } = await supabase.rpc('increment_loop_branches', { loop_id: parent_loop_id })
-      if (rpcError) {
-        console.error("Error calling increment_loop_branches:", rpcError.message)
-      }
-
-      // Notify parent loop author
-      const { data: parentLoop, error: parentLoopError } = await supabase
-        .from('loops')
-        .select('author_id')
-        .eq('id', parent_loop_id)
-        .single()
-
-      if (parentLoopError) {
-        console.error("Error fetching parent loop:", parentLoopError.message)
-      } else if (parentLoop && parentLoop.author_id !== user.id) {
-        await supabase
-          .from('notifications')
-          .insert({
-            user_id: parentLoop.author_id,
-            type: 'branch',
-            title: `${user.user_metadata?.display_name || user.email} branched your loop`,
-            message: content_text?.substring(0, 100) + (content_text && content_text.length > 100 ? '...' : ''),
-            data: {
-              loop_id: loop.id,
-              parent_loop_id,
-              user_id: user.id
-            }
-          })
-      }
-    }
-
-    // Process hashtags
-    if (hashtags && hashtags.length > 0) {
-      for (const tag of hashtags) {
-        const cleanedTag = tag.toString().toLowerCase().trim()
-        if (cleanedTag) {
-          await supabase
-            .from('hashtags')
-            .upsert({
-              tag: cleanedTag,
-              usage_count: 1 // This should ideally be incremented if tag exists
-            }, {
-              onConflict: 'tag',
-              ignoreDuplicates: false
-            })
-        }
-      }
-    }
-
-    // Broadcast real-time update
-    // Ensure 'loops' channel is correctly subscribed to by clients
-    await supabase.channel('loops')
-      .send({
-        type: 'broadcast',
-        event: 'new_loop',
-        payload: {
-          loop,
-          // user_id: user.id // Include user ID if needed by the client
-        }
-      })
-
-    return NextResponse.json({
-      success: true,
-      loop
+    await supabase.from("loop_stats").insert({
+      loop_id: loop.id,
+      likes_count: 0,
+      comments_count: 0,
+      shares_count: 0,
+      views_count: 0,
+      branches_count: 0,
     })
 
+    if (parentLoopId) {
+      const { error: rpcError } = await supabase.rpc("increment_loop_branches", { loop_id: parentLoopId })
+      if (rpcError) console.error("Error calling increment_loop_branches:", rpcError.message)
+    }
+
+    for (const tag of hashtags) {
+      await supabase.from("hashtags").upsert({ tag, usage_count: 1 }, { onConflict: "tag", ignoreDuplicates: false })
+    }
+
+    return NextResponse.json({ success: true, loop: normalizeLoop(loop) })
   } catch (error: any) {
     console.error("Create loop error:", error)
-    return NextResponse.json(
-      { error: "Internal server error", details: error.message },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Internal server error", details: error.message }, { status: 500 })
   }
 }

@@ -1,8 +1,9 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
-import { createClient } from "@supabase/supabase-js"
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
+
+const supabase = getSupabaseBrowserClient()
 
 interface User {
   id: string
@@ -18,6 +19,12 @@ interface User {
   is_verified: boolean
   is_admin: boolean
   theme_data?: any
+  interests?: string[]
+  phone?: string
+  website?: string
+  location?: string
+  profile_theme?: any
+  verification_level?: string
   onboarding_completed?: boolean
   token?: string
   access_token?: string
@@ -51,6 +58,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const buildFallbackProfile = (sessionUser: NonNullable<Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]>["user"]) => {
+    const emailUsername = sessionUser.email?.split("@")[0] || "user"
+    const metadata = sessionUser.user_metadata || {}
+
+    return {
+      email: sessionUser.email,
+      username: metadata.username || metadata.preferred_username || emailUsername,
+      display_name: metadata.display_name || metadata.full_name || metadata.name || emailUsername,
+      avatar_url: metadata.avatar_url,
+      banner_url: undefined,
+      bio: undefined,
+      loop_coins: 0,
+      is_premium: false,
+      premium_expires_at: undefined,
+      is_verified: false,
+      is_admin: false,
+      theme_data: undefined,
+      interests: [],
+      onboarding_completed: false,
+    }
+  }
+
   const hydrateSessionUser = async () => {
     const {
       data: { session },
@@ -61,36 +90,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    const { data: profile } = await supabase.from("profiles").select("*").eq("id", session.user.id).single()
-
-    if (!profile) {
-      setUser(null)
-      return
-    }
+    const { data: profile } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle()
+    const profileData = profile || buildFallbackProfile(session.user)
 
     setUser({
       id: session.user.id,
-      email: session.user.email || profile.email,
-      username: profile.username,
-      display_name: profile.display_name,
-      avatar_url: profile.avatar_url,
-      banner_url: profile.banner_url,
-      bio: profile.bio,
-      loop_coins: profile.loop_coins ?? 0,
-      is_premium: profile.is_premium ?? false,
-      premium_expires_at: profile.premium_expires_at ?? undefined,
-      is_verified: profile.is_verified ?? false,
-      is_admin: profile.is_admin ?? false,
-      theme_data: profile.theme_data,
-      onboarding_completed: profile.onboarding_completed ?? false,
+      email: session.user.email || profileData.email || "",
+      username: profileData.username,
+      display_name: profileData.display_name,
+      avatar_url: profileData.avatar_url,
+      banner_url: profileData.banner_url,
+      bio: profileData.bio,
+      loop_coins: profileData.loop_coins ?? 0,
+      is_premium: profileData.is_premium ?? false,
+      premium_expires_at: profileData.premium_expires_at ?? undefined,
+      is_verified: profileData.is_verified ?? false,
+      is_admin: profileData.is_admin ?? false,
+      theme_data: profileData.theme_data,
+      interests: profileData.interests ?? [],
+      onboarding_completed: profileData.onboarding_completed ?? false,
       token: session.access_token,
       access_token: session.access_token,
       user_metadata: {
-        username: profile.username,
-        display_name: profile.display_name,
-        avatar_url: profile.avatar_url,
-        is_premium: profile.is_premium ?? false,
-        is_verified: profile.is_verified ?? false,
+        username: profileData.username,
+        display_name: profileData.display_name,
+        avatar_url: profileData.avatar_url,
+        is_premium: profileData.is_premium ?? false,
+        is_verified: profileData.is_verified ?? false,
       },
     })
   }
@@ -159,6 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await supabase.auth.signOut()
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined)
     setUser(null)
   }
 
@@ -179,7 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await hydrateSessionUser()
   }
 
-  const getAuthHeader = () => {
+  const getAuthHeader = (): Record<string, string> => {
     if (!user?.access_token) {
       return {}
     }

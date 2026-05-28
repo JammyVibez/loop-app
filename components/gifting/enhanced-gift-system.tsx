@@ -24,7 +24,6 @@ import {
   Star,
   Zap,
   Sparkles,
-  Dragon,
   TreePine,
   Flame,
   Snowflake,
@@ -100,14 +99,14 @@ const GIFT_CATEGORIES = {
   animated: [
     {
       id: 'floating_dragon',
-      name: 'Floating Dragon',
+      name: 'Floating Flame',
       description: 'Animated dragon that floats around profile',
       price: 200,
       category: 'animated' as const,
       rarity: 'rare' as const,
       animation_url: '/gifts/animations/floating-dragon.gif',
       static_url: '/gifts/dragon-static.png',
-      icon: <Dragon className="w-6 h-6 text-red-500" />,
+      icon: <Flame className="w-6 h-6 text-red-500" />,
     },
     {
       id: 'sparkle_trail',
@@ -135,18 +134,18 @@ const GIFT_CATEGORIES = {
   themed: [
     {
       id: 'dragon_lord_theme',
-      name: 'Dragon Lord Theme',
+      name: 'Flame Lord Theme',
       description: 'Complete dragon-themed profile makeover',
       price: 800,
       category: 'themed' as const,
       rarity: 'legendary' as const,
       static_url: '/gifts/themes/dragon-lord.png',
       theme_data: {
-        theme_name: 'Dragon Lord',
+        theme_name: 'Flame Lord',
         colors: ['#8B0000', '#FFD700', '#FF4500'],
         effects: ['dragon_particles', 'flame_border', 'roar_sound'],
       },
-      icon: <Dragon className="w-6 h-6 text-red-600" />,
+      icon: <Flame className="w-6 h-6 text-red-600" />,
     },
     {
       id: 'forest_guardian',

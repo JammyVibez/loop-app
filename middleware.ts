@@ -13,7 +13,7 @@ const publicRoutes = new Set([
   "/api/auth/callback",
 ])
 
-const protectedPrefixes = ["/messages", "/circles", "/shop", "/settings", "/notifications", "/create"]
+const protectedPrefixes = ["/messages", "/circles", "/shop", "/settings", "/notifications", "/create", "/onboarding", "/admin"]
 
 function hasSupabaseSessionCookie(request: NextRequest) {
   return request.cookies
