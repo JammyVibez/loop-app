@@ -30,12 +30,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .select(`
         *,
         owner:profiles!owner_id(id, username, display_name, avatar_url, is_verified, is_premium),
-        member_count:circle_members(count),
-        members:circle_members!inner(
-          user:profiles(id, username, display_name, avatar_url, is_verified, is_premium, last_active),
-          role,
-          joined_at
-        )
+        creator:profiles!creator_id(id, username, display_name, avatar_url, is_verified, is_premium),
+        member_count:circle_members(count)
       `)
       .eq("id", circleId)
       .single()
@@ -56,7 +52,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         .eq("user_id", currentUser.id)
         .single()
       
-      if (memberData && memberData.status === "active") {
+      if (memberData && ["active", "approved"].includes(memberData.status)) {
         isMember = true
         userRole = memberData.role
       }
@@ -89,20 +85,34 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .eq("circle_id", circleId)
       .order("created_at", { ascending: false })
 
+    const memberCount = Array.isArray(circle.member_count) ? circle.member_count[0]?.count || 0 : Number(circle.member_count || 0)
+
     return NextResponse.json({
       success: true,
       circle: {
         ...circle,
+        owner: circle.owner || circle.creator,
+        member_count: memberCount,
         is_member: isMember,
         user_role: userRole,
         stats: {
-          member_count: circle.member_count,
-          post_count: circle.post_count,
+          member_count: memberCount,
+          post_count: circle.post_count || posts?.length || 0,
           room_count: rooms?.length || 0,
           event_count: events?.length || 0
         }
       },
-      posts: posts || [],
+      is_member: isMember,
+      user_role: userRole,
+      posts: (posts || []).map((post: any) => ({
+        ...post,
+        timestamp: post.created_at,
+        likes: post.like_count || 0,
+        comments: post.comment_count || 0,
+        shares: post.share_count || 0,
+        is_liked: false,
+        is_bookmarked: false,
+      })),
       events: events || [],
       rooms: rooms || []
     })

@@ -79,7 +79,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const { id: circleId } = await params
-    const { targetUserId, newRole } = await request.json()
+    const { targetUserId, newRole, status } = await request.json()
 
     // Check if requesting user has permission (owner or admin)
     const { data: requestingMember } = await supabase
@@ -100,10 +100,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Invalid role" }, { status: 400 })
     }
 
+    const updates: Record<string, string> = { role: newRole }
+    if (status === "active" || status === "pending" || status === "banned") {
+      updates.status = status
+    }
+
     // Update member role
     const { data: updatedMember, error: updateError } = await supabase
       .from("circle_members")
-      .update({ role: newRole })
+      .update(updates)
       .eq("circle_id", circleId)
       .eq("user_id", targetUserId)
       .select(`

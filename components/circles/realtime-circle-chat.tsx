@@ -1,40 +1,15 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { useEffect, useRef, useState } from "react"
+import { Send, Wifi, WifiOff } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import {
-  Send,
-  Smile,
-  Pin,
-  Users,
-  Settings,
-  Crown,
-  Shield,
-  Mic,
-  MicOff,
-  Video,
-  VideoOff,
-  Share,
-  Gift,
-  MoreHorizontal,
-  ThumbsUp,
-  Heart,
-  Laugh,
-  Angry,
-  FrownIcon as Sad,
-  Reply,
-  Paperclip
-} from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useToast } from "@/hooks/use-toast"
+import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/lib/supabase"
 import { formatDistanceToNow } from "date-fns"
 
 interface CircleRoomMessage {
@@ -45,29 +20,10 @@ interface CircleRoomMessage {
     username: string
     display_name: string
     avatar_url?: string
-    is_verified: boolean
-    is_premium: boolean
+    is_verified?: boolean
+    is_premium?: boolean
   }
   timestamp: string
-  reactions: Array<{
-    emoji: string
-    count: number
-    users: string[]
-  }>
-  reply_to?: {
-    id: string
-    content: string
-    author: string
-  }
-  attachments?: Array<{
-    name: string
-    url: string
-    type: string
-    size: number
-  }>
-  is_edited?: boolean
-  edited_at?: string
-  is_pinned?: boolean
 }
 
 interface RealtimeCircleChatProps {
@@ -76,476 +32,176 @@ interface RealtimeCircleChatProps {
   roomName: string
 }
 
-const REACTION_EMOJIS = [
-  { emoji: "❤️", icon: Heart },
-  { emoji: "👍", icon: ThumbsUp },
-  { emoji: "😂", icon: Laugh },
-  { emoji: "😢", icon: Sad },
-  { emoji: "😡", icon: Angry },
-]
+function mapMessage(message: any): CircleRoomMessage {
+  const author = Array.isArray(message.author) ? message.author[0] : message.author
+  return {
+    id: message.id,
+    content: message.content || "",
+    author: author || { id: message.author_id, username: "member", display_name: "Member" },
+    timestamp: message.created_at || message.timestamp || new Date().toISOString(),
+  }
+}
 
 export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircleChatProps) {
-  const { user } = useAuth()
+  const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
-  
-  // State management
   const [messages, setMessages] = useState<CircleRoomMessage[]>([])
   const [newMessage, setNewMessage] = useState("")
-  const [replyingTo, setReplyingTo] = useState<CircleRoomMessage | null>(null)
-  const [typingUsers, setTypingUsers] = useState<string[]>([])
   const [isConnected, setIsConnected] = useState(false)
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
-  
-  // Refs
+  const [isSending, setIsSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const wsRef = useRef<WebSocket | null>(null)
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // WebSocket connection
-  useEffect(() => {
+  const loadMessages = async () => {
     if (!user || !roomId) return
 
-    const connectWebSocket = () => {
-      const authToken = user.access_token || user.token
-      const websocketBaseUrl =
-        process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"
-      const wsUrl = `${websocketBaseUrl}/circle-room/${roomId}?token=${authToken}`
-      const ws = new WebSocket(wsUrl)
-
-      ws.onopen = () => {
-        console.log('WebSocket connected')
-        setIsConnected(true)
-      }
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data)
-        handleWebSocketMessage(data)
-      }
-
-      ws.onclose = () => {
-        console.log('WebSocket disconnected')
-        setIsConnected(false)
-        // Attempt to reconnect after 3 seconds
-        setTimeout(connectWebSocket, 3000)
-      }
-
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error)
-        setIsConnected(false)
-      }
-
-      wsRef.current = ws
+    try {
+      const response = await fetch(`/api/circles/${circleId}/rooms/${roomId}/messages`, {
+        headers: getAuthHeader(),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to load messages")
+      setMessages((data.messages || []).map(mapMessage))
+    } catch (error) {
+      console.error("Failed to load room messages:", error)
     }
+  }
 
-    connectWebSocket()
+  useEffect(() => {
+    loadMessages()
+  }, [circleId, roomId, user?.id])
+
+  useEffect(() => {
+    if (!roomId) return
+
+    const channel = supabase
+      .channel(`circle-room:${roomId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "circle_room_messages", filter: `room_id=eq.${roomId}` },
+        () => loadMessages(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "circle_room_messages", filter: `room_id=eq.${roomId}` },
+        () => loadMessages(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "circle_room_messages", filter: `room_id=eq.${roomId}` },
+        () => loadMessages(),
+      )
+      .subscribe((status) => setIsConnected(status === "SUBSCRIBED"))
 
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close()
-      }
+      supabase.removeChannel(channel)
+      setIsConnected(false)
     }
-  }, [user, roomId])
+  }, [roomId])
 
-  // Handle WebSocket messages
-  const handleWebSocketMessage = (data: any) => {
-    switch (data.type) {
-      case 'new_message':
-        setMessages(prev => [...prev, data.message])
-        scrollToBottom()
-        break
-      case 'message_reaction':
-        setMessages(prev => prev.map(msg => 
-          msg.id === data.message_id 
-            ? { ...msg, reactions: data.reactions }
-            : msg
-        ))
-        break
-      case 'user_typing':
-        setTypingUsers(prev => {
-          if (data.is_typing && !prev.includes(data.user_id)) {
-            return [...prev, data.user_id]
-          } else if (!data.is_typing) {
-            return prev.filter(id => id !== data.user_id)
-          }
-          return prev
-        })
-        break
-      case 'message_edited':
-        setMessages(prev => prev.map(msg => 
-          msg.id === data.message_id 
-            ? { ...msg, content: data.content, is_edited: true, edited_at: data.edited_at }
-            : msg
-        ))
-        break
-      case 'message_deleted':
-        setMessages(prev => prev.filter(msg => msg.id !== data.message_id))
-        break
-    }
-  }
-
-  // Load messages for current room
   useEffect(() => {
-    if (!user || !roomId) return
-
-    const loadMessages = async () => {
-      try {
-        const response = await fetch(`/api/circles/${circleId}/rooms/${roomId}/messages`, {
-          headers: {
-            'Authorization': `Bearer ${user.token}`
-          }
-        })
-        
-        if (response.ok) {
-          const data = await response.json()
-          setMessages(data.messages || [])
-          scrollToBottom()
-        }
-      } catch (error) {
-        console.error('Failed to load messages:', error)
-      }
-    }
-
-    loadMessages()
-  }, [user, circleId, roomId])
-
-  // Auto-scroll to bottom
-  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
-
-  useEffect(() => {
-    scrollToBottom()
   }, [messages])
 
-  // Send message
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !roomId || !user) return
+    if (!newMessage.trim() || !user) return
 
-    const messageData = {
-      content: newMessage,
-      media_url: null,
-      media_type: null,
-      reply_to_id: replyingTo?.id || null
-    }
-
-    // Optimistically add message to UI
     const optimisticMessage: CircleRoomMessage = {
       id: `temp-${Date.now()}`,
-      content: newMessage,
+      content: newMessage.trim(),
       author: {
         id: user.id,
         username: user.username,
         display_name: user.display_name,
         avatar_url: user.avatar_url,
-        is_verified: user.is_verified || false,
-        is_premium: user.is_premium || false
+        is_verified: user.is_verified,
+        is_premium: user.is_premium,
       },
       timestamp: new Date().toISOString(),
-      reactions: [],
-      reply_to: replyingTo ? {
-        id: replyingTo.id,
-        content: replyingTo.content,
-        author: replyingTo.author.display_name
-      } : undefined,
-      is_edited: false
     }
 
-    setMessages(prev => [...prev, optimisticMessage])
+    setMessages((prev) => [...prev, optimisticMessage])
     setNewMessage("")
-    setReplyingTo(null)
+    setIsSending(true)
 
-    // Send via WebSocket for real-time delivery
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'send_message',
-        data: messageData
-      }))
-    } else {
-      // Fallback to HTTP API
-      try {
-        await fetch(`/api/circles/${circleId}/rooms/${roomId}/messages`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${user.token}`
-          },
-          body: JSON.stringify(messageData)
-        })
-      } catch (error) {
-        console.error('Failed to send message:', error)
-        toast({
-          title: "Error",
-          description: "Failed to send message. Please try again.",
-          variant: "destructive"
-        })
-      }
+    try {
+      const response = await fetch(`/api/circles/${circleId}/rooms/${roomId}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ content: optimisticMessage.content, media_url: null, media_type: null }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to send message")
+      setMessages((prev) => prev.map((item) => item.id === optimisticMessage.id ? mapMessage(data.data) : item))
+    } catch (error: any) {
+      setMessages((prev) => prev.filter((item) => item.id !== optimisticMessage.id))
+      toast({ title: "Message failed", description: error?.message || "Please try again.", variant: "destructive" })
+    } finally {
+      setIsSending(false)
     }
   }
-
-  // Handle typing indicator
-  const handleTyping = () => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
-
-    wsRef.current.send(JSON.stringify({
-      type: 'typing',
-      data: { is_typing: true }
-    }))
-
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current)
-    }
-
-    typingTimeoutRef.current = setTimeout(() => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
-          type: 'typing',
-          data: { is_typing: false }
-        }))
-      }
-    }, 1000)
-  }
-
-  // Handle reactions
-  const handleReaction = async (messageId: string, emoji: string) => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
-
-    wsRef.current.send(JSON.stringify({
-      type: 'add_reaction',
-      data: { message_id: messageId, emoji }
-    }))
-  }
-
-  // Get role icon
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case "owner":
-        return <Crown className="w-3 h-3 text-yellow-500" />
-      case "admin":
-        return <Shield className="w-3 h-3 text-red-500" />
-      case "moderator":
-        return <Shield className="w-3 h-3 text-blue-500" />
-      default:
-        return null
-    }
-  }
-
-  // Render message
-  const renderMessage = (message: CircleRoomMessage) => (
-    <div key={message.id} className="group mb-4">
-      {message.reply_to && (
-        <div className="ml-12 mb-1 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-600 border-l-2 border-gray-300">
-          <span className="font-medium">{message.reply_to.author}:</span> {message.reply_to.content}
-        </div>
-      )}
-
-      <div className="flex items-start space-x-3">
-        <Avatar className="w-8 h-8">
-          <AvatarImage src={message.author.avatar_url} alt={message.author.display_name} />
-          <AvatarFallback>{message.author.display_name.charAt(0)}</AvatarFallback>
-        </Avatar>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-2 mb-1">
-            <span className="font-medium text-sm">{message.author.display_name}</span>
-            {message.author.is_premium && <Crown className="w-3 h-3 text-yellow-500" />}
-            <span className="text-xs text-gray-500">
-              {formatDistanceToNow(new Date(message.timestamp), { addSuffix: true })}
-            </span>
-            {message.is_edited && (
-              <span className="text-xs text-gray-400">(edited)</span>
-            )}
-          </div>
-
-          <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg max-w-md">
-            <p className="text-sm">{message.content}</p>
-          </div>
-
-          {/* Reactions */}
-          {message.reactions.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {message.reactions.map((reaction, index) => (
-                <Badge
-                  key={index}
-                  variant="secondary"
-                  className="text-xs cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700"
-                  onClick={() => handleReaction(message.id, reaction.emoji)}
-                >
-                  {reaction.emoji} {reaction.count}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Message Actions */}
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="flex space-x-1">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                  <Smile className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <div className="flex space-x-1 p-1">
-                  {REACTION_EMOJIS.map((reaction) => (
-                    <Button
-                      key={reaction.emoji}
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={() => handleReaction(message.id, reaction.emoji)}
-                    >
-                      {reaction.emoji}
-                    </Button>
-                  ))}
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0"
-              onClick={() => setReplyingTo(message)}
-            >
-              <Reply className="h-3 w-3" />
-            </Button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                  <MoreHorizontal className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem>Copy Message</DropdownMenuItem>
-                {message.author.id === user?.id && (
-                  <>
-                    <DropdownMenuItem>Edit Message</DropdownMenuItem>
-                    <DropdownMenuItem className="text-red-600">Delete Message</DropdownMenuItem>
-                  </>
-                )}
-                <DropdownMenuItem>Report Message</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3 border-b">
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <span># {roomName}</span>
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="sm">
-              <Settings className="w-4 h-4" />
-            </Button>
-          </div>
+    <Card className="flex h-full min-h-[28rem] flex-col border-white/10 bg-[#0a1020]/90 text-slate-100">
+      <CardHeader className="border-b border-white/10 pb-3">
+        <CardTitle className="flex items-center justify-between text-base">
+          <span># {roomName}</span>
+          <span className="flex items-center gap-1 text-xs font-normal text-slate-400">
+            {isConnected ? <Wifi className="h-3.5 w-3.5 text-emerald-300" /> : <WifiOff className="h-3.5 w-3.5 text-amber-300" />}
+            {isConnected ? "Realtime" : "Syncing"}
+          </span>
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="flex-1 p-0 flex flex-col">
-        {/* Messages */}
+      <CardContent className="flex flex-1 flex-col p-0">
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-4">
-            {messages.map(renderMessage)}
+            {messages.length === 0 && (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-400">
+                No messages yet. Start the room conversation.
+              </div>
+            )}
+            {messages.map((message) => (
+              <div key={message.id} className="flex items-start gap-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={message.author.avatar_url} alt={message.author.display_name} />
+                  <AvatarFallback>{message.author.display_name?.charAt(0) || "M"}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 flex items-center gap-2">
+                    <span className="text-sm font-semibold text-white">{message.author.display_name}</span>
+                    <span className="text-xs text-slate-500">{formatDistanceToNow(new Date(message.timestamp), { addSuffix: true })}</span>
+                  </div>
+                  <div className="max-w-2xl rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200">
+                    {message.content}
+                  </div>
+                </div>
+              </div>
+            ))}
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
 
-        {/* Typing Indicator */}
-        {typingUsers.length > 0 && (
-          <div className="px-4 py-2 text-xs text-gray-500">
-            {typingUsers.length === 1 ? "Someone is" : `${typingUsers.length} people are`} typing...
+        <div className="border-t border-white/10 p-4">
+          <div className="flex items-end gap-2">
+            <Textarea
+              placeholder={`Message #${roomName}...`}
+              value={newMessage}
+              onChange={(event) => setNewMessage(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault()
+                  handleSendMessage()
+                }
+              }}
+              className="min-h-[44px] max-h-32 resize-none border-white/10 bg-white/[0.04] text-slate-100"
+            />
+            <Button onClick={handleSendMessage} disabled={!newMessage.trim() || isSending} className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white">
+              <Send className="h-4 w-4" />
+            </Button>
           </div>
-        )}
-
-        {/* Reply Preview */}
-        {replyingTo && (
-          <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800 border-t">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Reply className="w-4 h-4 text-gray-500" />
-                <span className="text-sm text-gray-600">
-                  Replying to <span className="font-medium">{replyingTo.author.display_name}</span>
-                </span>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setReplyingTo(null)}>
-                ×
-              </Button>
-            </div>
-            <p className="text-xs text-gray-500 mt-1 truncate">{replyingTo.content}</p>
-          </div>
-        )}
-
-        {/* Message Input */}
-        <div className="p-4 border-t">
-          <div className="flex items-end space-x-2">
-            <div className="flex-1">
-              <Textarea
-                placeholder={`Message # ${roomName}...`}
-                value={newMessage}
-                onChange={(e) => {
-                  setNewMessage(e.target.value)
-                  handleTyping()
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault()
-                    handleSendMessage()
-                  }
-                }}
-                className="min-h-[40px] max-h-32 resize-none"
-              />
-            </div>
-
-            <div className="flex space-x-1">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              >
-                <Smile className="w-4 h-4" />
-              </Button>
-
-              <Button
-                onClick={handleSendMessage}
-                disabled={!newMessage.trim()}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Emoji Picker */}
-          {showEmojiPicker && (
-            <div className="mt-2 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <div className="grid grid-cols-8 gap-2">
-                {["😀", "😂", "😍", "🤔", "👍", "❤️", "🔥", "✨", "🎉", "💯", "🚀", "⭐", "💎", "🌟", "🎊", "🔮"].map(
-                  (emoji) => (
-                    <button
-                      key={emoji}
-                      onClick={() => {
-                        setNewMessage(newMessage + emoji)
-                        setShowEmojiPicker(false)
-                      }}
-                      className="text-2xl hover:bg-gray-200 dark:hover:bg-gray-700 rounded p-1"
-                    >
-                      {emoji}
-                    </button>
-                  ),
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>

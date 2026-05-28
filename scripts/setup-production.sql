@@ -7,7 +7,8 @@
 -- 1. scripts/complete-database-setup.sql
 -- 2. scripts/launch-schema-alignment.sql
 -- 3. scripts/loops-and-media.sql
--- 4. scripts/moderation-schema.sql (create content_flags if not already present)
+-- 4. scripts/moderation-schema.sql
+-- 4b. scripts/circles-schema-alignment.sql (create content_flags if not already present)
 -- 5. scripts/rls-policies.sql
 -- 6. scripts/realtime-functions.sql
 -- 7. scripts/seed-data-v2.sql (development/demo only)

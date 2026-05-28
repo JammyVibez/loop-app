@@ -40,7 +40,7 @@ import {
   Archive,
   Flag
 } from "lucide-react"
-import { RealTimeChat } from "@/components/messages/real-time-chat"
+import { RealtimeCircleChat } from "@/components/circles/realtime-circle-chat"
 import { CircleEvents } from "@/components/circles/circle-events"
 import { GiftModal } from "@/components/gifting/gift-modal"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -115,8 +115,45 @@ interface CircleRoom {
   created_at: string
 }
 
+function mapCirclePost(post: any): CirclePost {
+  const author = Array.isArray(post?.author) ? post.author[0] : post?.author
+  return {
+    id: post?.id,
+    author: author || { id: post?.author_id, username: "member", display_name: "Member", is_premium: false, is_verified: false },
+    content: post?.content || "",
+    media_url: post?.media_url || undefined,
+    media_type: post?.media_type || undefined,
+    timestamp: post?.timestamp || post?.created_at || new Date().toISOString(),
+    likes: Number(post?.likes ?? post?.like_count ?? 0),
+    comments: Number(post?.comments ?? post?.comment_count ?? 0),
+    shares: Number(post?.shares ?? post?.share_count ?? 0),
+    is_liked: Boolean(post?.is_liked),
+    is_bookmarked: Boolean(post?.is_bookmarked),
+    is_pinned: Boolean(post?.is_pinned),
+    hashtags: Array.isArray(post?.hashtags) ? post.hashtags : [],
+    mentions: Array.isArray(post?.mentions) ? post.mentions : [],
+  }
+}
+
+function mapCircleMember(member: any): CircleMember {
+  const profile = Array.isArray(member?.user) ? member.user[0] : member?.user || member
+  return {
+    id: profile?.id || member?.user_id,
+    username: profile?.username || "member",
+    display_name: profile?.display_name || profile?.username || "Member",
+    avatar_url: profile?.avatar_url,
+    is_premium: Boolean(profile?.is_premium),
+    is_verified: Boolean(profile?.is_verified),
+    role: member?.role || "member",
+    joined_at: member?.joined_at || new Date().toISOString(),
+    last_active: profile?.last_active,
+    contribution_score: Number(member?.contribution_score || 0),
+    badges: Array.isArray(member?.badges) ? member.badges : [],
+  }
+}
+
 export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
-  const { user } = useAuth()
+  const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const { currentTheme } = useTheme3D()
   
@@ -153,39 +190,41 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
       try {
         // Load circle details
         const circleResponse = await fetch(`/api/circles/${circleId}`, {
-          headers: { 'Authorization': `Bearer ${user.token}` }
+          headers: getAuthHeader()
         })
         
         if (circleResponse.ok) {
           const circleData = await circleResponse.json()
           setCircle(circleData.circle)
-          setIsJoined(circleData.is_member)
-          setUserRole(circleData.user_role || 'member')
+          setIsJoined(Boolean(circleData.is_member ?? circleData.circle?.is_member))
+          setUserRole(circleData.user_role || circleData.circle?.user_role || 'member')
+          setPosts((circleData.posts || []).map(mapCirclePost))
+          setRooms(circleData.rooms || [])
         }
 
         // Load posts
         const postsResponse = await fetch(`/api/circles/${circleId}/posts`, {
-          headers: { 'Authorization': `Bearer ${user.token}` }
+          headers: getAuthHeader()
         })
         
         if (postsResponse.ok) {
           const postsData = await postsResponse.json()
-          setPosts(postsData.posts || [])
+          setPosts((postsData.posts || []).map(mapCirclePost))
         }
 
         // Load members
         const membersResponse = await fetch(`/api/circles/${circleId}/members`, {
-          headers: { 'Authorization': `Bearer ${user.token}` }
+          headers: getAuthHeader()
         })
         
         if (membersResponse.ok) {
           const membersData = await membersResponse.json()
-          setMembers(membersData.members || [])
+          setMembers((membersData.members || []).map(mapCircleMember))
         }
 
         // Load rooms
         const roomsResponse = await fetch(`/api/circles/${circleId}/rooms`, {
-          headers: { 'Authorization': `Bearer ${user.token}` }
+          headers: getAuthHeader()
         })
         
         if (roomsResponse.ok) {
@@ -217,7 +256,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
         method: isJoined ? 'DELETE' : 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
+          ...getAuthHeader()
         }
       })
 
@@ -251,7 +290,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
+          ...getAuthHeader()
         },
         body: JSON.stringify({
           content: newPost,
@@ -262,7 +301,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
 
       if (response.ok) {
         const data = await response.json()
-        setPosts(prev => [data.post, ...prev])
+        setPosts(prev => [mapCirclePost(data.post), ...prev])
         setNewPost("")
         toast({ description: "Post shared with the circle!" })
       }
@@ -281,11 +320,13 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
     if (!user) return
 
     try {
-      const response = await fetch(`/api/circles/${circleId}/posts/${postId}/like`, {
+      const response = await fetch(`/api/circles/${circleId}/posts/${postId}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${user.token}`
-        }
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+        body: JSON.stringify({ action: 'like' })
       })
 
       if (response.ok) {
@@ -313,7 +354,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
+          ...getAuthHeader()
         },
         body: JSON.stringify({ option_id: optionId })
       })
@@ -340,7 +381,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
+          ...getAuthHeader()
         },
         body: JSON.stringify(newRoom)
       })
@@ -470,7 +511,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                       )}
                     </Button>
 
-                    {userRole === 'owner' && (
+                    {(userRole === 'owner' || userRole === 'admin') && (
                       <a href={`/circles/${circleId}/admin`}>
                         <Button
                           variant="outline"
@@ -714,14 +755,16 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
 
             {/* Active Room Chat */}
             {activeRoom && (
-              <Card className="h-96">
-                <RealTimeChat conversationId={activeRoom} />
-              </Card>
+              <RealtimeCircleChat
+                circleId={circleId}
+                roomId={activeRoom}
+                roomName={rooms.find((room) => room.id === activeRoom)?.name || "room"}
+              />
             )}
           </TabsContent>
 
           <TabsContent value="events">
-            <CircleEvents circleId={circleId} />
+            <CircleEvents circleId={circleId} isAdmin={userRole === "owner" || userRole === "admin" || userRole === "moderator"} />
           </TabsContent>
 
           <TabsContent value="members" className="space-y-6">
