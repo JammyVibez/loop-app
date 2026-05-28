@@ -3,6 +3,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { v2 as cloudinary } from 'cloudinary'
 import { createClient } from "@supabase/supabase-js"
 
+const MAX_UPLOAD_BYTES: Record<string, number> = {
+  image: 10 * 1024 * 1024,
+  audio: 25 * 1024 * 1024,
+  video: 50 * 1024 * 1024,
+  file: 25 * 1024 * 1024,
+}
+
 // Configure Cloudinary
 if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
   console.error('Missing Cloudinary configuration:', {
@@ -41,11 +48,8 @@ function createServerClient() {
 
 async function getUserFromToken(token: string | null) {
   if (!token) {
-    console.log('No token provided for auth verification')
     return null
   }
-  
-  console.log('Verifying token with length:', token.length)
   
   try {
     const supabase = createServerClient()
@@ -61,7 +65,6 @@ async function getUserFromToken(token: string | null) {
       return null
     }
     
-    console.log('Successfully verified user:', user.id)
     return user
   } catch (error) {
     console.error('Auth verification exception:', error)
@@ -71,24 +74,17 @@ async function getUserFromToken(token: string | null) {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Upload request received')
-    
     const authHeader = request.headers.get("authorization")
-    console.log('Auth header:', authHeader ? 'Present' : 'Missing')
     
     if (!authHeader) {
-      console.log('No authorization header provided')
       return NextResponse.json({ error: "Unauthorized - No auth header" }, { status: 401 })
     }
 
     const token = authHeader.replace("Bearer ", "")
-    console.log('Extracted token length:', token.length)
     
     const user = await getUserFromToken(token)
-    console.log('User from token:', user ? 'Found' : 'Not found')
 
     if (!user) {
-      console.log('Invalid or expired token')
       return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
     }
 
@@ -99,6 +95,13 @@ export async function POST(request: NextRequest) {
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
+    }
+
+    const maxSize = MAX_UPLOAD_BYTES[type] || MAX_UPLOAD_BYTES.file
+    if (file.size > maxSize) {
+      return NextResponse.json({
+        error: `File is too large. Maximum size is ${Math.round(maxSize / 1024 / 1024)}MB.`,
+      }, { status: 413 })
     }
 
     // Validate file type
@@ -218,7 +221,10 @@ export async function POST(request: NextRequest) {
     } catch (cloudinaryError) {
       console.error('Cloudinary upload error:', cloudinaryError)
       return NextResponse.json(
-        { error: "Failed to upload file", details: cloudinaryError },
+        {
+          error: "Failed to upload file",
+          details: process.env.NODE_ENV === "development" ? String(cloudinaryError) : undefined,
+        },
         { status: 500 }
       )
     }
@@ -226,7 +232,10 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("Upload error:", error)
     return NextResponse.json(
-      { error: "Internal server error", details: error.message },
+      {
+        error: "Internal server error",
+        details: process.env.NODE_ENV === "development" ? error.message : undefined,
+      },
       { status: 500 }
     )
   }
@@ -253,23 +262,36 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Public ID required" }, { status: 400 })
     }
 
-    // Delete from Cloudinary
-    await cloudinary.uploader.destroy(publicId)
-
-    // Delete from database
     const supabase = createServerClient()
+    const { data: mediaRecord, error: mediaError } = await supabase
+      .from('media_uploads')
+      .select('id, cloudinary_public_id, media_type')
+      .eq('cloudinary_public_id', publicId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (mediaError || !mediaRecord) {
+      return NextResponse.json({ error: "Media not found" }, { status: 404 })
+    }
+
+    await cloudinary.uploader.destroy(publicId, {
+      resource_type: mediaRecord.media_type === 'video' || mediaRecord.media_type === 'audio' ? 'video' : 'image',
+    })
+
     await supabase
       .from('media_uploads')
       .delete()
-      .eq('cloudinary_public_id', publicId)
-      .eq('user_id', user.id)
+      .eq('id', mediaRecord.id)
 
     return NextResponse.json({ success: true })
 
   } catch (error: any) {
     console.error("Delete error:", error)
     return NextResponse.json(
-      { error: "Internal server error", details: error.message },
+      {
+        error: "Internal server error",
+        details: process.env.NODE_ENV === "development" ? error.message : undefined,
+      },
       { status: 500 }
     )
   }

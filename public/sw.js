@@ -4,19 +4,21 @@ const DYNAMIC_CACHE = "loop-dynamic-v2.1"
 const IMAGE_CACHE = "loop-images-v2.1"
 
 // Static assets to cache immediately
-const STATIC_ASSETS = [
-  "/",
-  "/manifest.json",
-  "/offline",
-  "/icons/icon-192x192.png",
-  "/icons/icon-512x512.png",
-  "/icons/apple-touch-icon.png",
-  "/styles/3d-framework.css",
-  "/styles/responsive.css",
-]
+const STATIC_ASSETS = ["/", "/manifest.json", "/offline", "/icons/icon.svg", "/icons/icon-192x192.png"]
 
-// API routes that should be cached
-const API_CACHE_PATTERNS = [/^\/api\/shop\/items/, /^\/api\/quests/, /^\/api\/inventory/]
+// Only cache public, read-only API routes. Never cache auth, admin, upload,
+// payments, inventory, messages, or other user-specific endpoints.
+const API_CACHE_PATTERNS = [/^\/api\/shop\/items$/]
+const NEVER_CACHE_API_PATTERNS = [
+  /^\/api\/admin/,
+  /^\/api\/auth/,
+  /^\/api\/upload/,
+  /^\/api\/payments/,
+  /^\/api\/inventory/,
+  /^\/api\/messages/,
+  /^\/api\/notifications/,
+  /^\/api\/users/,
+]
 
 // Install event - cache static assets
 self.addEventListener("install", (event) => {
@@ -116,7 +118,7 @@ async function handleAPIRequest(request) {
   const url = new URL(request.url)
   const shouldCache = API_CACHE_PATTERNS.some((pattern) => pattern.test(url.pathname))
 
-  if (!shouldCache) {
+  if (NEVER_CACHE_API_PATTERNS.some((pattern) => pattern.test(url.pathname)) || !shouldCache) {
     return fetch(request)
   }
 

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { requireModerator } from "@/lib/server-auth";
 
 async function getUserFromToken(token: string) {
   try {
@@ -16,29 +17,10 @@ async function getUserFromToken(token: string) {
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { user, response } = await requireModerator(request);
+    if (response || !user) return response;
 
-    const token = authHeader.replace("Bearer ", "");
-    const user = await getUserFromToken(token);
-
-    if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-
-    // Check if user is admin or moderator
     const supabase = createServerClient();
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("is_admin, is_verified")
-      .eq("id", user.id)
-      .single();
-
-    if (profileError || (!profile?.is_admin && !profile?.is_verified)) {
-      return NextResponse.json({ error: "Admin or moderator access required" }, { status: 403 });
-    }
 
     const { status, action_taken, moderator_notes } = await request.json();
 
@@ -101,29 +83,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { response } = await requireModerator(request);
+    if (response) return response;
 
-    const token = authHeader.replace("Bearer ", "");
-    const user = await getUserFromToken(token);
-
-    if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-
-    // Check if user is admin or moderator
     const supabase = createServerClient();
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("is_admin, is_verified")
-      .eq("id", user.id)
-      .single();
-
-    if (profileError || (!profile?.is_admin && !profile?.is_verified)) {
-      return NextResponse.json({ error: "Admin or moderator access required" }, { status: 403 });
-    }
 
     // Fetch content flag
     const { data: flag, error } = await supabase
