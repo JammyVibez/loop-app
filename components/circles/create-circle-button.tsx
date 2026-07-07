@@ -10,6 +10,8 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Users } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 
 const categories = [
   "Art",
@@ -35,6 +37,8 @@ export function CreateCircleButton() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+  const router = useRouter()
+  const { user, getAuthHeader } = useAuth()
 
   const handleSubmit = async () => {
     if (!formData.name.trim() || !formData.description.trim() || !formData.category) {
@@ -46,10 +50,26 @@ export function CreateCircleButton() {
       return
     }
 
+    if (!user) {
+      toast({ title: "Authentication Required", description: "Please log in to create a circle.", variant: "destructive" })
+      return
+    }
+
     setIsSubmitting(true)
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const response = await fetch("/api/circles", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify(formData),
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create circle")
+      }
 
       toast({
         title: "Circle Created!",
@@ -58,10 +78,11 @@ export function CreateCircleButton() {
 
       setIsOpen(false)
       setFormData({ name: "", description: "", category: "", is_private: false })
-    } catch (error) {
+      router.push(`/circles/${data.circle.id}`)
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to create circle. Please try again.",
+        description: error?.message || "Failed to create circle. Please try again.",
         variant: "destructive",
       })
     } finally {

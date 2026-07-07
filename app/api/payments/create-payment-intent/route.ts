@@ -43,7 +43,10 @@ export async function POST(request: NextRequest) {
 
     // Check if Stripe is configured
     if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.includes('your_stripe_secret_key')) {
-      // Mock response for development
+      if (process.env.NODE_ENV === "production") {
+        return NextResponse.json({ error: "Stripe is not configured" }, { status: 503 })
+      }
+
       return NextResponse.json({
         success: true,
         client_secret: "pi_mock_client_secret_" + Date.now(),

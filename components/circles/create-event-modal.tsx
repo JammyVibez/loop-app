@@ -33,50 +33,45 @@ export function CreateEventModal({ isOpen, onClose, circleId, onEventCreated }: 
   })
   const [isCreating, setIsCreating] = useState(false)
   const { toast } = useToast()
-  const { user } = useAuth()
+  const { user, getAuthHeader } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsCreating(true)
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    const newEvent = {
-      id: `event-${Date.now()}`,
-      title: eventData.title,
-      description: eventData.description,
-      date: new Date(`${eventData.date}T${eventData.time}`),
-      location: eventData.isVirtual ? "Virtual Event" : eventData.location,
-      host: {
-        username: user?.username || "currentuser",
-        display_name: user?.display_name || "Current User",
-        avatar_url: user?.avatar_url || "/placeholder.svg?height=32&width=32",
-      },
-      attendees: 1, // Host is automatically attending
-      max_attendees: eventData.maxAttendees ? Number.parseInt(eventData.maxAttendees) : undefined,
-      is_attending: true,
+    if (!user) {
+      toast({ title: "Authentication Required", description: "Please log in to create events.", variant: "destructive" })
+      return
     }
 
-    onEventCreated(newEvent)
+    setIsCreating(true)
+    try {
+      const startsAt = new Date(`${eventData.date}T${eventData.time}`).toISOString()
+      const response = await fetch(`/api/circles/${circleId}/events`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({
+          title: eventData.title,
+          description: eventData.description,
+          event_type: eventData.isVirtual ? "voice_chat" : "discussion",
+          starts_at: startsAt,
+          ends_at: new Date(new Date(startsAt).getTime() + 60 * 60 * 1000).toISOString(),
+          max_participants: eventData.maxAttendees ? Number.parseInt(eventData.maxAttendees) : undefined,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to create event")
 
-    toast({
-      title: "Event Created!",
-      description: "Your event has been created and members will be notified.",
-    })
-
-    // Reset form
-    setEventData({
-      title: "",
-      description: "",
-      date: "",
-      time: "",
-      location: "",
-      isVirtual: false,
-      maxAttendees: "",
-      requiresApproval: false,
-    })
-    setIsCreating(false)
+      onEventCreated(data.event)
+      toast({ title: "Event Created!", description: "Your event has been created and members will be notified." })
+      setEventData({ title: "", description: "", date: "", time: "", location: "", isVirtual: false, maxAttendees: "", requiresApproval: false })
+      onClose()
+    } catch (error: any) {
+      toast({ title: "Error", description: error?.message || "Failed to create event.", variant: "destructive" })
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   return (

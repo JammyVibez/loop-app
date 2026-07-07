@@ -51,13 +51,18 @@ export function CreateLoopButton({ onLoopCreated }: CreateLoopButtonProps) {
       if (mediaFiles.length > 0) {
         // ✅ OPTION B: send file(s) directly to backend
         const formData = new FormData();
-        formData.append("content", content);
-        formData.append("title", content.slice(0, 80) || "");
-        formData.append("type", mediaType);
-        formData.append("author_id", user.id);
+        formData.append("content_text", content);
+        formData.append("content_title", content.slice(0, 80) || "");
+        formData.append("content_type", mediaType);
+        formData.append("hashtags", JSON.stringify(
+          hashtags
+            .split(/[ ,#]+/)
+            .filter((tag) => tag.length > 0)
+            .map((tag) => tag.toLowerCase())
+        ));
 
         // only append first file for now (backend expects one)
-        formData.append("file", mediaFiles[0]);
+        formData.append("media", mediaFiles[0]);
 
         res = await fetch("/api/loops", {
           method: "POST",
@@ -75,14 +80,13 @@ export function CreateLoopButton({ onLoopCreated }: CreateLoopButtonProps) {
             Authorization: `Bearer ${user.token}`,
           },
           body: JSON.stringify({
-            content,
-            title: content.slice(0, 80) || null,
-            type: mediaType,
+            content_text: content,
+            content_title: content.slice(0, 80) || null,
+            content_type: mediaType,
             hashtags: hashtags
               .split(/[ ,#]+/)
               .filter((tag) => tag.length > 0)
               .map((tag) => tag.toLowerCase()),
-            author_id: user.id,
           }),
         });
       }

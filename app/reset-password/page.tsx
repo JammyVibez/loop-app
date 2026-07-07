@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,15 +10,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CheckCircle, XCircle, Lock, ArrowLeft, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
-import { createClient } from "@supabase/supabase-js"
+import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+const supabase = getSupabaseBrowserClient()
 
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams()
-  const token = searchParams.get("token")
+  const code = searchParams.get("code")
+  const ready = searchParams.get("ready") === "1"
 
-  const [step, setStep] = useState<"request" | "reset" | "success" | "error">(!token ? "request" : "reset")
+  const [step, setStep] = useState<"request" | "reset" | "success" | "error" | "exchanging">(code ? "exchanging" : ready ? "reset" : "request")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -26,6 +27,23 @@ export default function ResetPasswordPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
+
+  useEffect(() => {
+    if (!code) return
+
+    const exchangeRecoveryCode = async () => {
+      try {
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
+        if (error) throw error
+        setStep("reset")
+      } catch (error: any) {
+        setErrors({ general: error?.message || "This reset link is invalid or expired." })
+        setStep("error")
+      }
+    }
+
+    exchangeRecoveryCode()
+  }, [code])
 
   const validatePassword = (password: string) => {
     const errors: string[] = []
@@ -44,7 +62,7 @@ export default function ResetPasswordPage() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/api/auth/callback?next=/reset-password`,
       })
 
       if (error) {
@@ -98,6 +116,15 @@ export default function ResetPasswordPage() {
 
   const renderContent = () => {
     switch (step) {
+      case "exchanging":
+        return (
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Preparing password reset...</h2>
+            <p className="text-muted-foreground">Please wait while we validate your reset link.</p>
+          </div>
+        )
+
       case "request":
         return (
           <div>
@@ -229,10 +256,10 @@ export default function ResetPasswordPage() {
           <div className="text-center">
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-2xl font-semibold mb-2 text-green-700">
-              {step === "success" && !token ? "Reset Link Sent!" : "Password Reset Successfully!"}
+              {email ? "Reset Link Sent!" : "Password Reset Successfully!"}
             </h2>
             <p className="text-muted-foreground mb-6">
-              {step === "success" && !token
+              {email
                 ? `We've sent a password reset link to ${email}. Please check your email and follow the instructions.`
                 : "Your password has been reset successfully. You can now sign in with your new password."}
             </p>
@@ -273,9 +300,12 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card>
+    <div className="relative min-h-screen overflow-hidden bg-[#030712] text-slate-100 flex items-center justify-center p-4">
+      <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-40" />
+      <div className="landing-aurora-blob pointer-events-none absolute -left-1/4 top-[-20%] h-[70vmin] w-[70vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.45),transparent_65%)] blur-3xl" />
+      <div className="landing-aurora-blob pointer-events-none absolute -right-1/4 top-[10%] h-[60vmin] w-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.35),transparent_65%)] blur-3xl [animation-delay:-6s]" />
+      <div className="relative z-10 w-full max-w-md">
+        <Card className="landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
           <CardHeader>
             <div className="flex items-center gap-2 mb-2">
               <Link href="/">

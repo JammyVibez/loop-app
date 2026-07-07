@@ -101,16 +101,18 @@ export function LoopCard3D({ loop, onLike, onBookmark, className = '', variant =
     setMousePosition({ x: 0, y: 0 })
   }
 
+  const loopCardTheme = (currentTheme as any)?.components?.loopCard
+
   // Generate dynamic styles based on current theme
   const cardStyles = {
     transform: isHovered 
       ? `perspective(1000px) rotateX(${mousePosition.y}deg) rotateY(${mousePosition.x}deg) translateZ(20px)` 
       : 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0px)',
-    background: currentTheme?.components.loopCard.background || 'rgba(30, 41, 59, 0.8)',
-    border: currentTheme?.components.loopCard.border || '1px solid rgba(99, 102, 241, 0.2)',
+    background: loopCardTheme?.background || 'rgba(30, 41, 59, 0.8)',
+    border: loopCardTheme?.border || '1px solid rgba(99, 102, 241, 0.2)',
     boxShadow: isHovered 
       ? `0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px ${colors.glow || 'rgba(99, 102, 241, 0.3)'}` 
-      : currentTheme?.components.loopCard.boxShadow || '0 8px 32px rgba(0, 0, 0, 0.3)',
+      : loopCardTheme?.boxShadow || '0 8px 32px rgba(0, 0, 0, 0.3)',
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
   }
 

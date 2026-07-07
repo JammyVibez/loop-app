@@ -45,15 +45,17 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    // Some DB versions don't have theme_data yet; retry without it.
-    if (profileError?.code === "PGRST204" && payload.theme_data !== undefined) {
-      delete payload.theme_data
-      ;({ data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .update(payload)
-        .eq("id", user.id)
-        .select()
-        .single())
+    // Some DB versions may not have newer onboarding columns yet; retry without them.
+    for (const optionalColumn of ["theme_data", "interests"]) {
+      if (profileError?.code === "PGRST204" && optionalColumn in payload) {
+        delete payload[optionalColumn]
+        ;({ data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .update(payload)
+          .eq("id", user.id)
+          .select()
+          .single())
+      }
     }
 
     if (profileError) {

@@ -17,6 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader } from "./ui/card";
@@ -71,20 +73,27 @@ interface Loop {
   engagement_score?: number;
   gifts_received?: number;
   total_gift_value?: number;
-  parent_loop_id?: string;
+  parent_loop_id?: string | null;
 }
 
 interface LoopCardProps {
-  loop: Loop;
-  interacting: string | null;
-  onInteraction: (loopId: string, type: "like" | "save") => void;
+  loop: any;
+  interacting?: string | null;
+  onInteraction?: (loopId: string, type: "like" | "save") => void;
+  onDeleted?: (loopId: string) => void;
+  onEdited?: (loop: any) => void;
+  onLike?: () => void;
+  onBookmark?: () => void;
+  isChild?: boolean;
   className?: string;
 }
 
 export function LoopCard({
   loop,
-  interacting,
-  onInteraction,
+  interacting = null,
+  onInteraction = () => undefined,
+  onDeleted,
+  onEdited,
   className = "",
 }: LoopCardProps) {
   const [showFullContent, setShowFullContent] = useState(false);
@@ -129,9 +138,59 @@ export function LoopCard({
 
   // Handle branch creation
   const handleBranch = () => {
-    if (onInteraction) {
-      onInteraction(loop.id, "branch");
+    window.location.href = `/loop/${loop.id}`;
+  };
+
+  const handleEdit = async () => {
+    if (!currentUser?.token || currentUser.id !== loop.author_id) return;
+
+    const nextContent = window.prompt("Edit your loop", content);
+    if (nextContent === null || nextContent.trim() === content.trim()) return;
+
+    const response = await fetch(`/api/loops/${loop.id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${currentUser.token}`,
+      },
+      body: JSON.stringify({ content: nextContent }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      toast({
+        title: "Could not update loop",
+        description: data.error || "Please try again.",
+        variant: "destructive",
+      });
+      return;
     }
+
+    onEdited?.(data.loop);
+    toast({ title: "Loop updated" });
+  };
+
+  const handleDelete = async () => {
+    if (!currentUser?.token || currentUser.id !== loop.author_id) return;
+    if (!window.confirm("Delete this loop? This cannot be undone.")) return;
+
+    const response = await fetch(`/api/loops/${loop.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${currentUser.token}` },
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      toast({
+        title: "Could not delete loop",
+        description: data.error || "Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    onDeleted?.(loop.id);
+    toast({ title: "Loop deleted" });
   };
 
   const getCardStyle = () => {
@@ -281,7 +340,7 @@ export function LoopCard({
 
         {mediaUrls.length > 1 && (
           <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
-            {mediaUrls.map((_, index) => (
+            {mediaUrls.map((_: string, index: number) => (
               <button
                 key={index}
                 className={`w-2 h-2 rounded-full transition-all ${
@@ -460,6 +519,18 @@ export function LoopCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {currentUser?.id === loop.author_id && (
+                  <>
+                    <DropdownMenuItem onClick={handleEdit}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Loop
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleDelete} className="text-red-500 focus:text-red-500">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Loop
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuItem onClick={() => setShowGiftModal(true)}>
                   <Gift className="h-4 w-4 mr-2" />
                   Send Gift
@@ -494,7 +565,7 @@ export function LoopCard({
 
             {hashtags.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                {hashtags.slice(0, 3).map((tag) => (
+                {hashtags.slice(0, 3).map((tag: string) => (
                   <Link key={tag} href={`/hashtag/${tag}`}>
                     <Badge
                       variant="outline"

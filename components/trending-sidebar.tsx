@@ -103,7 +103,7 @@ export function TrendingSidebar() {
   return (
     <div className="space-y-6">
       {/* Trending Hashtags */}
-      <Card>
+      <Card className="border-white/10 bg-[#0a1020]/85 shadow-2xl shadow-violet-950/10">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center space-x-2">
             <Hash className="w-5 h-5" />
@@ -116,19 +116,19 @@ export function TrendingSidebar() {
               <Loader2 className="w-4 h-4 animate-spin" />
             </div>
           ) : trendingHashtags.length === 0 ? (
-            <p className="text-sm text-gray-500">No trending hashtags yet</p>
+            <p className="text-sm text-slate-500">No trending hashtags yet</p>
           ) : (
             <div className="space-y-3">
               {trendingHashtags.map((hashtag, index) => (
                 <Link
                   key={hashtag.tag}
                   href={`/hashtag/${encodeURIComponent(hashtag.tag)}`}
-                  className="block hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-2 -m-2 transition-colors"
+                  className="block hover:bg-white/[0.06] rounded-lg p-2 -m-2 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium text-sm">#{hashtag.tag}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-slate-500">
                         {hashtag.count} loops
                       </p>
                     </div>
@@ -144,7 +144,7 @@ export function TrendingSidebar() {
       </Card>
 
       {/* Suggested Users */}
-      <Card>
+      <Card className="border-white/10 bg-[#0a1020]/85 shadow-2xl shadow-violet-950/10">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center space-x-2">
             <Users className="w-5 h-5" />
@@ -162,7 +162,7 @@ export function TrendingSidebar() {
                 <div key={suggestedUser.id} className="flex items-center justify-between">
                   <Link
                     href={`/profile/${suggestedUser.username}`}
-                    className="flex items-center space-x-3 flex-1 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-2 -m-2 transition-colors"
+                    className="flex items-center space-x-3 flex-1 hover:bg-white/[0.06] rounded-lg p-2 -m-2 transition-colors"
                   >
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={suggestedUser.avatar_url} alt={suggestedUser.display_name} />
@@ -181,11 +181,11 @@ export function TrendingSidebar() {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 truncate">
+                      <p className="text-xs text-slate-500 truncate">
                         @{suggestedUser.username}
                       </p>
                       {suggestedUser.follower_count && (
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-slate-500">
                           {suggestedUser.follower_count.toLocaleString()} followers
                         </p>
                       )}
@@ -194,6 +194,7 @@ export function TrendingSidebar() {
                   <Button
                     size="sm"
                     variant="outline"
+                    className="rounded-full border-white/15 bg-white/[0.04] text-slate-100 hover:bg-white/10"
                     disabled={following[suggestedUser.id]}
                     onClick={() => handleFollow(suggestedUser.id)}
                   >
@@ -207,7 +208,7 @@ export function TrendingSidebar() {
       </Card>
 
       {/* Quick Stats */}
-      <Card>
+      <Card className="border-white/10 bg-[#0a1020]/85 shadow-2xl shadow-violet-950/10">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center space-x-2">
             <TrendingUp className="w-5 h-5" />
@@ -217,20 +218,20 @@ export function TrendingSidebar() {
         <CardContent>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Loop Coins</span>
+              <span className="text-sm text-slate-400">Loop Coins</span>
               <Badge variant="secondary">
                 {user.loop_coins.toLocaleString()}
               </Badge>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Account Type</span>
+              <span className="text-sm text-slate-400">Account Type</span>
               <Badge variant={user.is_premium ? "default" : "outline"}>
                 {user.is_premium ? "Premium" : "Free"}
               </Badge>
             </div>
             {user.is_verified && (
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Status</span>
+                <span className="text-sm text-slate-400">Status</span>
                 <Badge variant="secondary">
                   ✓ Verified
                 </Badge>

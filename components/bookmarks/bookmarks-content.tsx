@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Bookmark, Search, Grid, List, Trash2, Share } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/use-auth"
 
 // Bookmark interface
 interface Bookmark {
@@ -29,27 +30,25 @@ export function BookmarksContent() {
   const [sortBy, setSortBy] = useState("recent")
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
+  const { user, getAuthHeader } = useAuth()
   
   // Load bookmarks from API
   useEffect(() => {
     const loadBookmarks = async () => {
       try {
         setLoading(true)
-        const token = localStorage.getItem('auth-token')
-        if (!token) {
+        if (!user) {
           setLoading(false)
           return
         }
         
         const response = await fetch('/api/bookmarks', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: getAuthHeader(),
         })
         
         if (response.ok) {
           const data = await response.json()
-          setBookmarks(data.bookmarks || [])
+          setBookmarks((data.bookmarks || []).map((bookmark: any) => ({ ...bookmark, saved_at: new Date(bookmark.saved_at) })))
         }
       } catch (error) {
         console.error('Failed to load bookmarks:', error)
@@ -64,12 +63,12 @@ export function BookmarksContent() {
     }
     
     loadBookmarks()
-  }, [])
+  }, [user])
 
   const filteredBookmarks = bookmarks.filter((bookmark) => {
     const matchesSearch =
-      bookmark.loop.content.text?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      bookmark.loop.content.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      bookmark.loop.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      bookmark.loop.content_title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       bookmark.loop.author.display_name.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesCategory = selectedCategory === "All" || bookmark.category === selectedCategory
@@ -84,17 +83,32 @@ export function BookmarksContent() {
       case "oldest":
         return a.saved_at.getTime() - b.saved_at.getTime()
       case "popular":
-        return b.loop.stats.likes - a.loop.stats.likes
+        return (b.loop.stats?.likes_count || 0) - (a.loop.stats?.likes_count || 0)
       default:
         return 0
     }
   })
 
-  const handleRemoveBookmark = (bookmarkId: string) => {
-    setBookmarks((prev) => prev.filter((b) => b.id !== bookmarkId))
-    toast({
-      description: "Bookmark removed successfully",
+  const handleRemoveBookmark = async (bookmarkId: string) => {
+    const bookmark = bookmarks.find((item) => item.id === bookmarkId)
+    if (!bookmark || !user) return
+
+    const response = await fetch(`/api/loops/${bookmark.loop.id}/interactions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeader(),
+      },
+      body: JSON.stringify({ interaction_type: "save" }),
     })
+
+    if (!response.ok) {
+      toast({ title: "Error", description: "Failed to remove bookmark", variant: "destructive" })
+      return
+    }
+
+    setBookmarks((prev) => prev.filter((b) => b.id !== bookmarkId))
+    toast({ description: "Bookmark removed successfully" })
   }
 
   const handleShare = (bookmark: any) => {
@@ -132,7 +146,7 @@ export function BookmarksContent() {
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-3 py-2 border rounded-md text-sm bg-background"
+                className="px-3 py-2 border border-white/10 rounded-md text-sm bg-[#0a1020] text-slate-100"
               >
                 {categories.map((category) => (
                   <option key={category} value={category}>
@@ -144,7 +158,7 @@ export function BookmarksContent() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 border rounded-md text-sm bg-background"
+                className="px-3 py-2 border border-white/10 rounded-md text-sm bg-[#0a1020] text-slate-100"
               >
                 <option value="recent">Most Recent</option>
                 <option value="oldest">Oldest First</option>
@@ -242,7 +256,7 @@ export function BookmarksContent() {
               </div>
 
               {/* Loop Content */}
-              <LoopCard loop={bookmark.loop} />
+              <LoopCard loop={bookmark.loop} onDeleted={(loopId) => setBookmarks(prev => prev.filter(item => item.loop.id !== loopId))} onEdited={(loop) => setBookmarks(prev => prev.map(item => item.loop.id === loop.id ? { ...item, loop } : item))} />
             </div>
           ))}
         </div>

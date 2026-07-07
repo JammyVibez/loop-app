@@ -50,7 +50,7 @@ export default function SignupPage() {
 
     try {
       await signup(email, password, username, displayName)
-      router.push("/verify-email")
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`)
     } catch (err: any) {
       setError(err.message || "Failed to create account")
     } finally {
@@ -72,11 +72,14 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-md shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+    <div className="relative min-h-screen overflow-hidden bg-[#030712] text-slate-100 flex items-center justify-center p-4">
+      <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-40" />
+      <div className="landing-aurora-blob pointer-events-none absolute -left-1/4 top-[-20%] h-[70vmin] w-[70vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.45),transparent_65%)] blur-3xl" />
+      <div className="landing-aurora-blob pointer-events-none absolute -right-1/4 top-[10%] h-[60vmin] w-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.35),transparent_65%)] blur-3xl [animation-delay:-6s]" />
+      <Card className="relative z-10 w-full max-w-md landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
+            <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/25">
               <span className="text-white font-bold text-xl">L</span>
             </div>
           </div>
@@ -117,7 +120,7 @@ export default function SignupPage() {
                 required
                 className="transition-all duration-200 focus:ring-2 focus:ring-purple-500"
               />
-              <p className="text-xs text-gray-500">Only lowercase letters, numbers, and underscores</p>
+              <p className="text-xs text-slate-500">Only lowercase letters, numbers, and underscores</p>
             </div>
 
             <div className="space-y-2">
@@ -192,7 +195,7 @@ export default function SignupPage() {
           <CardFooter className="flex flex-col space-y-4">
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 transition-all duration-200"
+              className="w-full rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-violet-600/30 hover:from-violet-500 hover:to-cyan-400 transition-all duration-200"
               disabled={loading}
             >
               {loading ? (
@@ -217,7 +220,7 @@ export default function SignupPage() {
             <Button 
               type="button" 
               variant="outline" 
-              className="w-full" 
+              className="w-full rounded-full border-white/15 bg-white/[0.03] text-slate-100 hover:bg-white/10" 
               onClick={handleGoogleSignup}
               disabled={loading}
             >
@@ -230,7 +233,7 @@ export default function SignupPage() {
               Continue with Google
             </Button>
 
-            <div className="text-center text-sm text-gray-600">
+            <div className="text-center text-sm text-slate-400">
               Already have an account?{" "}
               <Link href="/login" className="text-purple-600 hover:text-purple-700 font-medium">
                 Sign in

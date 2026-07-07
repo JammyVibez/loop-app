@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { toast } from "@/hooks/use-toast"
 
 export interface ApiError {

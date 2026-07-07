@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
-import { v4 as uuidv4 } from 'uuid'
 
 export async function GET(request: NextRequest) {
   try {
@@ -94,8 +93,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate stream key and URLs
-    const streamKey = uuidv4()
-    const streamId = uuidv4()
+    const streamKey = crypto.randomUUID()
+    const streamId = crypto.randomUUID()
     
     // In production, you would integrate with a streaming service like:
     // - AWS IVS (Interactive Video Service)

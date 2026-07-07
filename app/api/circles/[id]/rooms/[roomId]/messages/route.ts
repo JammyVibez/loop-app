@@ -56,7 +56,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .select("id")
       .eq("circle_id", circleId)
       .eq("user_id", user.id)
-      .eq("status", "active")
+      .in("status", ["active", "approved"])
       .single()
 
     if (!member) {
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .select("id")
       .eq("circle_id", circleId)
       .eq("user_id", user.id)
-      .eq("status", "active")
+      .in("status", ["active", "approved"])
       .single()
 
     if (!member) {

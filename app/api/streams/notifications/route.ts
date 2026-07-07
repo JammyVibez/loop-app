@@ -124,6 +124,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { data: followedUsers, error: followsError } = await supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', user.id)
+
+    if (followsError) {
+      return NextResponse.json({ error: followsError.message }, { status: 500 })
+    }
+
+    const followingIds = (followedUsers || []).map((follow) => follow.following_id).filter(Boolean)
+
+    if (followingIds.length === 0) {
+      return NextResponse.json({ live_streams: [], count: 0 })
+    }
+
     // Get live streams from users the current user follows
     const { data: liveStreams, error } = await supabase
       .from('live_streams')
@@ -138,12 +153,7 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('is_live', true)
-      .in('streamer_id', 
-        supabase
-          .from('follows')
-          .select('following_id')
-          .eq('follower_id', user.id)
-      )
+      .in('streamer_id', followingIds)
       .order('started_at', { ascending: false })
 
     if (error) {

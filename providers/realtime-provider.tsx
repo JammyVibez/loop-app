@@ -88,8 +88,8 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   }
 
   const unsubscribe = (event: string) => {
-    if (channel) {
-      channel.off('broadcast', { event })
+    if (channel && typeof (channel as any).off === "function") {
+      ;(channel as any).off('broadcast', { event })
     }
   }
 

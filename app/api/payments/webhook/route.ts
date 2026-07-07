@@ -3,13 +3,12 @@ import { createServerClient } from "@/lib/supabase"
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if Stripe is configured
-    if (!process.env.STRIPE_SECRET_KEY) {
-      console.log("Stripe not configured - webhook simulation mode")
-      return NextResponse.json({
-        received: true,
-        message: "Webhook received (simulation mode)",
-      })
+    if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.includes("your_stripe_secret_key")) {
+      const status = process.env.NODE_ENV === "production" ? 503 : 200
+      return NextResponse.json(
+        { received: false, message: "Stripe is not configured" },
+        { status },
+      )
     }
 
     // Dynamic import to avoid build-time errors
@@ -26,12 +25,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No signature provided" }, { status: 400 })
     }
 
-    if (!process.env.STRIPE_WEBHOOK_SECRET) {
-      console.log("Webhook secret not configured - processing without verification")
-      return NextResponse.json({
-        received: true,
-        message: "Webhook processed without verification",
-      })
+    if (!process.env.STRIPE_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET.includes("your_webhook_secret")) {
+      const status = process.env.NODE_ENV === "production" ? 503 : 400
+      return NextResponse.json(
+        { error: "Stripe webhook secret is not configured" },
+        { status },
+      )
     }
 
     const event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET)
@@ -56,6 +55,15 @@ export async function POST(request: NextRequest) {
               updated_at: new Date().toISOString(),
             })
             .eq("id", paymentIntent.metadata.user_id)
+        }
+
+        if (paymentIntent.metadata?.user_id && paymentIntent.metadata?.item_id) {
+          await supabase.from("user_inventory").upsert({
+            user_id: paymentIntent.metadata.user_id,
+            item_id: paymentIntent.metadata.item_id,
+            acquired_at: new Date().toISOString(),
+            source: "stripe",
+          })
         }
         break
       case "customer.subscription.created":

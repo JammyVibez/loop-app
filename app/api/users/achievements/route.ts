@@ -97,12 +97,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate achievement statistics
-    const earnedAchievementIds = userAchievements?.map(ua => ua.achievement.id) || []
+    const earnedAchievementIds =
+      (userAchievements as any[] | null)?.map((ua) => {
+        const achievement = Array.isArray(ua.achievement) ? ua.achievement[0] : ua.achievement
+        return achievement?.id
+      }).filter(Boolean) || []
     const achievementStats = {
       total_earned: userAchievements?.length || 0,
       total_available: allAchievements?.length || 0,
-      by_category: {},
-      by_level: {}
+      by_category: {} as Record<string, { earned: number; total: number }>,
+      by_level: {} as Record<string, { earned: number; total: number }>
     }
 
     // Group achievements by category and level

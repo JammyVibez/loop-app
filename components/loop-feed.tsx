@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast"
 import { formatDistanceToNow } from "date-fns"
 import { LoopCard } from "@/components/loop-card"
 import { CreateLoopButton } from "@/components/create-loop-button"
+import { normalizeLoops, type NormalizedLoop } from "@/lib/normalize-loop"
 
 interface LoopAuthor {
   id: string
@@ -47,7 +48,7 @@ interface LoopFeedProps {
 }
 
 export function LoopFeed({ feedType = "personalized" }: LoopFeedProps) {
-  const [loops, setLoops] = useState<Loop[]>([])
+  const [loops, setLoops] = useState<NormalizedLoop[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -81,44 +82,7 @@ export function LoopFeed({ feedType = "personalized" }: LoopFeedProps) {
       const data = await response.json()
 
       if (data.success) {
-        let fetchedLoops = data.loops
-
-        // Fetch loop_interactions for current user for all fetched loops
-        const loopIds = fetchedLoops.map((loop: Loop) => loop.id)
-        let interactions: { loop_id: string; interaction_type: string }[] = []
-        if (loopIds.length > 0) {
-          const interactionsRes = await fetch(
-            `/api/loop-interactions?loop_ids=${loopIds.join(",")}`,
-            {
-              headers: {
-                Authorization: `Bearer ${user.token}`,
-              },
-            }
-          )
-          const interactionsData = await interactionsRes.json()
-          if (interactionsData.success) {
-            interactions = interactionsData.interactions
-          }
-        }
-
-        // Merge interactions into each loop
-        fetchedLoops = fetchedLoops.map((loop: Loop) => {
-          const loopInteractions = interactions ? interactions.filter(i => i.loop_id === loop.id) : []
-          return {
-            ...loop,
-            stats: loop.loop_stats || {
-              likes_count: 0,
-              comments_count: 0,
-              branches_count: 0,
-              shares_count: 0,
-              views_count: 0
-            },
-            user_interactions: {
-              is_liked: loopInteractions.some(i => i.interaction_type === "like"),
-              is_saved: loopInteractions.some(i => i.interaction_type === "save"),
-            },
-          }
-        })
+        const fetchedLoops = normalizeLoops(data.loops || [])
 
         if (reset) {
           setLoops(fetchedLoops)
@@ -164,7 +128,7 @@ export function LoopFeed({ feedType = "personalized" }: LoopFeedProps) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${user.token}`,
         },
-        body: JSON.stringify({ type }),
+        body: JSON.stringify({ interaction_type: type }),
       })
 
       const data = await response.json()
@@ -176,10 +140,10 @@ export function LoopFeed({ feedType = "personalized" }: LoopFeedProps) {
             if (loop.id === loopId) {
               const updatedLoop = { ...loop }
               if (type === "like") {
-                updatedLoop.user_interactions.is_liked = data.action === "added"
-                updatedLoop.stats.likes_count += data.action === "added" ? 1 : -1
+                updatedLoop.user_interactions.is_liked = data.is_active
+                updatedLoop.stats = data.stats || updatedLoop.stats
               } else if (type === "save") {
-                updatedLoop.user_interactions.is_saved = data.action === "added"
+                updatedLoop.user_interactions.is_saved = data.is_active
               }
               return updatedLoop
             }
@@ -242,6 +206,8 @@ export function LoopFeed({ feedType = "personalized" }: LoopFeedProps) {
           loop={loop}
           interacting={interacting}
           onInteraction={handleInteraction}
+          onDeleted={(loopId) => setLoops(prev => prev.filter(loop => loop.id !== loopId))}
+          onEdited={(updatedLoop) => setLoops(prev => prev.map(loop => loop.id === updatedLoop.id ? updatedLoop : loop))}
         />
       ))}
 

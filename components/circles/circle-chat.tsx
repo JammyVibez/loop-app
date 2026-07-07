@@ -39,15 +39,15 @@ interface CircleChatProps {
 }
 
 export function CircleChat({ circleId, circleName }: CircleChatProps) {
-  const [chatRooms, setChatRooms] = useState([])
+  const [chatRooms, setChatRooms] = useState<any[]>([])
   const [selectedRoom, setSelectedRoom] = useState<any>(null)
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState("")
   const [isInVoice, setIsInVoice] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [isVideoOn, setIsVideoOn] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
-  const [voiceUsers, setVoiceUsers] = useState([])
+  const [voiceUsers, setVoiceUsers] = useState<any[]>([])
   const [isRecording, setIsRecording] = useState(false)
   const [recordingTime, setRecordingTime] = useState(0)
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)

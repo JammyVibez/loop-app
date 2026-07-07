@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { normalizeLoops } from "@/lib/normalize-loop"
 
 async function getUserFromToken(token: string) {
   try {
@@ -41,9 +42,48 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 })
     }
 
+    const [{ count: followersCount }, { count: followingCount }, { count: loopsCount }, { data: recentLoops }, { data: followRecord }] = await Promise.all([
+      supabase.from("follows").select("id", { count: "exact", head: true }).eq("following_id", profile.id),
+      supabase.from("follows").select("id", { count: "exact", head: true }).eq("follower_id", profile.id),
+      supabase.from("loops").select("id", { count: "exact", head: true }).eq("author_id", profile.id).is("parent_loop_id", null),
+      supabase
+        .from("loops")
+        .select(`
+          *,
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+          loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
+        `)
+        .eq("author_id", profile.id)
+        .is("parent_loop_id", null)
+        .order("created_at", { ascending: false })
+        .limit(12),
+      authedUser
+        ? supabase
+            .from("follows")
+            .select("id")
+            .eq("follower_id", authedUser.id)
+            .eq("following_id", profile.id)
+            .maybeSingle()
+        : Promise.resolve({ data: null } as any),
+    ])
+
+    const profileWithSocial = {
+      ...profile,
+      followers_count: profile.followers_count ?? followersCount ?? 0,
+      following_count: profile.following_count ?? followingCount ?? 0,
+      loops_count: profile.loops_count ?? loopsCount ?? 0,
+      branches_count: profile.branches_count ?? 0,
+      likes_received: profile.likes_received ?? 0,
+      level: profile.level ?? 1,
+      xp_points: profile.xp_points ?? 0,
+      achievements: profile.achievements ?? [],
+      recent_loops: normalizeLoops(recentLoops || []),
+      is_following: Boolean(followRecord),
+    }
+
     return NextResponse.json({
       success: true,
-      profile,
+      profile: profileWithSocial,
     })
   } catch (error) {
     console.error("Error fetching profile:", error)

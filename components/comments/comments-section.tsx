@@ -52,9 +52,7 @@ export function CommentsSection({ loopId, comments }: CommentsSectionProps) {
       try {
         setLoading(true)
         const response = await fetch(`/api/loops/${loopId}/comments`, {
-          headers: {
-            'Authorization': `Bearer ${user?.token}`
-          }
+          headers: user?.token ? { Authorization: `Bearer ${user.token}` } : undefined,
         })
         
         if (response.ok) {
@@ -73,7 +71,7 @@ export function CommentsSection({ loopId, comments }: CommentsSectionProps) {
       }
     }
     
-    if (loopId && user) {
+    if (loopId) {
       loadComments()
     }
   }, [loopId, user])

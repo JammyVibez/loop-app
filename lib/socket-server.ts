@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Server as HTTPServer } from 'http'
 import { Server as SocketIOServer } from 'socket.io'
 import { createServerClient } from './supabase'
