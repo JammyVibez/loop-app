@@ -1,34 +1,46 @@
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "./database.types";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+import type { Database } from "./database.types"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-if (!supabaseUrl) {
-  throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable')
+function getSupabaseUrl() {
+  return process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ""
 }
 
-if (!supabaseAnonKey) {
-  throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable')
+function getAnonKey() {
+  return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 }
 
-// Configure supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10,
-    },
+// Lazy browser/shared client so Next.js page-data collection does not crash
+// when this module is imported before env is fully available.
+let _supabase: SupabaseClient<Database> | null = null
+
+export const supabase = new Proxy({} as SupabaseClient<Database>, {
+  get(_target, prop, receiver) {
+    if (!_supabase) {
+      const url = getSupabaseUrl()
+      const key = getAnonKey()
+      if (!url || !key) {
+        throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY")
+      }
+      _supabase = createClient<Database>(url, key, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+        },
+        realtime: {
+          params: {
+            eventsPerSecond: 10,
+          },
+        },
+      })
+    }
+    return Reflect.get(_supabase, prop, receiver)
   },
 })
 
 // Google OAuth configuration
 export const signInWithGoogle = async () => {
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
+    provider: "google",
     options: {
       redirectTo: `${window.location.origin}/api/auth/callback`,
     },
@@ -39,11 +51,15 @@ export const signInWithGoogle = async () => {
 // Server-side client for API routes
 export const createServerClient = () => {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const url = getSupabaseUrl()
 
-  if (!supabaseServiceKey) {
-    throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable')
+  if (!url) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL / SUPABASE_URL environment variable")
   }
-  return createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+  if (!supabaseServiceKey) {
+    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY environment variable")
+  }
+  return createClient<Database>(url, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
