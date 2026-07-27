@@ -1,10 +1,9 @@
-"use client"
-
-import { useState } from "react"
-import { ChevronDown, ChevronRight, Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { LoopCard } from "@/components/loop-card"
-import { CreateBranchDialog } from "@/components/create-branch-dialog"
+"use client";
+import { useState } from "react";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { LoopCard } from "@/components/loop-card";
+import { CreateBranchDialog } from "@/components/create-branch-dialog";
 
 interface LoopTreeViewerProps {
   rootLoop: {

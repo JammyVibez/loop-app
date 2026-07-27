@@ -1,5 +1,5 @@
-import { Header } from "@/components/header"
-import { DevelopersContent } from "@/components/developers/developers-content"
+import { Header } from "@/components/header";
+import { DevelopersContent } from "@/components/developers/developers-content";
 
 export default function DevelopersPage() {
   return (

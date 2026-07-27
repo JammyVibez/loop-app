@@ -1,15 +1,14 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+"use client";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   Shield,
   Crown,
@@ -25,8 +24,8 @@ import {
   Trash2,
   Play,
   Pause,
-} from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 // Mock data for admin dashboard
 const verificationRequests = [
@@ -501,11 +500,8 @@ export function AdminDashboard() {
                       </div>
                       <Badge
                         variant={
-                          request.status === "approved"
-                            ? "default"
-                            : request.status === "rejected"
-                              ? "destructive"
-                              : "secondary"
+                          request.status === "approved" ?"default"
+                            : request.status === "rejected" ?"destructive" :"secondary"
                         }
                       >
                         {request.status}
@@ -570,11 +566,8 @@ export function AdminDashboard() {
                       </div>
                       <Badge
                         variant={
-                          report.status === "dismissed"
-                            ? "secondary"
-                            : report.status === "removed"
-                              ? "destructive"
-                              : "default"
+                          report.status === "dismissed" ?"secondary"
+                            : report.status === "removed" ?"destructive" :"default"
                         }
                       >
                         {report.status}
@@ -631,11 +624,8 @@ export function AdminDashboard() {
                       </div>
                       <Badge
                         variant={
-                          request.status === "approved"
-                            ? "default"
-                            : request.status === "rejected"
-                              ? "destructive"
-                              : "secondary"
+                          request.status === "approved" ?"default"
+                            : request.status === "rejected" ?"destructive" :"secondary"
                         }
                       >
                         {request.status}

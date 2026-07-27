@@ -1,4 +1,4 @@
-import { Theme3DConfig } from '../theme-engine'
+import { Theme3DConfig } from '../theme-engine';
 
 export const gojoTheme: Theme3DConfig = {
   id: 'gojo-satoru',

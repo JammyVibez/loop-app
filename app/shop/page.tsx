@@ -1,5 +1,5 @@
-import { Header } from "@/components/header"
-import { ShopContent } from "@/components/shop/shop-content"
+import { Header } from "@/components/header";
+import { ShopContent } from "@/components/shop/shop-content";
 
 export default function ShopPage() {
   return (

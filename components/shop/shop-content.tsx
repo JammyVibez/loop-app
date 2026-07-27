@@ -1,14 +1,13 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Coins, Palette, Sparkles, Zap, Crown, Star, Loader2 } from "lucide-react"
-import { LoopCoinsBalance } from "@/components/shop/loop-coins-balance"
-import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/hooks/use-auth"
+"use client";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Coins, Palette, Sparkles, Zap, Crown, Star, Loader2 } from "lucide-react";
+import { LoopCoinsBalance } from "@/components/shop/loop-coins-balance";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ShopItem {
   id: string
@@ -273,9 +272,7 @@ export function ShopContent() {
             className={
               purchasedItems.has(item.id)
                 ? "bg-green-500 hover:bg-green-600"
-                : item.category === "coins"
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-gradient-to-r from-purple-500 to-blue-500"
+                : item.category === "coins" ?"bg-green-600 hover:bg-green-700" :"bg-gradient-to-r from-purple-500 to-blue-500"
             }
           >
             {purchasing === item.id ? (

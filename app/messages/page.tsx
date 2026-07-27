@@ -1,8 +1,8 @@
-import { Suspense } from "react"
-import { RealTimeChat } from "@/components/messages/real-time-chat"
-import { Theme3DProvider } from "@/providers/theme-3d-provider"
-import { Card, CardContent } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Suspense } from "react";
+import { RealTimeChat } from "@/components/messages/real-time-chat";
+import { Theme3DProvider } from "@/providers/theme-3d-provider";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function MessagesLoading() {
   return (
@@ -13,7 +13,7 @@ function MessagesLoading() {
             <Skeleton className="h-8 w-32 mb-4" />
             <Skeleton className="h-10 w-full mb-4" />
             <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
+              {Array.from({ length: 5 })?.map((_, i) => (
                 <div key={i} className="flex items-center space-x-3">
                   <Skeleton className="h-10 w-10 rounded-full" />
                   <div className="flex-1">
@@ -42,7 +42,7 @@ function MessagesLoading() {
               </div>
             </div>
             <div className="space-y-4 mb-4">
-              {Array.from({ length: 4 }).map((_, i) => (
+              {Array.from({ length: 4 })?.map((_, i) => (
                 <div key={i} className={`flex ${i % 2 === 0 ? "justify-start" : "justify-end"}`}>
                   <Skeleton className={`h-12 ${i % 2 === 0 ? "w-64" : "w-48"} rounded-lg`} />
                 </div>
@@ -58,7 +58,7 @@ function MessagesLoading() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
 
 export default function MessagesPage() {

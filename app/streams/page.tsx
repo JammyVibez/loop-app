@@ -1,28 +1,15 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  Radio, 
-  Users, 
-  Eye, 
-  Heart, 
-  MessageCircle, 
-  Gift, 
-  Search,
-  Filter,
-  Play,
-  Crown,
-  Zap
-} from "lucide-react"
-import Link from "next/link"
-import { useAuth } from "@/hooks/use-auth"
-import { useToast } from "@/hooks/use-toast"
+"use client";
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Radio, Eye, Search, Play, Crown } from "lucide-react";
+import Link from "next/link";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
 interface Stream {
   id: string
@@ -209,9 +196,7 @@ export default function StreamsPage() {
             <Radio className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-300 mb-2">No streams found</h3>
             <p className="text-gray-400 mb-6">
-              {activeTab === "live" 
-                ? "No one is streaming right now. Be the first to go live!" 
-                : "No streams match your current filters."}
+              {activeTab === "live" ?"No one is streaming right now. Be the first to go live!" :"No streams match your current filters."}
             </p>
             {user && (
               <Link href="/create/stream">

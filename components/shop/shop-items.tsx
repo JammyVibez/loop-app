@@ -1,13 +1,12 @@
-"use client"
-
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Palette, Sparkles, Zap, Crown, Music, TreePine, User, Coins } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/hooks/use-auth"
+"use client";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Palette, Sparkles, Zap, Crown, Music, TreePine, User, Coins } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 const shopItems = {
   themes: [
@@ -299,8 +298,7 @@ export function ShopItems() {
               disabled={purchasedItems.has(item.id)}
               className={
                 purchasedItems.has(item.id)
-                  ? "bg-green-500 hover:bg-green-600"
-                  : "bg-gradient-to-r from-purple-500 to-blue-500"
+                  ? "bg-green-500 hover:bg-green-600" :"bg-gradient-to-r from-purple-500 to-blue-500"
               }
             >
               {purchasedItems.has(item.id) ? "Owned" : "Purchase"}

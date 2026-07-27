@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 export default function HelpLoading() {
   return (
@@ -10,7 +10,7 @@ export default function HelpLoading() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          {[...Array(4)].map((_, i) => (
+          {[...Array(4)]?.map((_, i) => (
             <Card key={i} className="animate-pulse">
               <CardContent className="p-6 text-center">
                 <div className="w-8 h-8 bg-muted rounded mx-auto mb-3"></div>
@@ -27,7 +27,7 @@ export default function HelpLoading() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[...Array(3)].map((_, i) => (
+              {[...Array(3)]?.map((_, i) => (
                 <div key={i} className="h-12 bg-muted rounded"></div>
               ))}
             </div>
@@ -35,5 +35,5 @@ export default function HelpLoading() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

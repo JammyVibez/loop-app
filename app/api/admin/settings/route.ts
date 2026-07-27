@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server";
 import { createServerClient } from "@/lib/supabase";
-import { cookies } from "next/headers";
+
 
 // GET /api/admin/settings - Get all admin settings
 export async function GET() {

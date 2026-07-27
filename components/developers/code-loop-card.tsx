@@ -1,12 +1,11 @@
-"use client"
-
-import { useState } from "react"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Star, GitBranch, Eye, Download, Copy, Code } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+"use client";
+import { useState } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Star, GitBranch, Eye, Download, Copy, Code } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface CodeLoopCardProps {
   project: {
@@ -70,9 +69,7 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
       <Badge
         variant="secondary"
         className={`ml-2 ${
-          project.author.verification_level === "root"
-            ? "bg-green-100 text-green-700 border-green-200"
-            : "bg-blue-100 text-blue-700 border-blue-200"
+          project.author.verification_level === "root" ?"bg-green-100 text-green-700 border-green-200" :"bg-blue-100 text-blue-700 border-blue-200"
         }`}
       >
         {project.author.verification_level === "root" ? "🌱" : "⭐"}

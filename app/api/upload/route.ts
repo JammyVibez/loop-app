@@ -1,7 +1,7 @@
 
-import { NextRequest, NextResponse } from "next/server"
-import { v2 as cloudinary } from 'cloudinary'
-import { createClient } from "@supabase/supabase-js"
+import { NextRequest, NextResponse } from "next/server";
+import { v2 as cloudinary } from 'cloudinary';
+import { createClient } from "@supabase/supabase-js";
 
 const MAX_UPLOAD_BYTES: Record<string, number> = {
   image: 10 * 1024 * 1024,

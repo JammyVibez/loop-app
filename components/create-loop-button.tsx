@@ -1,21 +1,20 @@
-"use client"
+"use client";
+import type React from "react";
 
-import type React from "react"
+import { useState } from "react";
+import { Plus, ImageIcon, Video, Music, FileText, Code, X, Upload } from "lucide-react";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Textarea } from "./ui/textarea";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Badge } from "./ui/badge";
+import { useAuth } from "../providers/auth-provider";
 
-import { useState } from "react"
-import { Plus, ImageIcon, Video, Music, FileText, Code, X, Upload } from "lucide-react"
-import { Button } from "./ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
-import { Textarea } from "./ui/textarea"
-import { Input } from "./ui/input"
-import { Label } from "./ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
-import { Badge } from "./ui/badge"
-import { useAuth } from "../providers/auth-provider"
-import { createClient } from "@supabase/supabase-js"
 
 // Use NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY for client-side code
-import { supabase } from "@/lib/supabase"
+
 
 interface CreateLoopButtonProps {
   onLoopCreated?: () => void

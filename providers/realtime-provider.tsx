@@ -1,10 +1,8 @@
-
-"use client"
-
-import React, { createContext, useContext, useEffect, useState } from "react"
-import { useAuth } from "@/hooks/use-auth"
-import { supabase } from "@/lib/supabase"
-import type { RealtimeChannel } from "@supabase/supabase-js"
+"use client";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/lib/supabase";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 interface RealtimeContextType {
   channel: RealtimeChannel | null
