@@ -1,16 +1,14 @@
-
-"use client"
-
-import { useState, useEffect, useRef } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Send, Phone, Video, MoreVertical, Image, Paperclip, Smile } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
-import { createClient } from "@supabase/supabase-js"
-import { formatDistanceToNow } from "date-fns"
+"use client";
+import { useState, useEffect, useRef } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Send, Phone, Video, MoreVertical, Image, Paperclip, Smile } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { createClient } from "@supabase/supabase-js";
+import { formatDistanceToNow } from "date-fns";
 
 interface Message {
   id: string
@@ -286,8 +284,7 @@ export function RealTimeChat({ conversationId, recipientId }: RealTimeChatProps)
                     <div
                       className={`rounded-lg p-3 ${
                         message.sender_id === user?.id
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-gray-100 dark:bg-gray-800'
+                          ? 'bg-purple-600 text-white' :'bg-gray-100 dark:bg-gray-800'
                       }`}
                     >
                       {message.message_type === 'image' && message.media_url && (

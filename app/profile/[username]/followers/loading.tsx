@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function FollowersLoading() {
   return (
@@ -10,7 +10,7 @@ export default function FollowersLoading() {
         </div>
 
         <div className="space-y-4">
-          {[...Array(5)].map((_, i) => (
+          {[...Array(5)]?.map((_, i) => (
             <Card key={i} className="animate-pulse">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-4">
@@ -28,5 +28,5 @@ export default function FollowersLoading() {
         </div>
       </div>
     </div>
-  )
+  );
 }

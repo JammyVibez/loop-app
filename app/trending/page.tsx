@@ -1,5 +1,5 @@
-import { Header } from "@/components/header"
-import { TrendingContent } from "@/components/trending/trending-content"
+import { Header } from "@/components/header";
+import { TrendingContent } from "@/components/trending/trending-content";
 
 export default function TrendingPage() {
   return (

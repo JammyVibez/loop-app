@@ -1,9 +1,8 @@
-"use client"
-
-import React from 'react'
-import { Loader2, Sparkles } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Card, CardContent, CardHeader } from './ui/card'
+"use client";
+import React from 'react';
+import { Loader2, Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Card, CardContent, CardHeader } from './ui/card';
 
 // Generic loading spinner
 interface LoadingSpinnerProps {

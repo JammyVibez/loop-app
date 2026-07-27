@@ -1,4 +1,4 @@
-import { Theme3DConfig } from '../theme-engine'
+import { Theme3DConfig } from '../theme-engine';
 
 export const neonGenesisTheme: Theme3DConfig = {
   id: 'neon-genesis-evangelion',

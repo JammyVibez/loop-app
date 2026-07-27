@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "@/lib/utils"
-import { Sparkles, Zap, Crown, Star } from "lucide-react"
+import React, { useState } from 'react';
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils";
+
 
 const card3DVariants = cva(
   "card-3d rounded-lg border bg-card text-card-foreground shadow transition-all duration-300 transform-3d relative overflow-hidden group",
@@ -144,8 +144,7 @@ const Card3D = React.forwardRef<HTMLDivElement, Card3DProps>(
                 className={`absolute w-1 h-1 rounded-full animate-ping ${
                   variant === "premium" ? "bg-purple-300" :
                   variant === "neon" ? "bg-cyan-300" :
-                  variant === "golden" ? "bg-yellow-300" :
-                  "bg-primary/50"
+                  variant === "golden"? "bg-yellow-300" : "bg-primary/50"
                 }`}
                 style={{
                   left: `${Math.random() * 100}%`,
@@ -167,8 +166,7 @@ const Card3D = React.forwardRef<HTMLDivElement, Card3DProps>(
         {(variant === "premium" || variant === "neon" || variant === "golden") && (
           <div className={`absolute -inset-1 rounded-lg blur opacity-30 transition-opacity duration-300 ${
             variant === "premium" ? "bg-gradient-to-r from-purple-600 to-pink-600" :
-            variant === "neon" ? "bg-gradient-to-r from-cyan-500 to-blue-500" :
-            "bg-gradient-to-r from-yellow-400 to-orange-500"
+            variant === "neon"? "bg-gradient-to-r from-cyan-500 to-blue-500" : "bg-gradient-to-r from-yellow-400 to-orange-500"
           } ${isHovered ? "opacity-60" : "opacity-30"}`} />
         )}
 

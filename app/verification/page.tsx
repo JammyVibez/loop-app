@@ -1,4 +1,4 @@
-import { VerificationRequest } from "@/components/verification/verification-request"
+import { VerificationRequest } from "@/components/verification/verification-request";
 
 export default function VerificationPage() {
   return (

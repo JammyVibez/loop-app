@@ -1,5 +1,5 @@
-import { Header } from "@/components/header"
-import { ExploreContent } from "@/components/explore/explore-content"
+import { Header } from "@/components/header";
+import { ExploreContent } from "@/components/explore/explore-content";
 
 export default function ExplorePage() {
   return (

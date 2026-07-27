@@ -1,6 +1,6 @@
-import { Enhanced3DProfile } from "@/components/profile/enhanced-3d-profile"
-import { Header } from "@/components/header"
-import { Theme3DProvider } from "@/providers/theme-3d-provider"
+import { Enhanced3DProfile } from "@/components/profile/enhanced-3d-profile";
+import { Header } from "@/components/header";
+import { Theme3DProvider } from "@/providers/theme-3d-provider";
 
 interface ProfilePageProps {
   params: Promise<{ username: string }>

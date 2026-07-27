@@ -1,15 +1,14 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, Users, UserCheck, UserPlus } from "lucide-react"
-import Link from "next/link"
+"use client";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, Users, UserCheck, UserPlus } from "lucide-react";
+import Link from "next/link";
 
 interface User {
   id: string
@@ -234,9 +233,7 @@ export default function FollowingPage() {
                       <p className="text-muted-foreground">
                         {searchQuery
                           ? "Try adjusting your search terms"
-                          : activeTab === "following"
-                            ? "This user is not following anyone yet"
-                            : "No new suggestions available"}
+                          : activeTab === "following" ?"This user is not following anyone yet" :"No new suggestions available"}
                       </p>
                     </CardContent>
                   </Card>

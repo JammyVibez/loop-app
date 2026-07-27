@@ -1,4 +1,4 @@
-import { Theme3DConfig } from '../theme-engine'
+import { Theme3DConfig } from '../theme-engine';
 
 export const sakuraBloomTheme: Theme3DConfig = {
   id: 'sakura-bloom',

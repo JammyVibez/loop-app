@@ -1,5 +1,5 @@
-import { Header } from "@/components/header"
-import { EnhancedSettings } from "@/components/settings/enhanced-settings"
+import { Header } from "@/components/header";
+import { EnhancedSettings } from "@/components/settings/enhanced-settings";
 
 export default function SettingsPage() {
   return (

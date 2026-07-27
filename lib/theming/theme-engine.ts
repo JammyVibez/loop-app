@@ -1,4 +1,4 @@
-import { Theme } from '@/lib/enhanced-database.types'
+import { Theme } from '@/lib/enhanced-database.types';
 
 // 3D Theme Configuration Interface
 export interface Theme3DConfig {

@@ -1,6 +1,5 @@
-"use client"
-
-import { useState, useEffect } from 'react'
+"use client";
+import { useState, useEffect } from 'react';
 
 interface BreakpointConfig {
   xs: number

@@ -1,13 +1,12 @@
-"use client"
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { WifiOff, RefreshCw, Home } from "lucide-react"
-import Link from "next/link"
+"use client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { WifiOff, RefreshCw, Home } from "lucide-react";
+import Link from "next/link";
 
 export default function OfflinePage() {
   const handleRetry = () => {
-    window.location.reload()
+    window.location?.reload()
   }
 
   return (

@@ -1,5 +1,5 @@
-import { Header } from "@/components/header"
-import { UserInventory } from "@/components/inventory/user-inventory"
+import { Header } from "@/components/header";
+import { UserInventory } from "@/components/inventory/user-inventory";
 
 export default function InventoryPage() {
   return (

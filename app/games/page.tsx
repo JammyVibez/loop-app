@@ -1,5 +1,5 @@
-import { Header } from "@/components/header"
-import { MiniGames } from "@/components/games/mini-games"
+import { Header } from "@/components/header";
+import { MiniGames } from "@/components/games/mini-games";
 
 export default function GamesPage() {
   return (

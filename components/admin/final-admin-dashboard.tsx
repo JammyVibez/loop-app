@@ -3,19 +3,12 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle,  } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -23,46 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Shield,
-  Crown,
-  Flag,
-  Users,
-  CheckCircle,
-  XCircle,
-  Eye,
-  AlertTriangle,
-  Settings,
-  BarChart3,
-  DollarSign,
-  Gift,
-  MessageSquare,
-  Ban,
-  UserCheck,
-  Upload,
-  Image,
-  Palette,
-  Sparkles,
-  Coins,
-  TrendingUp,
-  Activity,
-  Calendar,
-  Search,
-  Filter,
-  Download,
-  Trash2,
-  Edit,
-  Plus,
-  UserX,
-  UserPlus,
-  Clock,
-  Star,
-  ShoppingCart,
-  Palette as PaletteIcon,
-  UploadCloud,
-  DownloadCloud,
-  RotateCcw,
-} from "lucide-react";
+import { Shield, Crown, Flag, Users, CheckCircle, Eye, Settings, BarChart3, DollarSign, Gift, Ban, UserCheck, Coins, TrendingUp, Activity, Search, UserX, Clock, Star,  } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SettingsTabContent } from "./settings-tab-content";
 import { ContentModerationControl } from "./content-moderation-control";

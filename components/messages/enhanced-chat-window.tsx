@@ -1,13 +1,12 @@
-"use client"
+"use client";
+import type React from "react";
 
-import type React from "react"
-
-import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { useState, useRef, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Send,
   Smile,
@@ -26,8 +25,8 @@ import {
   Mic,
   MicOff,
   PhoneOff,
-} from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+} from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -35,8 +34,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { useAuth } from "@/hooks/use-auth"
+} from "@/components/ui/dialog";
+import { useAuth } from "@/hooks/use-auth";
 
 interface Message {
   id: string
@@ -425,8 +424,7 @@ export function EnhancedChatWindow() {
                 key={conversation.id}
                 className={`p-3 rounded-lg cursor-pointer transition-colors ${
                   selectedConversation === conversation.id
-                    ? "bg-purple-100 border border-purple-200"
-                    : "hover:bg-gray-100"
+                    ? "bg-purple-100 border border-purple-200" :"hover:bg-gray-100"
                 }`}
                 onClick={() => setSelectedConversation(conversation.id)}
               >

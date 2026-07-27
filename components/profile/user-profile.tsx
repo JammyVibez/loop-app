@@ -1,11 +1,10 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+"use client";
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Calendar,
   MapPin,
@@ -18,13 +17,13 @@ import {
   UserCheck,
   Crown,
   Share,
-} from "lucide-react"
-import { LoopCard } from "@/components/loop-card"
-import { ProfileThemeCustomizer } from "@/components/profile/profile-theme-customizer"
-import Link from "next/link"
-import { useAuth } from "@/hooks/use-auth"
-import { useToast } from "@/hooks/use-toast"
-import { createClient } from "@supabase/supabase-js"
+} from "lucide-react";
+import { LoopCard } from "@/components/loop-card";
+import { ProfileThemeCustomizer } from "@/components/profile/profile-theme-customizer";
+import Link from "next/link";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { createClient } from "@supabase/supabase-js";
 
 interface UserProfileProps {
   username: string
@@ -214,8 +213,7 @@ export function UserProfile({ username }: UserProfileProps) {
                         variant="secondary"
                         className={
                           profile.is_admin
-                            ? "bg-green-100 text-green-700 border-green-200"
-                            : "bg-blue-100 text-blue-700 border-blue-200"
+                            ? "bg-green-100 text-green-700 border-green-200" :"bg-blue-100 text-blue-700 border-blue-200"
                         }
                       >
                         {profile.is_admin ? "🌱 Root" : "⭐ Verified"}
