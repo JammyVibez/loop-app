@@ -325,12 +325,41 @@ INSERT INTO admin_settings (setting_key, setting_value, description) VALUES
 ('coin_packages', '{"enabled": true, "packages": [{"coins": 1000, "price": 4.99}, {"coins": 2500, "price": 9.99}]}', 'Loop coin packages')
 ON CONFLICT (setting_key) DO NOTHING;
 
--- Create indexes for better performance
+-- Create indexes for better performance (skip when older schemas lack the column)
 CREATE INDEX IF NOT EXISTS idx_loops_author_id ON loops(author_id);
 CREATE INDEX IF NOT EXISTS idx_loops_parent_loop_id ON loops(parent_loop_id);
 CREATE INDEX IF NOT EXISTS idx_loops_created_at ON loops(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_loops_visibility ON loops(visibility);
-CREATE INDEX IF NOT EXISTS idx_loops_hashtags ON loops USING GIN(hashtags);
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'loops' AND column_name = 'visibility'
+  ) THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_loops_visibility ON loops(visibility)';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'loops' AND column_name = 'hashtags'
+  ) THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_loops_hashtags ON loops USING GIN(hashtags)';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'messages' AND column_name = 'sender_id'
+  ) THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id)';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'messages' AND column_name = 'recipient_id'
+  ) THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_messages_recipient_id ON messages(recipient_id)';
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_loop_interactions_user_id ON loop_interactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_loop_interactions_loop_id ON loop_interactions(loop_id);
@@ -342,8 +371,6 @@ CREATE INDEX IF NOT EXISTS idx_comments_author_id ON comments(author_id);
 CREATE INDEX IF NOT EXISTS idx_follows_follower_id ON follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_follows_following_id ON follows(following_id);
 
-CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
-CREATE INDEX IF NOT EXISTS idx_messages_recipient_id ON messages(recipient_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
@@ -452,6 +479,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Function to get trending loops
+DROP FUNCTION IF EXISTS get_trending_loops(VARCHAR, INTEGER, INTEGER);
 CREATE OR REPLACE FUNCTION get_trending_loops(
     time_period VARCHAR DEFAULT '24h',
     trend_limit INTEGER DEFAULT 20,
@@ -578,6 +606,29 @@ CREATE POLICY "Users can view their own notifications" ON notifications
     FOR ALL USING (auth.uid() = user_id);
 
 -- Insert sample data
+ALTER TABLE IF EXISTS gifts
+  ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'general',
+  ADD COLUMN IF NOT EXISTS rarity VARCHAR(20) DEFAULT 'common',
+  ADD COLUMN IF NOT EXISTS animation_url TEXT,
+  ADD COLUMN IF NOT EXISTS sound_url TEXT,
+  ADD COLUMN IF NOT EXISTS effect_data JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE IF EXISTS achievements
+  ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'general',
+  ADD COLUMN IF NOT EXISTS xp_reward INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS coin_reward INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS requirements JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS icon_url TEXT,
+  ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE IF EXISTS shop_items
+  ADD COLUMN IF NOT EXISTS item_type VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS rarity VARCHAR(20) DEFAULT 'common',
+  ADD COLUMN IF NOT EXISTS item_data JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS preview_data JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS price_usd DECIMAL(10,2) DEFAULT 0;
+
 INSERT INTO gifts (name, description, price_coins, category, rarity, animation_url, effect_data) VALUES
 ('Heart', 'Show some love!', 10, 'emotion', 'common', '/assets/gifts/heart.gif', '{"color": "#ff69b4", "duration": 2000}'),
 ('Star', 'You''re a star!', 25, 'achievement', 'common', '/assets/gifts/star.gif', '{"sparkle": true, "duration": 3000}'),
@@ -589,24 +640,21 @@ INSERT INTO shop_items (name, description, price_coins, category, item_type, rar
 ('Neon Cyber Theme', 'Futuristic neon colors with cyberpunk vibes', 500, 'theme', 'profile_theme', 'rare', '{"colors": {"primary": "#00ff88", "secondary": "#00ccff"}}', '{"preview": "linear-gradient(45deg, #00ff88, #00ccff)"}'),
 ('Dragon Lord Theme', 'Majestic dragon-inspired theme', 800, 'theme', 'profile_theme', 'legendary', '{"colors": {"primary": "#ff6b35", "secondary": "#f7931e"}}', '{"preview": "linear-gradient(45deg, #ff6b35, #f7931e)"}'),
 ('Forest Guardian Theme', 'Nature-inspired theme with earth tones', 600, 'theme', 'profile_theme', 'epic', '{"colors": {"primary": "#228b22", "secondary": "#32cd32"}}', '{"preview": "linear-gradient(45deg, #228b22, #32cd32)"}'),
-('1000 Loop Coins', 'Perfect starter pack', 0, 'coins', 'currency', 'common', '{"coins_amount": 1000}', '{"preview": "💰"}'),
-('2500 Loop Coins', 'Great value pack', 0, 'coins', 'currency', 'rare', '{"coins_amount": 2500, "bonus": 500}', '{"preview": "💎"}')
+('Gojo Domain Theme', 'Anime-inspired domain expansion theme', 1000, 'theme', 'profile_theme', 'legendary', '{"colors": {"primary": "#9d4edd", "secondary": "#c77dff"}}', '{"preview": "linear-gradient(45deg, #9d4edd, #c77dff)"}'),
+('1000 Loop Coins', 'Perfect starter pack', 0, 'coins', 'currency', 'common', '{"coins_amount": 1000}', '{"preview": "coins"}'),
+('2500 Loop Coins', 'Great value pack', 0, 'coins', 'currency', 'rare', '{"coins_amount": 2500, "bonus": 500}', '{"preview": "gems"}')
 ON CONFLICT DO NOTHING;
 
--- Update coin packages with USD prices
 UPDATE shop_items SET price_usd = 4.99 WHERE name = '1000 Loop Coins';
 UPDATE shop_items SET price_usd = 9.99 WHERE name = '2500 Loop Coins';
 
--- Insert sample achievements
 INSERT INTO achievements (name, description, category, xp_reward, coin_reward, requirements) VALUES
-('First Loop', 'Create your first loop', 'content', 100, 50, '{"loops_created": 1}'),
-('Social Butterfly', 'Follow 10 users', 'social', 150, 75, '{"following_count": 10}'),
-('Popular Creator', 'Get 100 likes on your loops', 'engagement', 300, 100, '{"total_likes_received": 100}'),
-('Gift Giver', 'Send 5 gifts to other users', 'social', 200, 50, '{"gifts_sent": 5}')
+('First Loop', 'Create your first loop', 'content', 50, 25, '{"loops_created": 1}'),
+('Social Butterfly', 'Get 100 followers', 'social', 200, 100, '{"followers": 100}'),
+('Branch Master', 'Create 50 branches', 'content', 300, 150, '{"branches_created": 50}'),
+('Community Builder', 'Create a circle with 50+ members', 'community', 500, 250, '{"circle_members": 50}')
 ON CONFLICT DO NOTHING;
 
-RAISE NOTICE '✅ Database setup completed successfully!';
-RAISE NOTICE '📊 All tables, functions, and policies have been created';
-RAISE NOTICE '🎁 Sample data inserted for gifts, shop items, and achievements';
-RAISE NOTICE '🛡️ Row Level Security policies enabled';
-RAISE NOTICE '⚡ Database functions for interactions created';
+DO $$ BEGIN
+  RAISE NOTICE 'Database setup completed successfully!';
+END $$;

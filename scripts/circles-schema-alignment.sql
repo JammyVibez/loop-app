@@ -56,9 +56,15 @@ begin
 end;
 $$;
 
-alter publication supabase_realtime add table public.circle_room_messages;
-alter publication supabase_realtime add table public.circle_posts;
-alter publication supabase_realtime add table public.circle_members;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.circle_room_messages;
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN undefined_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.circle_posts;
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN undefined_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.circle_members;
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN undefined_object THEN NULL; END $$;
 
 
 create table if not exists public.circle_bots (
