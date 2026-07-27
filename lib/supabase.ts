@@ -59,7 +59,9 @@ export const createServerClient = () => {
   if (!supabaseServiceKey) {
     throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY environment variable")
   }
-  return createClient<Database>(url, supabaseServiceKey, {
+  // Untyped server client: generated Database types are incomplete vs live
+  // schema, and newer supabase-js versions turn missing tables into `never`.
+  return createClient(url, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
