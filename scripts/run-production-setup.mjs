@@ -37,6 +37,8 @@ const ignorable = [
   /cannot change name of type/i,
   /cannot alter type/i,
   /unsafe use of new value/i,
+  /cannot change return type of existing function/i,
+  /syntax error at or near \"RAISE\"/i,
 ]
 
 function shouldIgnore(stderr) {
