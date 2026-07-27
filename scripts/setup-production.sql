@@ -9,11 +9,14 @@
 -- This file is intentionally a manifest rather than a concatenated migration
 -- because Supabase SQL editor does not support \i includes.
 --
+-- 0. scripts/schema-compat-alignment.sql
 -- 1. scripts/complete-database-setup.sql
 -- 2. scripts/launch-schema-alignment.sql
 -- 3. scripts/loops-and-media.sql
 -- 4. scripts/moderation-schema.sql
 -- 4b. scripts/circles-schema-alignment.sql (create content_flags if not already present)
+-- 4c. scripts/enhanced-database-schema-part2.sql
+-- 4d. scripts/enhanced-database-schema-part3.sql
 -- 5. scripts/rls-policies.sql
 -- 6. scripts/realtime-functions.sql
 -- 7. scripts/seed-data-v2.sql (development/demo only)

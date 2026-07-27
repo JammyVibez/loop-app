@@ -325,12 +325,41 @@ INSERT INTO admin_settings (setting_key, setting_value, description) VALUES
 ('coin_packages', '{"enabled": true, "packages": [{"coins": 1000, "price": 4.99}, {"coins": 2500, "price": 9.99}]}', 'Loop coin packages')
 ON CONFLICT (setting_key) DO NOTHING;
 
--- Create indexes for better performance
+-- Create indexes for better performance (skip when older schemas lack the column)
 CREATE INDEX IF NOT EXISTS idx_loops_author_id ON loops(author_id);
 CREATE INDEX IF NOT EXISTS idx_loops_parent_loop_id ON loops(parent_loop_id);
 CREATE INDEX IF NOT EXISTS idx_loops_created_at ON loops(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_loops_visibility ON loops(visibility);
-CREATE INDEX IF NOT EXISTS idx_loops_hashtags ON loops USING GIN(hashtags);
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'loops' AND column_name = 'visibility'
+  ) THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_loops_visibility ON loops(visibility)';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'loops' AND column_name = 'hashtags'
+  ) THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_loops_hashtags ON loops USING GIN(hashtags)';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'messages' AND column_name = 'sender_id'
+  ) THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id)';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'messages' AND column_name = 'recipient_id'
+  ) THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_messages_recipient_id ON messages(recipient_id)';
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_loop_interactions_user_id ON loop_interactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_loop_interactions_loop_id ON loop_interactions(loop_id);
@@ -342,8 +371,6 @@ CREATE INDEX IF NOT EXISTS idx_comments_author_id ON comments(author_id);
 CREATE INDEX IF NOT EXISTS idx_follows_follower_id ON follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_follows_following_id ON follows(following_id);
 
-CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
-CREATE INDEX IF NOT EXISTS idx_messages_recipient_id ON messages(recipient_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);

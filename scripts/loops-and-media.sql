@@ -52,16 +52,25 @@ ALTER TABLE loop_stats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE media_uploads ENABLE ROW LEVEL SECURITY;
 
 -- Create policies
+DROP POLICY IF EXISTS "Public loops are viewable by everyone" ON loops;
 CREATE POLICY "Public loops are viewable by everyone" ON loops FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can insert their own loops" ON loops;
 CREATE POLICY "Users can insert their own loops" ON loops FOR INSERT WITH CHECK (auth.uid() = author_id);
+DROP POLICY IF EXISTS "Users can update their own loops" ON loops;
 CREATE POLICY "Users can update their own loops" ON loops FOR UPDATE USING (auth.uid() = author_id);
+DROP POLICY IF EXISTS "Users can delete their own loops" ON loops;
 CREATE POLICY "Users can delete their own loops" ON loops FOR DELETE USING (auth.uid() = author_id);
 
+DROP POLICY IF EXISTS "Loop stats are viewable by everyone" ON loop_stats;
 CREATE POLICY "Loop stats are viewable by everyone" ON loop_stats FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Loop stats can be updated" ON loop_stats;
 CREATE POLICY "Loop stats can be updated" ON loop_stats FOR ALL USING (true);
 
+DROP POLICY IF EXISTS "Users can view their own media uploads" ON media_uploads;
 CREATE POLICY "Users can view their own media uploads" ON media_uploads FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert their own media uploads" ON media_uploads;
 CREATE POLICY "Users can insert their own media uploads" ON media_uploads FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own media uploads" ON media_uploads;
 CREATE POLICY "Users can delete their own media uploads" ON media_uploads FOR DELETE USING (auth.uid() = user_id);
 
 -- Create function to auto-create loop stats
@@ -74,6 +83,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger
+DROP TRIGGER IF EXISTS trigger_create_loop_stats ON loops;
 CREATE TRIGGER trigger_create_loop_stats
   AFTER INSERT ON loops
-  FOR EACH ROW EXECUTE FUNCTION create_loop_stats();
+  FOR EACH ROW EXECUTE PROCEDURE create_loop_stats();
