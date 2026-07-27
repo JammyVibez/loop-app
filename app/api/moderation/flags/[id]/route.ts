@@ -23,7 +23,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const supabase = createServerClient();
 
     const { status, action_taken, moderator_notes } = await request.json();
-    const { id } = await params;
 
     // Validate required fields
     if (!status) {
@@ -88,8 +87,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (response) return response;
 
     const supabase = createServerClient();
-
-    const { id } = await params;
 
     // Fetch content flag
     const { data: flag, error } = await supabase

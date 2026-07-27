@@ -38,7 +38,6 @@ export async function GET(
     const offset = Number.parseInt(searchParams.get("offset") || "0")
 
     const supabase = createServerClient()
-    const { conversationId } = await params
 
     // Verify user is part of conversation
     const { data: conversation, error: convError } = await supabase
@@ -111,7 +110,6 @@ export async function POST(
     }
 
     const supabase = createServerClient()
-    const { conversationId } = await params
 
     // Verify user is part of conversation
     const { data: conversation, error: convError } = await supabase
