@@ -25,15 +25,17 @@
 
 /* =============================================
    GLOBAL 3D SETUP
+   Opt-in only — never apply preserve-3d / perspective
+   to the whole document (causes touch-stuck overlays).
    ============================================= */
 
-* {
-  transform-style: preserve-3d;
-}
-
-body {
+.scene-3d {
   perspective: var(--perspective);
   perspective-origin: var(--perspective-origin);
+}
+
+.transform-3d {
+  transform-style: preserve-3d;
 }
 
 /* =============================================
@@ -61,15 +63,18 @@ body {
   transform: translateZ(-2px);
   opacity: 0.5;
   z-index: -1;
+  pointer-events: none;
 }
 
-.card-3d:hover {
-  transform: translateY(calc(-1 * var(--theme-hover-lift))) 
-             rotateX(2deg) 
-             rotateY(2deg) 
-             scale(1.02);
-  box-shadow: 0 calc(var(--theme-card-depth) * 2) calc(var(--theme-card-depth) * 4) 
-              rgba(0, 0, 0, var(--theme-shadow-intensity));
+@media (hover: hover) and (pointer: fine) {
+  .card-3d:hover {
+    transform: translateY(calc(-1 * var(--theme-hover-lift)))
+               rotateX(2deg)
+               rotateY(2deg)
+               scale(1.02);
+    box-shadow: 0 calc(var(--theme-card-depth) * 2) calc(var(--theme-card-depth) * 4)
+                rgba(0, 0, 0, var(--theme-shadow-intensity));
+  }
 }
 
 /* Card depth variations */
@@ -111,6 +116,7 @@ body {
   transform: translateZ(1px);
   opacity: 0;
   transition: opacity var(--theme-transition-duration) var(--theme-ease-function);
+  pointer-events: none;
 }
 
 .btn-3d:hover {
