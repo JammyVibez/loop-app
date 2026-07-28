@@ -40,7 +40,7 @@ export function MobileBottomNav() {
 
   return (
     <nav
-      className="lg:hidden fixed bottom-0 inset-x-0 z-50 border-t border-white/10 bg-[#030712]/92 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
       aria-label="Mobile navigation"
     >
       <div className="grid grid-cols-5 px-1 py-1.5">
@@ -52,10 +52,10 @@ export function MobileBottomNav() {
               href={item.href}
               className={cn(
                 "flex flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[10px] font-medium transition-colors",
-                active ? "text-cyan-300" : "text-slate-400 hover:text-slate-200",
+                active ? "text-primary" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <item.icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(34,211,238,0.55)]")} />
+              <item.icon className="h-5 w-5" />
               <span>{item.label}</span>
             </Link>
           )
@@ -65,7 +65,7 @@ export function MobileBottomNav() {
           href={profileHref}
           className={cn(
             "flex flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[10px] font-medium transition-colors",
-            pathname.startsWith("/profile") ? "text-cyan-300" : "text-slate-400 hover:text-slate-200",
+            pathname.startsWith("/profile") ? "text-primary" : "text-muted-foreground hover:text-foreground",
           )}
         >
           {user.avatar_url || user.user_metadata?.avatar_url ? (

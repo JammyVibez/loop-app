@@ -20,26 +20,41 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.replace("Bearer ", "")
-    
-    // Get user from token
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     if (authError || !user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
     const body = await request.json()
-    const { bio, interests, avatar_url, profile_theme, onboarding_completed } = body
+    const {
+      bio,
+      interests,
+      avatar_url,
+      profile_theme,
+      onboarding_completed,
+      display_name,
+      website,
+      location,
+      phone,
+      privacy_settings,
+      notification_settings,
+    } = body
 
     const payload = compactPayload({
       bio,
       interests,
-      avatar_url: avatar_url || null,
+      avatar_url: avatar_url === undefined ? undefined : avatar_url || null,
+      display_name: typeof display_name === "string" ? display_name.trim() : undefined,
+      website: website === undefined ? undefined : website || null,
+      location: location === undefined ? undefined : location || null,
+      phone: phone === undefined ? undefined : phone || null,
+      privacy_settings,
+      notification_settings,
       onboarding_completed: typeof onboarding_completed === "boolean" ? onboarding_completed : undefined,
       updated_at: new Date().toISOString(),
-      ...(profile_theme !== undefined ? { theme_data: profile_theme } : {}),
+      ...(profile_theme !== undefined ? { theme_preferences: profile_theme } : {}),
     })
 
-    // Update profile
     let { data: profile, error: profileError } = await supabase
       .from("profiles")
       .update(payload)
@@ -47,9 +62,7 @@ export async function POST(request: NextRequest) {
       .select("*")
       .maybeSingle()
 
-    // Some DB versions may not have newer onboarding columns yet; retry without them.
-    // Never drop onboarding_completed during retries.
-    for (const optionalColumn of ["theme_data", "interests"]) {
+    for (const optionalColumn of ["theme_preferences", "interests", "phone", "privacy_settings", "notification_settings"]) {
       if (profileError?.code === "PGRST204" && optionalColumn in payload) {
         delete payload[optionalColumn]
         ;({ data: profile, error: profileError } = await supabase
@@ -61,20 +74,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // No row updated (missing profile) — upsert a minimal profile with the changes.
     if (!profileError && !profile) {
-      const { data: existing } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", user.id)
-        .maybeSingle()
-
+      const { data: existing } = await supabase.from("profiles").select("id").eq("id", user.id).maybeSingle()
       if (!existing) {
         const username =
           user.user_metadata?.username ||
           user.email?.split("@")[0] ||
           `user_${user.id.slice(0, 8)}`
         const displayName =
+          (typeof display_name === "string" && display_name.trim()) ||
           user.user_metadata?.display_name ||
           user.user_metadata?.full_name ||
           username
@@ -91,8 +99,8 @@ export async function POST(request: NextRequest) {
               is_premium: false,
               is_verified: false,
               is_admin: false,
-              privacy_settings: { profile_visibility: "public", message_privacy: "everyone" },
-              notification_settings: { email: true, push: true, in_app: true },
+              privacy_settings: privacy_settings || { profile_visibility: "public", message_privacy: "everyone" },
+              notification_settings: notification_settings || { email: true, push: true, in_app: true },
               onboarding_completed: false,
               ...payload,
             },
@@ -105,10 +113,9 @@ export async function POST(request: NextRequest) {
 
     if (profileError) {
       console.error("Profile update error:", profileError)
-      return NextResponse.json({ error: "Failed to update profile" }, { status: 500 })
+      return NextResponse.json({ error: profileError.message || "Failed to update profile" }, { status: 500 })
     }
 
-    // Hard-guarantee onboarding completion even if a partial/compat update missed it.
     if (onboarding_completed === true && profile && profile.onboarding_completed !== true) {
       const { data: forced, error: forceError } = await supabase
         .from("profiles")
@@ -118,10 +125,8 @@ export async function POST(request: NextRequest) {
         .maybeSingle()
 
       if (forceError) {
-        console.error("Failed to force onboarding_completed:", forceError)
         return NextResponse.json({ error: "Failed to complete onboarding" }, { status: 500 })
       }
-
       profile = forced || { ...profile, onboarding_completed: true }
     }
 

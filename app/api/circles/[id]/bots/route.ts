@@ -42,15 +42,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const body = await request.json()
   const supabase = createServerClient()
-  const { data: bot, error } = await supabase.from("circle_bots").upsert({
-    id: body.id,
+  const botType = body.bot_type || "welcome"
+  const payload: Record<string, unknown> = {
     circle_id: id,
     name: body.name || "Loop Bot",
-    bot_type: body.bot_type || "welcome",
+    bot_type: botType,
     enabled: body.enabled ?? true,
     configuration: body.configuration || {},
     updated_at: new Date().toISOString(),
-  }).select().single()
+  }
+  if (body.id) payload.id = body.id
+
+  const { data: bot, error } = await supabase
+    .from("circle_bots")
+    .upsert(payload, { onConflict: body.id ? "id" : "circle_id,bot_type" })
+    .select()
+    .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true, bot })

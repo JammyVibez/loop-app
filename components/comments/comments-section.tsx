@@ -1,328 +1,299 @@
-"use client";
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Heart, Reply, MoreHorizontal } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
+"use client"
+
+import { useEffect, useState } from "react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Heart, MoreHorizontal, Pencil, Reply, Trash2 } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { ReportContentButton } from "@/components/moderation/report-content-button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { formatDistanceToNow } from "date-fns"
+import { EmptyState } from "@/components/ui/empty-state"
+
+interface CommentAuthor {
+  id: string
+  username: string
+  display_name: string
+  avatar_url?: string
+  is_verified?: boolean
+}
 
 interface Comment {
   id: string
-  author: {
-    id: string
-    username: string
-    display_name: string
-    avatar_url: string
-    is_verified: boolean
-  }
+  author_id?: string
+  author: CommentAuthor
   content: string
-  created_at: Date
-  likes: number
-  replies: Comment[]
+  created_at: string
+  like_count?: number
+  likes?: number
+  is_edited?: boolean
+  replies?: Comment[]
   isLiked?: boolean
 }
 
-interface CommentsSectionProps {
-  loopId: string
-  comments?: Comment[]
-}
-
-// Comment interface
-interface CommentWithReplies extends Comment {
-  replies: CommentWithReplies[]
-}
-
-export function CommentsSection({ loopId, comments }: CommentsSectionProps) {
+export function CommentsSection({ loopId }: { loopId: string; comments?: Comment[] }) {
+  const [commentsData, setCommentsData] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState("")
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState("")
-  const [commentsData, setCommentsData] = useState<Comment[]>(comments || [])
-  const [likedComments, setLikedComments] = useState<Set<string>>(new Set())
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editContent, setEditContent] = useState("")
+  const [deleteId, setDeleteId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
-  const { user } = useAuth()
-  
-  // Load comments from API
-  useEffect(() => {
-    const loadComments = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch(`/api/loops/${loopId}/comments`, {
-          headers: user?.token ? { Authorization: `Bearer ${user.token}` } : undefined,
-        })
-        
-        if (response.ok) {
-          const data = await response.json()
-          setCommentsData(data.comments || [])
-        }
-      } catch (error) {
-        console.error('Failed to load comments:', error)
-        toast({
-          title: "Error",
-          description: "Failed to load comments",
-          variant: "destructive"
-        })
-      } finally {
-        setLoading(false)
-      }
-    }
-    
-    if (loopId) {
-      loadComments()
-    }
-  }, [loopId, user])
+  const token = user?.access_token || user?.token
 
-  const handleSubmitComment = async () => {
-    if (!newComment.trim()) return
-
-    // Send comment to API
+  const loadComments = async () => {
     try {
+      setLoading(true)
       const response = await fetch(`/api/loops/${loopId}/comments`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${user?.token}`
-        },
-        body: JSON.stringify({
-          content: newComment
-        })
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       })
-      
       if (response.ok) {
         const data = await response.json()
-        setCommentsData([data.comment, ...commentsData])
-        setNewComment("")
-        toast({ description: "Comment added successfully!" })
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to add comment",
-          variant: "destructive"
-        })
+        setCommentsData(data.comments || [])
       }
-    } catch (error) {
-      console.error("Failed to add comment:", error)
-      toast({
-        title: "Error",
-        description: "Failed to add comment",
-        variant: "destructive"
-      })
+    } catch {
+      toast({ title: "Error", description: "Failed to load comments", variant: "destructive" })
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
+    if (loopId) void loadComments()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loopId, token])
+
+  const handleSubmitComment = async () => {
+    if (!newComment.trim() || !token) return
+    const response = await fetch(`/api/loops/${loopId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ content: newComment }),
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      toast({ title: "Error", description: data.error || "Failed to add comment", variant: "destructive" })
+      return
+    }
+    setCommentsData((prev) => [data.comment, ...prev])
+    setNewComment("")
   }
 
   const handleSubmitReply = async (parentId: string) => {
-    if (!replyContent.trim()) return
-
-    // Send reply to API
-    try {
-      const response = await fetch(`/api/loops/${loopId}/comments`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${user?.token}`
-        },
-        body: JSON.stringify({
-          content: replyContent,
-          parent_comment_id: parentId
-        })
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setCommentsData(
-          commentsData.map((comment) =>
-            comment.id === parentId ? { ...comment, replies: [...comment.replies, data.comment] } : comment,
-          ),
-        )
-        setReplyContent("")
-        setReplyingTo(null)
-        toast({ description: "Reply added successfully!" })
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to add reply",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      console.error("Failed to add reply:", error)
-      toast({
-        title: "Error",
-        description: "Failed to add reply",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const handleLikeComment = (commentId: string) => {
-    setLikedComments((prev) => {
-      const newSet = new Set(prev)
-      if (newSet.has(commentId)) {
-        newSet.delete(commentId)
-      } else {
-        newSet.add(commentId)
-      }
-      return newSet
+    if (!replyContent.trim() || !token) return
+    const response = await fetch(`/api/loops/${loopId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ content: replyContent, parent_comment_id: parentId }),
     })
+    if (!response.ok) {
+      toast({ title: "Error", description: "Failed to reply", variant: "destructive" })
+      return
+    }
+    setReplyContent("")
+    setReplyingTo(null)
+    await loadComments()
   }
 
-  const formatTimeAgo = (date: Date) => {
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-    const minutes = Math.floor(diff / (1000 * 60))
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-
-    if (days > 0) return `${days}d ago`
-    if (hours > 0) return `${hours}h ago`
-    if (minutes > 0) return `${minutes}m ago`
-    return "Just now"
-  }
-
-  const getVerificationBadge = (author: Comment["author"]) => {
-    if (!author.is_verified) return null
-    return (
-      <Badge
-        variant="secondary"
-        className="ml-1 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-      >
-        ⭐
-      </Badge>
+  const handleLike = async (commentId: string) => {
+    if (!token) return
+    const response = await fetch(`/api/loops/${loopId}/comments/${commentId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
+      body: JSON.stringify({ action: "like" }),
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) return
+    setCommentsData((prev) =>
+      prev.map((comment) =>
+        comment.id === commentId
+          ? {
+              ...comment,
+              isLiked: data.is_active,
+              like_count: Math.max((comment.like_count || comment.likes || 0) + (data.is_active ? 1 : -1), 0),
+            }
+          : comment,
+      ),
     )
   }
 
-  const renderComment = (comment: Comment, isReply = false) => (
-    <div key={comment.id} className={`${isReply ? "ml-8 border-l-2 border-gray-200 dark:border-gray-700 pl-4" : ""}`}>
-      <div className="flex space-x-3">
-        <Avatar className="w-8 h-8">
-          <AvatarImage src={comment.author.avatar_url || "/placeholder.svg"} />
-          <AvatarFallback>{comment.author.display_name.charAt(0)}</AvatarFallback>
-        </Avatar>
-        <div className="flex-1 space-y-2">
-          <div className="flex items-center space-x-2">
-            <span className="font-semibold text-sm">{comment.author.display_name}</span>
-            {getVerificationBadge(comment.author)}
-            <span className="text-gray-500 dark:text-gray-400 text-xs">@{comment.author.username}</span>
-            <span className="text-gray-500 dark:text-gray-400 text-xs">•</span>
-            <span className="text-gray-500 dark:text-gray-400 text-xs">{formatTimeAgo(comment.created_at)}</span>
-          </div>
-          <p className="text-sm text-gray-800 dark:text-gray-200">{comment.content}</p>
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleLikeComment(comment.id)}
-              className={`text-xs ${likedComments.has(comment.id) ? "text-red-500" : "text-gray-500"}`}
-            >
-              <Heart className={`w-3 h-3 mr-1 ${likedComments.has(comment.id) ? "fill-current" : ""}`} />
-              {comment.likes + (likedComments.has(comment.id) ? 1 : 0)}
-            </Button>
-            {!isReply && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
-                className="text-xs text-gray-500"
-              >
-                <Reply className="w-3 h-3 mr-1" />
-                Reply
-              </Button>
-            )}
-            <Button variant="ghost" size="sm" className="text-xs text-gray-500">
-              <MoreHorizontal className="w-3 h-3" />
-            </Button>
-          </div>
+  const handleSaveEdit = async () => {
+    if (!editingId || !editContent.trim() || !token) return
+    const response = await fetch(`/api/loops/${loopId}/comments/${editingId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ content: editContent }),
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      toast({ title: "Error", description: data.error || "Failed to edit", variant: "destructive" })
+      return
+    }
+    setCommentsData((prev) => prev.map((c) => (c.id === editingId ? { ...c, ...data.comment } : c)))
+    setEditingId(null)
+    setEditContent("")
+  }
 
-          {/* Reply form */}
-          {replyingTo === comment.id && (
-            <div className="mt-3 space-y-2">
-              <Textarea
-                placeholder="Write a reply..."
-                value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                className="min-h-[60px] text-sm"
-              />
-              <div className="flex space-x-2">
-                <Button
-                  size="sm"
-                  onClick={() => handleSubmitReply(comment.id)}
-                  disabled={!replyContent.trim()}
-                  className="bg-gradient-to-r from-purple-500 to-blue-500"
-                >
-                  Reply
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setReplyingTo(null)
-                    setReplyContent("")
-                  }}
-                >
-                  Cancel
-                </Button>
+  const handleDelete = async () => {
+    if (!deleteId || !token) return
+    const response = await fetch(`/api/loops/${loopId}/comments/${deleteId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) {
+      toast({ title: "Error", description: "Failed to delete comment", variant: "destructive" })
+      return
+    }
+    setCommentsData((prev) => prev.filter((c) => c.id !== deleteId))
+    setDeleteId(null)
+  }
+
+  const renderComment = (comment: Comment, isReply = false) => {
+    const authorId = comment.author_id || comment.author?.id
+    const isOwner = user?.id === authorId
+    const likes = comment.like_count ?? comment.likes ?? 0
+
+    return (
+      <div key={comment.id} className={`space-y-3 ${isReply ? "ml-10 border-l border-white/10 pl-4" : ""}`}>
+        <div className="flex gap-3">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={comment.author?.avatar_url || "/placeholder.svg"} />
+            <AvatarFallback>{comment.author?.display_name?.charAt(0) || "?"}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium text-white">{comment.author?.display_name}</span>
+                <span className="text-slate-500">@{comment.author?.username}</span>
+                <span className="text-xs text-slate-500">
+                  {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                </span>
+                {comment.is_edited && <span className="text-xs text-slate-500">(edited)</span>}
               </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="border-white/10 bg-[#0a1020] text-slate-100">
+                  {isOwner && (
+                    <>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setEditingId(comment.id)
+                          setEditContent(comment.content)
+                        }}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setDeleteId(comment.id)} className="text-red-300">
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <ReportContentButton contentType="comment" contentId={comment.id} />
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-          )}
 
-          {/* Replies */}
-          {comment.replies.length > 0 && (
-            <div className="mt-4 space-y-4">{comment.replies.map((reply) => renderComment(reply, true))}</div>
-          )}
+            {editingId === comment.id ? (
+              <div className="space-y-2">
+                <Textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} className="bg-white/5" />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleSaveEdit}>Save</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+                </div>
+              </div>
+            ) : (
+              <p className="whitespace-pre-wrap text-sm text-slate-200">{comment.content}</p>
+            )}
+
+            <div className="mt-2 flex items-center gap-3">
+              <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => handleLike(comment.id)}>
+                <Heart className={`mr-1 h-3.5 w-3.5 ${comment.isLiked ? "fill-red-500 text-red-500" : ""}`} />
+                {likes}
+              </Button>
+              {!isReply && (
+                <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setReplyingTo(comment.id)}>
+                  <Reply className="mr-1 h-3.5 w-3.5" /> Reply
+                </Button>
+              )}
+            </div>
+
+            {replyingTo === comment.id && (
+              <div className="mt-3 space-y-2">
+                <Textarea
+                  value={replyContent}
+                  onChange={(e) => setReplyContent(e.target.value)}
+                  placeholder="Write a reply..."
+                  className="bg-white/5"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => handleSubmitReply(comment.id)}>Reply</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setReplyingTo(null)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
+        {(comment.replies || []).map((reply) => renderComment(reply, true))}
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <MessageCircle className="w-5 h-5" />
-          <span>Comments ({commentsData.length})</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Add comment form */}
-        <div className="space-y-3">
-          <div className="flex space-x-3">
-            <Avatar className="w-8 h-8">
-              <AvatarImage src={user?.avatar_url || "/placeholder.svg?height=32&width=32"} />
-              <AvatarFallback>{user?.display_name?.charAt(0) || "U"}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <Textarea
-                placeholder="Add a comment..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                className="min-h-[80px]"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <Button
-              onClick={handleSubmitComment}
-              disabled={!newComment.trim()}
-              className="bg-gradient-to-r from-purple-500 to-blue-500"
-            >
-              Comment
-            </Button>
-          </div>
+    <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <h3 className="text-lg font-semibold text-white">Comments</h3>
+
+      {user ? (
+        <div className="space-y-2">
+          <Textarea
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="Share your thoughts..."
+            className="min-h-[80px] border-white/10 bg-white/5"
+          />
+          <Button onClick={handleSubmitComment} disabled={!newComment.trim()}>
+            Post comment
+          </Button>
         </div>
+      ) : (
+        <p className="text-sm text-slate-400">Sign in to leave a comment.</p>
+      )}
 
-        {/* Comments list */}
-        <div className="space-y-6">{commentsData.map((comment) => renderComment(comment))}</div>
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-16 animate-pulse rounded-xl bg-white/5" />
+          ))}
+        </div>
+      ) : commentsData.length === 0 ? (
+        <EmptyState title="No comments yet" description="Be the first to start the conversation." />
+      ) : (
+        <div className="space-y-5">{commentsData.map((comment) => renderComment(comment))}</div>
+      )}
 
-        {commentsData.length === 0 && (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            <MessageCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p>No comments yet. Be the first to comment!</p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      <ConfirmDialog
+        open={Boolean(deleteId)}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+        title="Delete comment?"
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={handleDelete}
+      />
+    </div>
   )
 }

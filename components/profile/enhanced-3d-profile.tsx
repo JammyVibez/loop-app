@@ -10,6 +10,10 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LoopCard } from "@/components/loop-card"
 import { useAuth } from "@/hooks/use-auth"
+import { ProfileShareCard } from "@/components/profile/profile-share-card"
+import { ProfileSkeleton } from "@/components/loading-states"
+import { EmptyState as PageEmptyState } from "@/components/ui/empty-state"
+import { ReportContentButton } from "@/components/moderation/report-content-button"
 
 interface Achievement {
   id: string
@@ -107,26 +111,17 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   }
 
   if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="h-64 animate-pulse rounded-3xl border border-white/10 bg-white/[0.04]" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="h-24 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]" />
-          ))}
-        </div>
-      </div>
-    )
+    return <ProfileSkeleton />
   }
 
   if (!profile) {
     return (
-      <Card className="border-white/10 bg-[#0a1020]/85 text-center text-slate-100">
-        <CardContent className="p-10">
-          <h1 className="text-2xl font-bold">User not found</h1>
-          <p className="mt-2 text-slate-400">The profile you are looking for does not exist.</p>
-        </CardContent>
-      </Card>
+      <PageEmptyState
+        title="User not found"
+        description="The profile you are looking for does not exist."
+        actionLabel="Explore people"
+        actionHref="/explore"
+      />
     )
   }
 
@@ -212,12 +207,18 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                         <Edit className="mr-2 h-4 w-4" /> Edit Profile
                       </Button>
                     </Link>
-                    <Button
-                      className="rounded-full border border-white/25 bg-white/10 px-4 text-white hover:bg-white/20"
-                      onClick={() => navigator.clipboard.writeText(`${window.location.origin}/profile/${profile.username}`)}
-                    >
-                      <Share2 className="mr-2 h-4 w-4" /> Share
-                    </Button>
+                    <ProfileShareCard
+                      username={profile.username}
+                      displayName={profile.display_name}
+                      bio={profile.bio}
+                      avatarUrl={profile.avatar_url}
+                      triggerClassName="rounded-full border border-white/25 bg-white/10 px-4 text-white hover:bg-white/20"
+                    />
+                    <Link href="/invite">
+                      <Button className="rounded-full border border-white/25 bg-white/10 px-4 text-white hover:bg-white/20">
+                        <Plus className="mr-2 h-4 w-4" /> Invite
+                      </Button>
+                    </Link>
                   </>
                 ) : (
                   <>
@@ -230,6 +231,20 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                     <Button className="rounded-full border border-white/20 bg-transparent px-6 text-white hover:bg-white/10">
                       <MessageCircle className="mr-2 h-4 w-4" /> Message
                     </Button>
+                    <ReportContentButton
+                      contentType="profile"
+                      contentId={profile.id}
+                      variant="button"
+                      label="Report"
+                      className="rounded-full border-red-400/30 text-red-200"
+                    />
+                    <ProfileShareCard
+                      username={profile.username}
+                      displayName={profile.display_name}
+                      bio={profile.bio}
+                      avatarUrl={profile.avatar_url}
+                      triggerClassName="rounded-full border border-white/20 bg-transparent px-4 text-white hover:bg-white/10"
+                    />
                   </>
                 )}
               </div>

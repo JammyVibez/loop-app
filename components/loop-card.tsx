@@ -35,6 +35,16 @@ import { GiftModal } from "./gifting/gift-modal";
 import { useTheme3D } from "../providers/theme-3d-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/components/ui/use-toast";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ReportContentButton } from "@/components/moderation/report-content-button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface LoopAuthor {
   id: string;
@@ -98,6 +108,10 @@ export function LoopCard({
 }: LoopCardProps) {
   const [showFullContent, setShowFullContent] = useState(false);
   const [showGiftModal, setShowGiftModal] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editContent, setEditContent] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const { currentTheme } = useTheme3D();
@@ -141,21 +155,29 @@ export function LoopCard({
     window.location.href = `/loop/${loop.id}`;
   };
 
-  const handleEdit = async () => {
+  const handleEdit = () => {
     if (!currentUser?.token || currentUser.id !== loop.author_id) return;
+    setEditContent(content);
+    setEditOpen(true);
+  };
 
-    const nextContent = window.prompt("Edit your loop", content);
-    if (nextContent === null || nextContent.trim() === content.trim()) return;
-
+  const saveEdit = async () => {
+    if (!currentUser?.token || currentUser.id !== loop.author_id) return;
+    if (!editContent.trim() || editContent.trim() === content.trim()) {
+      setEditOpen(false);
+      return;
+    }
+    setSavingEdit(true);
     const response = await fetch(`/api/loops/${loop.id}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${currentUser.token}`,
+        Authorization: `Bearer ${currentUser.access_token || currentUser.token}`,
       },
-      body: JSON.stringify({ content: nextContent }),
+      body: JSON.stringify({ content: editContent }),
     });
     const data = await response.json().catch(() => ({}));
+    setSavingEdit(false);
 
     if (!response.ok) {
       toast({
@@ -167,16 +189,21 @@ export function LoopCard({
     }
 
     onEdited?.(data.loop);
+    setEditOpen(false);
     toast({ title: "Loop updated" });
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!currentUser?.token || currentUser.id !== loop.author_id) return;
-    if (!window.confirm("Delete this loop? This cannot be undone.")) return;
+    setDeleteOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!currentUser?.token || currentUser.id !== loop.author_id) return;
 
     const response = await fetch(`/api/loops/${loop.id}`, {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${currentUser.token}` },
+      headers: { Authorization: `Bearer ${currentUser.access_token || currentUser.token}` },
     });
     const data = await response.json().catch(() => ({}));
 
@@ -189,6 +216,7 @@ export function LoopCard({
       return;
     }
 
+    setDeleteOpen(false);
     onDeleted?.(loop.id);
     toast({ title: "Loop deleted" });
   };
@@ -534,8 +562,7 @@ export function LoopCard({
                   <Gift className="h-4 w-4 mr-2" />
                   Send Gift
                 </DropdownMenuItem>
-                <DropdownMenuItem>Report Loop</DropdownMenuItem>
-                <DropdownMenuItem>Hide from Feed</DropdownMenuItem>
+                <ReportContentButton contentType="loop" contentId={loop.id} label="Report Loop" />
                 <DropdownMenuItem onClick={handleShare}>
                   Copy Link
                 </DropdownMenuItem>
@@ -703,6 +730,37 @@ export function LoopCard({
           title: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
         }}
       />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete this loop?"
+        description="This cannot be undone. Branches from others may remain."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={confirmDelete}
+      />
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="border-white/10 bg-[#0a1020] text-slate-100">
+          <DialogHeader>
+            <DialogTitle>Edit loop</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            className="min-h-[140px] border-white/10 bg-white/5"
+          />
+          <DialogFooter>
+            <Button variant="outline" className="border-white/10" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveEdit} disabled={savingEdit}>
+              {savingEdit ? "Saving..." : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

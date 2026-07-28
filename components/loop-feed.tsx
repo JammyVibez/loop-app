@@ -1,72 +1,45 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Loader2 } from "lucide-react"
+import { Loader2, Sparkles, RefreshCw } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { formatDistanceToNow } from "date-fns"
 import { LoopCard } from "@/components/loop-card"
-import { CreateLoopButton } from "@/components/create-loop-button"
 import { normalizeLoops, type NormalizedLoop } from "@/lib/normalize-loop"
-
-interface LoopAuthor {
-  id: string
-  username: string
-  display_name: string
-  avatar_url?: string
-  is_verified?: boolean
-  is_premium?: boolean
-}
-
-interface LoopStats {
-  likes_count: number
-  comments_count: number
-  branches_count: number
-  shares_count: number
-  views_count: number
-}
-
-interface Loop {
-  id: string
-  author_id: string
-  content: string
-  media_type: string
-  media_url?: string
-  hashtags?: string[]
-  created_at: string
-  author: LoopAuthor
-  stats: LoopStats
-  user_interactions: {
-    is_liked: boolean
-    is_saved: boolean
-  }
-}
+import { LoopFeedSkeleton } from "@/components/loading-states"
+import { EmptyState } from "@/components/ui/empty-state"
 
 interface LoopFeedProps {
   feedType?: "personalized" | "following" | "trending" | "recent"
+  showComposer?: boolean
 }
 
-export function LoopFeed({ feedType = "personalized" }: LoopFeedProps) {
+export function LoopFeed({ feedType = "personalized", showComposer = false }: LoopFeedProps) {
   const [loops, setLoops] = useState<NormalizedLoop[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [interacting, setInteracting] = useState<string | null>(null)
-  const { user } = useAuth()
+  const [error, setError] = useState<string | null>(null)
+  const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
 
-  useEffect(() => {
-    if (user) {
-      fetchLoops(true)
+  const authToken = user?.access_token || user?.token
+
+  const fetchLoops = useCallback(async (reset = false) => {
+    if (!authToken) {
+      setLoading(false)
+      setLoadingMore(false)
+      return
     }
-  }, [user, feedType])
 
-  const fetchLoops = async (reset = false) => {
-    if (!user?.token) return
-
-    const currentLoading = reset ? setLoading : setLoadingMore
-    currentLoading(true)
+    if (reset) {
+      setLoading(true)
+      setError(null)
+    } else {
+      setLoadingMore(true)
+    }
 
     try {
       const offset = reset ? 0 : loops.length
@@ -74,43 +47,53 @@ export function LoopFeed({ feedType = "personalized" }: LoopFeedProps) {
         `/api/loops/feed?type=${feedType}&limit=20&offset=${offset}`,
         {
           headers: {
-            Authorization: `Bearer ${user.token}`,
+            Authorization: `Bearer ${authToken}`,
+            ...getAuthHeader(),
           },
-        }
+          cache: "no-store",
+        },
       )
 
-      const data = await response.json()
+      const data = await response.json().catch(() => ({}))
 
-      if (data.success) {
-        const fetchedLoops = normalizeLoops(data.loops || [])
-
-        if (reset) {
-          setLoops(fetchedLoops)
-        } else {
-          setLoops(prev => [...prev, ...fetchedLoops])
-        }
-        setHasMore(data.hasMore)
-      } else {
-        toast({
-          title: "Error",
-          description: data.error || "Failed to load loops",
-          variant: "destructive",
-        })
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || "Failed to load loops")
       }
-    } catch (error) {
-      console.error("Error fetching loops:", error)
+
+      const fetchedLoops = normalizeLoops(data.loops || [])
+
+      if (reset) {
+        setLoops(fetchedLoops)
+      } else {
+        setLoops((prev) => [...prev, ...fetchedLoops])
+      }
+      setHasMore(Boolean(data.hasMore))
+    } catch (err: any) {
+      console.error("Error fetching loops:", err)
+      setError(err?.message || "Failed to load loops")
       toast({
         title: "Error",
-        description: "Failed to load loops",
+        description: err?.message || "Failed to load loops",
         variant: "destructive",
       })
     } finally {
-      currentLoading(false)
+      setLoading(false)
+      setLoadingMore(false)
     }
-  }
+  }, [authToken, feedType, getAuthHeader, loops.length, toast])
+
+  useEffect(() => {
+    if (!user) {
+      setLoading(false)
+      setLoops([])
+      return
+    }
+    fetchLoops(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, authToken, feedType])
 
   const handleInteraction = async (loopId: string, type: "like" | "save") => {
-    if (!user?.token) {
+    if (!authToken) {
       toast({
         title: "Authentication Required",
         description: "Please log in to interact with loops",
@@ -126,7 +109,7 @@ export function LoopFeed({ feedType = "personalized" }: LoopFeedProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({ interaction_type: type }),
       })
@@ -134,21 +117,24 @@ export function LoopFeed({ feedType = "personalized" }: LoopFeedProps) {
       const data = await response.json()
 
       if (data.success) {
-        // Update the loop in the state
-        setLoops(prev =>
-          prev.map(loop => {
-            if (loop.id === loopId) {
-              const updatedLoop = { ...loop }
-              if (type === "like") {
-                updatedLoop.user_interactions.is_liked = data.is_active
-                updatedLoop.stats = data.stats || updatedLoop.stats
-              } else if (type === "save") {
-                updatedLoop.user_interactions.is_saved = data.is_active
+        setLoops((prev) =>
+          prev.map((loop) => {
+            if (loop.id !== loopId) return loop
+            const updatedLoop = { ...loop }
+            if (type === "like") {
+              updatedLoop.user_interactions = {
+                ...updatedLoop.user_interactions,
+                is_liked: data.is_active,
               }
-              return updatedLoop
+              updatedLoop.stats = data.stats || updatedLoop.stats
+            } else if (type === "save") {
+              updatedLoop.user_interactions = {
+                ...updatedLoop.user_interactions,
+                is_saved: data.is_active,
+              }
             }
-            return loop
-          })
+            return updatedLoop
+          }),
         )
       } else {
         toast({
@@ -157,8 +143,8 @@ export function LoopFeed({ feedType = "personalized" }: LoopFeedProps) {
           variant: "destructive",
         })
       }
-    } catch (error) {
-      console.error("Error updating interaction:", error)
+    } catch (err) {
+      console.error("Error updating interaction:", err)
       toast({
         title: "Error",
         description: "Failed to update interaction",
@@ -169,59 +155,63 @@ export function LoopFeed({ feedType = "personalized" }: LoopFeedProps) {
     }
   }
 
-  // Add this callback to refresh feed after loop creation
-  const handleLoopCreated = () => {
-    // Add a small delay to ensure the loop is saved before fetching
-    setTimeout(() => {
-      fetchLoops(true)
-    }, 500)
+  if (loading) {
+    return <LoopFeedSkeleton />
   }
 
-  if (loading) {
+  if (error && loops.length === 0) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading loops...</span>
-      </div>
+      <EmptyState
+        title="Couldn't load your feed"
+        description={error}
+        actionLabel="Try again"
+        onAction={() => fetchLoops(true)}
+      />
     )
   }
 
   if (loops.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500 dark:text-gray-400">
-          No loops found. Start following users or create your first loop!
-        </p>
-      </div>
+      <EmptyState
+        title="Your feed is ready"
+        description={
+          feedType === "following"
+            ? "Follow creators to fill this tab, or check For You / Recent."
+            : "Create your first loop or explore trending stories to get started."
+        }
+        actionLabel="Create a loop"
+        actionHref="/create"
+      />
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Add create loop button at the top */}
-      <CreateLoopButton onLoopCreated={handleLoopCreated} />
-      {loops.map(loop => (
+    <div className="space-y-4 sm:space-y-6">
+      {loops.map((loop) => (
         <LoopCard
           key={loop.id}
           loop={loop}
           interacting={interacting}
           onInteraction={handleInteraction}
-          onDeleted={(loopId) => setLoops(prev => prev.filter(loop => loop.id !== loopId))}
-          onEdited={(updatedLoop) => setLoops(prev => prev.map(loop => loop.id === updatedLoop.id ? updatedLoop : loop))}
+          onDeleted={(loopId) => setLoops((prev) => prev.filter((item) => item.id !== loopId))}
+          onEdited={(updatedLoop) =>
+            setLoops((prev) => prev.map((item) => (item.id === updatedLoop.id ? updatedLoop : item)))
+          }
         />
       ))}
 
       {hasMore && (
-        <div className="text-center">
+        <div className="text-center pb-4">
           <Button
             onClick={() => fetchLoops(false)}
             disabled={loadingMore}
             variant="outline"
+            className="rounded-full border-white/15 bg-white/5 px-6"
           >
             {loadingMore ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Loading more...
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Loading more…
               </>
             ) : (
               "Load more loops"

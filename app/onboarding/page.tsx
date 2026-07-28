@@ -77,6 +77,7 @@ export default function OnboardingPage() {
     interests: [] as string[],
     theme: THEMES[0],
     avatar_url: "",
+    goals: [] as string[],
   })
   const { user, refreshUser, getAuthHeader, applyServerProfile } = useAuth()
   const router = useRouter()
@@ -148,8 +149,17 @@ export default function OnboardingPage() {
             animation: "pulse-glow",
           },
           onboarding_completed: true,
+          // Persisted inside theme_data / interests path; goals stored in interests metadata via bio prefix if needed
         }),
       })
+
+      // Persist personalization goals locally for feed hints
+      try {
+        localStorage.setItem(
+          "loop-onboarding-personalization",
+          JSON.stringify({ interests: profileData.interests, goals: profileData.goals }),
+        )
+      } catch {}
 
       if (!response.ok) {
         throw new Error("Failed to save profile")
@@ -337,37 +347,57 @@ export default function OnboardingPage() {
           <Card className="w-full max-w-2xl landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
             <CardHeader className="text-center">
               <Sparkles className="w-12 h-12 text-purple-600 mx-auto mb-4" />
+              <CardTitle className="text-2xl">Personalize your start</CardTitle>
+              <CardDescription>Tell Loop what you want to do first so we can tune your feed.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {["Discover creators", "Share stories", "Join circles", "Collaborate on trees", "Watch reels", "Host events"].map((goal) => {
+                  const active = profileData.goals.includes(goal)
+                  return (
+                    <Badge
+                      key={goal}
+                      variant={active ? "default" : "outline"}
+                      className={`cursor-pointer justify-center p-3 ${active ? "bg-gradient-to-r from-violet-600 to-cyan-500" : ""}`}
+                      onClick={() =>
+                        setProfileData((prev) => ({
+                          ...prev,
+                          goals: active ? prev.goals.filter((g) => g !== goal) : [...prev.goals, goal],
+                        }))
+                      }
+                    >
+                      {active && <Check className="mr-1 h-3 w-3" />}
+                      {goal}
+                    </Badge>
+                  )
+                })}
+              </div>
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setStep(3)} className="flex-1">Back</Button>
+                <Button onClick={() => setStep(5)} className="flex-1" disabled={profileData.goals.length === 0}>
+                  Continue <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )
+
+      case 5:
+        return (
+          <Card className="w-full max-w-2xl landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
+            <CardHeader className="text-center">
+              <Sparkles className="w-12 h-12 text-purple-600 mx-auto mb-4" />
               <CardTitle className="text-2xl">You're all set!</CardTitle>
               <CardDescription>Welcome to the Loop community. Start creating and connecting!</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur">
-                <h3 className="font-semibold mb-4">What's next?</h3>
-                <ul className="space-y-3 text-sm">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-green-500" />
-                    Create your first loop and start a creative tree
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-green-500" />
-                    Join circles based on your interests
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-green-500" />
-                    Connect with other creators and collaborate
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-green-500" />
-                    Explore trending loops and discover new ideas
-                  </li>
+                <h3 className="font-semibold mb-4">Your setup</h3>
+                <ul className="space-y-2 text-sm text-slate-300">
+                  <li>{profileData.interests.length} interests selected</li>
+                  <li>Theme: {profileData.theme.name}</li>
+                  <li>Goals: {profileData.goals.join(", ") || "None"}</li>
                 </ul>
-              </div>
-
-              <div className="text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  You've earned <span className="font-semibold text-purple-600">100 Loop Coins</span> for completing
-                  your profile!
-                </p>
               </div>
 
               {errors.general && (
@@ -376,9 +406,12 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              <Button onClick={handleComplete} className="w-full rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-violet-600/30 hover:from-violet-500 hover:to-cyan-400" size="lg" disabled={saving}>
-                {saving ? "Saving..." : "Enter Loop"} <Sparkles className="w-4 h-4 ml-2" />
-              </Button>
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setStep(4)} className="flex-1">Back</Button>
+                <Button onClick={handleComplete} className="flex-1 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500" disabled={saving}>
+                  {saving ? "Saving..." : "Enter Loop"} <Sparkles className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )
@@ -396,7 +429,7 @@ export default function OnboardingPage() {
       <div className="relative z-10 w-full flex flex-col items-center">
         {/* Progress indicator */}
         <div className="flex items-center space-x-2 mb-8">
-          {[1, 2, 3, 4].map((stepNumber) => (
+          {[1, 2, 3, 4, 5].map((stepNumber) => (
             <div key={stepNumber} className="flex items-center">
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -406,9 +439,9 @@ export default function OnboardingPage() {
               >
                 {step > stepNumber ? <Check className="w-4 h-4" /> : stepNumber}
               </div>
-              {stepNumber < 4 && (
+              {stepNumber < 5 && (
                 <div
-                  className={`w-12 h-0.5 ${
+                  className={`w-8 h-0.5 sm:w-12 ${
                     step > stepNumber ? "bg-gradient-to-r from-purple-600 to-blue-600" : "bg-gray-200 dark:bg-gray-700"
                   }`}
                 />

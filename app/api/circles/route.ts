@@ -26,11 +26,20 @@ function normalizeCircle(circle: any, membershipMap = new Map<string, any>()) {
   return {
     ...circle,
     owner: circle.owner || circle.creator,
-    member_count: Number(memberCount || circle.member_count_value || 0),
+    member_count: Number(memberCount || circle.member_count_value || circle.member_count || 0),
+    max_members: circle.max_members ?? circle.member_limit ?? 1000,
     is_member: membership?.status === "active" || membership?.status === "approved",
     membership_status: membership?.status || null,
     user_role: membership?.role || "guest",
   }
+}
+
+const defaultSettings = {
+  allow_posts: true,
+  allow_media: true,
+  moderation_level: "moderate",
+  community_studio: { enabled: true, layout: "default", theme: "cinematic", accent: "#22d3ee" },
+  bots: { enabled: false, moderation_bot: false, welcome_bot: true },
 }
 
 export async function GET(request: NextRequest) {
@@ -91,57 +100,79 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { name, description, category, is_private, avatar_url, banner_url, rules, tags } = await request.json()
-    if (!name || name.trim().length < 3) return NextResponse.json({ error: "Circle name must be at least 3 characters" }, { status: 400 })
-    if (!description || description.trim().length < 10) return NextResponse.json({ error: "Description must be at least 10 characters" }, { status: 400 })
+    if (!name || name.trim().length < 3) {
+      return NextResponse.json({ error: "Circle name must be at least 3 characters" }, { status: 400 })
+    }
+    if (!description || description.trim().length < 10) {
+      return NextResponse.json({ error: "Description must be at least 10 characters" }, { status: 400 })
+    }
     if (!category) return NextResponse.json({ error: "Category is required" }, { status: 400 })
 
     const supabase = createServerClient()
-    const { data: existingCircles, error: countError } = await supabase.from("circles").select("id").or(`owner_id.eq.${user.id},creator_id.eq.${user.id}`)
+    const { data: existingCircles, error: countError } = await supabase
+      .from("circles")
+      .select("id")
+      .or(`owner_id.eq.${user.id},creator_id.eq.${user.id}`)
     if (countError) return NextResponse.json({ error: "Failed to check existing circles" }, { status: 500 })
-    if (existingCircles && existingCircles.length >= 5) return NextResponse.json({ error: "You can only create up to 5 circles" }, { status: 400 })
+    if (existingCircles && existingCircles.length >= 5) {
+      return NextResponse.json({ error: "You can only create up to 5 circles" }, { status: 400 })
+    }
 
     const { data: existingCircle } = await supabase.from("circles").select("id").eq("name", name.trim()).maybeSingle()
-    if (existingCircle) return NextResponse.json({ error: "A circle with this name already exists" }, { status: 400 })
+    if (existingCircle) {
+      return NextResponse.json({ error: "A circle with this name already exists" }, { status: 400 })
+    }
 
-    const { data: circle, error: createError } = await supabase
+    const payload: Record<string, unknown> = {
+      name: name.trim(),
+      description: description.trim(),
+      category,
+      is_private: Boolean(is_private),
+      owner_id: user.id,
+      creator_id: user.id,
+      avatar_url: avatar_url || null,
+      banner_url: banner_url || null,
+      rules: Array.isArray(rules) ? rules : rules || [],
+      tags: Array.isArray(tags) ? tags : tags || [],
+      max_members: 1000,
+      member_count: 1,
+      settings: defaultSettings,
+    }
+
+    let { data: circle, error: createError } = await supabase
       .from("circles")
-      .insert({
-        name: name.trim(),
-        description: description.trim(),
-        category,
-        is_private: Boolean(is_private),
-        owner_id: user.id,
-        creator_id: user.id,
-        avatar_url: avatar_url || null,
-        banner_url: banner_url || null,
-        rules: rules || [],
-        tags: tags || [],
-        member_limit: 1000,
-        settings: {
-          allow_posts: true,
-          allow_media: true,
-          moderation_level: "moderate",
-          community_studio: { enabled: true, layout: "default", theme: "cinematic" },
-          bots: { enabled: false, moderation_bot: false, welcome_bot: true },
-        },
-      })
+      .insert(payload)
       .select(`*, owner:profiles!owner_id(id, username, display_name, avatar_url), creator:profiles!creator_id(id, username, display_name, avatar_url)`)
       .single()
 
-    if (createError) {
-      console.error("Error creating circle:", createError)
-      return NextResponse.json({ error: "Failed to create circle" }, { status: 500 })
+    // Compat retry if settings column is missing in older DBs
+    if (createError?.code === "PGRST204" && String(createError.message || "").includes("settings")) {
+      delete payload.settings
+      ;({ data: circle, error: createError } = await supabase
+        .from("circles")
+        .insert(payload)
+        .select(`*, owner:profiles!owner_id(id, username, display_name, avatar_url), creator:profiles!creator_id(id, username, display_name, avatar_url)`)
+        .single())
     }
 
-    await supabase.from("circle_members").insert({
+    if (createError) {
+      console.error("Error creating circle:", createError)
+      return NextResponse.json(
+        { error: createError.message || "Failed to create circle" },
+        { status: 500 },
+      )
+    }
+
+    const { error: memberError } = await supabase.from("circle_members").insert({
       circle_id: circle.id,
       user_id: user.id,
       role: "owner",
       status: "active",
       joined_at: new Date().toISOString(),
     })
+    if (memberError) console.error("circle_members insert:", memberError)
 
-    await supabase.from("circle_rooms").insert({
+    const { error: roomError } = await supabase.from("circle_rooms").insert({
       circle_id: circle.id,
       name: "general",
       description: "The main community room",
@@ -149,16 +180,25 @@ export async function POST(request: NextRequest) {
       is_private: false,
       created_by: user.id,
     })
+    if (roomError) console.error("circle_rooms insert:", roomError)
 
-    await supabase.rpc("update_user_stats_and_check_achievements", {
-      target_user_id: user.id,
-      stat_type: "circles_created",
-      increment_value: 1,
+    try {
+      await supabase.rpc("update_user_stats_and_check_achievements", {
+        target_user_id: user.id,
+        stat_type: "circles_created",
+        increment_value: 1,
+      })
+    } catch (rpcError) {
+      console.error("achievement rpc:", rpcError)
+    }
+
+    return NextResponse.json({
+      success: true,
+      circle: normalizeCircle(circle),
+      message: "Circle created successfully!",
     })
-
-    return NextResponse.json({ success: true, circle: normalizeCircle(circle), message: "Circle created successfully!" })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating circle:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 })
   }
 }

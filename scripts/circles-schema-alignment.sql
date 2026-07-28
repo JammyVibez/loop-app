@@ -3,6 +3,8 @@
 
 alter table if exists public.circles add column if not exists owner_id uuid references public.profiles(id) on delete cascade;
 alter table if exists public.circles add column if not exists creator_id uuid references public.profiles(id) on delete cascade;
+alter table if exists public.circles add column if not exists settings jsonb default '{}'::jsonb;
+alter table if exists public.circles add column if not exists max_members integer default 1000;
 update public.circles set owner_id = coalesce(owner_id, creator_id) where owner_id is null;
 update public.circles set creator_id = coalesce(creator_id, owner_id) where creator_id is null;
 
@@ -75,7 +77,8 @@ create table if not exists public.circle_bots (
   enabled boolean not null default true,
   configuration jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  unique (circle_id, bot_type)
 );
 
 create table if not exists public.circle_challenges (

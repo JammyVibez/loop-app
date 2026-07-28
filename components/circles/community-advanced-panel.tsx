@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Bot, Boxes, Palette, Trophy, Video, Wand2 } from "lucide-react"
+import { ROLE_PERMISSIONS } from "@/lib/circle-permissions"
+import { Bot, Boxes, Palette, Trophy, Video, Wand2, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -134,9 +135,29 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Label>Accent gradient</Label>
+          <Label>Theme preset</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { id: "cinematic", accent: "#22d3ee", label: "Cinematic Cyan" },
+              { id: "ember", accent: "#f97316", label: "Ember Orange" },
+              { id: "violet", accent: "#8b5cf6", label: "Violet Pulse" },
+              { id: "forest", accent: "#34d399", label: "Forest Mint" },
+            ].map((theme) => (
+              <button
+                key={theme.id}
+                type="button"
+                disabled={!canManage}
+                onClick={() => setStudio((prev: any) => ({ ...prev, layout: theme.id, accent: theme.accent, theme: theme.id }))}
+                className="rounded-xl border border-white/10 bg-[#030712]/50 px-3 py-2 text-left text-xs text-slate-200 hover:bg-white/5 disabled:opacity-50"
+              >
+                <span className="mb-1 block h-2 rounded-full" style={{ background: theme.accent }} />
+                {theme.label}
+              </button>
+            ))}
+          </div>
+          <Label>Accent color</Label>
           <Input
-            value={studio.accent || "from-violet-600 to-cyan-500"}
+            value={studio.accent || "#22d3ee"}
             disabled={!canManage}
             onChange={(event) => setStudio((prev: any) => ({ ...prev, accent: event.target.value }))}
           />
@@ -146,6 +167,12 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
             disabled={!canManage}
             onChange={(event) => setStudio((prev: any) => ({ ...prev, layout: event.target.value }))}
           />
+          <div
+            className="rounded-xl border border-white/10 p-3 text-xs text-slate-300"
+            style={{ boxShadow: `inset 0 0 0 1px ${studio.accent || "#22d3ee"}33` }}
+          >
+            Preview accent: <span style={{ color: studio.accent || "#22d3ee" }}>{studio.accent || "#22d3ee"}</span>
+          </div>
           <Button disabled={!canManage} onClick={() => saveStudio(studio)} className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white">
             <Wand2 className="mr-2 h-4 w-4" />
             Save studio
@@ -215,6 +242,27 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
             <Boxes className="h-4 w-4" />
             Provider adapter needed for real audio/video streams.
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-white/10 bg-white/[0.04] lg:col-span-2">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-sky-300" />
+            Role permissions
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {ROLE_PERMISSIONS.map((item) => (
+            <div key={item.role} className="rounded-2xl border border-white/10 bg-[#030712]/40 p-3">
+              <p className="mb-2 font-medium text-white">{item.label}</p>
+              <ul className="space-y-1 text-xs text-slate-400">
+                {item.abilities.map((ability) => (
+                  <li key={ability}>• {ability}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>
