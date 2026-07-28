@@ -15,7 +15,8 @@ export async function POST(request: NextRequest) {
     const Stripe = (await import("stripe")).default
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2025-07-30.basil",
+      // Always use the API version pinned by the installed stripe package.
+      apiVersion: Stripe.API_VERSION,
     })
 
     const body = await request.text()

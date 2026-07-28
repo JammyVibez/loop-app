@@ -11,6 +11,7 @@ export async function getStripeServer(): Promise<Stripe | null> {
   }
   const Stripe = (await import("stripe")).default
   return new Stripe(key, {
-    apiVersion: "2025-07-30.basil",
+    // Always use the API version pinned by the installed stripe package.
+    apiVersion: Stripe.API_VERSION,
   })
 }
