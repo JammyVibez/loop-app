@@ -125,8 +125,8 @@ export function Enhanced3DProfile({ username }: { username: string }) {
     )
   }
 
-  const isOwnProfile = user?.username === profile.username
-  const displayName = profile.display_name || profile.username
+  const isOwnProfile = Boolean(user && (user.id === profile.id || user.username === profile.username))
+  const displayName = profile.display_name || profile.username || "User"
   const stats = [
     { label: "Followers", value: profile.followers_count ?? 0, icon: Users, color: "from-cyan-400 to-blue-500" },
     { label: "Following", value: profile.following_count ?? 0, icon: Heart, color: "from-pink-400 to-rose-500" },
@@ -209,7 +209,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                     </Link>
                     <ProfileShareCard
                       username={profile.username}
-                      displayName={profile.display_name}
+                      displayName={displayName}
                       bio={profile.bio}
                       avatarUrl={profile.avatar_url}
                       triggerClassName="rounded-full border border-white/25 bg-white/10 px-4 text-white hover:bg-white/20"
@@ -223,7 +223,13 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 ) : (
                   <>
                     <Button
-                      onClick={handleFollow}
+                      onClick={() => {
+                        if (!user) {
+                          window.location.href = "/login"
+                          return
+                        }
+                        void handleFollow()
+                      }}
                       className={isFollowing ? "rounded-full border border-white/20 bg-white/10 px-6 text-white hover:bg-white/20" : "rounded-full bg-white px-6 font-semibold text-slate-900 shadow-lg shadow-cyan-300/20 hover:bg-slate-100"}
                     >
                       {isFollowing ? "Unfollow" : "Follow"}
@@ -240,7 +246,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                     />
                     <ProfileShareCard
                       username={profile.username}
-                      displayName={profile.display_name}
+                      displayName={displayName}
                       bio={profile.bio}
                       avatarUrl={profile.avatar_url}
                       triggerClassName="rounded-full border border-white/20 bg-transparent px-4 text-white hover:bg-white/10"
@@ -303,10 +309,10 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                   {profile.achievements.map((achievement) => (
                     <Card key={achievement.id} className="landing-card-3d border-white/10 bg-white/[0.04] text-center">
                       <CardContent className="p-4">
-                        <img src={achievement.badge_url} alt={achievement.name} className="mx-auto mb-3 h-14 w-14" />
-                        <h3 className="font-semibold text-white">{achievement.name}</h3>
-                        <p className="mt-1 line-clamp-2 text-sm text-slate-400">{achievement.description}</p>
-                        <Badge className="mt-3 bg-white/10 text-white">{achievement.rarity.toUpperCase()}</Badge>
+                        <img src={achievement.badge_url || "/placeholder.svg"} alt={achievement.name || "Achievement"} className="mx-auto mb-3 h-14 w-14" />
+                        <h3 className="font-semibold text-white">{achievement.name || "Achievement"}</h3>
+                        <p className="mt-1 line-clamp-2 text-sm text-slate-400">{achievement.description || ""}</p>
+                        <Badge className="mt-3 bg-white/10 text-white">{String(achievement.rarity || "common").toUpperCase()}</Badge>
                       </CardContent>
                     </Card>
                   ))}

@@ -118,7 +118,7 @@ export function ProfileShareCard({ username, displayName, bio, avatarUrl, trigge
           <div className="mb-4 flex items-center gap-3">
             <Avatar className="h-14 w-14">
               <AvatarImage src={avatarUrl || "/placeholder.svg"} />
-              <AvatarFallback>{displayName.charAt(0)}</AvatarFallback>
+              <AvatarFallback>{(displayName || username || "?").charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
               <p className="text-lg font-semibold">{displayName}</p>

@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 
 const supabase = getSupabaseBrowserClient()
@@ -336,15 +336,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await hydrateSessionUser()
   }
 
-  const getAuthHeader = (): Record<string, string> => {
-    if (!user?.access_token) {
+  const getAuthHeader = useCallback((): Record<string, string> => {
+    const token = userRef.current?.access_token || userRef.current?.token
+    if (!token) {
       return {}
     }
 
     return {
-      Authorization: `Bearer ${user.access_token}`,
+      Authorization: `Bearer ${token}`,
     }
-  }
+  }, [])
 
   const applyServerProfile = (profile: Partial<User> & Record<string, unknown>) => {
     setUser((prev) => {
