@@ -1,6 +1,5 @@
-import { Header } from "@/components/header";
-import { EnhancedCircleDetail } from "@/components/circles/enhanced-circle-detail";
-import { Theme3DProvider } from "@/providers/theme-3d-provider";
+import { Header } from "@/components/header"
+import { EnhancedCircleDetail } from "@/components/circles/enhanced-circle-detail"
 
 interface CirclePageProps {
   params: Promise<{
@@ -11,13 +10,11 @@ interface CirclePageProps {
 export default async function CirclePage({ params }: CirclePageProps) {
   const { id } = await params
   return (
-    <Theme3DProvider>
-      <div className="min-h-screen bg-gradient-to-br from-[var(--theme-bg-start,#0f172a)] via-[var(--theme-bg-mid,#581c87)] to-[var(--theme-bg-end,#0f172a)] dark:from-[var(--theme-bg-dark-start,#0f172a)] dark:via-[var(--theme-bg-dark-mid,#581c87)] dark:to-[var(--theme-bg-dark-end,#0f172a)] transition-colors duration-500">
-        <Header />
-        <main className="container mx-auto px-4 py-6 max-w-7xl">
-          <EnhancedCircleDetail circleId={id} />
-        </main>
-      </div>
-    </Theme3DProvider>
+    <div className="min-h-screen bg-background text-foreground">
+      <Header />
+      <main className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-4 sm:py-6">
+        <EnhancedCircleDetail circleId={id} />
+      </main>
+    </div>
   )
 }
