@@ -522,7 +522,8 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                           size="sm"
                           className="border-gray-600 text-gray-300 hover:bg-gray-800"
                         >
-                          <Settings className="w-4 h-4" />
+                          <Crown className="w-4 h-4 mr-2" />
+                          Dashboard
                         </Button>
                       </a>
                     )}

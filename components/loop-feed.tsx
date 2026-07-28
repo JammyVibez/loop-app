@@ -7,6 +7,8 @@ import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { LoopCard } from "@/components/loop-card"
 import { normalizeLoops, type NormalizedLoop } from "@/lib/normalize-loop"
+import { LoopFeedSkeleton } from "@/components/loading-states"
+import { EmptyState } from "@/components/ui/empty-state"
 
 interface LoopFeedProps {
   feedType?: "personalized" | "following" | "trending" | "recent"
@@ -154,43 +156,32 @@ export function LoopFeed({ feedType = "personalized", showComposer = false }: Lo
   }
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-300">
-        <Loader2 className="h-8 w-8 animate-spin text-cyan-300" />
-        <span className="text-sm">Loading your feed…</span>
-      </div>
-    )
+    return <LoopFeedSkeleton />
   }
 
   if (error && loops.length === 0) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-12 text-center">
-        <p className="mb-4 text-slate-300">{error}</p>
-        <Button onClick={() => fetchLoops(true)} variant="outline" className="border-white/15 bg-white/5">
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Try again
-        </Button>
-      </div>
+      <EmptyState
+        title="Couldn't load your feed"
+        description={error}
+        actionLabel="Try again"
+        onAction={() => fetchLoops(true)}
+      />
     )
   }
 
   if (loops.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/15 bg-gradient-to-b from-violet-500/10 to-transparent px-6 py-14 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-500/20 text-violet-200">
-          <Sparkles className="h-6 w-6" />
-        </div>
-        <h3 className="mb-2 text-lg font-semibold text-white">Your feed is ready</h3>
-        <p className="mx-auto mb-5 max-w-md text-sm text-slate-400">
-          {feedType === "following"
+      <EmptyState
+        title="Your feed is ready"
+        description={
+          feedType === "following"
             ? "Follow creators to fill this tab, or check For You / Recent."
-            : "Create your first loop or explore trending stories to get started."}
-        </p>
-        <Button onClick={() => fetchLoops(true)} variant="outline" className="border-white/15 bg-white/5">
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
-      </div>
+            : "Create your first loop or explore trending stories to get started."
+        }
+        actionLabel="Create a loop"
+        actionHref="/create"
+      />
     )
   }
 

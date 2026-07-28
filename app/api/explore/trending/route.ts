@@ -19,10 +19,30 @@ export async function GET(request: NextRequest) {
 
         if (hashtagError) {
           console.error('Error fetching trending hashtags:', hashtagError)
-          return NextResponse.json({ error: 'Failed to fetch trending hashtags' }, { status: 500 })
+          // Fallback when RPC is missing: derive from loops.hashtags
+          const { data: loops } = await supabase
+            .from('loops')
+            .select('hashtags')
+            .not('hashtags', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(100)
+
+          const counts = new Map<string, number>()
+          for (const loop of loops || []) {
+            for (const tag of loop.hashtags || []) {
+              const key = String(tag).toLowerCase()
+              counts.set(key, (counts.get(key) || 0) + 1)
+            }
+          }
+          const hashtags = Array.from(counts.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, limit)
+            .map(([tag, usage_count]) => ({ tag, usage_count }))
+
+          return NextResponse.json({ data: hashtags, hashtags })
         }
 
-        return NextResponse.json({ data: hashtags })
+        return NextResponse.json({ data: hashtags, hashtags })
 
       case 'users':
         // Get trending users based on recent activity

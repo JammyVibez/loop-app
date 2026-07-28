@@ -155,7 +155,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         }
 
       case "share":
-        // Add share interaction
         await supabase
           .from("circle_post_interactions")
           .insert({
@@ -169,6 +168,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           success: true,
           message: "Post shared successfully"
         })
+
+      case "save": {
+        const { data: existingSave } = await supabase
+          .from("circle_post_interactions")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("post_id", postId)
+          .eq("interaction_type", "save")
+          .maybeSingle()
+
+        if (existingSave) {
+          await supabase.from("circle_post_interactions").delete().eq("id", existingSave.id)
+          return NextResponse.json({ success: true, is_active: false, message: "Save removed" })
+        }
+
+        await supabase.from("circle_post_interactions").insert({
+          user_id: user.id,
+          post_id: postId,
+          interaction_type: "save",
+          created_at: new Date().toISOString(),
+        })
+        return NextResponse.json({ success: true, is_active: true, message: "Post saved" })
+      }
 
       default:
         return NextResponse.json({ error: "Invalid action" }, { status: 400 })

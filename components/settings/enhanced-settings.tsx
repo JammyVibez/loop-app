@@ -139,6 +139,17 @@ export function EnhancedSettings() {
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
+          <Card className="border-violet-500/20 bg-violet-500/5">
+            <CardHeader>
+              <CardTitle>Invite friends</CardTitle>
+              <CardDescription>Grow your network with a personal invite link.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500">
+                <a href="/invite">Open invite flow</a>
+              </Button>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle>Profile Information</CardTitle>

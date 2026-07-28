@@ -1,22 +1,37 @@
-"use client";
-import type React from "react";
+"use client"
 
-import { useState } from "react";
-import { Plus, ImageIcon, Video, Music, FileText, Code, X, Upload } from "lucide-react";
-import { Button } from "./ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Textarea } from "./ui/textarea";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Badge } from "./ui/badge";
-import { useAuth } from "../providers/auth-provider";
-import { useToast } from "@/hooks/use-toast";
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { useAuth } from "@/providers/auth-provider"
+import { useToast } from "@/hooks/use-toast"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import {
+  Code,
+  Crop,
+  Eye,
+  FileText,
+  Hash,
+  ImageIcon,
+  Music,
+  Plus,
+  Save,
+  Upload,
+  Video,
+  X,
+} from "lucide-react"
+
+const DRAFT_KEY = "loop-composer-draft-v1"
 
 interface CreateLoopButtonProps {
   onLoopCreated?: () => void
   defaultOpen?: boolean
 }
+
+type MediaType = "text" | "image" | "video" | "audio" | "code"
 
 export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateLoopButtonProps) {
   const { user, getAuthHeader } = useAuth()
@@ -25,165 +40,197 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
   const [content, setContent] = useState("")
   const [hashtags, setHashtags] = useState("")
   const [mediaFiles, setMediaFiles] = useState<File[]>([])
-  const [mediaType, setMediaType] = useState<"text" | "image" | "video" | "audio" | "code">("text")
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [mediaType, setMediaType] = useState<MediaType>("text")
   const [creating, setCreating] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState<number[]>([])
-
-  const getMaxFiles = () => {
-    return user?.is_premium || user?.is_verified ? 4 : 1
-  }
-
+  const [showPreview, setShowPreview] = useState(false)
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [cropScale, setCropScale] = useState(1)
+  const [discardOpen, setDiscardOpen] = useState(false)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const authToken = user?.access_token || user?.token
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!user || !authToken) {
-      toast({
-        title: "Sign in required",
-        description: "You must be logged in to create a loop.",
-        variant: "destructive",
-      })
-      setCreating(false);
-      return;
-    }
-    setCreating(true);
-
+  useEffect(() => {
     try {
-      let res;
+      const raw = localStorage.getItem(DRAFT_KEY)
+      if (!raw) return
+      const draft = JSON.parse(raw)
+      if (draft.content || draft.hashtags) {
+        setContent(draft.content || "")
+        setHashtags(draft.hashtags || "")
+        setMediaType(draft.mediaType || "text")
+        if (!defaultOpen && (draft.content || draft.hashtags)) setIsOpen(true)
+        toast({ title: "Draft restored", description: "We restored your unfinished loop." })
+      }
+    } catch {
+      // ignore
+    }
+  }, [defaultOpen, toast])
+
+  useEffect(() => {
+    const payload = { content, hashtags, mediaType, updatedAt: Date.now() }
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(payload))
+  }, [content, hashtags, mediaType])
+
+  useEffect(() => {
+    if (!mediaFiles[0]) {
+      setPreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(mediaFiles[0])
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [mediaFiles])
+
+  useEffect(() => {
+    const loadSuggestions = async () => {
+      try {
+        const res = await fetch("/api/explore/trending?type=hashtags&limit=8")
+        if (!res.ok) return
+        const data = await res.json()
+        const tags = (data.hashtags || data.data || [])
+          .map((item: any) => String(item.tag || item.name || item).replace(/^#/, ""))
+          .filter(Boolean)
+        setSuggestions(tags)
+      } catch {
+        setSuggestions(["design", "creativity", "loops", "music", "tech", "art"])
+      }
+    }
+    void loadSuggestions()
+  }, [])
+
+  const extractedTags = useMemo(() => {
+    const fromField = hashtags.split(/[ ,#]+/).filter(Boolean)
+    const fromContent = Array.from(content.matchAll(/#([a-zA-Z0-9_]+)/g)).map((m) => m[1])
+    return Array.from(new Set([...fromField, ...fromContent].map((t) => t.toLowerCase())))
+  }, [content, hashtags])
+
+  const getMaxFiles = () => (user?.is_premium || user?.is_verified ? 4 : 1)
+
+  const clearDraft = () => localStorage.removeItem(DRAFT_KEY)
+
+  const applyCropToImage = async (file: File) => {
+    if (!file.type.startsWith("image/") || cropScale === 1) return file
+    const img = document.createElement("img")
+    const objectUrl = URL.createObjectURL(file)
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error("Could not load image"))
+      img.src = objectUrl
+    })
+    const canvas = canvasRef.current || document.createElement("canvas")
+    const size = Math.min(img.width, img.height) / cropScale
+    const sx = (img.width - size) / 2
+    const sy = (img.height - size) / 2
+    canvas.width = Math.min(1080, size)
+    canvas.height = Math.min(1080, size)
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return file
+    ctx.drawImage(img, sx, sy, size, size, 0, 0, canvas.width, canvas.height)
+    URL.revokeObjectURL(objectUrl)
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92))
+    if (!blob) return file
+    return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" })
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || !authToken) {
+      toast({ title: "Sign in required", description: "Log in to create a loop.", variant: "destructive" })
+      return
+    }
+    setCreating(true)
+    try {
+      let res: Response
+      const tags = extractedTags
 
       if (mediaFiles.length > 0) {
-        const formData = new FormData();
-        formData.append("content_text", content);
-        formData.append("content_title", content.slice(0, 80) || "");
-        formData.append("content_type", mediaType);
-        formData.append("hashtags", JSON.stringify(
-          hashtags
-            .split(/[ ,#]+/)
-            .filter((tag) => tag.length > 0)
-            .map((tag) => tag.toLowerCase())
-        ));
-
-        formData.append("media", mediaFiles[0]);
-
+        const formData = new FormData()
+        formData.append("content_text", content)
+        formData.append("content_title", content.slice(0, 80) || "")
+        formData.append("content_type", mediaType)
+        formData.append("hashtags", JSON.stringify(tags))
+        const prepared = await applyCropToImage(mediaFiles[0])
+        formData.append("media", prepared)
         res = await fetch("/api/loops", {
           method: "POST",
-          headers: {
-            ...getAuthHeader(),
-            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-          },
+          headers: { Authorization: `Bearer ${authToken}`, ...getAuthHeader() },
           body: formData,
-        });
+        })
       } else {
         res = await fetch("/api/loops", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
             ...getAuthHeader(),
-            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
           },
           body: JSON.stringify({
             content_text: content,
             content_title: content.slice(0, 80) || null,
             content_type: mediaType,
-            hashtags: hashtags
-              .split(/[ ,#]+/)
-              .filter((tag) => tag.length > 0)
-              .map((tag) => tag.toLowerCase()),
+            hashtags: tags,
           }),
-        });
+        })
       }
 
-      const result = await res.json();
-      if (res.ok) {
-        setContent("");
-        setHashtags("");
-        setMediaFiles([]);
-        setMediaType("text");
-        setUploadProgress([]);
-        setIsOpen(false);
-        toast({
-          title: "Loop created",
-          description: "Your loop is live on the feed.",
-        })
-        if (onLoopCreated) {
-          onLoopCreated();
-        } else {
-          window.location.reload()
-        }
-      } else {
-        toast({
-          title: "Failed to create loop",
-          description: result.error || res.statusText,
-          variant: "destructive",
-        })
-      }
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || res.statusText)
+
+      setContent("")
+      setHashtags("")
+      setMediaFiles([])
+      setMediaType("text")
+      setShowPreview(false)
+      setCropScale(1)
+      setIsOpen(false)
+      clearDraft()
+      toast({ title: "Loop created", description: "Your loop is live on the feed." })
+      if (onLoopCreated) onLoopCreated()
+      else window.location.reload()
     } catch (err: any) {
-      toast({
-        title: "Failed to create loop",
-        description: err.message || "Something went wrong",
-        variant: "destructive",
-      })
+      toast({ title: "Failed to create loop", description: err.message || "Something went wrong", variant: "destructive" })
+    } finally {
+      setCreating(false)
     }
-
-    setCreating(false);
-  };
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     const maxFiles = getMaxFiles()
-
     if (files.length > maxFiles) {
-      alert(
-        `${user?.is_premium || user?.is_verified ? "Premium users" : "Free users"} can upload up to ${maxFiles} file${maxFiles > 1 ? "s" : ""} per post.`,
-      )
+      toast({
+        title: "Too many files",
+        description: `You can upload up to ${maxFiles} file${maxFiles > 1 ? "s" : ""}.`,
+        variant: "destructive",
+      })
       return
     }
-
-    if (files.length > 0) {
-      setMediaFiles(files)
-
-      // Auto-detect media type from first file
-      const firstFile = files[0]
-      if (firstFile.type.startsWith("image/")) {
-        setMediaType("image")
-      } else if (firstFile.type.startsWith("video/")) {
-        setMediaType("video")
-      } else if (firstFile.type.startsWith("audio/")) {
-        setMediaType("audio")
-      } else if (firstFile.name.endsWith(".zip") || firstFile.name.endsWith(".js") || firstFile.name.endsWith(".py")) {
-        setMediaType("code")
-      }
-    }
+    if (!files.length) return
+    setMediaFiles(files)
+    const first = files[0]
+    if (first.type.startsWith("image/")) setMediaType("image")
+    else if (first.type.startsWith("video/")) setMediaType("video")
+    else if (first.type.startsWith("audio/")) setMediaType("audio")
+    else setMediaType("code")
   }
 
-  const removeFile = (index: number) => {
-    setMediaFiles((prev) => prev.filter((_, i) => i !== index))
-    setUploadProgress((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const getFileIcon = (file: File) => {
-    if (file.type.startsWith("image/")) return <ImageIcon className="h-4 w-4" />
-    if (file.type.startsWith("video/")) return <Video className="h-4 w-4" />
-    if (file.type.startsWith("audio/")) return <Music className="h-4 w-4" />
-    return <Code className="h-4 w-4" />
+  const addSuggestion = (tag: string) => {
+    const next = Array.from(new Set([...extractedTags, tag.toLowerCase()]))
+    setHashtags(next.join(" "))
   }
 
   if (!isOpen) {
     return (
-      <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setIsOpen(true)}>
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-4">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
+      <Card className="cursor-pointer border-white/10 bg-white/[0.04] hover:bg-white/[0.06]" onClick={() => setIsOpen(true)}>
+        <CardContent className="p-5">
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-cyan-500">
               <Plus className="h-5 w-5 text-white" />
             </div>
-            <div className="flex-1">
-              <p className="text-gray-500 dark:text-gray-400">What's on your mind, {user?.display_name}?</p>
-              {user?.is_premium || user?.is_verified ? (
-                <p className="text-xs text-purple-600 mt-1">Premium: Upload up to 4 media files per post</p>
-              ) : (
-                <p className="text-xs text-gray-400 mt-1">Upgrade to Premium for multi-media posts</p>
-              )}
+            <div>
+              <p className="text-slate-300">What's on your mind, {user?.display_name}?</p>
+              <p className="text-xs text-slate-500">Drafts auto-save as you type</p>
             </div>
           </div>
         </CardContent>
@@ -192,246 +239,152 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span>Create a Loop</span>
-          <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
-            ×
-          </Button>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Tabs value={mediaType} onValueChange={(value) => setMediaType(value as any)}>
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="text" className="flex items-center space-x-1">
-                <FileText className="h-4 w-4" />
-                <span className="hidden sm:inline">Text</span>
-              </TabsTrigger>
-              <TabsTrigger value="image" className="flex items-center space-x-1">
-                <ImageIcon className="h-4 w-4" />
-                <span className="hidden sm:inline">Image</span>
-              </TabsTrigger>
-              <TabsTrigger value="video" className="flex items-center space-x-1">
-                <Video className="h-4 w-4" />
-                <span className="hidden sm:inline">Video</span>
-              </TabsTrigger>
-              <TabsTrigger value="audio" className="flex items-center space-x-1">
-                <Music className="h-4 w-4" />
-                <span className="hidden sm:inline">Audio</span>
-              </TabsTrigger>
-              <TabsTrigger value="code" className="flex items-center space-x-1">
-                <Code className="h-4 w-4" />
-                <span className="hidden sm:inline">Code</span>
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="text" className="space-y-4">
-              <div>
-                <Label htmlFor="content">What's your loop about?</Label>
-                <Textarea
-                  id="content"
-                  placeholder="Share your thoughts, ideas, or start a story..."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[120px] resize-none"
-                  required
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="image" className="space-y-4">
-              <div>
-                <Label htmlFor="content">Describe your image</Label>
-                <Textarea
-                  id="content"
-                  placeholder="Tell us about your image..."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[80px] resize-none"
-                />
-              </div>
-              <div>
-                <Label htmlFor="image-file">Upload Images</Label>
-                <Input
-                  id="image-file"
-                  type="file"
-                  accept="image/*"
-                  multiple={user?.is_premium || user?.is_verified}
-                  onChange={handleFileChange}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {user?.is_premium || user?.is_verified
-                    ? `Upload up to ${getMaxFiles()} images`
-                    : "Upgrade to Premium for multiple images"}
-                </p>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="video" className="space-y-4">
-              <div>
-                <Label htmlFor="content">Describe your video</Label>
-                <Textarea
-                  id="content"
-                  placeholder="What's your video about?"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[80px] resize-none"
-                />
-              </div>
-              <div>
-                <Label htmlFor="video-file">Upload Videos</Label>
-                <Input
-                  id="video-file"
-                  type="file"
-                  accept="video/*"
-                  multiple={user?.is_premium || user?.is_verified}
-                  onChange={handleFileChange}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {user?.is_premium || user?.is_verified
-                    ? `Upload up to ${getMaxFiles()} videos`
-                    : "Upgrade to Premium for multiple videos"}
-                </p>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="audio" className="space-y-4">
-              <div>
-                <Label htmlFor="content">Describe your audio</Label>
-                <Textarea
-                  id="content"
-                  placeholder="Tell us about your audio track..."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[80px] resize-none"
-                />
-              </div>
-              <div>
-                <Label htmlFor="audio-file">Upload Audio</Label>
-                <Input
-                  id="audio-file"
-                  type="file"
-                  accept="audio/*"
-                  multiple={user?.is_premium || user?.is_verified}
-                  onChange={handleFileChange}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {user?.is_premium || user?.is_verified
-                    ? `Upload up to ${getMaxFiles()} audio files`
-                    : "Upgrade to Premium for multiple audio files"}
-                </p>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="code" className="space-y-4">
-              <div>
-                <Label htmlFor="content">Describe your code/project</Label>
-                <Textarea
-                  id="content"
-                  placeholder="What does your code do? What problem does it solve?"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[80px] resize-none"
-                />
-              </div>
-              <div>
-                <Label htmlFor="code-file">Upload Code/Project</Label>
-                <Input
-                  id="code-file"
-                  type="file"
-                  accept=".zip,.js,.py,.html,.css,.json,.md,.txt"
-                  multiple={user?.is_premium || user?.is_verified}
-                  onChange={handleFileChange}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {user?.is_premium || user?.is_verified
-                    ? `Upload up to ${getMaxFiles()} files`
-                    : "Upgrade to Premium for multiple files"}
-                </p>
-              </div>
-            </TabsContent>
-          </Tabs>
-
-          <div>
-            <Label htmlFor="hashtags">Hashtags</Label>
-            <Input
-              id="hashtags"
-              placeholder="#webdev #design #creativity"
-              value={hashtags}
-              onChange={(e) => setHashtags(e.target.value)}
-            />
-            <p className="text-sm text-muted-foreground mt-1">Add hashtags to help others discover your loop</p>
+    <Card className="border-white/10 bg-[#0a1020]/90">
+      <CardContent className="space-y-4 p-5">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-white">Create Loop</h3>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant="outline" className="border-white/10" onClick={() => setShowPreview((v) => !v)}>
+              <Eye className="mr-1 h-4 w-4" /> {showPreview ? "Edit" : "Preview"}
+            </Button>
+            <Button type="button" size="icon" variant="ghost" onClick={() => setDiscardOpen(true)}>
+              <X className="h-4 w-4" />
+            </Button>
           </div>
+        </div>
 
-          {mediaFiles.length > 0 && (
+        {showPreview ? (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">Preview</p>
+            <p className="mb-3 whitespace-pre-wrap text-slate-100">{content || "No text yet"}</p>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {extractedTags.map((tag) => (
+                <Badge key={tag} variant="secondary">#{tag}</Badge>
+              ))}
+            </div>
+            {previewUrl && mediaType === "image" && (
+              <img src={previewUrl} alt="preview" className="max-h-72 w-full rounded-xl object-cover" style={{ transform: `scale(${cropScale})` }} />
+            )}
+            {previewUrl && mediaType === "video" && <video src={previewUrl} controls className="max-h-72 w-full rounded-xl" />}
+            {previewUrl && mediaType === "audio" && <audio src={previewUrl} controls className="w-full" />}
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Share a story, idea, or spark a tree..."
+              className="min-h-[120px] border-white/10 bg-white/5"
+              maxLength={500}
+            />
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span>{content.length}/500</span>
+              <span className="inline-flex items-center gap-1"><Save className="h-3 w-3" /> Draft saved</span>
+            </div>
+
             <div className="space-y-2">
-              <Label>
-                Selected Files ({mediaFiles.length}/{getMaxFiles()})
-              </Label>
-              {mediaFiles.map((file, index) => (
-                <div key={index} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      {getFileIcon(file)}
-                      <span className="text-sm font-medium">{file.name}</span>
-                      <Badge variant="secondary">{mediaType}</Badge>
-                      <span className="text-xs text-gray-500">({(file.size / 1024 / 1024).toFixed(1)} MB)</span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFile(index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {creating && uploadProgress[index] !== undefined && (
-                    <div className="mt-2">
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${uploadProgress[index]}%` }}
+              <div className="flex items-center gap-2">
+                <Hash className="h-4 w-4 text-cyan-300" />
+                <Input
+                  value={hashtags}
+                  onChange={(e) => setHashtags(e.target.value)}
+                  placeholder="design creativity storytelling"
+                  className="border-white/10 bg-white/5"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => addSuggestion(tag)}
+                    className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-white/10"
+                  >
+                    #{tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {[
+                { type: "text" as const, icon: FileText },
+                { type: "image" as const, icon: ImageIcon },
+                { type: "video" as const, icon: Video },
+                { type: "audio" as const, icon: Music },
+                { type: "code" as const, icon: Code },
+              ].map((item) => (
+                <Button
+                  key={item.type}
+                  type="button"
+                  size="sm"
+                  variant={mediaType === item.type ? "default" : "outline"}
+                  className="border-white/10"
+                  onClick={() => setMediaType(item.type)}
+                >
+                  <item.icon className="mr-1 h-4 w-4" />
+                  {item.type}
+                </Button>
+              ))}
+            </div>
+
+            <div className="rounded-xl border border-dashed border-white/15 p-4">
+              <label className="flex cursor-pointer flex-col items-center gap-2 text-sm text-slate-400">
+                <Upload className="h-5 w-5" />
+                <span>Upload media ({getMaxFiles()} file limit)</span>
+                <input type="file" className="hidden" accept="image/*,video/*,audio/*" onChange={handleFileChange} />
+              </label>
+              {mediaFiles[0] && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-slate-400">{mediaFiles[0].name}</p>
+                  {mediaType === "image" && previewUrl && (
+                    <div className="space-y-2">
+                      <div className="overflow-hidden rounded-xl">
+                        <img src={previewUrl} alt="" className="mx-auto max-h-56 object-cover" style={{ transform: `scale(${cropScale})` }} />
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <Crop className="h-3.5 w-3.5" />
+                        <span>Crop zoom</span>
+                        <input
+                          type="range"
+                          min={1}
+                          max={2.5}
+                          step={0.05}
+                          value={cropScale}
+                          onChange={(e) => setCropScale(Number(e.target.value))}
+                          className="flex-1"
                         />
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">Uploading... {Math.round(uploadProgress[index])}%</p>
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex items-center justify-between pt-4 border-t">
-            <div className="text-sm text-muted-foreground">
-              {content.length}/500 characters
-              {user?.is_premium || user?.is_verified ? (
-                <span className="ml-2 text-purple-600">• Premium Multi-media</span>
-              ) : (
-                <span className="ml-2 text-gray-400">• Single file limit</span>
               )}
             </div>
-            <div className="flex space-x-2">
-              <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" className="border-white/10" onClick={() => setDiscardOpen(true)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={!content.trim() || creating}>
-                {creating ? (
-                  <>
-                    <Upload className="h-4 w-4 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  "Create Loop"
-                )}
+              <Button type="submit" disabled={creating || (!content.trim() && mediaFiles.length === 0)} className="bg-gradient-to-r from-violet-600 to-cyan-500">
+                {creating ? "Publishing..." : "Create Loop"}
               </Button>
             </div>
-          </div>
-        </form>
+          </form>
+        )}
+        <canvas ref={canvasRef} className="hidden" />
       </CardContent>
+
+      <ConfirmDialog
+        open={discardOpen}
+        onOpenChange={setDiscardOpen}
+        title="Close composer?"
+        description="Your draft stays saved locally until you publish or clear it."
+        confirmLabel="Close"
+        onConfirm={() => {
+          setIsOpen(false)
+          setDiscardOpen(false)
+        }}
+      />
     </Card>
   )
 }
