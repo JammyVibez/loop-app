@@ -89,6 +89,50 @@ export async function POST(
     let isLiked = false
     let isSaved = false
 
+    // Views and shares are additive — never toggle off
+    if (interaction_type === "view" || interaction_type === "share") {
+      if (!existingInteraction) {
+        const { error: insertError } = await supabase.from("loop_interactions").insert({
+          user_id: user.id,
+          loop_id: loopId,
+          interaction_type,
+        })
+        if (insertError && !/duplicate|unique/i.test(insertError.message || "")) {
+          return NextResponse.json({ error: insertError.message || "Failed to save interaction" }, { status: 500 })
+        }
+        if (interaction_type === "share") {
+          await runRpcOrFallback("increment_loop_shares", "shares_count", 1)
+        } else {
+          await runRpcOrFallback("increment_loop_views", "views_count", 1)
+        }
+      } else if (interaction_type === "share") {
+        // Allow multiple share bumps without duplicating the interaction row
+        await runRpcOrFallback("increment_loop_shares", "shares_count", 1)
+      }
+
+      if (interaction_type === "share") {
+        const { data: loop } = await supabase.from("loops").select("author_id").eq("id", loopId).maybeSingle()
+        if (loop && loop.author_id !== user.id) {
+          await supabase.from("notifications").insert({
+            user_id: loop.author_id,
+            type: "system",
+            title: "Your loop was shared",
+            message: "Someone shared your loop",
+            data: { loop_id: loopId, user_id: user.id, interaction_type: "share" },
+          })
+        }
+      }
+
+      const { data: stats } = await supabase.from("loop_stats").select("*").eq("loop_id", loopId).maybeSingle()
+      return NextResponse.json({
+        success: true,
+        interaction_type,
+        is_active: true,
+        action: "added",
+        stats,
+      })
+    }
+
     if (existingInteraction) {
       // Remove interaction (unlike/unsave)
       await supabase
@@ -118,14 +162,10 @@ export async function POST(
         isLiked = true
       } else if (interaction_type === 'save') {
         isSaved = true
-      } else if (interaction_type === 'share') {
-        await runRpcOrFallback('increment_loop_shares', 'shares_count', 1)
-      } else if (interaction_type === 'view') {
-        await runRpcOrFallback('increment_loop_views', 'views_count', 1)
       }
 
-      // Create notification for loop author (except for views)
-      if (interaction_type !== 'view') {
+      // Create notification for loop author
+      {
         const { data: loop } = await supabase
           .from('loops')
           .select('author_id')
@@ -137,7 +177,7 @@ export async function POST(
             .from('notifications')
             .insert({
               user_id: loop.author_id,
-              type: interaction_type,
+              type: interaction_type === "save" ? "system" : interaction_type,
               title: `${user.user_metadata?.display_name || user.email} ${interaction_type}d your loop`,
               message: `Your loop received a new ${interaction_type}`,
               data: {

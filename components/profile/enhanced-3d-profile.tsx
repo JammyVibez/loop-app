@@ -66,6 +66,8 @@ interface UserProfile {
   location?: string
   achievements: Achievement[]
   recent_loops: any[]
+  recent_branches?: any[]
+  media_loops?: any[]
   is_following?: boolean
 }
 
@@ -420,24 +422,34 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           )}
         </TabsContent>
 
-        <TabsContent value="branches" className="mt-0">
-          <EmptyBlock icon={Share2} label="Branches will show here" />
+        <TabsContent value="branches" className="mt-0 space-y-0">
+          {profile.recent_branches?.length ? (
+            profile.recent_branches.map((loop) => (
+              <div key={loop.id} className="border-b border-border/60">
+                <LoopCard loop={loop} className="rounded-none border-0 shadow-none" />
+              </div>
+            ))
+          ) : (
+            <EmptyBlock icon={Share2} label="No branches yet — quote a loop to grow your tree" />
+          )}
         </TabsContent>
 
         <TabsContent value="media" className="mt-0">
-          {profile.recent_loops?.some((l) => l.media_url || l.media_urls?.length) ? (
+          {(profile.media_loops?.length || profile.recent_loops?.some((l) => l.media_url || l.media_urls?.length)) ? (
             <div className="grid grid-cols-3 gap-0.5">
-              {profile.recent_loops
-                .filter((l) => l.media_url || l.media_urls?.length)
-                .map((loop) => {
+              {(profile.media_loops?.length
+                ? profile.media_loops
+                : profile.recent_loops.filter((l) => l.media_url || l.media_urls?.length)
+              ).map((loop) => {
                   const url = loop.media_url || loop.media_urls?.[0]
                   return (
-                    <Link key={loop.id} href={`/loop/${loop.id}`} className="aspect-square bg-muted">
+                    <Link key={loop.id} href={`/loop/${loop.id}`} className="group relative aspect-square bg-muted">
                       {loop.media_type === "video" ? (
                         <video src={url} className="h-full w-full object-cover" muted />
                       ) : (
                         <img src={url} alt="" className="h-full w-full object-cover" />
                       )}
+                      <span className="pointer-events-none absolute inset-0 bg-black/0 transition group-hover:bg-black/25" />
                     </Link>
                   )
                 })}

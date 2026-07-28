@@ -116,7 +116,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
         <DialogHeader>
           <DialogTitle className="text-white flex items-center space-x-2">
             <GitBranch className="w-5 h-5 text-green-500" />
-            <span>Branch this Loop</span>
+            <span>Quote / Branch this Loop</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -124,7 +124,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
           {/* Parent Loop Preview */}
           <div className="bg-gray-800 rounded-lg p-4 border-l-4 border-purple-500">
             <div className="flex items-center space-x-2 mb-2">
-              <span className="text-sm text-gray-400">Branching from:</span>
+              <span className="text-sm text-gray-400">Quoting:</span>
               <Badge className="bg-purple-600 text-white">{parentAuthorName}</Badge>
             </div>
             <p className="text-gray-300 text-sm">
@@ -350,7 +350,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
               disabled={isSubmitting || (!content.trim() && !selectedFile)}
               className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
             >
-              {isSubmitting ? "Creating Branch..." : "Create Branch"}
+              {isSubmitting ? "Posting…" : "Post quote"}
             </Button>
           </div>
         </div>

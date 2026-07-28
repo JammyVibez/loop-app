@@ -1,295 +1,189 @@
-"use client";
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Users, UserCheck, UserPlus } from "lucide-react";
-import Link from "next/link";
+"use client"
 
-interface User {
+import { useEffect, useMemo, useState } from "react"
+import { useParams } from "next/navigation"
+import Link from "next/link"
+import { ArrowLeft, Search, Users } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Header } from "@/components/header"
+import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
+
+type Person = {
   id: string
   username: string
-  displayName: string
-  avatar: string
-  bio: string
-  verified: boolean
-  premium: boolean
-  followers: number
-  following: number
-  loops: number
-  isFollowing: boolean
-  mutualFollowers: number
-  joinedDate: string
+  display_name?: string
+  avatar_url?: string
+  is_verified?: boolean
+  is_following?: boolean
+  is_self?: boolean
 }
 
 export default function FollowingPage() {
   const params = useParams()
   const username = params.username as string
-  const [users, setUsers] = useState<User[]>([])
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([])
+  const { user, getAuthHeader } = useAuth()
+  const { toast } = useToast()
+  const [people, setPeople] = useState<Person[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState("following")
+  const [query, setQuery] = useState("")
 
   useEffect(() => {
-    // Simulate API call
-    const fetchUsers = async () => {
+    let cancelled = false
+    ;(async () => {
       setLoading(true)
+      try {
+        const profileRes = await fetch(`/api/users/profile?username=${encodeURIComponent(username)}`, {
+          headers: { ...getAuthHeader() },
+          cache: "no-store",
+        })
+        const profileData = await profileRes.json()
+        if (!profileRes.ok) throw new Error(profileData.error || "Profile not found")
+        if (cancelled) return
 
-      const mockUsers: User[] = [
-        {
-          id: "1",
-          username: "sarahdev",
-          displayName: "Sarah Chen",
-          avatar: "/placeholder.svg?height=40&width=40",
-          bio: "Full-stack developer passionate about React and Node.js",
-          verified: true,
-          premium: true,
-          followers: 15420,
-          following: 892,
-          loops: 234,
-          isFollowing: true,
-          mutualFollowers: 12,
-          joinedDate: "2023-01-15",
-        },
-        {
-          id: "2",
-          username: "reactmaster",
-          displayName: "Alex Rodriguez",
-          avatar: "/placeholder.svg?height=40&width=40",
-          bio: "React expert • Building the future of web development",
-          verified: true,
-          premium: false,
-          followers: 8930,
-          following: 445,
-          loops: 156,
-          isFollowing: false,
-          mutualFollowers: 8,
-          joinedDate: "2023-03-22",
-        },
-        {
-          id: "3",
-          username: "designguru",
-          displayName: "Emma Wilson",
-          avatar: "/placeholder.svg?height=40&width=40",
-          bio: "UI/UX Designer • Creating beautiful digital experiences",
-          verified: false,
-          premium: true,
-          followers: 5670,
-          following: 234,
-          loops: 89,
-          isFollowing: true,
-          mutualFollowers: 5,
-          joinedDate: "2023-05-10",
-        },
-        {
-          id: "4",
-          username: "codemaster",
-          displayName: "David Kim",
-          avatar: "/placeholder.svg?height=40&width=40",
-          bio: "Software architect • Open source contributor",
-          verified: true,
-          premium: true,
-          followers: 12340,
-          following: 567,
-          loops: 345,
-          isFollowing: false,
-          mutualFollowers: 15,
-          joinedDate: "2022-11-08",
-        },
-        {
-          id: "5",
-          username: "mobileguru",
-          displayName: "Lisa Zhang",
-          avatar: "/placeholder.svg?height=40&width=40",
-          bio: "Mobile app developer • iOS & Android specialist",
-          verified: false,
-          premium: false,
-          followers: 3450,
-          following: 123,
-          loops: 67,
-          isFollowing: true,
-          mutualFollowers: 3,
-          joinedDate: "2023-07-14",
-        },
-      ]
+        if (!user) {
+          setPeople([])
+          return
+        }
 
-      setTimeout(() => {
-        setUsers(mockUsers)
-        setFilteredUsers(mockUsers)
-        setLoading(false)
-      }, 1000)
+        const res = await fetch(`/api/users/${profileData.profile.id}/following?limit=50`, {
+          headers: { ...getAuthHeader() },
+          cache: "no-store",
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || "Failed to load following")
+        if (!cancelled) {
+          setPeople(
+            (data.following || []).map((p: any) => ({
+              ...p,
+              is_following: p.is_following ?? true,
+            })),
+          )
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setPeople([])
+          toast({ title: "Could not load following", description: error.message, variant: "destructive" })
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [username, user?.id])
 
-    fetchUsers()
-  }, [username])
-
-  useEffect(() => {
-    const filtered = users.filter(
-      (user) =>
-        user.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.bio.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return people
+    return people.filter(
+      (p) =>
+        p.username?.toLowerCase().includes(q) ||
+        p.display_name?.toLowerCase().includes(q),
     )
-    setFilteredUsers(filtered)
-  }, [searchQuery, users])
+  }, [people, query])
 
-  const handleFollow = (userId: string) => {
-    setUsers((prev) =>
-      prev.map((user) =>
-        user.id === userId
-          ? {
-              ...user,
-              isFollowing: !user.isFollowing,
-              followers: user.isFollowing ? user.followers - 1 : user.followers + 1,
-            }
-          : user,
-      ),
+  const toggleFollow = async (person: Person) => {
+    if (!user || person.is_self) return
+    const action = person.is_following ? "unfollow" : "follow"
+    setPeople((prev) =>
+      prev.map((p) => (p.id === person.id ? { ...p, is_following: !p.is_following } : p)),
     )
-  }
-
-  const getDisplayUsers = () => {
-    if (activeTab === "following") {
-      return filteredUsers.filter((user) => user.isFollowing)
-    } else {
-      return filteredUsers.filter((user) => !user.isFollowing)
+    try {
+      const res = await fetch("/api/users/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ target_user_id: person.id, action }),
+      })
+      if (!res.ok) throw new Error("Follow failed")
+    } catch {
+      setPeople((prev) =>
+        prev.map((p) => (p.id === person.id ? { ...p, is_following: person.is_following } : p)),
+      )
+      toast({ title: "Could not update follow", variant: "destructive" })
     }
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <Link href={`/profile/${username}`}>
-              <Button variant="ghost" size="sm">
-                ← Back to Profile
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold">@{username}</h1>
-              <p className="text-muted-foreground">Connections</p>
-            </div>
+      <Header />
+      <main className="mx-auto max-w-xl border-x border-border/60 min-h-screen">
+        <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-border/70 bg-background/90 px-3 py-3 backdrop-blur">
+          <Link href={`/profile/${username}`} className="rounded-full p-2 hover:bg-muted">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <h1 className="font-bold">Following</h1>
+            <p className="text-xs text-muted-foreground">@{username}</p>
           </div>
+        </div>
 
-          {/* Search */}
+        <div className="border-b border-border/60 p-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search connections..."
-              className="pl-10"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search following"
+              className="pl-9 rounded-full"
             />
           </div>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="following" className="flex items-center gap-2">
-              <UserCheck className="h-4 w-4" />
-              Following ({users.filter((u) => u.isFollowing).length})
-            </TabsTrigger>
-            <TabsTrigger value="suggested" className="flex items-center gap-2">
-              <UserPlus className="h-4 w-4" />
-              Suggested ({users.filter((u) => !u.isFollowing).length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value={activeTab} className="mt-6">
-            {loading ? (
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <Card key={i} className="animate-pulse">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-4">
-                        <div className="rounded-full bg-muted h-12 w-12"></div>
-                        <div className="space-y-2 flex-1">
-                          <div className="h-4 bg-muted rounded w-1/4"></div>
-                          <div className="h-3 bg-muted rounded w-3/4"></div>
-                          <div className="h-3 bg-muted rounded w-1/2"></div>
-                        </div>
-                        <div className="h-8 bg-muted rounded w-20"></div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {getDisplayUsers().length === 0 ? (
-                  <Card>
-                    <CardContent className="p-8 text-center">
-                      <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">
-                        {activeTab === "following" ? "No following found" : "No suggestions found"}
-                      </h3>
-                      <p className="text-muted-foreground">
-                        {searchQuery
-                          ? "Try adjusting your search terms"
-                          : activeTab === "following" ?"This user is not following anyone yet" :"No new suggestions available"}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  getDisplayUsers().map((user) => (
-                    <Card key={user.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
-                        <div className="flex items-center space-x-4">
-                          <Link href={`/profile/${user.username}`}>
-                            <Avatar className="h-12 w-12 cursor-pointer">
-                              <AvatarImage src={user.avatar || "/placeholder.svg"} />
-                              <AvatarFallback>{user.displayName.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                          </Link>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Link href={`/profile/${user.username}`} className="font-semibold hover:underline">
-                                {user.displayName}
-                              </Link>
-                              {user.verified && (
-                                <Badge variant="secondary" className="text-xs">
-                                  ✓
-                                </Badge>
-                              )}
-                              {user.premium && (
-                                <Badge variant="outline" className="text-xs">
-                                  ⭐
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-1">@{user.username}</p>
-                            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{user.bio}</p>
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                              <span>{user.followers.toLocaleString()} followers</span>
-                              <span>{user.loops} loops</span>
-                              {user.mutualFollowers > 0 && <span>{user.mutualFollowers} mutual</span>}
-                              <span>Joined {new Date(user.joinedDate).getFullYear()}</span>
-                            </div>
-                          </div>
-                          <Button
-                            variant={user.isFollowing ? "outline" : "default"}
-                            size="sm"
-                            onClick={() => handleFollow(user.id)}
-                          >
-                            {user.isFollowing ? "Following" : "Follow"}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+          </div>
+        ) : !user ? (
+          <div className="px-6 py-16 text-center text-muted-foreground">
+            <Users className="mx-auto mb-3 h-10 w-10 opacity-50" />
+            <p>Sign in to see who they follow</p>
+            <Link href="/login" className="mt-3 inline-block text-sky-500 hover:underline">
+              Log in
+            </Link>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="px-6 py-16 text-center text-muted-foreground">
+            <Users className="mx-auto mb-3 h-10 w-10 opacity-50" />
+            <p>Not following anyone yet</p>
+          </div>
+        ) : (
+          <div>
+            {filtered.map((person) => (
+              <div key={person.id} className="flex items-center gap-3 border-b border-border/50 px-4 py-3">
+                <Link href={`/profile/${person.username}`}>
+                  <Avatar className="h-11 w-11">
+                    <AvatarImage src={person.avatar_url} />
+                    <AvatarFallback>{(person.display_name || person.username || "?").charAt(0)}</AvatarFallback>
+                  </Avatar>
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <Link href={`/profile/${person.username}`} className="flex items-center gap-1 font-semibold hover:underline">
+                    <span className="truncate">{person.display_name || person.username}</span>
+                    {person.is_verified && <Badge className="h-4 rounded-full bg-sky-500 px-1 text-[10px] text-white">✓</Badge>}
+                  </Link>
+                  <p className="truncate text-sm text-muted-foreground">@{person.username}</p>
+                </div>
+                {!person.is_self && (
+                  <Button
+                    size="sm"
+                    variant={person.is_following ? "outline" : "default"}
+                    className="rounded-full"
+                    onClick={() => void toggleFollow(person)}
+                  >
+                    {person.is_following ? "Following" : "Follow"}
+                  </Button>
                 )}
               </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   )
 }

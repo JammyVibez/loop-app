@@ -42,10 +42,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 })
     }
 
-    const [{ count: followersCount }, { count: followingCount }, { count: loopsCount }, { data: recentLoops }, { data: followRecord }] = await Promise.all([
+    const [{ count: followersCount }, { count: followingCount }, { count: loopsCount }, { count: branchesCount }, { data: recentLoops }, { data: recentBranches }, { data: mediaLoops }, { data: followRecord }] = await Promise.all([
       supabase.from("follows").select("id", { count: "exact", head: true }).eq("following_id", profile.id),
       supabase.from("follows").select("id", { count: "exact", head: true }).eq("follower_id", profile.id),
       supabase.from("loops").select("id", { count: "exact", head: true }).eq("author_id", profile.id).is("parent_loop_id", null),
+      supabase.from("loops").select("id", { count: "exact", head: true }).eq("author_id", profile.id).not("parent_loop_id", "is", null),
       supabase
         .from("loops")
         .select(`
@@ -56,7 +57,29 @@ export async function GET(request: NextRequest) {
         .eq("author_id", profile.id)
         .is("parent_loop_id", null)
         .order("created_at", { ascending: false })
-        .limit(12),
+        .limit(20),
+      supabase
+        .from("loops")
+        .select(`
+          *,
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+          loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
+        `)
+        .eq("author_id", profile.id)
+        .not("parent_loop_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("loops")
+        .select(`
+          id, media_url, media_urls, media_type, created_at, content,
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+          loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
+        `)
+        .eq("author_id", profile.id)
+        .not("media_url", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(36),
       authedUser
         ? supabase
             .from("follows")
@@ -72,12 +95,14 @@ export async function GET(request: NextRequest) {
       followers_count: profile.followers_count ?? followersCount ?? 0,
       following_count: profile.following_count ?? followingCount ?? 0,
       loops_count: profile.loops_count ?? loopsCount ?? 0,
-      branches_count: profile.branches_count ?? 0,
+      branches_count: profile.branches_count ?? branchesCount ?? 0,
       likes_received: profile.likes_received ?? 0,
       level: profile.level ?? 1,
       xp_points: profile.xp_points ?? 0,
       achievements: profile.achievements ?? [],
       recent_loops: normalizeLoops(recentLoops || []),
+      recent_branches: normalizeLoops(recentBranches || []),
+      media_loops: normalizeLoops(mediaLoops || []),
       is_following: Boolean(followRecord),
     }
 

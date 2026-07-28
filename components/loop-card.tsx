@@ -122,14 +122,18 @@ export function LoopCard({
   const [viewerOpen, setViewerOpen] = useState(false);
   const { currentTheme } = useTheme3D();
   const [isAnimating, setIsAnimating] = useState(false);
+  const [doubleTapHeart, setDoubleTapHeart] = useState(false);
   const [localInteracting, setLocalInteracting] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const viewedRef = useRef(false);
+  const lastTapRef = useRef(0);
   const { user: currentUser, getAuthHeader } = useAuth();
   const { toast } = useToast();
   const activeInteracting = interacting ?? localInteracting;
 
   useEffect(() => {
     setLoop(normalizeLoop(rawLoop))
+    viewedRef.current = false
   }, [
     rawLoop?.id,
     rawLoop?.content,
@@ -139,6 +143,38 @@ export function LoopCard({
     rawLoop?.stats?.likes_count,
     rawLoop?.likes,
   ])
+
+  // Instagram/X: count a view when the card is meaningfully on screen
+  useEffect(() => {
+    if (!currentUser || !cardRef.current || viewedRef.current) return
+    const el = cardRef.current
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0]
+        if (!entry?.isIntersecting || entry.intersectionRatio < 0.55 || viewedRef.current) return
+        viewedRef.current = true
+        void fetch(`/api/loops/${loop.id}/interactions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ interaction_type: "view" }),
+        }).then(async (res) => {
+          if (!res.ok) return
+          const data = await res.json().catch(() => ({}))
+          if (typeof data.stats?.views_count === "number") {
+            setLoop((prev) => ({
+              ...prev,
+              stats: { ...prev.stats, views_count: data.stats.views_count },
+            }))
+          }
+        }).catch(() => {})
+        observer.disconnect()
+      },
+      { threshold: [0.55] },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loop.id, currentUser?.id])
 
   // Defensive fallback for content and hashtags
   const content = typeof loop.content === "string" ? loop.content : "";
@@ -204,26 +240,76 @@ export function LoopCard({
     }
   }
 
-  // Handle share with analytics
-  const handleShare = () => {
-    // Copy link to clipboard
-    const url = `${window.location.origin}/loop/${loop.id}`;
-    navigator.clipboard.writeText(url);
+  // Share: native share when available + analytics
+  const handleShare = async () => {
+    const url = `${window.location.origin}/loop/${loop.id}`
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `@${loop.author?.username || "loop"} on Loop`,
+          text: content.slice(0, 120) || "Check out this loop",
+          url,
+        })
+      } else {
+        await navigator.clipboard.writeText(url)
+        toast({
+          title: "Link copied",
+          description: "Loop link is on your clipboard.",
+        })
+      }
+    } catch (error: any) {
+      if (error?.name === "AbortError") return
+      await navigator.clipboard.writeText(url).catch(() => {})
+      toast({ title: "Link copied" })
+    }
 
-    toast({
-      title: "Link Copied!",
-      description: "Loop link has been copied to your clipboard.",
-    });
-  };
+    if (currentUser) {
+      try {
+        const res = await fetch(`/api/loops/${loop.id}/interactions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ interaction_type: "share" }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (res.ok && typeof data.stats?.shares_count === "number") {
+          setLoop((prev) => ({
+            ...prev,
+            stats: { ...prev.stats, shares_count: data.stats.shares_count },
+          }))
+        }
+      } catch {
+        /* non-blocking */
+      }
+    }
+  }
 
   // Enhanced like animation with gift effects
-  const handleLike = () => {
-    void runInteraction("like");
-    if (!loop.user_interactions.is_liked) {
-      setIsAnimating(true);
-      setTimeout(() => setIsAnimating(false), 600);
+  const handleLike = (opts?: { fromDoubleTap?: boolean }) => {
+    if (opts?.fromDoubleTap && loop.user_interactions.is_liked) {
+      setDoubleTapHeart(true)
+      setTimeout(() => setDoubleTapHeart(false), 700)
+      return
     }
-  };
+    void runInteraction("like")
+    if (!loop.user_interactions.is_liked || opts?.fromDoubleTap) {
+      setIsAnimating(true)
+      setDoubleTapHeart(true)
+      setTimeout(() => {
+        setIsAnimating(false)
+        setDoubleTapHeart(false)
+      }, 700)
+    }
+  }
+
+  const handleMediaDoubleTap = () => {
+    const now = Date.now()
+    if (now - lastTapRef.current < 320) {
+      handleLike({ fromDoubleTap: true })
+      lastTapRef.current = 0
+      return
+    }
+    lastTapRef.current = now
+  }
 
   // Handle branch creation
   const handleBranch = () => {
@@ -403,7 +489,32 @@ export function LoopCard({
           </Badge>
         </div>
 
-        <div className="relative cursor-zoom-in" onClick={() => setViewerOpen(true)}>
+        <div
+          className="relative cursor-zoom-in"
+          onClick={() => setViewerOpen(true)}
+          onDoubleClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            handleLike({ fromDoubleTap: true })
+          }}
+          onTouchEnd={(e) => {
+            // Mobile double-tap like without opening viewer immediately
+            const now = Date.now()
+            if (now - lastTapRef.current < 320) {
+              e.preventDefault()
+              e.stopPropagation()
+              handleLike({ fromDoubleTap: true })
+              lastTapRef.current = 0
+              return
+            }
+            lastTapRef.current = now
+          }}
+        >
+          {doubleTapHeart && (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+              <Heart className="h-20 w-20 fill-white text-white drop-shadow-xl animate-in zoom-in-50 fade-in duration-300" />
+            </div>
+          )}
           {loop.media_type === "image" ? (
             <img
               src={mediaUrls[currentMediaIndex] || "/placeholder.svg"}
@@ -659,7 +770,16 @@ export function LoopCard({
 
         <CardContent className="pt-0 px-3 sm:px-6">
           <div className="space-y-2 sm:space-y-3">
-            <div>
+            <div
+              onDoubleClick={() => handleLike({ fromDoubleTap: true })}
+              onTouchEnd={handleMediaDoubleTap}
+              className="relative"
+            >
+              {doubleTapHeart && !loop.media_url && !(loop.media_urls?.length) && (
+                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+                  <Heart className="h-16 w-16 fill-rose-500 text-rose-500 animate-in zoom-in-50 fade-in duration-300" />
+                </div>
+              )}
               <p className="text-sm sm:text-base leading-relaxed">
                 {showFullContent ? content : contentPreview}
               </p>
@@ -711,7 +831,7 @@ export function LoopCard({
                     loop.user_interactions.is_liked
                       ? "text-red-500 scale-110" :"hover:text-red-500 hover:scale-105"
                   }`}
-                  onClick={handleLike}
+                  onClick={() => handleLike()}
                   disabled={activeInteracting === `${loop.id}-like`}
                 >
                   {activeInteracting === `${loop.id}-like` ? (
@@ -746,6 +866,7 @@ export function LoopCard({
                   size="sm"
                   className="space-x-1 hover:text-green-500 hover:scale-105 transition-all duration-200 text-xs sm:text-sm p-1 sm:p-2"
                   onClick={handleBranch}
+                  title="Quote / Branch"
                 >
                   <GitBranch className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden xs:inline">

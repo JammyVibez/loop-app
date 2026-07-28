@@ -1,254 +1,186 @@
-"use client";
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Users } from "lucide-react";
-import Link from "next/link";
+"use client"
 
-interface Follower {
+import { useEffect, useMemo, useState } from "react"
+import { useParams } from "next/navigation"
+import Link from "next/link"
+import { ArrowLeft, Search, Users } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Header } from "@/components/header"
+import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
+
+type Person = {
   id: string
   username: string
-  displayName: string
-  avatar: string
-  bio: string
-  verified: boolean
-  premium: boolean
-  followers: number
-  loops: number
-  isFollowing: boolean
-  mutualFollowers: number
-  joinedDate: string
+  display_name?: string
+  avatar_url?: string
+  is_verified?: boolean
+  is_following?: boolean
+  is_self?: boolean
+  bio?: string
 }
 
 export default function FollowersPage() {
   const params = useParams()
   const username = params.username as string
-  const [followers, setFollowers] = useState<Follower[]>([])
-  const [filteredFollowers, setFilteredFollowers] = useState<Follower[]>([])
+  const { user, getAuthHeader } = useAuth()
+  const { toast } = useToast()
+  const [people, setPeople] = useState<Person[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
+  const [query, setQuery] = useState("")
+  const [profileId, setProfileId] = useState<string | null>(null)
 
   useEffect(() => {
-    // Simulate API call
-    const fetchFollowers = async () => {
+    let cancelled = false
+    ;(async () => {
       setLoading(true)
+      try {
+        const profileRes = await fetch(`/api/users/profile?username=${encodeURIComponent(username)}`, {
+          headers: { ...getAuthHeader() },
+          cache: "no-store",
+        })
+        const profileData = await profileRes.json()
+        if (!profileRes.ok) throw new Error(profileData.error || "Profile not found")
+        if (cancelled) return
+        setProfileId(profileData.profile.id)
 
-      const mockFollowers: Follower[] = [
-        {
-          id: "1",
-          username: "techfan123",
-          displayName: "Mike Johnson",
-          avatar: "/placeholder.svg?height=40&width=40",
-          bio: "Tech enthusiast • Love learning new frameworks",
-          verified: false,
-          premium: false,
-          followers: 234,
-          loops: 45,
-          isFollowing: false,
-          mutualFollowers: 2,
-          joinedDate: "2023-08-15",
-        },
-        {
-          id: "2",
-          username: "designlover",
-          displayName: "Anna Smith",
-          avatar: "/placeholder.svg?height=40&width=40",
-          bio: "Graphic designer • Creating beautiful visuals",
-          verified: true,
-          premium: true,
-          followers: 1890,
-          loops: 123,
-          isFollowing: true,
-          mutualFollowers: 8,
-          joinedDate: "2023-02-10",
-        },
-        {
-          id: "3",
-          username: "codelearner",
-          displayName: "James Wilson",
-          avatar: "/placeholder.svg?height=40&width=40",
-          bio: "Junior developer • Always learning something new",
-          verified: false,
-          premium: false,
-          followers: 567,
-          loops: 78,
-          isFollowing: false,
-          mutualFollowers: 5,
-          joinedDate: "2023-06-22",
-        },
-        {
-          id: "4",
-          username: "startupguru",
-          displayName: "Rachel Green",
-          avatar: "/placeholder.svg?height=40&width=40",
-          bio: "Entrepreneur • Building the next big thing",
-          verified: true,
-          premium: false,
-          followers: 3450,
-          loops: 234,
-          isFollowing: true,
-          mutualFollowers: 12,
-          joinedDate: "2022-12-05",
-        },
-        {
-          id: "5",
-          username: "webdev_ninja",
-          displayName: "Tom Brown",
-          avatar: "/placeholder.svg?height=40&width=40",
-          bio: "Full-stack developer • JavaScript enthusiast",
-          verified: false,
-          premium: true,
-          followers: 890,
-          loops: 156,
-          isFollowing: false,
-          mutualFollowers: 3,
-          joinedDate: "2023-04-18",
-        },
-      ]
+        if (!user) {
+          setPeople([])
+          return
+        }
 
-      setTimeout(() => {
-        setFollowers(mockFollowers)
-        setFilteredFollowers(mockFollowers)
-        setLoading(false)
-      }, 1000)
+        const res = await fetch(`/api/users/${profileData.profile.id}/followers?limit=50`, {
+          headers: { ...getAuthHeader() },
+          cache: "no-store",
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || "Failed to load followers")
+        if (!cancelled) setPeople(data.followers || [])
+      } catch (error: any) {
+        if (!cancelled) {
+          setPeople([])
+          toast({ title: "Could not load followers", description: error.message, variant: "destructive" })
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [username, user?.id])
 
-    fetchFollowers()
-  }, [username])
-
-  useEffect(() => {
-    const filtered = followers.filter(
-      (follower) =>
-        follower.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        follower.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        follower.bio.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return people
+    return people.filter(
+      (p) =>
+        p.username?.toLowerCase().includes(q) ||
+        p.display_name?.toLowerCase().includes(q),
     )
-    setFilteredFollowers(filtered)
-  }, [searchQuery, followers])
+  }, [people, query])
 
-  const handleFollow = (followerId: string) => {
-    setFollowers((prev) =>
-      prev.map((follower) =>
-        follower.id === followerId ? { ...follower, isFollowing: !follower.isFollowing } : follower,
-      ),
+  const toggleFollow = async (person: Person) => {
+    if (!user || person.is_self) return
+    const action = person.is_following ? "unfollow" : "follow"
+    setPeople((prev) =>
+      prev.map((p) => (p.id === person.id ? { ...p, is_following: !p.is_following } : p)),
     )
+    try {
+      const res = await fetch("/api/users/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ target_user_id: person.id, action }),
+      })
+      if (!res.ok) throw new Error("Follow failed")
+    } catch {
+      setPeople((prev) =>
+        prev.map((p) => (p.id === person.id ? { ...p, is_following: person.is_following } : p)),
+      )
+      toast({ title: "Could not update follow", variant: "destructive" })
+    }
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <Link href={`/profile/${username}`}>
-              <Button variant="ghost" size="sm">
-                ← Back to Profile
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold">@{username}</h1>
-              <p className="text-muted-foreground">{followers.length} Followers</p>
-            </div>
+      <Header />
+      <main className="mx-auto max-w-xl border-x border-border/60 min-h-screen">
+        <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-border/70 bg-background/90 px-3 py-3 backdrop-blur">
+          <Link href={`/profile/${username}`} className="rounded-full p-2 hover:bg-muted">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <h1 className="font-bold">Followers</h1>
+            <p className="text-xs text-muted-foreground">@{username}</p>
           </div>
+        </div>
 
-          {/* Search */}
+        <div className="border-b border-border/60 p-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search followers..."
-              className="pl-10"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search followers"
+              className="pl-9 rounded-full"
             />
           </div>
         </div>
 
-        {/* Followers List */}
         {loading ? (
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <CardContent className="p-4">
-                  <div className="flex items-center space-x-4">
-                    <div className="rounded-full bg-muted h-12 w-12"></div>
-                    <div className="space-y-2 flex-1">
-                      <div className="h-4 bg-muted rounded w-1/4"></div>
-                      <div className="h-3 bg-muted rounded w-3/4"></div>
-                      <div className="h-3 bg-muted rounded w-1/2"></div>
-                    </div>
-                    <div className="h-8 bg-muted rounded w-20"></div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="flex justify-center py-16">
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+          </div>
+        ) : !user ? (
+          <div className="px-6 py-16 text-center text-muted-foreground">
+            <Users className="mx-auto mb-3 h-10 w-10 opacity-50" />
+            <p>Sign in to see followers</p>
+            <Link href="/login" className="mt-3 inline-block text-sky-500 hover:underline">
+              Log in
+            </Link>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="px-6 py-16 text-center text-muted-foreground">
+            <Users className="mx-auto mb-3 h-10 w-10 opacity-50" />
+            <p>No followers yet</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {filteredFollowers.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No followers found</h3>
-                  <p className="text-muted-foreground">
-                    {searchQuery ? "Try adjusting your search terms" : "This user has no followers yet"}
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              filteredFollowers.map((follower) => (
-                <Card key={follower.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-4">
-                      <Link href={`/profile/${follower.username}`}>
-                        <Avatar className="h-12 w-12 cursor-pointer">
-                          <AvatarImage src={follower.avatar || "/placeholder.svg"} />
-                          <AvatarFallback>{follower.displayName.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                      </Link>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Link href={`/profile/${follower.username}`} className="font-semibold hover:underline">
-                            {follower.displayName}
-                          </Link>
-                          {follower.verified && (
-                            <Badge variant="secondary" className="text-xs">
-                              ✓
-                            </Badge>
-                          )}
-                          {follower.premium && (
-                            <Badge variant="outline" className="text-xs">
-                              ⭐
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-1">@{follower.username}</p>
-                        <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{follower.bio}</p>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span>{follower.followers.toLocaleString()} followers</span>
-                          <span>{follower.loops} loops</span>
-                          {follower.mutualFollowers > 0 && <span>{follower.mutualFollowers} mutual</span>}
-                          <span>Joined {new Date(follower.joinedDate).getFullYear()}</span>
-                        </div>
-                      </div>
-                      <Button
-                        variant={follower.isFollowing ? "outline" : "default"}
-                        size="sm"
-                        onClick={() => handleFollow(follower.id)}
-                      >
-                        {follower.isFollowing ? "Following" : "Follow"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
+          <div>
+            {filtered.map((person) => (
+              <div key={person.id} className="flex items-center gap-3 border-b border-border/50 px-4 py-3">
+                <Link href={`/profile/${person.username}`}>
+                  <Avatar className="h-11 w-11">
+                    <AvatarImage src={person.avatar_url} />
+                    <AvatarFallback>{(person.display_name || person.username || "?").charAt(0)}</AvatarFallback>
+                  </Avatar>
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <Link href={`/profile/${person.username}`} className="flex items-center gap-1 font-semibold hover:underline">
+                    <span className="truncate">{person.display_name || person.username}</span>
+                    {person.is_verified && <Badge className="h-4 rounded-full bg-sky-500 px-1 text-[10px] text-white">✓</Badge>}
+                  </Link>
+                  <p className="truncate text-sm text-muted-foreground">@{person.username}</p>
+                </div>
+                {!person.is_self && (
+                  <Button
+                    size="sm"
+                    variant={person.is_following ? "outline" : "default"}
+                    className="rounded-full"
+                    onClick={() => void toggleFollow(person)}
+                  >
+                    {person.is_following ? "Following" : "Follow"}
+                  </Button>
+                )}
+              </div>
+            ))}
           </div>
         )}
-      </div>
+        {profileId && <span className="sr-only">{profileId}</span>}
+      </main>
     </div>
   )
 }

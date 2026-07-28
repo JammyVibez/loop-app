@@ -8,8 +8,10 @@ import { TrendingSidebar } from "@/components/trending-sidebar";
 import { UserSuggestions } from "@/components/users/user-suggestions";
 import { LandingContent } from "@/components/landing/landing-content";
 import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt";
+import { MomentsStrip } from "@/components/engagement/moments-strip";
+import { DailyPulse } from "@/components/engagement/daily-pulse";
 import Link from "next/link";
-import { Compass, Users, Video, Plus } from "lucide-react";
+import { Compass, Users, Video, Plus, Bookmark } from "lucide-react";
 
 export default function HomePage() {
   const { user, loading } = useAuth()
@@ -34,6 +36,8 @@ export default function HomePage() {
         <div className="grid grid-cols-1 gap-3 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
           <div className="space-y-3 sm:space-y-6 lg:col-span-2 xl:col-span-3">
             <WelcomeBanner />
+            <MomentsStrip />
+            <DailyPulse />
 
             <div className="scrollbar-none flex gap-2 overflow-x-auto pb-1">
               <Link
@@ -64,6 +68,13 @@ export default function HomePage() {
                 <Video className="h-3.5 w-3.5" />
                 Reels
               </Link>
+              <Link
+                href="/bookmarks"
+                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground"
+              >
+                <Bookmark className="h-3.5 w-3.5" />
+                Saved
+              </Link>
             </div>
 
             <div className="mb-2">
@@ -78,7 +89,7 @@ export default function HomePage() {
             </div>
             <FeedTabs />
             <div className="lg:hidden">
-              <UserSuggestions title="People you may know" limit={4} />
+              <UserSuggestions title="Who to follow" limit={4} compact />
             </div>
           </div>
 

@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,6 +9,7 @@ import { Bell, Check, Loader2, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { supabase } from "@/lib/supabase";
 
 interface Notification {
   id: string
@@ -24,48 +26,81 @@ export function NotificationDropdown() {
   const [loading, setLoading] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
-  const { user } = useAuth()
+  const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
 
-  useEffect(() => {
-    if (user && isOpen) {
-      fetchNotifications()
-    }
-  }, [user, isOpen])
-
-  const fetchNotifications = async () => {
-    if (!user?.token) return
-
-    setLoading(true)
+  const fetchNotifications = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!user) return
+    if (!opts?.silent) setLoading(true)
     try {
-      const response = await fetch("/api/notifications?limit=10", {
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
+      const response = await fetch("/api/notifications?limit=20", {
+        headers: { ...getAuthHeader() },
+        cache: "no-store",
       })
-
       const data = await response.json()
-
       if (data.success) {
-        setNotifications(data.notifications)
-        setUnreadCount(data.notifications.filter((n: Notification) => !n.is_read).length)
+        setNotifications(data.notifications || [])
+        setUnreadCount((data.notifications || []).filter((n: Notification) => !n.is_read).length)
       }
     } catch (error) {
       console.error("Error fetching notifications:", error)
     } finally {
-      setLoading(false)
+      if (!opts?.silent) setLoading(false)
     }
-  }
+  }, [user?.id, getAuthHeader])
+
+  useEffect(() => {
+    if (user && isOpen) void fetchNotifications()
+  }, [user?.id, isOpen, fetchNotifications])
+
+  // Live badge + list: postgres changes + light poll
+  useEffect(() => {
+    if (!user?.id) return
+
+    void fetchNotifications({ silent: true })
+
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const row = payload.new as Notification
+          setNotifications((prev) => [row, ...prev.filter((n) => n.id !== row.id)].slice(0, 30))
+          setUnreadCount((c) => c + 1)
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        () => {
+          void fetchNotifications({ silent: true })
+        },
+      )
+      .on("broadcast", { event: "notification" }, () => {
+        void fetchNotifications({ silent: true })
+      })
+      .subscribe()
+
+    const poll = setInterval(() => {
+      void fetchNotifications({ silent: true })
+    }, 45000)
+
+    return () => {
+      clearInterval(poll)
+      void supabase.removeChannel(channel)
+    }
+  }, [user?.id, fetchNotifications, toast])
 
   const markAsRead = async (notificationId: string) => {
-    if (!user?.token) return
+    if (!user) return
 
     try {
       const response = await fetch("/api/notifications", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token}`,
+          ...getAuthHeader(),
         },
         body: JSON.stringify({
           notification_ids: [notificationId],
@@ -86,14 +121,14 @@ export function NotificationDropdown() {
   }
 
   const markAllAsRead = async () => {
-    if (!user?.token) return
+    if (!user) return
 
     try {
       const response = await fetch("/api/notifications", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token}`,
+          ...getAuthHeader(),
         },
         body: JSON.stringify({
           mark_all_read: true,
@@ -127,11 +162,22 @@ export function NotificationDropdown() {
         return "🌿"
       case "mention":
         return "📢"
+      case "gift":
+        return "🎁"
       case "system":
         return "🔔"
       default:
         return "📢"
     }
+  }
+
+  const notificationHref = (n: Notification) => {
+    const data = n.data || {}
+    if (data.loop_id) return `/loop/${data.loop_id}`
+    if (data.reel_id) return `/reels?id=${data.reel_id}`
+    if (data.username) return `/profile/${data.username}`
+    if (data.actor_username) return `/profile/${data.actor_username}`
+    return null
   }
 
   return (
@@ -164,9 +210,11 @@ export function NotificationDropdown() {
                 Mark all read
               </Button>
             )}
-            <Button variant="ghost" size="sm">
-              <Settings className="w-4 h-4" />
-            </Button>
+            <Link href="/settings">
+              <Button variant="ghost" size="sm">
+                <Settings className="w-4 h-4" />
+              </Button>
+            </Link>
           </div>
         </div>
         <DropdownMenuSeparator />
@@ -183,7 +231,9 @@ export function NotificationDropdown() {
             </div>
           ) : (
             <div className="space-y-1">
-              {notifications.map((notification) => (
+              {notifications.map((notification) => {
+                const href = notificationHref(notification)
+                return (
                 <DropdownMenuItem
                   key={notification.id}
                   className={`p-4 cursor-pointer ${
@@ -191,8 +241,9 @@ export function NotificationDropdown() {
                   }`}
                   onClick={() => {
                     if (!notification.is_read) {
-                      markAsRead(notification.id)
+                      void markAsRead(notification.id)
                     }
+                    if (href) window.location.href = href
                   }}
                 >
                   <div className="flex items-start space-x-3 w-full">
@@ -219,21 +270,10 @@ export function NotificationDropdown() {
                     </div>
                   </div>
                 </DropdownMenuItem>
-              ))}
+              )})}
             </div>
           )}
         </ScrollArea>
-        
-        {notifications.length > 0 && (
-          <>
-            <DropdownMenuSeparator />
-            <div className="p-2">
-              <Button variant="ghost" className="w-full text-sm">
-                View all notifications
-              </Button>
-            </div>
-          </>
-        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )
