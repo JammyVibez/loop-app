@@ -26,8 +26,10 @@ export function SettingsContent() {
     username: user?.username || "",
     bio: user?.bio || "",
     email: user?.email || "",
-    location: "",
-    website: "",
+    location: user?.location || "",
+    website: user?.website || "",
+    avatar_url: user?.avatar_url || "",
+    banner_url: user?.banner_url || "",
   })
   const [notifications, setNotifications] = useState({
     email_loops: true,
@@ -65,7 +67,17 @@ export function SettingsContent() {
 
       const result = await response.json()
       if (result.success) {
-        setProfileData({ ...profileData, avatar_url: result.url })
+        const uploadedUrl = result.url || result.data?.url
+        const next = { ...profileData, avatar_url: uploadedUrl }
+        setProfileData(next)
+        await fetch("/api/users/profile", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user?.access_token}`,
+          },
+          body: JSON.stringify({ avatar_url: uploadedUrl }),
+        })
         toast({
           title: "Avatar Updated",
           description: "Your avatar has been updated successfully.",
@@ -100,10 +112,20 @@ export function SettingsContent() {
 
       const result = await response.json()
       if (result.success) {
-        setProfileData({ ...profileData, banner_url: result.url })
+        const uploadedUrl = result.url || result.data?.url
+        const next = { ...profileData, banner_url: uploadedUrl }
+        setProfileData(next)
+        await fetch("/api/users/profile", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user?.access_token}`,
+          },
+          body: JSON.stringify({ banner_url: uploadedUrl }),
+        })
         toast({
-          title: "Banner Updated",
-          description: "Your banner has been updated successfully.",
+          title: "Cover photo updated",
+          description: "Your profile cover is live.",
         })
       }
     } catch (error) {

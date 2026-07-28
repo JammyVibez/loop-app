@@ -75,11 +75,16 @@ export async function POST(
       }
 
       // Update reel counts
-      const updateField = `${type}_count`
-      await supabase.rpc('increment_reel_interaction', {
+      const updateField = type === "like" ? "like_count" : type === "view" ? "view_count" : type === "share" ? "share_count" : null
+      const { error: rpcError } = await supabase.rpc('increment_reel_interaction', {
         reel_id: reelId,
         interaction_type: type
       })
+      if (rpcError && updateField) {
+        const { data: current } = await supabase.from("reels").select(updateField).eq("id", reelId).maybeSingle()
+        const next = Number((current as any)?.[updateField] || 0) + 1
+        await supabase.from("reels").update({ [updateField]: next }).eq("id", reelId)
+      }
 
       // Create notification for reel author (except for views)
       if (type !== 'view' && reel.author_id !== user.id) {

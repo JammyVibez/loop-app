@@ -120,6 +120,8 @@ export function CommunityMarketplace() {
     description: "",
     price_coins: "150",
     tags: "",
+    source_code: "",
+    layout: "immersive-hero",
   })
 
   const loadListings = async () => {
@@ -227,6 +229,18 @@ export function CommunityMarketplace() {
     }
     setBusyId("create")
     try {
+      let payload: Record<string, any> = defaultPayload(draft.listing_type)
+      if (draft.source_code.trim()) {
+        try {
+          const parsed = JSON.parse(draft.source_code)
+          payload = { ...payload, ...parsed, source_code: draft.source_code }
+        } catch {
+          payload = { ...payload, source_code: draft.source_code, layout: draft.layout }
+        }
+      } else if (draft.listing_type === "design") {
+        payload = { ...payload, layout: draft.layout }
+      }
+
       const response = await fetch("/api/marketplace", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
@@ -239,14 +253,22 @@ export function CommunityMarketplace() {
             .split(",")
             .map((t) => t.trim())
             .filter(Boolean),
-          payload: defaultPayload(draft.listing_type),
+          payload,
         }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to publish")
       toast({ title: "Listed", description: "Your pack is live in the marketplace." })
       setSellOpen(false)
-      setDraft({ listing_type: "design", title: "", description: "", price_coins: "150", tags: "" })
+      setDraft({
+        listing_type: "design",
+        title: "",
+        description: "",
+        price_coins: "150",
+        tags: "",
+        source_code: "",
+        layout: "immersive-hero",
+      })
       await loadListings()
     } catch (error: any) {
       toast({ title: "Publish failed", description: error.message, variant: "destructive" })
@@ -266,6 +288,9 @@ export function CommunityMarketplace() {
           <p className="max-w-2xl text-muted-foreground">{filteredBlurb}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" className="rounded-full">
+            <Link href="/developers/community-layouts">Developer docs</Link>
+          </Button>
           <Button asChild variant="outline" className="rounded-full">
             <Link href="/shop">
               <Coins className="mr-2 h-4 w-4 text-yellow-500" />
@@ -462,6 +487,49 @@ export function CommunityMarketplace() {
                   placeholder="welcome, neon, calm"
                 />
               </div>
+            </div>
+            {draft.listing_type === "design" && (
+              <div className="space-y-2">
+                <Label>Layout preset</Label>
+                <Select value={draft.layout} onValueChange={(v) => setDraft((d) => ({ ...d, layout: v }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="immersive-hero">Immersive hero</SelectItem>
+                    <SelectItem value="cinematic">Cinematic</SelectItem>
+                    <SelectItem value="forum">Forum</SelectItem>
+                    <SelectItem value="compact">Compact</SelectItem>
+                    <SelectItem value="minimal">Minimal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Upload layout / styling / bot code (JSON or text)</Label>
+              <Input
+                type="file"
+                accept=".json,.js,.ts,.tsx,.css,.txt"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  const text = await file.text()
+                  setDraft((d) => ({ ...d, source_code: text }))
+                }}
+              />
+              <Textarea
+                value={draft.source_code}
+                onChange={(e) => setDraft((d) => ({ ...d, source_code: e.target.value }))}
+                placeholder='Paste JSON payload, e.g. {"layout":"forum","colors":{"primary":"#7c3aed","secondary":"#22d3ee"},"css_variables":{"--circle-accent":"#22d3ee"}}'
+                className="min-h-[120px] font-mono text-xs"
+              />
+              <p className="text-xs text-muted-foreground">
+                See the{" "}
+                <Link href="/developers/community-layouts" className="underline">
+                  community layout docs
+                </Link>{" "}
+                for the supported schema.
+              </p>
             </div>
           </div>
           <DialogFooter>
