@@ -92,10 +92,10 @@ export async function GET(request: NextRequest) {
 
     const profileWithSocial = {
       ...profile,
-      followers_count: profile.followers_count ?? followersCount ?? 0,
-      following_count: profile.following_count ?? followingCount ?? 0,
-      loops_count: profile.loops_count ?? loopsCount ?? 0,
-      branches_count: profile.branches_count ?? branchesCount ?? 0,
+      followers_count: followersCount ?? profile.followers_count ?? 0,
+      following_count: followingCount ?? profile.following_count ?? 0,
+      loops_count: loopsCount ?? profile.loops_count ?? 0,
+      branches_count: branchesCount ?? profile.branches_count ?? 0,
       likes_received: profile.likes_received ?? 0,
       level: profile.level ?? 1,
       xp_points: profile.xp_points ?? 0,

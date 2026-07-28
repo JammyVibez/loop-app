@@ -90,6 +90,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 400 })
     }
 
+    if (!authData.session) {
+      return NextResponse.json(
+        {
+          error: "Email confirmation required. Check your inbox, then sign in again.",
+          code: "email_not_confirmed",
+        },
+        { status: 403 },
+      )
+    }
+
     const profile = await ensureProfile(authData.user)
 
     const response = NextResponse.json({

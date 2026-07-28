@@ -235,16 +235,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event) => {
-      try {
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
-          await hydrateSessionUser()
-        } else if (event === "SIGNED_OUT") {
-          setUser(null)
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Defer async work — awaiting getSession inside this callback can deadlock supabase-js.
+      setTimeout(() => {
+        void (async () => {
+          try {
+            if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+              if (session?.user) {
+                const apiProfile = await fetchProfileViaApi(session.access_token)
+                setUser(mapSessionUser(session, apiProfile || buildFallbackProfile(session.user)))
+              } else {
+                await hydrateSessionUser()
+              }
+            } else if (event === "SIGNED_OUT") {
+              setUser(null)
+            }
+          } finally {
+            if (!cancelled) setLoading(false)
+          }
+        })()
+      }, 0)
     })
 
     return () => {
@@ -267,10 +277,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(data.error || "Login failed")
     }
 
-    await supabase.auth.setSession({
+    if (!data.session?.access_token || !data.session?.refresh_token) {
+      throw new Error(data.error || "Login succeeded but no session was returned. Confirm your email and try again.")
+    }
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
       access_token: data.session.access_token,
       refresh_token: data.session.refresh_token,
     })
+
+    if (sessionError) {
+      throw new Error(sessionError.message || "Could not establish session")
+    }
+
+    const session = sessionData.session || data.session
+    if (session?.user) {
+      const profile = data.user || (await fetchProfileViaApi(session.access_token))
+      setUser(mapSessionUser(session, profile || buildFallbackProfile(session.user)))
+      setLoading(false)
+    } else {
+      await hydrateSessionUser()
+      setLoading(false)
+    }
   }
 
   const signup = async (email: string, password: string, username: string, display_name: string) => {

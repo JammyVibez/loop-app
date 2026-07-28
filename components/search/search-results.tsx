@@ -9,13 +9,16 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Hash, Users, GitBranch, Search } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
 import Link from "next/link"
-import { supabase } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
 
 interface SearchResultsProps {
   query: string
 }
 
 export function SearchResults({ query }: SearchResultsProps) {
+  const { user, getAuthHeader } = useAuth()
+  const { toast } = useToast()
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set())
   const [searchResults, setSearchResults] = useState<{ loops: any[]; users: any[]; hashtags: any[] }>({
     loops: [],
@@ -27,54 +30,36 @@ export function SearchResults({ query }: SearchResultsProps) {
   useEffect(() => {
     const performSearch = async () => {
       if (!query.trim()) return
+      setLoading(true)
 
       try {
-        const { data: loops, error: loopsError } = await supabase
-          .from("loops")
-          .select(`
-            *,
-            author:profiles(*),
-            stats:loop_stats(*)
-          `)
-          .or(`content.ilike.%${query}%,author.display_name.ilike.%${query}%,author.username.ilike.%${query}%`)
-          .limit(20)
-
-        const { data: users, error: usersError } = await supabase
-          .from("profiles")
-          .select(`
-            *,
-            followers:follows!followed_id(count),
-            following:follows!follower_id(count)
-          `)
-          .or(`display_name.ilike.%${query}%,username.ilike.%${query}%,bio.ilike.%${query}%`)
-          .limit(20)
-
-        const { data: hashtags, error: hashtagsError } = await supabase
-          .from("hashtags")
-          .select(`
-            *,
-            loop_count:loop_hashtags(count)
-          `)
-          .ilike("tag", `%${query}%`)
-          .limit(20)
-
-        if (!loopsError && !usersError && !hashtagsError) {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+          headers: { ...getAuthHeader() },
+          cache: "no-store",
+        })
+        if (response.ok) {
+          const data = await response.json()
+          const users = data.users || []
           setSearchResults({
-            loops: loops || [],
-            users: users || [],
-            hashtags: hashtags || [],
+            loops: data.loops || [],
+            users,
+            hashtags: data.hashtags || [],
           })
-        }
-
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-        if (user) {
-          const { data: followedData } = await supabase.from("follows").select("followed_id").eq("follower_id", user.id)
-
-          if (followedData) {
-            setFollowedUsers(new Set(followedData.map((f) => f.followed_id)))
+          if (user) {
+            setFollowedUsers(new Set(users.filter((p: any) => p.is_following).map((p: any) => p.id)))
           }
+        } else {
+          // Fallback lightweight profile search via users API
+          const usersRes = await fetch(`/api/users?q=${encodeURIComponent(query)}&limit=20`, {
+            headers: { ...getAuthHeader() },
+          })
+          const usersData = usersRes.ok ? await usersRes.json() : { users: [] }
+          const users = usersData.users || usersData.data || []
+          setSearchResults({
+            loops: [],
+            users,
+            hashtags: [],
+          })
         }
       } catch (error) {
         console.error("Error performing search:", error)
@@ -83,38 +68,47 @@ export function SearchResults({ query }: SearchResultsProps) {
       }
     }
 
-    performSearch()
-  }, [query])
+    void performSearch()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, user?.id])
 
   const handleFollow = async (userId: string) => {
+    if (!user) {
+      window.location.href = "/login"
+      return
+    }
+    const wasFollowing = followedUsers.has(userId)
+    setFollowedUsers((prev) => {
+      const next = new Set(prev)
+      if (wasFollowing) next.delete(userId)
+      else next.add(userId)
+      return next
+    })
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) return
-
-      if (followedUsers.has(userId)) {
-        await supabase.from("follows").delete().eq("follower_id", user.id).eq("followed_id", userId)
-      } else {
-        await supabase.from("follows").insert({
-          follower_id: user.id,
-          followed_id: userId,
-          created_at: new Date().toISOString(),
-        })
-      }
-
-      setFollowedUsers((prev) => {
-        const newSet = new Set(prev)
-        if (newSet.has(userId)) {
-          newSet.delete(userId)
-        } else {
-          newSet.add(userId)
-        }
-        return newSet
+      const response = await fetch("/api/users/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({
+          target_user_id: userId,
+          action: wasFollowing ? "unfollow" : "follow",
+        }),
       })
-    } catch (error) {
-      console.error("Error following/unfollowing user:", error)
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "Follow failed")
+      setFollowedUsers((prev) => {
+        const next = new Set(prev)
+        if (data.is_following) next.add(userId)
+        else next.delete(userId)
+        return next
+      })
+    } catch (error: any) {
+      setFollowedUsers((prev) => {
+        const next = new Set(prev)
+        if (wasFollowing) next.add(userId)
+        else next.delete(userId)
+        return next
+      })
+      toast({ title: "Could not update follow", description: error.message, variant: "destructive" })
     }
   }
 

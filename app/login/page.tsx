@@ -45,7 +45,10 @@ export default function LoginPage() {
 
     try {
       await login(email, password)
-      router.push(redirect && redirect.startsWith("/") ? redirect : "/")
+      // Give cookie/session hydrate a beat before navigation
+      await new Promise((r) => setTimeout(r, 50))
+      router.replace(redirect && redirect.startsWith("/") ? redirect : "/")
+      router.refresh()
     } catch (err: any) {
       setError(err.message || "Failed to sign in")
     } finally {

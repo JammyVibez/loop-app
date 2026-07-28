@@ -110,7 +110,25 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   }, [username, user?.id])
 
   const handleFollow = async () => {
-    if (!profile || !user) return
+    if (!profile || !user) {
+      window.location.href = "/login"
+      return
+    }
+    const nextAction = isFollowing ? "unfollow" : "follow"
+    const previousFollowing = isFollowing
+    const previousCount = profile.followers_count
+    // Optimistic UI
+    setIsFollowing(!isFollowing)
+    setProfile((prev) =>
+      prev
+        ? {
+            ...prev,
+            followers_count: isFollowing
+              ? Math.max(0, prev.followers_count - 1)
+              : prev.followers_count + 1,
+          }
+        : null,
+    )
     try {
       const response = await fetch("/api/users/follow", {
         method: "POST",
@@ -120,24 +138,25 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         },
         body: JSON.stringify({
           target_user_id: profile.id,
-          action: isFollowing ? "unfollow" : "follow",
+          action: nextAction,
         }),
       })
-      if (response.ok) {
-        setIsFollowing(!isFollowing)
-        setProfile((prev) =>
-          prev
-            ? {
-                ...prev,
-                followers_count: isFollowing
-                  ? Math.max(0, prev.followers_count - 1)
-                  : prev.followers_count + 1,
-              }
-            : null,
-        )
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || "Follow failed")
       }
-    } catch (error) {
-      console.error("Error following user:", error)
+      setIsFollowing(Boolean(data.is_following ?? !previousFollowing))
+      if (typeof data.followers_count === "number") {
+        setProfile((prev) => (prev ? { ...prev, followers_count: data.followers_count } : prev))
+      }
+    } catch (error: any) {
+      setIsFollowing(previousFollowing)
+      setProfile((prev) => (prev ? { ...prev, followers_count: previousCount } : prev))
+      toast({
+        title: "Could not update follow",
+        description: error.message || "Try again",
+        variant: "destructive",
+      })
     }
   }
 

@@ -44,11 +44,6 @@ export default function FollowingPage() {
         if (!profileRes.ok) throw new Error(profileData.error || "Profile not found")
         if (cancelled) return
 
-        if (!user) {
-          setPeople([])
-          return
-        }
-
         const res = await fetch(`/api/users/${profileData.profile.id}/following?limit=50`, {
           headers: { ...getAuthHeader() },
           cache: "no-store",
@@ -59,7 +54,7 @@ export default function FollowingPage() {
           setPeople(
             (data.following || []).map((p: any) => ({
               ...p,
-              is_following: p.is_following ?? true,
+              is_following: Boolean(p.is_following),
             })),
           )
         }
@@ -139,14 +134,6 @@ export default function FollowingPage() {
           <div className="flex justify-center py-16">
             <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
           </div>
-        ) : !user ? (
-          <div className="px-6 py-16 text-center text-muted-foreground">
-            <Users className="mx-auto mb-3 h-10 w-10 opacity-50" />
-            <p>Sign in to see who they follow</p>
-            <Link href="/login" className="mt-3 inline-block text-sky-500 hover:underline">
-              Log in
-            </Link>
-          </div>
         ) : filtered.length === 0 ? (
           <div className="px-6 py-16 text-center text-muted-foreground">
             <Users className="mx-auto mb-3 h-10 w-10 opacity-50" />
@@ -174,7 +161,13 @@ export default function FollowingPage() {
                     size="sm"
                     variant={person.is_following ? "outline" : "default"}
                     className="rounded-full"
-                    onClick={() => void toggleFollow(person)}
+                    onClick={() => {
+                      if (!user) {
+                        window.location.href = "/login"
+                        return
+                      }
+                      void toggleFollow(person)
+                    }}
                   >
                     {person.is_following ? "Following" : "Follow"}
                   </Button>

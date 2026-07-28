@@ -47,11 +47,6 @@ export default function FollowersPage() {
         if (cancelled) return
         setProfileId(profileData.profile.id)
 
-        if (!user) {
-          setPeople([])
-          return
-        }
-
         const res = await fetch(`/api/users/${profileData.profile.id}/followers?limit=50`, {
           headers: { ...getAuthHeader() },
           cache: "no-store",
@@ -135,14 +130,6 @@ export default function FollowersPage() {
           <div className="flex justify-center py-16">
             <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
           </div>
-        ) : !user ? (
-          <div className="px-6 py-16 text-center text-muted-foreground">
-            <Users className="mx-auto mb-3 h-10 w-10 opacity-50" />
-            <p>Sign in to see followers</p>
-            <Link href="/login" className="mt-3 inline-block text-sky-500 hover:underline">
-              Log in
-            </Link>
-          </div>
         ) : filtered.length === 0 ? (
           <div className="px-6 py-16 text-center text-muted-foreground">
             <Users className="mx-auto mb-3 h-10 w-10 opacity-50" />
@@ -170,7 +157,13 @@ export default function FollowersPage() {
                     size="sm"
                     variant={person.is_following ? "outline" : "default"}
                     className="rounded-full"
-                    onClick={() => void toggleFollow(person)}
+                    onClick={() => {
+                      if (!user) {
+                        window.location.href = "/login"
+                        return
+                      }
+                      void toggleFollow(person)
+                    }}
                   >
                     {person.is_following ? "Following" : "Follow"}
                   </Button>
