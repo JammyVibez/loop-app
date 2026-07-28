@@ -54,6 +54,8 @@ export async function GET(request: NextRequest) {
         message_type,
         sender_id,
         author_id,
+        reply_to_id,
+        reactions,
         created_at,
         is_edited,
         sender:profiles!messages_author_id_fkey(
@@ -105,6 +107,7 @@ export async function POST(request: NextRequest) {
     const content = String(body.content || "").trim()
     const messageType = body.message_type || "text"
     const mediaUrl = body.media_url || body.file_url || null
+    const replyToId = body.reply_to_id || body.replyToId || null
 
     if (!conversationId || (!content && !mediaUrl)) {
       return NextResponse.json({ error: "Conversation ID and content are required" }, { status: 400 })
@@ -115,23 +118,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const { data: message, error: messageError } = await supabase
-      .from("messages")
-      .insert({
-        conversation_id: conversationId,
-        sender_id: user.id,
-        author_id: user.id,
-        content: content || (mediaUrl ? "Shared media" : ""),
-        message_type: messageType,
-        media_url: mediaUrl,
-        media_type: messageType === "text" ? null : messageType,
-        created_at: new Date().toISOString(),
-      })
-      .select("*")
-      .single()
+    const basePayload: Record<string, any> = {
+      conversation_id: conversationId,
+      sender_id: user.id,
+      author_id: user.id,
+      content: content || (mediaUrl ? "Shared media" : ""),
+      message_type: messageType,
+      media_url: mediaUrl,
+      media_type: messageType === "text" ? null : messageType,
+      created_at: new Date().toISOString(),
+    }
+
+    let message: any = null
+    let messageError: any = null
+
+    const withReply = replyToId ? { ...basePayload, reply_to_id: replyToId } : basePayload
+    ;({ data: message, error: messageError } = await supabase.from("messages").insert(withReply).select("*").single())
+
+    if (messageError && replyToId && /reply_to|PGRST204|column/i.test(messageError.message || "")) {
+      ;({ data: message, error: messageError } = await supabase.from("messages").insert(basePayload).select("*").single())
+    }
 
     if (messageError) {
       return NextResponse.json({ error: messageError.message || "Failed to send message" }, { status: 500 })
+    }
+
+    let replyPreview: any = null
+    if (replyToId) {
+      const { data: replied } = await supabase
+        .from("messages")
+        .select("id, content, sender_id, author_id, media_type")
+        .eq("id", replyToId)
+        .maybeSingle()
+      replyPreview = replied
     }
 
     await supabase
@@ -141,6 +160,7 @@ export async function POST(request: NextRequest) {
 
     const enriched = {
       ...message,
+      reply_to: replyPreview,
       sender: {
         id: user.id,
         username: user.user_metadata?.username,
