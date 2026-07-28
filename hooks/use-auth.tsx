@@ -19,11 +19,14 @@ interface User {
   is_verified: boolean
   is_admin: boolean
   theme_data?: any
+  theme_preferences?: any
   interests?: string[]
   phone?: string
   website?: string
   location?: string
   profile_theme?: any
+  privacy_settings?: Record<string, unknown>
+  notification_settings?: Record<string, unknown>
   verification_level?: string
   onboarding_completed?: boolean
   token?: string
@@ -105,7 +108,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     is_verified: profileData.is_verified ?? false,
     is_admin: profileData.is_admin ?? false,
     theme_data: profileData.theme_data,
+    theme_preferences: profileData.theme_preferences,
     interests: profileData.interests ?? [],
+    phone: profileData.phone,
+    website: profileData.website,
+    location: profileData.location,
+    privacy_settings: profileData.privacy_settings,
+    notification_settings: profileData.notification_settings,
     onboarding_completed: profileData.onboarding_completed ?? false,
     token: session.access_token,
     access_token: session.access_token,

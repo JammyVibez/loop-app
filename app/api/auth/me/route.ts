@@ -32,13 +32,30 @@ export async function GET(request: NextRequest) {
     const { data: profile, error } = await supabase
       .from("profiles")
       .select(
-        "id, email, username, display_name, avatar_url, banner_url, bio, loop_coins, is_premium, premium_expires_at, is_verified, is_admin, theme_data, interests, onboarding_completed, location, website",
+        "id, email, username, display_name, avatar_url, banner_url, bio, loop_coins, is_premium, premium_expires_at, is_verified, is_admin, theme_data, theme_preferences, interests, onboarding_completed, location, website, phone, privacy_settings, notification_settings",
       )
       .eq("id", user.id)
       .maybeSingle()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      // Older schemas may lack optional preference columns — fall back to a leaner select.
+      const { data: fallback, error: fallbackError } = await supabase
+        .from("profiles")
+        .select(
+          "id, email, username, display_name, avatar_url, banner_url, bio, loop_coins, is_premium, premium_expires_at, is_verified, is_admin, interests, onboarding_completed, location, website",
+        )
+        .eq("id", user.id)
+        .maybeSingle()
+
+      if (fallbackError) {
+        return NextResponse.json({ error: fallbackError.message || error.message }, { status: 500 })
+      }
+
+      if (!fallback) {
+        return NextResponse.json({ error: "Profile not found" }, { status: 404 })
+      }
+
+      return NextResponse.json({ success: true, profile: fallback })
     }
 
     if (!profile) {

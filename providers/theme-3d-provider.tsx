@@ -192,8 +192,10 @@ export function Theme3DProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty("--theme-surface", currentTheme.colors.surface)
     root.style.setProperty("--theme-text", currentTheme.colors.text)
 
-    // Apply 3D effects classes
-    document.body.className = document.body.className.replace(/theme-\w+/g, "")
+    // Apply 3D effects classes without wiping unrelated body classes
+    Array.from(document.body.classList)
+      .filter((cls) => cls.startsWith("theme-"))
+      .forEach((cls) => document.body.classList.remove(cls))
     document.body.classList.add(`theme-${currentTheme.id}`)
 
     if (currentTheme.effects.glow) {

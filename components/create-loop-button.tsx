@@ -222,15 +222,15 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
 
   if (!isOpen) {
     return (
-      <Card className="cursor-pointer border-white/10 bg-white/[0.04] hover:bg-white/[0.06]" onClick={() => setIsOpen(true)}>
+      <Card className="cursor-pointer hover:bg-muted/50" onClick={() => setIsOpen(true)}>
         <CardContent className="p-5">
           <div className="flex items-center gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-cyan-500">
               <Plus className="h-5 w-5 text-white" />
             </div>
             <div>
-              <p className="text-slate-300">What's on your mind, {user?.display_name}?</p>
-              <p className="text-xs text-slate-500">Drafts auto-save as you type</p>
+              <p className="text-muted-foreground">What's on your mind, {user?.display_name}?</p>
+              <p className="text-xs text-muted-foreground">Drafts auto-save as you type</p>
             </div>
           </div>
         </CardContent>
@@ -239,12 +239,12 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
   }
 
   return (
-    <Card className="border-white/10 bg-[#0a1020]/90">
+    <Card>
       <CardContent className="space-y-4 p-5">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-white">Create Loop</h3>
+          <h3 className="font-semibold text-foreground">Create Loop</h3>
           <div className="flex gap-2">
-            <Button type="button" size="sm" variant="outline" className="border-white/10" onClick={() => setShowPreview((v) => !v)}>
+            <Button type="button" size="sm" variant="outline" onClick={() => setShowPreview((v) => !v)}>
               <Eye className="mr-1 h-4 w-4" /> {showPreview ? "Edit" : "Preview"}
             </Button>
             <Button type="button" size="icon" variant="ghost" onClick={() => setDiscardOpen(true)}>
@@ -254,9 +254,9 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
         </div>
 
         {showPreview ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">Preview</p>
-            <p className="mb-3 whitespace-pre-wrap text-slate-100">{content || "No text yet"}</p>
+          <div className="rounded-2xl border border-border bg-muted/30 p-4">
+            <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Preview</p>
+            <p className="mb-3 whitespace-pre-wrap text-foreground">{content || "No text yet"}</p>
             <div className="mb-3 flex flex-wrap gap-2">
               {extractedTags.map((tag) => (
                 <Badge key={tag} variant="secondary">#{tag}</Badge>

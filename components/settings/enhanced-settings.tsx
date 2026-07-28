@@ -1,57 +1,59 @@
-"use client";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
-import { User, Bell, Shield, Palette, Globe, Smartphone, Moon, Sun, Eye, Camera, Save, RefreshCw, Crown, Star, Trash2 } from "lucide-react";
-import { useTheme } from "next-themes";
-import { ProfileThemeCustomizer } from "@/components/profile/profile-theme-customizer";
+"use client"
 
-const themes = [
-  { id: "light", name: "Light", icon: Sun },
-  { id: "dark", name: "Dark", icon: Moon },
-  { id: "system", name: "System", icon: Smartphone },
-]
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useTheme } from "next-themes"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
+import {
+  User,
+  Bell,
+  Shield,
+  Palette,
+  Moon,
+  Sun,
+  Camera,
+  Save,
+  Crown,
+  Star,
+  Users,
+  Monitor,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
 
-const languages = [
-  { code: "en", name: "English" },
-  { code: "es", name: "Español" },
-  { code: "fr", name: "Français" },
-  { code: "de", name: "Deutsch" },
-  { code: "ja", name: "日本語" },
-  { code: "ko", name: "한국어" },
+const themeOptions = [
+  { id: "light", name: "Light", icon: Sun, description: "Bright surfaces and dark text" },
+  { id: "dark", name: "Dark", icon: Moon, description: "Dim surfaces and light text" },
+  { id: "system", name: "System", icon: Monitor, description: "Match your device setting" },
 ]
 
 export function EnhancedSettings() {
-  const { user, updateProfile } = useAuth()
-  const { theme, setTheme } = useTheme()
+  const { user, getAuthHeader, applyServerProfile, refreshUser } = useAuth()
+  const { theme, setTheme, resolvedTheme } = useTheme()
   const { toast } = useToast()
-  
+  const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [showThemeCustomizer, setShowThemeCustomizer] = useState(false)
+  const [uploading, setUploading] = useState(false)
+
   const [formData, setFormData] = useState({
-    display_name: user?.display_name || "",
-    username: user?.username || "",
-    bio: user?.bio || "",
-    email: user?.email || "",
-    phone: user?.phone || "",
-    website: user?.website || "",
-    location: user?.location || "",
-    language: "en",
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    display_name: "",
+    username: "",
+    bio: "",
+    email: "",
+    website: "",
+    location: "",
     privacy: {
       profile_visibility: "public",
       show_email: false,
-      show_phone: false,
       allow_messages: true,
       allow_friend_requests: true,
     },
@@ -64,30 +66,86 @@ export function EnhancedSettings() {
       mentions: true,
       circle_invites: true,
       promotional: false,
-    }
+    },
   })
 
-  const handleSave = async () => {
+  useEffect(() => setMounted(true), [])
+
+  useEffect(() => {
+    if (!user) return
+    const privacy = (user as any).privacy_settings || {}
+    const notifications = (user as any).notification_settings || {}
+    setFormData({
+      display_name: user.display_name || "",
+      username: user.username || "",
+      bio: user.bio || "",
+      email: user.email || "",
+      website: user.website || "",
+      location: user.location || "",
+      privacy: {
+        profile_visibility: privacy.profile_visibility || "public",
+        show_email: Boolean(privacy.show_email),
+        allow_messages: privacy.allow_messages !== false && privacy.message_privacy !== "none",
+        allow_friend_requests: privacy.allow_friend_requests !== false,
+      },
+      notifications: {
+        email_notifications: notifications.email !== false && notifications.email_notifications !== false,
+        push_notifications: notifications.push !== false && notifications.push_notifications !== false,
+        loop_likes: notifications.loop_likes !== false,
+        loop_comments: notifications.loop_comments !== false,
+        new_followers: notifications.new_followers !== false,
+        mentions: notifications.mentions !== false,
+        circle_invites: notifications.circle_invites !== false,
+        promotional: Boolean(notifications.promotional),
+      },
+    })
+  }, [user])
+
+  const saveSettings = async () => {
+    if (!user) return
     setLoading(true)
     try {
-      await updateProfile({
-        display_name: formData.display_name,
-        bio: formData.bio,
-        website: formData.website,
-        location: formData.location,
-        // Add other fields as needed
+      const response = await fetch("/api/users/update-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({
+          display_name: formData.display_name,
+          bio: formData.bio,
+          website: formData.website,
+          location: formData.location,
+          privacy_settings: {
+            profile_visibility: formData.privacy.profile_visibility,
+            show_email: formData.privacy.show_email,
+            message_privacy: formData.privacy.allow_messages ? "everyone" : "none",
+            allow_messages: formData.privacy.allow_messages,
+            allow_friend_requests: formData.privacy.allow_friend_requests,
+          },
+          notification_settings: {
+            email: formData.notifications.email_notifications,
+            push: formData.notifications.push_notifications,
+            in_app: true,
+            email_notifications: formData.notifications.email_notifications,
+            push_notifications: formData.notifications.push_notifications,
+            loop_likes: formData.notifications.loop_likes,
+            loop_comments: formData.notifications.loop_comments,
+            new_followers: formData.notifications.new_followers,
+            mentions: formData.notifications.mentions,
+            circle_invites: formData.notifications.circle_invites,
+            promotional: formData.notifications.promotional,
+          },
+        }),
       })
-      
-      toast({
-        title: "Settings saved",
-        description: "Your settings have been updated successfully.",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save settings. Please try again.",
-        variant: "destructive",
-      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to save")
+
+      if (data.profile) applyServerProfile(data.profile)
+      await refreshUser()
+      toast({ title: "Settings saved", description: "Your preferences are up to date." })
+    } catch (error: any) {
+      toast({ title: "Could not save", description: error.message, variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -95,149 +153,160 @@ export function EnhancedSettings() {
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (!file) return
+    if (!file || !user) return
+    setUploading(true)
+    try {
+      const body = new FormData()
+      body.append("file", file)
+      body.append("type", "image")
+      body.append("folder", "avatars")
+      const upload = await fetch("/api/upload", {
+        method: "POST",
+        headers: { ...getAuthHeader() },
+        body,
+      })
+      const uploaded = await upload.json()
+      if (!upload.ok) throw new Error(uploaded.error || "Upload failed")
 
-    // Add avatar upload logic here
-    toast({
-      title: "Feature coming soon",
-      description: "Avatar upload will be available soon.",
-    })
+      const response = await fetch("/api/users/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ avatar_url: uploaded.url }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to update avatar")
+      if (data.profile) applyServerProfile(data.profile)
+      toast({ title: "Avatar updated" })
+    } catch (error: any) {
+      toast({ title: "Avatar upload failed", description: error.message, variant: "destructive" })
+    } finally {
+      setUploading(false)
+    }
   }
 
-  const handleDeleteAccount = () => {
-    toast({
-      title: "Feature coming soon",
-      description: "Account deletion will be available soon.",
-      variant: "destructive",
-    })
+  const applyAppearance = async (nextTheme: string) => {
+    setTheme(nextTheme)
+    try {
+      const response = await fetch("/api/users/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({
+          profile_theme: {
+            mode: nextTheme,
+            updated_at: new Date().toISOString(),
+          },
+        }),
+      })
+      const data = await response.json()
+      if (response.ok && data.profile) applyServerProfile(data.profile)
+    } catch {
+      // Theme still applies locally via next-themes
+    }
+  }
+
+  useEffect(() => {
+    if (!mounted || !user) return
+    const saved =
+      (user.theme_preferences && typeof user.theme_preferences === "object"
+        ? (user.theme_preferences as { mode?: string }).mode
+        : undefined) ||
+      (user.theme_data && typeof user.theme_data === "object"
+        ? (user.theme_data as { mode?: string }).mode
+        : undefined)
+    if (saved && ["light", "dark", "system"].includes(saved) && theme !== saved) {
+      setTheme(saved)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, user?.id])
+
+  if (!user) {
+    return <p className="text-muted-foreground">Sign in to manage settings.</p>
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="space-y-6">
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="profile" className="flex items-center gap-2">
-            <User className="w-4 h-4" />
-            Profile
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:grid-cols-4">
+          <TabsTrigger value="profile" className="rounded-xl data-[state=active]:bg-background">
+            <User className="mr-2 h-4 w-4" /> Profile
           </TabsTrigger>
-          <TabsTrigger value="appearance" className="flex items-center gap-2">
-            <Palette className="w-4 h-4" />
-            Appearance
+          <TabsTrigger value="appearance" className="rounded-xl data-[state=active]:bg-background">
+            <Palette className="mr-2 h-4 w-4" /> Appearance
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center gap-2">
-            <Bell className="w-4 h-4" />
-            Notifications
+          <TabsTrigger value="notifications" className="rounded-xl data-[state=active]:bg-background">
+            <Bell className="mr-2 h-4 w-4" /> Alerts
           </TabsTrigger>
-          <TabsTrigger value="privacy" className="flex items-center gap-2">
-            <Shield className="w-4 h-4" />
-            Privacy
-          </TabsTrigger>
-          <TabsTrigger value="advanced" className="flex items-center gap-2">
-            <Globe className="w-4 h-4" />
-            Advanced
+          <TabsTrigger value="privacy" className="rounded-xl data-[state=active]:bg-background">
+            <Shield className="mr-2 h-4 w-4" /> Privacy
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="profile" className="space-y-6">
-          <Card className="border-violet-500/20 bg-violet-500/5">
+        <TabsContent value="profile" className="space-y-4">
+          <Card>
             <CardHeader>
               <CardTitle>Invite friends</CardTitle>
-              <CardDescription>Grow your network with a personal invite link.</CardDescription>
+              <CardDescription>Share Loop with people who should be in your circles.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button asChild className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500">
-                <a href="/invite">Open invite flow</a>
+              <Button asChild className="rounded-full">
+                <Link href="/invite"><Users className="mr-2 h-4 w-4" /> Open invite flow</Link>
               </Button>
             </CardContent>
           </Card>
+
           <Card>
             <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>
-                Update your profile details and personal information.
-              </CardDescription>
+              <CardTitle>Profile</CardTitle>
+              <CardDescription>These details appear on your public profile.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Avatar Section */}
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-4">
                 <div className="relative">
-                  <Avatar className="w-24 h-24">
-                    <AvatarImage src={user?.avatar_url} />
-                    <AvatarFallback className="text-2xl">
-                      {formData.display_name.charAt(0)}
-                    </AvatarFallback>
+                  <Avatar className="h-20 w-20">
+                    <AvatarImage src={user.avatar_url} />
+                    <AvatarFallback>{formData.display_name.charAt(0) || "U"}</AvatarFallback>
                   </Avatar>
                   <Button
                     size="icon"
-                    className="absolute -bottom-2 -right-2 rounded-full w-8 h-8"
-                    onClick={() => document.getElementById('avatar-upload')?.click()}
+                    className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full"
+                    disabled={uploading}
+                    onClick={() => document.getElementById("avatar-upload")?.click()}
                   >
-                    <Camera className="w-4 h-4" />
+                    <Camera className="h-4 w-4" />
                   </Button>
-                  <input
-                    id="avatar-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarUpload}
-                  />
+                  <input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold">{formData.display_name}</h3>
-                    {user?.is_verified && (
-                      <Badge variant="secondary" className="text-blue-600">
-                        <Star className="w-3 h-3 mr-1" />
-                        Verified
-                      </Badge>
-                    )}
-                    {user?.is_premium && (
-                      <Badge className="bg-gradient-to-r from-purple-600 to-blue-600">
-                        <Crown className="w-3 h-3 mr-1" />
-                        Premium
-                      </Badge>
-                    )}
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-semibold">{formData.display_name || "Your name"}</h3>
+                    {user.is_verified && <Badge variant="secondary"><Star className="mr-1 h-3 w-3" />Verified</Badge>}
+                    {user.is_premium && <Badge><Crown className="mr-1 h-3 w-3" />Premium</Badge>}
                   </div>
-                  <p className="text-sm text-gray-600">@{formData.username}</p>
+                  <p className="text-sm text-muted-foreground">@{formData.username}</p>
+                  {uploading && <p className="text-xs text-muted-foreground">Uploading avatar…</p>}
                 </div>
               </div>
 
-              {/* Form Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="display_name">Display Name</Label>
+                  <Label htmlFor="display_name">Display name</Label>
                   <Input
                     id="display_name"
                     value={formData.display_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, display_name: e.target.value }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, display_name: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    value={formData.username}
-                    onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                    disabled
-                  />
-                  <p className="text-xs text-gray-500">Username cannot be changed</p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  />
+                  <Input id="username" value={formData.username} disabled />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="website">Website</Label>
                   <Input
                     id="website"
                     value={formData.website}
-                    onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
-                    placeholder="https://example.com"
+                    onChange={(e) => setFormData((prev) => ({ ...prev, website: e.target.value }))}
+                    placeholder="https://"
                   />
                 </div>
                 <div className="space-y-2">
@@ -245,24 +314,9 @@ export function EnhancedSettings() {
                   <Input
                     id="location"
                     value={formData.location}
-                    onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
                     placeholder="City, Country"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="language">Language</Label>
-                  <Select value={formData.language} onValueChange={(value) => setFormData(prev => ({ ...prev, language: value }))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {languages.map((lang) => (
-                        <SelectItem key={lang.code} value={lang.code}>
-                          {lang.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
 
@@ -271,227 +325,167 @@ export function EnhancedSettings() {
                 <Textarea
                   id="bio"
                   value={formData.bio}
-                  onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
-                  placeholder="Tell us about yourself..."
-                  className="min-h-[100px]"
+                  maxLength={500}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, bio: e.target.value }))}
+                  className="min-h-[110px]"
                 />
-                <p className="text-xs text-gray-500">{formData.bio.length}/500 characters</p>
+                <p className="text-xs text-muted-foreground">{formData.bio.length}/500</p>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="appearance" className="space-y-6">
+        <TabsContent value="appearance" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Theme & Appearance</CardTitle>
+              <CardTitle>Color theme</CardTitle>
               <CardDescription>
-                Customize how Loop looks and feels for you.
+                Switch between light and dark. Current: {mounted ? resolvedTheme || theme : "…"}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <Label>Color Theme</Label>
-                <div className="grid grid-cols-3 gap-4">
-                  {themes.map((themeOption) => {
-                    const Icon = themeOption.icon
-                    return (
-                      <Button
-                        key={themeOption.id}
-                        variant={theme === themeOption.id ? "default" : "outline"}
-                        onClick={() => setTheme(themeOption.id)}
-                        className="flex items-center gap-2 h-12"
-                      >
-                        <Icon className="w-4 h-4" />
-                        {themeOption.name}
-                      </Button>
-                    )
-                  })}
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {themeOptions.map((option) => {
+                  const Icon = option.icon
+                  const active = mounted && theme === option.id
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => void applyAppearance(option.id)}
+                      className={cn(
+                        "rounded-2xl border p-4 text-left transition",
+                        active
+                          ? "border-primary bg-primary/10 shadow-sm"
+                          : "border-border bg-card hover:bg-muted/50",
+                      )}
+                    >
+                      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <p className="font-medium">{option.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{option.description}</p>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-border bg-background p-4">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Light preview</p>
+                  <div className="rounded-xl bg-white p-3 text-slate-900 shadow-sm">
+                    <div className="mb-2 h-2 w-1/2 rounded bg-slate-200" />
+                    <div className="h-2 w-3/4 rounded bg-slate-100" />
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-border bg-background p-4">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Dark preview</p>
+                  <div className="rounded-xl bg-slate-950 p-3 text-slate-100 shadow-sm">
+                    <div className="mb-2 h-2 w-1/2 rounded bg-slate-700" />
+                    <div className="h-2 w-3/4 rounded bg-slate-800" />
+                  </div>
                 </div>
               </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Profile Theme Customization</Label>
-                    <p className="text-sm text-gray-500">
-                      Customize your profile colors and animations
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowThemeCustomizer(true)}
-                  >
-                    <Palette className="w-4 h-4 mr-2" />
-                    Customize
-                  </Button>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="notifications" className="space-y-6">
+        <TabsContent value="notifications" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
-              <CardDescription>
-                Choose what notifications you want to receive.
-              </CardDescription>
+              <CardTitle>Notifications</CardTitle>
+              <CardDescription>Choose what Loop can notify you about.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                {Object.entries(formData.notifications).map(([key, value]) => (
-                  <div key={key} className="flex items-center justify-between">
-                    <div>
-                      <Label className="capitalize">
-                        {key.replace(/_/g, ' ')}
-                      </Label>
-                    </div>
-                    <Switch
-                      checked={value}
-                      onCheckedChange={(checked) =>
-                        setFormData(prev => ({
-                          ...prev,
-                          notifications: { ...prev.notifications, [key]: checked }
-                        }))
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="privacy" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Privacy Settings</CardTitle>
-              <CardDescription>
-                Control who can see your content and contact you.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Profile Visibility</Label>
-                  <Select
-                    value={formData.privacy.profile_visibility}
-                    onValueChange={(value) =>
-                      setFormData(prev => ({
+            <CardContent className="space-y-4">
+              {(
+                [
+                  ["email_notifications", "Email notifications"],
+                  ["push_notifications", "Push notifications"],
+                  ["loop_likes", "Likes on your loops"],
+                  ["loop_comments", "Comments"],
+                  ["new_followers", "New followers"],
+                  ["mentions", "Mentions"],
+                  ["circle_invites", "Circle invites"],
+                  ["promotional", "Product tips & promos"],
+                ] as const
+              ).map(([key, label]) => (
+                <div key={key} className="flex items-center justify-between gap-4 rounded-xl border border-border px-3 py-3">
+                  <Label htmlFor={key}>{label}</Label>
+                  <Switch
+                    id={key}
+                    checked={formData.notifications[key]}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({
                         ...prev,
-                        privacy: { ...prev.privacy, profile_visibility: value }
+                        notifications: { ...prev.notifications, [key]: checked },
                       }))
                     }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="public">Public</SelectItem>
-                      <SelectItem value="followers">Followers Only</SelectItem>
-                      <SelectItem value="private">Private</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  />
                 </div>
-
-                {Object.entries(formData.privacy)
-                  .filter(([key]) => key !== 'profile_visibility')
-                  .map(([key, value]) => (
-                    <div key={key} className="flex items-center justify-between">
-                      <div>
-                        <Label className="capitalize">
-                          {key.replace(/_/g, ' ')}
-                        </Label>
-                      </div>
-                      <Switch
-                        checked={value as boolean}
-                        onCheckedChange={(checked) =>
-                          setFormData(prev => ({
-                            ...prev,
-                            privacy: { ...prev.privacy, [key]: checked }
-                          }))
-                        }
-                      />
-                    </div>
-                  ))}
-              </div>
+              ))}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="advanced" className="space-y-6">
+        <TabsContent value="privacy" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Account Management</CardTitle>
-              <CardDescription>
-                Advanced account settings and data management.
-              </CardDescription>
+              <CardTitle>Privacy</CardTitle>
+              <CardDescription>Control who can see and contact you.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <Button variant="outline" className="w-full justify-start">
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Export Account Data
-                </Button>
-                
-                <Button variant="outline" className="w-full justify-start">
-                  <Eye className="w-4 h-4 mr-2" />
-                  Download Data Archive
-                </Button>
-                
-                <div className="border-t pt-4">
-                  <h4 className="font-medium text-red-600 mb-2">Danger Zone</h4>
-                  <Button
-                    variant="destructive"
-                    className="w-full justify-start"
-                    onClick={handleDeleteAccount}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Account
-                  </Button>
-                  <p className="text-xs text-gray-500 mt-2">
-                    This action cannot be undone. All your data will be permanently deleted.
-                  </p>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Profile visibility</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {["public", "private"].map((value) => (
+                    <Button
+                      key={value}
+                      type="button"
+                      variant={formData.privacy.profile_visibility === value ? "default" : "outline"}
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          privacy: { ...prev.privacy, profile_visibility: value },
+                        }))
+                      }
+                    >
+                      {value}
+                    </Button>
+                  ))}
                 </div>
               </div>
+              {(
+                [
+                  ["show_email", "Show email on profile"],
+                  ["allow_messages", "Allow direct messages"],
+                  ["allow_friend_requests", "Allow follow requests / connects"],
+                ] as const
+              ).map(([key, label]) => (
+                <div key={key} className="flex items-center justify-between gap-4 rounded-xl border border-border px-3 py-3">
+                  <Label htmlFor={key}>{label}</Label>
+                  <Switch
+                    id={key}
+                    checked={formData.privacy[key]}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        privacy: { ...prev.privacy, [key]: checked },
+                      }))
+                    }
+                  />
+                </div>
+              ))}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      <div className="flex justify-end gap-4">
-        <Button variant="outline" onClick={() => window.location.reload()}>
-          Cancel
-        </Button>
-        <Button onClick={handleSave} disabled={loading}>
-          {loading ? (
-            <>
-              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4 mr-2" />
-              Save Changes
-            </>
-          )}
+      <div className="sticky bottom-20 z-20 flex justify-end gap-2 rounded-2xl border border-border bg-background/90 p-3 shadow-lg backdrop-blur lg:bottom-4">
+        <Button onClick={saveSettings} disabled={loading} className="rounded-full px-6">
+          <Save className="mr-2 h-4 w-4" />
+          {loading ? "Saving…" : "Save changes"}
         </Button>
       </div>
-
-      <ProfileThemeCustomizer
-        open={showThemeCustomizer}
-        onOpenChange={setShowThemeCustomizer}
-        currentTheme={user?.profile_theme}
-        onThemeUpdate={(theme) => {
-          // Handle theme update
-          toast({
-            title: "Theme updated",
-            description: "Your profile theme has been updated.",
-          })
-        }}
-      />
     </div>
   )
 }
