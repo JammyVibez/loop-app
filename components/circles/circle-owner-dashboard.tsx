@@ -113,7 +113,7 @@ interface CircleRoom {
 }
 
 export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
-  const { user } = useAuth()
+  const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   
   // State management
@@ -159,12 +159,103 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
     max_participants: 50
   })
   
-  const [newRoom, setNewRoom] = useState({
+  const [newRoom, setNewRoom] = useState<{
+    name: string
+    description: string
+    type: 'text' | 'voice' | 'video'
+    is_private: boolean
+  }>({
     name: '',
     description: '',
-    type: 'text\' as \'text\' | \'voice\' | \'video',
+    type: 'text',
     is_private: false
   })
+
+  const authHeaders = () => ({
+    ...getAuthHeader(),
+    ...(user?.token || user?.access_token
+      ? { Authorization: `Bearer ${user.access_token || user.token}` }
+      : {}),
+  })
+
+  const mapMember = (member: any): CircleMember => {
+    const profile = Array.isArray(member?.user) ? member.user[0] : member?.user || member
+    return {
+      id: profile?.id || member?.user_id || member?.id,
+      username: profile?.username || "member",
+      display_name: profile?.display_name || profile?.username || "Member",
+      avatar_url: profile?.avatar_url,
+      is_premium: Boolean(profile?.is_premium),
+      is_verified: Boolean(profile?.is_verified),
+      role: (member?.role || "member") as CircleMember["role"],
+      joined_at: member?.joined_at || new Date().toISOString(),
+      last_active: profile?.last_active,
+      contribution_score: Number(member?.contribution_score || 0),
+      badges: Array.isArray(member?.badges) ? member.badges : [],
+      status: (member?.status || "active") as CircleMember["status"],
+      ban_reason: member?.ban_reason,
+      banned_until: member?.banned_until,
+    }
+  }
+
+  const mapPost = (post: any): CirclePost => {
+    const author = Array.isArray(post?.author) ? post.author[0] : post?.author
+    return {
+      id: post?.id,
+      author: author || {
+        id: post?.author_id,
+        username: "member",
+        display_name: "Member",
+        is_premium: false,
+        is_verified: false,
+      },
+      content: post?.content || "",
+      media_url: post?.media_url || undefined,
+      media_type: post?.media_type || undefined,
+      timestamp: post?.timestamp || post?.created_at || new Date().toISOString(),
+      likes: Number(post?.likes ?? post?.like_count ?? 0),
+      comments: Number(post?.comments ?? post?.comment_count ?? 0),
+      shares: Number(post?.shares ?? post?.share_count ?? 0),
+      is_liked: Boolean(post?.is_liked),
+      is_bookmarked: Boolean(post?.is_bookmarked),
+      is_pinned: Boolean(post?.is_pinned),
+      hashtags: Array.isArray(post?.hashtags) ? post.hashtags : [],
+      mentions: Array.isArray(post?.mentions) ? post.mentions : [],
+    }
+  }
+
+  const mapCircle = (raw: any): Circle => {
+    const owner = Array.isArray(raw?.owner) ? raw.owner[0] : raw?.owner || {}
+    const stats = raw?.stats || {}
+    return {
+      id: raw.id,
+      name: raw.name || "Circle",
+      description: raw.description || "",
+      avatar_url: raw.avatar_url || "",
+      banner_url: raw.banner_url || "",
+      member_count: Number(raw.member_count ?? stats.member_count ?? 0),
+      is_private: Boolean(raw.is_private),
+      is_member: Boolean(raw.is_member),
+      is_admin: Boolean(raw.is_admin || raw.user_role === "admin" || raw.user_role === "owner"),
+      is_moderator: Boolean(raw.is_moderator || raw.user_role === "moderator"),
+      is_owner: Boolean(raw.is_owner || raw.user_role === "owner"),
+      category: raw.category || "general",
+      created_at: raw.created_at || new Date().toISOString(),
+      owner: {
+        id: owner.id || raw.owner_id || "",
+        username: owner.username || "owner",
+        display_name: owner.display_name || owner.username || "Owner",
+        avatar_url: owner.avatar_url || "",
+      },
+      rules: Array.isArray(raw.rules) ? raw.rules : [],
+      stats: {
+        total_posts: Number(stats.total_posts ?? stats.post_count ?? 0),
+        total_comments: Number(stats.total_comments ?? stats.comment_count ?? 0),
+        active_members: Number(stats.active_members ?? stats.member_count ?? raw.member_count ?? 0),
+        weekly_growth: Number(stats.weekly_growth ?? 0),
+      },
+    }
+  }
 
   // Load pending members
   const loadPendingMembers = async () => {
@@ -172,12 +263,12 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
 
     try {
       const response = await fetch(`/api/circles/${circleId}/members/pending`, {
-        headers: { 'Authorization': `Bearer ${user.token}` }
+        headers: authHeaders(),
       })
 
       if (response.ok) {
         const data = await response.json()
-        setPendingMembers(data.pending_members || [])
+        setPendingMembers((data.pending_members || []).map(mapMember))
       }
     } catch (error) {
       console.error('Failed to load pending members:', error)
@@ -198,7 +289,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
+          ...authHeaders()
         },
         body: JSON.stringify({ memberId, action, role })
       })
@@ -211,17 +302,15 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         if (action === 'approve') {
           const approvedMember = pendingMembers.find(member => member.id === memberId);
           if (approvedMember) {
-            setMembers(prev => [...prev, {
-              ...approvedMember.profile,
-              id: approvedMember.id,
-              role: role,
+            setMembers(prev => [...prev, mapMember({
+              ...approvedMember,
+              role,
               status: 'active',
               joined_at: new Date().toISOString(),
               contribution_score: 0,
               badges: [],
-              is_premium: approvedMember.profile.is_premium || false,
-              is_verified: approvedMember.profile.is_verified || false
-            }]);
+              user: approvedMember.profile || approvedMember.user || approvedMember,
+            })]);
           }
         }
         
@@ -240,54 +329,58 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
   // Load circle data
   useEffect(() => {
     const loadCircleData = async () => {
-      if (!user) return
+      if (!user) {
+        setLoading(false)
+        return
+      }
       
       setLoading(true)
       try {
         let loadedCircleData: any = null
         // Load circle details
         const circleResponse = await fetch(`/api/circles/${circleId}`, {
-          headers: { 'Authorization': `Bearer ${user.token}` }
+          headers: authHeaders(),
         })
         
         if (circleResponse.ok) {
           const circleData = await circleResponse.json()
           loadedCircleData = circleData
-          setCircle(circleData.circle)
+          const mapped = mapCircle(circleData.circle || circleData)
+          setCircle(mapped)
           setEditCircleForm({
-            name: circleData.circle.name,
-            description: circleData.circle.description,
-            category: circleData.circle.category,
-            is_private: circleData.circle.is_private,
-            avatar_url: circleData.circle.avatar_url,
-            banner_url: circleData.circle.banner_url,
-            rules: circleData.circle.rules || []
+            name: mapped.name,
+            description: mapped.description,
+            category: mapped.category,
+            is_private: mapped.is_private,
+            avatar_url: mapped.avatar_url,
+            banner_url: mapped.banner_url,
+            rules: mapped.rules || []
           })
         }
 
         // Load members
         const membersResponse = await fetch(`/api/circles/${circleId}/members`, {
-          headers: { 'Authorization': `Bearer ${user.token}` }
+          headers: authHeaders(),
         })
         
         if (membersResponse.ok) {
           const membersData = await membersResponse.json()
-          setMembers(membersData.members || [])
+          setMembers((membersData.members || []).map(mapMember))
         }
 
         // Load posts
         const postsResponse = await fetch(`/api/circles/${circleId}/posts`, {
-          headers: { 'Authorization': `Bearer ${user.token}` }
+          headers: authHeaders(),
         })
         
         if (postsResponse.ok) {
           const postsData = await postsResponse.json()
-          setPosts(postsData.posts || [])
+          setPosts((postsData.posts || []).map(mapPost))
         }
 
         // Load events
         const eventsResponse = await fetch(`/api/circles/${circleId}/events`, {
-          headers: { 'Authorization': `Bearer ${user.token}` }
+          headers: authHeaders(),
         })
         
         if (eventsResponse.ok) {
@@ -297,7 +390,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
 
         // Load rooms
         const roomsResponse = await fetch(`/api/circles/${circleId}/rooms`, {
-          headers: { 'Authorization': `Bearer ${user.token}` }
+          headers: authHeaders(),
         })
         
         if (roomsResponse.ok) {
@@ -306,8 +399,8 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         }
 
         // Load pending members if circle is private
-        if (loadedCircleData?.circle?.is_private) {
-          loadPendingMembers()
+        if (loadedCircleData?.circle?.is_private || loadedCircleData?.is_private) {
+          void loadPendingMembers()
         }
       } catch (error) {
         console.error('Failed to load circle data:', error)
@@ -321,8 +414,9 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
       }
     }
 
-    loadCircleData()
-  }, [circleId, user])
+    void loadCircleData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [circleId, user?.id])
 
   // Handle edit circle
   const handleEditCircle = async () => {
@@ -333,7 +427,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
+          ...authHeaders()
         },
         body: JSON.stringify(editCircleForm)
       })
@@ -363,7 +457,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
+          ...authHeaders()
         },
         body: JSON.stringify(newEvent)
       })
@@ -401,7 +495,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
+          ...authHeaders()
         },
         body: JSON.stringify(newRoom)
       })
@@ -439,7 +533,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${user.token}`
+              ...authHeaders()
             },
             body: JSON.stringify({ targetUserId: memberId, newRole: roleForAction })
           })
@@ -447,7 +541,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
             method: action === 'unban' ? 'PUT' : 'DELETE',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${user.token}`
+              ...authHeaders()
             },
             body: action === 'unban' ? JSON.stringify({ targetUserId: memberId, newRole: 'member', status: 'active' }) : undefined
           })
@@ -484,7 +578,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         method: action === 'delete' ? 'DELETE' : 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
+          ...authHeaders()
         },
         body: action === 'pin' ? JSON.stringify({ postId, is_pinned: true }) : undefined
       })
@@ -518,7 +612,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
       const response = await fetch(`/api/circles/${circleId}/events?eventId=${eventId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${user.token}`
+          ...authHeaders()
         }
       })
 
@@ -557,11 +651,13 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
 
   // Filter members
   const filteredMembers = members.filter(member => {
-    const matchesSearch = member.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         member.username.toLowerCase().includes(searchTerm.toLowerCase())
+    const name = (member.display_name || "").toLowerCase()
+    const username = (member.username || "").toLowerCase()
+    const term = searchTerm.toLowerCase()
+    const matchesSearch = !term || name.includes(term) || username.includes(term)
     
     const matchesRole = filterRole === 'all' || member.role === filterRole
-    const matchesStatus = filterStatus === 'all' || member.status === filterStatus
+    const matchesStatus = filterStatus === 'all' || (member.status || 'active') === filterStatus
     
     return matchesSearch && matchesRole && matchesStatus
   })

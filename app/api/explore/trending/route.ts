@@ -1,105 +1,166 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { NextRequest, NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase"
+import { normalizeLoops } from "@/lib/normalize-loop"
+
+function engagementScore(loop: any) {
+  const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats
+  return (
+    Number(stats?.likes_count || 0) * 3 +
+    Number(stats?.comments_count || 0) * 4 +
+    Number(stats?.branches_count || 0) * 5 +
+    Number(stats?.shares_count || 0) * 4 +
+    Number(stats?.views_count || 0)
+  )
+}
+
+async function getUserFromRequest(request: NextRequest) {
+  const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
+  if (!token) return null
+  const supabase = createServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser(token)
+  return user || null
+}
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = createServerClient()
     const { searchParams } = new URL(request.url)
-    const type = searchParams.get('type') || 'hashtags'
-    const limit = parseInt(searchParams.get('limit') || '20')
+    const type = searchParams.get("type") || "hashtags"
+    const sort = searchParams.get("sort") || "recent"
+    const limit = Math.min(Number.parseInt(searchParams.get("limit") || "20", 10) || 20, 50)
+    const user = await getUserFromRequest(request)
 
     switch (type) {
-      case 'hashtags':
-        // Get trending hashtags from the last 7 days
-        const { data: hashtags, error: hashtagError } = await supabase
-          .rpc('get_trending_hashtags', { 
-            days_back: 7,
-            result_limit: limit 
-          })
+      case "hashtags": {
+        const { data: hashtags, error: hashtagError } = await supabase.rpc("get_trending_hashtags", {
+          days_back: 7,
+          result_limit: limit,
+        })
 
         if (hashtagError) {
-          console.error('Error fetching trending hashtags:', hashtagError)
-          // Fallback when RPC is missing: derive from loops.hashtags
           const { data: loops } = await supabase
-            .from('loops')
-            .select('hashtags')
-            .not('hashtags', 'is', null)
-            .order('created_at', { ascending: false })
-            .limit(100)
+            .from("loops")
+            .select("hashtags")
+            .not("hashtags", "is", null)
+            .order("created_at", { ascending: false })
+            .limit(120)
 
           const counts = new Map<string, number>()
           for (const loop of loops || []) {
             for (const tag of loop.hashtags || []) {
-              const key = String(tag).toLowerCase()
+              const key = String(tag).toLowerCase().replace(/^#/, "")
+              if (!key) continue
               counts.set(key, (counts.get(key) || 0) + 1)
             }
           }
-          const hashtags = Array.from(counts.entries())
+
+          const derived = Array.from(counts.entries())
             .sort((a, b) => b[1] - a[1])
             .slice(0, limit)
-            .map(([tag, usage_count]) => ({ tag, usage_count }))
+            .map(([tag, usage_count]) => ({ tag, usage_count, count: usage_count, growth: "live" }))
 
-          return NextResponse.json({ data: hashtags, hashtags })
+          return NextResponse.json({ success: true, data: derived, hashtags: derived })
         }
 
-        return NextResponse.json({ data: hashtags, hashtags })
+        const normalized = (hashtags || []).map((row: any) => ({
+          tag: row.tag || row.hashtag,
+          usage_count: Number(row.usage_count ?? row.count ?? 0),
+          count: Number(row.usage_count ?? row.count ?? 0),
+          growth: row.growth ?? "hot",
+        }))
+        return NextResponse.json({ success: true, data: normalized, hashtags: normalized })
+      }
 
-      case 'users':
-        // Get trending users based on recent activity
+      case "users": {
         const { data: users, error: usersError } = await supabase
-          .from('profiles')
-          .select(`
-            *,
-            follower_count:followers(count),
-            loop_count:loops(count)
-          `)
-          .order('created_at', { ascending: false })
+          .from("profiles")
+          .select("id, username, display_name, avatar_url, is_verified, is_premium, bio, created_at")
+          .order("created_at", { ascending: false })
           .limit(limit)
 
         if (usersError) {
-          console.error('Error fetching trending users:', usersError)
-          return NextResponse.json({ error: 'Failed to fetch trending users' }, { status: 500 })
+          return NextResponse.json({ error: "Failed to fetch trending users" }, { status: 500 })
         }
 
-        return NextResponse.json({ data: users })
+        return NextResponse.json({ success: true, data: users || [] })
+      }
 
-      case 'loops':
-        // Get trending loops based on interactions
+      case "loops": {
+        const fetchLimit = sort === "creative" || sort === "deepest" ? Math.max(limit * 4, 40) : limit
         const { data: loops, error: loopsError } = await supabase
-          .from('loops')
+          .from("loops")
           .select(`
             *,
-            user:profiles!inner(*),
-            interaction_count:loop_interactions(count),
-            comment_count:comments(count)
+            author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+            loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
           `)
-          .order('created_at', { ascending: false })
-          .limit(limit)
+          .is("parent_loop_id", null)
+          .eq("visibility", "public")
+          .order("created_at", { ascending: false })
+          .limit(fetchLimit)
 
         if (loopsError) {
-          console.error('Error fetching trending loops:', loopsError)
-          return NextResponse.json({ error: 'Failed to fetch trending loops' }, { status: 500 })
+          console.error("Error fetching explore loops:", loopsError)
+          return NextResponse.json({ error: loopsError.message || "Failed to fetch loops" }, { status: 500 })
         }
 
-        return NextResponse.json({ data: loops })
+        let rows = loops || []
+        if (sort === "creative") {
+          rows = [...rows].sort((a, b) => engagementScore(b) - engagementScore(a)).slice(0, limit)
+        } else if (sort === "deepest") {
+          rows = [...rows]
+            .sort((a, b) => {
+              const aStats = Array.isArray(a.loop_stats) ? a.loop_stats[0] : a.loop_stats
+              const bStats = Array.isArray(b.loop_stats) ? b.loop_stats[0] : b.loop_stats
+              const aDepth = Number(a.tree_depth || aStats?.branches_count || 0)
+              const bDepth = Number(b.tree_depth || bStats?.branches_count || 0)
+              return bDepth - aDepth || engagementScore(b) - engagementScore(a)
+            })
+            .slice(0, limit)
+        } else {
+          rows = rows.slice(0, limit)
+        }
+
+        const interactionMap = new Map<string, string[]>()
+        if (user && rows.length > 0) {
+          const { data: interactions } = await supabase
+            .from("loop_interactions")
+            .select("loop_id, interaction_type")
+            .eq("user_id", user.id)
+            .in(
+              "loop_id",
+              rows.map((loop) => loop.id),
+            )
+
+          interactions?.forEach((interaction) => {
+            if (!interactionMap.has(interaction.loop_id)) interactionMap.set(interaction.loop_id, [])
+            interactionMap.get(interaction.loop_id)?.push(interaction.interaction_type)
+          })
+        }
+
+        const normalized = normalizeLoops(rows, interactionMap)
+        return NextResponse.json({ success: true, data: normalized, loops: normalized })
+      }
 
       default:
-        return NextResponse.json({ error: 'Invalid type parameter' }, { status: 400 })
+        return NextResponse.json({ error: "Invalid type parameter" }, { status: 400 })
     }
   } catch (error) {
-    console.error('Trending API error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error("Trending API error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
+    const authHeader = request.headers.get("authorization")
     if (!authHeader) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const token = authHeader.replace('Bearer ', '')
+    const token = authHeader.replace("Bearer ", "")
     const supabase = createServerClient()
     const {
       data: { user },
@@ -107,33 +168,30 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser(token)
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const body = await request.json()
     const { hashtag, loop_id } = body
 
     if (!hashtag || !loop_id) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Record hashtag usage
-    const { error } = await supabase
-      .from('hashtag_usage')
-      .insert({
-        hashtag: hashtag.toLowerCase(),
-        loop_id,
-        user_id: user.id
-      })
+    const { error } = await supabase.from("hashtag_usage").insert({
+      hashtag: String(hashtag).toLowerCase(),
+      loop_id,
+      user_id: user.id,
+    })
 
     if (error) {
-      console.error('Error recording hashtag usage:', error)
-      return NextResponse.json({ error: 'Failed to record hashtag usage' }, { status: 500 })
+      console.error("Error recording hashtag usage:", error)
+      return NextResponse.json({ error: "Failed to record hashtag usage" }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Hashtag tracking error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error("Hashtag tracking error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

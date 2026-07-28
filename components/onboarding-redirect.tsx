@@ -11,6 +11,7 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
   const [redirecting, setRedirecting] = useState(false)
   const [forceReady, setForceReady] = useState(false)
 
+  // Profiles are public (API supports username lookup). Keep them browsable during auth hydrate.
   const publicRoutes = [
     "/",
     "/login",
@@ -22,6 +23,10 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
     "/verify-email",
     "/explore",
     "/trending",
+    "/profile",
+    "/invite",
+    "/offline",
+    "/loop",
   ]
   const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
 
@@ -32,7 +37,8 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
   }, [])
 
   useEffect(() => {
-    if (loading && !forceReady) return
+    // Wait for a real auth decision. forceReady alone must NOT mean "logged out".
+    if (loading) return
 
     if (user) {
       if (user.onboarding_completed === false && pathname !== "/onboarding") {
@@ -52,19 +58,22 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
         router.replace("/")
         return
       }
-    } else if (!loading || forceReady) {
-      if (!isPublicRoute && pathname !== "/onboarding") {
-        setRedirecting(true)
-        router.replace("/login")
-        return
-      }
+    } else if (!isPublicRoute && pathname !== "/onboarding") {
+      setRedirecting(true)
+      router.replace("/login")
+      return
     }
 
     setRedirecting(false)
-  }, [user, loading, pathname, router, isPublicRoute, forceReady])
+  }, [user, loading, pathname, router, isPublicRoute])
 
   if (loading && !forceReady) {
     return <PageLoading message="Loading your profile..." />
+  }
+
+  // Auth still resolving after timeout — keep waiting on private routes instead of logging out.
+  if (loading && forceReady && !user && !isPublicRoute) {
+    return <PageLoading message="Restoring your session..." />
   }
 
   if (redirecting) {

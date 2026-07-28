@@ -23,7 +23,7 @@ async function getLoopWithRelations(loopId: string, userId?: string) {
     .eq("id", loopId)
     .single()
 
-  if (error || !loop) return { loop: null, error }
+  if (error || !loop) return { loop: null, branches: [], parentLoop: null, error }
 
   let interactionTypes: string[] = []
   if (userId) {
@@ -35,20 +35,70 @@ async function getLoopWithRelations(loopId: string, userId?: string) {
     interactionTypes = (interactions || []).map((interaction) => interaction.interaction_type)
   }
 
-  return { loop: normalizeLoop(loop, interactionTypes), error: null }
+  const { data: branchData } = await supabase
+    .from("loops")
+    .select(`
+      id, content_title, content_text, created_at,
+      author:profiles!author_id(id, username, display_name, avatar_url)
+    `)
+    .eq("parent_loop_id", loopId)
+    .order("created_at", { ascending: false })
+    .limit(50)
+
+  let parentLoop: any = null
+  if (loop.parent_loop_id) {
+    const { data: parentData } = await supabase
+      .from("loops")
+      .select(`id, content_title, author:profiles!author_id(username, display_name)`)
+      .eq("id", loop.parent_loop_id)
+      .maybeSingle()
+    if (parentData) {
+      const parentAuthor = Array.isArray(parentData.author) ? parentData.author[0] : parentData.author
+      parentLoop = {
+        id: parentData.id,
+        title: parentData.content_title || "Untitled Loop",
+        author: parentAuthor?.username || parentAuthor?.display_name || "",
+      }
+    }
+  }
+
+  const normalized = normalizeLoop(loop, interactionTypes)
+  const branches = (branchData || []).map((branch: any) => {
+    const author = Array.isArray(branch.author) ? branch.author[0] : branch.author
+    return {
+      id: branch.id,
+      title: branch.content_title || branch.content_text?.slice(0, 48) || "Untitled Loop",
+      author: author?.username || "",
+      avatar: author?.avatar_url || "/placeholder.svg",
+      createdAt: branch.created_at,
+    }
+  })
+
+  return {
+    loop: {
+      ...normalized,
+      stats: {
+        ...normalized.stats,
+        branches_count: Math.max(normalized.stats.branches_count, branches.length),
+      },
+    },
+    branches,
+    parentLoop,
+    error: null,
+  }
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
     const user = await getUser(request)
-    const { loop, error } = await getLoopWithRelations(id, user?.id)
+    const { loop, branches, parentLoop, error } = await getLoopWithRelations(id, user?.id)
 
     if (error || !loop) {
       return NextResponse.json({ error: "Loop not found" }, { status: 404 })
     }
 
-    return NextResponse.json({ success: true, loop })
+    return NextResponse.json({ success: true, loop, branches, parentLoop })
   } catch (error: any) {
     console.error("Get loop error:", error)
     return NextResponse.json({ error: "Internal server error", details: error.message }, { status: 500 })

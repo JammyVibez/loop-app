@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   Heart,
@@ -45,6 +45,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { CreateBranchDialog } from "@/components/create-branch-dialog";
+import { normalizeLoop } from "@/lib/normalize-loop";
 
 interface LoopAuthor {
   id: string;
@@ -99,15 +101,18 @@ interface LoopCardProps {
 }
 
 export function LoopCard({
-  loop,
+  loop: rawLoop,
   interacting = null,
-  onInteraction = () => undefined,
+  onInteraction,
   onDeleted,
   onEdited,
   className = "",
 }: LoopCardProps) {
+  const normalized = normalizeLoop(rawLoop)
+  const [loop, setLoop] = useState(normalized)
   const [showFullContent, setShowFullContent] = useState(false);
   const [showGiftModal, setShowGiftModal] = useState(false);
+  const [showBranchDialog, setShowBranchDialog] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editContent, setEditContent] = useState("");
@@ -116,9 +121,23 @@ export function LoopCard({
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const { currentTheme } = useTheme3D();
   const [isAnimating, setIsAnimating] = useState(false);
+  const [localInteracting, setLocalInteracting] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, getAuthHeader } = useAuth();
   const { toast } = useToast();
+  const activeInteracting = interacting ?? localInteracting;
+
+  useEffect(() => {
+    setLoop(normalizeLoop(rawLoop))
+  }, [
+    rawLoop?.id,
+    rawLoop?.content,
+    rawLoop?.content_text,
+    rawLoop?.user_interactions?.is_liked,
+    rawLoop?.user_interactions?.is_saved,
+    rawLoop?.stats?.likes_count,
+    rawLoop?.likes,
+  ])
 
   // Defensive fallback for content and hashtags
   const content = typeof loop.content === "string" ? loop.content : "";
@@ -126,6 +145,63 @@ export function LoopCard({
 
   const contentPreview =
     content.length > 200 ? content.substring(0, 200) + "..." : content;
+
+  const runInteraction = async (type: "like" | "save") => {
+    if (onInteraction) {
+      onInteraction(loop.id, type)
+      return
+    }
+
+    if (!currentUser) {
+      toast({
+        title: "Sign in required",
+        description: "Log in to like, save, gift, and branch loops.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setLocalInteracting(`${loop.id}-${type}`)
+    try {
+      const response = await fetch(`/api/loops/${loop.id}/interactions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ interaction_type: type }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || "Interaction failed")
+      }
+
+      setLoop((prev) => {
+        const next = {
+          ...prev,
+          user_interactions: { ...prev.user_interactions },
+          stats: { ...prev.stats },
+        }
+        if (type === "like") {
+          const liked = Boolean(data.is_liked ?? data.is_active)
+          next.user_interactions.is_liked = liked
+          next.stats.likes_count = Number(data.stats?.likes_count ?? Math.max(0, prev.stats.likes_count + (liked ? 1 : -1)))
+        }
+        if (type === "save") {
+          next.user_interactions.is_saved = Boolean(data.is_saved ?? data.is_active)
+        }
+        return next
+      })
+    } catch (error: any) {
+      toast({
+        title: "Could not update",
+        description: error?.message || "Try again",
+        variant: "destructive",
+      })
+    } finally {
+      setLocalInteracting(null)
+    }
+  }
 
   // Handle share with analytics
   const handleShare = () => {
@@ -137,13 +213,11 @@ export function LoopCard({
       title: "Link Copied!",
       description: "Loop link has been copied to your clipboard.",
     });
-    // Optionally, you can call onInteraction for analytics
-    // if (onInteraction) onInteraction(loop.id, "share");
   };
 
   // Enhanced like animation with gift effects
   const handleLike = () => {
-    onInteraction(loop.id, "like");
+    void runInteraction("like");
     if (!loop.user_interactions.is_liked) {
       setIsAnimating(true);
       setTimeout(() => setIsAnimating(false), 600);
@@ -152,7 +226,15 @@ export function LoopCard({
 
   // Handle branch creation
   const handleBranch = () => {
-    window.location.href = `/loop/${loop.id}`;
+    if (!currentUser) {
+      toast({
+        title: "Sign in required",
+        description: "Log in to create a branch.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setShowBranchDialog(true);
   };
 
   const handleEdit = () => {
@@ -626,9 +708,9 @@ export function LoopCard({
                       ? "text-red-500 scale-110" :"hover:text-red-500 hover:scale-105"
                   }`}
                   onClick={handleLike}
-                  disabled={interacting === `${loop.id}-like`}
+                  disabled={activeInteracting === `${loop.id}-like`}
                 >
-                  {interacting === `${loop.id}-like` ? (
+                  {activeInteracting === `${loop.id}-like` ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Heart
@@ -676,10 +758,10 @@ export function LoopCard({
                     loop.user_interactions.is_saved
                       ? "text-blue-500" :"hover:text-blue-500"
                   }`}
-                  onClick={() => onInteraction(loop.id, "save")}
-                  disabled={interacting === `${loop.id}-save`}
+                  onClick={() => void runInteraction("save")}
+                  disabled={activeInteracting === `${loop.id}-save`}
                 >
-                  {interacting === `${loop.id}-save` ? (
+                  {activeInteracting === `${loop.id}-save` ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Bookmark
@@ -729,6 +811,12 @@ export function LoopCard({
           id: loop.id,
           title: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
         }}
+      />
+
+      <CreateBranchDialog
+        open={showBranchDialog}
+        onOpenChange={setShowBranchDialog}
+        parentLoop={loop}
       />
 
       <ConfirmDialog

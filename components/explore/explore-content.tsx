@@ -1,293 +1,297 @@
-// @ts-nocheck
 "use client"
 
-import { useEffect, useState } from "react"
-import { createClient } from "@supabase/supabase-js"
+import { useCallback, useEffect, useState } from "react"
+import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, TreePine, Sparkles, TrendingUp, Hash } from "lucide-react"
+import { Clock, TreePine, Sparkles, TrendingUp, Hash, Loader2, RefreshCw } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
-import { LoopTreeViewer } from "@/components/loop-tree-viewer"
+import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
+import { normalizeLoops, type NormalizedLoop } from "@/lib/normalize-loop"
+import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
+import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+type ExploreTab = "recent" | "deepest" | "creative" | "hashtags"
+
+interface TrendingHashtag {
+  tag: string
+  usage_count?: number
+  count?: number
+  growth?: string | number
+}
 
 export function ExploreContent() {
-  const [loops, setLoops] = useState<any[]>([])
+  const { user, getAuthHeader } = useAuth()
+  const { toast } = useToast()
+  const [loops, setLoops] = useState<NormalizedLoop[]>([])
+  const [hashtags, setHashtags] = useState<TrendingHashtag[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedTab, setSelectedTab] = useState("recent")
+  const [selectedTab, setSelectedTab] = useState<ExploreTab>("recent")
+  const [interacting, setInteracting] = useState<string | null>(null)
+  const [live, setLive] = useState(false)
+
+  const fetchExplore = useCallback(async (tab: ExploreTab = selectedTab, silent = false) => {
+    if (!silent) setLoading(true)
+    try {
+      if (tab === "hashtags") {
+        const response = await fetch("/api/explore/trending?type=hashtags&limit=24", { cache: "no-store" })
+        const data = await response.json().catch(() => ({}))
+        const rows: TrendingHashtag[] = data.hashtags || data.data || []
+        setHashtags(rows)
+        setLoops([])
+        return
+      }
+
+      const sort = tab === "deepest" ? "deepest" : tab === "creative" ? "creative" : "recent"
+      const response = await fetch(`/api/explore/trending?type=loops&sort=${sort}&limit=24`, {
+        headers: { ...getAuthHeader() },
+        cache: "no-store",
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "Failed to load explore")
+      setLoops(normalizeLoops(data.loops || data.data || []))
+      setHashtags([])
+    } catch (error: any) {
+      console.error("Explore fetch error:", error)
+      if (!silent) {
+        toast({
+          title: "Could not load explore",
+          description: error?.message || "Please try again",
+          variant: "destructive",
+        })
+      }
+    } finally {
+      if (!silent) setLoading(false)
+    }
+  }, [getAuthHeader, selectedTab, toast])
 
   useEffect(() => {
-    const fetchLoops = async () => {
-      setLoading(true)
-      try {
-        let query = supabase
-          .from("loops")
-          .select(`
-            *,
-            user:profiles!inner(*),
-            interactions:loop_interactions(count),
-            comments:comments(count)
-          `)
+    void fetchExplore(selectedTab)
+  }, [selectedTab, fetchExplore])
 
-        // Apply different sorting based on selected tab
-        switch (selectedTab) {
-          case 'recent':
-            query = query.order("created_at", { ascending: false })
-            break
-          case 'deepest':
-            query = query.order("tree_depth", { ascending: false })
-            break
-          case 'creative':
-            query = query.order("likes", { ascending: false })
-            break
-          case 'hashtags':
-            // For hashtags, we'll fetch trending hashtags from API
-            const hashtagResponse = await fetch('/api/explore/trending?type=hashtags&limit=20')
-            if (hashtagResponse.ok) {
-              const { data: hashtagData } = await hashtagResponse.json()
-              if (hashtagData) {
-                setLoops(hashtagData)
-              }
-            }
-            setLoading(false)
-            return
-        }
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient()
+    const refresh = () => void fetchExplore(selectedTab, true)
 
-        const { data, error } = await query.limit(20)
-        
-        if (!error && data) {
-          setLoops(data)
-        }
-      } catch (error) {
-        console.error('Error fetching loops:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchLoops()
-
-    // Enhanced real-time subscription with multiple channels
     const loopsChannel = supabase
-      .channel('public:loops')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'loops'
-      }, (payload) => {
-        console.log('Loop change detected:', payload)
-        fetchLoops()
+      .channel("explore:loops")
+      .on("postgres_changes", { event: "*", schema: "public", table: "loops" }, refresh)
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") setLive(true)
       })
-      .subscribe()
 
     const interactionsChannel = supabase
-      .channel('public:loop_interactions')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'loop_interactions'
-      }, (payload) => {
-        console.log('Interaction change detected:', payload)
-        fetchLoops()
-      })
+      .channel("explore:loop_interactions")
+      .on("postgres_changes", { event: "*", schema: "public", table: "loop_interactions" }, refresh)
       .subscribe()
 
     const commentsChannel = supabase
-      .channel('public:comments')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'comments'
-      }, (payload) => {
-        console.log('Comment change detected:', payload)
-        fetchLoops()
-      })
+      .channel("explore:comments")
+      .on("postgres_changes", { event: "*", schema: "public", table: "comments" }, refresh)
       .subscribe()
 
-    // Periodic refresh every 30 seconds for additional real-time feel
-    const refreshInterval = setInterval(fetchLoops, 30000)
+    const poll = setInterval(refresh, 20000)
 
     return () => {
       supabase.removeChannel(loopsChannel)
       supabase.removeChannel(interactionsChannel)
       supabase.removeChannel(commentsChannel)
-      clearInterval(refreshInterval)
+      clearInterval(poll)
+      setLive(false)
     }
-  }, [selectedTab])
+  }, [fetchExplore, selectedTab])
 
-  const formatNumber = (num: number) => {
-    if (num >= 1000) return (num / 1000).toFixed(1) + "K"
-    return num.toString()
+  const handleInteraction = async (loopId: string, type: "like" | "save") => {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Log in to like, save, gift, and branch loops.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setInteracting(`${loopId}-${type}`)
+    try {
+      const response = await fetch(`/api/loops/${loopId}/interactions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ interaction_type: type }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || "Interaction failed")
+      }
+
+      setLoops((prev) =>
+        prev.map((loop) => {
+          if (loop.id !== loopId) return loop
+          const next = { ...loop, user_interactions: { ...loop.user_interactions }, stats: { ...loop.stats } }
+          if (type === "like") {
+            const liked = Boolean(data.is_liked ?? data.is_active)
+            next.user_interactions.is_liked = liked
+            next.stats.likes_count = Math.max(
+              0,
+              next.stats.likes_count + (liked ? 1 : -1),
+            )
+            if (data.stats?.likes_count != null) next.stats.likes_count = Number(data.stats.likes_count)
+          }
+          if (type === "save") {
+            next.user_interactions.is_saved = Boolean(data.is_saved ?? data.is_active)
+          }
+          return next
+        }),
+      )
+    } catch (error: any) {
+      toast({
+        title: "Could not update",
+        description: error?.message || "Try again",
+        variant: "destructive",
+      })
+    } finally {
+      setInteracting(null)
+    }
   }
 
-  if (loading) return <div>Loading...</div>
+  const formatNumber = (num: number) => {
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
+    return String(num)
+  }
+
+  const renderLoops = (items: NormalizedLoop[], emptyLabel: string) => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center py-16 text-muted-foreground">
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          Loading loops…
+        </div>
+      )
+    }
+
+    if (items.length === 0) {
+      return <EmptyState title={emptyLabel} icon={<Sparkles className="h-6 w-6" />} />
+    }
+
+    return (
+      <div className="space-y-4">
+        {items.map((loop) => (
+          <LoopCard
+            key={loop.id}
+            loop={loop}
+            interacting={interacting}
+            onInteraction={handleInteraction}
+          />
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
-          <TabsTrigger
-            value="recent"
-            className="flex items-center space-x-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-          >
-            <Clock className="w-4 h-4" />
-            <span className="hidden sm:inline">Recent</span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className={`inline-flex h-2 w-2 rounded-full ${live ? "bg-emerald-500" : "bg-amber-500"}`} />
+          {live ? "Live updates connected" : "Refreshing every 20s"}
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => void fetchExplore(selectedTab)}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
+      </div>
+
+      <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as ExploreTab)} className="w-full">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:grid-cols-4">
+          <TabsTrigger value="recent" className="rounded-xl">
+            <Clock className="mr-1.5 h-4 w-4" />
+            Recent
           </TabsTrigger>
-          <TabsTrigger
-            value="deepest"
-            className="flex items-center space-x-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-          >
-            <TreePine className="w-4 h-4" />
-            <span className="hidden sm:inline">Deepest</span>
+          <TabsTrigger value="deepest" className="rounded-xl">
+            <TreePine className="mr-1.5 h-4 w-4" />
+            Deepest
           </TabsTrigger>
-          <TabsTrigger
-            value="creative"
-            className="flex items-center space-x-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span className="hidden sm:inline">Creative</span>
+          <TabsTrigger value="creative" className="rounded-xl">
+            <Sparkles className="mr-1.5 h-4 w-4" />
+            Creative
           </TabsTrigger>
-          <TabsTrigger
-            value="hashtags"
-            className="flex items-center space-x-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-          >
-            <Hash className="w-4 h-4" />
-            <span className="hidden sm:inline">Hashtags</span>
+          <TabsTrigger value="hashtags" className="rounded-xl">
+            <Hash className="mr-1.5 h-4 w-4" />
+            Hashtags
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="recent" className="mt-6">
-          <div className="space-y-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <Clock className="w-5 h-5 text-purple-600" />
-              <h2 className="text-xl font-semibold">Recent Loops</h2>
-              <Badge variant="secondary">Newest first</Badge>
-            </div>
-            {loops.length === 0 && <div>No loops found.</div>}
-            {loops.map((loop) => (
-              <LoopCard
-                key={loop.id}
-                loop={{
-                  id: loop.id,
-                  user: loop.user || loop.author || {},
-                  content: loop.content || "",
-                  media_url: loop.media_url || "",
-                  media_type: loop.media_type || "text",
-                  likes: loop.likes || 0,
-                  comments: loop.comments || 0,
-                  branches: loop.branches || 0,
-                  created_at: loop.created_at,
-                  hashtags: loop.hashtags || [],
-                  is_liked: false,
-                  is_bookmarked: false,
-                  parent_loop_id: loop.parent_loop_id,
-                }}
-                onLike={() => {}}
-                onBookmark={() => {}}
-              />
-            ))}
+        <TabsContent value="recent" className="mt-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold">Recent Loops</h2>
+            <Badge variant="secondary">Newest first</Badge>
           </div>
+          {renderLoops(loops, "No recent loops yet")}
         </TabsContent>
 
-        <TabsContent value="deepest" className="mt-6">
-          <div className="space-y-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <TreePine className="w-5 h-5 text-green-600" />
-              <h2 className="text-xl font-semibold">Deepest Trees</h2>
-              <Badge variant="secondary">Most branches</Badge>
-            </div>
-            {loops.length === 0 && <div>No loops found.</div>}
-            {loops.map((tree) => (
-              <div key={tree.id} className="space-y-4">
-                <Card className="border-l-4 border-l-green-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <TreePine className="w-5 h-5 text-green-600" />
-                        <span className="font-semibold">Tree Depth: {tree.tree_depth} levels</span>
-                      </div>
-                      <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                        {tree.total_branches} branches
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-                <LoopCard loop={tree} />
-                {tree.branches.length > 0 && <LoopTreeViewer rootLoop={tree} />}
-              </div>
-            ))}
+        <TabsContent value="deepest" className="mt-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <TreePine className="h-5 w-5 text-emerald-600" />
+            <h2 className="text-xl font-semibold">Deepest Trees</h2>
+            <Badge variant="secondary">Most branches</Badge>
           </div>
+          {renderLoops(loops, "No branched trees yet")}
         </TabsContent>
 
-        <TabsContent value="creative" className="mt-6">
-          <div className="space-y-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <Sparkles className="w-5 h-5 text-yellow-600" />
-              <h2 className="text-xl font-semibold">Most Creative</h2>
-              <Badge variant="secondary">Highest engagement</Badge>
+        <TabsContent value="creative" className="mt-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-amber-500" />
+            <h2 className="text-xl font-semibold">Most Creative</h2>
+            <Badge variant="secondary">Highest engagement</Badge>
+          </div>
+          {renderLoops(loops, "No creative loops yet")}
+        </TabsContent>
+
+        <TabsContent value="hashtags" className="mt-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Hash className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold">Trending Hashtags</h2>
+            <Badge variant="secondary">Live</Badge>
+          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-16 text-muted-foreground">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Loading hashtags…
             </div>
-            {loops.length === 0 && <div>No loops found.</div>}
-            {loops.map((loop) => (
-              <div key={loop.id} className="space-y-4">
-                <Card className="border-l-4 border-l-yellow-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <Sparkles className="w-5 h-5 text-yellow-600" />
-                        <span className="font-semibold">Creativity Score: {loop.creativity_score}%</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {loop.unique_tags.map((tag) => (
-                          <Badge key={tag} variant="outline" className="text-xs">
-                            #{tag}
+          ) : hashtags.length === 0 ? (
+            <EmptyState title="No hashtags trending yet" icon={<Hash className="h-6 w-6" />} />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {hashtags.map((hashtag, index) => {
+                const count = Number(hashtag.usage_count ?? hashtag.count ?? 0)
+                return (
+                  <Link key={hashtag.tag} href={`/hashtag/${encodeURIComponent(hashtag.tag)}`}>
+                    <Card className="transition hover:bg-muted/40">
+                      <CardContent className="p-4">
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl font-bold text-muted-foreground">#{index + 1}</span>
+                            <Hash className="h-5 w-5 text-primary" />
+                          </div>
+                          <Badge variant="secondary" className="gap-1">
+                            <TrendingUp className="h-3 w-3" />
+                            {hashtag.growth ?? "hot"}
                           </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <LoopCard loop={loop} />
-              </div>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="hashtags" className="mt-6">
-          <div className="space-y-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <Hash className="w-5 h-5 text-purple-600" />
-              <h2 className="text-xl font-semibold">Trending Hashtags</h2>
-              <Badge variant="secondary">24h growth</Badge>
+                        </div>
+                        <h3 className="text-lg font-bold text-primary">#{hashtag.tag}</h3>
+                        <p className="text-sm text-muted-foreground">{formatNumber(count)} loops</p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                )
+              })}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {loops.length === 0 && <div>No loops found.</div>}
-              {loops.map((hashtag, index) => (
-                <Card key={hashtag.tag} className="hover:shadow-lg transition-shadow cursor-pointer">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-2xl font-bold text-gray-400">#{index + 1}</span>
-                        <Hash className="w-5 h-5 text-purple-600" />
-                      </div>
-                      <Badge
-                        variant="secondary"
-                        className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                      >
-                        <TrendingUp className="w-3 h-3 mr-1" />
-                        {hashtag.growth}
-                      </Badge>
-                    </div>
-                    <h3 className="text-lg font-bold text-purple-600 dark:text-purple-400">#{hashtag.tag}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{formatNumber(hashtag.count)} loops</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
