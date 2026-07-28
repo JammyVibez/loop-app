@@ -37,5 +37,5 @@
       "schedule": "0 0 * * 0"
     }
   ],
-  "installCommand": "npm ci"
+  "installCommand": "npm install --legacy-peer-deps"
 }
