@@ -463,275 +463,278 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div className="container mx-auto px-4 py-6 max-w-6xl">
-        {/* Circle Header */}
-        <Card className="mb-6 overflow-hidden">
-          <div
-            className="h-48 bg-gradient-to-r from-purple-600 to-blue-600 relative"
-            style={{
-              backgroundImage: circle.banner_url ? `url(${circle.banner_url})` : undefined,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
-          >
-            <div className="absolute inset-0 bg-black/30" />
-            <div className="absolute top-4 right-4 flex space-x-2">
-              {circle.is_private ? (
-                <Badge className="bg-gray-800/80 text-white">
-                  <Lock className="w-3 h-3 mr-1" />
-                  Private
-                </Badge>
-              ) : (
-                <Badge className="bg-green-600/80 text-white">
-                  <Globe className="w-3 h-3 mr-1" />
-                  Public
-                </Badge>
-              )}
-              <Badge className="bg-purple-600/80 text-white">{circle.category}</Badge>
+    <div className="w-full space-y-4 sm:space-y-6">
+      {/* Circle Header */}
+      <Card className="overflow-hidden border-border bg-card text-card-foreground">
+        <div
+          className="relative h-32 bg-gradient-to-r from-violet-600 to-cyan-500 sm:h-44"
+          style={{
+            backgroundImage: circle.banner_url ? `url(${circle.banner_url})` : undefined,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div className="absolute inset-0 bg-black/35" />
+          <div className="absolute right-3 top-3 flex max-w-[70%] flex-wrap justify-end gap-1.5 sm:right-4 sm:top-4 sm:gap-2">
+            {circle.is_private ? (
+              <Badge className="bg-slate-900/80 text-white">
+                <Lock className="mr-1 h-3 w-3" />
+                Private
+              </Badge>
+            ) : (
+              <Badge className="bg-emerald-600/90 text-white">
+                <Globe className="mr-1 h-3 w-3" />
+                Public
+              </Badge>
+            )}
+            {circle.category && (
+              <Badge className="bg-violet-600/90 text-white">{circle.category}</Badge>
+            )}
+          </div>
+        </div>
+
+        <CardContent className="relative -mt-10 space-y-4 px-3 pb-4 sm:-mt-12 sm:px-6 sm:pb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+            <Avatar className="h-20 w-20 border-4 border-background shadow-lg sm:h-24 sm:w-24">
+              <AvatarImage src={circle.avatar_url || "/placeholder.svg"} alt={circle.name || "Circle"} />
+              <AvatarFallback className="text-2xl">{(circle.name || "C").charAt(0)}</AvatarFallback>
+            </Avatar>
+
+            <div className="min-w-0 flex-1 space-y-3">
+              <div>
+                <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">{circle.name || "Circle"}</h1>
+                <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <Users className="h-4 w-4" />
+                    {Number(circle.member_count || 0)} members
+                  </span>
+                  {circle.created_at && (
+                    <span className="inline-flex items-center gap-1">
+                      <Calendar className="h-4 w-4" />
+                      Created {new Date(circle.created_at).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {isJoined && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setNotifications(!notifications)}
+                    className="rounded-full"
+                    aria-label={notifications ? "Mute notifications" : "Enable notifications"}
+                  >
+                    {notifications ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+                  </Button>
+                )}
+
+                <Button
+                  onClick={handleJoinLeave}
+                  size="sm"
+                  className={
+                    isJoined
+                      ? "rounded-full"
+                      : "rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white"
+                  }
+                  variant={isJoined ? "outline" : "default"}
+                >
+                  {isJoined ? (
+                    <>
+                      <UserMinus className="mr-1.5 h-4 w-4" />
+                      Leave
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="mr-1.5 h-4 w-4" />
+                      {circle.is_private ? "Request" : "Join"}
+                    </>
+                  )}
+                </Button>
+
+                {(userRole === "owner" || userRole === "admin") && (
+                  <Button asChild variant="outline" size="sm" className="rounded-full border-amber-400/40 bg-amber-500/10">
+                    <a href={`/circles/${circleId}/admin`}>
+                      <Crown className="mr-1.5 h-4 w-4" />
+                      <span className="hidden xs:inline sm:inline">Circle Admin</span>
+                      <span className="sm:hidden">Admin</span>
+                    </a>
+                  </Button>
+                )}
+
+                {(userRole === "owner" || userRole === "admin") && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowSettings(true)}
+                    className="rounded-full"
+                    aria-label="Circle settings"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
-          <CardContent className="relative -mt-16 px-6 pb-6">
-            <div className="flex items-end space-x-6">
-              <Avatar className="w-24 h-24 border-4 border-white shadow-lg">
-                <AvatarImage src={circle.avatar_url} alt={circle.name} />
-                <AvatarFallback className="text-2xl">{circle.name.charAt(0)}</AvatarFallback>
-              </Avatar>
+          {circle.description && (
+            <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">{circle.description}</p>
+          )}
+        </CardContent>
+      </Card>
 
-              <div className="flex-1 pb-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">{circle.name}</h1>
-                    <div className="flex items-center space-x-4 text-gray-300">
-                      <div className="flex items-center space-x-1">
-                        <Users className="w-4 h-4" />
-                        <span>{circle.member_count} members</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>Created {new Date(circle.created_at).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  </div>
+      {/* Main Content */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="-mx-1 overflow-x-auto pb-1">
+          <TabsList className="inline-flex h-auto min-w-full w-max gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:min-w-0 sm:w-full sm:flex-wrap">
+            {[
+              { value: "posts", label: "Posts", icon: Hash },
+              { value: "rooms", label: "Rooms", icon: MessageCircle },
+              { value: "events", label: "Events", icon: Calendar },
+              { value: "members", label: "Members", icon: Users },
+              { value: "leaderboard", label: "Board", icon: Trophy },
+              { value: "about", label: "About", icon: Star },
+              { value: "studio", label: "Studio", icon: Settings },
+            ].map((tab) => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="shrink-0 rounded-xl px-3 py-2 text-xs data-[state=active]:bg-background sm:text-sm"
+              >
+                <tab.icon className="mr-1.5 h-3.5 w-3.5" />
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
-                  <div className="flex items-center space-x-3">
-                    {isJoined && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setNotifications(!notifications)}
-                        className="border-gray-600 text-gray-300 hover:bg-gray-800"
-                      >
-                        {notifications ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
-                      </Button>
-                    )}
-
-                    <Button
-                      onClick={handleJoinLeave}
-                      className={
-                        isJoined
-                          ? "bg-gray-600 hover:bg-gray-700 text-white"
-                          : "bg-gradient-to-r from-purple-500 to-blue-500"
-                      }
-                    >
-                      {isJoined ? (
-                        <>
-                          <UserMinus className="w-4 h-4 mr-2" />
-                          Leave
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus className="w-4 h-4 mr-2" />
-                          {circle.is_private ? "Request to Join" : "Join Circle"}
-                        </>
-                      )}
-                    </Button>
-
-                    {(userRole === 'owner' || userRole === 'admin') && (
-                      <a href={`/circles/${circleId}/admin`}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-amber-400/40 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20"
-                        >
-                          <Crown className="w-4 h-4 mr-2" />
-                          Admin Dashboard
+        <TabsContent value="posts" className="mt-4 space-y-4 sm:mt-6 sm:space-y-6">
+          {/* Create Post */}
+          {isJoined && (
+            <Card>
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-start gap-3">
+                  <Avatar className="h-9 w-9 sm:h-10 sm:w-10">
+                    <AvatarImage src={user?.avatar_url} />
+                    <AvatarFallback>{user?.display_name?.charAt(0) || "U"}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <Textarea
+                      placeholder="Share something with the circle..."
+                      value={newPost}
+                      onChange={(e) => setNewPost(e.target.value)}
+                      className="resize-none"
+                      rows={3}
+                    />
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" type="button">
+                          <Plus className="mr-1 h-4 w-4" />
+                          Media
                         </Button>
-                      </a>
-                    )}
-
-                    {(userRole === 'owner' || userRole === 'admin') && (
+                        <Button variant="outline" size="sm" type="button">
+                          <Hash className="mr-1 h-4 w-4" />
+                          Poll
+                        </Button>
+                      </div>
                       <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowSettings(true)}
-                        className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                        onClick={handleCreatePost}
+                        disabled={!newPost.trim()}
+                        className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white"
                       >
-                        <Settings className="w-4 h-4" />
+                        Share
                       </Button>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
+          )}
 
-            <div className="mt-4">
-              <p className="text-gray-300 leading-relaxed">{circle.description}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="posts">
-              <Hash className="w-4 h-4 mr-2" />
-              Posts
-            </TabsTrigger>
-            <TabsTrigger value="rooms">
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Rooms
-            </TabsTrigger>
-            <TabsTrigger value="events">
-              <Calendar className="w-4 h-4 mr-2" />
-              Events
-            </TabsTrigger>
-            <TabsTrigger value="members">
-              <Users className="w-4 h-4 mr-2" />
-              Members
-            </TabsTrigger>
-            <TabsTrigger value="leaderboard">
-              <Trophy className="w-4 h-4 mr-2" />
-              Leaderboard
-            </TabsTrigger>
-            <TabsTrigger value="about">
-              <Star className="w-4 h-4 mr-2" />
-              About
-            </TabsTrigger>
-            <TabsTrigger value="studio">
-              <Settings className="w-4 h-4 mr-2" />
-              Studio
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="posts" className="space-y-6">
-            {/* Create Post */}
-            {isJoined && (
+          {/* Posts Feed */}
+          <div className="space-y-3 sm:space-y-4">
+            {posts.length === 0 && (
               <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-start space-x-3">
-                    <Avatar className="w-10 h-10">
-                      <AvatarImage src={user?.avatar_url} />
-                      <AvatarFallback>{user?.display_name?.charAt(0) || "U"}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 space-y-3">
-                      <Textarea
-                        placeholder="Share something with the circle..."
-                        value={newPost}
-                        onChange={(e) => setNewPost(e.target.value)}
-                        className="resize-none"
-                        rows={3}
-                      />
-                      <div className="flex justify-between items-center">
-                        <div className="flex space-x-2">
-                          <Button variant="outline" size="sm">
-                            <Plus className="w-4 h-4 mr-1" />
-                            Media
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Hash className="w-4 h-4 mr-1" />
-                            Poll
-                          </Button>
-                        </div>
-                        <Button
-                          onClick={handleCreatePost}
-                          disabled={!newPost.trim()}
-                          className="bg-gradient-to-r from-purple-500 to-blue-500"
-                        >
-                          Share
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
+                <CardContent className="p-8 text-center text-sm text-muted-foreground">
+                  No posts yet. Be the first to share something.
                 </CardContent>
               </Card>
             )}
-
-            {/* Posts Feed */}
-            <div className="space-y-4">
-              {posts.map((post) => (
-                <Card key={post.id} className="mb-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-start space-x-3">
-                      <Avatar className="w-10 h-10">
-                        <AvatarImage src={post.author.avatar_url} alt={post.author.display_name} />
-                        <AvatarFallback>{post.author.display_name.charAt(0)}</AvatarFallback>
+            {posts.map((post) => {
+              const authorName = post.author?.display_name || post.author?.username || "Member"
+              const stamped = (() => {
+                try {
+                  return formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })
+                } catch {
+                  return "just now"
+                }
+              })()
+              return (
+                <Card key={post.id} className="transition-shadow hover:shadow-md">
+                  <CardContent className="p-3 sm:p-5">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-9 w-9 shrink-0 sm:h-10 sm:w-10">
+                        <AvatarImage src={post.author?.avatar_url} alt={authorName} />
+                        <AvatarFallback>{authorName.charAt(0)}</AvatarFallback>
                       </Avatar>
 
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <span className="font-semibold">{post.author.display_name}</span>
-                          {post.author.is_verified && (
-                            <Badge variant="secondary" className="bg-blue-500 text-white">✓</Badge>
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="truncate font-semibold">{authorName}</span>
+                          {post.author?.is_verified && (
+                            <Badge variant="secondary" className="text-[10px]">✓</Badge>
                           )}
-                          {post.author.is_premium && (
-                            <Crown className="w-4 h-4 text-yellow-500" />
-                          )}
-                          <span className="text-sm text-gray-500">
-                            {formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })}
-                          </span>
-                          {post.is_pinned && (
-                            <Pin className="w-4 h-4 text-purple-500" />
-                          )}
+                          {post.author?.is_premium && <Crown className="h-4 w-4 text-yellow-500" />}
+                          <span className="text-xs text-muted-foreground">{stamped}</span>
+                          {post.is_pinned && <Pin className="h-4 w-4 text-violet-500" />}
                         </div>
 
-                        <p className="text-gray-700 dark:text-gray-300 mb-3 leading-relaxed">
+                        <p className="mb-3 whitespace-pre-wrap break-words text-sm leading-relaxed sm:text-base">
                           {post.content}
                         </p>
 
-                        {/* Actions */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1 sm:gap-2">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className={`space-x-1 ${post.is_liked ? 'text-red-500' : ''}`}
+                              className={`px-2 ${post.is_liked ? "text-red-500" : ""}`}
                               onClick={() => handleLike(post.id)}
                             >
-                              <Heart className={`w-4 h-4 ${post.is_liked ? 'fill-current' : ''}`} />
+                              <Heart className={`mr-1 h-4 w-4 ${post.is_liked ? "fill-current" : ""}`} />
                               <span>{post.likes}</span>
                             </Button>
 
-                            <Button variant="ghost" size="sm" className="space-x-1">
-                              <MessageCircle className="w-4 h-4" />
+                            <Button variant="ghost" size="sm" className="px-2">
+                              <MessageCircle className="mr-1 h-4 w-4" />
                               <span>{post.comments}</span>
                             </Button>
 
-                            <Button variant="ghost" size="sm" className="space-x-1">
-                              <Share className="w-4 h-4" />
-                              <span>{post.shares}</span>
+                            <Button variant="ghost" size="sm" className="hidden px-2 xs:inline-flex sm:inline-flex">
+                              <Share className="mr-1 h-4 w-4" />
+                              <span className="hidden sm:inline">{post.shares}</span>
                             </Button>
                           </div>
 
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className={post.is_bookmarked ? 'text-yellow-500' : ''}
+                              className={post.is_bookmarked ? "text-yellow-500" : ""}
                             >
-                              <Bookmark className={`w-4 h-4 ${post.is_bookmarked ? 'fill-current' : ''}`} />
+                              <Bookmark className={`h-4 w-4 ${post.is_bookmarked ? "fill-current" : ""}`} />
                             </Button>
 
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="sm">
-                                  <MoreHorizontal className="w-4 h-4" />
+                                  <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent>
+                              <DropdownMenuContent align="end">
                                 <DropdownMenuItem>
-                                  <Gift className="w-4 h-4 mr-2" />
+                                  <Gift className="mr-2 h-4 w-4" />
                                   Gift Author
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -742,50 +745,51 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          </TabsContent>
+              )
+            })}
+          </div>
+        </TabsContent>
 
-          <TabsContent value="rooms" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold">Circle Rooms</h3>
+          <TabsContent value="rooms" className="mt-4 space-y-4 sm:mt-6 sm:space-y-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-lg font-semibold sm:text-xl">Circle Rooms</h3>
               {(userRole === 'owner' || userRole === 'admin' || userRole === 'moderator') && (
                 <Button
                   onClick={() => setShowCreateRoom(true)}
-                  className="bg-gradient-to-r from-purple-500 to-blue-500"
+                  className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus className="mr-2 h-4 w-4" />
                   Create Room
                 </Button>
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
               {rooms.map((room) => (
-                <Card key={room.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+                <Card key={room.id} className="cursor-pointer transition-shadow hover:shadow-md">
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold">{room.name}</h4>
-                      <div className="flex items-center space-x-1">
-                        {room.type === 'voice' && <Mic className="w-4 h-4 text-green-500" />}
-                        {room.type === 'video' && <Video className="w-4 h-4 text-blue-500" />}
-                        {room.type === 'text' && <MessageCircle className="w-4 h-4 text-purple-500" />}
-                        {room.is_private && <Lock className="w-3 h-3 text-gray-500" />}
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <h4 className="truncate font-semibold">{room.name}</h4>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {room.type === 'voice' && <Mic className="h-4 w-4 text-emerald-500" />}
+                        {room.type === 'video' && <Video className="h-4 w-4 text-sky-500" />}
+                        {room.type === 'text' && <MessageCircle className="h-4 w-4 text-violet-500" />}
+                        {room.is_private && <Lock className="h-3 w-3 text-muted-foreground" />}
                       </div>
                     </div>
                     {room.description && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                      <p className="mb-3 line-clamp-2 text-sm text-muted-foreground">
                         {room.description}
                       </p>
                     )}
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">
-                        {room.member_count} members
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {Number(room.member_count || 0)} members
                       </span>
                       <Button
                         size="sm"
                         onClick={() => setActiveRoom(room.id)}
-                        className="bg-gradient-to-r from-purple-500 to-blue-500"
+                        className="rounded-full"
                       >
                         Join
                       </Button>
@@ -809,37 +813,34 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
             <CircleEvents circleId={circleId} isAdmin={userRole === "owner" || userRole === "admin" || userRole === "moderator"} />
           </TabsContent>
 
-          <TabsContent value="members" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {members.map((member) => (
-                <Card key={member.id} className="hover:shadow-lg transition-shadow">
+          <TabsContent value="members" className="mt-4 space-y-4 sm:mt-6 sm:space-y-6">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+              {members.map((member) => {
+                const name = member.display_name || member.username || "Member"
+                return (
+                <Card key={member.id} className="transition-shadow hover:shadow-md">
                   <CardContent className="p-4">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="w-12 h-12">
-                        <AvatarImage src={member.avatar_url} alt={member.display_name} />
-                        <AvatarFallback>{member.display_name.charAt(0)}</AvatarFallback>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-12 w-12 shrink-0">
+                        <AvatarImage src={member.avatar_url} alt={name} />
+                        <AvatarFallback>{name.charAt(0)}</AvatarFallback>
                       </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-semibold">{member.display_name}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="truncate font-semibold">{name}</span>
                           {member.is_verified && (
-                            <Badge variant="secondary" className="bg-blue-500 text-white">✓</Badge>
+                            <Badge variant="secondary" className="text-[10px]">✓</Badge>
                           )}
                           {member.is_premium && (
-                            <Crown className="w-4 h-4 text-yellow-500" />
+                            <Crown className="h-4 w-4 text-yellow-500" />
                           )}
                         </div>
-                        <p className="text-sm text-gray-500">@{member.username}</p>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <Badge className={`text-xs ${
-                            member.role === 'owner' ? 'bg-yellow-100 text-yellow-700' :
-                            member.role === 'admin' ? 'bg-red-100 text-red-700' :
-                            member.role === 'moderator' ? 'bg-blue-100 text-blue-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
+                        <p className="truncate text-sm text-muted-foreground">@{member.username}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <Badge variant="outline" className="text-xs capitalize">
                             {member.role}
                           </Badge>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-muted-foreground">
                             {member.contribution_score} points
                           </span>
                         </div>
@@ -847,17 +848,18 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                       <Button
                         variant="outline"
                         size="sm"
+                        className="shrink-0 rounded-full"
                         onClick={() => {
                           setGiftRecipient(member)
                           setShowGiftModal(true)
                         }}
                       >
-                        <Gift className="w-4 h-4" />
+                        <Gift className="h-4 w-4" />
                       </Button>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              )})}
             </div>
           </TabsContent>
 
@@ -882,12 +884,12 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                           {index + 1}
                         </div>
                         <Avatar className="w-10 h-10">
-                          <AvatarImage src={member.avatar_url} alt={member.display_name} />
-                          <AvatarFallback>{member.display_name.charAt(0)}</AvatarFallback>
+                          <AvatarImage src={member.avatar_url} alt={member.display_name || member.username} />
+                          <AvatarFallback>{(member.display_name || member.username || "?").charAt(0)}</AvatarFallback>
                         </Avatar>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-2">
-                            <span className="font-medium">{member.display_name}</span>
+                            <span className="font-medium truncate">{member.display_name || member.username}</span>
                             {member.is_premium && <Crown className="w-4 h-4 text-yellow-500" />}
                           </div>
                           <p className="text-sm text-gray-500">{member.contribution_score} points</p>
@@ -914,14 +916,16 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {circle.rules?.map((rule: string, index: number) => (
+                  {Array.isArray(circle.rules) && circle.rules.length > 0 ? (
+                    circle.rules.map((rule: string, index: number) => (
                     <div key={index} className="flex items-start space-x-3">
                       <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                         <span className="text-white text-sm font-bold">{index + 1}</span>
                       </div>
-                      <p className="text-gray-700 dark:text-gray-300">{rule}</p>
+                      <p className="text-gray-700 dark:text-gray-300">{String(rule)}</p>
                     </div>
-                  )) || (
+                    ))
+                  ) : (
                     <p className="text-gray-500">No rules have been set for this circle.</p>
                   )}
                 </div>
@@ -1056,7 +1060,6 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
             }}
           />
         )}
-      </div>
     </div>
   )
 }
