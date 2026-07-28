@@ -48,6 +48,7 @@ interface Circle {
 
 interface CircleMember {
   id: string
+  membership_id?: string
   username: string
   display_name: string
   avatar_url?: string
@@ -113,7 +114,7 @@ interface CircleRoom {
 }
 
 export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
-  const { user, getAuthHeader } = useAuth()
+  const { user, loading: authLoading, getAuthHeader } = useAuth()
   const { toast } = useToast()
   
   // State management
@@ -122,8 +123,9 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
   const [posts, setPosts] = useState<CirclePost[]>([])
   const [events, setEvents] = useState<CircleEvent[]>([])
   const [rooms, setRooms] = useState<CircleRoom[]>([])
-  const [pendingMembers, setPendingMembers] = useState<any[]>([])
+  const [pendingMembers, setPendingMembers] = useState<CircleMember[]>([])
   const [loading, setLoading] = useState(true)
+  const [forbidden, setForbidden] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
   const [searchTerm, setSearchTerm] = useState('')
   const [filterRole, setFilterRole] = useState('all')
@@ -179,9 +181,18 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
   })
 
   const mapMember = (member: any): CircleMember => {
-    const profile = Array.isArray(member?.user) ? member.user[0] : member?.user || member
+    const nested =
+      (Array.isArray(member?.user) ? member.user[0] : member?.user) ||
+      (Array.isArray(member?.profile) ? member.profile[0] : member?.profile) ||
+      {}
+    const profile =
+      nested && typeof nested === "object" && (nested.username || nested.display_name || nested.id)
+        ? nested
+        : {}
+
     return {
-      id: profile?.id || member?.user_id || member?.id,
+      id: String(member?.user_id || profile?.id || ""),
+      membership_id: member?.id ? String(member.id) : undefined,
       username: profile?.username || "member",
       display_name: profile?.display_name || profile?.username || "Member",
       avatar_url: profile?.avatar_url,
@@ -199,16 +210,18 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
   }
 
   const mapPost = (post: any): CirclePost => {
-    const author = Array.isArray(post?.author) ? post.author[0] : post?.author
+    const rawAuthor = Array.isArray(post?.author) ? post.author[0] : post?.author
+    const author = {
+      id: rawAuthor?.id || post?.author_id || "",
+      username: rawAuthor?.username || "member",
+      display_name: rawAuthor?.display_name || rawAuthor?.username || "Member",
+      avatar_url: rawAuthor?.avatar_url,
+      is_premium: Boolean(rawAuthor?.is_premium),
+      is_verified: Boolean(rawAuthor?.is_verified),
+    }
     return {
       id: post?.id,
-      author: author || {
-        id: post?.author_id,
-        username: "member",
-        display_name: "Member",
-        is_premium: false,
-        is_verified: false,
-      },
+      author,
       content: post?.content || "",
       media_url: post?.media_url || undefined,
       media_type: post?.media_type || undefined,
@@ -224,9 +237,22 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
     }
   }
 
+  const mapRoom = (room: any): CircleRoom => ({
+    id: room?.id,
+    name: room?.name || "Room",
+    description: room?.description,
+    type: (room?.type || room?.room_type || "text") as CircleRoom["type"],
+    is_private: Boolean(room?.is_private),
+    member_count: Number(room?.member_count ?? 0),
+    is_active: room?.is_active !== false,
+    created_by: room?.created_by || "",
+    created_at: room?.created_at || new Date().toISOString(),
+  })
+
   const mapCircle = (raw: any): Circle => {
     const owner = Array.isArray(raw?.owner) ? raw.owner[0] : raw?.owner || {}
     const stats = raw?.stats || {}
+    const role = raw?.user_role || ""
     return {
       id: raw.id,
       name: raw.name || "Circle",
@@ -236,9 +262,9 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
       member_count: Number(raw.member_count ?? stats.member_count ?? 0),
       is_private: Boolean(raw.is_private),
       is_member: Boolean(raw.is_member),
-      is_admin: Boolean(raw.is_admin || raw.user_role === "admin" || raw.user_role === "owner"),
-      is_moderator: Boolean(raw.is_moderator || raw.user_role === "moderator"),
-      is_owner: Boolean(raw.is_owner || raw.user_role === "owner"),
+      is_admin: Boolean(raw.is_admin || role === "admin" || role === "owner"),
+      is_moderator: Boolean(raw.is_moderator || role === "moderator"),
+      is_owner: Boolean(raw.is_owner || role === "owner"),
       category: raw.category || "general",
       created_at: raw.created_at || new Date().toISOString(),
       owner: {
@@ -247,7 +273,11 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         display_name: owner.display_name || owner.username || "Owner",
         avatar_url: owner.avatar_url || "",
       },
-      rules: Array.isArray(raw.rules) ? raw.rules : [],
+      rules: Array.isArray(raw.rules)
+        ? raw.rules.map(String)
+        : typeof raw.rules === "string"
+          ? [raw.rules]
+          : [],
       stats: {
         total_posts: Number(stats.total_posts ?? stats.post_count ?? 0),
         total_comments: Number(stats.total_comments ?? stats.comment_count ?? 0),
@@ -295,22 +325,19 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
       })
 
       if (response.ok) {
-        // Remove the member from pending list
-        setPendingMembers(prev => prev.filter(member => member.id !== memberId))
+        // Remove the member from pending list (memberId is membership row id)
+        setPendingMembers(prev => prev.filter(member => (member.membership_id || member.id) !== memberId))
         
         // If approved, add to members list
         if (action === 'approve') {
-          const approvedMember = pendingMembers.find(member => member.id === memberId);
+          const approvedMember = pendingMembers.find(member => (member.membership_id || member.id) === memberId);
           if (approvedMember) {
-            setMembers(prev => [...prev, mapMember({
+            setMembers(prev => [...prev, {
               ...approvedMember,
               role,
               status: 'active',
               joined_at: new Date().toISOString(),
-              contribution_score: 0,
-              badges: [],
-              user: approvedMember.profile || approvedMember.user || approvedMember,
-            })]);
+            }]);
           }
         }
         
@@ -329,12 +356,16 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
   // Load circle data
   useEffect(() => {
     const loadCircleData = async () => {
+      if (authLoading) return
+
       if (!user) {
         setLoading(false)
+        setCircle(null)
         return
       }
       
       setLoading(true)
+      setForbidden(false)
       try {
         let loadedCircleData: any = null
         // Load circle details
@@ -345,7 +376,12 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         if (circleResponse.ok) {
           const circleData = await circleResponse.json()
           loadedCircleData = circleData
-          const mapped = mapCircle(circleData.circle || circleData)
+          const mapped = mapCircle({
+            ...(circleData.circle || circleData),
+            user_role: circleData.user_role || circleData.circle?.user_role,
+            is_member: circleData.is_member ?? circleData.circle?.is_member,
+            stats: circleData.circle?.stats || circleData.stats,
+          })
           setCircle(mapped)
           setEditCircleForm({
             name: mapped.name,
@@ -356,6 +392,12 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
             banner_url: mapped.banner_url,
             rules: mapped.rules || []
           })
+
+          if (!(mapped.is_owner || mapped.is_admin)) {
+            setForbidden(true)
+            setLoading(false)
+            return
+          }
         }
 
         // Load members
@@ -395,7 +437,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         
         if (roomsResponse.ok) {
           const roomsData = await roomsResponse.json()
-          setRooms(roomsData.rooms || [])
+          setRooms((roomsData.rooms || []).map(mapRoom))
         }
 
         // Load pending members if circle is private
@@ -416,7 +458,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
 
     void loadCircleData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [circleId, user?.id])
+  }, [circleId, user?.id, authLoading])
 
   // Handle edit circle
   const handleEditCircle = async () => {
@@ -434,7 +476,14 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
 
       if (response.ok) {
         const data = await response.json()
-        setCircle(data.circle)
+        setCircle((prev) =>
+          mapCircle({
+            ...(data.circle || {}),
+            user_role: prev?.is_owner ? "owner" : prev?.is_admin ? "admin" : "member",
+            is_member: true,
+            stats: prev?.stats,
+          }),
+        )
         setShowEditCircle(false)
         toast({ description: "Circle updated successfully!" })
       }
@@ -662,10 +711,38 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
     return matchesSearch && matchesRole && matchesStatus
   })
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-3">
+          <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-yellow-500" />
+          <h2 className="text-2xl font-bold mb-2">Sign in required</h2>
+          <p className="text-muted-foreground">Log in to open the circle admin dashboard.</p>
+          <a href="/login" className="inline-flex rounded-full bg-primary px-4 py-2 text-sm text-primary-foreground">Log in</a>
+        </div>
+      </div>
+    )
+  }
+
+  if (forbidden) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-3">
+          <Lock className="w-16 h-16 mx-auto mb-4 text-yellow-500" />
+          <h2 className="text-2xl font-bold mb-2">Admins only</h2>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Only the circle owner or an admin can open this dashboard. Open the circle page and look for the Dashboard button if you have access.
+          </p>
+          <a href={`/circles/${circleId}`} className="inline-flex rounded-full border px-4 py-2 text-sm">Back to circle</a>
+        </div>
       </div>
     )
   }
@@ -834,27 +911,30 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {pendingMembers.map((pendingMember) => (
-                    <div key={pendingMember.id} className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800">
+                  {pendingMembers.map((pendingMember) => {
+                    const membershipKey = pendingMember.membership_id || pendingMember.id
+                    const name = pendingMember.display_name || pendingMember.username || "Member"
+                    return (
+                    <div key={membershipKey} className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <Avatar className="w-10 h-10">
-                            <AvatarImage src={pendingMember.profile.avatar_url} alt={pendingMember.profile.display_name} />
-                            <AvatarFallback>{pendingMember.profile.display_name.charAt(0)}</AvatarFallback>
+                            <AvatarImage src={pendingMember.avatar_url} alt={name} />
+                            <AvatarFallback>{name.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div>
                             <div className="flex items-center space-x-2">
-                              <span className="font-semibold">{pendingMember.profile.display_name}</span>
-                              {pendingMember.profile.is_verified && <Check className="w-4 h-4 text-blue-500" />}
-                              {pendingMember.profile.is_premium && <Crown className="w-4 h-4 text-yellow-500" />}
+                              <span className="font-semibold">{name}</span>
+                              {pendingMember.is_verified && <Check className="w-4 h-4 text-blue-500" />}
+                              {pendingMember.is_premium && <Crown className="w-4 h-4 text-yellow-500" />}
                             </div>
-                            <p className="text-sm text-gray-500">@{pendingMember.profile.username}</p>
+                            <p className="text-sm text-gray-500">@{pendingMember.username}</p>
                           </div>
                         </div>
                         
                         <div className="flex space-x-2">
                           <select
-                            id={`role-${pendingMember.id}`}
+                            id={`role-${membershipKey}`}
                             className="border rounded px-2 py-1 bg-white dark:bg-gray-900 text-sm"
                             defaultValue="member"
                           >
@@ -866,9 +946,9 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                           <Button
                             size="sm"
                             onClick={() => {
-                              const roleSelect = document.getElementById(`role-${pendingMember.id}`) as HTMLSelectElement;
+                              const roleSelect = document.getElementById(`role-${membershipKey}`) as HTMLSelectElement;
                               const role = roleSelect?.value as 'member' | 'admin' | 'moderator' || 'member';
-                              handlePendingMemberAction(pendingMember.id, 'approve', role);
+                              handlePendingMemberAction(membershipKey, 'approve', role);
                             }}
                             className="bg-green-600 hover:bg-green-700"
                           >
@@ -879,7 +959,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => handlePendingMemberAction(pendingMember.id, 'reject')}
+                            onClick={() => handlePendingMemberAction(membershipKey, 'reject')}
                           >
                             <X className="w-4 h-4 mr-1" />
                             Reject
@@ -887,7 +967,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               </CardContent>
             </Card>
@@ -946,7 +1026,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                       <div className="flex items-center space-x-3">
                         <Avatar className="w-10 h-10">
                           <AvatarImage src={member.avatar_url} alt={member.display_name} />
-                          <AvatarFallback>{member.display_name.charAt(0)}</AvatarFallback>
+                          <AvatarFallback>{(member.display_name || member.username || "?").charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div>
                           <div className="flex items-center space-x-2">

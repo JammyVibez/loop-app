@@ -117,10 +117,18 @@ interface CircleRoom {
 }
 
 function mapCirclePost(post: any): CirclePost {
-  const author = Array.isArray(post?.author) ? post.author[0] : post?.author
+  const rawAuthor = Array.isArray(post?.author) ? post.author[0] : post?.author
+  const author = {
+    id: rawAuthor?.id || post?.author_id || "",
+    username: rawAuthor?.username || "member",
+    display_name: rawAuthor?.display_name || rawAuthor?.username || "Member",
+    avatar_url: rawAuthor?.avatar_url,
+    is_premium: Boolean(rawAuthor?.is_premium),
+    is_verified: Boolean(rawAuthor?.is_verified),
+  }
   return {
     id: post?.id,
-    author: author || { id: post?.author_id, username: "member", display_name: "Member", is_premium: false, is_verified: false },
+    author,
     content: post?.content || "",
     media_url: post?.media_url || undefined,
     media_type: post?.media_type || undefined,
@@ -137,9 +145,12 @@ function mapCirclePost(post: any): CirclePost {
 }
 
 function mapCircleMember(member: any): CircleMember {
-  const profile = Array.isArray(member?.user) ? member.user[0] : member?.user || member
+  const profile =
+    (Array.isArray(member?.user) ? member.user[0] : member?.user) ||
+    (Array.isArray(member?.profile) ? member.profile[0] : member?.profile) ||
+    {}
   return {
-    id: profile?.id || member?.user_id,
+    id: member?.user_id || profile?.id || member?.id,
     username: profile?.username || "member",
     display_name: profile?.display_name || profile?.username || "Member",
     avatar_url: profile?.avatar_url,
@@ -154,7 +165,7 @@ function mapCircleMember(member: any): CircleMember {
 }
 
 export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
-  const { user, getAuthHeader } = useAuth()
+  const { user, loading: authLoading, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const { currentTheme } = useTheme3D()
   
@@ -185,6 +196,8 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   // Load circle data
   useEffect(() => {
     const loadCircleData = async () => {
+      if (authLoading) return
+
       if (!user) {
         setLoading(false)
         return
@@ -203,7 +216,11 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
           setIsJoined(Boolean(circleData.is_member ?? circleData.circle?.is_member))
           setUserRole(circleData.user_role || circleData.circle?.user_role || 'member')
           setPosts((circleData.posts || []).map(mapCirclePost))
-          setRooms(circleData.rooms || [])
+          setRooms((circleData.rooms || []).map((room: any) => ({
+            ...room,
+            type: room.type || room.room_type || "text",
+            member_count: Number(room.member_count || 0),
+          })))
         }
 
         // Load posts
@@ -233,7 +250,11 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
         
         if (roomsResponse.ok) {
           const roomsData = await roomsResponse.json()
-          setRooms(roomsData.rooms || [])
+          setRooms((roomsData.rooms || []).map((room: any) => ({
+            ...room,
+            type: room.type || room.room_type || "text",
+            member_count: Number(room.member_count || 0),
+          })))
         }
 
       } catch (error) {
@@ -249,7 +270,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
     }
 
     loadCircleData()
-  }, [circleId, user])
+  }, [circleId, user, authLoading])
 
   // Handle join/leave circle
   const handleJoinLeave = async () => {
@@ -407,12 +428,24 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
     }
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p>Loading circle...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <h2 className="text-2xl font-bold mb-2">Sign in to view this circle</h2>
+          <p className="text-gray-600">Community pages require an account.</p>
+          <a href="/login" className="inline-flex rounded-full bg-violet-600 px-4 py-2 text-sm text-white">Log in</a>
         </div>
       </div>
     )
@@ -520,15 +553,15 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                          className="border-amber-400/40 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20"
                         >
                           <Crown className="w-4 h-4 mr-2" />
-                          Dashboard
+                          Admin Dashboard
                         </Button>
                       </a>
                     )}
 
-                    {userRole === 'admin' && (
+                    {(userRole === 'owner' || userRole === 'admin') && (
                       <Button
                         variant="outline"
                         size="sm"

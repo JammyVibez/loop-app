@@ -24,7 +24,7 @@ interface TrendingHashtag {
 }
 
 export function ExploreContent() {
-  const { user, getAuthHeader } = useAuth()
+  const { user } = useAuth()
   const { toast } = useToast()
   const [loops, setLoops] = useState<NormalizedLoop[]>([])
   const [hashtags, setHashtags] = useState<TrendingHashtag[]>([])
@@ -33,12 +33,15 @@ export function ExploreContent() {
   const [interacting, setInteracting] = useState<string | null>(null)
   const [live, setLive] = useState(false)
 
+  const authToken = user?.access_token || user?.token || ""
+
   const fetchExplore = useCallback(async (tab: ExploreTab = selectedTab, silent = false) => {
     if (!silent) setLoading(true)
     try {
       if (tab === "hashtags") {
         const response = await fetch("/api/explore/trending?type=hashtags&limit=24", { cache: "no-store" })
         const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data.error || "Failed to load hashtags")
         const rows: TrendingHashtag[] = data.hashtags || data.data || []
         setHashtags(rows)
         setLoops([])
@@ -47,7 +50,7 @@ export function ExploreContent() {
 
       const sort = tab === "deepest" ? "deepest" : tab === "creative" ? "creative" : "recent"
       const response = await fetch(`/api/explore/trending?type=loops&sort=${sort}&limit=24`, {
-        headers: { ...getAuthHeader() },
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
         cache: "no-store",
       })
       const data = await response.json().catch(() => ({}))
@@ -66,11 +69,12 @@ export function ExploreContent() {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [getAuthHeader, selectedTab, toast])
+  }, [authToken, selectedTab, toast])
 
   useEffect(() => {
     void fetchExplore(selectedTab)
-  }, [selectedTab, fetchExplore])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTab, authToken])
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient()
@@ -102,7 +106,8 @@ export function ExploreContent() {
       clearInterval(poll)
       setLive(false)
     }
-  }, [fetchExplore, selectedTab])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTab, authToken])
 
   const handleInteraction = async (loopId: string, type: "like" | "save") => {
     if (!user) {
@@ -120,7 +125,7 @@ export function ExploreContent() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...getAuthHeader(),
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({ interaction_type: type }),
       })

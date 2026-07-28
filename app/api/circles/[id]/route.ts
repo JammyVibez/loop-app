@@ -50,11 +50,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         .select("role, status")
         .eq("circle_id", circleId)
         .eq("user_id", currentUser.id)
-        .single()
+        .maybeSingle()
       
-      if (memberData && ["active", "approved"].includes(memberData.status)) {
+      if (memberData) {
+        const status = String(memberData.status || "active").toLowerCase()
+        if (["active", "approved"].includes(status) || !memberData.status) {
+          isMember = true
+          userRole = memberData.role || "member"
+        }
+      }
+
+      // Circle owner always has dashboard access even if membership row is missing/stale.
+      if (circle.owner_id === currentUser.id || circle.creator_id === currentUser.id) {
         isMember = true
-        userRole = memberData.role
+        userRole = "owner"
       }
     }
 
