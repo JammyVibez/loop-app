@@ -186,23 +186,26 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // Save to database
+      // Save to database (schema-aligned with live media_uploads)
       const supabase = createServerClient()
       const { data: mediaRecord, error: dbError } = await supabase
         .from('media_uploads')
         .insert({
           user_id: user.id,
-          file_name: file.name,
-          file_type: file.type,
-          file_size: file.size,
-          cloudinary_public_id: uploadResult.public_id,
-          cloudinary_url: uploadResult.secure_url,
-          media_type: type,
-          folder: folder,
-          width: uploadResult.width,
-          height: uploadResult.height,
-          duration: uploadResult.duration,
-          format: uploadResult.format
+          file_url: uploadResult.secure_url,
+          file_type: file.type || type,
+          bytes: file.size,
+          provider: 'cloudinary',
+          metadata: {
+            public_id: uploadResult.public_id,
+            folder,
+            width: uploadResult.width || null,
+            height: uploadResult.height || null,
+            duration: uploadResult.duration || null,
+            format: uploadResult.format || null,
+            original_name: file.name,
+            media_type: type,
+          },
         })
         .select()
         .single()

@@ -22,7 +22,7 @@ interface Suggestion {
 }
 
 export function UserSuggestions({
-  title = "Suggested for you",
+  title = "Who to follow",
   limit = 6,
   compact = false,
 }: {

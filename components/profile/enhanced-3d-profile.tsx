@@ -2,11 +2,28 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Calendar, Coins, Edit, Flame, Gift, Heart, Link as LinkIcon, MapPin, MessageCircle, Plus, Share2, Star, Trophy, Users } from "lucide-react"
+import {
+  ArrowLeft,
+  Calendar,
+  Coins,
+  Edit,
+  Flame,
+  Gift,
+  Heart,
+  Link as LinkIcon,
+  MapPin,
+  MessageCircle,
+  MoreHorizontal,
+  Plus,
+  Share2,
+  Trophy,
+  Upload,
+  Users,
+} from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LoopCard } from "@/components/loop-card"
 import { useAuth } from "@/hooks/use-auth"
@@ -15,6 +32,8 @@ import { ProfileSkeleton } from "@/components/loading-states"
 import { EmptyState as PageEmptyState } from "@/components/ui/empty-state"
 import { ReportContentButton } from "@/components/moderation/report-content-button"
 import { GiftModal } from "@/components/gifting/gift-modal"
+import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
 interface Achievement {
   id: string
@@ -50,14 +69,75 @@ interface UserProfile {
   is_following?: boolean
 }
 
+function formatCount(value: number) {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1).replace(/\.0$/, "")}K`
+  return String(value)
+}
+
 export function Enhanced3DProfile({ username }: { username: string }) {
-  const { user, getAuthHeader } = useAuth()
+  const { user, getAuthHeader, refreshUser, applyServerProfile } = useAuth()
+  const { toast } = useToast()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("loops")
   const [isFollowing, setIsFollowing] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
   const [showGiftModal, setShowGiftModal] = useState(false)
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      setLoading(true)
+      try {
+        const response = await fetch(`/api/users/profile?username=${username}`, {
+          headers: user ? getAuthHeader() : undefined,
+        })
+        if (response.ok) {
+          const data = await response.json()
+          setProfile(data.profile)
+          setIsFollowing(Boolean(data.profile?.is_following))
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProfile()
+  }, [username, user?.id])
+
+  const handleFollow = async () => {
+    if (!profile || !user) return
+    try {
+      const response = await fetch("/api/users/follow", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({
+          target_user_id: profile.id,
+          action: isFollowing ? "unfollow" : "follow",
+        }),
+      })
+      if (response.ok) {
+        setIsFollowing(!isFollowing)
+        setProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                followers_count: isFollowing
+                  ? Math.max(0, prev.followers_count - 1)
+                  : prev.followers_count + 1,
+              }
+            : null,
+        )
+      }
+    } catch (error) {
+      console.error("Error following user:", error)
+    }
+  }
 
   const handleMessage = async () => {
     if (!user || !profile) {
@@ -73,8 +153,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Could not start chat")
       window.location.href = `/messages?c=${data.conversation.id}`
-    } catch (error) {
-      console.error(error)
+    } catch {
       window.location.href = "/messages"
     }
   }
@@ -104,321 +183,292 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       })
       if (!saveRes.ok) throw new Error("Failed to save cover")
       setProfile((prev) => (prev ? { ...prev, banner_url: url } : prev))
-    } catch (error) {
-      console.error("Cover upload failed:", error)
+      applyServerProfile({ banner_url: url })
+      toast({ title: "Cover updated" })
+    } catch (error: any) {
+      toast({ title: "Cover upload failed", description: error.message, variant: "destructive" })
     } finally {
       setUploadingCover(false)
+      event.target.value = ""
     }
   }
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      setLoading(true)
-      try {
-        const response = await fetch(`/api/users/profile?username=${username}`, {
-          headers: user ? getAuthHeader() : undefined,
-        })
-        if (response.ok) {
-          const data = await response.json()
-          setProfile(data.profile)
-          setIsFollowing(Boolean(data.profile?.is_following))
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchProfile()
-  }, [username, user?.id])
-
-  const handleFollow = async () => {
-    if (!profile || !user) return
-
-    try {
-      const response = await fetch("/api/users/follow", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
-        },
-        body: JSON.stringify({
-          target_user_id: profile.id,
-          action: isFollowing ? "unfollow" : "follow",
-        }),
-      })
-
-      if (response.ok) {
-        setIsFollowing(!isFollowing)
-        setProfile((prev) =>
-          prev
-            ? {
-                ...prev,
-                followers_count: isFollowing ? Math.max(0, prev.followers_count - 1) : prev.followers_count + 1,
-              }
-            : null,
-        )
-      }
-    } catch (error) {
-      console.error("Error following user:", error)
-    }
-  }
-
-  if (loading) {
-    return <ProfileSkeleton />
-  }
-
+  if (loading) return <ProfileSkeleton />
   if (!profile) {
     return (
       <PageEmptyState
-        title="User not found"
-        description="The profile you are looking for does not exist."
-        actionLabel="Explore people"
-        actionHref="/explore"
+        title="Profile not found"
+        description="This user doesn't exist or their profile is private."
+        actionLabel="Go home"
+        actionHref="/"
       />
     )
   }
 
   const isOwnProfile = Boolean(user && (user.id === profile.id || user.username === profile.username))
-  const displayName = profile.display_name || profile.username || "User"
-  const stats = [
-    { label: "Followers", value: profile.followers_count ?? 0, icon: Users, color: "from-cyan-400 to-blue-500" },
-    { label: "Following", value: profile.following_count ?? 0, icon: Heart, color: "from-pink-400 to-rose-500" },
-    { label: "Loops", value: profile.loops_count ?? 0, icon: Flame, color: "from-orange-400 to-red-500" },
-    { label: "Branches", value: profile.branches_count ?? 0, icon: Plus, color: "from-emerald-400 to-green-500" },
-    { label: "Level", value: profile.level ?? 1, icon: Trophy, color: "from-violet-400 to-indigo-500" },
-    { label: "Likes", value: profile.likes_received ?? 0, icon: Star, color: "from-yellow-300 to-orange-500" },
-  ]
+  const displayName = profile.display_name || profile.username
 
   return (
-    <div className="space-y-5 lg:space-y-6">
-      <Card className="landing-card-3d relative overflow-hidden border-white/10 bg-[#0a1020]/85 text-white shadow-[0_30px_80px_-24px_rgba(15,23,42,0.8)] backdrop-blur-xl">
-        <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(2,6,23,0.92),rgba(30,41,59,0.78),rgba(15,23,42,0.92))]">
-          {profile.banner_url ? (
-            <img src={profile.banner_url} alt="Profile cover" className="h-full w-full object-cover opacity-45" />
-          ) : (
-            <div className="h-full w-full bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.25),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(124,58,237,0.35),transparent_45%)]" />
-          )}
+    <div className="mx-auto w-full max-w-2xl border-x border-border/70 bg-background min-h-screen">
+      {/* Sticky top bar like X */}
+      <div className="sticky top-0 z-30 flex items-center gap-4 border-b border-border/70 bg-background/85 px-3 py-2 backdrop-blur-xl">
+        <Link href="/" className="rounded-full p-2 hover:bg-muted">
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <h1 className="truncate text-lg font-bold leading-tight">{displayName}</h1>
+            {profile.is_verified && (
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-sky-500 text-[10px] text-white">✓</span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">{formatCount(profile.loops_count)} loops</p>
         </div>
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(34,211,238,0.22),transparent_35%),radial-gradient(circle_at_85%_15%,rgba(168,85,247,0.24),transparent_42%)]" />
+      </div>
+
+      {/* Banner */}
+      <div className="relative h-36 bg-gradient-to-r from-slate-700 via-slate-600 to-slate-800 sm:h-48">
+        {profile.banner_url ? (
+          <img src={profile.banner_url} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="h-full w-full bg-[radial-gradient(circle_at_20%_30%,rgba(56,189,248,0.35),transparent_45%),radial-gradient(circle_at_80%_10%,rgba(139,92,246,0.35),transparent_40%)]" />
+        )}
         {isOwnProfile && (
-          <div className="absolute right-4 top-4 z-20">
+          <>
             <input id="profile-cover-upload" type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
             <Button
               size="sm"
-              className="rounded-full border border-white/25 bg-black/40 text-white hover:bg-black/60"
+              variant="secondary"
+              className="absolute bottom-3 right-3 rounded-full bg-black/55 text-white hover:bg-black/70"
               disabled={uploadingCover}
               onClick={() => document.getElementById("profile-cover-upload")?.click()}
             >
-              {uploadingCover ? "Uploading…" : profile.banner_url ? "Change cover" : "Add cover photo"}
+              <Upload className="mr-1.5 h-3.5 w-3.5" />
+              {uploadingCover ? "Uploading…" : "Edit cover"}
             </Button>
-          </div>
+          </>
         )}
-
-        <CardContent className="relative z-10 p-5 sm:p-7 lg:p-8">
-          <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start sm:gap-7">
-            <div className="group relative flex-shrink-0">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-400/55 via-blue-500/50 to-violet-500/65 blur-xl opacity-80 transition-opacity duration-300 group-hover:opacity-100" />
-              <Avatar className="relative h-24 w-24 border-4 border-white/40 shadow-2xl transition-transform duration-300 group-hover:scale-105 sm:h-28 sm:w-28 lg:h-32 lg:w-32">
-                <AvatarImage src={profile.avatar_url} />
-                <AvatarFallback className="bg-gradient-to-br from-slate-900 via-slate-700 to-slate-900 text-3xl font-bold text-white">
-                  {displayName.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              {profile.is_verified && (
-                <div className="absolute -right-1 -top-1 flex h-8 w-8 items-center justify-center rounded-full bg-cyan-500 shadow-lg shadow-cyan-500/45">
-                  <Trophy className="h-4 w-4 text-white" />
-                </div>
-              )}
-            </div>
-
-            <div className="min-w-0 flex-1 space-y-3 text-center sm:text-left">
-              <div>
-                <h1 className="flex flex-wrap items-center justify-center gap-2 text-3xl font-bold tracking-tight sm:justify-start lg:text-5xl">
-                  <span className="truncate">{displayName}</span>
-                  {profile.is_premium && (
-                    <Badge className="border-0 bg-gradient-to-r from-amber-300 via-yellow-300 to-amber-400 text-xs font-semibold text-slate-900">PRO</Badge>
-                  )}
-                </h1>
-                <p className="truncate text-lg text-slate-300 sm:text-xl">@{profile.username}</p>
-              </div>
-
-              <p className="max-w-2xl text-sm leading-relaxed text-slate-200/90 sm:text-lg">
-                {profile.bio || "Building thoughtful communities with depth, style, and signal."}
-              </p>
-
-              <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-slate-300 sm:justify-start sm:text-sm">
-                {profile.location && (
-                  <span className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1">
-                    <MapPin className="h-4 w-4 text-cyan-300" /> {profile.location}
-                  </span>
-                )}
-                {profile.website && (
-                  <a href={profile.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-cyan-200 hover:bg-white/[0.08]">
-                    <LinkIcon className="h-4 w-4" /> Website
-                  </a>
-                )}
-                <span className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1">
-                  <Calendar className="h-4 w-4 text-slate-300" /> Joined {new Date(profile.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-                </span>
-                {isOwnProfile && (
-                  <span className="flex items-center gap-1 rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-yellow-100">
-                    <Coins className="h-4 w-4 text-yellow-300" /> {Number(profile.loop_coins ?? 0).toLocaleString()} Loop Coins
-                  </span>
-                )}
-              </div>
-
-              <div className="flex flex-wrap justify-center gap-2 sm:justify-start sm:gap-3">
-                {isOwnProfile ? (
-                  <>
-                    <Link href="/settings">
-                      <Button className="rounded-full border border-white/25 bg-white/10 px-4 text-white hover:bg-white/20">
-                        <Edit className="mr-2 h-4 w-4" /> Edit Profile
-                      </Button>
-                    </Link>
-                    <ProfileShareCard
-                      username={profile.username}
-                      displayName={displayName}
-                      bio={profile.bio}
-                      avatarUrl={profile.avatar_url}
-                      triggerClassName="rounded-full border border-white/25 bg-white/10 px-4 text-white hover:bg-white/20"
-                    />
-                    <Link href="/invite">
-                      <Button className="rounded-full border border-white/25 bg-white/10 px-4 text-white hover:bg-white/20">
-                        <Plus className="mr-2 h-4 w-4" /> Invite
-                      </Button>
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      onClick={() => {
-                        if (!user) {
-                          window.location.href = "/login"
-                          return
-                        }
-                        void handleFollow()
-                      }}
-                      className={isFollowing ? "rounded-full border border-white/20 bg-white/10 px-6 text-white hover:bg-white/20" : "rounded-full bg-white px-6 font-semibold text-slate-900 shadow-lg shadow-cyan-300/20 hover:bg-slate-100"}
-                    >
-                      {isFollowing ? "Unfollow" : "Follow"}
-                    </Button>
-                    <Button
-                      onClick={() => void handleMessage()}
-                      className="rounded-full border border-white/20 bg-transparent px-6 text-white hover:bg-white/10"
-                    >
-                      <MessageCircle className="mr-2 h-4 w-4" /> Message
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        if (!user) {
-                          window.location.href = "/login"
-                          return
-                        }
-                        setShowGiftModal(true)
-                      }}
-                      className="rounded-full border border-white/20 bg-transparent px-6 text-white hover:bg-white/10"
-                    >
-                      <Gift className="mr-2 h-4 w-4" /> Gift
-                    </Button>
-                    <ReportContentButton
-                      contentType="profile"
-                      contentId={profile.id}
-                      variant="button"
-                      label="Report"
-                      className="rounded-full border-red-400/30 text-red-200"
-                    />
-                    <ProfileShareCard
-                      username={profile.username}
-                      displayName={displayName}
-                      bio={profile.bio}
-                      avatarUrl={profile.avatar_url}
-                      triggerClassName="rounded-full border border-white/20 bg-transparent px-4 text-white hover:bg-white/10"
-                    />
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {stats.map((stat) => (
-          <Card key={stat.label} className="landing-card-3d group relative overflow-hidden border-white/10 bg-white/[0.045] backdrop-blur-xl">
-            <div className={`absolute inset-0 bg-gradient-to-r ${stat.color} opacity-0 transition-opacity duration-300 group-hover:opacity-10`} />
-            <CardContent className="relative z-10 p-4 text-center">
-              <stat.icon className={`mx-auto mb-2 h-5 w-5 bg-gradient-to-r ${stat.color} bg-clip-text text-transparent sm:h-6 sm:w-6`} />
-              <div className="text-2xl font-bold tracking-tight text-white">{Number(stat.value).toLocaleString()}</div>
-              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{stat.label}</div>
-            </CardContent>
-          </Card>
-        ))}
       </div>
 
-      <Card className="border-white/10 bg-[#0a1020]/85 shadow-2xl shadow-black/40 backdrop-blur-xl">
-        <CardHeader className="p-4 pb-0 sm:p-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid h-11 w-full grid-cols-3 rounded-full border border-white/10 bg-white/[0.04] p-1 lg:grid-cols-4">
-              <TabsTrigger value="loops" className="rounded-full text-xs sm:text-sm">Loops</TabsTrigger>
-              <TabsTrigger value="branches" className="rounded-full text-xs sm:text-sm">Branches</TabsTrigger>
-              <TabsTrigger value="achievements" className="rounded-full text-xs sm:text-sm">Awards</TabsTrigger>
-              <TabsTrigger value="activity" className="hidden rounded-full text-xs sm:text-sm lg:block">Activity</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </CardHeader>
+      {/* Avatar + actions row */}
+      <div className="relative px-4 pb-3">
+        <div className="-mt-12 flex items-end justify-between sm:-mt-14">
+          <Avatar className="h-24 w-24 border-4 border-background bg-muted sm:h-28 sm:w-28">
+            <AvatarImage src={profile.avatar_url} />
+            <AvatarFallback className="text-3xl font-bold">{displayName.charAt(0).toUpperCase()}</AvatarFallback>
+          </Avatar>
 
-        <CardContent className="p-4 sm:p-6">
-          <Tabs value={activeTab}>
-            <TabsContent value="loops" className="space-y-4">
-              {profile.recent_loops?.length > 0 ? (
-                <div className="grid gap-4">
-                  {profile.recent_loops.map((loop) => (
-                    <LoopCard
-                      key={loop.id}
-                      loop={loop}
-                      onDeleted={(loopId) => setProfile((prev) => prev ? { ...prev, recent_loops: prev.recent_loops.filter((item) => item.id !== loopId) } : prev)}
-                      onEdited={(updatedLoop) => setProfile((prev) => prev ? { ...prev, recent_loops: prev.recent_loops.map((item) => item.id === updatedLoop.id ? updatedLoop : item) } : prev)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState icon={Flame} label="No loops yet" />
+          <div className="mb-1 flex flex-wrap justify-end gap-2">
+            {isOwnProfile ? (
+              <>
+                <Link href="/settings">
+                  <Button variant="outline" className="rounded-full px-4 font-semibold">
+                    <Edit className="mr-2 h-4 w-4" /> Edit profile
+                  </Button>
+                </Link>
+                <ProfileShareCard
+                  username={profile.username}
+                  displayName={displayName}
+                  bio={profile.bio}
+                  avatarUrl={profile.avatar_url}
+                  triggerClassName="rounded-full border px-3"
+                />
+              </>
+            ) : (
+              <>
+                <Button variant="outline" size="icon" className="rounded-full" onClick={() => void handleMessage()}>
+                  <MessageCircle className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" className="rounded-full" onClick={() => setShowGiftModal(true)}>
+                  <Gift className="h-4 w-4" />
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (!user) {
+                      window.location.href = "/login"
+                      return
+                    }
+                    void handleFollow()
+                  }}
+                  className={cn(
+                    "rounded-full px-5 font-semibold",
+                    isFollowing
+                      ? "border border-border bg-transparent text-foreground hover:bg-muted"
+                      : "bg-foreground text-background hover:opacity-90",
+                  )}
+                >
+                  {isFollowing ? "Following" : "Follow"}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-3 space-y-3">
+          <div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <h2 className="text-xl font-extrabold tracking-tight">{displayName}</h2>
+              {profile.is_verified && (
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 text-[11px] text-white">✓</span>
               )}
-            </TabsContent>
-
-            <TabsContent value="achievements" className="space-y-4">
-              {profile.achievements?.length > 0 ? (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {profile.achievements.map((achievement) => (
-                    <Card key={achievement.id} className="landing-card-3d border-white/10 bg-white/[0.04] text-center">
-                      <CardContent className="p-4">
-                        <img src={achievement.badge_url || "/placeholder.svg"} alt={achievement.name || "Achievement"} className="mx-auto mb-3 h-14 w-14" />
-                        <h3 className="font-semibold text-white">{achievement.name || "Achievement"}</h3>
-                        <p className="mt-1 line-clamp-2 text-sm text-slate-400">{achievement.description || ""}</p>
-                        <Badge className="mt-3 bg-white/10 text-white">{String(achievement.rarity || "common").toUpperCase()}</Badge>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState icon={Trophy} label="No achievements yet" />
+              {profile.is_premium && (
+                <Badge className="rounded-full border-0 bg-amber-400/20 text-amber-300">PRO</Badge>
               )}
-            </TabsContent>
+            </div>
+            <p className="text-muted-foreground">@{profile.username}</p>
+          </div>
 
-            <TabsContent value="branches">
-              <EmptyState icon={Plus} label="Branches coming soon" />
-            </TabsContent>
+          <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
+            {profile.bio || "Building thoughtful communities with depth, style, and signal."}
+          </p>
 
-            <TabsContent value="activity">
-              <EmptyState icon={Flame} label="Activity feed coming soon" />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            {profile.location && (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-4 w-4" /> {profile.location}
+              </span>
+            )}
+            {profile.website && (
+              <a
+                href={profile.website.startsWith("http") ? profile.website : `https://${profile.website}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sky-500 hover:underline"
+              >
+                <LinkIcon className="h-4 w-4" /> {profile.website.replace(/^https?:\/\//, "")}
+              </a>
+            )}
+            <span className="inline-flex items-center gap-1">
+              <Calendar className="h-4 w-4" /> Joined{" "}
+              {new Date(profile.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+            </span>
+            {isOwnProfile && (
+              <span className="inline-flex items-center gap-1 text-amber-500">
+                <Coins className="h-4 w-4" /> {Number(profile.loop_coins ?? 0).toLocaleString()} coins
+              </span>
+            )}
+          </div>
 
-      {!isOwnProfile && profile && (
+          {/* Compact X-style stats */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <Link href={`/profile/${profile.username}/following`} className="hover:underline">
+              <span className="font-bold text-foreground">{formatCount(profile.following_count)}</span>{" "}
+              <span className="text-muted-foreground">Following</span>
+            </Link>
+            <Link href={`/profile/${profile.username}/followers`} className="hover:underline">
+              <span className="font-bold text-foreground">{formatCount(profile.followers_count)}</span>{" "}
+              <span className="text-muted-foreground">Followers</span>
+            </Link>
+            <span>
+              <span className="font-bold text-foreground">{formatCount(profile.loops_count)}</span>{" "}
+              <span className="text-muted-foreground">Loops</span>
+            </span>
+            <span>
+              <span className="font-bold text-foreground">{formatCount(profile.branches_count)}</span>{" "}
+              <span className="text-muted-foreground">Branches</span>
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-xs">
+              <Trophy className="h-3.5 w-3.5 text-amber-500" />
+              Level {profile.level ?? 1}
+            </span>
+            <span className="text-muted-foreground">
+              <span className="font-bold text-foreground">{formatCount(profile.likes_received)}</span> Likes
+            </span>
+          </div>
+
+          {!isOwnProfile && (
+            <div className="pt-1">
+              <ReportContentButton
+                contentType="profile"
+                contentId={profile.id}
+                variant="button"
+                label="Report"
+                className="h-8 rounded-full px-3 text-xs text-muted-foreground"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="flex h-auto w-full justify-stretch rounded-none border-b border-border/70 bg-transparent p-0">
+          {[
+            { id: "loops", label: "Loops" },
+            { id: "branches", label: "Branches" },
+            { id: "media", label: "Media" },
+            { id: "awards", label: "Awards" },
+          ].map((tab) => (
+            <TabsTrigger
+              key={tab.id}
+              value={tab.id}
+              className="flex-1 rounded-none border-b-2 border-transparent py-3 text-sm font-semibold text-muted-foreground data-[state=active]:border-sky-500 data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+            >
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <TabsContent value="loops" className="mt-0 space-y-0">
+          {profile.recent_loops?.length > 0 ? (
+            profile.recent_loops.map((loop) => (
+              <div key={loop.id} className="border-b border-border/60 px-0 py-0">
+                <LoopCard loop={loop} className="rounded-none border-0 shadow-none" />
+              </div>
+            ))
+          ) : (
+            <EmptyBlock icon={Flame} label="No loops yet" />
+          )}
+        </TabsContent>
+
+        <TabsContent value="branches" className="mt-0">
+          <EmptyBlock icon={Share2} label="Branches will show here" />
+        </TabsContent>
+
+        <TabsContent value="media" className="mt-0">
+          {profile.recent_loops?.some((l) => l.media_url || l.media_urls?.length) ? (
+            <div className="grid grid-cols-3 gap-0.5">
+              {profile.recent_loops
+                .filter((l) => l.media_url || l.media_urls?.length)
+                .map((loop) => {
+                  const url = loop.media_url || loop.media_urls?.[0]
+                  return (
+                    <Link key={loop.id} href={`/loop/${loop.id}`} className="aspect-square bg-muted">
+                      {loop.media_type === "video" ? (
+                        <video src={url} className="h-full w-full object-cover" muted />
+                      ) : (
+                        <img src={url} alt="" className="h-full w-full object-cover" />
+                      )}
+                    </Link>
+                  )
+                })}
+            </div>
+          ) : (
+            <EmptyBlock icon={Users} label="No media yet" />
+          )}
+        </TabsContent>
+
+        <TabsContent value="awards" className="mt-0 p-4">
+          {profile.achievements?.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {profile.achievements.map((achievement) => (
+                <Card key={achievement.id} className="border-border/70">
+                  <CardContent className="p-4">
+                    <div className="mb-2 flex items-center gap-2">
+                      <Trophy className="h-4 w-4 text-amber-500" />
+                      <p className="font-semibold">{achievement.name}</p>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{achievement.description}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <EmptyBlock icon={Trophy} label="No awards yet" />
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {!isOwnProfile && (
         <GiftModal
           open={showGiftModal}
           onOpenChange={setShowGiftModal}
@@ -435,11 +485,11 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   )
 }
 
-function EmptyState({ icon: Icon, label }: { icon: typeof Flame; label: string }) {
+function EmptyBlock({ icon: Icon, label }: { icon: typeof Flame; label: string }) {
   return (
-    <div className="py-12 text-center">
-      <Icon className="mx-auto mb-4 h-10 w-10 text-slate-500" />
-      <p className="text-sm text-slate-400 sm:text-base">{label}</p>
+    <div className="px-6 py-16 text-center">
+      <Icon className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+      <p className="text-sm text-muted-foreground">{label}</p>
     </div>
   )
 }

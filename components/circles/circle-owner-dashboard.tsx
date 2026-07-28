@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,8 @@ import { InviteModal } from "@/components/invitations/invite-modal";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDistanceToNow } from "date-fns";
+import { supabase } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
 
 interface Circle {
   id: string
@@ -460,6 +462,90 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [circleId, user?.id, authLoading])
 
+  const softRefreshRef = useRef(0)
+  const softRefreshAdmin = useCallback(async () => {
+    if (!user || !circleId) return
+    const tick = ++softRefreshRef.current
+    try {
+      const [membersResponse, postsResponse, eventsResponse, roomsResponse, circleResponse] = await Promise.all([
+        fetch(`/api/circles/${circleId}/members`, { headers: authHeaders() }),
+        fetch(`/api/circles/${circleId}/posts`, { headers: authHeaders() }),
+        fetch(`/api/circles/${circleId}/events`, { headers: authHeaders() }),
+        fetch(`/api/circles/${circleId}/rooms`, { headers: authHeaders() }),
+        fetch(`/api/circles/${circleId}`, { headers: authHeaders() }),
+      ])
+      if (tick !== softRefreshRef.current) return
+
+      if (membersResponse.ok) {
+        const membersData = await membersResponse.json()
+        setMembers((membersData.members || []).map(mapMember))
+      }
+      if (postsResponse.ok) {
+        const postsData = await postsResponse.json()
+        setPosts((postsData.posts || []).map(mapPost))
+      }
+      if (eventsResponse.ok) {
+        const eventsData = await eventsResponse.json()
+        setEvents(eventsData.events || [])
+      }
+      if (roomsResponse.ok) {
+        const roomsData = await roomsResponse.json()
+        setRooms((roomsData.rooms || []).map(mapRoom))
+      }
+      if (circleResponse.ok) {
+        const circleData = await circleResponse.json()
+        const mapped = mapCircle({
+          ...(circleData.circle || circleData),
+          user_role: circleData.user_role || circleData.circle?.user_role,
+          is_member: circleData.is_member ?? circleData.circle?.is_member,
+          stats: circleData.circle?.stats || circleData.stats,
+        })
+        setCircle(mapped)
+        if (mapped.is_private) void loadPendingMembers()
+      }
+    } catch (error) {
+      console.error("Circle admin soft refresh failed:", error)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [circleId, user?.id])
+
+  // Realtime: postgres changes + admin broadcast channel
+  useEffect(() => {
+    if (!circleId || !user?.id || forbidden) return
+
+    const channel = supabase
+      .channel(`circle-admin:${circleId}`, {
+        config: { broadcast: { self: false } },
+      })
+      .on("broadcast", { event: "admin_refresh" }, () => {
+        void softRefreshAdmin()
+      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "circle_members", filter: `circle_id=eq.${circleId}` },
+        () => {
+          void softRefreshAdmin()
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "circle_posts", filter: `circle_id=eq.${circleId}` },
+        () => {
+          void softRefreshAdmin()
+        },
+      )
+      .subscribe()
+
+    const poll = setInterval(() => {
+      void softRefreshAdmin()
+    }, 45000)
+
+    return () => {
+      clearInterval(poll)
+      void supabase.removeChannel(channel)
+    }
+  }, [circleId, user?.id, forbidden, softRefreshAdmin])
+
   // Handle edit circle
   const handleEditCircle = async () => {
     if (!user || !circle) return
@@ -623,13 +709,15 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
     if (!user) return
 
     try {
+      const current = posts.find((post) => post.id === postId)
+      const nextPinned = !(current?.is_pinned)
       const response = await fetch(action === 'delete' ? `/api/circles/${circleId}/posts?postId=${postId}` : `/api/circles/${circleId}/posts`, {
         method: action === 'delete' ? 'DELETE' : 'PUT',
         headers: {
           'Content-Type': 'application/json',
           ...authHeaders()
         },
-        body: action === 'pin' ? JSON.stringify({ postId, is_pinned: true }) : undefined
+        body: action === 'pin' ? JSON.stringify({ postId, is_pinned: nextPinned }) : undefined
       })
 
       if (response.ok) {
@@ -638,10 +726,15 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
           toast({ description: "Post deleted successfully" })
         } else {
           setPosts(prev => prev.map(post => 
-            post.id === postId ? { ...post, is_pinned: !post.is_pinned } : post
+            post.id === postId ? { ...post, is_pinned: nextPinned } : post
           ))
-          toast({ description: "Post pinned/unpinned successfully" })
+          toast({ description: nextPinned ? "Post pinned" : "Post unpinned" })
         }
+        void supabase.channel(`circle-admin:${circleId}`).send({
+          type: "broadcast",
+          event: "admin_refresh",
+          payload: { action, postId },
+        })
       }
     } catch (error) {
       console.error(`Failed to ${action} post:`, error)
@@ -649,6 +742,34 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         title: "Error",
         description: `Failed to ${action} post`,
         variant: "destructive"
+      })
+    }
+  }
+
+  const handleDeleteRoom = async (roomId: string) => {
+    if (!user) return
+    try {
+      const response = await fetch(`/api/circles/${circleId}/rooms?roomId=${roomId}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to delete room")
+      }
+      setRooms((prev) => prev.filter((room) => room.id !== roomId))
+      toast({ description: "Room deleted successfully" })
+      void supabase.channel(`circle-admin:${circleId}`).send({
+        type: "broadcast",
+        event: "admin_refresh",
+        payload: { action: "delete_room", roomId },
+      })
+    } catch (error: any) {
+      console.error("Failed to delete room:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete room",
+        variant: "destructive",
       })
     }
   }
@@ -760,20 +881,20 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Circle Header */}
       <div className="relative">
         {/* Banner */}
         <div
-          className="h-48 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg relative overflow-hidden"
+          className="h-32 sm:h-48 rounded-lg relative overflow-hidden bg-gradient-to-br from-sky-700 via-slate-800 to-indigo-900"
           style={{
             backgroundImage: circle.banner_url ? `url(${circle.banner_url})` : undefined,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         >
-          <div className="absolute inset-0 bg-black/30" />
-          <div className="absolute top-4 right-4 flex space-x-2">
+          <div className="absolute inset-0 bg-black/35" />
+          <div className="absolute top-3 right-3 flex flex-wrap justify-end gap-2">
             {circle.is_private ? (
               <Badge className="bg-gray-800/80 text-white">
                 <Lock className="w-3 h-3 mr-1" />
@@ -785,28 +906,29 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                 Public
               </Badge>
             )}
-            <Badge className="bg-purple-600/80 text-white">{circle.category}</Badge>
+            <Badge className="bg-sky-700/90 text-white">{circle.category}</Badge>
+            <Badge className="bg-emerald-700/90 text-white">Live</Badge>
           </div>
         </div>
 
         {/* Circle Info */}
-        <div className="relative -mt-16 px-6">
-          <div className="flex items-end space-x-6">
-            <Avatar className="w-24 h-24 border-4 border-white shadow-lg">
+        <div className="relative -mt-12 sm:-mt-16 px-3 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-6">
+            <Avatar className="w-20 h-20 sm:w-24 sm:h-24 border-4 border-background shadow-lg shrink-0">
               <AvatarImage src={circle.avatar_url || "/placeholder.svg"} alt={circle.name} />
               <AvatarFallback className="text-2xl">{circle.name.charAt(0)}</AvatarFallback>
             </Avatar>
 
-            <div className="flex-1 pb-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold text-white mb-2">{circle.name}</h1>
-                  <div className="flex items-center space-x-4 text-gray-300">
-                    <div className="flex items-center space-x-1">
+            <div className="flex-1 pb-1 min-w-0">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1 truncate">{circle.name}</h1>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
                       <Users className="w-4 h-4" />
                       <span>{circle.member_count} members</span>
                     </div>
-                    <div className="flex items-center space-x-1">
+                    <div className="flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
                       <span>Created {new Date(circle.created_at).toLocaleDateString()}</span>
                     </div>
@@ -815,7 +937,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
 
                 <Button
                   onClick={() => setShowEditCircle(true)}
-                  className="bg-gradient-to-r from-purple-500 to-blue-500"
+                  className="w-full sm:w-auto shrink-0 bg-sky-600 hover:bg-sky-500"
                 >
                   <Settings className="w-4 h-4 mr-2" />
                   Edit Circle
@@ -824,21 +946,23 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
             </div>
           </div>
 
-          <div className="mt-4">
-            <p className="text-gray-300 leading-relaxed">{circle.description}</p>
+          <div className="mt-3 sm:mt-4">
+            <p className="text-muted-foreground leading-relaxed text-sm sm:text-base">{circle.description}</p>
           </div>
         </div>
       </div>
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="members">Members</TabsTrigger>
-          <TabsTrigger value="posts">Posts</TabsTrigger>
-          <TabsTrigger value="events">Events</TabsTrigger>
-          <TabsTrigger value="rooms">Rooms</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-1 px-1 pb-1">
+          <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-5 h-auto gap-1 p-1">
+            <TabsTrigger value="overview" className="text-xs sm:text-sm px-3">Overview</TabsTrigger>
+            <TabsTrigger value="members" className="text-xs sm:text-sm px-3">Members</TabsTrigger>
+            <TabsTrigger value="posts" className="text-xs sm:text-sm px-3">Posts</TabsTrigger>
+            <TabsTrigger value="events" className="text-xs sm:text-sm px-3">Events</TabsTrigger>
+            <TabsTrigger value="rooms" className="text-xs sm:text-sm px-3">Rooms</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
@@ -978,26 +1102,26 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         <TabsContent value="members" className="space-y-6">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <CardTitle>Member Management</CardTitle>
-                <div className="flex space-x-2">
-                  <Button onClick={() => setShowInviteModal(true)} className="bg-gradient-to-r from-purple-500 to-blue-500">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                  <Button onClick={() => setShowInviteModal(true)} className="w-full sm:w-auto bg-sky-600 hover:bg-sky-500">
                     <UserPlus className="w-4 h-4 mr-2" />
                     Invite Members
                   </Button>
-                  <div className="relative">
+                  <div className="relative w-full sm:w-auto">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <Input
                       placeholder="Search members..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 w-64"
+                      className="pl-10 w-full sm:w-64"
                     />
                   </div>
                   <select
                     value={filterRole}
                     onChange={(e) => setFilterRole(e.target.value)}
-                    className="border rounded px-3 py-2 bg-white dark:bg-gray-900"
+                    className="border rounded px-3 py-2 bg-background w-full sm:w-auto"
                   >
                     <option value="all">All Roles</option>
                     <option value="owner">Owner</option>
@@ -1008,7 +1132,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="border rounded px-3 py-2 bg-white dark:bg-gray-900"
+                    className="border rounded px-3 py-2 bg-background w-full sm:w-auto"
                   >
                     <option value="all">All Status</option>
                     <option value="active">Active</option>
@@ -1021,16 +1145,16 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
             <CardContent>
               <div className="space-y-4">
                 {filteredMembers.map((member) => (
-                  <div key={member.id} className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="w-10 h-10">
+                  <div key={member.id} className="border rounded-lg p-3 sm:p-4 hover:bg-muted/40">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center space-x-3 min-w-0">
+                        <Avatar className="w-10 h-10 shrink-0">
                           <AvatarImage src={member.avatar_url} alt={member.display_name} />
                           <AvatarFallback>{(member.display_name || member.username || "?").charAt(0)}</AvatarFallback>
                         </Avatar>
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <span className="font-semibold">{member.display_name}</span>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold truncate">{member.display_name}</span>
                             {member.is_verified && <Check className="w-4 h-4 text-blue-500" />}
                             {member.is_premium && <Crown className="w-4 h-4 text-yellow-500" />}
                             <Badge className={`text-xs ${
@@ -1047,7 +1171,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                               {member.status}
                             </Badge>
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-muted-foreground truncate">
                             @{member.username} • {member.contribution_score} points
                           </div>
                           {member.status === 'banned' && member.ban_reason && (
@@ -1058,7 +1182,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                         </div>
                       </div>
                       
-                      <div className="flex space-x-2">
+                      <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm"
                           variant="outline"
@@ -1196,9 +1320,9 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
 
         {/* Events Tab */}
         <TabsContent value="events" className="space-y-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
             <h3 className="text-xl font-semibold">Event Management</h3>
-            <Button onClick={() => setShowCreateEvent(true)} className="bg-gradient-to-r from-purple-500 to-blue-500">
+            <Button onClick={() => setShowCreateEvent(true)} className="w-full sm:w-auto bg-sky-600 hover:bg-sky-500">
               <Plus className="w-4 h-4 mr-2" />
               Create Event
             </Button>
@@ -1239,9 +1363,9 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
 
         {/* Rooms Tab */}
         <TabsContent value="rooms" className="space-y-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
             <h3 className="text-xl font-semibold">Room Management</h3>
-            <Button onClick={() => setShowCreateRoom(true)} className="bg-gradient-to-r from-purple-500 to-blue-500">
+            <Button onClick={() => setShowCreateRoom(true)} className="w-full sm:w-auto bg-sky-600 hover:bg-sky-500">
               <Plus className="w-4 h-4 mr-2" />
               Create Room
             </Button>
@@ -1269,7 +1393,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                     <span className="text-sm text-gray-500">
                       {room.member_count} members
                     </span>
-                    <Button size="sm" variant="destructive">
+                    <Button size="sm" variant="destructive" onClick={() => handleDeleteRoom(room.id)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -1431,7 +1555,6 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                 <option value="voice_chat">Voice Chat</option>
                 <option value="screen_share">Screen Share</option>
                 <option value="game">Game</option>
-                <option value="challenge">Challenge</option>
               </select>
             </div>
             

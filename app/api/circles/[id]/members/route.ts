@@ -197,19 +197,41 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     // Perform action
     if (action === "ban") {
-      // Ban member
-      const { error: banError } = await supabase
-        .from("circle_members")
-        .update({ 
-          status: "banned",
-          updated_at: new Date().toISOString()
-        })
-        .eq("circle_id", circleId)
-        .eq("user_id", targetUserId)
+      // Ban member (updated_at may be missing on older schemas)
+      let banError = (
+        await supabase
+          .from("circle_members")
+          .update({
+            status: "banned",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("circle_id", circleId)
+          .eq("user_id", targetUserId)
+      ).error
+
+      if (banError && /updated_at|PGRST204/i.test(banError.message || banError.code || "")) {
+        banError = (
+          await supabase
+            .from("circle_members")
+            .update({ status: "banned" })
+            .eq("circle_id", circleId)
+            .eq("user_id", targetUserId)
+        ).error
+      }
 
       if (banError) {
         console.error("Database ban error:", banError)
         return NextResponse.json({ error: "Failed to ban member" }, { status: 500 })
+      }
+
+      try {
+        await supabase.channel(`circle-admin:${circleId}`).send({
+          type: "broadcast",
+          event: "admin_refresh",
+          payload: { action: "ban", userId: targetUserId },
+        })
+      } catch {
+        /* ignore broadcast failures */
       }
 
       return NextResponse.json({

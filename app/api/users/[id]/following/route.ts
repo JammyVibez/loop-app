@@ -1,88 +1,48 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { type NextRequest, NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+export const dynamic = "force-dynamic"
 
-async function getUserFromToken(token: string) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
-
-    if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-    }
-
+    const supabase = createServerClient()
     const { id: targetUserId } = await params
     const { searchParams } = new URL(request.url)
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
 
-    // Check if target user exists
+    const authHeader = request.headers.get("authorization")
+    const token = authHeader?.replace("Bearer ", "") || null
+    let viewerId: string | null = null
+    if (token) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser(token)
+      viewerId = user?.id || null
+    }
+
     const { data: targetUser, error: userError } = await supabase
-      .from("users")
+      .from("profiles")
       .select("id, username, privacy_settings")
       .eq("id", targetUserId)
-      .single()
+      .maybeSingle()
 
     if (userError || !targetUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    // Check privacy settings
-    const privacySettings = targetUser.privacy_settings || {}
-    const profileVisibility = privacySettings.profile_visibility || "public"
-
-    if (profileVisibility === "private" && targetUserId !== user.id) {
-      // Check if current user follows the target user
-      const { data: followData } = await supabase
-        .from("follows")
-        .select("id")
-        .eq("follower_id", user.id)
-        .eq("following_id", targetUserId)
-        .single()
-
-      if (!followData) {
-        return NextResponse.json({ error: "This profile is private" }, { status: 403 })
-      }
-    }
-
-    // Get following with user details
     const { data: following, error: followingError } = await supabase
       .from("follows")
       .select(`
         id,
         created_at,
-        following:users!following_id(
+        following:profiles!following_id(
           id,
           username,
           display_name,
           avatar_url,
           is_verified,
-          verification_level
+          is_premium
         )
       `)
       .eq("follower_id", targetUserId)
@@ -90,37 +50,31 @@ export async function GET(
       .range(offset, offset + limit - 1)
 
     if (followingError) {
-      console.error("Database error:", followingError)
-      return NextResponse.json({ error: "Failed to fetch following" }, { status: 500 })
+      return NextResponse.json({ error: followingError.message }, { status: 500 })
     }
 
-    // Check if current user follows each person in the following list
-    const followingIds = following?.map((f: any) => f.following.id) || []
-    let currentUserFollowing: string[] = []
-
-    if (followingIds.length > 0) {
-      const { data: followingData } = await supabase
+    const followingIds = (following || []).map((f: any) => f.following?.id).filter(Boolean)
+    let currentUserFollowing = new Set<string>()
+    if (viewerId && followingIds.length) {
+      const { data } = await supabase
         .from("follows")
         .select("following_id")
-        .eq("follower_id", user.id)
+        .eq("follower_id", viewerId)
         .in("following_id", followingIds)
-
-      currentUserFollowing = followingData?.map(f => f.following_id) || []
+      currentUserFollowing = new Set((data || []).map((f) => f.following_id))
     }
 
-    // Format response
-    const formattedFollowing = following?.map((follow: any) => ({
+    const formattedFollowing = (following || []).map((follow: any) => ({
       ...follow.following,
       followed_at: follow.created_at,
-      is_following: currentUserFollowing.includes(follow.following.id),
-      is_self: follow.following.id === user.id,
-    })) || []
+      is_following: currentUserFollowing.has(follow.following?.id),
+      is_self: follow.following?.id === viewerId,
+    }))
 
     return NextResponse.json({
       success: true,
       following: formattedFollowing,
-      has_more: following?.length === limit,
-      total_count: formattedFollowing.length,
+      has_more: (following || []).length === limit,
     })
   } catch (error) {
     console.error("Error fetching following:", error)

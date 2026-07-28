@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,9 +17,11 @@ import { useAuth } from "@/hooks/use-auth"
 import { useTheme } from "next-themes"
 
 export function SettingsContent() {
-  const { user } = useAuth()
+  const { user, getAuthHeader, refreshUser, applyServerProfile } = useAuth()
   const { theme, setTheme, isDark } = useTheme()
   const { toast } = useToast()
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
 
   const [profileData, setProfileData] = useState({
     display_name: user?.display_name || "",
@@ -31,6 +33,20 @@ export function SettingsContent() {
     avatar_url: user?.avatar_url || "",
     banner_url: user?.banner_url || "",
   })
+
+  useEffect(() => {
+    if (!user) return
+    setProfileData((prev) => ({
+      display_name: user.display_name || prev.display_name || "",
+      username: user.username || prev.username || "",
+      bio: user.bio || prev.bio || "",
+      email: user.email || prev.email || "",
+      location: user.location || prev.location || "",
+      website: user.website || prev.website || "",
+      avatar_url: user.avatar_url || prev.avatar_url || "",
+      banner_url: user.banner_url || prev.banner_url || "",
+    }))
+  }, [user?.id, user?.avatar_url, user?.banner_url, user?.display_name, user?.bio])
   const [notifications, setNotifications] = useState({
     email_loops: true,
     email_branches: true,
@@ -50,116 +66,147 @@ export function SettingsContent() {
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
+    if (!user) {
+      toast({ title: "Sign in required", description: "Log in again to upload a photo.", variant: "destructive" })
+      return
+    }
 
+    setUploadingAvatar(true)
     try {
       const formData = new FormData()
-      formData.append('file', file)
-      formData.append('type', 'image')
-      formData.append('folder', 'avatars')
+      formData.append("file", file)
+      formData.append("type", "image")
+      formData.append("folder", "avatars")
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
+      const response = await fetch("/api/upload", {
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${user?.access_token}`
+          ...getAuthHeader(),
         },
-        body: formData
+        body: formData,
       })
 
       const result = await response.json()
-      if (result.success) {
-        const uploadedUrl = result.url || result.data?.url
-        const next = { ...profileData, avatar_url: uploadedUrl }
-        setProfileData(next)
-        await fetch("/api/users/profile", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${user?.access_token}`,
-          },
-          body: JSON.stringify({ avatar_url: uploadedUrl }),
-        })
-        toast({
-          title: "Avatar Updated",
-          description: "Your avatar has been updated successfully.",
-        })
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Upload failed")
       }
-    } catch (error) {
+
+      const uploadedUrl = result.url || result.data?.url
+      if (!uploadedUrl) throw new Error("Upload succeeded but no URL returned")
+
+      const saveRes = await fetch("/api/users/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ avatar_url: uploadedUrl }),
+      })
+      const saveData = await saveRes.json()
+      if (!saveRes.ok) throw new Error(saveData.error || "Failed to save avatar")
+
+      setProfileData((prev) => ({ ...prev, avatar_url: uploadedUrl }))
+      applyServerProfile?.(saveData.profile || { avatar_url: uploadedUrl })
+      await refreshUser?.()
       toast({
-        title: "Error",
-        description: "Failed to upload avatar.",
+        title: "Avatar updated",
+        description: "Your profile photo is live.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload avatar.",
         variant: "destructive",
       })
+    } finally {
+      setUploadingAvatar(false)
+      event.target.value = ""
     }
   }
 
   const handleBannerUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
+    if (!user) {
+      toast({ title: "Sign in required", description: "Log in again to upload a cover.", variant: "destructive" })
+      return
+    }
 
+    setUploadingBanner(true)
     try {
       const formData = new FormData()
-      formData.append('file', file)
-      formData.append('type', 'image')
-      formData.append('folder', 'banners')
+      formData.append("file", file)
+      formData.append("type", "image")
+      formData.append("folder", "banners")
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
+      const response = await fetch("/api/upload", {
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${user?.access_token}`
+          ...getAuthHeader(),
         },
-        body: formData
+        body: formData,
       })
 
       const result = await response.json()
-      if (result.success) {
-        const uploadedUrl = result.url || result.data?.url
-        const next = { ...profileData, banner_url: uploadedUrl }
-        setProfileData(next)
-        await fetch("/api/users/profile", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${user?.access_token}`,
-          },
-          body: JSON.stringify({ banner_url: uploadedUrl }),
-        })
-        toast({
-          title: "Cover photo updated",
-          description: "Your profile cover is live.",
-        })
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Upload failed")
       }
-    } catch (error) {
+
+      const uploadedUrl = result.url || result.data?.url
+      if (!uploadedUrl) throw new Error("Upload succeeded but no URL returned")
+
+      const saveRes = await fetch("/api/users/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ banner_url: uploadedUrl }),
+      })
+      const saveData = await saveRes.json()
+      if (!saveRes.ok) throw new Error(saveData.error || "Failed to save cover")
+
+      setProfileData((prev) => ({ ...prev, banner_url: uploadedUrl }))
+      applyServerProfile?.(saveData.profile || { banner_url: uploadedUrl })
+      await refreshUser?.()
       toast({
-        title: "Error",
-        description: "Failed to upload banner.",
+        title: "Cover photo updated",
+        description: "Your profile cover is live.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload banner.",
         variant: "destructive",
       })
+    } finally {
+      setUploadingBanner(false)
+      event.target.value = ""
     }
   }
 
   const handleProfileUpdate = async () => {
     try {
-      const response = await fetch('/api/users/profile', {
-        method: 'PUT',
+      const response = await fetch("/api/users/profile", {
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user?.access_token}`
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
         },
-        body: JSON.stringify(profileData)
+        body: JSON.stringify(profileData),
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to update profile')
-      }
-
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to update profile")
+      applyServerProfile?.(data.profile || profileData)
+      await refreshUser?.()
       toast({
-        title: "Profile Updated",
-        description: "Your profile has been updated successfully.",
+        title: "Profile saved",
+        description: "Your settings were updated.",
       })
-    } catch (error) {
+    } catch (error: any) {
       toast({
-        title: "Error",
-        description: "Failed to update profile. Please try again.",
+        title: "Save failed",
+        description: error.message || "Failed to update profile.",
         variant: "destructive",
       })
     }
@@ -232,9 +279,14 @@ export function SettingsContent() {
                   <AvatarFallback className="text-2xl">{user?.display_name?.charAt(0) || "U"}</AvatarFallback>
                 </Avatar>
                 <div className="space-y-2">
-                  <Button variant="outline" className="flex items-center space-x-2" onClick={() => document.getElementById('avatar-upload')?.click()}>
+                  <Button
+                    variant="outline"
+                    className="flex items-center space-x-2"
+                    disabled={uploadingAvatar}
+                    onClick={() => document.getElementById('avatar-upload')?.click()}
+                  >
                     <Upload className="w-4 h-4" />
-                    <span>Upload New Picture</span>
+                    <span>{uploadingAvatar ? "Uploading…" : "Upload New Picture"}</span>
                   </Button>
                   <input
                     id="avatar-upload"

@@ -68,6 +68,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
   const [commentOpen, setCommentOpen] = useState<Reel | null>(null)
   const [comments, setComments] = useState<any[]>([])
   const [commentText, setCommentText] = useState("")
+  const [replyTo, setReplyTo] = useState<{ id: string; username?: string } | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
@@ -236,6 +237,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
   const openComments = async (reel: Reel) => {
     setCommentOpen(reel)
     setComments([])
+    setReplyTo(null)
     if (reel.source === "loop") return
     const response = await fetch(`/api/reels/${reel.id}/comments`)
     if (response.ok) {
@@ -249,23 +251,35 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
     const response = await fetch(`/api/reels/${commentOpen.id}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeader() },
-      body: JSON.stringify({ content: commentText.trim() }),
+      body: JSON.stringify({
+        content: commentText.trim(),
+        parent_comment_id: replyTo?.id || null,
+      }),
     })
     const data = await response.json()
     if (!response.ok) {
       toast({ title: "Comment failed", description: data.error, variant: "destructive" })
       return
     }
-    setComments((prev) => [...prev, data.comment || data.data?.comment])
+
+    const created = data.comment || data.data?.comment
+    if (replyTo?.id) {
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === replyTo.id ? { ...c, replies: [...(c.replies || []), created] } : c,
+        ),
+      )
+    } else {
+      setComments((prev) => [...prev, { ...created, replies: [] }])
+    }
+
     setCommentText("")
+    setReplyTo(null)
+    const nextCount = (commentOpen.comment_count || 0) + 1
     setReels((prev) =>
-      prev.map((r) => (r.id === commentOpen.id ? { ...r, comment_count: (r.comment_count || 0) + 1 } : r)),
+      prev.map((r) => (r.id === commentOpen.id ? { ...r, comment_count: nextCount } : r)),
     )
-    await supabase.channel("reels:public").send({
-      type: "broadcast",
-      event: "reel:commented",
-      payload: { reel_id: commentOpen.id, comment_count: (commentOpen.comment_count || 0) + 1 },
-    })
+    setCommentOpen((prev) => (prev ? { ...prev, comment_count: nextCount } : prev))
   }
 
   const createReel = async () => {
@@ -451,7 +465,15 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
         })}
       </div>
 
-      <Dialog open={!!commentOpen} onOpenChange={(open) => !open && setCommentOpen(null)}>
+      <Dialog
+        open={!!commentOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCommentOpen(null)
+            setReplyTo(null)
+          }
+        }}
+      >
         <DialogContent className="max-h-[80vh] overflow-hidden bg-background sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Comments</DialogTitle>
@@ -459,14 +481,45 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
           <div className="max-h-72 space-y-3 overflow-y-auto">
             {comments.length === 0 && <p className="text-sm text-muted-foreground">No comments yet.</p>}
             {comments.map((comment: any) => (
-              <div key={comment.id || comment.created_at} className="rounded-xl border p-3 text-sm">
+              <div key={comment.id || comment.created_at} className="space-y-2 rounded-xl border p-3 text-sm">
                 <p className="font-medium">@{comment.author?.username || comment.user?.username || "user"}</p>
                 <p className="text-muted-foreground">{comment.content}</p>
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-sky-500"
+                  onClick={() =>
+                    setReplyTo({
+                      id: comment.id,
+                      username: comment.author?.username || comment.user?.username,
+                    })
+                  }
+                >
+                  Reply
+                </button>
+                {(comment.replies || []).map((reply: any) => (
+                  <div key={reply.id} className="ml-4 rounded-lg border border-border/60 bg-muted/30 p-2">
+                    <p className="font-medium">@{reply.author?.username || "user"}</p>
+                    <p className="text-muted-foreground">{reply.content}</p>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
+          {replyTo && (
+            <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-xs">
+              <span>Replying to @{replyTo.username || "user"}</span>
+              <button type="button" onClick={() => setReplyTo(null)} className="font-semibold">
+                Cancel
+              </button>
+            </div>
+          )}
           <div className="flex gap-2">
-            <Input value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Add a comment..." />
+            <Input
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder={replyTo ? `Reply to @${replyTo.username || "user"}...` : "Add a comment..."}
+              onKeyDown={(e) => e.key === "Enter" && sendComment()}
+            />
             <Button onClick={sendComment}>Send</Button>
           </div>
         </DialogContent>

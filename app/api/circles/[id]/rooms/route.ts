@@ -117,6 +117,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Failed to create room" }, { status: 500 })
     }
 
+    try {
+      await supabase.channel(`circle-admin:${circleId}`).send({
+        type: "broadcast",
+        event: "admin_refresh",
+        payload: { action: "create_room", roomId: room.id },
+      })
+    } catch {
+      /* ignore */
+    }
+
     return NextResponse.json({
       success: true,
       room,
@@ -262,6 +272,16 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (deleteError) {
       console.error("Database delete error:", deleteError)
       return NextResponse.json({ error: "Failed to delete room" }, { status: 500 })
+    }
+
+    try {
+      await supabase.channel(`circle-admin:${circleId}`).send({
+        type: "broadcast",
+        event: "admin_refresh",
+        payload: { action: "delete_room", roomId },
+      })
+    } catch {
+      /* ignore */
     }
 
     return NextResponse.json({

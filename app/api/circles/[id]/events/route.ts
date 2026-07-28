@@ -156,6 +156,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Failed to create event" }, { status: 500 })
     }
 
+    try {
+      await supabase.channel(`circle-admin:${circleId}`).send({
+        type: "broadcast",
+        event: "admin_refresh",
+        payload: { action: "create_event", eventId: event.id },
+      })
+    } catch {
+      /* ignore */
+    }
+
     return NextResponse.json({
       success: true,
       event,
@@ -319,6 +329,16 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (deleteError) {
       console.error("Database delete error:", deleteError)
       return NextResponse.json({ error: "Failed to delete event" }, { status: 500 })
+    }
+
+    try {
+      await supabase.channel(`circle-admin:${circleId}`).send({
+        type: "broadcast",
+        event: "admin_refresh",
+        payload: { action: "delete_event", eventId },
+      })
+    } catch {
+      /* ignore */
     }
 
     return NextResponse.json({

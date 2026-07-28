@@ -89,7 +89,7 @@ export function TrendingSidebar() {
         </CardContent>
       </Card>
 
-      <UserSuggestions title="Suggested for you" limit={5} compact />
+      <UserSuggestions title="Who to follow" limit={5} compact />
 
       <Card>
         <CardHeader className="pb-3">
