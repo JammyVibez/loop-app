@@ -1,5 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { normalizeLoop } from "@/lib/normalize-loop";
+import { uploadFileToCloudinary } from "@/lib/cloudinary-upload";
+import { isCloudinaryConfigured } from "@/lib/env-check";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -14,27 +17,6 @@ async function getUserFromToken(token: string) {
   } catch {
     return null
   }
-}
-
-async function uploadToCloudinary(file: File, resourceType: "image" | "video" | "raw" = "raw") {
-  const formData = new FormData()
-  formData.append("file", file)
-  formData.append("upload_preset", process.env.CLOUDINARY_UPLOAD_PRESET!)
-  formData.append("resource_type", resourceType)
-
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`,
-    {
-      method: "POST",
-      body: formData,
-    },
-  )
-
-  if (!response.ok) {
-    throw new Error("Failed to upload file")
-  }
-
-  return await response.json()
 }
 
 export async function POST(request: NextRequest) {
@@ -52,13 +34,13 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = await request.formData()
-    const content = formData.get("content") as string
-    const title = formData.get("title") as string
-    const type = formData.get("type") as string
-    const parentId = formData.get("parent_id") as string
-    const file = formData.get("file") as File | null
+    const content = String(formData.get("content") || formData.get("content_text") || "")
+    const title = String(formData.get("title") || formData.get("content_title") || "")
+    const type = String(formData.get("type") || formData.get("content_type") || "text")
+    const parentId = String(formData.get("parent_id") || formData.get("parent_loop_id") || "")
+    const file = (formData.get("file") || formData.get("media")) as File | null
 
-    if (!content && !file) {
+    if (!content.trim() && !file) {
       return NextResponse.json({ error: "Content or file is required" }, { status: 400 })
     }
 
@@ -66,10 +48,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Parent loop ID is required" }, { status: 400 })
     }
 
-    // Check if parent loop exists
     const { data: parentLoop, error: parentError } = await supabase
       .from("loops")
-      .select("id, branch_depth")
+      .select("id, tree_depth")
       .eq("id", parentId)
       .single()
 
@@ -77,108 +58,86 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Parent loop not found" }, { status: 404 })
     }
 
-    // Check branch depth limit (max 10 levels)
-    if (parentLoop.branch_depth >= 10) {
+    const parentDepth = parentLoop.tree_depth ?? 0
+    if (parentDepth >= 10) {
       return NextResponse.json({ error: "Maximum branch depth reached" }, { status: 400 })
     }
 
-    let fileUrl = null
-    let fileType = null
-    let fileName = null
+    let mediaUrl: string | null = null
+    let mediaType = type || "text"
 
-    // Upload file if provided
-    if (file) {
+    if (file && file.size > 0) {
+      if (!isCloudinaryConfigured()) {
+        return NextResponse.json(
+          { error: "Media uploads are not configured. Add Cloudinary env vars on Vercel." },
+          { status: 503 },
+        )
+      }
+
       try {
-        let resourceType: "image" | "video" | "raw" = "raw"
+        if (file.type.startsWith("image/")) mediaType = "image"
+        else if (file.type.startsWith("video/")) mediaType = "video"
+        else if (file.type.startsWith("audio/")) mediaType = "audio"
+        else mediaType = "file"
 
-        if (file.type.startsWith("image/")) {
-          resourceType = "image"
-          fileType = "image"
-        } else if (file.type.startsWith("video/")) {
-          resourceType = "video"
-          fileType = "video"
-        } else if (file.type.startsWith("audio/")) {
-          resourceType = "video"
-          fileType = "audio"
-        } else {
-          fileType = "file"
-        }
-
-        const uploadResult = await uploadToCloudinary(file, resourceType)
-        fileUrl = uploadResult.secure_url
-        fileName = file.name
+        const uploadResult = await uploadFileToCloudinary(file, "loop-branches")
+        mediaUrl = uploadResult.secure_url
       } catch (uploadError) {
         console.error("File upload error:", uploadError)
         return NextResponse.json({ error: "Failed to upload file" }, { status: 500 })
       }
     }
 
-    // Create branch content object
-    const branchContent: any = {
-      type: fileType || type,
-      text: content || null,
-      title: title || null,
+    const textContent = content.trim()
+    const payload = {
+      author_id: user.id,
+      content: textContent || (mediaUrl ? `Shared a ${mediaType}` : ""),
+      content_text: textContent || null,
+      content_title: title || textContent.slice(0, 80) || null,
+      content_media_url: mediaUrl,
+      media_url: mediaUrl,
+      content_type: mediaType,
+      media_type: mediaType,
+      parent_loop_id: parentId,
+      tree_depth: parentDepth + 1,
+      visibility: "public",
+      hashtags: [] as string[],
+      content_metadata: {},
     }
 
-    if (fileUrl) {
-      switch (fileType) {
-        case "image":
-          branchContent.image_url = fileUrl
-          branchContent.caption = content
-          break
-        case "video":
-          branchContent.video_url = fileUrl
-          branchContent.description = content
-          break
-        case "audio":
-          branchContent.audio_url = fileUrl
-          branchContent.description = content
-          break
-        case "file":
-          branchContent.file_url = fileUrl
-          branchContent.file_name = fileName
-          branchContent.description = content
-          break
-      }
-    }
-
-    // Insert branch into database
     const { data: branch, error: insertError } = await supabase
       .from("loops")
-      .insert({
-        author_id: user.id,
-        content: branchContent,
-        parent_id: parentId,
-        branch_depth: parentLoop.branch_depth + 1,
-        circle_id: null,
-      })
+      .insert(payload)
       .select(`
         *,
-        author:profiles(id, username, display_name, avatar_url, is_verified, verification_level, is_premium)
+        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+        loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
       .single()
 
     if (insertError) {
       console.error("Database insert error:", insertError)
-      return NextResponse.json({ error: "Failed to create branch" }, { status: 500 })
+      return NextResponse.json({ error: insertError.message || "Failed to create branch" }, { status: 500 })
     }
 
-    // Initialize branch stats
-    await supabase.from("loop_stats").insert({
-      loop_id: branch.id,
-      likes: 0,
-      branches: 0,
-      comments: 0,
-      saves: 0,
-      views: 0,
-    })
+    await supabase.from("loop_stats").upsert(
+      {
+        loop_id: branch.id,
+        likes_count: 0,
+        comments_count: 0,
+        branches_count: 0,
+        shares_count: 0,
+        views_count: 0,
+      },
+      { onConflict: "loop_id", ignoreDuplicates: true },
+    )
 
-    // Update parent loop branch count
-    await supabase.rpc("increment_loop_branches", { loop_id: parentId })
+    const { error: rpcError } = await supabase.rpc("increment_loop_branches", { loop_id: parentId })
+    if (rpcError) console.error("increment_loop_branches error:", rpcError.message)
 
     return NextResponse.json({
       success: true,
-      branch,
+      branch: normalizeLoop(branch),
     })
   } catch (error) {
     console.error("Error creating branch:", error)

@@ -26,7 +26,15 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
-  const { user } = useAuth()
+  const { user, getAuthHeader } = useAuth()
+
+  const parentPreview =
+    typeof parentLoop?.content === "string"
+      ? parentLoop.content
+      : parentLoop?.content?.text || parentLoop?.content_text || ""
+
+  const parentAuthorName =
+    parentLoop?.author?.display_name || parentLoop?.author?.displayName || parentLoop?.author || "Unknown"
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -69,16 +77,18 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
         method: "POST",
         body: formData,
         headers: {
-          Authorization: `Bearer ${user?.token}`,
+          ...getAuthHeader(),
         },
       })
 
+      const result = await response.json().catch(() => ({}))
+
       if (!response.ok) {
-        throw new Error("Failed to create branch")
+        throw new Error(result.error || "Failed to create branch")
       }
 
       toast({
-        title: "Branch created! 🌿",
+        title: "Branch created",
         description: "Your branch has been added to the loop tree",
       })
 
@@ -89,10 +99,10 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
 
       // Refresh to show new branch
       window.location.reload()
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to create branch. Please try again.",
+        description: error?.message || "Failed to create branch. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -115,11 +125,11 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
           <div className="bg-gray-800 rounded-lg p-4 border-l-4 border-purple-500">
             <div className="flex items-center space-x-2 mb-2">
               <span className="text-sm text-gray-400">Branching from:</span>
-              <Badge className="bg-purple-600 text-white">{parentLoop.author.display_name}</Badge>
+              <Badge className="bg-purple-600 text-white">{parentAuthorName}</Badge>
             </div>
             <p className="text-gray-300 text-sm">
-              {parentLoop.content.text?.slice(0, 100)}
-              {parentLoop.content.text?.length > 100 ? "..." : ""}
+              {parentPreview.slice(0, 100)}
+              {parentPreview.length > 100 ? "..." : ""}
             </p>
           </div>
 

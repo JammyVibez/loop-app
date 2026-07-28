@@ -11,18 +11,17 @@ import { Label } from "./ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
 import { useAuth } from "../providers/auth-provider";
-
-
-// Use NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY for client-side code
-
+import { useToast } from "@/hooks/use-toast";
 
 interface CreateLoopButtonProps {
   onLoopCreated?: () => void
+  defaultOpen?: boolean
 }
 
-export function CreateLoopButton({ onLoopCreated }: CreateLoopButtonProps) {
-  const { user } = useAuth()
-  const [isOpen, setIsOpen] = useState(false)
+export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateLoopButtonProps) {
+  const { user, getAuthHeader } = useAuth()
+  const { toast } = useToast()
+  const [isOpen, setIsOpen] = useState(defaultOpen)
   const [content, setContent] = useState("")
   const [hashtags, setHashtags] = useState("")
   const [mediaFiles, setMediaFiles] = useState<File[]>([])
@@ -34,11 +33,17 @@ export function CreateLoopButton({ onLoopCreated }: CreateLoopButtonProps) {
     return user?.is_premium || user?.is_verified ? 4 : 1
   }
 
+  const authToken = user?.access_token || user?.token
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user || !user.token) {
-      alert("You must be logged in to create a loop.");
+    if (!user || !authToken) {
+      toast({
+        title: "Sign in required",
+        description: "You must be logged in to create a loop.",
+        variant: "destructive",
+      })
       setCreating(false);
       return;
     }
@@ -48,7 +53,6 @@ export function CreateLoopButton({ onLoopCreated }: CreateLoopButtonProps) {
       let res;
 
       if (mediaFiles.length > 0) {
-        // ✅ OPTION B: send file(s) directly to backend
         const formData = new FormData();
         formData.append("content_text", content);
         formData.append("content_title", content.slice(0, 80) || "");
@@ -60,23 +64,23 @@ export function CreateLoopButton({ onLoopCreated }: CreateLoopButtonProps) {
             .map((tag) => tag.toLowerCase())
         ));
 
-        // only append first file for now (backend expects one)
         formData.append("media", mediaFiles[0]);
 
         res = await fetch("/api/loops", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${user.token}`, // ⚠️ no Content-Type here, browser sets it
+            ...getAuthHeader(),
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
           },
           body: formData,
         });
       } else {
-        // ✅ OPTION A: no file → send JSON
         res = await fetch("/api/loops", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${user.token}`,
+            ...getAuthHeader(),
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
           },
           body: JSON.stringify({
             content_text: content,
@@ -98,15 +102,28 @@ export function CreateLoopButton({ onLoopCreated }: CreateLoopButtonProps) {
         setMediaType("text");
         setUploadProgress([]);
         setIsOpen(false);
-        // Call the callback after successful creation
+        toast({
+          title: "Loop created",
+          description: "Your loop is live on the feed.",
+        })
         if (onLoopCreated) {
           onLoopCreated();
+        } else {
+          window.location.reload()
         }
       } else {
-        alert("Failed to create loop: " + (result.error || res.statusText));
+        toast({
+          title: "Failed to create loop",
+          description: result.error || res.statusText,
+          variant: "destructive",
+        })
       }
     } catch (err: any) {
-      alert("Failed to create loop: " + err.message);
+      toast({
+        title: "Failed to create loop",
+        description: err.message || "Something went wrong",
+        variant: "destructive",
+      })
     }
 
     setCreating(false);

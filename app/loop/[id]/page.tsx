@@ -22,6 +22,7 @@ import {
   ExternalLink,
 } from "lucide-react"
 import { CommentsSection } from "@/components/comments/comments-section"
+import { CreateBranchDialog } from "@/components/create-branch-dialog"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { createClient } from "@supabase/supabase-js"
@@ -86,6 +87,7 @@ export default function LoopDetailPage() {
   const [loop, setLoop] = useState<LoopData | null>(null)
   const [loading, setLoading] = useState(true)
   const [showFullTree, setShowFullTree] = useState(false)
+  const [branchOpen, setBranchOpen] = useState(false)
   const { user, getAuthHeader } = useAuth()
 
   useEffect(() => {
@@ -437,8 +439,8 @@ export default function LoopDetailPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
                 <Button variant="ghost" size="sm" onClick={handleLike} className={loop.isLiked ? "text-red-500" : ""}>
                   <Heart className={`h-4 w-4 mr-2 ${loop.isLiked ? "fill-current" : ""}`} />
                   {loop.stats.likes.toLocaleString()}
@@ -451,6 +453,17 @@ export default function LoopDetailPage() {
                   <Share2 className="h-4 w-4 mr-2" />
                   {loop.stats.shares}
                 </Button>
+                {user && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBranchOpen(true)}
+                    className="border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10"
+                  >
+                    <GitBranch className="h-4 w-4 mr-2" />
+                    Branch
+                  </Button>
+                )}
               </div>
               <Button
                 variant="ghost"
@@ -464,16 +477,39 @@ export default function LoopDetailPage() {
           </CardContent>
         </Card>
 
+        <CreateBranchDialog
+          open={branchOpen}
+          onOpenChange={setBranchOpen}
+          parentLoop={{
+            id: loop.id,
+            content: loop.content,
+            content_text: loop.content,
+            author: {
+              display_name: loop.author.displayName,
+              username: loop.author.username,
+            },
+          }}
+        />
+
         {/* Branches Section */}
-        {loop.branches.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <GitBranch className="h-5 w-5" />
-                Branches ({loop.branches.length})
-              </h3>
-            </CardHeader>
-            <CardContent>
+        <Card className="mb-6">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <GitBranch className="h-5 w-5" />
+              Branches ({loop.branches.length})
+            </h3>
+            {user && (
+              <Button size="sm" onClick={() => setBranchOpen(true)}>
+                Add branch
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {loop.branches.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No branches yet. Be the first to continue this loop.
+              </p>
+            ) : (
               <div className="space-y-3">
                 {loop.branches.slice(0, showFullTree ? undefined : 3).map((branch) => (
                   <Link key={branch.id} href={`/loop/${branch.id}`}>
@@ -498,9 +534,9 @@ export default function LoopDetailPage() {
                   </Button>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </CardContent>
+        </Card>
 
         {/* Comments Section */}
         <CommentsSection loopId={loop.id} />

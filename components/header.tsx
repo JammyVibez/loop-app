@@ -161,6 +161,18 @@ export function Header() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white">
+                <Link href="/circles">
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  <span>Circles</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white">
+                <Link href="/explore">
+                  <Search className="mr-2 h-4 w-4" />
+                  <span>Explore</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white">
                 <Link href="/settings">
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Settings</span>

@@ -31,19 +31,14 @@ export default function HomePage() {
 
         <main className="container mx-auto px-2 sm:px-4 py-3 sm:py-6">
           <div className="grid grid-cols-1 xl:grid-cols-4 lg:grid-cols-3 gap-3 sm:gap-6">
-            {/* Main Content */}
             <div className="xl:col-span-3 lg:col-span-2 space-y-3 sm:space-y-6">
               <WelcomeBanner />
-             <div className="lg:col-span-3">
-             <div className="mb-6">
-              <CreateLoopButton />
-            </div>
-            <FeedTabs />
-          
-            </div>
+              <div className="mb-6">
+                <CreateLoopButton />
+              </div>
+              <FeedTabs />
             </div>
 
-            {/* Sidebar - Hidden on mobile, shown on large screens */}
             <div className="hidden lg:block xl:col-span-1 lg:col-span-1">
               <div className="sticky top-20">
                 <TrendingSidebar />
@@ -51,12 +46,8 @@ export default function HomePage() {
             </div>
           </div>
         </main>
-        
-        {/* PWA Install Prompt */}
+
         <PWAInstallPrompt />
-        
-        {/* Mobile bottom spacing for navigation */}
-        <div className="h-16 lg:hidden"></div>
       </div>
     </Theme3DProvider>
   )

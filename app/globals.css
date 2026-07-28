@@ -312,13 +312,22 @@
   transition:
     transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 0.45s ease;
+  /* Keep tilted cards from painting over siblings on touch devices */
+  isolation: isolate;
 }
 
-.landing-card-3d:hover {
-  transform: translateY(-6px) rotateX(4deg) rotateY(-4deg) scale(1.01);
-  box-shadow:
-    0 24px 48px -12px rgba(99, 102, 241, 0.35),
-    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+@media (hover: hover) and (pointer: fine) {
+  .landing-card-3d:hover {
+    transform: translateY(-6px) rotateX(4deg) rotateY(-4deg) scale(1.01);
+    box-shadow:
+      0 24px 48px -12px rgba(99, 102, 241, 0.35),
+      0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+  }
+}
+
+.landing-card-3d:active,
+.landing-card-3d:focus-within {
+  transform: none;
 }
 
 html.reduce-motion .landing-aurora-blob,
