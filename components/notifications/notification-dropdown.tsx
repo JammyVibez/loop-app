@@ -90,7 +90,7 @@ export function NotificationDropdown() {
       clearInterval(poll)
       void supabase.removeChannel(channel)
     }
-  }, [user?.id, fetchNotifications, toast])
+  }, [user?.id, fetchNotifications])
 
   const markAsRead = async (notificationId: string) => {
     if (!user) return
