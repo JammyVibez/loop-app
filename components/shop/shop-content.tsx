@@ -50,14 +50,14 @@ export function ShopContent() {
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState<string | null>(null)
   const { toast } = useToast()
-  const { user } = useAuth()
+  const { user, getAuthHeader, refreshUser } = useAuth()
 
   useEffect(() => {
     fetchShopItems()
     if (user) {
       fetchUserInventory()
     }
-  }, [user])
+  }, [user?.id])
 
   const fetchShopItems = async () => {
     try {
@@ -73,19 +73,13 @@ export function ShopContent() {
         }
 
         data.items.forEach((item: ShopItem) => {
-          switch (item.category) {
-            case "theme":
-              categorizedItems.themes.push(item)
-              break
-            case "animation":
-              categorizedItems.animations.push(item)
-              break
-            case "effect":
-              categorizedItems.effects.push(item)
-              break
-            case "coins":
-              categorizedItems.coins.push(item)
-              break
+          const category = item.category
+          if (category === "theme") categorizedItems.themes.push(item)
+          else if (category === "animation") categorizedItems.animations.push(item)
+          else if (category === "effect") categorizedItems.effects.push(item)
+          else if (category === "coins") categorizedItems.coins.push(item)
+          else if (category === "avatar" || category === "badge" || category === "premium") {
+            categorizedItems.effects.push(item)
           }
         })
 
@@ -104,13 +98,11 @@ export function ShopContent() {
   }
 
   const fetchUserInventory = async () => {
-    if (!user?.token) return
+    if (!user) return
 
     try {
       const response = await fetch("/api/inventory", {
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
+        headers: { ...getAuthHeader() },
       })
       const data = await response.json()
 
@@ -124,7 +116,7 @@ export function ShopContent() {
   }
 
   const handlePurchase = async (item: ShopItem) => {
-    if (!user?.token) {
+    if (!user) {
       toast({
         title: "Authentication Required",
         description: "Please log in to make purchases.",
@@ -133,7 +125,7 @@ export function ShopContent() {
       return
     }
 
-    if (purchasedItems.has(item.id)) {
+    if (purchasedItems.has(item.id) && item.category !== "coins") {
       toast({
         title: "Already Owned",
         description: "You already own this item!",
@@ -154,10 +146,9 @@ export function ShopContent() {
     setPurchasing(item.id)
 
     try {
-      const paymentMethod = item.category === "coins" ? "stripe" : "coins"
-      const itemPrice = item.price || item.price_coins || 0
+      const itemPrice = Number(item.price_coins ?? item.price ?? 0)
 
-      if (paymentMethod === "coins" && (user?.loop_coins || 0) < itemPrice) {
+      if ((user?.loop_coins || 0) < itemPrice) {
         toast({
           title: "Insufficient Loop Coins",
           description: "You don't have enough Loop Coins for this purchase.",
@@ -171,33 +162,26 @@ export function ShopContent() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token}`,
+          ...getAuthHeader(),
         },
         body: JSON.stringify({
           item_id: item.id,
-          payment_method: paymentMethod,
+          payment_method: "coins",
         }),
       })
 
       const data = await response.json()
 
       if (data.success) {
-        if (paymentMethod === "coins") {
+        if (item.category !== "coins") {
           setPurchasedItems((prev) => new Set([...prev, item.id]))
-          toast({
-            title: "Purchase Successful!",
-            description: `You've purchased ${item.name} for ${itemPrice} Loop Coins.`,
-          })
-          // Refresh user data to update coin balance
-          window.location.reload()
-        } else {
-          // Handle Stripe payment
-          toast({
-            title: "Redirecting to Payment",
-            description: "You'll be redirected to complete your purchase.",
-          })
-          // TODO: Integrate Stripe Elements here
         }
+        toast({
+          title: "Purchase Successful!",
+          description: `You've purchased ${item.name} for ${itemPrice} Loop Coins.`,
+        })
+        await refreshUser?.()
+        await fetchUserInventory()
       } else {
         toast({
           title: "Purchase Failed",

@@ -21,7 +21,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AdminCatalogPanel } from "@/components/admin/admin-catalog-panel"
 
 interface AdminUser {
   id: string
@@ -48,6 +49,7 @@ export function AdminDashboard() {
   const [q, setQ] = useState("")
   const [filter, setFilter] = useState("all")
   const [live, setLive] = useState(false)
+  const [section, setSection] = useState("users")
 
   const loadUsers = useCallback(async () => {
     if (!user?.is_admin) return
@@ -153,152 +155,165 @@ export function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Users className="h-4 w-4" /> Total users
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-3xl font-bold">{stats.total_users}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <BadgeCheck className="h-4 w-4" /> Verified
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-3xl font-bold">{stats.verified}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Crown className="h-4 w-4" /> Premium
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-3xl font-bold">{stats.premium}</CardContent>
-        </Card>
-      </div>
+      <Tabs value={section} onValueChange={setSection}>
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="catalog">Themes & Effects</TabsTrigger>
+        </TabsList>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <Tabs value={filter} onValueChange={setFilter} className="w-full lg:w-auto">
-          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-5">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="unverified">Unverified</TabsTrigger>
-            <TabsTrigger value="verified">Verified</TabsTrigger>
-            <TabsTrigger value="premium">Premium</TabsTrigger>
-            <TabsTrigger value="admin">Admins</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search username, name, email…"
-            className="pl-9"
-            onKeyDown={(e) => e.key === "Enter" && loadUsers()}
-          />
-        </div>
-      </div>
+        <TabsContent value="users" className="mt-6 space-y-6">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Users className="h-4 w-4" /> Total users
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-3xl font-bold">{stats.total_users}</CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <BadgeCheck className="h-4 w-4" /> Verified
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-3xl font-bold">{stats.verified}</CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Crown className="h-4 w-4" /> Premium
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-3xl font-bold">{stats.premium}</CardContent>
+            </Card>
+          </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{filteredLabel}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loading ? (
-            <div className="flex items-center justify-center py-12 text-muted-foreground">
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading users…
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <Tabs value={filter} onValueChange={setFilter} className="w-full lg:w-auto">
+              <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-5">
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="unverified">Unverified</TabsTrigger>
+                <TabsTrigger value="verified">Verified</TabsTrigger>
+                <TabsTrigger value="premium">Premium</TabsTrigger>
+                <TabsTrigger value="admin">Admins</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search username, name, email…"
+                className="pl-9"
+                onKeyDown={(e) => e.key === "Enter" && loadUsers()}
+              />
             </div>
-          ) : users.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">No users found.</p>
-          ) : (
-            users.map((u) => (
-              <div
-                key={u.id}
-                className="flex flex-col gap-3 rounded-2xl border p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <Avatar>
-                    <AvatarImage src={u.avatar_url} />
-                    <AvatarFallback>{(u.display_name || u.username || "U").charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <p className="truncate font-semibold">{u.display_name || u.username}</p>
-                      {u.is_verified && <Badge className="bg-sky-500">Verified</Badge>}
-                      {u.is_premium && <Badge className="bg-amber-500 text-slate-900">Premium</Badge>}
-                      {u.is_admin && <Badge variant="secondary">Admin</Badge>}
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{filteredLabel}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {loading ? (
+                <div className="flex items-center justify-center py-12 text-muted-foreground">
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading users…
+                </div>
+              ) : users.length === 0 ? (
+                <p className="py-10 text-center text-sm text-muted-foreground">No users found.</p>
+              ) : (
+                users.map((u) => (
+                  <div
+                    key={u.id}
+                    className="flex flex-col gap-3 rounded-2xl border p-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Avatar>
+                        <AvatarImage src={u.avatar_url} />
+                        <AvatarFallback>{(u.display_name || u.username || "U").charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className="truncate font-semibold">{u.display_name || u.username}</p>
+                          {u.is_verified && <Badge className="bg-sky-500">Verified</Badge>}
+                          {u.is_premium && <Badge className="bg-amber-500 text-slate-900">Premium</Badge>}
+                          {u.is_admin && <Badge variant="secondary">Admin</Badge>}
+                        </div>
+                        <p className="truncate text-sm text-muted-foreground">
+                          @{u.username} · {Number(u.loop_coins || 0).toLocaleString()} coins
+                        </p>
+                      </div>
                     </div>
-                    <p className="truncate text-sm text-muted-foreground">
-                      @{u.username} · {Number(u.loop_coins || 0).toLocaleString()} coins
-                    </p>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={busyId === `${u.id}:verify` || busyId === `${u.id}:unverify`}
+                        onClick={() => runAction(u.id, u.is_verified ? "unverify" : "verify")}
+                      >
+                        <BadgeCheck className="mr-1.5 h-3.5 w-3.5" />
+                        {u.is_verified ? "Unverify" : "Verify"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={busyId === `${u.id}:grant_premium` || busyId === `${u.id}:revoke_premium`}
+                        onClick={() =>
+                          runAction(u.id, u.is_premium ? "revoke_premium" : "grant_premium", { months: 1 })
+                        }
+                      >
+                        <Crown className="mr-1.5 h-3.5 w-3.5" />
+                        {u.is_premium ? "Revoke Pro" : "Grant Pro"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={busyId === `${u.id}:make_admin` || busyId === `${u.id}:remove_admin`}
+                        onClick={() => runAction(u.id, u.is_admin ? "remove_admin" : "make_admin")}
+                      >
+                        {u.is_admin ? (
+                          <>
+                            <ShieldOff className="mr-1.5 h-3.5 w-3.5" /> Remove admin
+                          </>
+                        ) : (
+                          <>
+                            <Shield className="mr-1.5 h-3.5 w-3.5" /> Make admin
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={busyId === `${u.id}:add_coins`}
+                        onClick={() => runAction(u.id, "add_coins", { amount: 500 })}
+                      >
+                        <Coins className="mr-1.5 h-3.5 w-3.5" /> +500
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
 
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-full"
-                    disabled={busyId === `${u.id}:verify` || busyId === `${u.id}:unverify`}
-                    onClick={() => runAction(u.id, u.is_verified ? "unverify" : "verify")}
-                  >
-                    <BadgeCheck className="mr-1.5 h-3.5 w-3.5" />
-                    {u.is_verified ? "Unverify" : "Verify"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-full"
-                    disabled={busyId === `${u.id}:grant_premium` || busyId === `${u.id}:revoke_premium`}
-                    onClick={() =>
-                      runAction(u.id, u.is_premium ? "revoke_premium" : "grant_premium", { months: 1 })
-                    }
-                  >
-                    <Crown className="mr-1.5 h-3.5 w-3.5" />
-                    {u.is_premium ? "Revoke Pro" : "Grant Pro"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-full"
-                    disabled={busyId === `${u.id}:make_admin` || busyId === `${u.id}:remove_admin`}
-                    onClick={() => runAction(u.id, u.is_admin ? "remove_admin" : "make_admin")}
-                  >
-                    {u.is_admin ? (
-                      <>
-                        <ShieldOff className="mr-1.5 h-3.5 w-3.5" /> Remove admin
-                      </>
-                    ) : (
-                      <>
-                        <Shield className="mr-1.5 h-3.5 w-3.5" /> Make admin
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-full"
-                    disabled={busyId === `${u.id}:add_coins`}
-                    onClick={() => runAction(u.id, "add_coins", { amount: 500 })}
-                  >
-                    <Coins className="mr-1.5 h-3.5 w-3.5" /> +500
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+          <Card className="border-dashed">
+            <CardContent className="flex items-start gap-3 py-5 text-sm text-muted-foreground">
+              <Sparkles className="mt-0.5 h-4 w-4 text-sky-500" />
+              Changes sync live across open admin sessions. Recipients also get an in-app notification.
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      <Card className="border-dashed">
-        <CardContent className="flex items-start gap-3 py-5 text-sm text-muted-foreground">
-          <Sparkles className="mt-0.5 h-4 w-4 text-sky-500" />
-          Changes sync live across open admin sessions. Recipients also get an in-app notification.
-        </CardContent>
-      </Card>
+        <TabsContent value="catalog" className="mt-6">
+          <AdminCatalogPanel />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

@@ -162,24 +162,65 @@ const availableThemes: Theme3D[] = [
 
 const Theme3DContext = createContext<Theme3DContextType | undefined>(undefined)
 
+function coerceTheme(theme: any): Theme3D | null {
+  if (typeof theme === "string") {
+    return availableThemes.find((item) => item.id === theme) || null
+  }
+  if (!theme) return null
+  return {
+    ...defaultTheme,
+    ...theme,
+    id: theme.id || "custom",
+    name: theme.name || "Custom Theme",
+    colors: { ...defaultTheme.colors, ...(theme.colors || {}) },
+    effects: {
+      ...defaultTheme.effects,
+      ...(typeof theme.effects === "object" && !Array.isArray(theme.effects)
+        ? theme.effects
+        : { particles: Array.isArray(theme.effects) }),
+    },
+    materials: { ...defaultTheme.materials, ...(theme.materials || {}) },
+    lighting: { ...defaultTheme.lighting, ...(theme.lighting || {}) },
+  }
+}
+
 export function Theme3DProvider({ children }: { children: React.ReactNode }) {
   const [currentTheme, setCurrentTheme] = useState<Theme3D>(defaultTheme)
 
   useEffect(() => {
-    // Load saved theme from localStorage
+    // Load saved theme from localStorage or profile-applied custom theme
     const savedThemeId = localStorage.getItem("loop-3d-theme")
-    if (savedThemeId) {
-      const savedTheme = availableThemes.find((theme) => theme.id === savedThemeId)
-      if (savedTheme) {
-        setCurrentTheme(savedTheme)
-      } else if (savedThemeId === "custom") {
-        const customThemeJson = localStorage.getItem("loop-3d-custom-theme")
-        if (customThemeJson) {
-          const customTheme = JSON.parse(customThemeJson) as Theme3D
-          setCurrentTheme(customTheme)
+    const customThemeJson = localStorage.getItem("loop-3d-custom-theme")
+    if (customThemeJson) {
+      try {
+        const customTheme = JSON.parse(customThemeJson) as Theme3D
+        if (customTheme?.colors) {
+          setCurrentTheme({
+            ...defaultTheme,
+            ...customTheme,
+            colors: { ...defaultTheme.colors, ...customTheme.colors },
+            effects: { ...defaultTheme.effects, ...(customTheme.effects as any) },
+          })
+          return
         }
+      } catch {
+        /* ignore */
       }
     }
+    if (savedThemeId) {
+      const savedTheme = availableThemes.find((theme) => theme.id === savedThemeId)
+      if (savedTheme) setCurrentTheme(savedTheme)
+    }
+  }, [])
+
+  useEffect(() => {
+    const onApplied = (event: Event) => {
+      const detail = (event as CustomEvent).detail
+      const next = coerceTheme(detail)
+      if (next) setCurrentTheme(next)
+    }
+    window.addEventListener("loop-theme-applied", onApplied as EventListener)
+    return () => window.removeEventListener("loop-theme-applied", onApplied as EventListener)
   }, [])
 
   useEffect(() => {
@@ -192,21 +233,14 @@ export function Theme3DProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty("--theme-surface", currentTheme.colors.surface)
     root.style.setProperty("--theme-text", currentTheme.colors.text)
 
-    // Apply 3D effects classes without wiping unrelated body classes
     Array.from(document.body.classList)
       .filter((cls) => cls.startsWith("theme-"))
       .forEach((cls) => document.body.classList.remove(cls))
     document.body.classList.add(`theme-${currentTheme.id}`)
 
-    if (currentTheme.effects.glow) {
-      document.body.classList.add("theme-glow")
-    }
-    if (currentTheme.effects.particles) {
-      document.body.classList.add("theme-particles")
-    }
-    if (currentTheme.effects.animations) {
-      document.body.classList.add("theme-animations")
-    }
+    if (currentTheme.effects.glow) document.body.classList.add("theme-glow")
+    if (currentTheme.effects.particles) document.body.classList.add("theme-particles")
+    if (currentTheme.effects.animations) document.body.classList.add("theme-animations")
   }, [currentTheme])
 
   const setTheme = (themeId: string) => {
@@ -235,28 +269,12 @@ export function Theme3DProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("loop-3d-custom-theme")
   }
 
-  const coerceTheme = (theme: any): Theme3D | null => {
-    if (typeof theme === "string") {
-      return availableThemes.find((item) => item.id === theme) || null
-    }
-
-    if (!theme) return null
-
-    return {
-      ...defaultTheme,
-      ...theme,
-      colors: { ...defaultTheme.colors, ...(theme.colors || {}) },
-      effects: { ...defaultTheme.effects, ...(theme.effects || theme.effects3D || {}) },
-      materials: { ...defaultTheme.materials, ...(theme.materials || {}) },
-      lighting: { ...defaultTheme.lighting, ...(theme.lighting || {}) },
-    }
-  }
-
   const applyTheme = (theme: any) => {
     const nextTheme = coerceTheme(theme)
     if (!nextTheme) return
     setCurrentTheme(nextTheme)
     localStorage.setItem("loop-3d-theme", nextTheme.id)
+    localStorage.setItem("loop-3d-custom-theme", JSON.stringify(nextTheme))
   }
 
   const previewTheme = (theme: any) => {
@@ -265,6 +283,19 @@ export function Theme3DProvider({ children }: { children: React.ReactNode }) {
   }
 
   const stopPreview = () => {
+    const customThemeJson = localStorage.getItem("loop-3d-custom-theme")
+    if (customThemeJson) {
+      try {
+        const customTheme = JSON.parse(customThemeJson)
+        const next = coerceTheme(customTheme)
+        if (next) {
+          setCurrentTheme(next)
+          return
+        }
+      } catch {
+        /* ignore */
+      }
+    }
     const savedThemeId = localStorage.getItem("loop-3d-theme")
     if (savedThemeId) setTheme(savedThemeId)
   }

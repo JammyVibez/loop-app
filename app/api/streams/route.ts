@@ -25,9 +25,17 @@ export async function GET(request: NextRequest) {
           is_premium
         )
       `)
-      .eq('status', status)
-      .order('viewer_count', { ascending: false })
-      .range(offset, offset + limit - 1)
+
+    if (status === "live") {
+      query = query.eq("status", "live").order("viewer_count", { ascending: false })
+    } else if (status === "popular") {
+      query = query.in("status", ["live", "ended", "paused"]).order("max_viewers", { ascending: false })
+    } else {
+      // recent
+      query = query.in("status", ["live", "ended", "paused", "preparing"]).order("created_at", { ascending: false })
+    }
+
+    query = query.range(offset, offset + limit - 1)
 
     if (category) {
       query = query.eq('category', category)
@@ -72,16 +80,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
     }
 
-    // Check if user can stream
+    // Allow any signed-in user to create a stream (premium still gets priority features later)
     const { data: profile } = await supabase
       .from('profiles')
-      .select('can_stream, is_premium')
+      .select('can_stream, is_premium, is_admin')
       .eq('id', user.id)
       .single()
 
-    if (!profile?.can_stream) {
+    if (profile && profile.can_stream === false && !profile.is_premium && !profile.is_admin) {
+      // Only block when explicitly disabled
       return NextResponse.json({ 
-        error: "Streaming not enabled for this account. Please contact support." 
+        error: "Streaming is disabled for this account. Please contact support." 
       }, { status: 403 })
     }
 

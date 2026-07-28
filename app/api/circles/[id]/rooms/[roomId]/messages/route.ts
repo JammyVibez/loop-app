@@ -83,10 +83,31 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     // Reverse messages to show oldest first
     const sortedMessages = messages?.reverse() || []
+    const messageIds = sortedMessages.map((m: any) => m.id).filter(Boolean)
+
+    let reactionRows: any[] = []
+    if (messageIds.length > 0) {
+      const { data: reactions } = await supabase
+        .from("circle_room_message_reactions")
+        .select("message_id, user_id, reaction_type")
+        .in("message_id", messageIds)
+      reactionRows = reactions || []
+    }
+
+    const enriched = sortedMessages.map((message: any) => {
+      const rows = reactionRows.filter((r) => r.message_id === message.id)
+      const reactions: Record<string, number> = {}
+      const my_reactions: string[] = []
+      for (const row of rows) {
+        reactions[row.reaction_type] = Number(reactions[row.reaction_type] || 0) + 1
+        if (row.user_id === user.id) my_reactions.push(row.reaction_type)
+      }
+      return { ...message, reactions, my_reactions }
+    })
 
     return NextResponse.json({
       success: true,
-      messages: sortedMessages || [],
+      messages: enriched,
       hasMore: messages?.length === limit,
     })
   } catch (error) {
@@ -111,7 +132,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const { id: circleId, roomId } = await params
-    const { content, media_url, media_type } = await request.json()
+    const { content, media_url, media_type, reply_to_id } = await request.json()
 
     // Check if room exists
     const { data: room } = await supabase
@@ -143,6 +164,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Content or media is required" }, { status: 400 })
     }
 
+    let replyToId: string | null = null
+    if (reply_to_id) {
+      const { data: parent } = await supabase
+        .from("circle_room_messages")
+        .select("id")
+        .eq("id", reply_to_id)
+        .eq("room_id", roomId)
+        .maybeSingle()
+      if (parent?.id) replyToId = parent.id
+    }
+
     // Create message
     const { data: message, error: insertError } = await supabase
       .from("circle_room_messages")
@@ -152,6 +184,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         content: content?.trim() || "",
         media_url,
         media_type,
+        reply_to_id: replyToId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })

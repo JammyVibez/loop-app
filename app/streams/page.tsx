@@ -210,7 +210,7 @@ export default function StreamsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {streams.map((stream) => (
-              <Link key={stream.id} href={`/stream/${stream.id}`}>
+              <Link key={stream.id} href={`/streams/${stream.id}`}>
                 <Card className="bg-gray-900/50 border-gray-700 hover:bg-gray-800/50 transition-colors cursor-pointer group">
                   <div className="relative aspect-video overflow-hidden rounded-t-lg">
                     <img

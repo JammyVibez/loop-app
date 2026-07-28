@@ -103,8 +103,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .select("id")
       .eq("circle_id", circleId)
       .eq("user_id", user.id)
-      .eq("status", "active")
-      .single()
+      .in("status", ["active", "approved"])
+      .maybeSingle()
 
     if (!member) {
       return NextResponse.json({ error: "You must be a member to react to messages" }, { status: 403 })

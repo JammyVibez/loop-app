@@ -186,6 +186,11 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   const [notifications, setNotifications] = useState(true)
   const [selectedPoll, setSelectedPoll] = useState<string>("")
   const [showCreateRoom, setShowCreateRoom] = useState(false)
+  const [commentsPost, setCommentsPost] = useState<CirclePost | null>(null)
+  const [postComments, setPostComments] = useState<any[]>([])
+  const [commentText, setCommentText] = useState("")
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const [commentSending, setCommentSending] = useState(false)
   const [newRoom, setNewRoom] = useState({
     name: "",
     description: "",
@@ -398,6 +403,51 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
       }
     } catch (error) {
       console.error('Failed to like post:', error)
+    }
+  }
+
+  const openComments = async (post: CirclePost) => {
+    setCommentsPost(post)
+    setCommentText("")
+    setCommentsLoading(true)
+    try {
+      const response = await fetch(`/api/circles/${circleId}/posts/${post.id}/comments`, {
+        headers: getAuthHeader(),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to load comments")
+      setPostComments(data.comments || [])
+    } catch (error: any) {
+      toast({ title: "Comments unavailable", description: error.message, variant: "destructive" })
+      setPostComments([])
+    } finally {
+      setCommentsLoading(false)
+    }
+  }
+
+  const submitComment = async () => {
+    if (!commentsPost || !commentText.trim() || !user) return
+    setCommentSending(true)
+    try {
+      const response = await fetch(`/api/circles/${circleId}/posts/${commentsPost.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ content: commentText.trim() }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to comment")
+      setPostComments((prev) => [...prev, data.comment])
+      setCommentText("")
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === commentsPost.id ? { ...post, comments: Number(post.comments || 0) + 1 } : post,
+        ),
+      )
+      setCommentsPost((prev) => (prev ? { ...prev, comments: Number(prev.comments || 0) + 1 } : prev))
+    } catch (error: any) {
+      toast({ title: "Comment failed", description: error.message, variant: "destructive" })
+    } finally {
+      setCommentSending(false)
     }
   }
 
@@ -773,7 +823,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                               <span>{post.likes}</span>
                             </Button>
 
-                            <Button variant="ghost" size="sm" className="px-2">
+                            <Button variant="ghost" size="sm" className="px-2" onClick={() => openComments(post)}>
                               <MessageCircle className="mr-1 h-4 w-4" />
                               <span>{post.comments}</span>
                             </Button>
@@ -1127,6 +1177,67 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
             }}
           />
         )}
+
+        <Dialog open={Boolean(commentsPost)} onOpenChange={(open) => !open && setCommentsPost(null)}>
+          <DialogContent className="max-h-[85vh] overflow-hidden sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Comments</DialogTitle>
+            </DialogHeader>
+            <div className="flex max-h-[60vh] flex-col gap-3">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+                {commentsLoading ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">Loading comments…</p>
+                ) : postComments.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">No comments yet. Be the first.</p>
+                ) : (
+                  postComments.map((comment) => {
+                    const author = Array.isArray(comment.author) ? comment.author[0] : comment.author
+                    const name = author?.display_name || author?.username || "Member"
+                    return (
+                      <div key={comment.id} className="flex gap-3">
+                        <Avatar className="h-8 w-8 shrink-0">
+                          <AvatarImage src={author?.avatar_url} />
+                          <AvatarFallback>{name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1 rounded-2xl bg-muted/50 px-3 py-2">
+                          <div className="mb-0.5 flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold">{name}</span>
+                            <span className="text-[11px] text-muted-foreground">
+                              {formatDistanceToNow(new Date(comment.created_at || Date.now()), { addSuffix: true })}
+                            </span>
+                          </div>
+                          <p className="whitespace-pre-wrap break-words text-sm">{comment.content}</p>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+              <div className="flex items-end gap-2 border-t pt-3">
+                <Textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder={isJoined ? "Write a comment…" : "Join the circle to comment"}
+                  disabled={!isJoined || commentSending}
+                  className="min-h-[44px] max-h-28 resize-none"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault()
+                      void submitComment()
+                    }
+                  }}
+                />
+                <Button
+                  onClick={submitComment}
+                  disabled={!isJoined || !commentText.trim() || commentSending}
+                  className="rounded-full"
+                >
+                  Post
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
     </div>
   )
 }

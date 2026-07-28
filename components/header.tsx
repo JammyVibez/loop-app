@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Search, MessageCircle, Settings, User, LogOut, Plus, Coins, Crown, Sparkles, Shield, Store } from "lucide-react"
+import { Search, MessageCircle, Settings, User, LogOut, Plus, Coins, Crown, Sparkles, Shield, Store, Radio } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -111,6 +111,13 @@ export function Header() {
             </Button>
           </Link>
 
+          <Link href="/streams" className="hidden md:block">
+            <Button variant="outline" size="sm" className="rounded-full">
+              <Radio className="mr-2 h-4 w-4 text-rose-500" />
+              Live
+            </Button>
+          </Link>
+
           <Link href="/shop" className="hidden sm:block">
             <Button variant="outline" size="sm" className="rounded-full">
               <Coins className="mr-2 h-4 w-4 text-yellow-500" />
@@ -166,6 +173,12 @@ export function Header() {
                 <Link href="/circles">
                   <Sparkles className="mr-2 h-4 w-4" />
                   <span>Circles</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/streams">
+                  <Radio className="mr-2 h-4 w-4" />
+                  <span>Livestream</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>

@@ -62,13 +62,20 @@ export function UserInventory() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${user?.token}`,
+          Authorization: `Bearer ${user?.token || user?.access_token}`,
         },
-        body: JSON.stringify({ item_id: itemId }),
+        body: JSON.stringify({ inventory_item_id: itemId }),
       })
 
+      const data = await response.json().catch(() => ({}))
       if (!response.ok) {
-        throw new Error("Failed to apply item")
+        throw new Error(data.error || "Failed to apply item")
+      }
+
+      if (data.theme && typeof window !== "undefined") {
+        localStorage.setItem("loop-3d-theme", data.theme.id)
+        localStorage.setItem("loop-3d-custom-theme", JSON.stringify(data.theme))
+        window.dispatchEvent(new CustomEvent("loop-theme-applied", { detail: data.theme }))
       }
 
       await fetchInventory()
