@@ -12,21 +12,16 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("userId")
 
     let query = supabase
-      .from("marketplace_themes")
-      .select(`
-        *,
-        theme_purchases(count),
-        theme_ratings(rating),
-        user_themes!left(user_id)
-      `)
+      .from("themes")
+      .select("*")
       .eq("is_active", true)
 
     if (category && category !== "all") {
-      query = query.eq("category", category)
+      query = query.eq("category_id", category)
     }
 
     if (search) {
-      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%,tags.cs.{${search}}`)
+      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
     }
 
     const { data: themes, error } = await query
@@ -36,23 +31,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch themes" }, { status: 500 })
     }
 
-    // Process themes with statistics and ownership
-    const processedThemes = themes.map((theme) => {
-      const purchases = theme.theme_purchases || []
-      const ratings = theme.theme_ratings || []
-      const userThemes = theme.user_themes || []
+    let ownedThemeIds = new Set<string>()
+    if (userId) {
+      const { data: owned } = await supabase
+        .from("user_themes")
+        .select("theme_id")
+        .eq("user_id", userId)
+      ownedThemeIds = new Set((owned || []).map((row: any) => row.theme_id))
+    }
 
-      return {
-        ...theme,
-        download_count: purchases.length,
-        rating_average:
-          ratings.length > 0 ? ratings.reduce((sum: number, r: any) => sum + r.rating, 0) / ratings.length : 0,
-        rating_count: ratings.length,
-        is_owned: userId ? userThemes.some((ut: any) => ut.user_id === userId) : false,
-      }
-    })
+    const processedThemes = (themes || []).map((theme) => ({
+      ...theme,
+      download_count: theme.download_count || 0,
+      rating_average: Number(theme.rating_average || 0),
+      rating_count: theme.rating_count || 0,
+      is_owned: ownedThemeIds.has(theme.id),
+      category: theme.category_id || "all",
+      preview_images: theme.preview_url ? [theme.preview_url] : [],
+    }))
 
-    // Sort themes
     const sortedThemes = [...processedThemes].sort((a, b) => {
       switch (sortBy) {
         case "popular":

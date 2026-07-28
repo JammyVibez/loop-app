@@ -120,19 +120,11 @@ export default function OnboardingPage() {
     }
   }
 
-  const handleComplete = async () => {
+  const finishOnboarding = async (payload: Record<string, unknown>, awardBonus: boolean) => {
     setSaving(true)
     setErrors({})
 
     try {
-      // Validation
-      if (!profileData.bio.trim()) {
-        setErrors({ bio: "Bio is required" })
-        setSaving(false)
-        return
-      }
-
-      // Send to backend API to update profile
       const response = await fetch("/api/users/update-profile", {
         method: "POST",
         headers: {
@@ -140,20 +132,11 @@ export default function OnboardingPage() {
           ...getAuthHeader(),
         },
         body: JSON.stringify({
-          bio: profileData.bio,
-          interests: profileData.interests,
-          avatar_url: profileData.avatar_url,
-          profile_theme: {
-            primary_color: profileData.theme.primary,
-            secondary_color: profileData.theme.secondary,
-            animation: "pulse-glow",
-          },
+          ...payload,
           onboarding_completed: true,
-          // Persisted inside theme_data / interests path; goals stored in interests metadata via bio prefix if needed
         }),
       })
 
-      // Persist personalization goals locally for feed hints
       try {
         localStorage.setItem(
           "loop-onboarding-personalization",
@@ -167,35 +150,27 @@ export default function OnboardingPage() {
 
       const result = await response.json()
 
-      // Optimistically mark onboarding complete from the API response so the
-      // redirect guard cannot bounce the user back to /onboarding.
       if (result.profile) {
         applyServerProfile({ ...result.profile, onboarding_completed: true })
       } else {
         applyServerProfile({ onboarding_completed: true })
       }
 
-      // Award onboarding bonus coins
-      const coinsResponse = await fetch('/api/users/coins/weekly', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeader(),
-        },
-        body: JSON.stringify({ 
-          type: 'onboarding_bonus',
-          amount: 100 
-        })
-      })
-
-      if (coinsResponse.ok) {
-        console.log("Onboarding bonus awarded successfully")
+      if (awardBonus) {
+        await fetch("/api/users/coins/weekly", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeader(),
+          },
+          body: JSON.stringify({
+            type: "onboarding_bonus",
+            amount: 100,
+          }),
+        }).catch(() => null)
       }
 
-      // Sync full profile from the service-role API (does not use fragile client RLS reads).
       await refreshUser()
-
-      // Redirect to home/feed
       router.replace("/")
     } catch (error) {
       console.error("Failed to complete onboarding:", error)
@@ -203,6 +178,31 @@ export default function OnboardingPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleSkip = async () => {
+    await finishOnboarding({}, false)
+  }
+
+  const handleComplete = async () => {
+    if (!profileData.bio.trim()) {
+      setErrors({ bio: "Bio is required" })
+      return
+    }
+
+    await finishOnboarding(
+      {
+        bio: profileData.bio,
+        interests: profileData.interests,
+        avatar_url: profileData.avatar_url,
+        profile_theme: {
+          primary_color: profileData.theme.primary,
+          secondary_color: profileData.theme.secondary,
+          animation: "pulse-glow",
+        },
+      },
+      true,
+    )
   }
 
 
@@ -451,6 +451,17 @@ export default function OnboardingPage() {
         </div>
 
         {renderStep()}
+
+        <div className="mt-6 flex w-full max-w-2xl justify-center">
+          <Button
+            variant="ghost"
+            className="text-slate-400 hover:text-slate-100"
+            onClick={handleSkip}
+            disabled={saving}
+          >
+            Skip for now — enter Loop
+          </Button>
+        </div>
       </div>
     </div>
   )

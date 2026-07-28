@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Search, MessageCircle, Settings, User, LogOut, Plus, Coins, Crown, Sparkles, Shield } from "lucide-react"
+import { Search, MessageCircle, Settings, User, LogOut, Plus, Coins, Crown, Sparkles, Shield, Store } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -188,6 +188,12 @@ export function Header() {
                   </Link>
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem asChild>
+                <Link href="/marketplace">
+                  <Store className="mr-2 h-4 w-4" />
+                  <span>Marketplace</span>
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/shop">
                   <Coins className="mr-2 h-4 w-4" />
