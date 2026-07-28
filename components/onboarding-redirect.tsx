@@ -9,15 +9,32 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
   const router = useRouter()
   const pathname = usePathname()
   const [redirecting, setRedirecting] = useState(false)
+  const [forceReady, setForceReady] = useState(false)
 
-  const publicRoutes = ["/", "/login", "/signup", "/landing", "/terms", "/privacy", "/reset-password", "/verify-email"]
+  const publicRoutes = [
+    "/",
+    "/login",
+    "/signup",
+    "/landing",
+    "/terms",
+    "/privacy",
+    "/reset-password",
+    "/verify-email",
+    "/explore",
+    "/trending",
+  ]
   const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
 
+  // Never leave the whole app stuck on "Loading your profile..."
   useEffect(() => {
-    if (loading) return
+    const timer = setTimeout(() => setForceReady(true), 7000)
+    return () => clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    if (loading && !forceReady) return
 
     if (user) {
-      // Strict false check: undefined during optimistic updates should not loop.
       if (user.onboarding_completed === false && pathname !== "/onboarding") {
         setRedirecting(true)
         router.replace("/onboarding")
@@ -35,9 +52,8 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
         router.replace("/")
         return
       }
-    } else {
-      // If user is not logged in and not on a public route, redirect to login
-      if (!isPublicRoute) {
+    } else if (!loading || forceReady) {
+      if (!isPublicRoute && pathname !== "/onboarding") {
         setRedirecting(true)
         router.replace("/login")
         return
@@ -45,9 +61,9 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
     }
 
     setRedirecting(false)
-  }, [user, loading, pathname, router, isPublicRoute])
+  }, [user, loading, pathname, router, isPublicRoute, forceReady])
 
-  if (loading) {
+  if (loading && !forceReady) {
     return <PageLoading message="Loading your profile..." />
   }
 

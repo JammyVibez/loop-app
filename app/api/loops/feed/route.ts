@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
     const supabase = createServerClient()
 
     let authorIds: string[] | null = null
+    let fallbackToRecent = false
     if (type === "personalized" || type === "following") {
       const { data: followingData } = await supabase
         .from("follows")
@@ -61,7 +62,11 @@ export async function GET(request: NextRequest) {
       const followingIds = (followingData || []).map((follow) => follow.following_id).filter(Boolean)
       authorIds = type === "personalized" ? [...followingIds, user.id] : followingIds
 
-      if (authorIds.length === 0) {
+      // Personalized with no network yet → show recent public loops instead of an empty feed.
+      if (type === "personalized" && followingIds.length === 0) {
+        authorIds = null
+        fallbackToRecent = true
+      } else if (authorIds.length === 0) {
         return NextResponse.json({ success: true, loops: [], hasMore: false, type })
       }
     }
@@ -111,7 +116,7 @@ export async function GET(request: NextRequest) {
       success: true,
       loops: normalizedLoops,
       hasMore: normalizedLoops.length === limit,
-      type,
+      type: fallbackToRecent ? "personalized_fallback_recent" : type,
       pagination: { limit, offset, total: normalizedLoops.length },
     })
   } catch (error: any) {

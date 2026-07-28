@@ -120,10 +120,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfileViaApi = async (accessToken: string) => {
     try {
-      const response = await fetch("/api/users/profile", {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 4000)
+      const response = await fetch("/api/auth/me", {
         headers: { Authorization: `Bearer ${accessToken}` },
         cache: "no-store",
+        signal: controller.signal,
       })
+      clearTimeout(timeout)
       if (!response.ok) return null
       const data = await response.json()
       return data.profile || null
@@ -143,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    // Fast path: direct profile read. Never block the whole app on a hung request.
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("*")
@@ -155,7 +160,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let profileData = profile as Record<string, any> | null
 
-    // Prefer service-role API when client read fails or omits completion state.
     if (!profileData || profileError) {
       profileData = await fetchProfileViaApi(session.access_token)
     }
@@ -168,32 +172,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    let cancelled = false
+    const safety = setTimeout(() => {
+      if (!cancelled) setLoading(false)
+    }, 6000)
+
     const checkSession = async () => {
       try {
         await hydrateSessionUser()
       } catch (error) {
         console.error("Error checking session:", error)
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
+        clearTimeout(safety)
       }
     }
 
     checkSession()
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event) => {
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
-        await hydrateSessionUser()
-      } else if (event === "SIGNED_OUT") {
-        setUser(null)
+      try {
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+          await hydrateSessionUser()
+        } else if (event === "SIGNED_OUT") {
+          setUser(null)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-
-      setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      cancelled = true
+      clearTimeout(safety)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const login = async (email: string, password: string) => {

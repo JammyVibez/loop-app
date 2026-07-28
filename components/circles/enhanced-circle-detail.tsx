@@ -185,7 +185,10 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   // Load circle data
   useEffect(() => {
     const loadCircleData = async () => {
-      if (!user) return
+      if (!user) {
+        setLoading(false)
+        return
+      }
       
       setLoading(true)
       try {

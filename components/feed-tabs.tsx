@@ -1,52 +1,49 @@
 "use client";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Home, Users, TrendingUp, Clock } from "lucide-react";
+import { Home, Users, TrendingUp, Clock, Flame } from "lucide-react";
 import { LoopFeed } from "./loop-feed";
+import { cn } from "@/lib/utils";
+
+const tabs = [
+  { value: "personalized", label: "For You", icon: Home, hint: "You + people you follow" },
+  { value: "following", label: "Following", icon: Users, hint: "Only accounts you follow" },
+  { value: "trending", label: "Trending", icon: Flame, hint: "Highest engagement right now" },
+  { value: "recent", label: "Recent", icon: Clock, hint: "Newest public loops" },
+] as const
 
 export function FeedTabs() {
   const [activeTab, setActiveTab] = useState("personalized")
+  const active = tabs.find((tab) => tab.value === activeTab) || tabs[0]
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="grid w-full grid-cols-4">
-        <TabsTrigger value="personalized" className="flex items-center space-x-2">
-          <Home className="w-4 h-4" />
-          <span>For You</span>
-        </TabsTrigger>
-        <TabsTrigger value="following" className="flex items-center space-x-2">
-          <Users className="w-4 h-4" />
-          <span>Following</span>
-        </TabsTrigger>
-        <TabsTrigger value="trending" className="flex items-center space-x-2">
-          <TrendingUp className="w-4 h-4" />
-          <span>Trending</span>
-          <Badge variant="secondary" className="ml-1 text-xs">
-            Hot
-          </Badge>
-        </TabsTrigger>
-        <TabsTrigger value="recent" className="flex items-center space-x-2">
-          <Clock className="w-4 h-4" />
-          <span>Recent</span>
-        </TabsTrigger>
-      </TabsList>
+      <div className="mb-4 space-y-3">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-white/10 bg-[#0a1020]/80 p-1 sm:grid-cols-4">
+          {tabs.map((tab) => (
+            <TabsTrigger
+              key={tab.value}
+              value={tab.value}
+              className={cn(
+                "rounded-xl px-2 py-2.5 text-xs text-slate-400 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600/90 data-[state=active]:to-cyan-500/90 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-violet-600/20 sm:text-sm",
+              )}
+            >
+              <tab.icon className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>{tab.label}</span>
+              {tab.value === "trending" && (
+                <TrendingUp className="ml-1 hidden h-3.5 w-3.5 sm:inline" />
+              )}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <p className="px-1 text-xs text-slate-500">{active.hint}</p>
+      </div>
 
-      <TabsContent value="personalized" className="mt-6">
-        <LoopFeed feedType="personalized" />
-      </TabsContent>
-
-      <TabsContent value="following" className="mt-6">
-        <LoopFeed feedType="following" />
-      </TabsContent>
-
-      <TabsContent value="trending" className="mt-6">
-        <LoopFeed feedType="trending" />
-      </TabsContent>
-
-      <TabsContent value="recent" className="mt-6">
-        <LoopFeed feedType="recent" />
-      </TabsContent>
+      {tabs.map((tab) => (
+        <TabsContent key={tab.value} value={tab.value} className="mt-0 focus-visible:outline-none">
+          <LoopFeed feedType={tab.value} />
+        </TabsContent>
+      ))}
     </Tabs>
   )
 }
