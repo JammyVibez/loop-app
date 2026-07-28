@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Calendar, Coins, Edit, Flame, Heart, Link as LinkIcon, MapPin, MessageCircle, Plus, Share2, Star, Trophy, Users } from "lucide-react"
+import { Calendar, Coins, Edit, Flame, Gift, Heart, Link as LinkIcon, MapPin, MessageCircle, Plus, Share2, Star, Trophy, Users } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import { ProfileShareCard } from "@/components/profile/profile-share-card"
 import { ProfileSkeleton } from "@/components/loading-states"
 import { EmptyState as PageEmptyState } from "@/components/ui/empty-state"
 import { ReportContentButton } from "@/components/moderation/report-content-button"
+import { GiftModal } from "@/components/gifting/gift-modal"
 
 interface Achievement {
   id: string
@@ -56,6 +57,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const [activeTab, setActiveTab] = useState("loops")
   const [isFollowing, setIsFollowing] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
+  const [showGiftModal, setShowGiftModal] = useState(false)
 
   const handleMessage = async () => {
     if (!user || !profile) {
@@ -308,6 +310,18 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                     >
                       <MessageCircle className="mr-2 h-4 w-4" /> Message
                     </Button>
+                    <Button
+                      onClick={() => {
+                        if (!user) {
+                          window.location.href = "/login"
+                          return
+                        }
+                        setShowGiftModal(true)
+                      }}
+                      className="rounded-full border border-white/20 bg-transparent px-6 text-white hover:bg-white/10"
+                    >
+                      <Gift className="mr-2 h-4 w-4" /> Gift
+                    </Button>
                     <ReportContentButton
                       contentType="profile"
                       contentId={profile.id}
@@ -403,6 +417,20 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           </Tabs>
         </CardContent>
       </Card>
+
+      {!isOwnProfile && profile && (
+        <GiftModal
+          open={showGiftModal}
+          onOpenChange={setShowGiftModal}
+          recipient={{
+            id: profile.id,
+            username: profile.username,
+            display_name: profile.display_name,
+            avatar_url: profile.avatar_url,
+          }}
+          context={{ type: "profile", id: profile.id, title: profile.display_name }}
+        />
+      )}
     </div>
   )
 }

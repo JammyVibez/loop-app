@@ -12,6 +12,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { OnboardingRedirect } from "@/components/onboarding-redirect"
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav"
 import { AppUpdateBanner } from "@/components/app-update-banner"
+import { GiftNotificationSystem } from "@/components/gifting/gift-notification"
 import { checkEnvironmentVariables, logEnvironmentStatus, validateEnvironment } from "@/lib/env-check"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -109,6 +110,7 @@ export default function RootLayout({
                       {children}
                     </div>
                     <MobileBottomNav />
+                    <GiftNotificationSystem />
                     <Toaster />
                     <div id="performance-monitor" className="hidden" />
                     <div id="accessibility-announcements" className="sr-only" aria-live="polite" aria-atomic="true" />
