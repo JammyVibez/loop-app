@@ -113,7 +113,23 @@ export async function POST(request: NextRequest) {
     // Validate file type
     const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
     const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/avi', 'video/mov']
-    const allowedAudioTypes = ['audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a']
+    const allowedAudioTypes = [
+      "audio/mp3",
+      "audio/mpeg",
+      "audio/wav",
+      "audio/x-wav",
+      "audio/ogg",
+      "audio/webm",
+      "audio/mp4",
+      "audio/m4a",
+      "audio/x-m4a",
+      "audio/aac",
+    ]
+
+    const isAllowedAudio =
+      allowedAudioTypes.includes(file.type) ||
+      (file.type || "").startsWith("audio/") ||
+      /\.(webm|mp3|wav|ogg|m4a|aac)$/i.test(file.name || "")
 
     if (type === 'image' && !allowedImageTypes.includes(file.type)) {
       return NextResponse.json({ 
@@ -127,9 +143,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    if (type === 'audio' && !allowedAudioTypes.includes(file.type)) {
+    if (type === 'audio' && !isAllowedAudio) {
       return NextResponse.json({ 
-        error: "Invalid audio format. Supported: MP3, WAV, OGG, M4A" 
+        error: "Invalid audio format. Supported: MP3, WAV, OGG, M4A, WebM" 
       }, { status: 400 })
     }
 

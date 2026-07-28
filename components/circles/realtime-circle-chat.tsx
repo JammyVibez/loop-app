@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Reply, Send, Smile, Wifi, WifiOff } from "lucide-react"
+import { Mic, Paperclip, Reply, Send, Smile, Square, Wifi, WifiOff } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,6 +28,8 @@ interface CircleRoomMessage {
   }
   timestamp: string
   reply_to_id?: string | null
+  media_url?: string | null
+  media_type?: string | null
   reactions?: Record<string, number>
   my_reactions?: string[]
 }
@@ -46,6 +48,8 @@ function mapMessage(message: any): CircleRoomMessage {
     author: author || { id: message.author_id, username: "member", display_name: "Member" },
     timestamp: message.created_at || message.timestamp || new Date().toISOString(),
     reply_to_id: message.reply_to_id || null,
+    media_url: message.media_url || null,
+    media_type: message.media_type || null,
     reactions: message.reactions || {},
     my_reactions: message.my_reactions || [],
   }
@@ -61,9 +65,14 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
   const [replyTo, setReplyTo] = useState<CircleRoomMessage | null>(null)
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({})
   const [openReactionFor, setOpenReactionFor] = useState<string | null>(null)
+  const [recording, setRecording] = useState(false)
+  const [uploadingAudio, setUploadingAudio] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const messageById = useMemo(() => {
     const map = new Map<string, CircleRoomMessage>()
@@ -145,12 +154,15 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
     }, 180)
   }
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !user) return
+  const handleSendMessage = async (opts?: { content?: string; media_url?: string | null; media_type?: string | null }) => {
+    const content = (opts?.content ?? newMessage).trim()
+    const mediaUrl = opts?.media_url ?? null
+    const mediaType = opts?.media_type ?? null
+    if ((!content && !mediaUrl) || !user) return
 
     const optimisticMessage: CircleRoomMessage = {
       id: `temp-${Date.now()}`,
-      content: newMessage.trim(),
+      content: content || (mediaType === "audio" ? "Voice note" : ""),
       author: {
         id: user.id,
         username: user.username,
@@ -161,10 +173,12 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
       },
       timestamp: new Date().toISOString(),
       reply_to_id: replyTo?.id || null,
+      media_url: mediaUrl,
+      media_type: mediaType,
     }
 
     setMessages((prev) => [...prev, optimisticMessage])
-    setNewMessage("")
+    if (!opts?.media_url) setNewMessage("")
     const replied = replyTo
     setReplyTo(null)
     setIsSending(true)
@@ -178,8 +192,8 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
         },
         body: JSON.stringify({
           content: optimisticMessage.content,
-          media_url: null,
-          media_type: null,
+          media_url: mediaUrl,
+          media_type: mediaType,
           reply_to_id: replied?.id || null,
         }),
       })
@@ -193,6 +207,61 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
       toast({ title: "Message failed", description: error?.message || "Please try again.", variant: "destructive" })
     } finally {
       setIsSending(false)
+    }
+  }
+
+  const uploadAndSendMedia = async (file: File, mediaType: "audio" | "image" | "video") => {
+    if (!user) return
+    setUploadingAudio(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("type", mediaType)
+      formData.append("folder", "circle-chat")
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        headers: getAuthHeader(),
+        body: formData,
+      })
+      const uploadData = await uploadRes.json()
+      const url = uploadData.url || uploadData.data?.url
+      if (!uploadRes.ok || !url) throw new Error(uploadData.error || "Upload failed")
+      await handleSendMessage({
+        content: mediaType === "audio" ? "Voice note" : "",
+        media_url: url,
+        media_type: mediaType,
+      })
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" })
+    } finally {
+      setUploadingAudio(false)
+    }
+  }
+
+  const toggleRecording = async () => {
+    if (recording && recorderRef.current) {
+      recorderRef.current.stop()
+      setRecording(false)
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      chunksRef.current = []
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data)
+      }
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop())
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" })
+        const file = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" })
+        await uploadAndSendMedia(file, "audio")
+      }
+      recorderRef.current = recorder
+      recorder.start()
+      setRecording(true)
+    } catch {
+      toast({ title: "Microphone blocked", description: "Allow mic access to send voice notes.", variant: "destructive" })
     }
   }
 
@@ -289,7 +358,18 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
                           : "border-white/10 bg-white/[0.04] text-slate-200",
                       )}
                     >
-                      {message.content}
+                      {message.media_url && (message.media_type === "audio" || /\.(webm|mp3|ogg|m4a|wav)(\?|$)/i.test(message.media_url)) && (
+                        <audio controls src={message.media_url} className="mb-1 w-full max-w-[240px]" />
+                      )}
+                      {message.media_url && message.media_type === "image" && (
+                        <img src={message.media_url} alt="" className="mb-1 max-h-48 rounded-xl object-cover" />
+                      )}
+                      {message.media_url && message.media_type === "video" && (
+                        <video src={message.media_url} controls className="mb-1 max-h-48 w-full rounded-xl" />
+                      )}
+                      {message.content && !(message.media_type === "audio" && message.content === "Voice note") && (
+                        <p>{message.content}</p>
+                      )}
                     </div>
                     <div className={cn("mt-1 flex flex-wrap items-center gap-1", isMine && "justify-end")}>
                       {Object.entries(message.reactions || {}).map(([emoji, count]) =>
@@ -368,8 +448,45 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
             </div>
           )}
           <div className="flex items-end gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept="image/*,video/*,audio/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                const type = file.type.startsWith("video")
+                  ? "video"
+                  : file.type.startsWith("audio")
+                    ? "audio"
+                    : "image"
+                void uploadAndSendMedia(file, type)
+                e.target.value = ""
+              }}
+            />
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="shrink-0 text-slate-400 hover:text-white"
+              disabled={uploadingAudio || isSending}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className={cn("shrink-0", recording ? "text-rose-400" : "text-slate-400 hover:text-white")}
+              disabled={uploadingAudio || isSending}
+              onClick={toggleRecording}
+            >
+              {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </Button>
             <Textarea
-              placeholder={`Message #${roomName}...`}
+              placeholder={recording ? "Recording…" : `Message #${roomName}...`}
               value={newMessage}
               onChange={(event) => {
                 setNewMessage(event.target.value)
@@ -378,14 +495,14 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault()
-                  handleSendMessage()
+                  void handleSendMessage()
                 }
               }}
               className="min-h-[44px] max-h-32 resize-none border-white/10 bg-white/[0.04] text-slate-100"
             />
             <Button
-              onClick={handleSendMessage}
-              disabled={!newMessage.trim() || isSending}
+              onClick={() => void handleSendMessage()}
+              disabled={!newMessage.trim() || isSending || uploadingAudio}
               className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white"
             >
               <Send className="h-4 w-4" />

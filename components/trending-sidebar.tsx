@@ -25,15 +25,21 @@ export function TrendingSidebar() {
 
   const fetchTrendingData = async () => {
     try {
-      const hashtagResponse = await fetch("/api/search?q=trending&type=hashtags&limit=5", {
+      const hashtagResponse = await fetch("/api/explore/trending?type=hashtags&limit=8", {
         headers: {
           ...getAuthHeader(),
         },
         cache: "no-store",
       })
       const hashtagData = await hashtagResponse.json()
-      if (hashtagData.success && hashtagData.results && hashtagData.results.hashtags) {
-        setTrendingHashtags(hashtagData.results.hashtags)
+      const rows = hashtagData.hashtags || hashtagData.data || []
+      if (hashtagData.success && Array.isArray(rows)) {
+        setTrendingHashtags(
+          rows.map((row: any) => ({
+            tag: row.tag || row.hashtag,
+            count: Number(row.count ?? row.usage_count ?? 0),
+          })),
+        )
       } else {
         setTrendingHashtags([])
       }

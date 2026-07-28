@@ -6,9 +6,9 @@ import { LoopFeed } from "./loop-feed";
 import { cn } from "@/lib/utils";
 
 const tabs = [
-  { value: "personalized", label: "For You", icon: Home, hint: "You + people you follow" },
+  { value: "personalized", label: "For You", icon: Home, hint: "Smart mix: following + trending + your interests" },
   { value: "following", label: "Following", icon: Users, hint: "Only accounts you follow" },
-  { value: "trending", label: "Trending", icon: Flame, hint: "Highest engagement right now" },
+  { value: "trending", label: "Trending", icon: Flame, hint: "Time-decayed engagement ranking" },
   { value: "recent", label: "Recent", icon: Clock, hint: "Newest public loops" },
 ] as const
 

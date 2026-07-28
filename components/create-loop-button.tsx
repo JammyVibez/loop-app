@@ -17,9 +17,11 @@ import {
   FileText,
   Hash,
   ImageIcon,
+  Mic,
   Music,
   Plus,
   Save,
+  Square,
   Upload,
   Users,
   Video,
@@ -61,6 +63,9 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
   const applyingRemote = useRef(false)
   const collabChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const [recording, setRecording] = useState(false)
   const authToken = user?.access_token || user?.token
 
   useEffect(() => {
@@ -313,6 +318,39 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
     else setMediaType("code")
   }
 
+  const toggleAudioRecord = async () => {
+    if (recording && recorderRef.current) {
+      recorderRef.current.stop()
+      setRecording(false)
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      chunksRef.current = []
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data)
+      }
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop())
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" })
+        const file = new File([blob], `loop-voice-${Date.now()}.webm`, { type: "audio/webm" })
+        setMediaType("audio")
+        setMediaFiles([file])
+      }
+      recorderRef.current = recorder
+      recorder.start()
+      setRecording(true)
+      setMediaType("audio")
+    } catch {
+      toast({
+        title: "Microphone blocked",
+        description: "Allow mic access to record audio loops.",
+        variant: "destructive",
+      })
+    }
+  }
+
   const addSuggestion = (tag: string) => {
     const next = Array.from(new Set([...extractedTags, tag.toLowerCase()]))
     setHashtags(next.join(" "))
@@ -479,9 +517,24 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
                 <span>Upload media ({getMaxFiles()} file limit)</span>
                 <input type="file" className="hidden" accept="image/*,video/*,audio/*" onChange={handleFileChange} />
               </label>
+              {(mediaType === "audio" || mediaType === "text") && (
+                <div className="mt-3 flex justify-center">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={recording ? "destructive" : "outline"}
+                    className="border-white/10"
+                    onClick={toggleAudioRecord}
+                  >
+                    {recording ? <Square className="mr-1.5 h-3.5 w-3.5" /> : <Mic className="mr-1.5 h-3.5 w-3.5" />}
+                    {recording ? "Stop recording" : "Record audio"}
+                  </Button>
+                </div>
+              )}
               {mediaFiles[0] && (
                 <div className="mt-3 space-y-2">
                   <p className="text-xs text-slate-400">{mediaFiles[0].name}</p>
+                  {mediaType === "audio" && previewUrl && <audio src={previewUrl} controls className="w-full" />}
                   {mediaType === "image" && previewUrl && (
                     <div className="space-y-2">
                       <div className="overflow-hidden rounded-xl">

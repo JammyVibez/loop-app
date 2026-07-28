@@ -230,7 +230,24 @@ export async function POST(request: NextRequest) {
     }
 
     for (const tag of hashtags) {
-      await supabase.from("hashtags").upsert({ tag, usage_count: 1 }, { onConflict: "tag", ignoreDuplicates: false })
+      const { data: existingTag } = await supabase.from("hashtags").select("tag, usage_count").eq("tag", tag).maybeSingle()
+      if (existingTag) {
+        await supabase
+          .from("hashtags")
+          .update({
+            usage_count: Number(existingTag.usage_count || 0) + 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("tag", tag)
+      } else {
+        await supabase.from("hashtags").insert({ tag, usage_count: 1 })
+      }
+      await supabase.from("hashtag_usage").insert({
+        hashtag: tag,
+        loop_id: loop.id,
+        user_id: user.id,
+        created_at: new Date().toISOString(),
+      })
     }
 
     return NextResponse.json({ success: true, loop: normalizeLoop(loop) })

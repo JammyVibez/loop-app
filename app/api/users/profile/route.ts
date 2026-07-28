@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 })
     }
 
-    const [{ count: followersCount }, { count: followingCount }, { count: loopsCount }, { count: branchesCount }, { data: recentLoops }, { data: recentBranches }, { data: mediaLoops }, { data: followRecord }] = await Promise.all([
+    const [{ count: followersCount }, { count: followingCount }, { count: loopsCount }, { count: branchesCount }, { data: recentLoops }, { data: recentBranches }, { data: mediaLoops }, { data: followRecord }, { data: authorLoopIds }] = await Promise.all([
       supabase.from("follows").select("id", { count: "exact", head: true }).eq("following_id", profile.id),
       supabase.from("follows").select("id", { count: "exact", head: true }).eq("follower_id", profile.id),
       supabase.from("loops").select("id", { count: "exact", head: true }).eq("author_id", profile.id).is("parent_loop_id", null),
@@ -72,12 +72,12 @@ export async function GET(request: NextRequest) {
       supabase
         .from("loops")
         .select(`
-          id, media_url, media_urls, media_type, created_at, content,
+          id, content, content_text, content_media_url, content_type, media_url, media_urls, media_type, hashtags, created_at,
           author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .eq("author_id", profile.id)
-        .not("media_url", "is", null)
+        .or("media_url.not.is.null,content_media_url.not.is.null")
         .order("created_at", { ascending: false })
         .limit(36),
       authedUser
@@ -88,7 +88,26 @@ export async function GET(request: NextRequest) {
             .eq("following_id", profile.id)
             .maybeSingle()
         : Promise.resolve({ data: null } as any),
+      supabase.from("loops").select("id").eq("author_id", profile.id),
     ])
+
+    let likesReceived = 0
+    const loopIds = (authorLoopIds || []).map((l) => l.id)
+    if (loopIds.length > 0) {
+      const { data: statsRows } = await supabase
+        .from("loop_stats")
+        .select("likes_count")
+        .in("loop_id", loopIds.slice(0, 200))
+      likesReceived = (statsRows || []).reduce((sum, row) => sum + Number(row.likes_count || 0), 0)
+    }
+
+    // Prefer theme fields + active inventory items for complete profile payload
+    const { data: activeItems } = await supabase
+      .from("user_inventory")
+      .select("id, item_id, item_type, is_active, shop_item:shop_items(id, name, category, item_type, item_data, preview_data)")
+      .eq("user_id", profile.id)
+      .eq("is_active", true)
+      .limit(12)
 
     const profileWithSocial = {
       ...profile,
@@ -96,10 +115,13 @@ export async function GET(request: NextRequest) {
       following_count: followingCount ?? profile.following_count ?? 0,
       loops_count: loopsCount ?? profile.loops_count ?? 0,
       branches_count: branchesCount ?? profile.branches_count ?? 0,
-      likes_received: profile.likes_received ?? 0,
+      likes_received: likesReceived,
       level: profile.level ?? 1,
       xp_points: profile.xp_points ?? 0,
       achievements: profile.achievements ?? [],
+      active_theme: profile.active_theme ?? null,
+      theme_preferences: profile.theme_preferences ?? null,
+      active_effects: activeItems || [],
       recent_loops: normalizeLoops(recentLoops || []),
       recent_branches: normalizeLoops(recentBranches || []),
       media_loops: normalizeLoops(mediaLoops || []),

@@ -466,8 +466,8 @@ export function LoopCard({
                 </div>
                 <div className="flex-1">
                   <p className="font-medium">Audio Loop</p>
-                  <audio controls className="w-full mt-2">
-                    <source src={mediaUrl} type="audio/mpeg" />
+                  <audio controls className="w-full mt-2" src={mediaUrl} preload="metadata">
+                    Your browser does not support audio playback.
                   </audio>
                 </div>
               </div>

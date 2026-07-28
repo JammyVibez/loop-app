@@ -9,6 +9,7 @@ import { LoopCard } from "@/components/loop-card"
 import { normalizeLoops, type NormalizedLoop } from "@/lib/normalize-loop"
 import { LoopFeedSkeleton } from "@/components/loading-states"
 import { EmptyState } from "@/components/ui/empty-state"
+import { supabase } from "@/lib/supabase"
 
 interface LoopFeedProps {
   feedType?: "personalized" | "following" | "trending" | "recent"
@@ -91,6 +92,21 @@ export function LoopFeed({ feedType = "personalized", showComposer = false }: Lo
     fetchLoops(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, authToken, feedType])
+
+  useEffect(() => {
+    if (!user?.id) return
+    const channel = supabase
+      .channel(`feed-live:${feedType}:${user.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "loops" }, () => {
+        // Soft refresh so the feed feels alive without jarring resets mid-scroll
+        void fetchLoops(true)
+      })
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, feedType])
 
   const handleInteraction = async (loopId: string, type: "like" | "save") => {
     if (!authToken) {

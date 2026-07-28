@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import {
   ArrowLeft,
@@ -34,6 +34,7 @@ import { ReportContentButton } from "@/components/moderation/report-content-butt
 import { GiftModal } from "@/components/gifting/gift-modal"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { supabase } from "@/lib/supabase"
 
 interface Achievement {
   id: string
@@ -86,28 +87,84 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const [isFollowing, setIsFollowing] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
   const [showGiftModal, setShowGiftModal] = useState(false)
+  const [live, setLive] = useState(false)
+
+  const fetchProfile = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true)
+    try {
+      const response = await fetch(`/api/users/profile?username=${username}`, {
+        headers: user ? getAuthHeader() : undefined,
+        cache: "no-store",
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setProfile(data.profile)
+        setIsFollowing(Boolean(data.profile?.is_following))
+        if (user && data.profile?.id === user.id && applyServerProfile) {
+          try {
+            applyServerProfile(data.profile)
+          } catch {
+            /* optional */
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error)
+    } finally {
+      if (!opts?.silent) setLoading(false)
+    }
+  }, [username, user?.id, getAuthHeader, applyServerProfile])
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      setLoading(true)
-      try {
-        const response = await fetch(`/api/users/profile?username=${username}`, {
-          headers: user ? getAuthHeader() : undefined,
-        })
-        if (response.ok) {
-          const data = await response.json()
-          setProfile(data.profile)
-          setIsFollowing(Boolean(data.profile?.is_following))
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
+    void fetchProfile()
+  }, [fetchProfile])
 
-    fetchProfile()
-  }, [username, user?.id])
+  useEffect(() => {
+    if (!profile?.id) return
+
+    const channel = supabase
+      .channel(`profile-live:${profile.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles", filter: `id=eq.${profile.id}` },
+        () => {
+          setLive(true)
+          void fetchProfile({ silent: true })
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "loops", filter: `author_id=eq.${profile.id}` },
+        () => {
+          setLive(true)
+          void fetchProfile({ silent: true })
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "follows", filter: `following_id=eq.${profile.id}` },
+        () => {
+          setLive(true)
+          void fetchProfile({ silent: true })
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "follows", filter: `follower_id=eq.${profile.id}` },
+        () => {
+          setLive(true)
+          void fetchProfile({ silent: true })
+        },
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") setLive(true)
+      })
+
+    return () => {
+      void supabase.removeChannel(channel)
+      setLive(false)
+    }
+  }, [profile?.id, fetchProfile])
 
   const handleFollow = async () => {
     if (!profile || !user) {
@@ -337,6 +394,11 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               )}
             </div>
             <p className="text-muted-foreground">@{profile.username}</p>
+            {live && (
+              <Badge variant="outline" className="mt-1 rounded-full border-emerald-500/40 text-[10px] text-emerald-500">
+                Live
+              </Badge>
+            )}
           </div>
 
           <p className="whitespace-pre-wrap text-[15px] leading-relaxed">

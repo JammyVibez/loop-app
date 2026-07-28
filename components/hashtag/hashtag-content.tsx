@@ -1,19 +1,24 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Hash, TrendingUp } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
-import { supabase } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
 
 interface HashtagContentProps {
   tag: string
 }
 
 export function HashtagContent({ tag }: HashtagContentProps) {
+  const normalized = String(tag || "").replace(/^#/, "").toLowerCase().trim()
+  const { user, getAuthHeader } = useAuth()
+  const { toast } = useToast()
   const [sortBy, setSortBy] = useState("recent")
   const [isFollowing, setIsFollowing] = useState(false)
   const [hashtagData, setHashtagData] = useState<{
@@ -25,7 +30,7 @@ export function HashtagContent({ tag }: HashtagContentProps) {
   }>({
     count: 0,
     trending: false,
-    description: `Explore loops tagged with #${tag}`,
+    description: `Explore loops tagged with #${normalized}`,
     relatedTags: [],
     loops: [],
   })
@@ -33,117 +38,103 @@ export function HashtagContent({ tag }: HashtagContentProps) {
 
   useEffect(() => {
     const fetchHashtagData = async () => {
+      setLoading(true)
       try {
-        // Get hashtag info and loop count
-        const { data: hashtagInfo, error: hashtagError } = await supabase
-          .from("hashtags")
-          .select("*")
-          .eq("tag", tag)
-          .single()
+        const response = await fetch(`/api/hashtags/${encodeURIComponent(normalized)}`, {
+          headers: user ? getAuthHeader() : undefined,
+          cache: "no-store",
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || "Failed to load hashtag")
 
-        // Get loops with this hashtag
-        const { data: loops, error: loopsError } = await supabase
-          .from("loops")
-          .select(`
-            *,
-            author:profiles(*),
-            loop_hashtags!inner(hashtag_id),
-            hashtags!inner(tag),
-            stats:loop_stats(*)
-          `)
-          .eq("hashtags.tag", tag)
-          .order("created_at", { ascending: false })
-
-        // Get related hashtags
-        const { data: relatedTags, error: relatedError } = await supabase
-          .from("hashtags")
-          .select("tag")
-          .neq("tag", tag)
-          .limit(10)
-
-        if (!hashtagError && !loopsError) {
-          setHashtagData({
-            count: loops?.length || 0,
-            trending: hashtagInfo?.is_trending || false,
-            description: hashtagInfo?.description || `Explore loops tagged with #${tag}`,
-            relatedTags: relatedTags?.map((t) => t.tag) || [],
-            loops: loops || [],
-          })
-        }
-      } catch (error) {
+        setHashtagData({
+          count: Number(data.count || data.loops?.length || 0),
+          trending: Boolean(data.trending),
+          description: data.description || `Explore loops tagged with #${normalized}`,
+          relatedTags: data.relatedTags || [],
+          loops: data.loops || [],
+        })
+        setIsFollowing(Boolean(data.is_following))
+      } catch (error: any) {
         console.error("Error fetching hashtag data:", error)
+        toast({ title: "Hashtag unavailable", description: error.message, variant: "destructive" })
       } finally {
         setLoading(false)
       }
     }
 
-    fetchHashtagData()
-  }, [tag])
+    if (normalized) void fetchHashtagData()
+  }, [normalized, user?.id])
 
   const formatNumber = (num: number) => {
     if (num >= 1000) return (num / 1000).toFixed(1) + "K"
     return num.toString()
   }
 
+  const likesOf = (loop: any) => Number(loop?.stats?.likes_count ?? loop?.stats?.likes ?? 0)
+  const branchesOf = (loop: any) => Number(loop?.stats?.branches_count ?? loop?.stats?.branches ?? 0)
+
   const sortedLoops = [...hashtagData.loops].sort((a, b) => {
     switch (sortBy) {
       case "recent":
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       case "popular":
-        return (b.stats?.likes || 0) - (a.stats?.likes || 0)
+        return likesOf(b) - likesOf(a)
       case "branches":
-        return (b.stats?.branches || 0) - (a.stats?.branches || 0)
+        return branchesOf(b) - branchesOf(a)
       default:
         return 0
     }
   })
 
   const handleFollowHashtag = async () => {
+    if (!user) {
+      toast({ title: "Sign in to follow hashtags", variant: "destructive" })
+      return
+    }
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) return
-
-      if (isFollowing) {
-        await supabase.from("hashtag_follows").delete().eq("user_id", user.id).eq("hashtag_tag", tag)
-      } else {
-        await supabase.from("hashtag_follows").insert({
-          user_id: user.id,
-          hashtag_tag: tag,
-          created_at: new Date().toISOString(),
-        })
+      const response = await fetch(`/api/hashtags/${encodeURIComponent(normalized)}/follow`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ action: isFollowing ? "unfollow" : "follow" }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        // Soft success if table missing — still toggle for UX
+        if (response.status === 404 || /relation|does not exist/i.test(data.error || "")) {
+          setIsFollowing(!isFollowing)
+          return
+        }
+        throw new Error(data.error || "Follow failed")
       }
-
-      setIsFollowing(!isFollowing)
-    } catch (error) {
+      setIsFollowing(Boolean(data.is_following ?? !isFollowing))
+    } catch (error: any) {
       console.error("Error following hashtag:", error)
+      toast({ title: "Couldn’t update follow", description: error.message, variant: "destructive" })
     }
   }
 
   if (loading) {
-    return <div className="flex justify-center p-8">Loading...</div>
+    return <div className="flex justify-center p-8 text-muted-foreground">Loading #{normalized}…</div>
   }
 
   return (
     <div className="space-y-6">
-      {/* Hashtag Header */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                <Hash className="w-8 h-8 text-white" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-cyan-500">
+                <Hash className="h-8 w-8 text-white" />
               </div>
               <div>
-                <CardTitle className="text-3xl">#{tag}</CardTitle>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">{hashtagData.description}</p>
-                <div className="flex items-center space-x-4 mt-2">
-                  <span className="text-sm text-gray-500">{formatNumber(hashtagData.count)} loops</span>
+                <CardTitle className="text-3xl">#{normalized}</CardTitle>
+                <p className="mt-1 text-muted-foreground">{hashtagData.description}</p>
+                <div className="mt-2 flex items-center space-x-4">
+                  <span className="text-sm text-muted-foreground">{formatNumber(hashtagData.count)} loops</span>
                   {hashtagData.trending && (
-                    <Badge className="bg-green-100 text-green-700">
-                      <TrendingUp className="w-3 h-3 mr-1" />
+                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                      <TrendingUp className="mr-1 h-3 w-3" />
                       Trending
                     </Badge>
                   )}
@@ -157,41 +148,41 @@ export function HashtagContent({ tag }: HashtagContentProps) {
         </CardHeader>
       </Card>
 
-      {/* Related Tags */}
       {hashtagData.relatedTags.length > 0 && (
         <Card>
           <CardContent className="p-4">
-            <h3 className="font-semibold mb-3">Related Tags</h3>
+            <h3 className="mb-3 font-semibold">Related Tags</h3>
             <div className="flex flex-wrap gap-2">
               {hashtagData.relatedTags.map((relatedTag) => (
-                <Badge
-                  key={relatedTag}
-                  variant="outline"
-                  className="cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-900/20"
-                >
-                  #{relatedTag}
-                </Badge>
+                <Link key={relatedTag} href={`/hashtag/${encodeURIComponent(relatedTag)}`}>
+                  <Badge variant="outline" className="cursor-pointer hover:bg-violet-50 dark:hover:bg-violet-900/20">
+                    #{relatedTag}
+                  </Badge>
+                </Link>
               ))}
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Content Tabs */}
       <Tabs defaultValue="loops" className="w-full">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <TabsList>
             <TabsTrigger value="loops">Loops</TabsTrigger>
-            <TabsTrigger value="top">Top</TabsTrigger>
-            <TabsTrigger value="recent">Recent</TabsTrigger>
+            <TabsTrigger value="top" onClick={() => setSortBy("popular")}>
+              Top
+            </TabsTrigger>
+            <TabsTrigger value="recent" onClick={() => setSortBy("recent")}>
+              Recent
+            </TabsTrigger>
           </TabsList>
 
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-500">Sort by:</span>
+            <span className="text-sm text-muted-foreground">Sort by:</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-1 border rounded-md text-sm bg-background"
+              className="rounded-md border bg-background px-3 py-1 text-sm"
             >
               <option value="recent">Most Recent</option>
               <option value="popular">Most Popular</option>
@@ -210,10 +201,12 @@ export function HashtagContent({ tag }: HashtagContentProps) {
           ) : (
             <Card>
               <CardContent className="p-12 text-center">
-                <Hash className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-600 mb-2">No loops found</h3>
-                <p className="text-gray-500 mb-4">Be the first to create a loop with #{tag}</p>
-                <Button>Create Loop</Button>
+                <Hash className="mx-auto mb-4 h-16 w-16 text-muted-foreground/40" />
+                <h3 className="mb-2 text-lg font-semibold">No loops found</h3>
+                <p className="mb-4 text-muted-foreground">Be the first to create a loop with #{normalized}</p>
+                <Link href="/create">
+                  <Button>Create Loop</Button>
+                </Link>
               </CardContent>
             </Card>
           )}
@@ -221,8 +214,8 @@ export function HashtagContent({ tag }: HashtagContentProps) {
 
         <TabsContent value="top" className="mt-6">
           <div className="space-y-4">
-            {sortedLoops
-              .sort((a, b) => (b.stats?.likes || 0) - (a.stats?.likes || 0))
+            {[...sortedLoops]
+              .sort((a, b) => likesOf(b) - likesOf(a))
               .map((loop) => (
                 <LoopCard key={loop.id} loop={loop} />
               ))}
@@ -231,7 +224,7 @@ export function HashtagContent({ tag }: HashtagContentProps) {
 
         <TabsContent value="recent" className="mt-6">
           <div className="space-y-4">
-            {sortedLoops
+            {[...sortedLoops]
               .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
               .map((loop) => (
                 <LoopCard key={loop.id} loop={loop} />
