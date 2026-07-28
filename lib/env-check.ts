@@ -1,39 +1,61 @@
+const isBuildPhase =
+  process.env.NEXT_PHASE === "phase-production-build" ||
+  process.env.NEXT_PHASE === "phase-export"
+
+let hasLoggedStatus = false
 
 export function checkEnvironmentVariables() {
   const requiredEnvVars = {
-    'NEXT_PUBLIC_SUPABASE_URL': process.env.NEXT_PUBLIC_SUPABASE_URL,
-    'NEXT_PUBLIC_SUPABASE_ANON_KEY': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    'SUPABASE_SERVICE_ROLE_KEY': process.env.SUPABASE_SERVICE_ROLE_KEY,
-    'CLOUDINARY_CLOUD_NAME': process.env.CLOUDINARY_CLOUD_NAME,
-    'CLOUDINARY_API_KEY': process.env.CLOUDINARY_API_KEY,
-    'CLOUDINARY_API_SECRET': process.env.CLOUDINARY_API_SECRET,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   }
 
-  const missing = Object.entries(requiredEnvVars)
-    .filter(([key, value]) => !value)
+  const optionalEnvVars = {
+    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
+    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
+    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
+  }
+
+  const missingRequired = Object.entries(requiredEnvVars)
+    .filter(([, value]) => !value)
     .map(([key]) => key)
 
-  if (missing.length > 0) {
-    console.error('Missing environment variables:', missing)
+  const missingOptional = Object.entries(optionalEnvVars)
+    .filter(([, value]) => !value)
+    .map(([key]) => key)
+
+  if (missingRequired.length > 0) {
+    console.error("Missing required environment variables:", missingRequired)
     return false
   }
 
-  console.log('All required environment variables are present')
+  if (missingOptional.length > 0 && !isBuildPhase && !hasLoggedStatus) {
+    console.warn(
+      "Optional media upload env vars not set (uploads disabled until configured):",
+      missingOptional,
+    )
+  }
+
   return true
 }
 
 export function logEnvironmentStatus() {
-  console.log('Environment Status:', {
+  if (isBuildPhase || hasLoggedStatus) return
+  hasLoggedStatus = true
+
+  console.log("Environment Status:", {
     supabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     supabaseServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    cloudinaryName: !!process.env.CLOUDINARY_CLOUD_NAME,
-    cloudinaryKey: !!process.env.CLOUDINARY_API_KEY,
-    cloudinarySecret: !!process.env.CLOUDINARY_API_SECRET,
+    cloudinaryConfigured: Boolean(
+      process.env.CLOUDINARY_CLOUD_NAME &&
+        process.env.CLOUDINARY_API_KEY &&
+        process.env.CLOUDINARY_API_SECRET,
+    ),
   })
 }
 
-// Environment variables validation
 export function validateEnvironment() {
   const requiredEnvVars = {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -41,25 +63,32 @@ export function validateEnvironment() {
   }
 
   const missing = Object.entries(requiredEnvVars)
-    .filter(([key, value]) => !value)
+    .filter(([, value]) => !value)
     .map(([key]) => key)
 
   if (missing.length > 0) {
-    console.error('Missing required environment variables:', missing)
+    console.error("Missing required environment variables:", missing)
     return false
   }
 
-  console.log('Environment variables validated successfully')
   return true
 }
 
 export function getSupabaseConfig() {
   if (!validateEnvironment()) {
-    throw new Error('Supabase configuration is invalid')
+    throw new Error("Supabase configuration is invalid")
   }
 
   return {
     url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   }
+}
+
+export function isCloudinaryConfigured() {
+  return Boolean(
+    process.env.CLOUDINARY_CLOUD_NAME &&
+      process.env.CLOUDINARY_API_KEY &&
+      process.env.CLOUDINARY_API_SECRET,
+  )
 }

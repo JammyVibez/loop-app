@@ -51,14 +51,12 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Validate environment variables on server side only
-  if (typeof window === 'undefined') {
+  // Soft env checks (Cloudinary is optional; avoid build-time spam)
+  if (typeof window === "undefined" && process.env.NEXT_PHASE !== "phase-production-build") {
     checkEnvironmentVariables()
     logEnvironmentStatus()
-    
-    const envValid = validateEnvironment()
-    if (!envValid) {
-      console.warn('Environment validation failed - some features may not work properly')
+    if (!validateEnvironment()) {
+      console.warn("Environment validation failed - some features may not work properly")
     }
   }
 
