@@ -94,38 +94,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const mapSessionUser = (
     session: NonNullable<Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]>,
     profileData: Record<string, any>,
-  ): User => ({
-    id: session.user.id,
-    email: session.user.email || profileData.email || "",
-    username: profileData.username,
-    display_name: profileData.display_name,
-    avatar_url: profileData.avatar_url,
-    banner_url: profileData.banner_url,
-    bio: profileData.bio,
-    loop_coins: profileData.loop_coins ?? 0,
-    is_premium: profileData.is_premium ?? false,
-    premium_expires_at: profileData.premium_expires_at ?? undefined,
-    is_verified: profileData.is_verified ?? false,
-    is_admin: profileData.is_admin ?? false,
-    theme_data: profileData.theme_data,
-    theme_preferences: profileData.theme_preferences,
-    interests: profileData.interests ?? [],
-    phone: profileData.phone,
-    website: profileData.website,
-    location: profileData.location,
-    privacy_settings: profileData.privacy_settings,
-    notification_settings: profileData.notification_settings,
-    onboarding_completed: profileData.onboarding_completed ?? false,
-    token: session.access_token,
-    access_token: session.access_token,
-    user_metadata: {
-      username: profileData.username,
-      display_name: profileData.display_name,
-      avatar_url: profileData.avatar_url,
-      is_premium: profileData.is_premium ?? false,
-      is_verified: profileData.is_verified ?? false,
-    },
-  })
+  ): User => {
+    const previous = userRef.current?.id === session.user.id ? userRef.current : null
+    const onboardingCompleted =
+      typeof profileData.onboarding_completed === "boolean"
+        ? profileData.onboarding_completed
+        : previous?.onboarding_completed ?? false
+
+    // Never demote a completed user because of a partial/stale profile read.
+    const preservedOnboarding =
+      previous?.onboarding_completed === true && onboardingCompleted !== true
+        ? true
+        : onboardingCompleted
+
+    return {
+      id: session.user.id,
+      email: session.user.email || profileData.email || previous?.email || "",
+      username: profileData.username || previous?.username || "",
+      display_name: profileData.display_name || previous?.display_name || "",
+      avatar_url: profileData.avatar_url ?? previous?.avatar_url,
+      banner_url: profileData.banner_url ?? previous?.banner_url,
+      bio: profileData.bio ?? previous?.bio,
+      loop_coins: profileData.loop_coins ?? previous?.loop_coins ?? 0,
+      is_premium: profileData.is_premium ?? previous?.is_premium ?? false,
+      premium_expires_at: profileData.premium_expires_at ?? previous?.premium_expires_at,
+      is_verified: profileData.is_verified ?? previous?.is_verified ?? false,
+      is_admin: profileData.is_admin ?? previous?.is_admin ?? false,
+      theme_data: profileData.theme_data ?? previous?.theme_data,
+      theme_preferences: profileData.theme_preferences ?? previous?.theme_preferences,
+      interests: profileData.interests ?? previous?.interests ?? [],
+      phone: profileData.phone ?? previous?.phone,
+      website: profileData.website ?? previous?.website,
+      location: profileData.location ?? previous?.location,
+      privacy_settings: profileData.privacy_settings ?? previous?.privacy_settings,
+      notification_settings: profileData.notification_settings ?? previous?.notification_settings,
+      onboarding_completed: preservedOnboarding,
+      token: session.access_token,
+      access_token: session.access_token,
+      user_metadata: {
+        username: profileData.username || previous?.username || "",
+        display_name: profileData.display_name || previous?.display_name || "",
+        avatar_url: profileData.avatar_url ?? previous?.avatar_url,
+        is_premium: Boolean(profileData.is_premium ?? previous?.is_premium),
+        is_verified: Boolean(profileData.is_verified ?? previous?.is_verified),
+      },
+    }
+  }
 
   const fetchProfileViaApi = async (accessToken: string) => {
     try {
@@ -156,21 +170,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    // Fast path: direct profile read. Never block the whole app on a hung request.
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", session.user.id)
-      .maybeSingle()
-
-    if (profileError) {
-      console.error("Error fetching profile:", profileError)
+    // Set a provisional user immediately so profile pages never look "logged out"
+    // while the profile round-trip is still in flight.
+    if (!userRef.current || userRef.current.id !== session.user.id) {
+      setUser(mapSessionUser(session, buildFallbackProfile(session.user)))
+    } else {
+      // Refresh tokens on the existing user object.
+      setUser((prev) =>
+        prev
+          ? { ...prev, token: session.access_token, access_token: session.access_token }
+          : prev,
+      )
     }
 
-    let profileData = profile as Record<string, any> | null
+    // Prefer the lightweight API (service role) with a timeout; fall back to client select.
+    let profileData = await fetchProfileViaApi(session.access_token)
 
-    if (!profileData || profileError) {
-      profileData = await fetchProfileViaApi(session.access_token)
+    if (!profileData) {
+      try {
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 3500)
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", session.user.id)
+          .abortSignal(controller.signal)
+          .maybeSingle()
+        clearTimeout(timeout)
+
+        if (profileError) {
+          console.error("Error fetching profile:", profileError)
+        }
+        profileData = (profile as Record<string, any> | null) || null
+      } catch (error) {
+        console.error("Client profile read timed out:", error)
+      }
     }
 
     if (!profileData) {

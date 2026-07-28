@@ -25,13 +25,7 @@ import { CommentsSection } from "@/components/comments/comments-section"
 import { CreateBranchDialog } from "@/components/create-branch-dialog"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { createClient } from "@supabase/supabase-js"
 import { useAuth } from "@/hooks/use-auth"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 interface LoopData {
   id: string
@@ -93,100 +87,62 @@ export default function LoopDetailPage() {
   useEffect(() => {
     const fetchLoop = async () => {
       setLoading(true)
-      // Fetch main loop with author info
-      const { data: loopData, error: loopError } = await supabase
-        .from("loops")
-        .select(`
-          *,
-          author:profiles!author_id(*),
-          loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
-        `)
-        .eq("id", loopId)
-        .single()
-      if (loopError || !loopData) {
-        setLoop(null)
-        setLoading(false)
-        return
-      }
-      // Fetch branches (children)
-      const { data: branchData } = await supabase
-        .from("loops")
-        .select(`
-          id, content_title, author:profiles!author_id(username, display_name, avatar_url), created_at
-        `)
-        .eq("parent_loop_id", loopId)
-        .order("created_at", { ascending: false })
-      // Fetch parent loop info if exists
-      let parentLoop: { id: string; title: string; author: string } | undefined = undefined
-      if (loopData.parent_loop_id) {
-        const { data: parentData } = await supabase
-          .from("loops")
-          .select(`id, content_title, author:profiles!author_id(username)`)
-          .eq("id", loopData.parent_loop_id)
-          .single()
-        if (parentData) {
-          parentLoop = {
-            id: parentData.id,
-            title: parentData.content_title || "Untitled Loop",
-            author: (Array.isArray((parentData as any).author) ? (parentData as any).author[0] : (parentData as any).author)?.username || "",
-          }
-        }
-      }
-      const stats = Array.isArray(loopData.loop_stats) ? loopData.loop_stats[0] : loopData.loop_stats
-      let interactions = {
-        is_liked: false,
-        is_saved: false,
-      }
-      if (user?.token) {
-        const interactionsResponse = await fetch(`/api/loops/${loopId}/interactions`, {
-          headers: getAuthHeader(),
+      try {
+        const response = await fetch(`/api/loops/${loopId}`, {
+          headers: { ...getAuthHeader() },
+          cache: "no-store",
         })
-        if (interactionsResponse.ok) {
-          const interactionsData = await interactionsResponse.json()
-          interactions = interactionsData.user_interactions || interactions
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok || !data.loop) {
+          setLoop(null)
+          return
         }
+
+        const loopData = data.loop
+        setLoop({
+          id: loopData.id,
+          title: loopData.content_title || "Untitled Loop",
+          content: loopData.content || "",
+          author: {
+            id: loopData.author?.id || "",
+            username: loopData.author?.username || "",
+            displayName: loopData.author?.display_name || "",
+            avatar: loopData.author?.avatar_url || "/placeholder.svg",
+            verified: Boolean(loopData.author?.is_verified),
+            premium: Boolean(loopData.author?.is_premium),
+          },
+          createdAt: loopData.created_at,
+          updatedAt: loopData.updated_at || loopData.created_at,
+          stats: {
+            likes: Number(loopData.stats?.likes_count || 0),
+            comments: Number(loopData.stats?.comments_count || 0),
+            shares: Number(loopData.stats?.shares_count || 0),
+            views: Number(loopData.stats?.views_count || 0),
+            branches: Number(loopData.stats?.branches_count || data.branches?.length || 0),
+          },
+          tags: Array.isArray(loopData.hashtags) ? loopData.hashtags : [],
+          parentLoop: data.parentLoop || undefined,
+          branches: Array.isArray(data.branches) ? data.branches : [],
+          media: loopData.media_url
+            ? {
+                type: (loopData.media_type === "video" ? "video" : "image") as "image" | "video",
+                url: loopData.media_url,
+              }
+            : undefined,
+          isLiked: Boolean(loopData.user_interactions?.is_liked),
+          isBookmarked: Boolean(loopData.user_interactions?.is_saved),
+          isFollowing: false,
+        })
+      } catch (error) {
+        console.error("Failed to load loop:", error)
+        setLoop(null)
+      } finally {
+        setLoading(false)
       }
-      setLoop({
-        id: loopData.id,
-        title: loopData.content_title || "Untitled Loop",
-        content: loopData.content_text || "",
-        author: {
-          id: loopData.author?.id || "",
-          username: loopData.author?.username || "",
-          displayName: loopData.author?.display_name || "",
-          avatar: loopData.author?.avatar_url || "/placeholder.svg",
-          verified: loopData.author?.is_verified || false,
-          premium: loopData.author?.is_premium || false,
-        },
-        createdAt: loopData.created_at,
-        updatedAt: loopData.updated_at || loopData.created_at,
-        stats: {
-          likes: stats?.likes_count || 0,
-          comments: stats?.comments_count || 0,
-          shares: stats?.shares_count || 0,
-          views: stats?.views_count || 0,
-          branches: branchData?.length || 0,
-        },
-        tags: loopData.hashtags || [],
-        parentLoop,
-        branches: (branchData || []).map((b: any) => ({
-          id: b.id,
-          title: b.content_title || "Untitled Loop",
-          author: b.author?.username || "",
-          avatar: b.author?.avatar_url || "/placeholder.svg",
-          createdAt: b.created_at,
-        })),
-        codeSnippet: loopData.code_snippet
-          ? { language: loopData.code_snippet_language, code: loopData.code_snippet }
-          : undefined,
-        isLiked: interactions.is_liked,
-        isBookmarked: interactions.is_saved,
-        isFollowing: false,
-      })
-      setLoading(false)
     }
-    fetchLoop()
-  }, [loopId, user?.token])
+
+    void fetchLoop()
+  }, [loopId, user?.id])
 
   const handleLike = async () => {
     if (!loop || !user) return
@@ -208,7 +164,7 @@ export default function LoopDetailPage() {
           prev
             ? {
                 ...prev,
-                isLiked: data.is_active,
+                isLiked: Boolean(data.is_liked ?? data.is_active),
                 stats: {
                   ...prev.stats,
                   likes: data.stats?.likes_count ?? prev.stats.likes,
@@ -242,7 +198,7 @@ export default function LoopDetailPage() {
           prev
             ? {
                 ...prev,
-                isBookmarked: data.is_active,
+                isBookmarked: Boolean(data.is_saved ?? data.is_active),
               }
             : null,
         )

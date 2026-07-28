@@ -36,6 +36,8 @@ export type NormalizedLoop = {
   category?: string
   is_featured?: boolean
   engagement_score?: number
+  gifts_received?: number
+  total_gift_value?: number
 }
 
 const defaultStats = {
@@ -100,6 +102,8 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
       row?.engagement_score ??
         (Number(stats?.likes_count ?? 0) * 3 + Number(stats?.comments_count ?? 0) * 4 + Number(stats?.branches_count ?? 0) * 5 + Number(stats?.views_count ?? 0)),
     ),
+    gifts_received: Number(row?.gifts_received ?? 0) || undefined,
+    total_gift_value: Number(row?.total_gift_value ?? 0) || undefined,
   }
 }
 

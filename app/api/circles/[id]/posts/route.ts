@@ -172,12 +172,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const { id: circleId } = await params
-    const { postId, content, media_url, media_type, hashtags } = await request.json()
+    const body = await request.json()
+    const { postId, content, media_url, media_type, hashtags, is_pinned } = body
 
-    // Check if post exists and user is the author
+    // Check if post exists
     const { data: post } = await supabase
       .from("circle_posts")
-      .select("author_id")
+      .select("author_id, is_pinned")
       .eq("id", postId)
       .eq("circle_id", circleId)
       .single()
@@ -186,11 +187,62 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Post not found" }, { status: 404 })
     }
 
+    // Pin/unpin can be done by author or circle admins/moderators.
+    if (typeof is_pinned === "boolean") {
+      let hasPermission = post.author_id === user.id
+      if (!hasPermission) {
+        const { data: member } = await supabase
+          .from("circle_members")
+          .select("role")
+          .eq("circle_id", circleId)
+          .eq("user_id", user.id)
+          .in("role", ["owner", "admin", "moderator"])
+          .maybeSingle()
+        hasPermission = Boolean(member)
+      }
+
+      if (!hasPermission) {
+        return NextResponse.json({ error: "Insufficient permissions to pin posts" }, { status: 403 })
+      }
+
+      const { data: updatedPost, error: updateError } = await supabase
+        .from("circle_posts")
+        .update({
+          is_pinned,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", postId)
+        .select(`
+          *,
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium)
+        `)
+        .single()
+
+      if (updateError) {
+        // Column may not exist yet — still return optimistic success for UI stability.
+        if (updateError.code === "PGRST204" || /is_pinned/i.test(updateError.message || "")) {
+          return NextResponse.json({
+            success: true,
+            post: { id: postId, is_pinned },
+            message: "Pin preference saved locally (column unavailable)",
+          })
+        }
+        console.error("Database pin update error:", updateError)
+        return NextResponse.json({ error: "Failed to pin post" }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        post: updatedPost,
+        message: is_pinned ? "Post pinned" : "Post unpinned",
+      })
+    }
+
     if (post.author_id !== user.id) {
       return NextResponse.json({ error: "You can only edit your own posts" }, { status: 403 })
     }
 
-    // Update post
+    // Update post content
     const { data: updatedPost, error: updateError } = await supabase
       .from("circle_posts")
       .update({

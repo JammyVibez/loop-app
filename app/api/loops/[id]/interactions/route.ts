@@ -42,6 +42,41 @@ export async function POST(
 
     const supabase = createServerClient()
 
+    const adjustStat = async (field: "likes_count" | "shares_count" | "views_count", delta: number) => {
+      const { data: current } = await supabase
+        .from("loop_stats")
+        .select("likes_count, shares_count, views_count, comments_count, branches_count")
+        .eq("loop_id", loopId)
+        .maybeSingle()
+
+      if (!current) {
+        await supabase.from("loop_stats").upsert({
+          loop_id: loopId,
+          likes_count: field === "likes_count" ? Math.max(0, delta) : 0,
+          shares_count: field === "shares_count" ? Math.max(0, delta) : 0,
+          views_count: field === "views_count" ? Math.max(0, delta) : 0,
+          comments_count: 0,
+          branches_count: 0,
+        })
+        return
+      }
+
+      await supabase
+        .from("loop_stats")
+        .update({
+          [field]: Math.max(0, Number(current[field] || 0) + delta),
+        })
+        .eq("loop_id", loopId)
+    }
+
+    const runRpcOrFallback = async (rpcName: string, field: "likes_count" | "shares_count" | "views_count", delta: number) => {
+      const { error } = await supabase.rpc(rpcName, { loop_id: loopId })
+      if (error) {
+        console.warn(`${rpcName} failed, falling back to direct stats update:`, error.message)
+        await adjustStat(field, delta)
+      }
+    }
+
     // Check if interaction already exists
     const { data: existingInteraction } = await supabase
       .from('loop_interactions')
@@ -49,7 +84,7 @@ export async function POST(
       .eq('user_id', user.id)
       .eq('loop_id', loopId)
       .eq('interaction_type', interaction_type)
-      .single()
+      .maybeSingle()
 
     let isLiked = false
     let isSaved = false
@@ -61,15 +96,12 @@ export async function POST(
         .delete()
         .eq('id', existingInteraction.id)
 
-      // Update stats
       if (interaction_type === 'like') {
-        await supabase.rpc('decrement_loop_likes', { loop_id: loopId })
-      } else if (interaction_type === 'save') {
-        // No decrement for saves
+        await runRpcOrFallback('decrement_loop_likes', 'likes_count', -1)
       }
     } else {
       // Add interaction
-      await supabase
+      const { error: insertError } = await supabase
         .from('loop_interactions')
         .insert({
           user_id: user.id,
@@ -77,16 +109,19 @@ export async function POST(
           interaction_type
         })
 
-      // Update stats
+      if (insertError) {
+        return NextResponse.json({ error: insertError.message || "Failed to save interaction" }, { status: 500 })
+      }
+
       if (interaction_type === 'like') {
-        await supabase.rpc('increment_loop_likes', { loop_id: loopId })
+        await runRpcOrFallback('increment_loop_likes', 'likes_count', 1)
         isLiked = true
       } else if (interaction_type === 'save') {
         isSaved = true
       } else if (interaction_type === 'share') {
-        await supabase.rpc('increment_loop_shares', { loop_id: loopId })
+        await runRpcOrFallback('increment_loop_shares', 'shares_count', 1)
       } else if (interaction_type === 'view') {
-        await supabase.rpc('increment_loop_views', { loop_id: loopId })
+        await runRpcOrFallback('increment_loop_views', 'views_count', 1)
       }
 
       // Create notification for loop author (except for views)
