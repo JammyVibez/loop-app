@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Flag, CheckCircle, XCircle, Eye, User, Calendar, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ContentFlag {
   id: string;
@@ -31,6 +32,7 @@ interface ContentFlag {
 
 export function ContentModerationControl() {
   const { toast } = useToast();
+  const { getAuthHeader } = useAuth();
   const [flags, setFlags] = useState<ContentFlag[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('pending');
@@ -43,11 +45,15 @@ export function ContentModerationControl() {
   const fetchContentFlags = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/moderation/flags?status=${filterStatus}`);
+      const response = await fetch(`/api/moderation/flags?status=${filterStatus}`, {
+        headers: getAuthHeader(),
+      });
       const data = await response.json();
       
       if (data.success) {
-        setFlags(data.data);
+        setFlags(data.data || data.flags || []);
+      } else {
+        setFlags([]);
       }
     } catch (error) {
       console.error('Error fetching content flags:', error);
@@ -68,6 +74,7 @@ export function ContentModerationControl() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          ...getAuthHeader(),
         },
         body: JSON.stringify({ status, action_taken: action }),
       });

@@ -375,30 +375,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const applyServerProfile = (profile: Partial<User> & Record<string, unknown>) => {
+  const applyServerProfile = useCallback((profile: Partial<User> & Record<string, unknown>) => {
     setUser((prev) => {
       if (!prev) return prev
+      // Only merge known auth fields — never spread full API profile payloads
+      // (recent_loops, counts, etc.) or we thrash renders and break profile pages.
+      const nextUsername = (profile.username as string) || prev.username
+      const nextDisplay = (profile.display_name as string) || prev.display_name
+      const nextAvatar = (profile.avatar_url as string | undefined) ?? prev.avatar_url
+      const nextBanner = (profile.banner_url as string | undefined) ?? prev.banner_url
+      const nextBio = (profile.bio as string | undefined) ?? prev.bio
+      const nextCoins =
+        typeof profile.loop_coins === "number" ? profile.loop_coins : prev.loop_coins
+      const nextPremium = Boolean(profile.is_premium ?? prev.is_premium)
+      const nextVerified = Boolean(profile.is_verified ?? prev.is_verified)
+      const nextAdmin = Boolean(profile.is_admin ?? prev.is_admin)
+      const nextThemePrefs = (profile.theme_preferences as any) ?? prev.theme_preferences
+      const nextLocation = (profile.location as string | undefined) ?? prev.location
+      const nextWebsite = (profile.website as string | undefined) ?? prev.website
+      const nextOnboarding =
+        typeof profile.onboarding_completed === "boolean"
+          ? profile.onboarding_completed
+          : prev.onboarding_completed
+
+      const unchanged =
+        nextUsername === prev.username &&
+        nextDisplay === prev.display_name &&
+        nextAvatar === prev.avatar_url &&
+        nextBanner === prev.banner_url &&
+        nextBio === prev.bio &&
+        nextCoins === prev.loop_coins &&
+        nextPremium === prev.is_premium &&
+        nextVerified === prev.is_verified &&
+        nextAdmin === prev.is_admin &&
+        nextLocation === prev.location &&
+        nextWebsite === prev.website &&
+        nextOnboarding === prev.onboarding_completed &&
+        nextThemePrefs === prev.theme_preferences
+
+      if (unchanged) return prev
+
       return {
         ...prev,
-        ...profile,
-        id: prev.id,
-        email: (profile.email as string) || prev.email,
-        token: prev.token,
-        access_token: prev.access_token,
-        onboarding_completed:
-          typeof profile.onboarding_completed === "boolean"
-            ? profile.onboarding_completed
-            : prev.onboarding_completed,
+        username: nextUsername,
+        display_name: nextDisplay,
+        avatar_url: nextAvatar,
+        banner_url: nextBanner,
+        bio: nextBio,
+        loop_coins: nextCoins,
+        is_premium: nextPremium,
+        is_verified: nextVerified,
+        is_admin: nextAdmin,
+        theme_preferences: nextThemePrefs,
+        location: nextLocation,
+        website: nextWebsite,
+        onboarding_completed: nextOnboarding,
         user_metadata: {
-          username: (profile.username as string) || prev.username,
-          display_name: (profile.display_name as string) || prev.display_name,
-          avatar_url: (profile.avatar_url as string | undefined) || prev.avatar_url,
-          is_premium: Boolean(profile.is_premium ?? prev.is_premium),
-          is_verified: Boolean(profile.is_verified ?? prev.is_verified),
+          username: nextUsername,
+          display_name: nextDisplay,
+          avatar_url: nextAvatar,
+          is_premium: nextPremium,
+          is_verified: nextVerified,
         },
       }
     })
-  }
+  }, [])
 
   const updateProfile = async (updates: Partial<User>) => {
     if (!user) return

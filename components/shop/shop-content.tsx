@@ -178,10 +178,18 @@ export function ShopContent() {
         }
         toast({
           title: "Purchase Successful!",
-          description: `You've purchased ${item.name} for ${itemPrice} Loop Coins.`,
+          description: `You've purchased ${item.name}. Open Inventory to apply themes & effects.`,
         })
         await refreshUser?.()
         await fetchUserInventory()
+        if (item.category !== "coins") {
+          window.setTimeout(() => {
+            toast({
+              title: "Activate in Inventory",
+              description: "Profile menu → Inventory, or go to /inventory",
+            })
+          }, 1200)
+        }
       } else {
         toast({
           title: "Purchase Failed",

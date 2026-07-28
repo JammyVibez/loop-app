@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   BadgeCheck,
+  Ban,
   Crown,
   Loader2,
   RefreshCw,
@@ -12,6 +13,7 @@ import {
   Sparkles,
   Users,
   Coins,
+  Flag,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
@@ -23,6 +25,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AdminCatalogPanel } from "@/components/admin/admin-catalog-panel"
+import { AdminFeaturedPanel } from "@/components/admin/admin-featured-panel"
+import { ContentModerationControl } from "@/components/admin/content-moderation-control"
 
 interface AdminUser {
   id: string
@@ -33,6 +37,8 @@ interface AdminUser {
   is_verified?: boolean
   is_premium?: boolean
   is_admin?: boolean
+  is_banned?: boolean
+  ban_reason?: string | null
   premium_expires_at?: string | null
   loop_coins?: number
   created_at?: string
@@ -43,7 +49,7 @@ export function AdminDashboard() {
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const [users, setUsers] = useState<AdminUser[]>([])
-  const [stats, setStats] = useState({ total_users: 0, verified: 0, premium: 0 })
+  const [stats, setStats] = useState({ total_users: 0, verified: 0, premium: 0, banned: 0 })
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [q, setQ] = useState("")
@@ -123,6 +129,7 @@ export function AdminDashboard() {
     if (filter === "premium") return "Premium users"
     if (filter === "admin") return "Admins"
     if (filter === "unverified") return "Unverified users"
+    if (filter === "banned") return "Banned users"
     return "All users"
   }, [filter])
 
@@ -156,13 +163,15 @@ export function AdminDashboard() {
       </div>
 
       <Tabs value={section} onValueChange={setSection}>
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid h-auto w-full max-w-2xl grid-cols-2 gap-1 sm:grid-cols-4">
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="catalog">Themes & Effects</TabsTrigger>
+          <TabsTrigger value="featured">Featured</TabsTrigger>
+          <TabsTrigger value="moderation">Moderation</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="mt-6 space-y-6">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -187,16 +196,25 @@ export function AdminDashboard() {
               </CardHeader>
               <CardContent className="text-3xl font-bold">{stats.premium}</CardContent>
             </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Ban className="h-4 w-4" /> Banned
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-3xl font-bold">{stats.banned || 0}</CardContent>
+            </Card>
           </div>
 
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <Tabs value={filter} onValueChange={setFilter} className="w-full lg:w-auto">
-              <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-5">
+              <TabsList className="grid h-auto w-full grid-cols-3 gap-1 sm:grid-cols-6">
                 <TabsTrigger value="all">All</TabsTrigger>
                 <TabsTrigger value="unverified">Unverified</TabsTrigger>
                 <TabsTrigger value="verified">Verified</TabsTrigger>
                 <TabsTrigger value="premium">Premium</TabsTrigger>
                 <TabsTrigger value="admin">Admins</TabsTrigger>
+                <TabsTrigger value="banned">Banned</TabsTrigger>
               </TabsList>
             </Tabs>
             <div className="relative flex-1">
@@ -239,9 +257,11 @@ export function AdminDashboard() {
                           {u.is_verified && <Badge className="bg-sky-500">Verified</Badge>}
                           {u.is_premium && <Badge className="bg-amber-500 text-slate-900">Premium</Badge>}
                           {u.is_admin && <Badge variant="secondary">Admin</Badge>}
+                          {u.is_banned && <Badge variant="destructive">Banned</Badge>}
                         </div>
                         <p className="truncate text-sm text-muted-foreground">
                           @{u.username} · {Number(u.loop_coins || 0).toLocaleString()} coins
+                          {u.ban_reason ? ` · ${u.ban_reason}` : ""}
                         </p>
                       </div>
                     </div>
@@ -295,6 +315,20 @@ export function AdminDashboard() {
                       >
                         <Coins className="mr-1.5 h-3.5 w-3.5" /> +500
                       </Button>
+                      <Button
+                        size="sm"
+                        variant={u.is_banned ? "outline" : "destructive"}
+                        className="rounded-full"
+                        disabled={busyId === `${u.id}:ban` || busyId === `${u.id}:unban`}
+                        onClick={() =>
+                          runAction(u.id, u.is_banned ? "unban" : "ban", {
+                            reason: "Violated community guidelines",
+                          })
+                        }
+                      >
+                        <Ban className="mr-1.5 h-3.5 w-3.5" />
+                        {u.is_banned ? "Unban" : "Ban"}
+                      </Button>
                     </div>
                   </div>
                 ))
@@ -312,6 +346,17 @@ export function AdminDashboard() {
 
         <TabsContent value="catalog" className="mt-6">
           <AdminCatalogPanel />
+        </TabsContent>
+
+        <TabsContent value="featured" className="mt-6">
+          <AdminFeaturedPanel />
+        </TabsContent>
+
+        <TabsContent value="moderation" className="mt-6">
+          <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+            <Flag className="h-4 w-4" /> Review reported content and take action.
+          </div>
+          <ContentModerationControl />
         </TabsContent>
       </Tabs>
     </div>

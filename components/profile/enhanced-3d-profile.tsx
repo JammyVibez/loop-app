@@ -19,6 +19,7 @@ import {
   Trophy,
   Upload,
   Users,
+  Package,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -92,7 +93,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const fetchProfile = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true)
     try {
-      const response = await fetch(`/api/users/profile?username=${username}`, {
+      const response = await fetch(`/api/users/profile?username=${encodeURIComponent(username)}`, {
         headers: user ? getAuthHeader() : undefined,
         cache: "no-store",
       })
@@ -100,13 +101,25 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         const data = await response.json()
         setProfile(data.profile)
         setIsFollowing(Boolean(data.profile?.is_following))
-        if (user && data.profile?.id === user.id && applyServerProfile) {
-          try {
-            applyServerProfile(data.profile)
-          } catch {
-            /* optional */
-          }
+        // Sync only slim auth fields for own profile — never full payload
+        if (user && data.profile?.id === user.id) {
+          applyServerProfile({
+            username: data.profile.username,
+            display_name: data.profile.display_name,
+            avatar_url: data.profile.avatar_url,
+            banner_url: data.profile.banner_url,
+            bio: data.profile.bio,
+            loop_coins: data.profile.loop_coins,
+            is_premium: data.profile.is_premium,
+            is_verified: data.profile.is_verified,
+            is_admin: data.profile.is_admin,
+            theme_preferences: data.profile.theme_preferences,
+            location: data.profile.location,
+            website: data.profile.website,
+          })
         }
+      } else {
+        setProfile(null)
       }
     } catch (error) {
       console.error("Error fetching profile:", error)
@@ -117,7 +130,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
 
   useEffect(() => {
     void fetchProfile()
-  }, [fetchProfile])
+    // Intentionally only re-fetch when the route username or signed-in user changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [username, user?.id])
 
   useEffect(() => {
     if (!profile?.id) return
@@ -134,7 +149,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "loops", filter: `author_id=eq.${profile.id}` },
+        { event: "INSERT", schema: "public", table: "loops", filter: `author_id=eq.${profile.id}` },
         () => {
           setLive(true)
           void fetchProfile({ silent: true })
@@ -148,14 +163,6 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           void fetchProfile({ silent: true })
         },
       )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "follows", filter: `follower_id=eq.${profile.id}` },
-        () => {
-          setLive(true)
-          void fetchProfile({ silent: true })
-        },
-      )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") setLive(true)
       })
@@ -164,7 +171,8 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       void supabase.removeChannel(channel)
       setLive(false)
     }
-  }, [profile?.id, fetchProfile])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id])
 
   const handleFollow = async () => {
     if (!profile || !user) {
@@ -339,6 +347,11 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           <div className="mb-1 flex flex-wrap justify-end gap-2">
             {isOwnProfile ? (
               <>
+                <Link href="/inventory">
+                  <Button variant="outline" className="rounded-full px-4 font-semibold">
+                    <Package className="mr-2 h-4 w-4" /> Inventory
+                  </Button>
+                </Link>
                 <Link href="/settings">
                   <Button variant="outline" className="rounded-full px-4 font-semibold">
                     <Edit className="mr-2 h-4 w-4" /> Edit profile

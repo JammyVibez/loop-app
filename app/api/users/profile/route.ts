@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 })
     }
 
-    const [{ count: followersCount }, { count: followingCount }, { count: loopsCount }, { count: branchesCount }, { data: recentLoops }, { data: recentBranches }, { data: mediaLoops }, { data: followRecord }, { data: authorLoopIds }] = await Promise.all([
+    const [{ count: followersCount }, { count: followingCount }, { count: loopsCount }, { count: branchesCount }, { data: recentLoops }, { data: recentBranches }, { data: mediaLoops }, { data: followRecord }, { data: activeItems }] = await Promise.all([
       supabase.from("follows").select("id", { count: "exact", head: true }).eq("following_id", profile.id),
       supabase.from("follows").select("id", { count: "exact", head: true }).eq("follower_id", profile.id),
       supabase.from("loops").select("id", { count: "exact", head: true }).eq("author_id", profile.id).is("parent_loop_id", null),
@@ -88,26 +88,19 @@ export async function GET(request: NextRequest) {
             .eq("following_id", profile.id)
             .maybeSingle()
         : Promise.resolve({ data: null } as any),
-      supabase.from("loops").select("id").eq("author_id", profile.id),
+      supabase
+        .from("user_inventory")
+        .select("id, item_id, item_type, is_active, shop_item:shop_items(id, name, category, item_type, item_data, preview_data)")
+        .eq("user_id", profile.id)
+        .eq("is_active", true)
+        .limit(12),
     ])
 
-    let likesReceived = 0
-    const loopIds = (authorLoopIds || []).map((l) => l.id)
-    if (loopIds.length > 0) {
-      const { data: statsRows } = await supabase
-        .from("loop_stats")
-        .select("likes_count")
-        .in("loop_id", loopIds.slice(0, 200))
-      likesReceived = (statsRows || []).reduce((sum, row) => sum + Number(row.likes_count || 0), 0)
-    }
-
-    // Prefer theme fields + active inventory items for complete profile payload
-    const { data: activeItems } = await supabase
-      .from("user_inventory")
-      .select("id, item_id, item_type, is_active, shop_item:shop_items(id, name, category, item_type, item_data, preview_data)")
-      .eq("user_id", profile.id)
-      .eq("is_active", true)
-      .limit(12)
+    // Approximate likes from recent loops (fast) — avoids scanning every author loop id
+    const likesReceived = (recentLoops || []).reduce((sum, loop: any) => {
+      const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats
+      return sum + Number(stats?.likes_count || 0)
+    }, 0)
 
     const profileWithSocial = {
       ...profile,

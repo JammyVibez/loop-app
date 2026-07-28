@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("profiles")
       .select(
-        "id, username, display_name, avatar_url, email, is_verified, is_premium, is_admin, premium_expires_at, loop_coins, created_at, last_active",
+        "id, username, display_name, avatar_url, email, is_verified, is_premium, is_admin, is_banned, ban_reason, premium_expires_at, loop_coins, created_at, last_active",
       )
       .order("created_at", { ascending: false })
       .limit(limit)
@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
     if (filter === "premium") query = query.eq("is_premium", true)
     if (filter === "admin") query = query.eq("is_admin", true)
     if (filter === "unverified") query = query.eq("is_verified", false)
+    if (filter === "banned") query = query.eq("is_banned", true)
 
     const { data: users, error } = await query
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -54,6 +55,10 @@ export async function GET(request: NextRequest) {
       .from("profiles")
       .select("id", { count: "exact", head: true })
       .eq("is_premium", true)
+    const { count: bannedCount } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("is_banned", true)
 
     return NextResponse.json({
       success: true,
@@ -62,6 +67,7 @@ export async function GET(request: NextRequest) {
         total_users: totalUsers || 0,
         verified: verifiedCount || 0,
         premium: premiumCount || 0,
+        banned: bannedCount || 0,
       },
     })
   } catch (error) {
@@ -124,6 +130,17 @@ export async function POST(request: NextRequest) {
         updates.loop_coins = Number(target.loop_coins || 0) + amount
         break
       }
+      case "ban":
+        if (userId === adminUser.id) {
+          return NextResponse.json({ error: "You cannot ban yourself" }, { status: 400 })
+        }
+        updates.is_banned = true
+        updates.ban_reason = String(body.reason || "Violated community guidelines")
+        break
+      case "unban":
+        updates.is_banned = false
+        updates.ban_reason = null
+        break
       default:
         return NextResponse.json({ error: "Unknown action" }, { status: 400 })
     }
@@ -133,7 +150,7 @@ export async function POST(request: NextRequest) {
       .update(updates)
       .eq("id", userId)
       .select(
-        "id, username, display_name, avatar_url, email, is_verified, is_premium, is_admin, premium_expires_at, loop_coins, created_at, last_active",
+        "id, username, display_name, avatar_url, email, is_verified, is_premium, is_admin, is_banned, ban_reason, premium_expires_at, loop_coins, created_at, last_active",
       )
       .single()
 

@@ -6,7 +6,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { id: parentReelId } = await params
     const supabase = createServerClient()
 
-    // Get user from session
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 })
@@ -22,68 +21,55 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { type, title, content_url, description } = body
+    const body = await request.json().catch(() => ({}))
+    const title = String(body.title || "").trim()
+    const content_url = String(body.content_url || "").trim()
+    const type = body.type || body.content_type || "video"
+    const description = body.description ? String(body.description).trim() : null
 
-    if (!title?.trim() || !content_url?.trim() || !type) {
-      return NextResponse.json(
-        {
-          error: "Title, content_url, and type are required",
-        },
-        { status: 400 },
-      )
+    if (!title || !content_url) {
+      return NextResponse.json({ error: "Title and content_url are required" }, { status: 400 })
     }
 
-    // Validate content type
     const validTypes = ["video", "image", "audio", "text"]
     if (!validTypes.includes(type)) {
-      return NextResponse.json(
-        {
-          error: "Invalid content type",
-        },
-        { status: 400 },
-      )
+      return NextResponse.json({ error: "Invalid content type" }, { status: 400 })
     }
 
-    // Check if parent reel exists and allows duets/branches
     const { data: parentReel } = await supabase
       .from("reels")
-      .select("id, allows_duets, branch_count")
+      .select("id, author_id, allows_duets, branch_count, title")
       .eq("id", parentReelId)
-      .single()
+      .maybeSingle()
 
     if (!parentReel) {
       return NextResponse.json({ error: "Parent reel not found" }, { status: 404 })
     }
 
-    if (!parentReel.allows_duets) {
-      return NextResponse.json({ error: "Branching is disabled for this reel" }, { status: 403 })
+    if (parentReel.allows_duets === false) {
+      return NextResponse.json({ error: "Duets are disabled for this reel" }, { status: 403 })
     }
 
-    // Create branch reel
     const { data: branch, error } = await supabase
       .from("reels")
       .insert({
         author_id: user.id,
-        title: title.trim(),
-        description: description?.trim(),
+        title,
+        description,
         content_type: type,
-        content_url: content_url.trim(),
+        content_url,
         parent_reel_id: parentReelId,
         visibility: "public",
         allows_comments: true,
         allows_duets: true,
         allows_downloads: false,
+        effects: body.effects || { kind: "duet", parent_reel_id: parentReelId },
+        hashtags: body.hashtags || ["duet"],
       })
       .select(`
         *,
         author:profiles!author_id (
-          id,
-          username,
-          display_name,
-          avatar_url,
-          is_verified,
-          is_premium
+          id, username, display_name, avatar_url, is_verified, is_premium
         )
       `)
       .single()
@@ -92,24 +78,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Update parent reel branch count
     await supabase
       .from("reels")
-      .update({ branch_count: parentReel.branch_count + 1 })
+      .update({ branch_count: Number(parentReel.branch_count || 0) + 1 })
       .eq("id", parentReelId)
 
-    // Create notification for parent reel author
-    await supabase.from("notifications").insert({
-      user_id: parentReel.id, // This should be the parent reel author_id
-      type: "reel_branched",
-      title: "New Branch Created",
-      message: `Someone created a branch of your reel: "${title}"`,
-      data: {
-        reel_id: parentReelId,
-        branch_id: branch.id,
-        user_id: user.id,
-      },
-    })
+    if (parentReel.author_id && parentReel.author_id !== user.id) {
+      await supabase.from("notifications").insert({
+        user_id: parentReel.author_id,
+        type: "reel_branched",
+        title: "New Duet",
+        message: `Someone dueted your reel: "${parentReel.title || title}"`,
+        data: {
+          reel_id: parentReelId,
+          branch_id: branch.id,
+          user_id: user.id,
+        },
+        actor_id: user.id,
+      })
+    }
 
     return NextResponse.json({
       success: true,
@@ -123,7 +110,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           branch_count: 0,
           is_liked: false,
           is_saved: false,
-          hashtags: [],
+          hashtags: branch.hashtags || ["duet"],
         },
       },
     })

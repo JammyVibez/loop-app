@@ -1,5 +1,5 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { type NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -30,51 +30,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const { inventory_item_id } = await request.json()
+    const body = await request.json().catch(() => ({}))
+    const inventoryItemId = body.inventory_item_id || body.item_id
 
-    if (!inventory_item_id) {
+    if (!inventoryItemId) {
       return NextResponse.json({ error: "Inventory item ID is required" }, { status: 400 })
     }
 
-    // Get inventory item
     const { data: inventoryItem, error: itemError } = await supabase
       .from("user_inventory")
-      .select(`
-        *,
-        shop_item:shop_items(*)
-      `)
-      .eq("id", inventory_item_id)
+      .select(`*, shop_item:shop_items(*)`)
+      .eq("id", inventoryItemId)
       .eq("user_id", user.id)
-      .single()
+      .maybeSingle()
 
     if (itemError || !inventoryItem) {
       return NextResponse.json({ error: "Inventory item not found" }, { status: 404 })
     }
 
-    // Deactivate the item
     const { error: updateError } = await supabase
       .from("user_inventory")
       .update({ is_active: false })
-      .eq("id", inventory_item_id)
+      .eq("id", inventoryItemId)
 
     if (updateError) {
-      console.error("Error deactivating item:", updateError)
       return NextResponse.json({ error: "Failed to remove item" }, { status: 500 })
     }
 
-    // Reset user profile theme if it's a theme
-    if (inventoryItem.shop_item.item_type === "theme") {
-      const { error: profileError } = await supabase
+    const shopItem = Array.isArray(inventoryItem.shop_item) ? inventoryItem.shop_item[0] : inventoryItem.shop_item
+    const itemType = String(inventoryItem.item_type || shopItem?.item_type || shopItem?.category || "")
+    const isThemeLike = /theme|effect|animation/i.test(itemType) || /theme|effect|animation/i.test(shopItem?.category || "")
+
+    if (isThemeLike) {
+      await supabase
         .from("profiles")
         .update({
-          theme_data: null,
+          active_theme: null,
+          theme_preferences: null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id)
-
-      if (profileError) {
-        console.error("Error resetting profile theme:", profileError)
-      }
     }
 
     return NextResponse.json({

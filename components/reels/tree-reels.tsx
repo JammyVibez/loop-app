@@ -12,6 +12,8 @@ import {
   Loader2,
   Music2,
   Bookmark,
+  GitBranch,
+  Gauge,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -52,6 +54,8 @@ interface Reel {
   is_saved?: boolean
   author?: ReelAuthor
   source?: string
+  effects?: any
+  parent_reel_id?: string | null
 }
 
 interface TreeReelsProps {
@@ -73,9 +77,17 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
   const [creating, setCreating] = useState(false)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [createTitle, setCreateTitle] = useState("")
+  const [createHashtags, setCreateHashtags] = useState("")
+  const [createEffect, setCreateEffect] = useState("none")
+  const [playbackRate, setPlaybackRate] = useState(1)
+  const [progress, setProgress] = useState(0)
+  const [heartBurst, setHeartBurst] = useState(false)
+  const [duetReel, setDuetReel] = useState<Reel | null>(null)
+  const [dueting, setDueting] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   const viewed = useRef<Set<string>>(new Set())
+  const lastTapRef = useRef(0)
 
   const fetchReels = useCallback(async () => {
     setLoading(true)
@@ -97,6 +109,18 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
   useEffect(() => {
     fetchReels()
   }, [fetchReels])
+
+  // Deep-link focus: /reels?focus=<id>
+  useEffect(() => {
+    if (!reels.length || typeof window === "undefined") return
+    const focusId = new URLSearchParams(window.location.search).get("focus")
+    if (!focusId) return
+    const idx = reels.findIndex((r) => r.id === focusId)
+    if (idx < 0) return
+    const el = containerRef.current?.querySelector(`[data-index="${idx}"]`) as HTMLElement | null
+    el?.scrollIntoView({ behavior: "smooth", block: "start" })
+    setActiveIndex(idx)
+  }, [reels])
 
   // Realtime public reels channel
   useEffect(() => {
@@ -159,6 +183,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
     videoRefs.current.forEach((video, id) => {
       if (active && id === active.id) {
         video.muted = muted
+        video.playbackRate = playbackRate
         void video.play().catch(() => null)
         if (!viewed.current.has(id) && active.source !== "loop") {
           viewed.current.add(id)
@@ -175,7 +200,83 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
         } catch {}
       }
     })
-  }, [activeIndex, muted, reels, user, getAuthHeader])
+  }, [activeIndex, muted, playbackRate, reels, user, getAuthHeader])
+
+  useEffect(() => {
+    const active = reels[activeIndex]
+    if (!active) return
+    const video = videoRefs.current.get(active.id)
+    if (!video) return
+    const onTime = () => {
+      if (!video.duration) return
+      setProgress((video.currentTime / video.duration) * 100)
+    }
+    video.addEventListener("timeupdate", onTime)
+    return () => video.removeEventListener("timeupdate", onTime)
+  }, [activeIndex, reels])
+
+  const cycleSpeed = () => {
+    const rates = [1, 1.25, 1.5, 2, 0.75]
+    const next = rates[(rates.indexOf(playbackRate) + 1) % rates.length]
+    setPlaybackRate(next)
+  }
+
+  const doubleTapLike = (reel: Reel) => {
+    const now = Date.now()
+    if (now - lastTapRef.current < 320) {
+      setHeartBurst(true)
+      window.setTimeout(() => setHeartBurst(false), 650)
+      if (!reel.is_liked) void interact(reel, "like")
+      lastTapRef.current = 0
+      return
+    }
+    lastTapRef.current = now
+  }
+
+  const createDuet = async () => {
+    if (!user || !duetReel || !uploadFile) {
+      toast({ title: "Pick a clip to duet with", variant: "destructive" })
+      return
+    }
+    setDueting(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", uploadFile)
+      formData.append("type", uploadFile.type.startsWith("video") ? "video" : "image")
+      formData.append("folder", "reels")
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        headers: getAuthHeader(),
+        body: formData,
+      })
+      const uploadData = await uploadRes.json()
+      const url = uploadData.url || uploadData.data?.url
+      if (!uploadRes.ok || !url) throw new Error(uploadData.error || "Upload failed")
+
+      const response = await fetch(`/api/reels/${duetReel.id}/branch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({
+          title: createTitle.trim() || `Duet with @${duetReel.author?.username || "creator"}`,
+          description: createTitle.trim() || null,
+          type: uploadFile.type.startsWith("video") ? "video" : "image",
+          content_url: url,
+          hashtags: ["duet", ...(duetReel.hashtags || []).slice(0, 3)],
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Duet failed")
+      toast({ title: "Duet published" })
+      setDuetReel(null)
+      setUploadFile(null)
+      setCreateTitle("")
+      await fetchReels()
+    } catch (error: any) {
+      toast({ title: "Duet failed", description: error.message, variant: "destructive" })
+    } finally {
+      setDueting(false)
+    }
+  }
 
   const interact = async (reel: Reel, type: "like" | "save") => {
     if (!user) {
@@ -310,6 +411,11 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
           description: createTitle.trim(),
           content_type: uploadFile.type.startsWith("video") ? "video" : "image",
           content_url: url,
+          hashtags: createHashtags
+            .split(/[\s,#]+/)
+            .map((t) => t.trim().toLowerCase())
+            .filter(Boolean),
+          effects: createEffect !== "none" ? { filter: createEffect } : null,
         }),
       })
       const data = await response.json()
@@ -317,6 +423,8 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
       toast({ title: "Reel published" })
       setCreateOpen(false)
       setCreateTitle("")
+      setCreateHashtags("")
+      setCreateEffect("none")
       setUploadFile(null)
       await fetchReels()
     } catch (error: any) {
@@ -359,6 +467,15 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
       </div>
       <div className="absolute right-3 top-3 z-30 flex gap-2 sm:right-4 sm:top-4">
         <Button
+          size="sm"
+          variant="ghost"
+          className="rounded-full bg-black/40 px-3 text-white hover:bg-black/60"
+          onClick={cycleSpeed}
+        >
+          <Gauge className="mr-1 h-4 w-4" />
+          {playbackRate}x
+        </Button>
+        <Button
           size="icon"
           variant="ghost"
           className="rounded-full bg-black/40 text-white hover:bg-black/60"
@@ -393,7 +510,12 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
               className="relative flex h-[100dvh] w-full snap-start snap-always items-center justify-center overflow-hidden"
             >
               {mediaType === "image" ? (
-                <img src={reel.content_url} alt={reel.title} className="h-full w-full object-cover" />
+                <img
+                  src={reel.content_url}
+                  alt={reel.title}
+                  className="h-full w-full object-cover"
+                  onClick={() => doubleTapLike(reel)}
+                />
               ) : (
                 <video
                   ref={(el) => {
@@ -403,11 +525,33 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                   src={reel.content_url}
                   poster={reel.thumbnail_url || undefined}
                   className="h-full w-full object-cover"
+                  style={
+                    reel.effects?.filter === "vivid"
+                      ? { filter: "saturate(1.4) contrast(1.1)" }
+                      : reel.effects?.filter === "noir"
+                        ? { filter: "grayscale(1) contrast(1.2)" }
+                        : reel.effects?.filter === "warm"
+                          ? { filter: "sepia(0.25) saturate(1.2)" }
+                          : undefined
+                  }
                   playsInline
                   loop
                   muted={muted}
                   preload={Math.abs(index - activeIndex) <= 1 ? "auto" : "metadata"}
+                  onClick={() => doubleTapLike(reel)}
                 />
+              )}
+
+              {active && heartBurst && (
+                <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+                  <Heart className="h-24 w-24 fill-white text-white drop-shadow-xl animate-in zoom-in-50 fade-in duration-300" />
+                </div>
+              )}
+
+              {active && (
+                <div className="absolute inset-x-0 top-0 z-20 h-0.5 bg-white/15">
+                  <div className="h-full bg-white/80 transition-[width] duration-150" style={{ width: `${progress}%` }} />
+                </div>
               )}
 
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
@@ -457,6 +601,25 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                   </span>
                   <span className="text-xs">Share</span>
                 </button>
+                {reel.source !== "loop" && (
+                  <button
+                    className="pointer-events-auto flex flex-col items-center gap-1"
+                    onClick={() => {
+                      if (!user) {
+                        toast({ title: "Sign in to duet" })
+                        return
+                      }
+                      setDuetReel(reel)
+                      setCreateTitle("")
+                      setUploadFile(null)
+                    }}
+                  >
+                    <span className="rounded-full bg-black/35 p-3 backdrop-blur">
+                      <GitBranch className="h-6 w-6" />
+                    </span>
+                    <span className="text-xs">Duet</span>
+                  </button>
+                )}
               </div>
 
               {!active && <div className="absolute inset-0 bg-black/20" />}
@@ -533,12 +696,47 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
           <div className="space-y-3">
             <Input value={createTitle} onChange={(e) => setCreateTitle(e.target.value)} placeholder="Caption / title" />
             <Input
+              value={createHashtags}
+              onChange={(e) => setCreateHashtags(e.target.value)}
+              placeholder="hashtags (music vibe travel)"
+            />
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={createEffect}
+              onChange={(e) => setCreateEffect(e.target.value)}
+            >
+              <option value="none">No filter</option>
+              <option value="vivid">Vivid</option>
+              <option value="noir">Noir</option>
+              <option value="warm">Warm</option>
+            </select>
+            <Input
               type="file"
               accept="video/*,image/*"
               onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
             />
             <Button className="w-full rounded-full" disabled={creating} onClick={createReel}>
               {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publish Reel"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!duetReel} onOpenChange={(open) => !open && setDuetReel(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Duet with @{duetReel?.author?.username || "creator"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Upload your side of the duet — Loop stitches it as a branch.</p>
+            <Input value={createTitle} onChange={(e) => setCreateTitle(e.target.value)} placeholder="Duet caption" />
+            <Input
+              type="file"
+              accept="video/*,image/*"
+              onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+            />
+            <Button className="w-full rounded-full" disabled={dueting} onClick={createDuet}>
+              {dueting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publish Duet"}
             </Button>
           </div>
         </DialogContent>
