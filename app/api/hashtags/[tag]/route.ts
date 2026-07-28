@@ -12,10 +12,6 @@ function createServerClient() {
   })
 }
 
-function statsOf(_loop: any) {
-  return null
-}
-
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ tag: string }> },
