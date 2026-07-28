@@ -120,6 +120,19 @@ export async function POST(
             ...payload,
           },
         },
+        community_studio: {
+          ...(((circle?.settings as any)?.community_studio as object) || {}),
+          enabled: true,
+          layout: payload.layout || ((circle?.settings as any)?.community_studio?.layout) || "default",
+          theme: payload.theme || ((circle?.settings as any)?.community_studio?.theme) || "marketplace",
+          accent:
+            payload.css_variables?.["--circle-accent"] ||
+            payload.colors?.secondary ||
+            payload.colors?.primary ||
+            ((circle?.settings as any)?.community_studio?.accent) ||
+            "#22d3ee",
+          source_listing_id: listing.id,
+        },
       }
 
       const { error: circleError } = await supabase

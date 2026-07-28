@@ -55,6 +55,59 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("loops")
   const [isFollowing, setIsFollowing] = useState(false)
+  const [uploadingCover, setUploadingCover] = useState(false)
+
+  const handleMessage = async () => {
+    if (!user || !profile) {
+      window.location.href = "/login"
+      return
+    }
+    try {
+      const response = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ participant_ids: [profile.id] }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Could not start chat")
+      window.location.href = `/messages?c=${data.conversation.id}`
+    } catch (error) {
+      console.error(error)
+      window.location.href = "/messages"
+    }
+  }
+
+  const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !user) return
+    setUploadingCover(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("type", "image")
+      formData.append("folder", "banners")
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        headers: getAuthHeader(),
+        body: formData,
+      })
+      const uploadData = await uploadRes.json()
+      const url = uploadData.url || uploadData.data?.url
+      if (!uploadRes.ok || !url) throw new Error(uploadData.error || "Upload failed")
+
+      const saveRes = await fetch("/api/users/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ banner_url: url }),
+      })
+      if (!saveRes.ok) throw new Error("Failed to save cover")
+      setProfile((prev) => (prev ? { ...prev, banner_url: url } : prev))
+    } catch (error) {
+      console.error("Cover upload failed:", error)
+    } finally {
+      setUploadingCover(false)
+    }
+  }
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -140,11 +193,26 @@ export function Enhanced3DProfile({ username }: { username: string }) {
     <div className="space-y-5 lg:space-y-6">
       <Card className="landing-card-3d relative overflow-hidden border-white/10 bg-[#0a1020]/85 text-white shadow-[0_30px_80px_-24px_rgba(15,23,42,0.8)] backdrop-blur-xl">
         <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(2,6,23,0.92),rgba(30,41,59,0.78),rgba(15,23,42,0.92))]">
-          {profile.banner_url && (
-            <img src={profile.banner_url} alt="Profile banner" className="h-full w-full object-cover opacity-35" />
+          {profile.banner_url ? (
+            <img src={profile.banner_url} alt="Profile cover" className="h-full w-full object-cover opacity-45" />
+          ) : (
+            <div className="h-full w-full bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.25),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(124,58,237,0.35),transparent_45%)]" />
           )}
         </div>
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(34,211,238,0.22),transparent_35%),radial-gradient(circle_at_85%_15%,rgba(168,85,247,0.24),transparent_42%)]" />
+        {isOwnProfile && (
+          <div className="absolute right-4 top-4 z-20">
+            <input id="profile-cover-upload" type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+            <Button
+              size="sm"
+              className="rounded-full border border-white/25 bg-black/40 text-white hover:bg-black/60"
+              disabled={uploadingCover}
+              onClick={() => document.getElementById("profile-cover-upload")?.click()}
+            >
+              {uploadingCover ? "Uploading…" : profile.banner_url ? "Change cover" : "Add cover photo"}
+            </Button>
+          </div>
+        )}
 
         <CardContent className="relative z-10 p-5 sm:p-7 lg:p-8">
           <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start sm:gap-7">
@@ -234,7 +302,10 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                     >
                       {isFollowing ? "Unfollow" : "Follow"}
                     </Button>
-                    <Button className="rounded-full border border-white/20 bg-transparent px-6 text-white hover:bg-white/10">
+                    <Button
+                      onClick={() => void handleMessage()}
+                      className="rounded-full border border-white/20 bg-transparent px-6 text-white hover:bg-white/10"
+                    >
                       <MessageCircle className="mr-2 h-4 w-4" /> Message
                     </Button>
                     <ReportContentButton

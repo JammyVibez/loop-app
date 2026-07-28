@@ -8,11 +8,16 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const sort = searchParams.get("sort") || "newest"
   const limit = parseInt(searchParams.get("limit") || "5")
+  const q = (searchParams.get("q") || searchParams.get("search") || "").trim()
 
   // Fetch users from "profiles" table
   let query = supabase
     .from("profiles")
     .select("id, username, display_name, avatar_url, is_verified, is_premium")
+
+  if (q) {
+    query = query.or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
+  }
 
   // Sort logic
   if (sort === "newest") {

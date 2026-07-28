@@ -1,43 +1,63 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 
+export const dynamic = "force-dynamic"
+
+async function getUser(request: NextRequest) {
+  const token = request.headers.get("authorization")?.replace("Bearer ", "") || null
+  if (!token) return null
+  const supabase = createServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser(token)
+  return user || null
+}
+
+async function assertMember(supabase: ReturnType<typeof createServerClient>, conversationId: string, userId: string) {
+  const { data } = await supabase
+    .from("conversation_participants")
+    .select("id")
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId)
+    .is("left_at", null)
+    .maybeSingle()
+  return Boolean(data)
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const token = authHeader.replace("Bearer ", "")
-    const supabase = createServerClient()
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser(token)
-    if (userError || !user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-    }
+    const user = await getUser(request)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
     const conversationId = searchParams.get("conversation_id")
-    const limit = Number.parseInt(searchParams.get("limit") || "50")
+    const limit = Number.parseInt(searchParams.get("limit") || "80")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
 
     if (!conversationId) {
       return NextResponse.json({ error: "Conversation ID is required" }, { status: 400 })
     }
 
+    const supabase = createServerClient()
+    if (!(await assertMember(supabase, conversationId, user.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
     const { data: messages, error } = await supabase
       .from("messages")
       .select(`
-        *,
-        sender:profiles(*),
-        reactions:message_reactions(
-          user_id,
-          emoji,
-          created_at,
-          user:profiles(*)
+        id,
+        conversation_id,
+        content,
+        media_url,
+        media_type,
+        message_type,
+        sender_id,
+        author_id,
+        created_at,
+        is_edited,
+        sender:profiles!messages_author_id_fkey(
+          id, username, display_name, avatar_url
         )
       `)
       .eq("conversation_id", conversationId)
@@ -45,22 +65,30 @@ export async function GET(request: NextRequest) {
       .range(offset, offset + limit - 1)
 
     if (error) {
-      console.error("Database error:", error)
-      return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 })
+      // Fallback without join alias if FK name differs
+      const fallback = await supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true })
+        .range(offset, offset + limit - 1)
+      if (fallback.error) return NextResponse.json({ error: fallback.error.message }, { status: 500 })
+
+      const senderIds = Array.from(
+        new Set((fallback.data || []).map((m) => m.author_id || m.sender_id).filter(Boolean)),
+      )
+      const { data: profiles } = senderIds.length
+        ? await supabase.from("profiles").select("id, username, display_name, avatar_url").in("id", senderIds)
+        : { data: [] as any[] }
+      const map = new Map((profiles || []).map((p) => [p.id, p]))
+      const hydrated = (fallback.data || []).map((m) => ({
+        ...m,
+        sender: map.get(m.author_id || m.sender_id) || null,
+      }))
+      return NextResponse.json({ success: true, messages: hydrated, has_more: false })
     }
 
-    const { count } = await supabase
-      .from("messages")
-      .select("*", { count: "exact", head: true })
-      .eq("conversation_id", conversationId)
-
-    const hasMore = (count || 0) > offset + limit
-
-    return NextResponse.json({
-      success: true,
-      messages: messages || [],
-      has_more: hasMore,
-    })
+    return NextResponse.json({ success: true, messages: messages || [], has_more: (messages || []).length === limit })
   } catch (error) {
     console.error("Error fetching messages:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -69,77 +97,67 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await getUser(request)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const body = await request.json()
+    const conversationId = body.conversation_id
+    const content = String(body.content || "").trim()
+    const messageType = body.message_type || "text"
+    const mediaUrl = body.media_url || body.file_url || null
+
+    if (!conversationId || (!content && !mediaUrl)) {
+      return NextResponse.json({ error: "Conversation ID and content are required" }, { status: 400 })
     }
 
-    const token = authHeader.replace("Bearer ", "")
     const supabase = createServerClient()
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser(token)
-    if (userError || !user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-    }
-
-    const { conversation_id, content, message_type = "text", file_url } = await request.json()
-
-    if (!conversation_id || !content) {
-      return NextResponse.json(
-        {
-          error: "Conversation ID and content are required",
-        },
-        { status: 400 },
-      )
+    if (!(await assertMember(supabase, conversationId, user.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const { data: message, error: messageError } = await supabase
       .from("messages")
       .insert({
-        conversation_id,
+        conversation_id: conversationId,
         sender_id: user.id,
-        content,
-        message_type,
-        file_url,
+        author_id: user.id,
+        content: content || (mediaUrl ? "Shared media" : ""),
+        message_type: messageType,
+        media_url: mediaUrl,
+        media_type: messageType === "text" ? null : messageType,
         created_at: new Date().toISOString(),
       })
-      .select(`
-        *,
-        sender:profiles(*)
-      `)
+      .select("*")
       .single()
 
     if (messageError) {
-      console.error("Error creating message:", messageError)
-      return NextResponse.json({ error: "Failed to send message" }, { status: 500 })
+      return NextResponse.json({ error: messageError.message || "Failed to send message" }, { status: 500 })
     }
 
-    const { error: updateError } = await supabase
+    await supabase
       .from("conversations")
-      .update({
-        last_message_id: message.id,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", conversation_id)
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", conversationId)
 
-    if (updateError) {
-      console.error("Error updating conversation:", updateError)
+    const enriched = {
+      ...message,
+      sender: {
+        id: user.id,
+        username: user.user_metadata?.username,
+        display_name: user.user_metadata?.display_name || user.user_metadata?.username,
+        avatar_url: user.user_metadata?.avatar_url,
+      },
     }
 
-    const channel = supabase.channel(`conversation_${conversation_id}`)
-    channel.send({
-      type: "broadcast",
-      event: "new_message",
-      payload: message,
-    })
+    try {
+      await supabase.channel(`conversation:${conversationId}`).send({
+        type: "broadcast",
+        event: "new_message",
+        payload: enriched,
+      })
+    } catch {}
 
-    return NextResponse.json({
-      success: true,
-      message,
-    })
+    return NextResponse.json({ success: true, message: enriched })
   } catch (error) {
     console.error("Error sending message:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

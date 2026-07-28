@@ -119,6 +119,7 @@ export function LoopCard({
   const [savingEdit, setSavingEdit] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const { currentTheme } = useTheme3D();
   const [isAnimating, setIsAnimating] = useState(false);
   const [localInteracting, setLocalInteracting] = useState<string | null>(null);
@@ -348,7 +349,8 @@ export function LoopCard({
               <img
                 src={mediaUrl || "/placeholder.svg"}
                 alt="Loop media"
-                className="w-full h-auto max-h-96 object-cover transition-transform duration-300 hover:scale-105"
+                onClick={() => setViewerOpen(true)}
+                className="w-full h-auto max-h-96 cursor-zoom-in object-cover transition-transform duration-300 hover:scale-105"
               />
             </div>
           );
@@ -356,6 +358,7 @@ export function LoopCard({
           return (
             <div
               className={`mt-3 rounded-lg overflow-hidden bg-black relative ${mediaContainerStyle}`}
+              onClick={() => setViewerOpen(true)}
             >
               <video
                 controls
@@ -400,7 +403,7 @@ export function LoopCard({
           </Badge>
         </div>
 
-        <div className="relative">
+        <div className="relative cursor-zoom-in" onClick={() => setViewerOpen(true)}>
           {loop.media_type === "image" ? (
             <img
               src={mediaUrls[currentMediaIndex] || "/placeholder.svg"}
@@ -412,6 +415,7 @@ export function LoopCard({
               controls
               className="w-full h-auto max-h-96"
               key={currentMediaIndex}
+              onClick={(e) => e.stopPropagation()}
             >
               <source src={mediaUrls[currentMediaIndex]} type="video/mp4" />
             </video>
@@ -847,6 +851,53 @@ export function LoopCard({
               {savingEdit ? "Saving..." : "Save changes"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
+        <DialogContent className="max-h-[100dvh] max-w-[100vw] border-0 bg-black/95 p-0 text-white sm:max-w-5xl">
+          <div className="relative flex min-h-[70vh] items-center justify-center p-4">
+            {(() => {
+              const mediaUrls =
+                loop.media_urls || (loop.media_url ? [loop.media_url] : [])
+              const url = mediaUrls[currentMediaIndex]
+              if (!url) return null
+              if (loop.media_type === "video") {
+                return (
+                  <video src={url} controls autoPlay className="max-h-[85vh] max-w-full object-contain" />
+                )
+              }
+              return (
+                <img src={url} alt="Full media" className="max-h-[85vh] max-w-full object-contain" />
+              )
+            })()}
+            {(loop.media_urls?.length || 0) > 1 && (
+              <>
+                <Button
+                  variant="ghost"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 text-white"
+                  onClick={() =>
+                    setCurrentMediaIndex((prev) =>
+                      prev > 0 ? prev - 1 : (loop.media_urls?.length || 1) - 1,
+                    )
+                  }
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white"
+                  onClick={() =>
+                    setCurrentMediaIndex((prev) =>
+                      prev < (loop.media_urls?.length || 1) - 1 ? prev + 1 : 0,
+                    )
+                  }
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </Button>
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>

@@ -193,6 +193,37 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
     is_private: false
   })
 
+  const studio = circle?.settings?.community_studio || {}
+  const design = circle?.settings?.marketplace?.design || {}
+  const styling = circle?.settings?.marketplace?.styling || {}
+  const layout =
+    design.layout ||
+    studio.layout ||
+    "default"
+  const accent =
+    styling.css_variables?.["--circle-accent"] ||
+    design.colors?.secondary ||
+    studio.accent ||
+    "#22d3ee"
+  const primary =
+    styling.css_variables?.["--circle-primary"] ||
+    design.colors?.primary ||
+    "#7c3aed"
+  const surface =
+    styling.css_variables?.["--circle-surface"] ||
+    design.colors?.background ||
+    undefined
+  const radius = styling.css_variables?.["--circle-radius"] || "1rem"
+  const cardStyle = styling.card_style || design.header_style || "default"
+  const layoutClass =
+    layout === "immersive-hero" || layout === "cinematic"
+      ? "circle-layout-cinematic"
+      : layout === "forum"
+        ? "circle-layout-forum"
+        : layout === "compact" || layout === "minimal"
+          ? "circle-layout-compact"
+          : "circle-layout-default"
+
   // Load circle data
   useEffect(() => {
     const loadCircleData = async () => {
@@ -463,18 +494,42 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   }
 
   return (
-    <div className="w-full space-y-4 sm:space-y-6">
+    <div
+      className={`w-full space-y-4 sm:space-y-6 ${layoutClass}`}
+      style={
+        {
+          "--circle-accent": accent,
+          "--circle-primary": primary,
+          "--circle-surface": surface || "transparent",
+          "--circle-radius": radius,
+        } as React.CSSProperties
+      }
+    >
       {/* Circle Header */}
-      <Card className="overflow-hidden border-border bg-card text-card-foreground">
+      <Card
+        className={`overflow-hidden border-border bg-card text-card-foreground ${
+          cardStyle === "glass" ? "bg-background/70 backdrop-blur-xl" : ""
+        }`}
+        style={{ borderRadius: "var(--circle-radius)" }}
+      >
         <div
-          className="relative h-32 bg-gradient-to-r from-violet-600 to-cyan-500 sm:h-44"
+          className={`relative ${
+            layoutClass === "circle-layout-cinematic" ? "h-44 sm:h-56" : layoutClass === "circle-layout-compact" ? "h-24 sm:h-32" : "h-32 sm:h-44"
+          }`}
           style={{
-            backgroundImage: circle.banner_url ? `url(${circle.banner_url})` : undefined,
+            backgroundImage: circle.banner_url
+              ? `linear-gradient(rgba(0,0,0,.35), rgba(0,0,0,.4)), url(${circle.banner_url})`
+              : `linear-gradient(120deg, var(--circle-primary), var(--circle-accent))`,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         >
-          <div className="absolute inset-0 bg-black/35" />
+          <div className="absolute inset-0 bg-black/25" />
+          {(design.title || styling.css_variables) && (
+            <div className="absolute bottom-3 left-3 rounded-full bg-black/45 px-3 py-1 text-xs text-white backdrop-blur">
+              Layout: {layout}
+            </div>
+          )}
           <div className="absolute right-3 top-3 flex max-w-[70%] flex-wrap justify-end gap-1.5 sm:right-4 sm:top-4 sm:gap-2">
             {circle.is_private ? (
               <Badge className="bg-slate-900/80 text-white">
@@ -488,7 +543,9 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
               </Badge>
             )}
             {circle.category && (
-              <Badge className="bg-violet-600/90 text-white">{circle.category}</Badge>
+              <Badge style={{ backgroundColor: accent }} className="text-slate-950">
+                {circle.category}
+              </Badge>
             )}
           </div>
         </div>
@@ -693,6 +750,16 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                         <p className="mb-3 whitespace-pre-wrap break-words text-sm leading-relaxed sm:text-base">
                           {post.content}
                         </p>
+
+                        {post.media_url && (
+                          <div className="mb-3 overflow-hidden rounded-xl border border-border/60">
+                            {post.media_type === "video" ? (
+                              <video src={post.media_url} controls className="max-h-96 w-full bg-black object-contain" />
+                            ) : (
+                              <img src={post.media_url} alt="Post media" className="max-h-96 w-full object-cover" />
+                            )}
+                          </div>
+                        )}
 
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1 sm:gap-2">
