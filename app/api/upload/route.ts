@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v2 as cloudinary } from 'cloudinary';
 import { createClient } from "@supabase/supabase-js";
+import { isCloudinaryConfigured } from "@/lib/env-check"
 
 const MAX_UPLOAD_BYTES: Record<string, number> = {
   image: 10 * 1024 * 1024,
@@ -10,20 +11,18 @@ const MAX_UPLOAD_BYTES: Record<string, number> = {
   file: 25 * 1024 * 1024,
 }
 
-// Configure Cloudinary
-if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-  console.error('Missing Cloudinary configuration:', {
-    cloud_name: !!process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: !!process.env.CLOUDINARY_API_KEY,
-    api_secret: !!process.env.CLOUDINARY_API_SECRET,
-  })
-}
+function ensureCloudinaryConfigured() {
+  if (!isCloudinaryConfigured()) {
+    return false
+  }
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-})
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  })
+  return true
+}
 
 // Create server-side Supabase client
 function createServerClient() {
@@ -74,6 +73,13 @@ async function getUserFromToken(token: string | null) {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!ensureCloudinaryConfigured()) {
+      return NextResponse.json(
+        { error: "Media uploads are not configured (Cloudinary env vars missing)" },
+        { status: 503 },
+      )
+    }
+
     const authHeader = request.headers.get("authorization")
     
     if (!authHeader) {
@@ -243,6 +249,13 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    if (!ensureCloudinaryConfigured()) {
+      return NextResponse.json(
+        { error: "Media uploads are not configured (Cloudinary env vars missing)" },
+        { status: 503 },
+      )
+    }
+
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
