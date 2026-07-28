@@ -1,9 +1,6 @@
-// @ts-nocheck
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -11,10 +8,22 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Gift, Coins, Crown, Palette, Sparkles, Heart, Star, Zap, TreePine, MessageCircle, Loader2 } from "lucide-react"
+import {
+  Gift,
+  Coins,
+  Crown,
+  Sparkles,
+  Heart,
+  Star,
+  Zap,
+  TreePine,
+  MessageCircle,
+  Loader2,
+  Palette,
+} from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
-import { useRealtime } from "@/hooks/use-realtime"
+import { supabase } from "@/lib/supabase"
 
 interface GiftModalProps {
   open: boolean
@@ -26,7 +35,7 @@ interface GiftModalProps {
     avatar_url?: string
   }
   context?: {
-    type: "post" | "reel" | "profile" | "comment" | "branch"
+    type: "post" | "reel" | "profile" | "comment" | "branch" | "stream"
     id: string
     title?: string
   }
@@ -36,12 +45,11 @@ interface GiftItem {
   id: string
   name: string
   description: string
-  type: "coins" | "premium" | "theme" | "animation" | "effect" | "badge"
+  type: string
   cost: number
-  icon: React.ReactNode
-  rarity: "common" | "rare" | "epic" | "legendary"
-  preview?: string
-  duration?: string
+  rarity: string
+  preview?: string | null
+  duration?: string | null
   effects?: {
     animation?: string
     sound?: string
@@ -49,183 +57,84 @@ interface GiftItem {
   }
 }
 
-const giftItems: GiftItem[] = [
-  // Coins
-  {
-    id: "coins-100",
-    name: "100 Loop Coins",
-    description: "A small token of appreciation",
-    type: "coins",
-    cost: 100,
-    icon: <Coins className="w-6 h-6 text-yellow-500" />,
-    rarity: "common",
-    effects: { animation: "coin-shower", sound: "coin-drop", particles: true },
-  },
-  {
-    id: "coins-500",
-    name: "500 Loop Coins",
-    description: "A generous gift of coins",
-    type: "coins",
-    cost: 500,
-    icon: <Coins className="w-6 h-6 text-yellow-500" />,
-    rarity: "rare",
-    effects: { animation: "coin-explosion", sound: "coin-cascade", particles: true },
-  },
-  {
-    id: "coins-1000",
-    name: "1000 Loop Coins",
-    description: "A very generous gift!",
-    type: "coins",
-    cost: 1000,
-    icon: <Coins className="w-6 h-6 text-yellow-500" />,
-    rarity: "epic",
-    effects: { animation: "golden-rain", sound: "treasure-chest", particles: true },
-  },
+const rarityColors: Record<string, string> = {
+  common: "bg-slate-500 text-white",
+  rare: "bg-blue-500 text-white",
+  epic: "bg-violet-500 text-white",
+  legendary: "bg-amber-500 text-slate-900",
+}
 
-  // Premium
-  {
-    id: "premium-1week",
-    name: "1 Week Premium",
-    description: "Gift premium features for a week",
-    type: "premium",
-    cost: 750,
-    icon: <Crown className="w-6 h-6 text-purple-500" />,
-    rarity: "rare",
-    duration: "1 week",
-    effects: { animation: "crown-glow", sound: "royal-fanfare", particles: true },
-  },
-  {
-    id: "premium-1month",
-    name: "1 Month Premium",
-    description: "A month of premium access",
-    type: "premium",
-    cost: 2000,
-    icon: <Crown className="w-6 h-6 text-purple-500" />,
-    rarity: "epic",
-    duration: "1 month",
-    effects: { animation: "royal-ascension", sound: "premium-unlock", particles: true },
-  },
-  {
-    id: "premium-3months",
-    name: "3 Months Premium",
-    description: "Extended premium experience",
-    type: "premium",
-    cost: 5000,
-    icon: <Crown className="w-6 h-6 text-purple-500" />,
-    rarity: "legendary",
-    duration: "3 months",
-    effects: { animation: "legendary-crown", sound: "epic-triumph", particles: true },
-  },
-
-  // Themes
-  {
-    id: "theme-neon",
-    name: "Neon Cyber Theme",
-    description: "Futuristic neon theme",
-    type: "theme",
-    cost: 800,
-    icon: <Palette className="w-6 h-6 text-cyan-500" />,
-    rarity: "epic",
-    preview: "linear-gradient(45deg, #00ff88, #00ccff)",
-    effects: { animation: "neon-pulse", sound: "cyber-activate", particles: true },
-  },
-  {
-    id: "theme-sunset",
-    name: "Sunset Dream Theme",
-    description: "Warm sunset colors",
-    type: "theme",
-    cost: 600,
-    icon: <Palette className="w-6 h-6 text-orange-500" />,
-    rarity: "rare",
-    preview: "linear-gradient(45deg, #ff6b6b, #ffa500)",
-    effects: { animation: "sunset-glow", sound: "peaceful-chime", particles: true },
-  },
-
-  // Animations & Effects
-  {
-    id: "animation-sparkle",
-    name: "Sparkle Trail",
-    description: "Magical sparkles animation",
-    type: "animation",
-    cost: 1200,
-    icon: <Sparkles className="w-6 h-6 text-pink-500" />,
-    rarity: "epic",
-    effects: { animation: "sparkle-trail", sound: "magic-sparkle", particles: true },
-  },
-  {
-    id: "effect-glow",
-    name: "Golden Glow",
-    description: "Premium golden glow effect",
-    type: "effect",
-    cost: 1500,
-    icon: <Zap className="w-6 h-6 text-yellow-500" />,
-    rarity: "legendary",
-    effects: { animation: "golden-aura", sound: "divine-glow", particles: true },
-  },
-
-  // Special Badges
-  {
-    id: "badge-supporter",
-    name: "Supporter Badge",
-    description: "Show you support this creator",
-    type: "badge",
-    cost: 300,
-    icon: <Heart className="w-6 h-6 text-red-500" />,
-    rarity: "common",
-    effects: { animation: "heart-pulse", sound: "support-cheer", particles: true },
-  },
-  {
-    id: "badge-superfan",
-    name: "Super Fan Badge",
-    description: "Ultimate fan recognition",
-    type: "badge",
-    cost: 1000,
-    icon: <Star className="w-6 h-6 text-gold-500" />,
-    rarity: "rare",
-    effects: { animation: "star-burst", sound: "fan-celebration", particles: true },
-  },
-]
-
-const rarityColors = {
-  common: "bg-gray-100 text-gray-700 border-gray-200",
-  rare: "bg-blue-100 text-blue-700 border-blue-200",
-  epic: "bg-purple-100 text-purple-700 border-purple-200",
-  legendary: "bg-yellow-100 text-yellow-700 border-yellow-200",
+function giftIcon(type: string) {
+  switch (type) {
+    case "coins":
+      return <Coins className="h-6 w-6 text-yellow-500" />
+    case "premium":
+      return <Crown className="h-6 w-6 text-violet-500" />
+    case "theme":
+      return <Palette className="h-6 w-6 text-cyan-500" />
+    case "badge":
+      return <Star className="h-6 w-6 text-amber-500" />
+    case "animation":
+      return <Zap className="h-6 w-6 text-pink-500" />
+    case "effect":
+      return <Sparkles className="h-6 w-6 text-fuchsia-500" />
+    default:
+      return <Heart className="h-6 w-6 text-rose-500" />
+  }
 }
 
 export function GiftModal({ open, onOpenChange, recipient, context }: GiftModalProps) {
+  const { toast } = useToast()
+  const { user, getAuthHeader, refreshUser } = useAuth()
   const [selectedGift, setSelectedGift] = useState<GiftItem | null>(null)
   const [message, setMessage] = useState("")
   const [isAnonymous, setIsAnonymous] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [loadingGifts, setLoadingGifts] = useState(false)
+  const [gifts, setGifts] = useState<GiftItem[]>([])
   const [userBalance, setUserBalance] = useState(0)
-  const { toast } = useToast()
-  const { user, refreshUser } = useAuth()
-  const { broadcast, isConnected, subscribe, unsubscribe } = useRealtime()
 
   useEffect(() => {
-    if (user?.loop_coins) {
-      setUserBalance(user.loop_coins)
-    }
+    setUserBalance(Number(user?.loop_coins || 0))
   }, [user?.loop_coins])
 
   useEffect(() => {
-    if (!isConnected) return
-
-    const onBalanceUpdated = (payload: { payload?: { user_id: string; new_balance: number } }) => {
-      const data = payload?.payload
-      if (data?.user_id === user?.id) {
-        setUserBalance(data.new_balance)
+    if (!open) return
+    const load = async () => {
+      setLoadingGifts(true)
+      try {
+        const response = await fetch("/api/gifts")
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || "Failed to load gifts")
+        const list = (data.data?.gifts || data.gifts || []) as GiftItem[]
+        setGifts(list)
+        if (list[0]) setSelectedGift(list[0])
+      } catch (error: any) {
+        toast({ title: "Gifts unavailable", description: error.message, variant: "destructive" })
+      } finally {
+        setLoadingGifts(false)
       }
     }
+    void load()
+  }, [open, toast])
 
-    subscribe("balance_updated", onBalanceUpdated)
-    return () => unsubscribe("balance_updated")
-  }, [isConnected, subscribe, unsubscribe, user?.id])
+  const groupedGifts = useMemo(() => {
+    return gifts.reduce(
+      (acc, gift) => {
+        const key = gift.type || "special"
+        if (!acc[key]) acc[key] = []
+        acc[key].push(gift)
+        return acc
+      },
+      {} as Record<string, GiftItem[]>,
+    )
+  }, [gifts])
+
+  const tabKeys = Object.keys(groupedGifts)
+  const defaultTab = tabKeys[0] || "coins"
 
   const handleSendGift = async () => {
     if (!selectedGift || !user) return
-
     if (userBalance < selectedGift.cost) {
       toast({
         title: "Insufficient Coins",
@@ -236,69 +145,65 @@ export function GiftModal({ open, onOpenChange, recipient, context }: GiftModalP
     }
 
     setIsProcessing(true)
-
     try {
       const response = await fetch("/api/gifts/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token}`,
+          ...getAuthHeader(),
         },
         body: JSON.stringify({
           recipient_id: recipient.id,
           gift_item_id: selectedGift.id,
           message: message.trim(),
           is_anonymous: isAnonymous,
-          context: context,
+          context,
           effects: selectedGift.effects,
         }),
       })
-
       const data = await response.json()
-
-      if (data.success) {
-        // Broadcast real-time notification if connected
-        if (isConnected) {
-          broadcast("gift_sent", {
-            recipient_id: recipient.id,
-            gift_item: selectedGift,
-            sender: {
-              id: user.id,
-              username: user.username,
-              display_name: user.display_name,
-            },
-            is_anonymous: isAnonymous,
-            message: message.trim(),
-            context: context,
-            timestamp: new Date().toISOString(),
-          })
-        }
-
-        setUserBalance((prev) => prev - selectedGift.cost)
-
-        toast({
-          title: "Gift Sent! 🎁",
-          description: `You've sent ${selectedGift.name} to ${recipient.display_name}!`,
-          duration: 5000,
-        })
-
-        triggerGiftAnimation(selectedGift)
-
-        onOpenChange(false)
-        setSelectedGift(null)
-        setMessage("")
-        setIsAnonymous(false)
-
-        // Refresh user data in background
-        refreshUser()
-      } else {
+      if (!response.ok || !data.success) {
         throw new Error(data.error || "Failed to send gift")
       }
-    } catch (error) {
-      console.error("Gift sending error:", error)
+
+      setUserBalance(Number(data.new_balance ?? userBalance - selectedGift.cost))
+
+      try {
+        await supabase.channel(`user:${recipient.id}`).send({
+          type: "broadcast",
+          event: "gift_received",
+          payload: {
+            gift_name: selectedGift.name,
+            gift_type: selectedGift.type,
+            rarity: selectedGift.rarity,
+            sender: isAnonymous
+              ? null
+              : {
+                  id: user.id,
+                  username: user.username,
+                  display_name: user.display_name,
+                  avatar_url: user.avatar_url,
+                },
+            message: message.trim() || null,
+            context,
+          },
+        })
+      } catch {}
+
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to send gift. Please try again.",
+        title: "Gift sent",
+        description: `You sent ${selectedGift.name} to ${recipient.display_name}.`,
+      })
+
+      onOpenChange(false)
+      setSelectedGift(null)
+      setMessage("")
+      setIsAnonymous(false)
+      await refreshUser()
+    } catch (error: any) {
+      toast({
+        title: "Gift failed",
+        description: error.message || "Failed to send gift.",
         variant: "destructive",
       })
     } finally {
@@ -306,218 +211,178 @@ export function GiftModal({ open, onOpenChange, recipient, context }: GiftModalP
     }
   }
 
-  const triggerGiftAnimation = (gift: GiftItem) => {
-    if (gift.effects?.animation) {
-      // Trigger CSS animation or particle effect
-      document.body.classList.add(`gift-animation-${gift.effects.animation}`)
-      setTimeout(() => {
-        document.body.classList.remove(`gift-animation-${gift.effects.animation}`)
-      }, 3000)
-    }
-
-    if (gift.effects?.sound) {
-      // Play gift sound effect
-      const audio = new Audio(`/sounds/gifts/${gift.effects.sound}.mp3`)
-      audio.volume = 0.3
-      audio.play().catch(() => {
-        // Ignore audio play errors (user interaction required)
-      })
-    }
-  }
-
   const getContextIcon = () => {
-    if (!context) return <Gift className="w-4 h-4" />
-
+    if (!context) return <Gift className="h-4 w-4" />
     switch (context.type) {
       case "post":
-        return <MessageCircle className="w-4 h-4" />
+        return <MessageCircle className="h-4 w-4" />
       case "reel":
-        return <Sparkles className="w-4 h-4" />
+        return <Sparkles className="h-4 w-4" />
       case "branch":
-        return <TreePine className="w-4 h-4" />
+        return <TreePine className="h-4 w-4" />
       default:
-        return <Gift className="w-4 h-4" />
+        return <Gift className="h-4 w-4" />
     }
   }
-
-  const groupedGifts = giftItems.reduce(
-    (acc, gift) => {
-      if (!acc[gift.type]) acc[gift.type] = []
-      acc[gift.type].push(gift)
-      return acc
-    },
-    {} as Record<string, GiftItem[]>,
-  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <Gift className="w-5 h-5 text-purple-500" />
-            <span>Send a Gift</span>
-            {isConnected && (
-              <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse" />
-                Live
-              </Badge>
-            )}
+          <DialogTitle className="flex items-center gap-2">
+            <Gift className="h-5 w-5 text-violet-500" />
+            Send a Gift
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Recipient Info */}
-          <div className="flex items-center space-x-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <Avatar className="w-12 h-12">
+          <div className="flex items-center gap-3 rounded-xl border bg-muted/40 p-4">
+            <Avatar className="h-12 w-12">
               <AvatarImage src={recipient.avatar_url || "/placeholder.svg"} alt={recipient.display_name} />
               <AvatarFallback>{recipient.display_name.charAt(0)}</AvatarFallback>
             </Avatar>
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <p className="font-semibold">{recipient.display_name}</p>
-              <p className="text-sm text-gray-500">@{recipient.username}</p>
+              <p className="text-sm text-muted-foreground">@{recipient.username}</p>
               {context && (
-                <div className="flex items-center space-x-1 mt-1">
+                <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                   {getContextIcon()}
-                  <span className="text-xs text-gray-400">
-                    Gift for {context.type}: {context.title || context.id}
+                  <span>
+                    Gift for {context.type}
+                    {context.title ? `: ${context.title}` : ""}
                   </span>
                 </div>
               )}
             </div>
             <div className="text-right">
-              <p className="text-sm text-gray-500">Your Balance</p>
-              <div className="flex items-center space-x-1">
-                <Coins className="w-4 h-4 text-yellow-500" />
-                <span className="font-bold text-lg">{userBalance.toLocaleString()}</span>
+              <p className="text-sm text-muted-foreground">Your balance</p>
+              <div className="flex items-center justify-end gap-1 font-bold">
+                <Coins className="h-4 w-4 text-yellow-500" />
+                {userBalance.toLocaleString()}
               </div>
             </div>
           </div>
 
-          {/* Gift Selection */}
-          <Tabs defaultValue="coins" className="w-full">
-            <TabsList className="grid w-full grid-cols-6">
-              <TabsTrigger value="coins">Coins</TabsTrigger>
-              <TabsTrigger value="premium">Premium</TabsTrigger>
-              <TabsTrigger value="theme">Themes</TabsTrigger>
-              <TabsTrigger value="animation">Animations</TabsTrigger>
-              <TabsTrigger value="effect">Effects</TabsTrigger>
-              <TabsTrigger value="badge">Badges</TabsTrigger>
-            </TabsList>
+          {loadingGifts ? (
+            <div className="flex items-center justify-center py-16 text-muted-foreground">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Loading gifts…
+            </div>
+          ) : gifts.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+              No giftable items are available right now.
+            </div>
+          ) : (
+            <Tabs defaultValue={defaultTab} className="w-full">
+              <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+                {tabKeys.map((key) => (
+                  <TabsTrigger key={key} value={key} className="capitalize">
+                    {key}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
 
-            {Object.entries(groupedGifts).map(([type, gifts]) => (
-              <TabsContent key={type} value={type} className="mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {gifts.map((gift) => (
-                    <div
-                      key={gift.id}
-                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all hover:scale-105 ${
-                        selectedGift?.id === gift.id
-                          ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-lg"
-                          : "border-gray-200 hover:border-gray-300 hover:shadow-md"
-                      } ${userBalance < gift.cost ? "opacity-50 cursor-not-allowed" : ""}`}
-                      onClick={() => userBalance >= gift.cost && setSelectedGift(gift)}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <div className="flex-shrink-0">{gift.icon}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-medium text-sm">{gift.name}</h3>
-                            <Badge className={`text-xs ${rarityColors[gift.rarity]}`}>{gift.rarity}</Badge>
+              {Object.entries(groupedGifts).map(([type, typeGifts]) => (
+                <TabsContent key={type} value={type} className="mt-4">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                    {typeGifts.map((gift) => {
+                      const unaffordable = userBalance < gift.cost
+                      const selected = selectedGift?.id === gift.id
+                      return (
+                        <button
+                          key={gift.id}
+                          type="button"
+                          disabled={unaffordable}
+                          onClick={() => setSelectedGift(gift)}
+                          className={`rounded-xl border p-4 text-left transition ${
+                            selected
+                              ? "border-violet-500 bg-violet-500/10 shadow"
+                              : "border-border hover:border-violet-300"
+                          } ${unaffordable ? "cursor-not-allowed opacity-50" : ""}`}
+                        >
+                          <div className="mb-2 flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              {giftIcon(gift.type)}
+                              <h3 className="text-sm font-medium">{gift.name}</h3>
+                            </div>
+                            <Badge className={`text-[10px] ${rarityColors[gift.rarity] || rarityColors.common}`}>
+                              {gift.rarity}
+                            </Badge>
                           </div>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">{gift.description}</p>
-                          {gift.preview && (
-                            <div className="w-full h-6 rounded mb-2" style={{ background: gift.preview }} />
-                          )}
+                          <p className="mb-3 text-xs text-muted-foreground">{gift.description}</p>
                           {gift.duration && (
-                            <p className="text-xs text-blue-600 dark:text-blue-400 mb-2">Duration: {gift.duration}</p>
+                            <p className="mb-2 text-xs text-cyan-600 dark:text-cyan-400">Duration: {gift.duration}</p>
                           )}
-                          {gift.effects && (
-                            <div className="flex items-center space-x-1 mb-2">
-                              <Sparkles className="w-3 h-3 text-purple-500" />
-                              <span className="text-xs text-purple-600">Special Effects</span>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-1">
-                              <Coins className="w-3 h-3 text-yellow-500" />
-                              <span className="text-sm font-medium">{gift.cost.toLocaleString()}</span>
-                            </div>
-                            {userBalance < gift.cost && (
-                              <span className="text-xs text-red-500">Insufficient coins</span>
-                            )}
+                          <div className="flex items-center gap-1 text-sm font-semibold">
+                            <Coins className="h-3.5 w-3.5 text-yellow-500" />
+                            {gift.cost.toLocaleString()}
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </TabsContent>
+              ))}
+            </Tabs>
+          )}
 
-          {/* Gift Message */}
           {selectedGift && (
-            <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div className="space-y-4 rounded-xl border bg-muted/30 p-4">
               <div>
-                <Label htmlFor="gift-message">Personal Message (Optional)</Label>
+                <Label htmlFor="gift-message">Personal message (optional)</Label>
                 <Textarea
                   id="gift-message"
-                  placeholder="Add a personal message with your gift..."
+                  placeholder="Add a note with your gift..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   className="mt-1"
                   rows={3}
                   maxLength={500}
                 />
-                <p className="text-xs text-gray-500 mt-1">{message.length}/500 characters</p>
               </div>
 
-              <div className="flex items-center space-x-2">
+              <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  id="anonymous"
                   checked={isAnonymous}
                   onChange={(e) => setIsAnonymous(e.target.checked)}
                   className="rounded"
                 />
-                <Label htmlFor="anonymous" className="text-sm">
-                  Send anonymously
-                </Label>
-              </div>
+                Send anonymously
+              </label>
 
-              <div className="flex items-center justify-between pt-4 border-t">
-                <div className="text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-muted-foreground">
                   <p>
-                    Selected: <span className="font-medium">{selectedGift.name}</span>
+                    Selected: <span className="font-medium text-foreground">{selectedGift.name}</span>
                   </p>
                   <p>
-                    Cost: <span className="font-medium">{selectedGift.cost.toLocaleString()} Loop Coins</span>
+                    Cost: <span className="font-medium text-foreground">{selectedGift.cost.toLocaleString()} coins</span>
                   </p>
                   <p>
-                    Your Balance: <span className="font-medium">{userBalance.toLocaleString()} Loop Coins</span>
-                  </p>
-                  <p>
-                    After Gift:{" "}
-                    <span className="font-medium">{(userBalance - selectedGift.cost).toLocaleString()} Loop Coins</span>
+                    After gift:{" "}
+                    <span className="font-medium text-foreground">
+                      {(userBalance - selectedGift.cost).toLocaleString()} coins
+                    </span>
                   </p>
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex gap-2">
                   <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing}>
                     Cancel
                   </Button>
                   <Button
                     onClick={handleSendGift}
                     disabled={isProcessing || userBalance < selectedGift.cost}
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                    className="rounded-full bg-gradient-to-r from-violet-600 to-pink-500 text-white"
                   >
                     {isProcessing ? (
                       <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Sending...
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending…
                       </>
                     ) : (
                       <>
-                        <Gift className="w-4 h-4 mr-2" />
+                        <Gift className="mr-2 h-4 w-4" />
                         Send Gift
                       </>
                     )}

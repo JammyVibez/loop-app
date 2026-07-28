@@ -1,12 +1,35 @@
-"use client";
-import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Gift, X, Heart, Sparkles } from "lucide-react";
-import { useRealtime } from "@/hooks/use-realtime";
-import { useAuth } from "@/hooks/use-auth";
+"use client"
+
+import { useEffect, useState } from "react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Gift, X, Heart, Sparkles } from "lucide-react"
+import { useRealtime } from "@/hooks/use-realtime"
+import { useAuth } from "@/hooks/use-auth"
+
+interface IncomingGiftPayload {
+  id?: string
+  gift_name?: string
+  gift_type?: string
+  rarity?: string
+  message?: string | null
+  sender?: {
+    id: string
+    username: string
+    display_name: string
+    avatar_url?: string
+  } | null
+  gift?: {
+    id: string
+    name: string
+    type: string
+    rarity: string
+  }
+  is_anonymous?: boolean
+  timestamp?: string
+}
 
 interface GiftNotification {
   id: string
@@ -15,17 +38,12 @@ interface GiftNotification {
     username: string
     display_name: string
     avatar_url?: string
-  }
+  } | null
   gift: {
     id: string
     name: string
     type: string
     rarity: string
-    effects?: {
-      animation?: string
-      sound?: string
-      particles?: boolean
-    }
   }
   message?: string
   is_anonymous: boolean
@@ -34,161 +52,95 @@ interface GiftNotification {
 
 export function GiftNotificationSystem() {
   const [notifications, setNotifications] = useState<GiftNotification[]>([])
-  const { socket, isConnected } = useRealtime()
+  const { isConnected, subscribe, unsubscribe } = useRealtime()
   const { user } = useAuth()
 
   useEffect(() => {
-    if (socket && isConnected && user) {
-      // Listen for incoming gifts
-      socket.on("gift_received", (giftData: GiftNotification) => {
-        if (giftData.sender.id !== user.id) {
-          // Don't show notifications for gifts we sent
-          setNotifications((prev) => [giftData, ...prev.slice(0, 4)]) // Keep only 5 most recent
+    if (!isConnected || !user) return
 
-          // Trigger gift effects
-          if (giftData.gift.effects) {
-            triggerGiftEffects(giftData.gift.effects)
-          }
+    const handler = (raw: any) => {
+      const payload: IncomingGiftPayload = raw?.payload || raw || {}
+      const giftName = payload.gift_name || payload.gift?.name
+      if (!giftName) return
 
-          // Auto-remove after 10 seconds
-          setTimeout(() => {
-            setNotifications((prev) => prev.filter((n) => n.id !== giftData.id))
-          }, 10000)
-        }
-      })
+      const sender = payload.sender || null
+      if (sender?.id && sender.id === user.id) return
 
-      return () => {
-        socket.off("gift_received")
+      const notification: GiftNotification = {
+        id: payload.id || payload.gift?.id || `${Date.now()}`,
+        sender,
+        gift: {
+          id: payload.gift?.id || payload.id || "gift",
+          name: giftName,
+          type: payload.gift_type || payload.gift?.type || "special",
+          rarity: payload.rarity || payload.gift?.rarity || "common",
+        },
+        message: payload.message || undefined,
+        is_anonymous: payload.is_anonymous ?? !sender,
+        timestamp: payload.timestamp || new Date().toISOString(),
       }
-    }
-  }, [socket, isConnected, user])
 
-  const triggerGiftEffects = (effects: GiftNotification["gift"]["effects"]) => {
-    if (effects?.animation) {
-      // Add CSS animation class
-      document.body.classList.add(`gift-received-${effects.animation}`)
+      setNotifications((prev) => [notification, ...prev.slice(0, 4)])
       setTimeout(() => {
-        document.body.classList.remove(`gift-received-${effects.animation}`)
-      }, 3000)
+        setNotifications((prev) => prev.filter((n) => n.id !== notification.id))
+      }, 10000)
     }
 
-    if (effects?.sound) {
-      // Play sound effect
-      const audio = new Audio(`/sounds/gifts/${effects.sound}.mp3`)
-      audio.volume = 0.4
-      audio.play().catch(() => {
-        // Ignore audio errors
-      })
+    subscribe("gift_received", handler)
+
+    return () => {
+      unsubscribe("gift_received")
     }
+  }, [isConnected, user, subscribe, unsubscribe])
 
-    if (effects?.particles) {
-      // Trigger particle effect
-      createParticleEffect()
-    }
-  }
-
-  const createParticleEffect = () => {
-    // Create floating particles
-    for (let i = 0; i < 20; i++) {
-      const particle = document.createElement("div")
-      particle.className = "gift-particle"
-      particle.style.cssText = `
-        position: fixed;
-        top: ${Math.random() * 100}vh;
-        left: ${Math.random() * 100}vw;
-        width: 8px;
-        height: 8px;
-        background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
-        border-radius: 50%;
-        pointer-events: none;
-        z-index: 9999;
-        animation: giftParticleFloat 3s ease-out forwards;
-      `
-      document.body.appendChild(particle)
-
-      setTimeout(() => {
-        particle.remove()
-      }, 3000)
-    }
-  }
-
-  const dismissNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id))
-  }
-
-  const getRarityColor = (rarity: string) => {
-    switch (rarity) {
-      case "common":
-        return "bg-gray-100 text-gray-700"
-      case "rare":
-        return "bg-blue-100 text-blue-700"
-      case "epic":
-        return "bg-purple-100 text-purple-700"
-      case "legendary":
-        return "bg-yellow-100 text-yellow-700"
-      default:
-        return "bg-gray-100 text-gray-700"
-    }
-  }
-
-  if (notifications.length === 0) return null
+  if (!notifications.length) return null
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
+    <div className="pointer-events-none fixed bottom-24 right-4 z-[80] flex w-[min(92vw,360px)] flex-col gap-3">
       {notifications.map((notification) => (
-        <Card
-          key={notification.id}
-          className="gift-notification-card animate-slide-in-right shadow-lg border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50"
-        >
-          <CardContent className="p-4">
-            <div className="flex items-start space-x-3">
-              <div className="relative">
-                <Avatar className="w-10 h-10">
-                  <AvatarImage
-                    src={notification.is_anonymous ? undefined : notification.sender.avatar_url}
-                    alt={notification.is_anonymous ? "Anonymous" : notification.sender.display_name}
-                  />
-                  <AvatarFallback>
-                    {notification.is_anonymous ? "?" : notification.sender.display_name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
-                  <Gift className="w-3 h-3 text-white" />
-                </div>
+        <Card key={notification.id} className="pointer-events-auto border-violet-500/30 bg-background/95 shadow-xl backdrop-blur">
+          <CardContent className="relative space-y-3 p-4">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="absolute right-2 top-2 h-7 w-7"
+              onClick={() => setNotifications((prev) => prev.filter((n) => n.id !== notification.id))}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <div className="flex items-start gap-3 pr-6">
+              <div className="rounded-full bg-violet-500/15 p-2 text-violet-500">
+                <Gift className="h-5 w-5" />
               </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-sm font-medium">
-                    {notification.is_anonymous ? "Anonymous" : notification.sender.display_name} sent you a gift!
-                  </p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => dismissNotification(notification.id)}
-                    className="h-6 w-6 p-0 hover:bg-red-100"
-                  >
-                    <X className="w-3 h-3" />
-                  </Button>
-                </div>
-
-                <div className="flex items-center space-x-2 mb-2">
-                  <span className="text-sm font-medium text-purple-700">{notification.gift.name}</span>
-                  <Badge className={`text-xs ${getRarityColor(notification.gift.rarity)}`}>
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 flex items-center gap-2">
+                  <p className="font-semibold">Gift received</p>
+                  <Badge variant="secondary" className="capitalize">
                     {notification.gift.rarity}
                   </Badge>
                 </div>
-
-                {notification.message && (
-                  <p className="text-xs text-gray-600 bg-white/50 rounded p-2 mb-2">"{notification.message}"</p>
-                )}
-
-                <div className="flex items-center space-x-2">
-                  <Heart className="w-3 h-3 text-red-500" />
-                  <span className="text-xs text-gray-500">{new Date(notification.timestamp).toLocaleTimeString()}</span>
-                  {notification.gift.effects?.particles && (
-                    <Sparkles className="w-3 h-3 text-purple-500 animate-pulse" />
+                <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+                  {notification.is_anonymous || !notification.sender ? (
+                    <span>Someone sent you {notification.gift.name}</span>
+                  ) : (
+                    <>
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={notification.sender.avatar_url} />
+                        <AvatarFallback>{notification.sender.display_name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <span>
+                        @{notification.sender.username} sent {notification.gift.name}
+                      </span>
+                    </>
                   )}
+                </div>
+                {notification.message && (
+                  <p className="rounded-lg bg-muted/60 px-3 py-2 text-sm">“{notification.message}”</p>
+                )}
+                <div className="mt-2 flex items-center gap-2 text-xs text-violet-500">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <Heart className="h-3.5 w-3.5" />
+                  Enjoy your gift
                 </div>
               </div>
             </div>
