@@ -124,6 +124,9 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
             </div>
           ))}
           {!canManage && <p className="text-xs text-slate-500">Only owners and moderators can change bot settings.</p>}
+          <Button asChild variant="outline" className="w-full rounded-full border-white/15 bg-white/5">
+            <a href="/marketplace">Browse bot & design marketplace</a>
+          </Button>
         </CardContent>
       </Card>
 

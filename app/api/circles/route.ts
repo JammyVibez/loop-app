@@ -49,9 +49,53 @@ export async function GET(request: NextRequest) {
     const offset = Number.parseInt(searchParams.get("offset") || "0")
     const category = searchParams.get("category")
     const search = searchParams.get("search")
+    const mine = searchParams.get("mine") === "true"
     const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
     const user = await getUserFromToken(token)
     const supabase = createServerClient()
+
+    if (mine) {
+      if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+      const { data: memberships, error: membershipError } = await supabase
+        .from("circle_members")
+        .select("circle_id, role, status")
+        .eq("user_id", user.id)
+        .in("role", ["owner", "admin", "moderator"])
+        .neq("status", "banned")
+
+      if (membershipError) {
+        return NextResponse.json({ error: "Failed to fetch managed circles" }, { status: 500 })
+      }
+
+      const membershipMap = new Map<string, any>()
+      ;(memberships || []).forEach((membership) => membershipMap.set(membership.circle_id, membership))
+      const ids = Array.from(membershipMap.keys())
+      if (!ids.length) {
+        return NextResponse.json({ success: true, circles: [], hasMore: false })
+      }
+
+      const { data: circles, error } = await supabase
+        .from("circles")
+        .select(`
+          *,
+          owner:profiles!owner_id(id, username, display_name, avatar_url),
+          creator:profiles!creator_id(id, username, display_name, avatar_url),
+          member_count:circle_members(count)
+        `)
+        .in("id", ids)
+        .order("created_at", { ascending: false })
+
+      if (error) {
+        return NextResponse.json({ error: "Failed to fetch circles" }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        circles: (circles || []).map((circle) => normalizeCircle(circle, membershipMap)),
+        hasMore: false,
+      })
+    }
 
     let query = supabase
       .from("circles")

@@ -27,6 +27,7 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
     "/invite",
     "/offline",
     "/loop",
+    "/marketplace",
   ]
   const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
 
@@ -41,7 +42,20 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
     if (loading) return
 
     if (user) {
-      if (user.onboarding_completed === false && pathname !== "/onboarding") {
+      // Only force onboarding for brand-new accounts with no username yet,
+      // and only when arriving from auth pages. Incomplete onboarding must
+      // never trap users away from circles, settings, marketplace, admin, etc.
+      const isAuthEntry = pathname === "/login" || pathname === "/signup"
+      const missingIdentity = !user.username?.trim()
+      const incomplete = user.onboarding_completed === false
+
+      if (incomplete && missingIdentity && pathname !== "/onboarding") {
+        setRedirecting(true)
+        router.replace("/onboarding")
+        return
+      }
+
+      if (incomplete && isAuthEntry) {
         setRedirecting(true)
         router.replace("/onboarding")
         return
