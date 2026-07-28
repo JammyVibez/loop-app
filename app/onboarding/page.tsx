@@ -78,7 +78,7 @@ export default function OnboardingPage() {
     theme: THEMES[0],
     avatar_url: "",
   })
-  const { user, refreshUser, getAuthHeader } = useAuth()
+  const { user, refreshUser, getAuthHeader, applyServerProfile } = useAuth()
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -155,6 +155,16 @@ export default function OnboardingPage() {
         throw new Error("Failed to save profile")
       }
 
+      const result = await response.json()
+
+      // Optimistically mark onboarding complete from the API response so the
+      // redirect guard cannot bounce the user back to /onboarding.
+      if (result.profile) {
+        applyServerProfile({ ...result.profile, onboarding_completed: true })
+      } else {
+        applyServerProfile({ onboarding_completed: true })
+      }
+
       // Award onboarding bonus coins
       const coinsResponse = await fetch('/api/users/coins/weekly', {
         method: 'POST',
@@ -172,11 +182,11 @@ export default function OnboardingPage() {
         console.log("Onboarding bonus awarded successfully")
       }
 
-      // Refresh the user context from the saved server profile.
+      // Sync full profile from the service-role API (does not use fragile client RLS reads).
       await refreshUser()
 
       // Redirect to home/feed
-      router.push("/")
+      router.replace("/")
     } catch (error) {
       console.error("Failed to complete onboarding:", error)
       setErrors({ general: "Failed to complete onboarding. Please try again." })

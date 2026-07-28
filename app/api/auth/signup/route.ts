@@ -1,14 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getAppUrl } from "@/lib/app-url";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
-
-function getAppUrl(request: NextRequest) {
-  return process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
-}
 
 function normalizeUsername(username: string) {
   return username.toLowerCase().replace(/[^a-z0-9_]/g, "")

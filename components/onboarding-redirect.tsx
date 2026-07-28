@@ -17,34 +17,35 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
     if (loading) return
 
     if (user) {
-      if (!user.onboarding_completed && pathname !== "/onboarding") {
+      // Strict false check: undefined during optimistic updates should not loop.
+      if (user.onboarding_completed === false && pathname !== "/onboarding") {
         setRedirecting(true)
-        router.push("/onboarding")
+        router.replace("/onboarding")
         return
       }
 
-      if (user.onboarding_completed && pathname === "/onboarding") {
+      if (user.onboarding_completed === true && pathname === "/onboarding") {
         setRedirecting(true)
-        router.push("/")
+        router.replace("/")
         return
       }
 
-      if ((pathname === "/login" || pathname === "/signup") && user.onboarding_completed) {
+      if ((pathname === "/login" || pathname === "/signup") && user.onboarding_completed === true) {
         setRedirecting(true)
-        router.push("/")
+        router.replace("/")
         return
       }
     } else {
       // If user is not logged in and not on a public route, redirect to login
       if (!isPublicRoute) {
         setRedirecting(true)
-        router.push("/login")
+        router.replace("/login")
         return
       }
     }
 
     setRedirecting(false)
-  }, [user, loading, pathname, router])
+  }, [user, loading, pathname, router, isPublicRoute])
 
   if (loading) {
     return <PageLoading message="Loading your profile..." />
