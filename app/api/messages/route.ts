@@ -177,6 +177,30 @@ export async function POST(request: NextRequest) {
       })
     } catch {}
 
+    if (content) {
+      try {
+        const { processMentions, extractMentions } = await import("@/lib/mentions")
+        if (extractMentions(content).length) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("username, display_name")
+            .eq("id", user.id)
+            .maybeSingle()
+          await processMentions(supabase, content, {
+            source: "message",
+            conversation_id: conversationId,
+            actor_id: user.id,
+            actor_username: profile?.username || user.user_metadata?.username,
+            actor_display_name:
+              profile?.display_name || user.user_metadata?.display_name || user.user_metadata?.username,
+            href: `/messages?c=${conversationId}`,
+          })
+        }
+      } catch (err) {
+        console.error("message mentions:", err)
+      }
+    }
+
     return NextResponse.json({ success: true, message: enriched })
   } catch (error) {
     console.error("Error sending message:", error)

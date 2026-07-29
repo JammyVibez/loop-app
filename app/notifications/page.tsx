@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { AtSign, Bell, CheckCheck, Loader2 } from "lucide-react"
@@ -53,13 +53,33 @@ function linkForNotification(n: Notification) {
     post_id: d.post_id,
     reel_id: d.reel_id,
     comment_id: d.comment_id,
+    conversation_id: d.conversation_id,
+    room_id: d.room_id,
   })
 }
 
 export default function NotificationsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <NotificationsContent />
+    </Suspense>
+  )
+}
+
+function NotificationsContent() {
   const { user, getAuthHeader } = useAuth()
   const searchParams = useSearchParams()
-  const initialTab = searchParams.get("type") === "mention" ? "mentions" : "all"
+  const initialTab = searchParams.get("type") === "mention" || searchParams.get("tab") === "tagged"
+    ? searchParams.get("tab") === "tagged"
+      ? "tagged"
+      : "mentions"
+    : "all"
   const [tab, setTab] = useState(initialTab)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [mentions, setMentions] = useState<MentionRow[]>([])
@@ -82,18 +102,14 @@ export default function NotificationsPage() {
       ])
       const notifData = await notifRes.json()
       const mentionData = await mentionRes.json()
-      let list = notifData.notifications || []
-      if (tab === "mentions") {
-        list = list.filter((n: Notification) => n.type === "mention")
-      }
-      setNotifications(list)
-      setMentions(mentionData.mentions || [])
+      if (notifRes.ok) setNotifications(notifData.notifications || [])
+      if (mentionRes.ok) setMentions(mentionData.mentions || [])
     } catch {
       /* ignore */
     } finally {
       setLoading(false)
     }
-  }, [user?.id, getAuthHeader, tab])
+  }, [user, tab, getAuthHeader])
 
   useEffect(() => {
     void load()

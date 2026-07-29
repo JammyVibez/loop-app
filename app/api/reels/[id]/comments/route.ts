@@ -115,6 +115,27 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await supabase.from("reels").update({ comment_count: nextCount }).eq("id", reelId)
 
     try {
+      const { processMentions, extractMentions } = await import("@/lib/mentions")
+      if (extractMentions(content).length) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username, display_name")
+          .eq("id", user.id)
+          .maybeSingle()
+        await processMentions(supabase, content, {
+          source: "reel_comment",
+          reel_id: reelId,
+          comment_id: comment.id,
+          actor_id: user.id,
+          actor_username: profile?.username,
+          actor_display_name: profile?.display_name,
+        })
+      }
+    } catch (err) {
+      console.error("reel comment mentions:", err)
+    }
+
+    try {
       await supabase.channel("reels:public").send({
         type: "broadcast",
         event: "reel:commented",

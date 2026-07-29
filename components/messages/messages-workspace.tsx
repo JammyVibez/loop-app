@@ -11,6 +11,8 @@ import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 import { GiftModal } from "@/components/gifting/gift-modal"
+import { MentionTextarea } from "@/components/mentions/mention-textarea"
+import { RichContent } from "@/components/content/rich-content"
 import { cn } from "@/lib/utils"
 import {
   ArrowLeft,
@@ -653,7 +655,7 @@ export function MessagesWorkspace() {
                     <video controls src={message.media_url} className="mb-1 max-h-64 w-full rounded-lg" />
                   )}
                   {message.content && !(message.message_type === "audio" && message.content === "Voice note") && (
-                    <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                    <RichContent text={message.content} className="whitespace-pre-wrap break-words" as="p" />
                   )}
                   <div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70">
                     <span>
@@ -759,11 +761,12 @@ export function MessagesWorkspace() {
           {recording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
         </Button>
         <div className="relative flex-1">
-          <Input
+          <MentionTextarea
             value={draft}
-            onChange={(e) => onDraftChange(e.target.value)}
-            placeholder="Message"
-            className="border-white/10 bg-[#2a3942] pr-10 text-slate-100 placeholder:text-slate-400"
+            onChange={onDraftChange}
+            rows={1}
+            placeholder="Message… @ to tag"
+            className="min-h-[40px] resize-none border-white/10 bg-[#2a3942] pr-10 text-slate-100 placeholder:text-slate-400"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault()

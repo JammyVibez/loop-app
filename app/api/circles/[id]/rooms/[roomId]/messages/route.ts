@@ -196,6 +196,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Failed to send message" }, { status: 500 })
     }
 
+    const text = String(content || "").trim()
+    if (text) {
+      try {
+        const { processMentions, extractMentions } = await import("@/lib/mentions")
+        if (extractMentions(text).length) {
+          const author = Array.isArray(message.author) ? message.author[0] : message.author
+          await processMentions(supabase, text, {
+            source: "circle_room",
+            circle_id: circleId,
+            room_id: roomId,
+            actor_id: user.id,
+            actor_username: author?.username,
+            actor_display_name: author?.display_name,
+          })
+        }
+      } catch (err) {
+        console.error("circle room mentions:", err)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: message,

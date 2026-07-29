@@ -28,6 +28,8 @@ import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
+import { MentionTextarea } from "@/components/mentions/mention-textarea"
+import { RichContent } from "@/components/content/rich-content"
 
 interface ReelAuthor {
   id: string
@@ -646,7 +648,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
             {comments.map((comment: any) => (
               <div key={comment.id || comment.created_at} className="space-y-2 rounded-xl border p-3 text-sm">
                 <p className="font-medium">@{comment.author?.username || comment.user?.username || "user"}</p>
-                <p className="text-muted-foreground">{comment.content}</p>
+                <RichContent text={comment.content} className="text-muted-foreground" as="p" />
                 <button
                   type="button"
                   className="text-xs font-semibold text-sky-500"
@@ -662,7 +664,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                 {(comment.replies || []).map((reply: any) => (
                   <div key={reply.id} className="ml-4 rounded-lg border border-border/60 bg-muted/30 p-2">
                     <p className="font-medium">@{reply.author?.username || "user"}</p>
-                    <p className="text-muted-foreground">{reply.content}</p>
+                    <RichContent text={reply.content} className="text-muted-foreground" as="p" />
                   </div>
                 ))}
               </div>
@@ -677,11 +679,18 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
             </div>
           )}
           <div className="flex gap-2">
-            <Input
+            <MentionTextarea
               value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder={replyTo ? `Reply to @${replyTo.username || "user"}...` : "Add a comment..."}
-              onKeyDown={(e) => e.key === "Enter" && sendComment()}
+              onChange={setCommentText}
+              rows={2}
+              className="min-h-[40px] flex-1"
+              placeholder={replyTo ? `Reply to @${replyTo.username || "user"}...` : "Add a comment… @ to tag"}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault()
+                  void sendComment()
+                }
+              }}
             />
             <Button onClick={sendComment}>Send</Button>
           </div>

@@ -154,6 +154,26 @@ export async function POST(
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversationId)
 
+    const text = String(content || "").trim()
+    if (text) {
+      try {
+        const { processMentions, extractMentions } = await import("@/lib/mentions")
+        if (extractMentions(text).length) {
+          const sender = Array.isArray(message.sender) ? message.sender[0] : message.sender
+          await processMentions(supabase, text, {
+            source: "message",
+            conversation_id: conversationId,
+            actor_id: user.id,
+            actor_username: sender?.username,
+            actor_display_name: sender?.display_name,
+            href: `/messages?c=${conversationId}`,
+          })
+        }
+      } catch (err) {
+        console.error("message mentions:", err)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message

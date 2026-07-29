@@ -6,12 +6,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 import { formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
+import { MentionTextarea } from "@/components/mentions/mention-textarea"
+import { RichContent } from "@/components/content/rich-content"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "🔥", "👏", "😮"]
 
@@ -368,7 +369,7 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
                         <video src={message.media_url} controls className="mb-1 max-h-48 w-full rounded-xl" />
                       )}
                       {message.content && !(message.media_type === "audio" && message.content === "Voice note") && (
-                        <p>{message.content}</p>
+                        <RichContent text={message.content} as="p" />
                       )}
                     </div>
                     <div className={cn("mt-1 flex flex-wrap items-center gap-1", isMine && "justify-end")}>
@@ -485,11 +486,11 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
             >
               {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </Button>
-            <Textarea
-              placeholder={recording ? "Recording…" : `Message #${roomName}...`}
+            <MentionTextarea
+              placeholder={recording ? "Recording…" : `Message #${roomName}… @ to tag`}
               value={newMessage}
-              onChange={(event) => {
-                setNewMessage(event.target.value)
+              onChange={(value) => {
+                setNewMessage(value)
                 broadcastTyping()
               }}
               onKeyDown={(event) => {
@@ -498,6 +499,7 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
                   void handleSendMessage()
                 }
               }}
+              rows={2}
               className="min-h-[44px] max-h-32 resize-none border-white/10 bg-white/[0.04] text-slate-100"
             />
             <Button

@@ -8,6 +8,7 @@ export type MentionSource =
   | "loop_comment"
   | "circle_post"
   | "circle_comment"
+  | "circle_room"
   | "reel_comment"
   | "message"
 
@@ -25,6 +26,8 @@ export type MentionContext = {
   circle_id?: string | null
   post_id?: string | null
   reel_id?: string | null
+  conversation_id?: string | null
+  room_id?: string | null
   actor_id: string
   actor_username?: string | null
   actor_display_name?: string | null
@@ -50,7 +53,20 @@ export function snippetFromText(text: string, max = 120) {
   return `${cleaned.slice(0, max - 1)}…`
 }
 
-export function mentionHref(ctx: Pick<MentionContext, "source" | "loop_id" | "circle_id" | "post_id" | "reel_id" | "comment_id" | "href">) {
+export function mentionHref(
+  ctx: Pick<
+    MentionContext,
+    | "source"
+    | "loop_id"
+    | "circle_id"
+    | "post_id"
+    | "reel_id"
+    | "comment_id"
+    | "conversation_id"
+    | "room_id"
+    | "href"
+  >,
+) {
   if (ctx.href) return ctx.href
   if (ctx.source === "loop" || ctx.source === "loop_comment") {
     return ctx.loop_id ? `/loop/${ctx.loop_id}` : "/notifications?type=mention"
@@ -59,7 +75,15 @@ export function mentionHref(ctx: Pick<MentionContext, "source" | "loop_id" | "ci
     if (ctx.circle_id) return `/circles/${ctx.circle_id}`
     return "/notifications?type=mention"
   }
+  if (ctx.source === "circle_room" && ctx.circle_id) {
+    return ctx.room_id
+      ? `/circles/${ctx.circle_id}?room=${ctx.room_id}`
+      : `/circles/${ctx.circle_id}`
+  }
   if (ctx.source === "reel_comment" && ctx.reel_id) return `/reels?focus=${ctx.reel_id}`
+  if (ctx.source === "message" && ctx.conversation_id) {
+    return `/messages?c=${ctx.conversation_id}`
+  }
   return "/notifications?type=mention"
 }
 
@@ -73,6 +97,8 @@ export function sourceLabel(source: MentionSource) {
       return "a community post"
     case "circle_comment":
       return "a community comment"
+    case "circle_room":
+      return "a community chat"
     case "reel_comment":
       return "a reel comment"
     case "message":

@@ -22,6 +22,7 @@ type Props = {
   rows?: number
   disabled?: boolean
   id?: string
+  onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
 }
 
 /**
@@ -36,6 +37,7 @@ export function MentionTextarea({
   rows = 3,
   disabled,
   id,
+  onKeyDown,
 }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const [query, setQuery] = useState<string | null>(null)
@@ -122,19 +124,28 @@ export function MentionTextarea({
         onKeyUp={(e) => detectMention(value, (e.target as HTMLTextAreaElement).selectionStart)}
         onClick={(e) => detectMention(value, (e.target as HTMLTextAreaElement).selectionStart)}
         onKeyDown={(e) => {
-          if (!open || !hits.length) return
-          if (e.key === "ArrowDown") {
-            e.preventDefault()
-            setActive((i) => (i + 1) % hits.length)
-          } else if (e.key === "ArrowUp") {
-            e.preventDefault()
-            setActive((i) => (i - 1 + hits.length) % hits.length)
-          } else if (e.key === "Enter" || e.key === "Tab") {
-            e.preventDefault()
-            insertMention(hits[active]?.username)
-          } else if (e.key === "Escape") {
-            setOpen(false)
+          if (open && hits.length) {
+            if (e.key === "ArrowDown") {
+              e.preventDefault()
+              setActive((i) => (i + 1) % hits.length)
+              return
+            }
+            if (e.key === "ArrowUp") {
+              e.preventDefault()
+              setActive((i) => (i - 1 + hits.length) % hits.length)
+              return
+            }
+            if (e.key === "Enter" || e.key === "Tab") {
+              e.preventDefault()
+              insertMention(hits[active]?.username)
+              return
+            }
+            if (e.key === "Escape") {
+              setOpen(false)
+              return
+            }
           }
+          onKeyDown?.(e)
         }}
       />
 
