@@ -25,32 +25,35 @@ BEGIN
   WHERE rel.relname = 'coin_transactions'
     AND nsp.nspname = 'public'
     AND con.contype = 'c'
-    AND pg_get_constraintdef(con.oid) ILIKE '%transaction_type%';
+    AND pg_get_constraintdef(con.oid) ILIKE '%transaction_type%'
+  ORDER BY con.conname
   LIMIT 1;
 
   IF constraint_name IS NOT NULL THEN
     EXECUTE format('ALTER TABLE coin_transactions DROP CONSTRAINT %I', constraint_name);
   END IF;
 
-  ALTER TABLE coin_transactions
-    ADD CONSTRAINT coin_transactions_transaction_type_check
-    CHECK (transaction_type IN (
-      'purchase',
-      'gift_sent',
-      'gift_received',
-      'quest_reward',
-      'weekly_bonus',
-      'daily_checkin',
-      'onboarding_bonus',
-      'admin_grant',
-      'admin_reward',
-      'premium_purchase',
-      'refund',
-      'level_reward',
-      'earning_payout'
-    ));
-EXCEPTION
-  WHEN duplicate_object THEN NULL;
+  BEGIN
+    ALTER TABLE coin_transactions
+      ADD CONSTRAINT coin_transactions_transaction_type_check
+      CHECK (transaction_type IN (
+        'purchase',
+        'gift_sent',
+        'gift_received',
+        'quest_reward',
+        'weekly_bonus',
+        'daily_checkin',
+        'onboarding_bonus',
+        'admin_grant',
+        'admin_reward',
+        'premium_purchase',
+        'refund',
+        'level_reward',
+        'earning_payout'
+      ));
+  EXCEPTION
+    WHEN duplicate_object THEN NULL;
+  END;
 END $$;
 
 -- 3) Cosmetics snapshot on profiles (badges / frames / auras)
@@ -118,13 +121,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION add_user_earnings(p_user_id UUID, amount DECIMAL)
+DROP FUNCTION IF EXISTS add_user_earnings(UUID, DECIMAL);
+DROP FUNCTION IF EXISTS add_user_earnings(UUID, NUMERIC);
+
+CREATE OR REPLACE FUNCTION add_user_earnings(user_id UUID, amount DECIMAL)
 RETURNS void AS $$
 BEGIN
   UPDATE profiles
   SET total_earnings = COALESCE(total_earnings, 0) + amount,
       available_earnings = COALESCE(available_earnings, 0) + amount,
       updated_at = NOW()
-  WHERE id = p_user_id;
+  WHERE id = user_id;
 END;
 $$ LANGUAGE plpgsql;

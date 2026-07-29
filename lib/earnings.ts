@@ -22,13 +22,12 @@ export async function awardEarnings(
 
   try {
     const { error: rpcError } = await supabase.rpc("add_user_earnings", {
-      p_user_id: userId,
+      user_id: userId,
       amount,
     })
-    // Some schemas use (user_id, amount) without p_ prefix
     if (rpcError) {
       await supabase.rpc("add_user_earnings", {
-        user_id: userId,
+        p_user_id: userId,
         amount,
       })
     }
