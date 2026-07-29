@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { MentionTextarea } from "@/components/mentions/mention-textarea"
+import { RichContent } from "@/components/content/rich-content"
 import {
   Users,
   Settings,
@@ -727,10 +729,10 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                     <AvatarFallback>{user?.display_name?.charAt(0) || "U"}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1 space-y-3">
-                    <Textarea
-                      placeholder="Share something with the circle..."
+                    <MentionTextarea
+                      placeholder="Share something… type @ to tag members"
                       value={newPost}
-                      onChange={(e) => setNewPost(e.target.value)}
+                      onChange={setNewPost}
                       className="resize-none"
                       rows={3}
                     />
@@ -797,9 +799,10 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                           {post.is_pinned && <Pin className="h-4 w-4 text-violet-500" />}
                         </div>
 
-                        <p className="mb-3 whitespace-pre-wrap break-words text-sm leading-relaxed sm:text-base">
-                          {post.content}
-                        </p>
+                        <RichContent
+                          text={post.content}
+                          className="mb-3 text-sm leading-relaxed sm:text-base"
+                        />
 
                         {post.media_url && (
                           <div className="mb-3 overflow-hidden rounded-xl border border-border/60">
@@ -1206,7 +1209,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                               {formatDistanceToNow(new Date(comment.created_at || Date.now()), { addSuffix: true })}
                             </span>
                           </div>
-                          <p className="whitespace-pre-wrap break-words text-sm">{comment.content}</p>
+                          <RichContent text={comment.content} className="text-sm" />
                         </div>
                       </div>
                     )
@@ -1214,18 +1217,13 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                 )}
               </div>
               <div className="flex items-end gap-2 border-t pt-3">
-                <Textarea
+                <MentionTextarea
                   value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  placeholder={isJoined ? "Write a comment…" : "Join the circle to comment"}
+                  onChange={setCommentText}
+                  placeholder={isJoined ? "Write a comment… @ to tag" : "Join the circle to comment"}
                   disabled={!isJoined || commentSending}
                   className="min-h-[44px] max-h-28 resize-none"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault()
-                      void submitComment()
-                    }
-                  }}
+                  rows={2}
                 />
                 <Button
                   onClick={submitComment}

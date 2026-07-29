@@ -51,6 +51,7 @@ import { CreateBranchDialog } from "@/components/create-branch-dialog";
 import { normalizeLoop } from "@/lib/normalize-loop";
 import { CodeBlock } from "@/components/loops/code-block";
 import { isCodeLoop } from "@/lib/pro-features";
+import { RichContent } from "@/components/content/rich-content";
 
 interface LoopAuthor {
   id: string;
@@ -858,9 +859,10 @@ export function LoopCard({
                 </div>
               ) : (
                 <>
-                  <p className="text-sm sm:text-base leading-relaxed">
-                    {showFullContent ? content : contentPreview}
-                  </p>
+                  <RichContent
+                    text={showFullContent ? content : contentPreview}
+                    className="text-sm sm:text-base leading-relaxed"
+                  />
                   {content.length > 200 && (
                     <Button
                       variant="link"

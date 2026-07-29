@@ -145,6 +145,31 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Update circle post count
     await supabase.rpc('increment_circle_post_count', { circle_id: circleId })
 
+    try {
+      const { processMentions, extractMentions, attachMentionsColumn } = await import("@/lib/mentions")
+      const text = String(content || "")
+      const usernames = extractMentions(text)
+      if (usernames.length) {
+        await attachMentionsColumn(supabase, "circle_posts", post.id, usernames)
+        const { data: actorProfile } = await supabase
+          .from("profiles")
+          .select("username, display_name")
+          .eq("id", user.id)
+          .maybeSingle()
+        await processMentions(supabase, text, {
+          source: "circle_post",
+          circle_id: circleId,
+          post_id: post.id,
+          actor_id: user.id,
+          actor_username: actorProfile?.username || user.user_metadata?.username,
+          actor_display_name: actorProfile?.display_name || user.user_metadata?.display_name,
+          href: `/circles/${circleId}`,
+        })
+      }
+    } catch (mentionError) {
+      console.error("Circle post mention error:", mentionError)
+    }
+
     return NextResponse.json({
       success: true,
       post,

@@ -287,6 +287,28 @@ export async function POST(request: NextRequest) {
       console.error("Loop XP award error:", xpError)
     }
 
+    try {
+      const { processMentions, extractMentions, attachMentionsColumn } = await import("@/lib/mentions")
+      const usernames = extractMentions(textContent)
+      if (usernames.length) {
+        await attachMentionsColumn(supabase, "loops", loop.id, usernames)
+        const { data: actorProfile } = await supabase
+          .from("profiles")
+          .select("username, display_name")
+          .eq("id", user.id)
+          .maybeSingle()
+        await processMentions(supabase, textContent, {
+          source: "loop",
+          loop_id: loop.id,
+          actor_id: user.id,
+          actor_username: actorProfile?.username || user.user_metadata?.username,
+          actor_display_name: actorProfile?.display_name || user.user_metadata?.display_name,
+        })
+      }
+    } catch (mentionError) {
+      console.error("Loop mention processing error:", mentionError)
+    }
+
     return NextResponse.json({ success: true, loop: normalizeLoop(loop) })
   } catch (error: any) {
     console.error("Create loop error:", error)

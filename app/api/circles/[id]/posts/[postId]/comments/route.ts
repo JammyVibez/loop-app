@@ -100,6 +100,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .eq("id", postId)
 
     try {
+      const { processMentions, extractMentions } = await import("@/lib/mentions")
+      if (extractMentions(content).length) {
+        await processMentions(supabase, content, {
+          source: "circle_comment",
+          circle_id: circleId,
+          post_id: postId,
+          comment_id: comment.id,
+          actor_id: user.id,
+          actor_username: user.user_metadata?.username,
+          actor_display_name: user.user_metadata?.display_name || user.email,
+          href: `/circles/${circleId}`,
+        })
+      }
+    } catch (mentionError) {
+      console.error("Circle comment mention error:", mentionError)
+    }
+
+    try {
       await supabase.channel(`circle:${circleId}`).send({
         type: "broadcast",
         event: "post_comment",

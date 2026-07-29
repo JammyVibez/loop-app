@@ -184,6 +184,24 @@ export async function POST(
       }
     }
 
+    try {
+      const { processMentions, extractMentions, attachMentionsColumn } = await import("@/lib/mentions")
+      const usernames = extractMentions(content)
+      if (usernames.length) {
+        await attachMentionsColumn(supabase, "comments", comment.id, usernames)
+        await processMentions(supabase, content, {
+          source: "loop_comment",
+          loop_id: loopId,
+          comment_id: comment.id,
+          actor_id: user.id,
+          actor_username: user.user_metadata?.username,
+          actor_display_name: user.user_metadata?.display_name || user.email,
+        })
+      }
+    } catch (mentionError) {
+      console.error("Comment mention processing error:", mentionError)
+    }
+
     // Broadcast real-time update
     await supabase.channel(`loop:${loopId}`)
       .send({

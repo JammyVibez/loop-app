@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { supabase } from "@/lib/supabase"
 import { CODE_LANGUAGES } from "@/lib/pro-features"
+import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import {
   Code,
   Crop,
@@ -506,15 +507,15 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
               </div>
             ) : (
               <>
-                <Textarea
+                <MentionTextarea
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Share a story, idea, or spark a tree..."
+                  onChange={setContent}
+                  placeholder="Share a story, idea, or tag someone with @username…"
                   className="min-h-[120px] border-white/10 bg-white/5"
                   maxLength={500}
                 />
                 <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>{content.length}/500</span>
+                  <span>{content.length}/500 · type @ to tag people</span>
                   <span className="inline-flex items-center gap-1"><Save className="h-3 w-3" /> Draft saved</span>
                 </div>
               </>

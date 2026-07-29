@@ -1,0 +1,261 @@
+"use client"
+
+import { useCallback, useEffect, useState } from "react"
+import Link from "next/link"
+import { useSearchParams } from "next/navigation"
+import { AtSign, Bell, CheckCheck, Loader2 } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useAuth } from "@/hooks/use-auth"
+import { formatDistanceToNow } from "date-fns"
+import { cn } from "@/lib/utils"
+import { Header } from "@/components/header"
+import { mentionHref } from "@/lib/mentions"
+
+type Notification = {
+  id: string
+  type: string
+  title: string
+  message: string
+  data?: any
+  is_read: boolean
+  created_at: string
+}
+
+type MentionRow = {
+  id: string
+  source_type: string
+  snippet?: string
+  href?: string
+  created_at: string
+  why: string
+  actor?: {
+    id: string
+    username: string
+    display_name?: string
+    avatar_url?: string
+  } | null
+  loop_id?: string
+  circle_id?: string
+  post_id?: string
+  comment_id?: string
+  reel_id?: string
+}
+
+function linkForNotification(n: Notification) {
+  const d = n.data || {}
+  if (d.href) return d.href
+  return mentionHref({
+    source: d.source || (n.type === "mention" ? "loop" : "loop"),
+    loop_id: d.loop_id,
+    circle_id: d.circle_id,
+    post_id: d.post_id,
+    reel_id: d.reel_id,
+    comment_id: d.comment_id,
+  })
+}
+
+export default function NotificationsPage() {
+  const { user, getAuthHeader } = useAuth()
+  const searchParams = useSearchParams()
+  const initialTab = searchParams.get("type") === "mention" ? "mentions" : "all"
+  const [tab, setTab] = useState(initialTab)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [mentions, setMentions] = useState<MentionRow[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    if (!user) return
+    setLoading(true)
+    try {
+      const typeQuery = tab === "mentions" ? "&type=mention" : ""
+      const [notifRes, mentionRes] = await Promise.all([
+        fetch(`/api/notifications?limit=40${typeQuery}`, {
+          headers: { ...getAuthHeader() },
+          cache: "no-store",
+        }),
+        fetch("/api/mentions?limit=40", {
+          headers: { ...getAuthHeader() },
+          cache: "no-store",
+        }),
+      ])
+      const notifData = await notifRes.json()
+      const mentionData = await mentionRes.json()
+      let list = notifData.notifications || []
+      if (tab === "mentions") {
+        list = list.filter((n: Notification) => n.type === "mention")
+      }
+      setNotifications(list)
+      setMentions(mentionData.mentions || [])
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false)
+    }
+  }, [user?.id, getAuthHeader, tab])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const markAllRead = async () => {
+    await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
+      body: JSON.stringify({ mark_all_read: true }),
+    })
+    void load()
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="mx-auto max-w-xl px-4 py-16 text-center">
+          <p className="text-muted-foreground">Sign in to see tags and notifications.</p>
+          <Button asChild className="mt-4 rounded-full">
+            <Link href="/login">Sign in</Link>
+          </Button>
+        </main>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+      <main className="mx-auto w-full max-w-xl px-0 sm:px-4 sm:py-6">
+        <div className="border-border/70 bg-background sm:rounded-2xl sm:border">
+          <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+            <div>
+              <h1 className="text-xl font-bold">Notifications</h1>
+              <p className="text-xs text-muted-foreground">Tags, likes, comments, and more</p>
+            </div>
+            <Button variant="ghost" size="sm" className="rounded-full" onClick={() => void markAllRead()}>
+              <CheckCheck className="mr-1.5 h-4 w-4" />
+              Mark read
+            </Button>
+          </div>
+
+          <Tabs value={tab} onValueChange={setTab} className="w-full">
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-none border-b border-border/70 bg-transparent p-0">
+              <TabsTrigger value="all" className="rounded-none border-b-2 border-transparent py-3 data-[state=active]:border-sky-500 data-[state=active]:shadow-none">
+                <Bell className="mr-1.5 h-4 w-4" /> All
+              </TabsTrigger>
+              <TabsTrigger value="mentions" className="rounded-none border-b-2 border-transparent py-3 data-[state=active]:border-sky-500 data-[state=active]:shadow-none">
+                <AtSign className="mr-1.5 h-4 w-4" /> Mentions
+              </TabsTrigger>
+              <TabsTrigger value="tagged" className="rounded-none border-b-2 border-transparent py-3 data-[state=active]:border-sky-500 data-[state=active]:shadow-none">
+                Tagged
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="all" className="mt-0">
+              <NotifList items={notifications} loading={loading} />
+            </TabsContent>
+            <TabsContent value="mentions" className="mt-0">
+              <NotifList items={notifications} loading={loading} empty="No @tags yet. When someone tags you, it shows up here." />
+            </TabsContent>
+            <TabsContent value="tagged" className="mt-0">
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : mentions.length === 0 ? (
+                <p className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  Nobody has tagged you yet. Ask friends to use @yourusername in posts and comments.
+                </p>
+              ) : (
+                <ul className="divide-y divide-border/70">
+                  {mentions.map((m) => {
+                    const href =
+                      m.href ||
+                      mentionHref({
+                        source: m.source_type as any,
+                        loop_id: m.loop_id,
+                        circle_id: m.circle_id,
+                        post_id: m.post_id,
+                        reel_id: m.reel_id,
+                        comment_id: m.comment_id,
+                      })
+                    return (
+                      <li key={m.id}>
+                        <Link href={href} className="flex gap-3 px-4 py-3 hover:bg-muted/50">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={m.actor?.avatar_url || undefined} />
+                            <AvatarFallback>
+                              {(m.actor?.display_name || m.actor?.username || "?").charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm">
+                              <span className="font-semibold">
+                                {m.actor?.display_name || m.actor?.username || "Someone"}
+                              </span>{" "}
+                              <span className="text-muted-foreground">{m.why}</span>
+                            </p>
+                            {m.snippet ? (
+                              <p className="mt-1 line-clamp-2 rounded-lg bg-muted/60 px-2.5 py-1.5 text-xs text-muted-foreground">
+                                {m.snippet}
+                              </p>
+                            ) : null}
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              {formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}
+                            </p>
+                          </div>
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function NotifList({
+  items,
+  loading,
+  empty = "You're all caught up.",
+}: {
+  items: Notification[]
+  loading: boolean
+  empty?: string
+}) {
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+  if (!items.length) {
+    return <p className="px-4 py-12 text-center text-sm text-muted-foreground">{empty}</p>
+  }
+  return (
+    <ul className="divide-y divide-border/70">
+      {items.map((n) => (
+        <li key={n.id}>
+          <Link
+            href={linkForNotification(n)}
+            className={cn("block px-4 py-3 hover:bg-muted/50", !n.is_read && "bg-sky-500/5")}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-semibold">{n.title}</p>
+              {!n.is_read ? <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-sky-500" /> : null}
+            </div>
+            <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+            </p>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
+}

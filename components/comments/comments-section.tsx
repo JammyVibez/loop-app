@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { formatDistanceToNow } from "date-fns"
 import { EmptyState } from "@/components/ui/empty-state"
+import { MentionTextarea } from "@/components/mentions/mention-textarea"
+import { RichContent } from "@/components/content/rich-content"
 
 interface CommentAuthor {
   id: string
@@ -217,7 +219,7 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
                 </div>
               </div>
             ) : (
-              <p className="whitespace-pre-wrap text-sm text-slate-200">{comment.content}</p>
+              <RichContent text={comment.content} className="text-sm text-slate-200" />
             )}
 
             <div className="mt-2 flex items-center gap-3">
@@ -234,10 +236,10 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
 
             {replyingTo === comment.id && (
               <div className="mt-3 space-y-2">
-                <Textarea
+                <MentionTextarea
                   value={replyContent}
-                  onChange={(e) => setReplyContent(e.target.value)}
-                  placeholder="Write a reply..."
+                  onChange={setReplyContent}
+                  placeholder="Write a reply… use @ to tag someone"
                   className="bg-white/5"
                 />
                 <div className="flex gap-2">
@@ -259,10 +261,10 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
 
       {user ? (
         <div className="space-y-2">
-          <Textarea
+          <MentionTextarea
             value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Share your thoughts..."
+            onChange={setNewComment}
+            placeholder="Share your thoughts… type @ to tag someone"
             className="min-h-[80px] border-white/10 bg-white/5"
           />
           <Button onClick={handleSubmitComment} disabled={!newComment.trim()}>

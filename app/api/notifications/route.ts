@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
     const unreadOnly = searchParams.get("unread_only") === "true"
+    const type = searchParams.get("type")
 
     let query = supabase
       .from("notifications")
@@ -47,6 +48,9 @@ export async function GET(request: NextRequest) {
 
     if (unreadOnly) {
       query = query.eq("is_read", false)
+    }
+    if (type) {
+      query = query.eq("type", type)
     }
 
     const { data: notifications, error } = await query

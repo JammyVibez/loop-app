@@ -173,11 +173,14 @@ export function NotificationDropdown() {
 
   const notificationHref = (n: Notification) => {
     const data = n.data || {}
+    if (data.href) return data.href
     if (data.loop_id) return `/loop/${data.loop_id}`
+    if (data.circle_id) return `/circles/${data.circle_id}`
     if (data.reel_id) return `/reels?id=${data.reel_id}`
     if (data.username) return `/profile/${data.username}`
     if (data.actor_username) return `/profile/${data.actor_username}`
-    return null
+    if (n.type === "mention") return "/notifications?type=mention"
+    return "/notifications"
   }
 
   return (
@@ -274,6 +277,14 @@ export function NotificationDropdown() {
             </div>
           )}
         </ScrollArea>
+        <DropdownMenuSeparator />
+        <div className="p-2">
+          <Link href="/notifications" className="block">
+            <Button variant="ghost" className="w-full justify-center text-sm" onClick={() => setIsOpen(false)}>
+              See all notifications & tags
+            </Button>
+          </Link>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   )
