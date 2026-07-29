@@ -52,6 +52,7 @@ import { normalizeLoop } from "@/lib/normalize-loop";
 import { CodeBlock } from "@/components/loops/code-block";
 import { isCodeLoop } from "@/lib/pro-features";
 import { RichContent } from "@/components/content/rich-content";
+import { useLoginGate } from "@/hooks/use-login-gate";
 
 interface LoopAuthor {
   id: string;
@@ -141,6 +142,7 @@ export function LoopCard({
   const lastTapRef = useRef(0);
   const { user: currentUser, getAuthHeader } = useAuth();
   const { toast } = useToast();
+  const { requireAuth, LoginGateDialog } = useLoginGate();
   const activeInteracting = interacting ?? localInteracting;
 
   useEffect(() => {
@@ -197,18 +199,12 @@ export function LoopCard({
 
   const runInteraction = async (type: "like" | "save") => {
     if (onInteraction) {
+      if (!currentUser && !requireAuth(type === "like" ? "like" : "save")) return
       onInteraction(loop.id, type)
       return
     }
 
-    if (!currentUser) {
-      toast({
-        title: "Sign in required",
-        description: "Log in to like, save, gift, and branch loops.",
-        variant: "destructive",
-      })
-      return
-    }
+    if (!requireAuth(type === "like" ? "like" : "save")) return
 
     setLocalInteracting(`${loop.id}-${type}`)
     try {
@@ -325,27 +321,13 @@ export function LoopCard({
 
   // Handle branch creation
   const handleBranch = () => {
-    if (!currentUser) {
-      toast({
-        title: "Sign in required",
-        description: "Log in to create a branch.",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!requireAuth("branch")) return
     setShowBranchDialog(true);
   };
 
   const handleFork = async () => {
-    if (!currentUser) {
-      toast({
-        title: "Sign in required",
-        description: "Log in to fork this loop.",
-        variant: "destructive",
-      })
-      return
-    }
-    if (currentUser.id === loop.author_id) {
+    if (!requireAuth("branch")) return
+    if (currentUser!.id === loop.author_id) {
       toast({ title: "That's your loop", description: "Fork someone else's code to remix it." })
       return
     }
@@ -662,6 +644,7 @@ export function LoopCard({
 
   return (
     <>
+      {LoginGateDialog}
       <Card
         ref={cardRef}
         className={getCardStyle()}
@@ -804,7 +787,12 @@ export function LoopCard({
                     </DropdownMenuItem>
                   </>
                 )}
-                <DropdownMenuItem onClick={() => setShowGiftModal(true)}>
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (!requireAuth("gift")) return
+                    setShowGiftModal(true)
+                  }}
+                >
                   <Gift className="h-4 w-4 mr-2" />
                   Send Gift
                 </DropdownMenuItem>
@@ -1002,7 +990,10 @@ export function LoopCard({
                   variant="ghost"
                   size="sm"
                   className="hover:text-[var(--theme-primary)] hover:scale-105 transition-all duration-200 p-1 sm:p-2"
-                  onClick={() => setShowGiftModal(true)}
+                  onClick={() => {
+                    if (!requireAuth("gift")) return
+                    setShowGiftModal(true)
+                  }}
                 >
                   <Gift className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>

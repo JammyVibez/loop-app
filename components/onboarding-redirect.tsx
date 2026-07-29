@@ -1,8 +1,10 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import { useAuth } from "@/hooks/use-auth";
-import { PageLoading } from "@/components/loading-states";
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter, usePathname } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
+import { PageLoading } from "@/components/loading-states"
+import { isAuthRequiredPath, isGuestPublicPath } from "@/lib/guest"
 
 export function OnboardingRedirect({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -11,41 +13,17 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
   const [redirecting, setRedirecting] = useState(false)
   const [forceReady, setForceReady] = useState(false)
 
-  // Profiles are public (API supports username lookup). Keep them browsable during auth hydrate.
-  const publicRoutes = [
-    "/",
-    "/login",
-    "/signup",
-    "/landing",
-    "/terms",
-    "/privacy",
-    "/reset-password",
-    "/verify-email",
-    "/email-confirmed",
-    "/explore",
-    "/trending",
-    "/profile",
-    "/invite",
-    "/offline",
-    "/loop",
-    "/marketplace",
-  ]
-  const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
+  const isPublicRoute = isGuestPublicPath(pathname || "/")
 
-  // Never leave the whole app stuck on "Loading your profile..."
   useEffect(() => {
     const timer = setTimeout(() => setForceReady(true), 7000)
     return () => clearTimeout(timer)
   }, [])
 
   useEffect(() => {
-    // Wait for a real auth decision. forceReady alone must NOT mean "logged out".
     if (loading) return
 
     if (user) {
-      // Only force onboarding for brand-new accounts with no username yet,
-      // and only when arriving from auth pages. Incomplete onboarding must
-      // never trap users away from circles, settings, marketplace, admin, etc.
       const isAuthEntry =
         pathname === "/login" ||
         pathname === "/signup" ||
@@ -54,7 +32,6 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
       const missingIdentity = !user.username?.trim()
       const incomplete = user.onboarding_completed === false
 
-      // Legacy verify pages → onboarding
       if (pathname === "/verify-email" || pathname === "/email-confirmed") {
         setRedirecting(true)
         router.replace(incomplete ? "/onboarding" : "/")
@@ -84,9 +61,11 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
         router.replace("/")
         return
       }
-    } else if (!isPublicRoute && pathname !== "/onboarding") {
+    } else if (isAuthRequiredPath(pathname || "/") || (!isPublicRoute && pathname !== "/onboarding")) {
+      // Guests may browse public paths; interactive routes go to login
       setRedirecting(true)
-      router.replace("/login")
+      const redirect = encodeURIComponent(pathname || "/")
+      router.replace(`/login?redirect=${redirect}`)
       return
     }
 
@@ -97,7 +76,6 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
     return <PageLoading message="Loading your profile..." />
   }
 
-  // Auth still resolving after timeout — keep waiting on private routes instead of logging out.
   if (loading && forceReady && !user && !isPublicRoute) {
     return <PageLoading message="Restoring your session..." />
   }

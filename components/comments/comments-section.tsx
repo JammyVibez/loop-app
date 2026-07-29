@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -272,7 +273,12 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
           </Button>
         </div>
       ) : (
-        <p className="text-sm text-slate-400">Sign in to leave a comment.</p>
+        <div className="rounded-xl border border-dashed border-white/15 px-4 py-3 text-sm text-slate-300">
+          <p className="mb-2">Browsing as guest — sign in to reply.</p>
+          <Button asChild size="sm" className="rounded-full">
+            <Link href="/login">Log in to comment</Link>
+          </Button>
+        </div>
       )}
 
       {loading ? (

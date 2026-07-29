@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { isAuthRequiredPath } from "@/lib/guest"
 
-const publicRoutes = new Set([
+const alwaysPublic = new Set([
   "/",
   "/landing",
   "/login",
@@ -13,8 +14,6 @@ const publicRoutes = new Set([
   "/api/auth/signup",
   "/api/auth/callback",
 ])
-
-const protectedPrefixes = ["/messages", "/circles", "/shop", "/settings", "/notifications", "/create", "/onboarding", "/admin"]
 
 function hasSupabaseSessionCookie(request: NextRequest) {
   return request.cookies
@@ -29,17 +28,18 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon.ico") ||
     pathname.startsWith("/icons") ||
-    pathname.startsWith("/manifest")
+    pathname.startsWith("/manifest") ||
+    pathname.startsWith("/api/")
   ) {
     return NextResponse.next()
   }
 
-  if (publicRoutes.has(pathname)) {
+  if (alwaysPublic.has(pathname)) {
     return NextResponse.next()
   }
 
-  const isProtectedRoute = protectedPrefixes.some((prefix) => pathname.startsWith(prefix))
-  if (!isProtectedRoute) {
+  // Only hard-block interactive account routes; browse routes stay open for guests
+  if (!isAuthRequiredPath(pathname)) {
     return NextResponse.next()
   }
 

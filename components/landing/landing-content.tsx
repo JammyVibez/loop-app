@@ -194,13 +194,13 @@ export function LandingContent() {
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
-                <Link href="#features">
+                <Link href="/">
                   <Button
                     size="lg"
                     variant="outline"
                     className="h-12 rounded-full border-white/15 bg-white/[0.03] px-8 text-base text-slate-200 backdrop-blur hover:bg-white/10"
                   >
-                    Explore product
+                    Explore as guest
                   </Button>
                 </Link>
               </div>

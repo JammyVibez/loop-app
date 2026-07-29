@@ -15,9 +15,10 @@ import { cn } from "@/lib/utils"
 interface LoopFeedProps {
   feedType?: "personalized" | "following" | "trending" | "recent"
   showComposer?: boolean
+  guestMode?: boolean
 }
 
-export function LoopFeed({ feedType = "personalized", showComposer = false }: LoopFeedProps) {
+export function LoopFeed({ feedType = "personalized", showComposer = false, guestMode = false }: LoopFeedProps) {
   const [loops, setLoops] = useState<NormalizedLoop[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -46,7 +47,8 @@ export function LoopFeed({ feedType = "personalized", showComposer = false }: Lo
 
   const fetchLoops = useCallback(
     async (reset = false) => {
-      if (!authToken) {
+      // Guests can load public trending/recent without a token
+      if (!authToken && !guestMode) {
         setLoading(false)
         setLoadingMore(false)
         return
@@ -62,11 +64,11 @@ export function LoopFeed({ feedType = "personalized", showComposer = false }: Lo
 
       try {
         const offset = reset ? 0 : loopsLenRef.current
+        const headers: HeadersInit = { ...getAuthHeader() }
+        if (authToken) headers.Authorization = `Bearer ${authToken}`
+
         const response = await fetch(`/api/loops/feed?type=${feedType}&limit=20&offset=${offset}`, {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            ...getAuthHeader(),
-          },
+          headers,
           cache: "no-store",
         })
 
@@ -101,22 +103,22 @@ export function LoopFeed({ feedType = "personalized", showComposer = false }: Lo
         setLoadingMore(false)
       }
     },
-    [authToken, feedType, getAuthHeader, toast],
+    [authToken, feedType, getAuthHeader, toast, guestMode],
   )
 
   /** Fetch only loops newer than current top — prepend, don't reshuffle */
   const fetchNewer = useCallback(
     async (opts?: { silent?: boolean; apply?: boolean }) => {
-      if (!authToken || !newestSeenAt.current) return []
+      if (!newestSeenAt.current) return []
+      if (!authToken && !guestMode) return []
       if (!opts?.silent) setRefreshing(true)
       try {
+        const headers: HeadersInit = { ...getAuthHeader() }
+        if (authToken) headers.Authorization = `Bearer ${authToken}`
         const response = await fetch(
           `/api/loops/feed?type=${feedType}&limit=30&since=${encodeURIComponent(newestSeenAt.current)}`,
           {
-            headers: {
-              Authorization: `Bearer ${authToken}`,
-              ...getAuthHeader(),
-            },
+            headers,
             cache: "no-store",
           },
         )
@@ -142,7 +144,7 @@ export function LoopFeed({ feedType = "personalized", showComposer = false }: Lo
         if (!opts?.silent) setRefreshing(false)
       }
     },
-    [authToken, feedType, getAuthHeader],
+    [authToken, feedType, getAuthHeader, guestMode],
   )
 
   const showPending = () => {
@@ -171,21 +173,15 @@ export function LoopFeed({ feedType = "personalized", showComposer = false }: Lo
   }
 
   useEffect(() => {
-    if (!user) {
-      setLoading(false)
-      setLoops([])
-      return
-    }
     newestSeenAt.current = null
     fetchLoops(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, authToken, feedType])
+  }, [user?.id, authToken, feedType, guestMode])
 
   // After composing a loop — soft-refresh newer posts instead of full page reload
   useEffect(() => {
     const onCreated = () => {
       void (async () => {
-        // Small delay so DB write is visible
         await new Promise((r) => setTimeout(r, 350))
         const newer = await fetchNewer({ silent: true, apply: true })
         if (!newer.length) await fetchLoops(true)
@@ -197,10 +193,11 @@ export function LoopFeed({ feedType = "personalized", showComposer = false }: Lo
 
   // Live inserts → banner (don't reshuffle the whole feed)
   useEffect(() => {
-    if (!user?.id) return
+    if (!user?.id && !guestMode) return
     const supabase = getSupabaseBrowserClient()
+    const channelKey = `feed-live:${feedType}:${user?.id || "guest"}`
     const channel = supabase
-      .channel(`feed-live:${feedType}:${user.id}`)
+      .channel(channelKey)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "loops" }, async () => {
         const newer = await fetchNewer({ silent: true })
         if (!newer.length) return
@@ -214,7 +211,7 @@ export function LoopFeed({ feedType = "personalized", showComposer = false }: Lo
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [user?.id, feedType, fetchNewer])
+  }, [user?.id, feedType, fetchNewer, guestMode])
 
   // Pull-to-refresh (touch)
   useEffect(() => {
@@ -245,10 +242,11 @@ export function LoopFeed({ feedType = "personalized", showComposer = false }: Lo
 
   const handleInteraction = async (loopId: string, type: "like" | "save") => {
     if (!authToken) {
+      // Parent LoopCard / login gate handles guest CTA when onInteraction is used from card;
+      // keep a soft toast here for feed-level handlers.
       toast({
-        title: "Authentication Required",
-        description: "Please log in to interact with loops",
-        variant: "destructive",
+        title: "Sign in required",
+        description: "Log in to like and save loops.",
       })
       return
     }
@@ -324,14 +322,16 @@ export function LoopFeed({ feedType = "personalized", showComposer = false }: Lo
   if (loops.length === 0) {
     return (
       <EmptyState
-        title="Your feed is ready"
+        title={guestMode ? "No public loops yet" : "Your feed is ready"}
         description={
-          feedType === "following"
-            ? "Follow creators to fill this tab, or check For You / Recent."
-            : "Create your first loop or explore trending stories to get started."
+          guestMode
+            ? "Check Explore or come back soon — creators are shipping."
+            : feedType === "following"
+              ? "Follow creators to fill this tab, or check For You / Recent."
+              : "Create your first loop or explore trending stories to get started."
         }
-        actionLabel="Create a loop"
-        actionHref="/create"
+        actionLabel={guestMode ? "Explore" : "Create a loop"}
+        actionHref={guestMode ? "/explore" : "/create"}
       />
     )
   }

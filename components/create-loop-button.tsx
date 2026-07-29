@@ -12,6 +12,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { supabase } from "@/lib/supabase"
 import { CODE_LANGUAGES } from "@/lib/pro-features"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
+import { useLoginGate } from "@/hooks/use-login-gate"
 import {
   Code,
   Crop,
@@ -19,6 +20,7 @@ import {
   FileText,
   Hash,
   ImageIcon,
+  LogIn,
   Mic,
   Music,
   Plus,
@@ -47,6 +49,7 @@ function makeCollabId() {
 export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateLoopButtonProps) {
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
+  const { requireAuth, isGuest, LoginGateDialog } = useLoginGate()
   const [isOpen, setIsOpen] = useState(defaultOpen)
   const [content, setContent] = useState("")
   const [hashtags, setHashtags] = useState("")
@@ -242,10 +245,8 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!user || !authToken) {
-      toast({ title: "Sign in required", description: "Log in to create a loop.", variant: "destructive" })
-      return
-    }
+    if (!requireAuth("post")) return
+    if (!user || !authToken) return
     setCreating(true)
     try {
       let res: Response
@@ -376,23 +377,40 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
 
   if (!isOpen) {
     return (
-      <Card className="cursor-pointer hover:bg-muted/50" onClick={() => setIsOpen(true)}>
-        <CardContent className="p-5">
-          <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-cyan-500">
-              <Plus className="h-5 w-5 text-white" />
+      <>
+        {LoginGateDialog}
+        <Card
+          className="cursor-pointer border-border/70 bg-card/60 transition hover:bg-muted/40"
+          onClick={() => {
+            if (!requireAuth("post")) return
+            setIsOpen(true)
+          }}
+        >
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-sky-600 to-violet-600">
+                {isGuest ? <LogIn className="h-5 w-5 text-white" /> : <Plus className="h-5 w-5 text-white" />}
+              </div>
+              <div>
+                <p className="text-muted-foreground">
+                  {isGuest
+                    ? "Sign in to post a loop"
+                    : `What's on your mind, ${user?.display_name || "friend"}?`}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isGuest ? "Browse freely — posting needs an account" : "Drafts auto-save as you type"}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-muted-foreground">What's on your mind, {user?.display_name}?</p>
-              <p className="text-xs text-muted-foreground">Drafts auto-save as you type</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </>
     )
   }
 
   return (
+    <>
+      {LoginGateDialog}
     <Card>
       <CardContent className="space-y-4 p-5">
         <div className="flex items-center justify-between">
@@ -648,5 +666,6 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
         }}
       />
     </Card>
+    </>
   )
 }

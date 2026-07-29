@@ -117,16 +117,18 @@ export async function GET(request: NextRequest) {
     const token = authHeader?.replace("Bearer ", "") ?? null
     const user = await getUserFromToken(token)
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
-    const type = searchParams.get("type") || "recent"
+    let type = searchParams.get("type") || "recent"
     const since = searchParams.get("since") // ISO timestamp — newer-only refresh
     const supabase = createServerClient()
+
+    // Guests may only browse public chronological / trending feeds
+    if (!user) {
+      if (type === "personalized" || type === "following") type = "trending"
+      if (type !== "trending" && type !== "recent") type = "recent"
+    }
 
     // X-style refresh: return only loops newer than `since`, chronological (no re-rank shuffle)
     if (since) {
@@ -135,11 +137,14 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Invalid since timestamp" }, { status: 400 })
       }
 
-      const { data: followingData } = await supabase
-        .from("follows")
-        .select("following_id")
-        .eq("follower_id", user.id)
-      const followingIds = (followingData || []).map((f) => f.following_id).filter(Boolean) as string[]
+      let followingIds: string[] = []
+      if (user) {
+        const { data: followingData } = await supabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id", user.id)
+        followingIds = (followingData || []).map((f) => f.following_id).filter(Boolean) as string[]
+      }
 
       let refreshQuery = supabase
         .from("loops")
@@ -163,6 +168,7 @@ export async function GET(request: NextRequest) {
             new_count: 0,
             type,
             algorithm: "since_refresh",
+            guest: !user,
           })
         }
         refreshQuery = refreshQuery.in("author_id", followingIds)
@@ -192,7 +198,7 @@ export async function GET(request: NextRequest) {
 
       const loops = data || []
       const interactionMap = new Map<string, string[]>()
-      if (loops.length > 0) {
+      if (user && loops.length > 0) {
         const { data: interactions } = await supabase
           .from("loop_interactions")
           .select("loop_id, interaction_type")
@@ -215,17 +221,25 @@ export async function GET(request: NextRequest) {
         new_count: normalizedLoops.length,
         type,
         algorithm: "since_refresh",
+        guest: !user,
         pagination: { limit, offset: 0, total: normalizedLoops.length },
       })
     }
 
-    const { data: followingData } = await supabase
-      .from("follows")
-      .select("following_id")
-      .eq("follower_id", user.id)
-    const followingIds = new Set(
-      (followingData || []).map((f) => f.following_id).filter(Boolean) as string[],
-    )
+    if (!user && (type === "following" || type === "personalized")) {
+      type = "trending"
+    }
+
+    const followingIds = new Set<string>()
+    if (user) {
+      const { data: followingData } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", user.id)
+      for (const f of followingData || []) {
+        if (f.following_id) followingIds.add(f.following_id)
+      }
+    }
 
     let authorIds: string[] | null = null
     let mode = type
@@ -284,10 +298,12 @@ export async function GET(request: NextRequest) {
 
     let loops = data || []
     const affinity =
-      type === "personalized" ? await buildHashtagAffinity(supabase, user.id) : new Map<string, number>()
+      type === "personalized" && user
+        ? await buildHashtagAffinity(supabase, user.id)
+        : new Map<string, number>()
 
     let ownPosts: typeof loops = []
-    if (type === "personalized") {
+    if (type === "personalized" && user) {
       const { data: mine } = await supabase
         .from("loops")
         .select(`
@@ -311,6 +327,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (useSmartRank) {
+      const userId = user?.id || ""
       const ranked = [...loops]
         .map((loop) => ({
           loop,
@@ -318,7 +335,7 @@ export async function GET(request: NextRequest) {
             smartEngagementScore(loop) +
             hashtagAffinityBonus(loop, affinity) +
             followingBoost(loop, followingIds) +
-            (loop.author_id === user.id ? 10 : 0),
+            (userId && loop.author_id === userId ? 10 : 0),
         }))
         .sort((a, b) => b.score - a.score)
         .map((row) => ({ ...row.loop, _rank_score: row.score }))
@@ -329,7 +346,7 @@ export async function GET(request: NextRequest) {
       for (const loop of ranked) {
         const author = loop.author_id
         const streak = recentAuthors.filter((id) => id === author).length
-        if (streak >= 2 && diversified.length < limit * 3 && loop.author_id !== user.id) {
+        if (streak >= 2 && diversified.length < limit * 3 && (!userId || loop.author_id !== userId)) {
           continue
         }
         diversified.push(loop)
@@ -345,7 +362,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      if (type === "personalized") {
+      if (type === "personalized" && user) {
         const scoredOwn = ownPosts.map((loop) => ({
           ...loop,
           _rank_score: smartEngagementScore(loop) + 10,
@@ -360,7 +377,7 @@ export async function GET(request: NextRequest) {
     }
 
     const interactionMap = new Map<string, string[]>()
-    if (loops.length > 0) {
+    if (user && loops.length > 0) {
       const { data: interactions } = await supabase
         .from("loop_interactions")
         .select("loop_id, interaction_type")
@@ -423,6 +440,7 @@ export async function GET(request: NextRequest) {
       hasMore: normalizedLoops.length === limit,
       type: mode,
       algorithm: useSmartRank ? (type === "personalized" ? "smart_rank_mixed_v1" : "smart_rank_v1") : "chronological",
+      guest: !user,
       pagination: { limit, offset, total: normalizedLoops.length },
     })
   } catch (error: any) {
