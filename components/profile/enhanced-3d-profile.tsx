@@ -88,7 +88,6 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const [isFollowing, setIsFollowing] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
   const [showGiftModal, setShowGiftModal] = useState(false)
-  const [live, setLive] = useState(false)
 
   const fetchProfile = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true)
@@ -143,7 +142,6 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         "postgres_changes",
         { event: "*", schema: "public", table: "profiles", filter: `id=eq.${profile.id}` },
         () => {
-          setLive(true)
           void fetchProfile({ silent: true })
         },
       )
@@ -151,7 +149,6 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "loops", filter: `author_id=eq.${profile.id}` },
         () => {
-          setLive(true)
           void fetchProfile({ silent: true })
         },
       )
@@ -159,17 +156,13 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         "postgres_changes",
         { event: "*", schema: "public", table: "follows", filter: `following_id=eq.${profile.id}` },
         () => {
-          setLive(true)
           void fetchProfile({ silent: true })
         },
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") setLive(true)
-      })
+      .subscribe()
 
     return () => {
       void supabase.removeChannel(channel)
-      setLive(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id])
@@ -407,11 +400,6 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               )}
             </div>
             <p className="text-muted-foreground">@{profile.username}</p>
-            {live && (
-              <Badge variant="outline" className="mt-1 rounded-full border-emerald-500/40 text-[10px] text-emerald-500">
-                Live
-              </Badge>
-            )}
           </div>
 
           <p className="whitespace-pre-wrap text-[15px] leading-relaxed">

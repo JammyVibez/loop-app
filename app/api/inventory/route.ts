@@ -12,6 +12,23 @@ async function getUserFromToken(token: string) {
   return user
 }
 
+function mapItem(row: any, shop: any) {
+  return {
+    id: row.id,
+    item_id: row.item_id,
+    item_type: row.item_type || shop?.item_type || shop?.category || "item",
+    item_name: shop?.name || "Item",
+    item_data: shop?.item_data || {},
+    preview_data: shop?.preview_data || {},
+    rarity: shop?.rarity || "common",
+    category: shop?.category || row.item_type,
+    is_active: Boolean(row.is_active),
+    purchased_at: row.acquired_at,
+    acquired_at: row.acquired_at,
+    shop_item: shop || null,
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -24,35 +41,29 @@ export async function GET(request: NextRequest) {
     const limit = Number.parseInt(searchParams.get("limit") || "50")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
 
+    // Prefer plain inventory rows — join via FK can fail if schema cache is stale
     const { data: inventory, error } = await supabase
       .from("user_inventory")
-      .select(`*, shop_item:shop_items(*)`)
+      .select("id, user_id, item_id, item_type, is_active, acquired_at")
       .eq("user_id", user.id)
       .order("acquired_at", { ascending: false })
       .range(offset, offset + limit - 1)
 
     if (error) {
-      console.error("Database error:", error)
-      return NextResponse.json({ error: "Failed to fetch inventory" }, { status: 500 })
+      console.error("Inventory query error:", error)
+      return NextResponse.json({ error: error.message || "Failed to fetch inventory" }, { status: 500 })
     }
 
-    const items = (inventory || []).map((row: any) => {
-      const shop = Array.isArray(row.shop_item) ? row.shop_item[0] : row.shop_item
-      return {
-        id: row.id,
-        item_id: row.item_id,
-        item_type: row.item_type || shop?.item_type || shop?.category || "item",
-        item_name: shop?.name || "Item",
-        item_data: shop?.item_data || {},
-        preview_data: shop?.preview_data || {},
-        rarity: shop?.rarity || "common",
-        category: shop?.category || row.item_type,
-        is_active: Boolean(row.is_active),
-        purchased_at: row.acquired_at,
-        acquired_at: row.acquired_at,
-        shop_item: shop || null,
-      }
-    })
+    const rows = inventory || []
+    const itemIds = Array.from(new Set(rows.map((r) => r.item_id).filter(Boolean)))
+
+    let shopById = new Map<string, any>()
+    if (itemIds.length > 0) {
+      const { data: shops } = await supabase.from("shop_items").select("*").in("id", itemIds)
+      for (const shop of shops || []) shopById.set(shop.id, shop)
+    }
+
+    const items = rows.map((row) => mapItem(row, shopById.get(row.item_id) || null))
 
     return NextResponse.json({
       success: true,
