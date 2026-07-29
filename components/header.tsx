@@ -170,6 +170,12 @@ export function Header() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
+                <Link href="/premium">
+                  <Crown className="mr-2 h-4 w-4 text-amber-500" />
+                  <span>{user.is_premium ? "Loop Pro" : "Get Pro · $3.99"}</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
                 <Link href="/circles">
                   <Sparkles className="mr-2 h-4 w-4" />
                   <span>Circles</span>
