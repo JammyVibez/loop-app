@@ -17,6 +17,19 @@ import { checkEnvironmentVariables, logEnvironmentStatus, validateEnvironment } 
 
 const inter = Inter({ subsets: ["latin"] })
 
+const SITE_URL = "https://loop-app-xi.vercel.app"
+const SITE_TITLE = "Loop - Social Media Reimagined"
+const SITE_DESCRIPTION =
+  "Connect, create, and collaborate in the Loop ecosystem with stunning 3D effects"
+const OG_IMAGE_URL = "https://i.ibb.co/nsmk7mS2/grok-1785451308937.jpg"
+const OG_IMAGE = {
+  url: OG_IMAGE_URL,
+  width: 1168,
+  height: 784,
+  alt: SITE_TITLE,
+  type: "image/jpeg",
+} as const
+
 // ✅ Moved themeColor + viewport here
 export const generateViewport = (): Viewport => ({
   themeColor: "#6366f1",
@@ -26,26 +39,42 @@ export const generateViewport = (): Viewport => ({
 })
 
 export const metadata: Metadata = {
-  title: "Loop - Social Media Reimagined",
-  description: "Connect, create, and collaborate in the Loop ecosystem with stunning 3D effects",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: SITE_TITLE,
+    template: "%s | Loop",
+  },
+  description: SITE_DESCRIPTION,
   generator: "_Halal_",
+  applicationName: "Loop",
   manifest: "/manifest.json",
   keywords: ["social media", "3D", "loops", "community", "gamification"],
   authors: [{ name: "Loop Team" }],
-  openGraph: {
-    title: "Loop - Social Media Reimagined",
-    description: "Connect, create, and collaborate in the Loop ecosystem with stunning 3D effects",
-    type: "website",
-    locale: "en_US",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Loop - Social Media Reimagined",
-    description: "Connect, create, and collaborate in the Loop ecosystem with stunning 3D effects",
+  alternates: {
+    canonical: SITE_URL,
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
+  openGraph: {
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    siteName: "Loop",
+    type: "website",
+    locale: "en_US",
+    images: [OG_IMAGE],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [OG_IMAGE],
   },
 }
 
