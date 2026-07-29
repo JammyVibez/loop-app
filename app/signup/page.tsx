@@ -50,7 +50,7 @@ export default function SignupPage() {
 
     try {
       await signup(email, password, username, displayName)
-      router.push(`/verify-email?email=${encodeURIComponent(email)}`)
+      router.push("/onboarding")
     } catch (err: any) {
       setError(err.message || "Failed to create account")
     } finally {

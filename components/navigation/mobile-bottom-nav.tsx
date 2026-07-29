@@ -2,14 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Compass, Video, MessageCircle, User } from "lucide-react"
+import { Home, Search, Video, MessageCircle, User } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 
 const items = [
   { href: "/", icon: Home, label: "Home" },
-  { href: "/explore", icon: Compass, label: "Explore" },
+  { href: "/search", icon: Search, label: "Search" },
   { href: "/reels", icon: Video, label: "Reels" },
   { href: "/messages", icon: MessageCircle, label: "Chat" },
 ]

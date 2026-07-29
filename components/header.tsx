@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -32,12 +33,13 @@ function LogoMark() {
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("")
   const { user, logout } = useAuth()
+  const router = useRouter()
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    if (searchQuery.trim()) {
-      window.location.href = `/search/${encodeURIComponent(searchQuery.trim())}`
-    }
+    const q = searchQuery.trim()
+    if (q) router.push(`/search/${encodeURIComponent(q)}`)
+    else router.push("/search")
   }
 
   const handleLogout = async () => {
@@ -188,9 +190,9 @@ export function Header() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/explore">
+                <Link href="/search">
                   <Search className="mr-2 h-4 w-4" />
-                  <span>Explore</span>
+                  <span>Search</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>

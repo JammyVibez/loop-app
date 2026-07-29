@@ -1,136 +1,60 @@
 "use client"
 
-import type React from "react"
-import { use, useState, useEffect } from "react"
+import { use, useState } from "react"
+import { useRouter } from "next/navigation"
+import { Search } from "lucide-react"
 import { Header } from "@/components/header"
+import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav"
 import { SearchResults } from "@/components/search/search-results"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 
 interface SearchPageProps {
-  params: Promise<{
-    query: string
-  }>
+  params: Promise<{ query: string }>
 }
 
-export default function SearchPage({ params }: SearchPageProps) {
+export default function SearchQueryPage({ params }: SearchPageProps) {
   const { query } = use(params)
   const decodedQuery = decodeURIComponent(query)
   const [searchQuery, setSearchQuery] = useState(decodedQuery)
-  const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
-  useEffect(() => {
-    setSearchQuery(decodedQuery)
-    performSearch(decodedQuery)
-  }, [decodedQuery])
-
-  const performSearch = async (searchTerm: string) => {
-    setLoading(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    // Filter results based on search term
-    const filteredResults = {
-      loops: mockSearchResults.loops.filter(
-        (loop) =>
-          loop.content.text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          loop.author.display_name.toLowerCase().includes(searchTerm.toLowerCase()),
-      ),
-      users: mockSearchResults.users.filter(
-        (user) =>
-          user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.bio.toLowerCase().includes(searchTerm.toLowerCase()),
-      ),
-      hashtags: mockSearchResults.hashtags.filter((hashtag) =>
-        hashtag.tag.toLowerCase().includes(searchTerm.toLowerCase()),
-      ),
-    }
-
-    setResults(filteredResults)
-    setLoading(false)
-  }
-
-  const handleSearch = (e: React.FormEvent) => {
+  const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (searchQuery.trim()) {
-      window.history.pushState({}, "", `/search/${encodeURIComponent(searchQuery.trim())}`)
-      performSearch(searchQuery.trim())
-    }
+    const q = searchQuery.trim()
+    if (!q) return
+    router.push(`/search/${encodeURIComponent(q)}`)
   }
-
-  const formatNumber = (num: number) => {
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + "k"
-    }
-    return num.toString()
-  }
-
-  // Mock search results
-  const mockSearchResults = {
-    loops: [
-      {
-        id: "search-1",
-        author: {
-          id: "1",
-          username: "storyteller",
-          display_name: "Story Teller",
-          avatar_url: "/placeholder.svg?height=40&width=40",
-          is_verified: true,
-          verification_level: "influencer" as const,
-          is_premium: true,
-        },
-        content: {
-          type: "text" as const,
-          text: "Building a React component library with TypeScript. Here's my approach to creating reusable components... #react #typescript #webdev",
-        },
-        created_at: new Date("2024-01-15T10:30:00Z"),
-        stats: { likes: 234, branches: 12, comments: 45, saves: 67 },
-      },
-    ],
-    users: [
-      {
-        id: "1",
-        username: "reactdev",
-        display_name: "React Developer",
-        avatar_url: "/placeholder.svg?height=40&width=40",
-        bio: "Building amazing React applications",
-        followers: 1234,
-        is_verified: true,
-        is_premium: false,
-      },
-      {
-        id: "2",
-        username: "typescriptpro",
-        display_name: "TypeScript Pro",
-        avatar_url: "/placeholder.svg?height=40&width=40",
-        bio: "TypeScript enthusiast and educator",
-        followers: 567,
-        is_verified: false,
-        is_premium: true,
-      },
-    ],
-    hashtags: [
-      { tag: "react", count: 15420 },
-      { tag: "typescript", count: 8930 },
-      { tag: "webdev", count: 12340 },
-      { tag: "javascript", count: 20150 },
-    ],
-  }
-
-  const [results, setResults] = useState(mockSearchResults)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="min-h-screen bg-background pb-[4.25rem] lg:pb-0">
       <Header />
-      <main className="container mx-auto px-4 py-6 max-w-4xl">
-        <div className="space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold">Search Results</h1>
-            <p className="text-gray-600 dark:text-gray-400">Results for "{decodedQuery}"</p>
-          </div>
-
-          <SearchResults query={decodedQuery} />
+      <main className="mx-auto max-w-3xl space-y-6 px-4 py-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Search</h1>
+          <p className="text-sm text-muted-foreground">People, loops, hashtags, and communities</p>
         </div>
+
+        <form onSubmit={submit} className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search @users, keywords, #tags…"
+              className="rounded-full pl-9"
+            />
+          </div>
+          <Button type="submit" className="rounded-full">
+            Search
+          </Button>
+        </form>
+
+        <SearchResults query={decodedQuery} />
       </main>
+      <div className="lg:hidden">
+        <MobileBottomNav />
+      </div>
     </div>
   )
 }

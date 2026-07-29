@@ -125,7 +125,99 @@ export async function GET(request: NextRequest) {
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
     const type = searchParams.get("type") || "recent"
+    const since = searchParams.get("since") // ISO timestamp — newer-only refresh
     const supabase = createServerClient()
+
+    // X-style refresh: return only loops newer than `since`, chronological (no re-rank shuffle)
+    if (since) {
+      const sinceDate = new Date(since)
+      if (Number.isNaN(sinceDate.getTime())) {
+        return NextResponse.json({ error: "Invalid since timestamp" }, { status: 400 })
+      }
+
+      const { data: followingData } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", user.id)
+      const followingIds = (followingData || []).map((f) => f.following_id).filter(Boolean) as string[]
+
+      let refreshQuery = supabase
+        .from("loops")
+        .select(`
+          *,
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, level),
+          loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
+        `)
+        .is("parent_loop_id", null)
+        .eq("visibility", "public")
+        .gt("created_at", sinceDate.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(Math.min(limit, 50))
+
+      if (type === "following") {
+        if (!followingIds.length) {
+          return NextResponse.json({
+            success: true,
+            loops: [],
+            hasMore: false,
+            new_count: 0,
+            type,
+            algorithm: "since_refresh",
+          })
+        }
+        refreshQuery = refreshQuery.in("author_id", followingIds)
+      }
+
+      let { data, error } = await refreshQuery
+      if (error && (/level|PGRST204/i.test(error.message || "") || error.code === "PGRST204")) {
+        let fallback = supabase
+          .from("loops")
+          .select(`
+            *,
+            author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+            loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
+          `)
+          .is("parent_loop_id", null)
+          .eq("visibility", "public")
+          .gt("created_at", sinceDate.toISOString())
+          .order("created_at", { ascending: false })
+          .limit(Math.min(limit, 50))
+        if (type === "following" && followingIds.length) {
+          fallback = fallback.in("author_id", followingIds)
+        }
+        ;({ data, error } = await fallback)
+      }
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+      const loops = data || []
+      const interactionMap = new Map<string, string[]>()
+      if (loops.length > 0) {
+        const { data: interactions } = await supabase
+          .from("loop_interactions")
+          .select("loop_id, interaction_type")
+          .eq("user_id", user.id)
+          .in(
+            "loop_id",
+            loops.map((loop) => loop.id),
+          )
+        interactions?.forEach((interaction) => {
+          if (!interactionMap.has(interaction.loop_id)) interactionMap.set(interaction.loop_id, [])
+          interactionMap.get(interaction.loop_id)?.push(interaction.interaction_type)
+        })
+      }
+
+      const normalizedLoops = normalizeLoops(loops, interactionMap)
+      return NextResponse.json({
+        success: true,
+        loops: normalizedLoops,
+        hasMore: false,
+        new_count: normalizedLoops.length,
+        type,
+        algorithm: "since_refresh",
+        pagination: { limit, offset: 0, total: normalizedLoops.length },
+      })
+    }
 
     const { data: followingData } = await supabase
       .from("follows")

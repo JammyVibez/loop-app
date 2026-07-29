@@ -54,25 +54,26 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
       const missingIdentity = !user.username?.trim()
       const incomplete = user.onboarding_completed === false
 
-      // Stay on the email-confirmed success page so the user can continue deliberately
-      if (pathname === "/email-confirmed" && incomplete) {
-        setRedirecting(false)
+      // Legacy verify pages → onboarding
+      if (pathname === "/verify-email" || pathname === "/email-confirmed") {
+        setRedirecting(true)
+        router.replace(incomplete ? "/onboarding" : "/")
         return
       }
 
-      if (incomplete && missingIdentity && pathname !== "/onboarding" && pathname !== "/email-confirmed") {
+      if (incomplete && missingIdentity && pathname !== "/onboarding") {
         setRedirecting(true)
         router.replace("/onboarding")
         return
       }
 
-      if (incomplete && isAuthEntry && pathname !== "/email-confirmed") {
+      if (incomplete && isAuthEntry) {
         setRedirecting(true)
         router.replace("/onboarding")
         return
       }
 
-      if (user.onboarding_completed === true && (pathname === "/onboarding" || pathname === "/email-confirmed")) {
+      if (user.onboarding_completed === true && pathname === "/onboarding") {
         setRedirecting(true)
         router.replace("/")
         return

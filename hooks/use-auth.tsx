@@ -323,6 +323,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!response.ok) {
       throw new Error(data.error || "Signup failed")
     }
+
+    if (data.need_login) {
+      await login(email, password)
+      return
+    }
+
+    if (data.session?.access_token && data.session?.refresh_token) {
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      })
+      if (sessionError) {
+        throw new Error(sessionError.message || "Could not establish session")
+      }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (session?.user) {
+        const profile = data.user || (await fetchProfileViaApi(session.access_token))
+        setUser(mapSessionUser(session, profile || buildFallbackProfile(session.user)))
+        setLoading(false)
+      } else {
+        await hydrateSessionUser()
+        setLoading(false)
+      }
+    }
   }
 
   const logout = async () => {

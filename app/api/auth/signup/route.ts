@@ -1,11 +1,11 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getAppUrl } from "@/lib/app-url";
+import { type NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
+import { getAppUrl } from "@/lib/app-url"
 import { ECONOMY_DEFAULTS } from "@/lib/economy"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 )
 
 function normalizeUsername(username: string) {
@@ -49,37 +49,38 @@ export async function POST(request: NextRequest) {
       full_name: displayName,
     }
 
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // Skip email verification for now — auto-confirm and send users to onboarding
+    let createdUser: { id: string } | null = null
+
+    const { data: adminData, error: adminError } = await supabase.auth.admin.createUser({
       email,
       password,
-      options: {
-        data: metadata,
-        emailRedirectTo: `${getAppUrl(request)}/api/auth/callback?next=/email-confirmed`,
-      },
+      email_confirm: true,
+      user_metadata: metadata,
     })
 
-    let createdUser = authData.user
+    if (!adminError && adminData.user) {
+      createdUser = adminData.user
+    } else {
+      // Fallback: signUp then force-confirm
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: metadata,
+          emailRedirectTo: `${getAppUrl(request)}/api/auth/callback?next=/onboarding`,
+        },
+      })
 
-    if (authError) {
-      const isDev = process.env.NODE_ENV !== "production"
-      const isRateLimited = authError.message.toLowerCase().includes("rate limit")
-
-      if (isDev && isRateLimited) {
-        const { data: adminData, error: adminError } = await supabase.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: metadata,
-        })
-
-        if (adminError) {
-          return NextResponse.json({ error: adminError.message }, { status: 400 })
-        }
-
-        createdUser = adminData.user ?? null
-      } else {
-        return NextResponse.json({ error: authError.message }, { status: 400 })
+      if (authError || !authData.user) {
+        return NextResponse.json(
+          { error: adminError?.message || authError?.message || "Failed to create user" },
+          { status: 400 },
+        )
       }
+
+      await supabase.auth.admin.updateUserById(authData.user.id, { email_confirm: true })
+      createdUser = authData.user
     }
 
     if (!createdUser) {
@@ -126,19 +127,43 @@ export async function POST(request: NextRequest) {
       } else {
         console.error("Profile creation failed after auth signup:", profileError)
         return NextResponse.json(
-          { error: "Account was created but profile setup failed. Please contact support or retry profile setup after login." },
+          {
+            error:
+              "Account was created but profile setup failed. Please contact support or retry profile setup after login.",
+          },
           { status: 500 },
         )
       }
     }
 
+    // Establish session immediately so client can continue to onboarding
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (signInError || !signInData.session) {
+      console.error("Post-signup sign-in failed:", signInError?.message)
+      return NextResponse.json({
+        message: "Account created. Please sign in to continue.",
+        need_login: true,
+        user: {
+          id: createdUser.id,
+          email,
+          username: cleanUsername,
+          display_name: displayName,
+        },
+      })
+    }
+
     return NextResponse.json({
-      message: "Account created successfully. Please check your email to verify your account.",
+      message: "Account created successfully",
+      session: signInData.session,
       user: {
-        id: createdUser.id,
-        email,
+        ...signInData.user,
         username: cleanUsername,
         display_name: displayName,
+        onboarding_completed: false,
       },
     })
   } catch (error: any) {

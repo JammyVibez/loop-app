@@ -80,10 +80,7 @@ export default function HomePage() {
             <div className="mb-2">
               <CreateLoopButton
                 onLoopCreated={() => {
-                  window.dispatchEvent(new Event("loop-created"))
-                  setTimeout(() => {
-                    if (typeof window !== "undefined") window.location.reload()
-                  }, 400)
+                  window.dispatchEvent(new CustomEvent("loop-created"))
                 }}
               />
             </div>

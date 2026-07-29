@@ -100,11 +100,10 @@ export async function GET(request: NextRequest) {
     }
 
     const profile = await ensureProfile(data.user)
-    // Prefer explicit next (e.g. reset-password, email-confirmed).
-    // New email signups land on /email-confirmed, then continue to onboarding.
+    // Prefer explicit next. Default incomplete users to onboarding (email verify paused).
     const destination =
       nextPath ||
-      (profile?.onboarding_completed ? "/" : "/email-confirmed")
+      (profile?.onboarding_completed ? "/" : "/onboarding")
     const response = NextResponse.redirect(new URL(destination, request.url))
 
     pendingCookies.forEach(({ name, value, options }) => response.cookies.set(name, value, options))

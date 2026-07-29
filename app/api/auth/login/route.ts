@@ -84,6 +84,29 @@ export async function POST(request: NextRequest) {
 
     if (authError) {
       console.error("Auth error:", authError)
+      // Auto-confirm legacy unconfirmed accounts so login works while email verify is paused
+      const msg = (authError.message || "").toLowerCase()
+      if (msg.includes("email not confirmed") || msg.includes("confirm")) {
+        const { data: profileRow } = await serviceSupabase
+          .from("profiles")
+          .select("id")
+          .eq("email", email)
+          .maybeSingle()
+        if (profileRow?.id) {
+          await serviceSupabase.auth.admin.updateUserById(profileRow.id, { email_confirm: true })
+          const retry = await supabase.auth.signInWithPassword({ email, password })
+          if (!retry.error && retry.data.session && retry.data.user) {
+            const profile = await ensureProfile(retry.data.user)
+            const response = NextResponse.json({
+              message: "Login successful",
+              session: retry.data.session,
+              user: { ...retry.data.user, ...profile },
+            })
+            pendingCookies.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
+            return response
+          }
+        }
+      }
       return NextResponse.json({ error: authError.message }, { status: 400 })
     }
 
@@ -92,11 +115,25 @@ export async function POST(request: NextRequest) {
     }
 
     if (!authData.session) {
+      // Last-resort: confirm email then sign in again
+      try {
+        await serviceSupabase.auth.admin.updateUserById(authData.user.id, { email_confirm: true })
+        const retry = await supabase.auth.signInWithPassword({ email, password })
+        if (retry.data.session && retry.data.user) {
+          const profile = await ensureProfile(retry.data.user)
+          const response = NextResponse.json({
+            message: "Login successful",
+            session: retry.data.session,
+            user: { ...retry.data.user, ...profile },
+          })
+          pendingCookies.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
+          return response
+        }
+      } catch (e) {
+        console.error("Auto-confirm login failed:", e)
+      }
       return NextResponse.json(
-        {
-          error: "Email confirmation required. Check your inbox, then sign in again.",
-          code: "email_not_confirmed",
-        },
+        { error: "Could not start session. Please try again.", code: "email_not_confirmed" },
         { status: 403 },
       )
     }

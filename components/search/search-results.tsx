@@ -1,16 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { Hash, Users, GitBranch, Search, Loader2, Circle } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
-import { Hash, Users, GitBranch, Search } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
-import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { normalizeLoops } from "@/lib/normalize-loop"
 
 interface SearchResultsProps {
   query: string
@@ -20,45 +21,50 @@ export function SearchResults({ query }: SearchResultsProps) {
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set())
-  const [searchResults, setSearchResults] = useState<{ loops: any[]; users: any[]; hashtags: any[] }>({
-    loops: [],
-    users: [],
-    hashtags: [],
-  })
+  const [searchResults, setSearchResults] = useState<{
+    loops: any[]
+    users: any[]
+    hashtags: any[]
+    circles: any[]
+  }>({ loops: [], users: [], hashtags: [], circles: [] })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const performSearch = async () => {
-      if (!query.trim()) return
+      if (!query.trim()) {
+        setSearchResults({ loops: [], users: [], hashtags: [], circles: [] })
+        setLoading(false)
+        return
+      }
       setLoading(true)
 
       try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=24`, {
           headers: { ...getAuthHeader() },
           cache: "no-store",
         })
+        const data = await response.json().catch(() => ({}))
+
         if (response.ok) {
-          const data = await response.json()
-          const users = data.users || []
-          setSearchResults({
-            loops: data.loops || [],
-            users,
-            hashtags: data.hashtags || [],
-          })
+          const nested = data.results || {}
+          const users = data.users || nested.users || []
+          const loops = normalizeLoops(data.loops || nested.loops || [])
+          const hashtags = data.hashtags || nested.hashtags || []
+          const circles = data.circles || nested.circles || []
+          setSearchResults({ loops, users, hashtags, circles })
           if (user) {
             setFollowedUsers(new Set(users.filter((p: any) => p.is_following).map((p: any) => p.id)))
           }
         } else {
-          // Fallback lightweight profile search via users API
           const usersRes = await fetch(`/api/users?q=${encodeURIComponent(query)}&limit=20`, {
             headers: { ...getAuthHeader() },
           })
           const usersData = usersRes.ok ? await usersRes.json() : { users: [] }
-          const users = usersData.users || usersData.data || []
           setSearchResults({
             loops: [],
-            users,
+            users: usersData.users || usersData.data || [],
             hashtags: [],
+            circles: [],
           })
         }
       } catch (error) {
@@ -113,227 +119,237 @@ export function SearchResults({ query }: SearchResultsProps) {
   }
 
   const formatNumber = (num: number) => {
+    if (!num) return "0"
     if (num >= 1000) return (num / 1000).toFixed(1) + "K"
-    return num.toString()
-  }
-
-  const getVerificationBadge = (user: any) => {
-    if (!user.is_verified) return null
-    return (
-      <Badge
-        variant="secondary"
-        className={`${
-          user.verification_level === "root"
-            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-            : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-        }`}
-      >
-        {user.verification_level === "root" ? "🌱 Root" : "⭐ Verified"}
-      </Badge>
-    )
+    return String(num)
   }
 
   if (loading) {
-    return <div className="flex justify-center p-8">Searching...</div>
+    return (
+      <div className="flex justify-center py-16 text-muted-foreground">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        Searching…
+      </div>
+    )
+  }
+
+  const empty =
+    !searchResults.loops.length &&
+    !searchResults.users.length &&
+    !searchResults.hashtags.length &&
+    !searchResults.circles.length
+
+  if (empty) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border/60 px-6 py-16 text-center">
+        <Search className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
+        <p className="font-medium">No results for “{query}”</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Try a username, a keyword, or a #hashtag
+        </p>
+      </div>
+    )
   }
 
   return (
     <Tabs defaultValue="all" className="w-full">
-      <TabsList className="grid w-full grid-cols-4">
+      <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-5">
         <TabsTrigger value="all">All</TabsTrigger>
-        <TabsTrigger value="loops" className="flex items-center space-x-2">
-          <GitBranch className="w-4 h-4" />
-          <span>Loops ({searchResults.loops.length})</span>
+        <TabsTrigger value="users" className="gap-1">
+          <Users className="h-3.5 w-3.5" /> People ({searchResults.users.length})
         </TabsTrigger>
-        <TabsTrigger value="users" className="flex items-center space-x-2">
-          <Users className="w-4 h-4" />
-          <span>Users ({searchResults.users.length})</span>
+        <TabsTrigger value="loops" className="gap-1">
+          <GitBranch className="h-3.5 w-3.5" /> Loops ({searchResults.loops.length})
         </TabsTrigger>
-        <TabsTrigger value="hashtags" className="flex items-center space-x-2">
-          <Hash className="w-4 h-4" />
-          <span>Hashtags ({searchResults.hashtags.length})</span>
+        <TabsTrigger value="hashtags" className="gap-1">
+          <Hash className="h-3.5 w-3.5" /> Tags ({searchResults.hashtags.length})
+        </TabsTrigger>
+        <TabsTrigger value="circles" className="gap-1">
+          <Circle className="h-3.5 w-3.5" /> Circles ({searchResults.circles.length})
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="all" className="mt-6">
-        <div className="space-y-8">
-          {/* Top Results */}
-          {searchResults.users.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold mb-4">People</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {searchResults.users.slice(0, 2).map((user: any) => (
-                  <Card key={user.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <Link href={`/profile/${user.username}`} className="flex items-center space-x-3 flex-1">
-                          <Avatar className="w-12 h-12">
-                            <AvatarImage src={user.avatar_url || "/placeholder.svg"} />
-                            <AvatarFallback>{user.display_name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2">
-                              <h4 className="font-semibold truncate">{user.display_name}</h4>
-                              {getVerificationBadge(user)}
-                            </div>
-                            <p className="text-sm text-gray-500">@{user.username}</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{user.bio}</p>
-                            <div className="flex items-center space-x-4 mt-1">
-                              <span className="text-xs text-gray-500">
-                                {formatNumber(user.followers?.[0]?.count || 0)} followers
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {formatNumber(user.following?.[0]?.count || 0)} following
-                              </span>
-                            </div>
-                          </div>
-                        </Link>
-                        <Button
-                          variant={followedUsers.has(user.id) ? "outline" : "default"}
-                          size="sm"
-                          onClick={() => handleFollow(user.id)}
-                        >
-                          {followedUsers.has(user.id) ? "Following" : "Follow"}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+      <TabsContent value="all" className="mt-6 space-y-8">
+        {searchResults.users.length > 0 && (
+          <section>
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">People</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {searchResults.users.slice(0, 4).map((person: any) => (
+                <PersonRow
+                  key={person.id}
+                  person={person}
+                  following={followedUsers.has(person.id)}
+                  onFollow={() => void handleFollow(person.id)}
+                  formatNumber={formatNumber}
+                />
+              ))}
             </div>
-          )}
+          </section>
+        )}
 
-          {/* Loops */}
-          {searchResults.loops.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Loops</h3>
-              <div className="space-y-4">
-                {searchResults.loops.slice(0, 3).map((loop: any) => (
-                  <LoopCard key={loop.id} loop={loop} />
-                ))}
-              </div>
+        {searchResults.loops.length > 0 && (
+          <section>
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Loops</h3>
+            <div className="space-y-4">
+              {searchResults.loops.slice(0, 5).map((loop: any) => (
+                <LoopCard key={loop.id} loop={loop} />
+              ))}
             </div>
-          )}
+          </section>
+        )}
 
-          {/* Hashtags */}
-          {searchResults.hashtags.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Hashtags</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {searchResults.hashtags.slice(0, 3).map((hashtag: any) => (
-                  <Link key={hashtag.tag} href={`/hashtag/${hashtag.tag}`}>
-                    <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                      <CardContent className="p-4 text-center">
-                        <Hash className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-                        <h4 className="font-semibold">#{hashtag.tag}</h4>
-                        <p className="text-sm text-gray-500">
-                          {formatNumber(hashtag.loop_count?.[0]?.count || 0)} loops
-                        </p>
-                        {hashtag.is_trending && <Badge className="mt-2 bg-green-100 text-green-700">🔥 Trending</Badge>}
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
+        {searchResults.hashtags.length > 0 && (
+          <section>
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Hashtags</h3>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {searchResults.hashtags.slice(0, 6).map((hashtag: any) => (
+                <HashtagCard key={hashtag.tag} hashtag={hashtag} formatNumber={formatNumber} />
+              ))}
             </div>
-          )}
-        </div>
-      </TabsContent>
+          </section>
+        )}
 
-      <TabsContent value="loops" className="mt-6">
-        {searchResults.loops.length > 0 ? (
-          <div className="space-y-4">
-            {searchResults.loops.map((loop: any) => (
-              <LoopCard key={loop.id} loop={loop} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-600 mb-2">No loops found</h3>
-            <p className="text-gray-500">Try searching with different keywords</p>
-          </div>
+        {searchResults.circles.length > 0 && (
+          <section>
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Communities</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {searchResults.circles.slice(0, 4).map((circle: any) => (
+                <CircleCard key={circle.id} circle={circle} formatNumber={formatNumber} />
+              ))}
+            </div>
+          </section>
         )}
       </TabsContent>
 
-      <TabsContent value="users" className="mt-6">
-        {searchResults.users.length > 0 ? (
-          <div className="space-y-4">
-            {searchResults.users.map((user: any) => (
-              <Card key={user.id}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <Link href={`/profile/${user.username}`} className="flex items-center space-x-4 flex-1">
-                      <Avatar className="w-16 h-16">
-                        <AvatarImage src={user.avatar_url || "/placeholder.svg"} />
-                        <AvatarFallback className="text-xl">{user.display_name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <h3 className="text-xl font-semibold">{user.display_name}</h3>
-                          {getVerificationBadge(user)}
-                          {user.is_premium && (
-                            <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">Premium</Badge>
-                          )}
-                        </div>
-                        <p className="text-gray-600 dark:text-gray-400 mb-1">@{user.username}</p>
-                        <p className="text-gray-700 dark:text-gray-300 mb-3">{user.bio}</p>
-                        <div className="flex items-center space-x-6">
-                          <span className="text-sm">
-                            <strong>{formatNumber(user.followers?.[0]?.count || 0)}</strong> followers
-                          </span>
-                          <span className="text-sm">
-                            <strong>{formatNumber(user.following?.[0]?.count || 0)}</strong> following
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
-                    <Button
-                      variant={followedUsers.has(user.id) ? "outline" : "default"}
-                      onClick={() => handleFollow(user.id)}
-                    >
-                      {followedUsers.has(user.id) ? "Following" : "Follow"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-600 mb-2">No users found</h3>
-            <p className="text-gray-500">Try searching with different keywords</p>
-          </div>
-        )}
+      <TabsContent value="users" className="mt-6 space-y-3">
+        {searchResults.users.map((person: any) => (
+          <PersonRow
+            key={person.id}
+            person={person}
+            following={followedUsers.has(person.id)}
+            onFollow={() => void handleFollow(person.id)}
+            formatNumber={formatNumber}
+            large
+          />
+        ))}
+      </TabsContent>
+
+      <TabsContent value="loops" className="mt-6 space-y-4">
+        {searchResults.loops.map((loop: any) => (
+          <LoopCard key={loop.id} loop={loop} />
+        ))}
       </TabsContent>
 
       <TabsContent value="hashtags" className="mt-6">
-        {searchResults.hashtags.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {searchResults.hashtags.map((hashtag: any) => (
-              <Link key={hashtag.tag} href={`/hashtag/${hashtag.tag}`}>
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                  <CardContent className="p-6 text-center">
-                    <Hash className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold mb-2">#{hashtag.tag}</h3>
-                    <p className="text-gray-600 dark:text-gray-400 mb-3">
-                      {formatNumber(hashtag.loop_count?.[0]?.count || 0)} loops
-                    </p>
-                    {hashtag.is_trending && <Badge className="bg-green-100 text-green-700">🔥 Trending</Badge>}
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <Hash className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-600 mb-2">No hashtags found</h3>
-            <p className="text-gray-500">Try searching with different keywords</p>
-          </div>
-        )}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {searchResults.hashtags.map((hashtag: any) => (
+            <HashtagCard key={hashtag.tag} hashtag={hashtag} formatNumber={formatNumber} />
+          ))}
+        </div>
+      </TabsContent>
+
+      <TabsContent value="circles" className="mt-6">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {searchResults.circles.map((circle: any) => (
+            <CircleCard key={circle.id} circle={circle} formatNumber={formatNumber} />
+          ))}
+        </div>
       </TabsContent>
     </Tabs>
+  )
+}
+
+function PersonRow({
+  person,
+  following,
+  onFollow,
+  formatNumber,
+  large,
+}: {
+  person: any
+  following: boolean
+  onFollow: () => void
+  formatNumber: (n: number) => string
+  large?: boolean
+}) {
+  return (
+    <Card>
+      <CardContent className={large ? "flex items-center gap-4 p-5" : "flex items-center gap-3 p-4"}>
+        <Link href={`/profile/${person.username}`} className="flex min-w-0 flex-1 items-center gap-3">
+          <Avatar className={large ? "h-14 w-14" : "h-11 w-11"}>
+            <AvatarImage src={person.avatar_url || undefined} />
+            <AvatarFallback>{(person.display_name || person.username || "?").charAt(0)}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <p className="truncate font-semibold">{person.display_name || person.username}</p>
+              {person.is_verified ? <Badge variant="secondary">Verified</Badge> : null}
+            </div>
+            <p className="truncate text-sm text-muted-foreground">@{person.username}</p>
+            {person.bio ? <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">{person.bio}</p> : null}
+            <p className="mt-1 text-xs text-muted-foreground">
+              {formatNumber(person.followers_count || 0)} followers
+            </p>
+          </div>
+        </Link>
+        <Button variant={following ? "outline" : "default"} size="sm" className="rounded-full" onClick={onFollow}>
+          {following ? "Following" : "Follow"}
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+function HashtagCard({
+  hashtag,
+  formatNumber,
+}: {
+  hashtag: any
+  formatNumber: (n: number) => string
+}) {
+  const tag = String(hashtag.tag || "").replace(/^#/, "")
+  return (
+    <Link href={`/hashtag/${encodeURIComponent(tag)}`}>
+      <Card className="transition hover:bg-muted/40">
+        <CardContent className="p-4">
+          <div className="mb-2 flex items-center gap-2">
+            <Hash className="h-5 w-5 text-sky-500" />
+            <p className="font-semibold">#{tag}</p>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {formatNumber(hashtag.loop_count || hashtag.usage_count || 0)} loops
+          </p>
+          {hashtag.is_trending ? <Badge className="mt-2">Trending</Badge> : null}
+        </CardContent>
+      </Card>
+    </Link>
+  )
+}
+
+function CircleCard({
+  circle,
+  formatNumber,
+}: {
+  circle: any
+  formatNumber: (n: number) => string
+}) {
+  return (
+    <Link href={`/circles/${circle.id}`}>
+      <Card className="transition hover:bg-muted/40">
+        <CardContent className="flex items-center gap-3 p-4">
+          <Avatar className="h-12 w-12">
+            <AvatarImage src={circle.avatar_url || undefined} />
+            <AvatarFallback>{(circle.name || "C").charAt(0)}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <p className="truncate font-semibold">{circle.name}</p>
+            <p className="line-clamp-1 text-sm text-muted-foreground">{circle.description}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {formatNumber(circle.member_count || 0)} members
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   )
 }
