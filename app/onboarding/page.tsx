@@ -165,7 +165,6 @@ export default function OnboardingPage() {
           },
           body: JSON.stringify({
             type: "onboarding_bonus",
-            amount: 100,
           }),
         }).catch(() => null)
       }

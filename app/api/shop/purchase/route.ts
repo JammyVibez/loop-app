@@ -61,7 +61,23 @@ export async function POST(request: NextRequest) {
 
     // Force coin checkout for themes/effects/badges so purchases work without Stripe Elements
     if (!isCoinPack) paymentMethod = "coins"
-    if (isCoinPack && paymentMethod === "stripe" && !item.price_usd) paymentMethod = "coins"
+    if (isCoinPack && paymentMethod === "stripe" && !item.price_usd) {
+      return NextResponse.json(
+        { success: false, error: "Coin packs require a Stripe price. Contact support." },
+        { status: 400 },
+      )
+    }
+
+    // Coin packs are purchase-only (Stripe) — never mint by spending 0 / underpriced coins
+    if (isCoinPack && paymentMethod === "coins") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Buy coin packs with real money. Free or coin-to-coin minting is disabled.",
+        },
+        { status: 400 },
+      )
+    }
 
     if (paymentMethod === "coins") {
       const { data: profile, error: profileError } = await supabase
@@ -82,15 +98,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: "Insufficient coins" }, { status: 400 })
       }
 
-      let nextCoins = Number(profile.loop_coins || 0) - priceCoins
-
-      // Coin packs credit coins_amount / coin_amount after deducting price
-      if (isCoinPack) {
-        const data = item.item_data || item.metadata || {}
-        const packAmount = Number(data.coins_amount ?? data.coin_amount ?? data.amount ?? 0)
-        const bonus = Number(data.bonus ?? data.bonus_coins ?? 0)
-        nextCoins += packAmount + bonus
-      }
+      const nextCoins = Number(profile.loop_coins || 0) - priceCoins
 
       const { error: deductError } = await supabase
         .from("profiles")

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
 import { createClient, type User as SupabaseUser } from "@supabase/supabase-js"
+import { ECONOMY_DEFAULTS } from "@/lib/economy"
 
 const serviceSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,7 +46,7 @@ async function ensureProfile(user: SupabaseUser) {
       avatar_url: user.user_metadata?.avatar_url || null,
       banner_url: null,
       bio: null,
-      loop_coins: 500,
+      loop_coins: ECONOMY_DEFAULTS.signup_bonus,
       is_premium: false,
       is_verified: false,
       is_admin: false,

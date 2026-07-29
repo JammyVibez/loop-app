@@ -27,6 +27,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AdminCatalogPanel } from "@/components/admin/admin-catalog-panel"
 import { AdminFeaturedPanel } from "@/components/admin/admin-featured-panel"
 import { ContentModerationControl } from "@/components/admin/content-moderation-control"
+import { EconomyControl } from "@/components/admin/economy-control"
+import { SettingsTabContent } from "@/components/admin/settings-tab-content"
 
 interface AdminUser {
   id: string
@@ -163,8 +165,9 @@ export function AdminDashboard() {
       </div>
 
       <Tabs value={section} onValueChange={setSection}>
-        <TabsList className="grid h-auto w-full max-w-2xl grid-cols-2 gap-1 sm:grid-cols-4">
+        <TabsList className="grid h-auto w-full max-w-3xl grid-cols-2 gap-1 sm:grid-cols-5">
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="economy">Economy</TabsTrigger>
           <TabsTrigger value="catalog">Themes & Effects</TabsTrigger>
           <TabsTrigger value="featured">Featured</TabsTrigger>
           <TabsTrigger value="moderation">Moderation</TabsTrigger>
@@ -311,9 +314,9 @@ export function AdminDashboard() {
                         variant="outline"
                         className="rounded-full"
                         disabled={busyId === `${u.id}:add_coins`}
-                        onClick={() => runAction(u.id, "add_coins", { amount: 500 })}
+                        onClick={() => runAction(u.id, "add_coins", { amount: 50 })}
                       >
-                        <Coins className="mr-1.5 h-3.5 w-3.5" /> +500
+                        <Coins className="mr-1.5 h-3.5 w-3.5" /> +50
                       </Button>
                       <Button
                         size="sm"
@@ -342,6 +345,11 @@ export function AdminDashboard() {
               Changes sync live across open admin sessions. Recipients also get an in-app notification.
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="economy" className="mt-6 space-y-6">
+          <EconomyControl />
+          <SettingsTabContent />
         </TabsContent>
 
         <TabsContent value="catalog" className="mt-6">

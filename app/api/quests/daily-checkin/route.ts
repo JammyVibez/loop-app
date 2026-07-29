@@ -1,13 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { awardXp, XP_REWARDS, levelFromXp } from "@/lib/xp"
+import { getEconomySettings } from "@/lib/economy"
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-const DAILY_AMOUNT = 40
-const DAILY_PRO_AMOUNT = 60
 const DAILY_MS = 24 * 60 * 60 * 1000
 const WEEKLY_MS = 7 * 24 * 60 * 60 * 1000
-const WEEKLY_AMOUNT = 500
 
 async function getUser(token: string | null) {
   if (!token) return null
@@ -23,8 +21,7 @@ function nextAt(fromIso: string, windowMs: number) {
   return new Date(new Date(fromIso).getTime() + windowMs).toISOString()
 }
 
-async function latestDailyClaim(userId: string) {
-  // Prefer dedicated daily_claims table
+async function latestDailyClaim(userId: string, fallbackAmount: number) {
   const { data: claimRow } = await supabase
     .from("daily_claims")
     .select("id, claimed_at, amount")
@@ -35,10 +32,13 @@ async function latestDailyClaim(userId: string) {
     .maybeSingle()
 
   if (claimRow?.claimed_at) {
-    return { claimed_at: claimRow.claimed_at as string, amount: Number(claimRow.amount || DAILY_AMOUNT), source: "daily_claims" }
+    return {
+      claimed_at: claimRow.claimed_at as string,
+      amount: Number(claimRow.amount || fallbackAmount),
+      source: "daily_claims",
+    }
   }
 
-  // Fallback: coin ledger (daily_checkin or quest_reward with daily description)
   const since = new Date(Date.now() - DAILY_MS * 2).toISOString()
   const { data: tx } = await supabase
     .from("coin_transactions")
@@ -55,7 +55,11 @@ async function latestDailyClaim(userId: string) {
       /daily check-?in/i.test(String(row.description || "")),
   )
   if (match?.created_at) {
-    return { claimed_at: match.created_at as string, amount: Number(match.amount || DAILY_AMOUNT), source: "coin_transactions" }
+    return {
+      claimed_at: match.created_at as string,
+      amount: Number(match.amount || fallbackAmount),
+      source: "coin_transactions",
+    }
   }
 
   return null
@@ -115,7 +119,6 @@ async function recordDailyClaim(userId: string, amount: number) {
     claimed_at: claimedAt,
   })
 
-  // Write ledger with allowed types — try daily_checkin first, fall back to quest_reward
   let ledgerOk = false
   const { error: dailyTypeError } = await supabase.from("coin_transactions").insert({
     user_id: userId,
@@ -138,7 +141,6 @@ async function recordDailyClaim(userId: string, amount: number) {
 
   if (claimError) {
     console.error("daily_claims insert failed:", claimError.message)
-    // If both claim table and ledger fail, surface error to caller
     if (!ledgerOk) throw new Error(claimError.message)
   }
 
@@ -151,10 +153,11 @@ export async function GET(request: NextRequest) {
     const user = await getUser(token)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+    const economy = await getEconomySettings(supabase)
     const sinceWeekly = new Date(Date.now() - WEEKLY_MS * 2).toISOString()
 
     const [lastDaily, { data: lastWeekly }, { data: profile }, streak] = await Promise.all([
-      latestDailyClaim(user.id),
+      latestDailyClaim(user.id, economy.daily_amount),
       supabase
         .from("weekly_bonus_claims")
         .select("id, claimed_at, bonus_amount")
@@ -163,7 +166,11 @@ export async function GET(request: NextRequest) {
         .order("claimed_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
-      supabase.from("profiles").select("loop_coins, level, xp_points, is_premium, premium_expires_at").eq("id", user.id).maybeSingle(),
+      supabase
+        .from("profiles")
+        .select("loop_coins, level, xp_points, is_premium, premium_expires_at")
+        .eq("id", user.id)
+        .maybeSingle(),
       recentDailyDays(user.id),
     ])
 
@@ -177,12 +184,13 @@ export async function GET(request: NextRequest) {
     const proActive =
       Boolean(profile?.is_premium) &&
       (!profile?.premium_expires_at || new Date(profile.premium_expires_at).getTime() > now)
-    const dailyAmount = proActive ? DAILY_PRO_AMOUNT : DAILY_AMOUNT
+    const dailyAmount = proActive ? economy.daily_pro_amount : economy.daily_amount
 
     return NextResponse.json({
       success: true,
       daily: {
-        claimed: dailyClaimed,
+        enabled: economy.daily_claim_enabled,
+        claimed: dailyClaimed || !economy.daily_claim_enabled,
         amount: dailyAmount,
         streak,
         claimed_at: dailyClaimedAt,
@@ -191,11 +199,16 @@ export async function GET(request: NextRequest) {
         pro_bonus: proActive,
       },
       weekly: {
-        claimed: weeklyClaimed,
-        amount: WEEKLY_AMOUNT,
+        enabled: economy.weekly_claim_enabled,
+        claimed: weeklyClaimed || !economy.weekly_claim_enabled,
+        amount: economy.weekly_amount,
         claimed_at: weeklyClaimedAt,
         next_available: weeklyClaimed ? weeklyReadyAt : new Date().toISOString(),
         cooldown_days: 7,
+      },
+      economy: {
+        daily_claim_enabled: economy.daily_claim_enabled,
+        weekly_claim_enabled: economy.weekly_claim_enabled,
       },
       coins: profile?.loop_coins ?? 0,
       level: profile?.level ?? levelFromXp(Number(profile?.xp_points || 0)),
@@ -216,8 +229,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const kind = body.kind === "weekly" ? "weekly" : "daily"
     const now = Date.now()
+    const economy = await getEconomySettings(supabase)
 
     if (kind === "weekly") {
+      if (!economy.weekly_claim_enabled) {
+        return NextResponse.json(
+          {
+            error: "Weekly claims are turned off by admin. Buy coins in the shop instead.",
+            disabled: true,
+            claimed: true,
+          },
+          { status: 403 },
+        )
+      }
+
       const { data: lastWeekly } = await supabase
         .from("weekly_bonus_claims")
         .select("id, claimed_at")
@@ -240,8 +265,9 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      const weeklyAmount = economy.weekly_amount
       const { data: profile } = await supabase.from("profiles").select("loop_coins").eq("id", user.id).maybeSingle()
-      const nextCoins = Number(profile?.loop_coins || 0) + WEEKLY_AMOUNT
+      const nextCoins = Number(profile?.loop_coins || 0) + weeklyAmount
 
       const { error: updateError } = await supabase
         .from("profiles")
@@ -249,32 +275,28 @@ export async function POST(request: NextRequest) {
         .eq("id", user.id)
 
       if (updateError) {
-        const { error: rpcError } = await supabase.rpc("award_weekly_bonus", {
-          p_user_id: user.id,
-          p_bonus_amount: WEEKLY_AMOUNT,
-        })
-        if (rpcError) return NextResponse.json({ error: "Failed to award weekly bonus" }, { status: 500 })
-      } else {
-        await supabase.from("weekly_bonus_claims").insert({ user_id: user.id, bonus_amount: WEEKLY_AMOUNT })
-        await supabase.from("daily_claims").insert({
-          user_id: user.id,
-          kind: "weekly",
-          amount: WEEKLY_AMOUNT,
-        })
-        await supabase.from("coin_transactions").insert({
-          user_id: user.id,
-          amount: WEEKLY_AMOUNT,
-          transaction_type: "weekly_bonus",
-          description: "Weekly Loop bonus (7-day cooldown)",
-        })
+        return NextResponse.json({ error: "Failed to award weekly bonus" }, { status: 500 })
       }
+
+      await supabase.from("weekly_bonus_claims").insert({ user_id: user.id, bonus_amount: weeklyAmount })
+      await supabase.from("daily_claims").insert({
+        user_id: user.id,
+        kind: "weekly",
+        amount: weeklyAmount,
+      })
+      await supabase.from("coin_transactions").insert({
+        user_id: user.id,
+        amount: weeklyAmount,
+        transaction_type: "weekly_bonus",
+        description: "Weekly Loop bonus (7-day cooldown)",
+      })
 
       const xp = await awardXp(supabase, user.id, "weekly_bonus", "Weekly bonus")
 
       return NextResponse.json({
         success: true,
         kind: "weekly",
-        amount: WEEKLY_AMOUNT,
+        amount: weeklyAmount,
         coins: nextCoins,
         xp_gained: xp?.xp_gained || XP_REWARDS.weekly_bonus,
         level: xp?.level,
@@ -282,7 +304,18 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const lastDaily = await latestDailyClaim(user.id)
+    if (!economy.daily_claim_enabled) {
+      return NextResponse.json(
+        {
+          error: "Daily claims are turned off by admin. Buy coins in the shop instead.",
+          disabled: true,
+          claimed: true,
+        },
+        { status: 403 },
+      )
+    }
+
+    const lastDaily = await latestDailyClaim(user.id, economy.daily_amount)
     if (lastDaily?.claimed_at) {
       const readyAt = new Date(lastDaily.claimed_at).getTime() + DAILY_MS
       if (readyAt > now) {
@@ -305,7 +338,19 @@ export async function POST(request: NextRequest) {
     const proActive =
       Boolean(profile?.is_premium) &&
       (!profile?.premium_expires_at || new Date(profile.premium_expires_at).getTime() > now)
-    const dailyAmount = proActive ? DAILY_PRO_AMOUNT : DAILY_AMOUNT
+
+    const streak = await recentDailyDays(user.id)
+    let dailyAmount = proActive ? economy.daily_pro_amount : economy.daily_amount
+    let streakBonus = 0
+    if (
+      economy.streak_bonus_enabled &&
+      streak + 1 >= economy.streak_bonus_days &&
+      economy.streak_bonus_amount > 0
+    ) {
+      streakBonus = economy.streak_bonus_amount
+      dailyAmount += streakBonus
+    }
+
     const nextCoins = Number(profile?.loop_coins || 0) + dailyAmount
 
     const { error: updateError } = await supabase
@@ -321,7 +366,6 @@ export async function POST(request: NextRequest) {
     try {
       await recordDailyClaim(user.id, dailyAmount)
     } catch (err: any) {
-      // Coins already credited — still try to keep claim state consistent via quest_reward
       console.error("recordDailyClaim error:", err?.message || err)
     }
 
@@ -331,6 +375,7 @@ export async function POST(request: NextRequest) {
       success: true,
       kind: "daily",
       amount: dailyAmount,
+      streak_bonus: streakBonus,
       coins: nextCoins,
       xp_gained: xp?.xp_gained || XP_REWARDS.daily_checkin,
       level: xp?.level,

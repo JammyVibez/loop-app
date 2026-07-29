@@ -1,15 +1,31 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Coins, Flame, Gift, Sparkles } from "lucide-react"
+import Link from "next/link"
+import { Coins, Flame, Gift, ShoppingBag, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
 type PulseState = {
-  daily: { claimed: boolean; amount: number; streak: number; next_available?: string }
-  weekly: { claimed: boolean; amount: number; next_available?: string }
+  daily: {
+    claimed: boolean
+    amount: number
+    streak: number
+    next_available?: string
+    enabled?: boolean
+  }
+  weekly: {
+    claimed: boolean
+    amount: number
+    next_available?: string
+    enabled?: boolean
+  }
+  economy?: {
+    daily_claim_enabled?: boolean
+    weekly_claim_enabled?: boolean
+  }
   coins: number
 }
 
@@ -73,8 +89,15 @@ export function DailyPulse() {
         body: JSON.stringify({ kind }),
       })
       const data = await res.json()
-      // Already-claimed responses must hide the banner (coins may have been credited earlier)
       if (!res.ok) {
+        if (data?.disabled) {
+          toast({
+            title: "Claims paused",
+            description: data.error || "Buy coins in the shop instead.",
+          })
+          await load()
+          return
+        }
         if (data?.claimed || /already claimed/i.test(String(data?.error || ""))) {
           setState((prev) =>
             prev
@@ -105,7 +128,6 @@ export function DailyPulse() {
         const wait = data.next_available ? ` Next in ${formatRemaining(data.next_available)}.` : ""
         throw new Error((data.error || "Could not claim") + wait)
       }
-      // Optimistically hide daily banner immediately after successful claim
       if (kind === "daily") {
         setState((prev) =>
           prev
@@ -123,7 +145,9 @@ export function DailyPulse() {
       }
       toast({
         title: kind === "daily" ? "Daily check-in claimed!" : "Weekly bonus unlocked!",
-        description: `+${data.amount} Loop Coins · next ${kind === "daily" ? "in 24h" : "in 7 days"}`,
+        description: `+${data.amount} Loop Coins${
+          data.streak_bonus ? ` (includes +${data.streak_bonus} streak)` : ""
+        } · next ${kind === "daily" ? "in 24h" : "in 7 days"}`,
       })
       await refreshUser?.()
       await load()
@@ -137,10 +161,33 @@ export function DailyPulse() {
 
   if (!user || !state) return null
 
-  // After daily claim: hide claim banner until 24h window reopens.
-  // If weekly is still available, show a compact weekly-only strip.
-  if (state.daily.claimed) {
-    if (state.weekly.claimed) return null
+  const dailyOn = state.economy?.daily_claim_enabled !== false && state.daily.enabled !== false
+  const weeklyOn = state.economy?.weekly_claim_enabled !== false && state.weekly.enabled !== false
+
+  if (!dailyOn && !weeklyOn) {
+    return (
+      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+        <p className="flex items-center gap-1.5 text-sm font-semibold">
+          <ShoppingBag className="h-4 w-4 text-amber-500" />
+          Free claims paused
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Daily and weekly coins are off right now. Grab a pack or Get Pro to keep creating.
+        </p>
+        <div className="mt-3 flex gap-2">
+          <Button asChild size="sm" className="rounded-full">
+            <Link href="/shop">Buy coins</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline" className="rounded-full">
+            <Link href="/premium">Get Pro</Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (state.daily.claimed || !dailyOn) {
+    if (state.weekly.claimed || !weeklyOn) return null
     return (
       <div className="rounded-2xl border border-border/70 bg-card/50 p-4">
         <div className="mb-2 flex items-center justify-between gap-3">
@@ -148,9 +195,11 @@ export function DailyPulse() {
             <Gift className="h-4 w-4 text-violet-500" />
             Weekly bonus available
           </p>
-          <span className="text-xs text-muted-foreground">
-            Daily next in {formatRemaining(state.daily.next_available)}
-          </span>
+          {dailyOn ? (
+            <span className="text-xs text-muted-foreground">
+              Daily next in {formatRemaining(state.daily.next_available)}
+            </span>
+          ) : null}
         </div>
         <Button
           variant="outline"
@@ -174,7 +223,7 @@ export function DailyPulse() {
             Daily Pulse
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Claim once every 24 hours. Banner hides until your next claim window.
+            Small daily boost — bigger packs are in the shop. Pro earns a little more.
           </p>
         </div>
         <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-600 dark:text-amber-300">
@@ -183,11 +232,11 @@ export function DailyPulse() {
         </span>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className={cn("grid gap-2", weeklyOn ? "sm:grid-cols-2" : "grid-cols-1")}>
         <Button
           disabled={busy !== null}
           onClick={() => void claim("daily")}
-          className={cn("h-auto justify-between rounded-xl py-3 bg-sky-600 hover:bg-sky-500")}
+          className="h-auto justify-between rounded-xl bg-sky-600 py-3 hover:bg-sky-500"
         >
           <span className="text-left">
             <span className="block">Claim today</span>
@@ -196,20 +245,20 @@ export function DailyPulse() {
             <Coins className="h-3.5 w-3.5" />+{state.daily.amount}
           </span>
         </Button>
-        <Button
-          variant="outline"
-          disabled={state.weekly.claimed || busy !== null}
-          onClick={() => void claim("weekly")}
-          className="h-auto justify-between rounded-xl py-3"
-        >
-          <span className="text-left inline-flex flex-col items-start gap-0.5">
-            <span className="inline-flex items-center gap-1.5">
+        {weeklyOn ? (
+          <Button
+            variant="outline"
+            disabled={state.weekly.claimed || busy !== null}
+            onClick={() => void claim("weekly")}
+            className="h-auto justify-between rounded-xl py-3"
+          >
+            <span className="inline-flex items-center gap-1.5 text-left">
               <Gift className="h-4 w-4" />
               {state.weekly.claimed ? "Weekly claimed" : "Weekly bonus"}
             </span>
-          </span>
-          <span className="text-xs text-muted-foreground">+{state.weekly.amount}</span>
-        </Button>
+            <span className="text-xs text-muted-foreground">+{state.weekly.amount}</span>
+          </Button>
+        ) : null}
       </div>
     </div>
   )

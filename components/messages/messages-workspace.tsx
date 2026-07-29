@@ -2,20 +2,21 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { supabase } from "@/lib/supabase"
+import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { GiftModal } from "@/components/gifting/gift-modal"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
 import { cn } from "@/lib/utils"
 import {
   ArrowLeft,
+  Check,
   CheckCheck,
   GitBranch,
   Gift,
@@ -74,11 +75,14 @@ const QUICK_REACTIONS = ["❤️", "😂", "👍", "🔥", "😮", "👏"]
 export function MessagesWorkspace() {
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
+  const router = useRouter()
   const searchParams = useSearchParams()
+  const deepLinkId = searchParams.get("c")
   const [conversations, setConversations] = useState<Conversation[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(searchParams.get("c"))
-  const [mobileShowChat, setMobileShowChat] = useState(Boolean(searchParams.get("c")))
+  const [selectedId, setSelectedId] = useState<string | null>(deepLinkId)
+  const [mobileShowChat, setMobileShowChat] = useState(Boolean(deepLinkId))
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messagesLoading, setMessagesLoading] = useState(false)
   const [draft, setDraft] = useState("")
   const [search, setSearch] = useState("")
   const [chatSearch, setChatSearch] = useState("")
@@ -88,6 +92,7 @@ export function MessagesWorkspace() {
   const [starting, setStarting] = useState(false)
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null)
   const [typingPeer, setTypingPeer] = useState(false)
+  const [peerOnline, setPeerOnline] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [recording, setRecording] = useState(false)
   const [showGift, setShowGift] = useState(false)
@@ -100,6 +105,11 @@ export function MessagesWorkspace() {
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const peerTypingClear = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const channelRef = useRef<ReturnType<ReturnType<typeof getSupabaseBrowserClient>["channel"]> | null>(null)
+  const loadReq = useRef(0)
+  const selectedIdRef = useRef<string | null>(selectedId)
+  selectedIdRef.current = selectedId
 
   const selected = useMemo(
     () => conversations.find((c) => c.id === selectedId) || null,
@@ -119,9 +129,18 @@ export function MessagesWorkspace() {
       const response = await fetch("/api/conversations", { headers: getAuthHeader() })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to load conversations")
-      setConversations(data.conversations || [])
-      if (!selectedId && data.conversations?.[0]?.id && typeof window !== "undefined" && window.innerWidth >= 1024) {
-        setSelectedId(data.conversations[0].id)
+      const list: Conversation[] = data.conversations || []
+      setConversations(list)
+      if (
+        !selectedIdRef.current &&
+        list[0]?.id &&
+        typeof window !== "undefined" &&
+        window.innerWidth >= 1024
+      ) {
+        const id = list[0].id
+        setSelectedId(id)
+        setMobileShowChat(true)
+        router.replace(`/messages?c=${id}`, { scroll: false })
       }
     } catch (error: any) {
       toast({ title: "Chat unavailable", description: error.message, variant: "destructive" })
@@ -132,11 +151,15 @@ export function MessagesWorkspace() {
 
   const loadMessages = async (conversationId: string) => {
     if (!user) return
-    const response = await fetch(`/api/messages?conversation_id=${conversationId}`, {
-      headers: getAuthHeader(),
-    })
-    const data = await response.json()
-    if (response.ok) {
+    const req = ++loadReq.current
+    setMessagesLoading(true)
+    try {
+      const response = await fetch(`/api/messages?conversation_id=${conversationId}`, {
+        headers: getAuthHeader(),
+      })
+      const data = await response.json()
+      if (req !== loadReq.current || selectedIdRef.current !== conversationId) return
+      if (!response.ok) throw new Error(data.error || "Failed to load messages")
       const list: ChatMessage[] = data.messages || []
       const byId = new Map(list.map((m) => [m.id, m]))
       setMessages(
@@ -146,6 +169,11 @@ export function MessagesWorkspace() {
           reactions: Array.isArray(m.reactions) ? m.reactions : [],
         })),
       )
+    } catch (error: any) {
+      if (req !== loadReq.current) return
+      toast({ title: "Messages unavailable", description: error.message, variant: "destructive" })
+    } finally {
+      if (req === loadReq.current) setMessagesLoading(false)
     }
   }
 
@@ -154,17 +182,31 @@ export function MessagesWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
 
+  // Keep deep link ?c= in sync with Next search params
+  useEffect(() => {
+    if (deepLinkId) {
+      setSelectedId(deepLinkId)
+      setMobileShowChat(true)
+    }
+  }, [deepLinkId])
+
   useEffect(() => {
     if (!selectedId || !user) return
+    setMessages([])
+    setTypingPeer(false)
+    setPeerOnline(false)
+    setReplyTo(null)
     void loadMessages(selectedId)
 
+    const supabase = getSupabaseBrowserClient()
     const channel = supabase.channel(`conversation:${selectedId}`, {
       config: { broadcast: { self: false } },
     })
+    channelRef.current = channel
 
     channel
       .on("broadcast", { event: "new_message" }, ({ payload }) => {
-        if (!payload?.id) return
+        if (!payload?.id || selectedIdRef.current !== selectedId) return
         setMessages((prev) => (prev.some((m) => m.id === payload.id) ? prev : [...prev, payload]))
         setConversations((prev) =>
           prev
@@ -179,25 +221,56 @@ export function MessagesWorkspace() {
       .on("broadcast", { event: "typing" }, ({ payload }) => {
         if (payload?.user_id && payload.user_id !== user.id) {
           setTypingPeer(true)
-          setTimeout(() => setTypingPeer(false), 2500)
+          if (peerTypingClear.current) clearTimeout(peerTypingClear.current)
+          peerTypingClear.current = setTimeout(() => setTypingPeer(false), 2500)
+        }
+      })
+      .on("broadcast", { event: "presence" }, ({ payload }) => {
+        if (payload?.user_id && payload.user_id !== user.id) {
+          setPeerOnline(Boolean(payload.online))
         }
       })
       .on("broadcast", { event: "reaction" }, () => {
-        void loadMessages(selectedId)
+        if (selectedIdRef.current === selectedId) void loadMessages(selectedId)
       })
       .on("broadcast", { event: "coloop" }, ({ payload }) => {
         if (!payload || payload.user_id === user.id) return
         setCoLoopPeerDraft(String(payload.content || ""))
-        if (!showCoLoop) setShowCoLoop(true)
+        setShowCoLoop(true)
       })
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${selectedId}` },
-        () => void loadMessages(selectedId),
+        () => {
+          if (selectedIdRef.current === selectedId) void loadMessages(selectedId)
+        },
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          void channel.send({
+            type: "broadcast",
+            event: "presence",
+            payload: { user_id: user.id, online: true },
+          })
+        }
+      })
+
+    const heartbeat = setInterval(() => {
+      void channelRef.current?.send({
+        type: "broadcast",
+        event: "presence",
+        payload: { user_id: user.id, online: true },
+      })
+    }, 20000)
 
     return () => {
+      clearInterval(heartbeat)
+      void channel.send({
+        type: "broadcast",
+        event: "presence",
+        payload: { user_id: user.id, online: false },
+      })
+      channelRef.current = null
       void supabase.removeChannel(channel)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -208,8 +281,8 @@ export function MessagesWorkspace() {
   }, [messages.length, typingPeer])
 
   const broadcastTyping = () => {
-    if (!selectedId || !user) return
-    void supabase.channel(`conversation:${selectedId}`).send({
+    if (!user) return
+    void channelRef.current?.send({
       type: "broadcast",
       event: "typing",
       payload: { user_id: user.id },
@@ -227,25 +300,21 @@ export function MessagesWorkspace() {
     setMobileShowChat(true)
     setReplyTo(null)
     setShowCoLoop(false)
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href)
-      url.searchParams.set("c", id)
-      window.history.replaceState({}, "", url.toString())
-    }
+    setCoLoopDraft("")
+    setCoLoopPeerDraft("")
+    router.replace(`/messages?c=${id}`, { scroll: false })
   }
 
   const backToInbox = () => {
     setMobileShowChat(false)
+    setSelectedId(null)
     setReplyTo(null)
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href)
-      url.searchParams.delete("c")
-      window.history.replaceState({}, "", url.toString())
-    }
+    setMessages([])
+    router.replace("/messages", { scroll: false })
   }
 
   const sendMessage = async (opts?: { content?: string; media_url?: string; message_type?: string }) => {
-    if (!user || !selectedId) return
+    if (!user || !selectedId || sending) return
     const content = (opts?.content ?? draft).trim()
     const mediaUrl = opts?.media_url
     if (!content && !mediaUrl) return
@@ -269,6 +338,12 @@ export function MessagesWorkspace() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to send")
       setMessages((prev) => (prev.some((m) => m.id === data.message.id) ? prev : [...prev, data.message]))
+      // Peer delivery via postgres_changes; also nudge broadcast channel for same-tab peers
+      void channelRef.current?.send({
+        type: "broadcast",
+        event: "new_message",
+        payload: data.message,
+      })
     } catch (error: any) {
       if (!opts?.media_url) setDraft(content)
       setReplyTo(replySnapshot)
@@ -310,6 +385,7 @@ export function MessagesWorkspace() {
     if (!user) return
     const existing = (message.reactions || []).find((r) => r.emoji === emoji)
     const reacted = existing?.users?.includes(user.id)
+    const snapshot = message.reactions || []
     setMessages((prev) =>
       prev.map((m) => {
         if (m.id !== message.id) return m
@@ -328,11 +404,22 @@ export function MessagesWorkspace() {
         return { ...m, reactions }
       }),
     )
-    await fetch("/api/messages/reactions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeader() },
-      body: JSON.stringify({ message_id: message.id, emoji, action: reacted ? "remove" : "add" }),
-    }).catch(() => {})
+    try {
+      const response = await fetch("/api/messages/reactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ message_id: message.id, emoji, action: reacted ? "remove" : "add" }),
+      })
+      if (!response.ok) throw new Error("Reaction failed")
+      void channelRef.current?.send({
+        type: "broadcast",
+        event: "reaction",
+        payload: { message_id: message.id, emoji },
+      })
+    } catch {
+      setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, reactions: snapshot } : m)))
+      toast({ title: "Couldn’t react", variant: "destructive" })
+    }
   }
 
   const startVoice = async () => {
@@ -405,8 +492,8 @@ export function MessagesWorkspace() {
 
   const syncCoLoop = (content: string) => {
     setCoLoopDraft(content)
-    if (!selectedId || !user) return
-    void supabase.channel(`conversation:${selectedId}`).send({
+    if (!user) return
+    void channelRef.current?.send({
       type: "broadcast",
       event: "coloop",
       payload: { user_id: user.id, content },
@@ -546,7 +633,7 @@ export function MessagesWorkspace() {
             {selected.other_user?.display_name || selected.name || "Conversation"}
           </p>
           <p className="truncate text-xs text-emerald-400">
-            {typingPeer ? "typing…" : `@${selected.other_user?.username || "group"}`}
+            {typingPeer ? "typing…" : peerOnline ? "online" : `@${selected.other_user?.username || "group"}`}
           </p>
         </div>
         <Button
@@ -628,6 +715,11 @@ export function MessagesWorkspace() {
       )}
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-4 sm:px-6">
+        {messagesLoading && messages.length === 0 ? (
+          <div className="flex justify-center py-10 text-slate-400">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        ) : null}
         {filteredMessages.map((message) => {
           const mine = (message.sender_id || message.author_id) === user.id
           return (
@@ -661,7 +753,12 @@ export function MessagesWorkspace() {
                     <span>
                       {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </span>
-                    {mine && <CheckCheck className="h-3 w-3 text-sky-300" />}
+                    {mine &&
+                      (peerOnline ? (
+                        <CheckCheck className="h-3 w-3 text-sky-300" />
+                      ) : (
+                        <Check className="h-3 w-3 text-slate-300" />
+                      ))}
                   </div>
                 </div>
 
@@ -770,7 +867,7 @@ export function MessagesWorkspace() {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault()
-                void sendMessage()
+                if (!sending) void sendMessage()
               }
             }}
           />
@@ -800,6 +897,20 @@ export function MessagesWorkspace() {
         />
       )}
     </section>
+  ) : selectedId ? (
+    <section className="flex h-full flex-col items-center justify-center bg-[#0b141a] px-6 text-center text-slate-400">
+      {loading || messagesLoading ? (
+        <Loader2 className="h-6 w-6 animate-spin" />
+      ) : (
+        <>
+          <p className="text-lg font-medium text-slate-200">Conversation unavailable</p>
+          <p className="mt-1 max-w-sm text-sm">This chat may have been removed or you don’t have access.</p>
+          <Button variant="outline" className="mt-4" onClick={backToInbox}>
+            Back to inbox
+          </Button>
+        </>
+      )}
+    </section>
   ) : (
     <section className="hidden h-full flex-col items-center justify-center bg-[#0b141a] text-slate-400 lg:flex">
       <ImageIcon className="mb-3 h-12 w-12 opacity-40" />
@@ -811,7 +922,12 @@ export function MessagesWorkspace() {
   )
 
   return (
-    <div className="grid h-[calc(100dvh-3.5rem)] overflow-hidden border border-white/10 bg-[#0b141a] lg:h-[calc(100dvh-4rem)] lg:grid-cols-[340px_1fr] lg:rounded-2xl">
+    <div
+      className={cn(
+        "grid overflow-hidden border border-white/10 bg-[#0b141a] lg:grid-cols-[340px_1fr] lg:rounded-2xl",
+        mobileShowChat ? "h-[100dvh] lg:h-[calc(100dvh-4rem)]" : "h-[calc(100dvh-4.25rem)] lg:h-[calc(100dvh-4rem)]",
+      )}
+    >
       <div className={cn("min-h-0", mobileShowChat ? "hidden lg:block" : "block")}>{inbox}</div>
       <div className={cn("min-h-0", mobileShowChat ? "block" : "hidden lg:block")}>{chatPane}</div>
     </div>

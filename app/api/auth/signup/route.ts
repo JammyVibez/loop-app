@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getAppUrl } from "@/lib/app-url";
+import { ECONOMY_DEFAULTS } from "@/lib/economy"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
       avatar_url: null,
       banner_url: null,
       bio: null,
-      loop_coins: 500,
+      loop_coins: ECONOMY_DEFAULTS.signup_bonus,
       is_premium: false,
       is_verified: false,
       is_admin: false,
