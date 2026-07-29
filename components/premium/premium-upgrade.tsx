@@ -1,181 +1,205 @@
-"use client";
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Check, Crown, Sparkles, Video, Palette, Zap } from "lucide-react";
-import { PaymentModal } from "./payment-modal";
-import { useAuth } from "@/hooks/use-auth";
+"use client"
+import { useState } from "react"
+import Link from "next/link"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import {
+  Check,
+  Code2,
+  Coins,
+  Crown,
+  Sparkles,
+  TrendingUp,
+  Upload,
+  Video,
+  Zap,
+} from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
+import { PRO_FEATURES, PRO_PRICING, type ProPlanId } from "@/lib/pro-features"
+import { cn } from "@/lib/utils"
 
-const premiumFeatures = [
-  {
-    icon: Video,
-    title: "Extended Video Uploads",
-    description: "Upload videos up to 3 hours long",
-    current: "5 minutes",
-    premium: "3 hours",
-  },
-  {
-    icon: Palette,
-    title: "Animated Profile Themes",
-    description: "Customize your profile with animated backgrounds",
-    current: "Static themes",
-    premium: "Animated themes",
-  },
-  {
-    icon: Sparkles,
-    title: "Premium Badges & Effects",
-    description: "Exclusive badges and post effects",
-    current: "Basic badges",
-    premium: "Premium effects",
-  },
-  {
-    icon: Zap,
-    title: "Priority Support",
-    description: "Get faster response times for support",
-    current: "Standard support",
-    premium: "Priority support",
-  },
-]
-
-const plans = [
-  {
-    name: "Monthly",
-    price: "$9.99",
-    period: "/month",
-    description: "Perfect for trying premium features",
-    popular: false,
-  },
-  {
-    name: "Annual",
-    price: "$99.99",
-    period: "/year",
-    description: "Save 17% with annual billing",
-    popular: true,
-    savings: "Save $20",
-  },
-]
+const iconMap = {
+  upload: Upload,
+  zap: Zap,
+  coins: Coins,
+  sparkles: Sparkles,
+  crown: Crown,
+  code: Code2,
+  video: Video,
+  trending: TrendingUp,
+} as const
 
 export function PremiumUpgrade() {
-  const [selectedPlan, setSelectedPlan] = useState("annual")
-  const [showPayment, setShowPayment] = useState(false)
-  const { user } = useAuth()
+  const [selectedPlan, setSelectedPlan] = useState<ProPlanId>("annual")
+  const [busy, setBusy] = useState(false)
+  const { user, getAuthHeader, refreshUser } = useAuth()
+  const { toast } = useToast()
+
+  const activate = async (plan: ProPlanId) => {
+    if (!user) {
+      window.location.href = "/login"
+      return
+    }
+    setBusy(true)
+    try {
+      const res = await fetch("/api/premium/activate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ plan, method: "coins" }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Could not activate Pro")
+      await refreshUser?.()
+      toast({ title: "You're Pro!", description: data.message })
+    } catch (error: any) {
+      toast({
+        title: "Couldn’t unlock Pro",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setBusy(false)
+    }
+  }
 
   if (user?.is_premium) {
     return (
-      <div className="max-w-2xl mx-auto text-center space-y-6">
-        <div className="p-6 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg text-white">
-          <Crown className="w-12 h-12 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2">You're Already Premium!</h1>
-          <p>Enjoy all the exclusive features and benefits.</p>
+      <div className="mx-auto max-w-2xl space-y-6 text-center">
+        <div className="rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 p-6 text-white">
+          <Crown className="mx-auto mb-4 h-12 w-12" />
+          <h1 className="mb-2 text-2xl font-bold">You&apos;re on Loop Pro</h1>
+          <p className="text-white/90">
+            {user.premium_expires_at
+              ? `Active until ${new Date(user.premium_expires_at).toLocaleDateString()}`
+              : "All Pro perks are unlocked."}
+          </p>
         </div>
         <Card>
-          <CardContent className="p-6">
-            <h3 className="font-semibold mb-4">Your Premium Features</h3>
-            <div className="grid gap-3">
-              {premiumFeatures?.map((feature, index) => (
-                <div key={index} className="flex items-center space-x-3">
-                  <Check className="w-5 h-5 text-green-500" />
-                  <span>{feature?.title}</span>
+          <CardContent className="grid gap-3 p-6 text-left">
+            {PRO_FEATURES.map((feature) => (
+              <div key={feature.id} className="flex items-start gap-3">
+                <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+                <div>
+                  <p className="font-medium">{feature.title}</p>
+                  <p className="text-sm text-muted-foreground">{feature.description}</p>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
+        <Button asChild variant="outline" className="rounded-full">
+          <Link href="/">Back to feed</Link>
+        </Button>
       </div>
-    );
+    )
   }
 
+  const plan = PRO_PRICING[selectedPlan]
+  const balance = Number(user?.loop_coins || 0)
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="text-center space-y-4">
-        <div className="flex justify-center">
-          <div className="p-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full">
-            <Crown className="w-8 h-8 text-white" />
-          </div>
+    <div className="mx-auto max-w-5xl space-y-8">
+      <div className="space-y-3 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-600">
+          <Crown className="h-7 w-7 text-white" />
         </div>
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-          Upgrade to Premium
+        <Badge variant="secondary" className="rounded-full">
+          Launch pricing — limited while Loop is new
+        </Badge>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+          Loop Pro that actually feels worth it
         </h1>
-        <p className="text-xl text-gray-600 dark:text-gray-400">
-          Unlock exclusive features and take your Loop experience to the next level
+        <p className="mx-auto max-w-2xl text-muted-foreground">
+          Lower intro price. Real perks: 2× XP, bigger daily coins, multi-uploads, GIF profiles,
+          Pro shop drops, live streaming, and code spotlight.
         </p>
       </div>
-      <div className="grid md:grid-cols-2 gap-6">
-        {plans?.map((plan) => (
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {(Object.values(PRO_PRICING) as Array<(typeof PRO_PRICING)[ProPlanId]>).map((item) => (
           <Card
-            key={plan?.name}
-            className={`relative cursor-pointer transition-all ${
-              selectedPlan === plan?.name?.toLowerCase() ? "ring-2 ring-purple-500 shadow-lg" : "hover:shadow-md"
-            } ${plan?.popular ? "border-purple-500" : ""}`}
-            onClick={() => setSelectedPlan(plan?.name?.toLowerCase())}
-          >
-            {plan?.popular && (
-              <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-purple-500 to-blue-500">
-                Most Popular
-              </Badge>
+            key={item.id}
+            className={cn(
+              "relative cursor-pointer transition",
+              selectedPlan === item.id ? "ring-2 ring-amber-500 shadow-lg" : "hover:border-amber-500/40",
+              "popular" in item && item.popular ? "border-amber-500/50" : "",
             )}
+            onClick={() => setSelectedPlan(item.id)}
+          >
+            {"popular" in item && item.popular ? (
+              <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-900 hover:bg-amber-500">
+                Best value
+              </Badge>
+            ) : null}
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl">{plan?.name}</CardTitle>
-              <div className="space-y-2">
-                <div className="text-3xl font-bold">
-                  {plan?.price}
-                  <span className="text-lg font-normal text-gray-500">{plan?.period}</span>
-                </div>
-                {plan?.savings && (
-                  <Badge variant="secondary" className="bg-green-100 text-green-700">
-                    {plan?.savings}
-                  </Badge>
-                )}
-                <p className="text-gray-600 dark:text-gray-400">{plan?.description}</p>
+              <CardTitle>{item.name}</CardTitle>
+              <div className="space-y-1">
+                <p className="text-4xl font-bold">
+                  {item.priceLabel}
+                  <span className="text-base font-normal text-muted-foreground">{item.period}</span>
+                </p>
+                <p className="text-sm text-muted-foreground">{item.description}</p>
+                {"savings" in item && item.savings ? (
+                  <p className="text-sm font-medium text-emerald-600">{item.savings}</p>
+                ) : null}
+                <p className="text-xs text-muted-foreground">or {item.coins.toLocaleString()} Loop Coins</p>
               </div>
             </CardHeader>
           </Card>
         ))}
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Sparkles className="w-5 h-5" />
-            <span>Premium Features</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-2 gap-6">
-            {premiumFeatures?.map((feature, index) => (
-              <div key={index} className="flex space-x-4">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                  <feature.icon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold">{feature?.title}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{feature?.description}</p>
-                  <div className="flex items-center space-x-4 text-xs">
-                    <span className="text-gray-500">Free: {feature?.current}</span>
-                    <span className="text-purple-600 font-semibold">Premium: {feature?.premium}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-      <div className="text-center">
+
+      <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
         <Button
-          onClick={() => setShowPayment(true)}
           size="lg"
-          className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white px-8 py-3"
+          disabled={busy || !user}
+          onClick={() => void activate(selectedPlan)}
+          className="w-full rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-400 hover:to-orange-500 sm:w-auto"
         >
-          Request Premium Upgrade
+          <Coins className="mr-2 h-4 w-4" />
+          {busy ? "Unlocking…" : `Unlock ${plan.name} · ${plan.coins} coins`}
         </Button>
-        <p className="text-sm text-gray-500 mt-2">Admin approval required • 30-day money-back guarantee</p>
+        <Button asChild size="lg" variant="outline" className="w-full rounded-full sm:w-auto">
+          <Link href="/shop">Buy coins in Shop</Link>
+        </Button>
       </div>
-      <PaymentModal
-        isOpen={showPayment}
-        onClose={() => setShowPayment(false)}
-        plan={selectedPlan}
-        price={selectedPlan === "annual" ? "$99.99" : "$9.99"}
-      />
+      {user ? (
+        <p className="text-center text-sm text-muted-foreground">
+          Your balance: <span className="font-semibold text-foreground">{balance.toLocaleString()} coins</span>
+          {balance < plan.coins ? " — grab a coin pack first" : " — ready to go"}
+        </p>
+      ) : (
+        <p className="text-center text-sm">
+          <Link href="/login" className="font-medium text-primary underline">
+            Sign in
+          </Link>{" "}
+          to unlock Pro
+        </p>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {PRO_FEATURES.map((feature) => {
+          const Icon = iconMap[feature.icon as keyof typeof iconMap] || Sparkles
+          return (
+            <Card key={feature.id} className="border-border/70">
+              <CardContent className="flex gap-3 p-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-300">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold">{feature.title}</p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{feature.description}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Free: {feature.free} · <span className="font-medium text-foreground">Pro: {feature.pro}</span>
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
     </div>
-  );
+  )
 }

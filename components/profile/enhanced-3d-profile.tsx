@@ -311,17 +311,17 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const xpProgress = Math.min(100, Math.round(((xp - prevXp) / Math.max(1, nextXp - prevXp)) * 100))
 
   return (
-    <div className="mx-auto w-full max-w-2xl border-x border-border/70 bg-background min-h-screen">
+    <div className="mx-auto w-full max-w-2xl border-border/70 bg-background min-h-screen sm:border-x">
       {/* Sticky top bar like X */}
-      <div className="sticky top-0 z-30 flex items-center gap-4 border-b border-border/70 bg-background/85 px-3 py-2 backdrop-blur-xl">
+      <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-border/70 bg-background/85 px-3 py-2 backdrop-blur-xl sm:gap-4">
         <Link href="/" className="rounded-full p-2 hover:bg-muted">
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <h1 className="truncate text-lg font-bold leading-tight">{displayName}</h1>
+            <h1 className="truncate text-base font-bold leading-tight sm:text-lg">{displayName}</h1>
             {profile.is_verified && (
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-sky-500 text-[10px] text-white">✓</span>
+              <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-sky-500 text-[10px] text-white">✓</span>
             )}
           </div>
           <p className="text-xs text-muted-foreground">{formatCount(profile.loops_count)} loops</p>
@@ -329,7 +329,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       </div>
 
       {/* Banner */}
-      <div className="relative h-36 bg-gradient-to-r from-slate-700 via-slate-600 to-slate-800 sm:h-48">
+      <div className="relative h-32 bg-gradient-to-r from-slate-700 via-slate-600 to-slate-800 sm:h-48">
         {profile.banner_url ? (
           <img src={profile.banner_url} alt="" className="h-full w-full object-cover" />
         ) : (
@@ -341,52 +341,61 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             <Button
               size="sm"
               variant="secondary"
-              className="absolute bottom-3 right-3 rounded-full bg-black/55 text-white hover:bg-black/70"
+              className="absolute bottom-2 right-2 rounded-full bg-black/55 px-3 text-white hover:bg-black/70 sm:bottom-3 sm:right-3"
               disabled={uploadingCover}
               onClick={() => document.getElementById("profile-cover-upload")?.click()}
             >
               <Upload className="mr-1.5 h-3.5 w-3.5" />
               {uploadingCover ? "Uploading…" : "Edit cover"}
             </Button>
-            <p className="absolute bottom-3 left-3 rounded-full bg-black/45 px-2 py-0.5 text-[10px] text-white/90">
+            <p className="absolute bottom-2 left-2 hidden rounded-full bg-black/45 px-2 py-0.5 text-[10px] text-white/90 sm:bottom-3 sm:left-3 sm:block">
               JPG, PNG, or GIF
             </p>
           </>
         )}
       </div>
 
-      {/* Avatar + actions row */}
-      <div className="relative px-4 pb-3">
-        <div className="-mt-12 flex items-end justify-between sm:-mt-14">
+      {/* Avatar + actions — stack on mobile */}
+      <div className="relative px-3 pb-3 sm:px-4">
+        <div className="-mt-10 flex flex-col gap-3 sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
           <CosmeticAvatar
             src={profile.avatar_url}
             alt={displayName}
             fallback={displayName}
             size="lg"
             cosmetics={cosmetics}
-            className="border-4 border-background"
+            className="border-4 border-background self-start"
           />
 
-          <div className="mb-1 flex flex-wrap justify-end gap-2">
+          <div className="mb-0 flex w-full flex-wrap justify-stretch gap-2 sm:mb-1 sm:w-auto sm:justify-end">
             {isOwnProfile ? (
               <>
-                <Link href="/inventory">
-                  <Button variant="outline" className="rounded-full px-4 font-semibold">
+                <Link href="/inventory" className="min-w-0 flex-1 sm:flex-none">
+                  <Button variant="outline" className="w-full rounded-full px-3 font-semibold sm:px-4">
                     <Package className="mr-2 h-4 w-4" /> Inventory
                   </Button>
                 </Link>
-                <Link href="/settings">
-                  <Button variant="outline" className="rounded-full px-4 font-semibold">
+                <Link href="/settings" className="min-w-0 flex-1 sm:flex-none">
+                  <Button variant="outline" className="w-full rounded-full px-3 font-semibold sm:px-4">
                     <Edit className="mr-2 h-4 w-4" /> Edit profile
                   </Button>
                 </Link>
-                <ProfileShareCard
-                  username={profile.username}
-                  displayName={displayName}
-                  bio={profile.bio}
-                  avatarUrl={profile.avatar_url}
-                  triggerClassName="rounded-full border px-3"
-                />
+                <div className="w-full sm:w-auto">
+                  <ProfileShareCard
+                    username={profile.username}
+                    displayName={displayName}
+                    bio={profile.bio}
+                    avatarUrl={profile.avatar_url}
+                    triggerClassName="w-full rounded-full border px-3 sm:w-auto"
+                  />
+                </div>
+                {!profile.is_premium && (
+                  <Link href="/premium" className="w-full sm:w-auto">
+                    <Button className="w-full rounded-full bg-gradient-to-r from-amber-500 to-orange-600 px-4 font-semibold text-white hover:from-amber-400 hover:to-orange-500">
+                      Get Pro
+                    </Button>
+                  </Link>
+                )}
               </>
             ) : (
               <>
@@ -405,7 +414,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                     void handleFollow()
                   }}
                   className={cn(
-                    "rounded-full px-5 font-semibold",
+                    "flex-1 rounded-full px-5 font-semibold sm:flex-none",
                     isFollowing
                       ? "border border-border bg-transparent text-foreground hover:bg-muted"
                       : "bg-foreground text-background hover:opacity-90",
@@ -546,7 +555,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="flex h-auto w-full justify-stretch rounded-none border-b border-border/70 bg-transparent p-0">
+        <TabsList className="flex h-auto w-full justify-stretch overflow-x-auto rounded-none border-b border-border/70 bg-transparent p-0">
           {[
             { id: "loops", label: "Loops" },
             { id: "branches", label: "Branches" },
@@ -556,7 +565,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             <TabsTrigger
               key={tab.id}
               value={tab.id}
-              className="flex-1 rounded-none border-b-2 border-transparent py-3 text-sm font-semibold text-muted-foreground data-[state=active]:border-sky-500 data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+              className="min-w-[4.5rem] flex-1 rounded-none border-b-2 border-transparent px-2 py-3 text-xs font-semibold text-muted-foreground data-[state=active]:border-sky-500 data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none sm:text-sm"
             >
               {tab.label}
             </TabsTrigger>

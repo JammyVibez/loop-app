@@ -6,10 +6,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { useAuth } from "@/providers/auth-provider"
+import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { supabase } from "@/lib/supabase"
+import { CODE_LANGUAGES } from "@/lib/pro-features"
 import {
   Code,
   Crop,
@@ -51,6 +52,8 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
   const [mediaFiles, setMediaFiles] = useState<File[]>([])
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [mediaType, setMediaType] = useState<MediaType>("text")
+  const [codeLanguage, setCodeLanguage] = useState("javascript")
+  const [codeTitle, setCodeTitle] = useState("")
   const [creating, setCreating] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -270,9 +273,21 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
           },
           body: JSON.stringify({
             content_text: content,
-            content_title: content.slice(0, 80) || null,
+            content_title:
+              mediaType === "code"
+                ? codeTitle.trim() || content.split("\n")[0]?.slice(0, 80) || "Code loop"
+                : content.slice(0, 80) || null,
             content_type: mediaType,
+            category: mediaType === "code" ? "code" : "general",
             hashtags: tags,
+            content_metadata:
+              mediaType === "code"
+                ? {
+                    is_code: true,
+                    language: codeLanguage,
+                    forks_count: 0,
+                  }
+                : undefined,
           }),
         })
       }
@@ -284,6 +299,8 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
       setHashtags("")
       setMediaFiles([])
       setMediaType("text")
+      setCodeTitle("")
+      setCodeLanguage("javascript")
       setShowPreview(false)
       setCropScale(1)
       setIsOpen(false)
@@ -453,17 +470,55 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Share a story, idea, or spark a tree..."
-              className="min-h-[120px] border-white/10 bg-white/5"
-              maxLength={500}
-            />
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>{content.length}/500</span>
-              <span className="inline-flex items-center gap-1"><Save className="h-3 w-3" /> Draft saved</span>
-            </div>
+            {mediaType === "code" ? (
+              <div className="space-y-3">
+                <div className="grid gap-2 sm:grid-cols-[1fr_160px]">
+                  <Input
+                    value={codeTitle}
+                    onChange={(e) => setCodeTitle(e.target.value)}
+                    placeholder="Snippet title (optional)"
+                    className="border-white/10 bg-white/5"
+                    maxLength={80}
+                  />
+                  <select
+                    value={codeLanguage}
+                    onChange={(e) => setCodeLanguage(e.target.value)}
+                    className="h-10 rounded-md border border-white/10 bg-white/5 px-3 text-sm"
+                  >
+                    {CODE_LANGUAGES.map((lang) => (
+                      <option key={lang.id} value={lang.id}>
+                        {lang.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder={`// Paste your ${codeLanguage} code here…\nfunction hello() {\n  return "Loop";\n}`}
+                  className="min-h-[220px] border-white/10 bg-[#0b1220] font-mono text-sm text-slate-100"
+                  maxLength={12000}
+                />
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span>{content.length}/12000 · others can fork, like, comment, or branch</span>
+                  <span className="inline-flex items-center gap-1"><Save className="h-3 w-3" /> Draft saved</span>
+                </div>
+              </div>
+            ) : (
+              <>
+                <Textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Share a story, idea, or spark a tree..."
+                  className="min-h-[120px] border-white/10 bg-white/5"
+                  maxLength={500}
+                />
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span>{content.length}/500</span>
+                  <span className="inline-flex items-center gap-1"><Save className="h-3 w-3" /> Draft saved</span>
+                </div>
+              </>
+            )}
 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
@@ -512,50 +567,58 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
             </div>
 
             <div className="rounded-xl border border-dashed border-white/15 p-4">
-              <label className="flex cursor-pointer flex-col items-center gap-2 text-sm text-slate-400">
-                <Upload className="h-5 w-5" />
-                <span>Upload media ({getMaxFiles()} file limit)</span>
-                <input type="file" className="hidden" accept="image/*,video/*,audio/*" onChange={handleFileChange} />
-              </label>
-              {(mediaType === "audio" || mediaType === "text") && (
-                <div className="mt-3 flex justify-center">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={recording ? "destructive" : "outline"}
-                    className="border-white/10"
-                    onClick={toggleAudioRecord}
-                  >
-                    {recording ? <Square className="mr-1.5 h-3.5 w-3.5" /> : <Mic className="mr-1.5 h-3.5 w-3.5" />}
-                    {recording ? "Stop recording" : "Record audio"}
-                  </Button>
-                </div>
-              )}
-              {mediaFiles[0] && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-xs text-slate-400">{mediaFiles[0].name}</p>
-                  {mediaType === "audio" && previewUrl && <audio src={previewUrl} controls className="w-full" />}
-                  {mediaType === "image" && previewUrl && (
-                    <div className="space-y-2">
-                      <div className="overflow-hidden rounded-xl">
-                        <img src={previewUrl} alt="" className="mx-auto max-h-56 object-cover" style={{ transform: `scale(${cropScale})` }} />
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-slate-400">
-                        <Crop className="h-3.5 w-3.5" />
-                        <span>Crop zoom</span>
-                        <input
-                          type="range"
-                          min={1}
-                          max={2.5}
-                          step={0.05}
-                          value={cropScale}
-                          onChange={(e) => setCropScale(Number(e.target.value))}
-                          className="flex-1"
-                        />
-                      </div>
+              {mediaType === "code" ? (
+                <p className="text-center text-sm text-slate-400">
+                  Code loops publish as text snippets — no media upload needed. Peers can fork your code into their profile.
+                </p>
+              ) : (
+                <>
+                  <label className="flex cursor-pointer flex-col items-center gap-2 text-sm text-slate-400">
+                    <Upload className="h-5 w-5" />
+                    <span>Upload media ({getMaxFiles()} file limit{user?.is_premium ? " · Pro" : ""})</span>
+                    <input type="file" className="hidden" accept="image/*,video/*,audio/*" onChange={handleFileChange} />
+                  </label>
+                  {(mediaType === "audio" || mediaType === "text") && (
+                    <div className="mt-3 flex justify-center">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={recording ? "destructive" : "outline"}
+                        className="border-white/10"
+                        onClick={toggleAudioRecord}
+                      >
+                        {recording ? <Square className="mr-1.5 h-3.5 w-3.5" /> : <Mic className="mr-1.5 h-3.5 w-3.5" />}
+                        {recording ? "Stop recording" : "Record audio"}
+                      </Button>
                     </div>
                   )}
-                </div>
+                  {mediaFiles[0] && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs text-slate-400">{mediaFiles[0].name}</p>
+                      {mediaType === "audio" && previewUrl && <audio src={previewUrl} controls className="w-full" />}
+                      {mediaType === "image" && previewUrl && (
+                        <div className="space-y-2">
+                          <div className="overflow-hidden rounded-xl">
+                            <img src={previewUrl} alt="" className="mx-auto max-h-56 object-cover" style={{ transform: `scale(${cropScale})` }} />
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-slate-400">
+                            <Crop className="h-3.5 w-3.5" />
+                            <span>Crop zoom</span>
+                            <input
+                              type="range"
+                              min={1}
+                              max={2.5}
+                              step={0.05}
+                              value={cropScale}
+                              onChange={(e) => setCropScale(Number(e.target.value))}
+                              className="flex-1"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
 

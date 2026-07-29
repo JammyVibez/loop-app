@@ -9,6 +9,7 @@ import {
   Bookmark,
   MoreHorizontal,
   GitBranch,
+  GitFork,
   Volume2,
   Gift,
   Sparkles,
@@ -48,6 +49,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { CreateBranchDialog } from "@/components/create-branch-dialog";
 import { normalizeLoop } from "@/lib/normalize-loop";
+import { CodeBlock } from "@/components/loops/code-block";
+import { isCodeLoop } from "@/lib/pro-features";
 
 interface LoopAuthor {
   id: string;
@@ -89,6 +92,10 @@ interface Loop {
   gifts_received?: number;
   total_gift_value?: number;
   parent_loop_id?: string | null;
+  content_metadata?: Record<string, any> | null;
+  content_title?: string | null;
+  content_type?: string;
+  category?: string;
 }
 
 interface LoopCardProps {
@@ -127,6 +134,7 @@ export function LoopCard({
   const [isAnimating, setIsAnimating] = useState(false);
   const [doubleTapHeart, setDoubleTapHeart] = useState(false);
   const [localInteracting, setLocalInteracting] = useState<string | null>(null);
+  const [forking, setForking] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const viewedRef = useRef(false);
   const lastTapRef = useRef(0);
@@ -326,6 +334,46 @@ export function LoopCard({
     }
     setShowBranchDialog(true);
   };
+
+  const handleFork = async () => {
+    if (!currentUser) {
+      toast({
+        title: "Sign in required",
+        description: "Log in to fork this loop.",
+        variant: "destructive",
+      })
+      return
+    }
+    if (currentUser.id === loop.author_id) {
+      toast({ title: "That's your loop", description: "Fork someone else's code to remix it." })
+      return
+    }
+    setForking(true)
+    try {
+      const res = await fetch(`/api/loops/${loop.id}/fork`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Fork failed")
+      setLoop((prev: any) => ({
+        ...prev,
+        content_metadata: {
+          ...(prev.content_metadata || {}),
+          forks_count: data.forks_count ?? Number(prev.content_metadata?.forks_count || 0) + 1,
+        },
+      }))
+      toast({
+        title: "Forked!",
+        description: "A copy is now on your profile. Like, comment, or branch it next.",
+      })
+    } catch (error: any) {
+      toast({ title: "Couldn’t fork", description: error.message, variant: "destructive" })
+    } finally {
+      setForking(false)
+    }
+  }
 
   const handleEdit = () => {
     if (!currentUser?.token || currentUser.id !== loop.author_id) return;
@@ -780,18 +828,50 @@ export function LoopCard({
                   <Heart className="h-16 w-16 fill-rose-500 text-rose-500 animate-in zoom-in-50 fade-in duration-300" />
                 </div>
               )}
-              <p className="text-sm sm:text-base leading-relaxed">
-                {showFullContent ? content : contentPreview}
-              </p>
-              {content.length > 200 && (
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="p-0 h-auto text-[var(--theme-primary)] hover:text-[var(--theme-secondary)] text-xs sm:text-sm"
-                  onClick={() => setShowFullContent(!showFullContent)}
-                >
-                  {showFullContent ? "Show less" : "Show more"}
-                </Button>
+              {isCodeLoop(loop) || isCodeLoop(rawLoop) ? (
+                <div className="space-y-2">
+                  {(loop as any).content_title || rawLoop?.content_title ? (
+                    <p className="text-sm font-semibold">{(loop as any).content_title || rawLoop?.content_title}</p>
+                  ) : null}
+                  {(loop as any).content_metadata?.forked_from ? (
+                    <Badge variant="outline" className="text-[10px]">
+                      Forked loop
+                    </Badge>
+                  ) : null}
+                  <CodeBlock
+                    code={content}
+                    language={
+                      (loop as any).content_metadata?.language ||
+                      rawLoop?.content_metadata?.language ||
+                      "other"
+                    }
+                    title={(loop as any).content_title || rawLoop?.content_title}
+                    forksCount={Number(
+                      (loop as any).content_metadata?.forks_count ||
+                        rawLoop?.content_metadata?.forks_count ||
+                        0,
+                    )}
+                    onFork={() => void handleFork()}
+                    forking={forking}
+                    showFork={currentUser?.id !== loop.author_id}
+                  />
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm sm:text-base leading-relaxed">
+                    {showFullContent ? content : contentPreview}
+                  </p>
+                  {content.length > 200 && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="p-0 h-auto text-[var(--theme-primary)] hover:text-[var(--theme-secondary)] text-xs sm:text-sm"
+                      onClick={() => setShowFullContent(!showFullContent)}
+                    >
+                      {showFullContent ? "Show less" : "Show more"}
+                    </Button>
+                  )}
+                </>
               )}
             </div>
 
@@ -873,6 +953,24 @@ export function LoopCard({
                     {loop.stats.branches_count}
                   </span>
                 </Button>
+
+                {(isCodeLoop(loop) || isCodeLoop(rawLoop)) && currentUser?.id !== loop.author_id && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="space-x-1 hover:text-violet-500 hover:scale-105 transition-all duration-200 text-xs sm:text-sm p-1 sm:p-2"
+                    onClick={() => void handleFork()}
+                    disabled={forking}
+                    title="Fork code"
+                  >
+                    {forking ? (
+                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                    ) : (
+                      <GitFork className="h-3 w-3 sm:h-4 sm:w-4" />
+                    )}
+                    <span className="hidden sm:inline">Fork</span>
+                  </Button>
+                )}
               </div>
 
               <div className="flex items-center space-x-1 sm:space-x-2">

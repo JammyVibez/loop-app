@@ -159,6 +159,22 @@ export async function POST(request: NextRequest) {
     }
 
     const textContent = contentText.trim()
+    const isCodePost =
+      loopType === "code" ||
+      category === "code" ||
+      Boolean((mediaMetadata as any)?.is_code)
+
+    if (isCodePost) {
+      mediaType = "code"
+      category = "code"
+      mediaMetadata = {
+        ...(mediaMetadata || {}),
+        is_code: true,
+        language: (mediaMetadata as any)?.language || "other",
+        forks_count: Number((mediaMetadata as any)?.forks_count || 0),
+      }
+    }
+
     // Live DB has NOT NULL `content` (text) plus normalized content_* columns.
     const payload: Record<string, unknown> = {
       author_id: user.id,
@@ -188,22 +204,31 @@ export async function POST(request: NextRequest) {
       .single()
 
     // Retry without optional columns if PostgREST schema cache rejects any of them.
-    if (error?.code === "PGRST204") {
+    // Also fall back content_type "code" → "text" when CHECK constraint rejects it.
+    if (error?.code === "PGRST204" || (error && /content_type|check|code/i.test(error.message || ""))) {
+      if (/content_type|check|code/i.test(error.message || "")) {
+        payload.content_type = "text"
+        payload.media_type = "text"
+        payload.content_metadata = {
+          ...(typeof payload.content_metadata === "object" ? (payload.content_metadata as object) : {}),
+          is_code: true,
+        }
+      }
       const optional = ["category", "content_metadata", "media_url", "media_type", "visibility"]
       for (const col of optional) {
         if (error?.code === "PGRST204" && String(error.message || "").includes(col)) {
           delete payload[col]
-          ;({ data: loop, error } = await supabase
-            .from("loops")
-            .insert(payload)
-            .select(`
-              *,
-              author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
-              loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
-            `)
-            .single())
         }
       }
+      ;({ data: loop, error } = await supabase
+        .from("loops")
+        .insert(payload)
+        .select(`
+          *,
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+          loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
+        `)
+        .single())
     }
 
     if (error) {

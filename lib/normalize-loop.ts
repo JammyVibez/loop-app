@@ -40,6 +40,7 @@ export type NormalizedLoop = {
   engagement_score?: number
   gifts_received?: number
   total_gift_value?: number
+  content_metadata?: Record<string, any> | null
 }
 
 const defaultStats = {
@@ -108,6 +109,8 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
     ),
     gifts_received: Number(row?.gifts_received ?? 0) || undefined,
     total_gift_value: Number(row?.total_gift_value ?? 0) || undefined,
+    content_metadata:
+      row?.content_metadata && typeof row.content_metadata === "object" ? row.content_metadata : null,
   }
 }
 

@@ -316,6 +316,13 @@ export function EnhancedSettings() {
                     <h3 className="text-lg font-semibold">{formData.display_name || "Your name"}</h3>
                     {user.is_verified && <Badge variant="secondary"><Star className="mr-1 h-3 w-3" />Verified</Badge>}
                     {user.is_premium && <Badge><Crown className="mr-1 h-3 w-3" />Premium</Badge>}
+                    {!user.is_premium && (
+                      <Link href="/premium">
+                        <Badge variant="outline" className="cursor-pointer border-amber-500/40 text-amber-600 hover:bg-amber-500/10">
+                          <Crown className="mr-1 h-3 w-3" /> Get Pro · $3.99
+                        </Badge>
+                      </Link>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground">@{formData.username}</p>
                   <p className="text-xs text-muted-foreground">JPG, PNG, or animated GIF</p>

@@ -4,6 +4,7 @@ import { awardXp, XP_REWARDS, levelFromXp } from "@/lib/xp"
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 const DAILY_AMOUNT = 40
+const DAILY_PRO_AMOUNT = 60
 const DAILY_MS = 24 * 60 * 60 * 1000
 const WEEKLY_MS = 7 * 24 * 60 * 60 * 1000
 const WEEKLY_AMOUNT = 500
@@ -162,7 +163,7 @@ export async function GET(request: NextRequest) {
         .order("claimed_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
-      supabase.from("profiles").select("loop_coins, level, xp_points").eq("id", user.id).maybeSingle(),
+      supabase.from("profiles").select("loop_coins, level, xp_points, is_premium, premium_expires_at").eq("id", user.id).maybeSingle(),
       recentDailyDays(user.id),
     ])
 
@@ -173,16 +174,21 @@ export async function GET(request: NextRequest) {
     const weeklyReadyAt = weeklyClaimedAt ? nextAt(weeklyClaimedAt, WEEKLY_MS) : null
     const dailyClaimed = Boolean(dailyReadyAt && new Date(dailyReadyAt).getTime() > now)
     const weeklyClaimed = Boolean(weeklyReadyAt && new Date(weeklyReadyAt).getTime() > now)
+    const proActive =
+      Boolean(profile?.is_premium) &&
+      (!profile?.premium_expires_at || new Date(profile.premium_expires_at).getTime() > now)
+    const dailyAmount = proActive ? DAILY_PRO_AMOUNT : DAILY_AMOUNT
 
     return NextResponse.json({
       success: true,
       daily: {
         claimed: dailyClaimed,
-        amount: DAILY_AMOUNT,
+        amount: dailyAmount,
         streak,
         claimed_at: dailyClaimedAt,
         next_available: dailyClaimed ? dailyReadyAt : new Date().toISOString(),
         cooldown_hours: 24,
+        pro_bonus: proActive,
       },
       weekly: {
         claimed: weeklyClaimed,
@@ -291,8 +297,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { data: profile } = await supabase.from("profiles").select("loop_coins, xp_points, level").eq("id", user.id).maybeSingle()
-    const nextCoins = Number(profile?.loop_coins || 0) + DAILY_AMOUNT
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("loop_coins, xp_points, level, is_premium, premium_expires_at")
+      .eq("id", user.id)
+      .maybeSingle()
+    const proActive =
+      Boolean(profile?.is_premium) &&
+      (!profile?.premium_expires_at || new Date(profile.premium_expires_at).getTime() > now)
+    const dailyAmount = proActive ? DAILY_PRO_AMOUNT : DAILY_AMOUNT
+    const nextCoins = Number(profile?.loop_coins || 0) + dailyAmount
 
     const { error: updateError } = await supabase
       .from("profiles")
@@ -305,7 +319,7 @@ export async function POST(request: NextRequest) {
     if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
 
     try {
-      await recordDailyClaim(user.id, DAILY_AMOUNT)
+      await recordDailyClaim(user.id, dailyAmount)
     } catch (err: any) {
       // Coins already credited — still try to keep claim state consistent via quest_reward
       console.error("recordDailyClaim error:", err?.message || err)
@@ -316,12 +330,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       kind: "daily",
-      amount: DAILY_AMOUNT,
+      amount: dailyAmount,
       coins: nextCoins,
       xp_gained: xp?.xp_gained || XP_REWARDS.daily_checkin,
       level: xp?.level,
       xp_points: xp?.xp_points,
       leveled_up: xp?.leveled_up || false,
+      pro_bonus: proActive,
       next_available: new Date(now + DAILY_MS).toISOString(),
       claimed: true,
     })

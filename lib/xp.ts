@@ -39,8 +39,23 @@ export async function awardXp(
   action: XpAction | number,
   reason?: string,
 ): Promise<AwardXpResult | null> {
-  const xpAmount = typeof action === "number" ? action : XP_REWARDS[action]
+  let xpAmount = typeof action === "number" ? action : XP_REWARDS[action]
   if (!userId || !xpAmount || xpAmount <= 0) return null
+
+  // Loop Pro: 2× XP on activity rewards
+  try {
+    const { data: premiumRow } = await supabase
+      .from("profiles")
+      .select("is_premium, premium_expires_at")
+      .eq("id", userId)
+      .maybeSingle()
+    const active =
+      Boolean(premiumRow?.is_premium) &&
+      (!premiumRow?.premium_expires_at || new Date(premiumRow.premium_expires_at) > new Date())
+    if (active) xpAmount = Math.round(xpAmount * 2)
+  } catch {
+    /* ignore */
+  }
 
   try {
     const { data: rpcData, error: rpcError } = await supabase.rpc("award_user_xp", {
