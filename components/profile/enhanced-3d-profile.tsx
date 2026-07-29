@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import Link from "next/link"
 import {
   ArrowLeft,
@@ -40,6 +40,7 @@ import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
 import { cosmeticsFromInventory, type ActiveCosmetics } from "@/lib/cosmetics"
 import { isShopThemePayload } from "@/lib/theme-css"
 import { xpForNextLevel } from "@/lib/xp"
+import { uploadMediaFile } from "@/lib/client-media-upload"
 
 interface Achievement {
   id: string
@@ -97,6 +98,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const [isFollowing, setIsFollowing] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
   const [showGiftModal, setShowGiftModal] = useState(false)
+  const coverInputRef = useRef<HTMLInputElement>(null)
 
   const fetchProfile = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true)
@@ -256,18 +258,12 @@ export function Enhanced3DProfile({ username }: { username: string }) {
     if (!file || !user) return
     setUploadingCover(true)
     try {
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("type", "image")
-      formData.append("folder", "banners")
-      const uploadRes = await fetch("/api/upload", {
-        method: "POST",
-        headers: getAuthHeader(),
-        body: formData,
+      const uploaded = await uploadMediaFile(file, {
+        type: "image",
+        folder: "banners",
+        authHeaders: getAuthHeader(),
       })
-      const uploadData = await uploadRes.json()
-      const url = uploadData.url || uploadData.data?.url
-      if (!uploadRes.ok || !url) throw new Error(uploadData.error || "Upload failed")
+      const url = uploaded.url
 
       const saveRes = await fetch("/api/users/profile", {
         method: "PUT",
@@ -312,8 +308,8 @@ export function Enhanced3DProfile({ username }: { username: string }) {
 
   return (
     <div className="mx-auto w-full max-w-2xl border-border/70 bg-background min-h-screen sm:border-x">
-      {/* Sticky top bar like X */}
-      <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-border/70 bg-background/85 px-3 py-2 backdrop-blur-xl sm:gap-4">
+      {/* Sticky top bar — sit below site Header (h-16) so content doesn't bleed through */}
+      <div className="sticky top-16 z-30 flex items-center gap-3 border-b border-border bg-background px-3 py-2 sm:gap-4">
         <Link href="/" className="rounded-full p-2 hover:bg-muted">
           <ArrowLeft className="h-5 w-5" />
         </Link>
@@ -329,7 +325,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       </div>
 
       {/* Banner */}
-      <div className="relative h-32 bg-gradient-to-r from-slate-700 via-slate-600 to-slate-800 sm:h-48">
+      <div className="relative z-0 h-32 bg-gradient-to-r from-slate-700 via-slate-600 to-slate-800 sm:h-48">
         {profile.banner_url ? (
           <img src={profile.banner_url} alt="" className="h-full w-full object-cover" />
         ) : (
@@ -337,37 +333,45 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         )}
         {isOwnProfile && (
           <>
-            <input id="profile-cover-upload" type="file" accept="image/*,.gif,image/gif" className="hidden" onChange={handleCoverUpload} />
+            <input
+              ref={coverInputRef}
+              id="profile-cover-upload"
+              type="file"
+              accept="image/*,.gif,image/gif"
+              className="hidden"
+              onChange={handleCoverUpload}
+            />
             <Button
+              type="button"
               size="sm"
               variant="secondary"
-              className="absolute bottom-2 right-2 rounded-full bg-black/55 px-3 text-white hover:bg-black/70 sm:bottom-3 sm:right-3"
+              className="absolute bottom-2 right-2 z-20 rounded-full bg-black/55 px-3 text-white hover:bg-black/70 sm:bottom-3 sm:right-3"
               disabled={uploadingCover}
-              onClick={() => document.getElementById("profile-cover-upload")?.click()}
+              onClick={() => coverInputRef.current?.click()}
             >
               <Upload className="mr-1.5 h-3.5 w-3.5" />
               {uploadingCover ? "Uploading…" : "Edit cover"}
             </Button>
-            <p className="absolute bottom-2 left-2 hidden rounded-full bg-black/45 px-2 py-0.5 text-[10px] text-white/90 sm:bottom-3 sm:left-3 sm:block">
+            <p className="pointer-events-none absolute bottom-2 left-2 z-20 hidden rounded-full bg-black/45 px-2 py-0.5 text-[10px] text-white/90 sm:bottom-3 sm:left-3 sm:block">
               JPG, PNG, or GIF
             </p>
           </>
         )}
       </div>
 
-      {/* Avatar + actions — stack on mobile */}
-      <div className="relative px-3 pb-3 sm:px-4">
-        <div className="-mt-10 flex flex-col gap-3 sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
+      {/* Avatar + actions — stack on mobile; empty overlap must not block cover button */}
+      <div className="relative z-10 px-3 pb-3 sm:px-4">
+        <div className="-mt-10 flex flex-col gap-3 pointer-events-none sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
           <CosmeticAvatar
             src={profile.avatar_url}
             alt={displayName}
             fallback={displayName}
             size="lg"
             cosmetics={cosmetics}
-            className="border-4 border-background self-start"
+            className="pointer-events-auto border-4 border-background self-start"
           />
 
-          <div className="mb-0 flex w-full flex-wrap justify-stretch gap-2 sm:mb-1 sm:w-auto sm:justify-end">
+          <div className="pointer-events-auto mb-0 flex w-full flex-wrap justify-stretch gap-2 sm:mb-1 sm:w-auto sm:justify-end">
             {isOwnProfile ? (
               <>
                 <Link href="/inventory" className="min-w-0 flex-1 sm:flex-none">

@@ -112,7 +112,15 @@ export async function POST(request: NextRequest) {
 
     // Validate file type
     const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
-    const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/avi', 'video/mov']
+    const allowedVideoTypes = [
+      'video/mp4',
+      'video/webm',
+      'video/ogg',
+      'video/avi',
+      'video/mov',
+      'video/quicktime',
+      'video/x-m4v',
+    ]
     const allowedAudioTypes = [
       "audio/mp3",
       "audio/mpeg",
@@ -137,7 +145,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    if (type === 'video' && !allowedVideoTypes.includes(file.type)) {
+    if (type === 'video' && !allowedVideoTypes.includes(file.type) && !(file.type || "").startsWith("video/") && !/\.(mp4|webm|mov|m4v|avi|ogg)$/i.test(file.name || "")) {
       return NextResponse.json({ 
         error: "Invalid video format. Supported: MP4, WebM, OGG, AVI, MOV" 
       }, { status: 400 })

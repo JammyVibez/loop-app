@@ -30,6 +30,8 @@ import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
+import { uploadMediaFile } from "@/lib/client-media-upload"
+import { parseJsonResponse } from "@/lib/parse-json-response"
 
 interface ReelAuthor {
   id: string
@@ -242,18 +244,13 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
     }
     setDueting(true)
     try {
-      const formData = new FormData()
-      formData.append("file", uploadFile)
-      formData.append("type", uploadFile.type.startsWith("video") ? "video" : "image")
-      formData.append("folder", "reels")
-      const uploadRes = await fetch("/api/upload", {
-        method: "POST",
-        headers: getAuthHeader(),
-        body: formData,
+      const mediaType = uploadFile.type.startsWith("video") ? "video" : "image"
+      const uploaded = await uploadMediaFile(uploadFile, {
+        type: mediaType,
+        folder: "reels",
+        authHeaders: getAuthHeader(),
       })
-      const uploadData = await uploadRes.json()
-      const url = uploadData.url || uploadData.data?.url
-      if (!uploadRes.ok || !url) throw new Error(uploadData.error || "Upload failed")
+      const url = uploaded.url
 
       const response = await fetch(`/api/reels/${duetReel.id}/branch`, {
         method: "POST",
@@ -261,12 +258,12 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
         body: JSON.stringify({
           title: createTitle.trim() || `Duet with @${duetReel.author?.username || "creator"}`,
           description: createTitle.trim() || null,
-          type: uploadFile.type.startsWith("video") ? "video" : "image",
+          type: mediaType,
           content_url: url,
           hashtags: ["duet", ...(duetReel.hashtags || []).slice(0, 3)],
         }),
       })
-      const data = await response.json()
+      const { data } = await parseJsonResponse<any>(response)
       if (!response.ok) throw new Error(data.error || "Duet failed")
       toast({ title: "Duet published" })
       setDuetReel(null)
@@ -392,18 +389,13 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
     }
     setCreating(true)
     try {
-      const formData = new FormData()
-      formData.append("file", uploadFile)
-      formData.append("type", uploadFile.type.startsWith("video") ? "video" : "image")
-      formData.append("folder", "reels")
-      const uploadRes = await fetch("/api/upload", {
-        method: "POST",
-        headers: getAuthHeader(),
-        body: formData,
+      const mediaType = uploadFile.type.startsWith("video") ? "video" : "image"
+      const uploaded = await uploadMediaFile(uploadFile, {
+        type: mediaType,
+        folder: "reels",
+        authHeaders: getAuthHeader(),
       })
-      const uploadData = await uploadRes.json()
-      const url = uploadData.url || uploadData.data?.url
-      if (!uploadRes.ok || !url) throw new Error(uploadData.error || "Upload failed")
+      const url = uploaded.url
 
       const response = await fetch("/api/reels", {
         method: "POST",
@@ -411,7 +403,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
         body: JSON.stringify({
           title: createTitle.trim(),
           description: createTitle.trim(),
-          content_type: uploadFile.type.startsWith("video") ? "video" : "image",
+          content_type: mediaType,
           content_url: url,
           hashtags: createHashtags
             .split(/[\s,#]+/)
@@ -420,7 +412,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
           effects: createEffect !== "none" ? { filter: createEffect } : null,
         }),
       })
-      const data = await response.json()
+      const { data } = await parseJsonResponse<any>(response)
       if (!response.ok) throw new Error(data.error || "Failed to create reel")
       toast({ title: "Reel published" })
       setCreateOpen(false)
