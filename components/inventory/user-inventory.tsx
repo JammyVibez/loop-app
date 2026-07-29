@@ -91,7 +91,7 @@ export function UserInventory() {
       toast({
         title: "Applied",
         description: data.theme
-          ? "Theme is now active across the app."
+          ? "Accent theme applied. Light/dark mode still works from Settings."
           : "Badge/effect is now active on your profile.",
       })
     } catch (err) {

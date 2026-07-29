@@ -402,7 +402,8 @@ export function EnhancedSettings() {
             <CardHeader>
               <CardTitle>Color theme</CardTitle>
               <CardDescription>
-                Switch between light and dark. Current: {mounted ? resolvedTheme || theme : "…"}
+                Light and dark are your main look (white / black). Shop themes add accent colors on top — both keep working together. Current:{" "}
+                {mounted ? resolvedTheme || theme : "…"}
               </CardDescription>
             </CardHeader>
             <CardContent>

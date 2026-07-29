@@ -1,7 +1,7 @@
 "use client";
 import type React from "react";
 import { createContext, useContext, useState, useEffect } from "react";
-import { applyThemeCssVars, clearThemeCssOverrides, isShopThemePayload } from "@/lib/theme-css";
+import { applyThemeCssVars, clearThemeCssOverrides, isShopThemePayload, isActiveShopTheme } from "@/lib/theme-css";
 
 interface Theme3D {
   id: string
@@ -247,25 +247,52 @@ export function Theme3DProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    // Apply theme to CSS variables — bridge --theme-* into shadcn tokens app-wide
+    // Light/dark (next-themes) owns surfaces. Shop themes only tint accents.
     const root = document.documentElement
-    applyThemeCssVars(root, currentTheme.colors)
+    const isShop = isActiveShopTheme(currentTheme)
+
+    if (!isShop) {
+      clearThemeCssOverrides(root)
+      root.dataset.shopThemeId = "default"
+    } else {
+      applyThemeCssVars(root, currentTheme.colors, { accentsOnly: true })
+      root.dataset.shopThemeId = currentTheme.id
+    }
 
     Array.from(document.body.classList)
       .filter((cls) => cls.startsWith("theme-"))
       .forEach((cls) => document.body.classList.remove(cls))
     document.body.classList.add(`theme-${currentTheme.id}`)
 
-    document.body.classList.toggle("theme-glow", Boolean(currentTheme.effects.glow))
-    document.body.classList.toggle("theme-particles", Boolean(currentTheme.effects.particles))
-    document.body.classList.toggle("theme-animations", Boolean(currentTheme.effects.animations))
+    document.body.classList.toggle("theme-glow", Boolean(isShop && currentTheme.effects.glow))
+    document.body.classList.toggle("theme-particles", Boolean(isShop && currentTheme.effects.particles))
+    document.body.classList.toggle("theme-animations", Boolean(isShop && currentTheme.effects.animations))
 
-    // Soft page atmosphere from theme background
+    // Soft accent atmosphere only — never replace light/dark page background
     const env = document.getElementById("theme-environment")
     if (env) {
-      env.style.background = `radial-gradient(1200px 600px at 10% -10%, ${currentTheme.colors.primary}22, transparent 55%), radial-gradient(900px 500px at 90% 0%, ${currentTheme.colors.secondary}18, transparent 50%), ${currentTheme.colors.background}`
-      env.style.opacity = "1"
+      if (isShop) {
+        env.style.background = `radial-gradient(1200px 600px at 10% -10%, ${currentTheme.colors.primary}18, transparent 55%), radial-gradient(900px 500px at 90% 0%, ${currentTheme.colors.secondary}14, transparent 50%)`
+        env.style.opacity = "1"
+      } else {
+        env.style.background = ""
+        env.style.opacity = "0"
+      }
     }
+  }, [currentTheme])
+
+  // Re-assert accents when user toggles light/dark (class on <html>)
+  useEffect(() => {
+    const root = document.documentElement
+    const observer = new MutationObserver(() => {
+      if (!isActiveShopTheme(currentTheme)) {
+        clearThemeCssOverrides(root)
+        return
+      }
+      applyThemeCssVars(root, currentTheme.colors, { accentsOnly: true })
+    })
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] })
+    return () => observer.disconnect()
   }, [currentTheme])
 
   const setTheme = (themeId: string) => {

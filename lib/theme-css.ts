@@ -64,8 +64,54 @@ export type ThemeColors = {
   text?: string
 }
 
-/** Apply shop theme colors onto both --theme-* and shadcn tokens */
-export function applyThemeCssVars(root: HTMLElement, colors: ThemeColors) {
+/** Inline overrides that must NOT fight next-themes light/dark base */
+const SHADCN_ACCENT_KEYS = [
+  "--primary",
+  "--primary-foreground",
+  "--secondary",
+  "--secondary-foreground",
+  "--accent",
+  "--accent-foreground",
+  "--ring",
+] as const
+
+const SHADCN_BASE_KEYS = [
+  "--background",
+  "--foreground",
+  "--card",
+  "--card-foreground",
+  "--popover",
+  "--popover-foreground",
+  "--muted",
+  "--muted-foreground",
+  "--border",
+  "--input",
+] as const
+
+const THEME_TOKEN_KEYS = [
+  "--theme-primary",
+  "--theme-secondary",
+  "--theme-accent",
+  "--theme-background",
+  "--theme-surface",
+  "--theme-text",
+] as const
+
+/**
+ * Apply shop theme as an accent overlay on top of light/dark.
+ * Light (white) and dark (black) stay the base surfaces via :root / .dark.
+ * Shop themes only tint primary / secondary / accent / ring.
+ */
+export function applyThemeCssVars(
+  root: HTMLElement,
+  colors: ThemeColors,
+  options?: { accentsOnly?: boolean },
+) {
+  const accentsOnly = options?.accentsOnly !== false
+
+  // Always clear base surface overrides so next-themes light/dark can work
+  for (const key of SHADCN_BASE_KEYS) root.style.removeProperty(key)
+
   const map: Array<[string, string | undefined]> = [
     ["--theme-primary", colors.primary],
     ["--theme-secondary", colors.secondary],
@@ -76,71 +122,74 @@ export function applyThemeCssVars(root: HTMLElement, colors: ThemeColors) {
   ]
   for (const [key, value] of map) {
     if (value) root.style.setProperty(key, value)
+    else root.style.removeProperty(key)
   }
 
   const primary = colors.primary ? hexToHslComponents(colors.primary) : null
   const secondary = colors.secondary ? hexToHslComponents(colors.secondary) : null
   const accent = colors.accent ? hexToHslComponents(colors.accent) : null
-  const background = colors.background ? hexToHslComponents(colors.background) : null
-  const surface = colors.surface ? hexToHslComponents(colors.surface) : null
-  const text = colors.text ? hexToHslComponents(colors.text) : null
 
   if (primary) {
     root.style.setProperty("--primary", primary)
     root.style.setProperty("--ring", primary)
     if (colors.primary) root.style.setProperty("--primary-foreground", contrastForeground(colors.primary))
+  } else {
+    root.style.removeProperty("--primary")
+    root.style.removeProperty("--ring")
+    root.style.removeProperty("--primary-foreground")
   }
+
   if (secondary) {
     root.style.setProperty("--secondary", secondary)
     if (colors.secondary) root.style.setProperty("--secondary-foreground", contrastForeground(colors.secondary))
+  } else {
+    root.style.removeProperty("--secondary")
+    root.style.removeProperty("--secondary-foreground")
   }
+
   if (accent) {
     root.style.setProperty("--accent", accent)
     if (colors.accent) root.style.setProperty("--accent-foreground", contrastForeground(colors.accent))
+  } else {
+    root.style.removeProperty("--accent")
+    root.style.removeProperty("--accent-foreground")
   }
-  if (background) {
-    root.style.setProperty("--background", background)
+
+  // Never paint shop background/text over light/dark base when accentsOnly
+  if (!accentsOnly) {
+    const background = colors.background ? hexToHslComponents(colors.background) : null
+    const surface = colors.surface ? hexToHslComponents(colors.surface) : null
+    const text = colors.text ? hexToHslComponents(colors.text) : null
+    if (background) root.style.setProperty("--background", background)
+    if (text) {
+      root.style.setProperty("--foreground", text)
+      root.style.setProperty("--card-foreground", text)
+      root.style.setProperty("--popover-foreground", text)
+    }
+    if (surface) {
+      root.style.setProperty("--card", surface)
+      root.style.setProperty("--popover", surface)
+      root.style.setProperty("--muted", surface)
+      root.style.setProperty("--input", surface)
+      root.style.setProperty("--border", surface)
+    }
   }
-  if (text) {
-    root.style.setProperty("--foreground", text)
-    root.style.setProperty("--card-foreground", text)
-    root.style.setProperty("--popover-foreground", text)
-  }
-  if (surface) {
-    root.style.setProperty("--card", surface)
-    root.style.setProperty("--popover", surface)
-    root.style.setProperty("--muted", surface)
-    root.style.setProperty("--input", surface)
-    root.style.setProperty("--border", surface)
-  }
+
+  root.dataset.shopThemeAccents = accentsOnly ? "true" : "false"
 }
 
 export function clearThemeCssOverrides(root: HTMLElement) {
-  const keys = [
-    "--theme-primary",
-    "--theme-secondary",
-    "--theme-accent",
-    "--theme-background",
-    "--theme-surface",
-    "--theme-text",
-    "--primary",
-    "--primary-foreground",
-    "--secondary",
-    "--secondary-foreground",
-    "--accent",
-    "--accent-foreground",
-    "--background",
-    "--foreground",
-    "--card",
-    "--card-foreground",
-    "--popover",
-    "--popover-foreground",
-    "--muted",
-    "--border",
-    "--input",
-    "--ring",
-  ]
-  for (const key of keys) root.style.removeProperty(key)
+  for (const key of [...THEME_TOKEN_KEYS, ...SHADCN_ACCENT_KEYS, ...SHADCN_BASE_KEYS]) {
+    root.style.removeProperty(key)
+  }
+  delete root.dataset.shopThemeAccents
+  delete root.dataset.shopThemeId
+}
+
+/** True when a purchased/custom shop theme (not the built-in default) is active */
+export function isActiveShopTheme(theme: { id?: string } | null | undefined) {
+  if (!theme?.id) return false
+  return theme.id !== "default"
 }
 
 export function isShopThemePayload(value: unknown): value is { colors: ThemeColors; id?: string; name?: string } {
