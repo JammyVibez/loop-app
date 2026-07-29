@@ -21,6 +21,7 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
     "/privacy",
     "/reset-password",
     "/verify-email",
+    "/email-confirmed",
     "/explore",
     "/trending",
     "/profile",
@@ -45,23 +46,33 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
       // Only force onboarding for brand-new accounts with no username yet,
       // and only when arriving from auth pages. Incomplete onboarding must
       // never trap users away from circles, settings, marketplace, admin, etc.
-      const isAuthEntry = pathname === "/login" || pathname === "/signup"
+      const isAuthEntry =
+        pathname === "/login" ||
+        pathname === "/signup" ||
+        pathname === "/verify-email" ||
+        pathname === "/email-confirmed"
       const missingIdentity = !user.username?.trim()
       const incomplete = user.onboarding_completed === false
 
-      if (incomplete && missingIdentity && pathname !== "/onboarding") {
+      // Stay on the email-confirmed success page so the user can continue deliberately
+      if (pathname === "/email-confirmed" && incomplete) {
+        setRedirecting(false)
+        return
+      }
+
+      if (incomplete && missingIdentity && pathname !== "/onboarding" && pathname !== "/email-confirmed") {
         setRedirecting(true)
         router.replace("/onboarding")
         return
       }
 
-      if (incomplete && isAuthEntry) {
+      if (incomplete && isAuthEntry && pathname !== "/email-confirmed") {
         setRedirecting(true)
         router.replace("/onboarding")
         return
       }
 
-      if (user.onboarding_completed === true && pathname === "/onboarding") {
+      if (user.onboarding_completed === true && (pathname === "/onboarding" || pathname === "/email-confirmed")) {
         setRedirecting(true)
         router.replace("/")
         return

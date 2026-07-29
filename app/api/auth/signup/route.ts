@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       password,
       options: {
         data: metadata,
-        emailRedirectTo: `${getAppUrl(request)}/api/auth/callback`,
+        emailRedirectTo: `${getAppUrl(request)}/api/auth/callback?next=/email-confirmed`,
       },
     })
 

@@ -99,7 +99,11 @@ export async function GET(request: NextRequest) {
     }
 
     const profile = await ensureProfile(data.user)
-    const destination = nextPath || (profile?.onboarding_completed ? "/" : "/onboarding")
+    // Prefer explicit next (e.g. reset-password, email-confirmed).
+    // New email signups land on /email-confirmed, then continue to onboarding.
+    const destination =
+      nextPath ||
+      (profile?.onboarding_completed ? "/" : "/email-confirmed")
     const response = NextResponse.redirect(new URL(destination, request.url))
 
     pendingCookies.forEach(({ name, value, options }) => response.cookies.set(name, value, options))

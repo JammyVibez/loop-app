@@ -64,6 +64,9 @@ export default function EmailVerificationPage() {
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: resendEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/email-confirmed`,
+        },
       })
       if (error) {
         throw error
@@ -123,15 +126,15 @@ export default function EmailVerificationPage() {
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-2xl font-semibold mb-2 text-green-700">Email Verified Successfully!</h2>
             <p className="text-muted-foreground mb-6">
-              Your email address has been verified. You can now access all Loop features.
+              Your email address has been verified. Continue to set up your Loop profile.
             </p>
             <div className="space-y-3">
-              <Link href="/login">
-                <Button className="w-full">Continue to Login</Button>
+              <Link href="/email-confirmed">
+                <Button className="w-full">Continue</Button>
               </Link>
-              <Link href="/">
+              <Link href="/onboarding">
                 <Button variant="outline" className="w-full">
-                  Go to Homepage
+                  Go to onboarding
                 </Button>
               </Link>
             </div>

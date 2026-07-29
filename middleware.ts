@@ -7,6 +7,7 @@ const publicRoutes = new Set([
   "/login",
   "/signup",
   "/verify-email",
+  "/email-confirmed",
   "/reset-password",
   "/api/auth/login",
   "/api/auth/signup",
