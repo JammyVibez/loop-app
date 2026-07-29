@@ -165,15 +165,23 @@ export async function POST(request: NextRequest) {
         uploadResult = await cloudinary.uploader.upload(base64, {
           folder: `loop-app/${folder}/images`,
           resource_type: 'image',
-          transformation: isGif ? [
-            { width: 800, height: 800, crop: 'limit' },
-            { quality: 'auto' },
-            { flags: 'animated' } // Preserve GIF animation
-          ] : [
-            { width: 1200, height: 1200, crop: 'limit' },
-            { quality: 'auto' },
-            { format: 'auto' }
-          ]
+          // Keep GIFs as GIF so avatar/cover animations play
+          ...(isGif
+            ? {
+                format: 'gif',
+                transformation: [
+                  { width: folder === 'banners' ? 1500 : 800, height: folder === 'banners' ? 500 : 800, crop: 'limit' },
+                  { quality: 'auto:good' },
+                  { flags: 'animated' },
+                ],
+              }
+            : {
+                transformation: [
+                  { width: folder === 'banners' ? 1500 : 1200, height: folder === 'banners' ? 500 : 1200, crop: 'limit' },
+                  { quality: 'auto' },
+                  { format: 'auto' },
+                ],
+              }),
         })
       } else if (type === 'video') {
         uploadResult = await cloudinary.uploader.upload(base64, {

@@ -29,37 +29,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select(
-        "id, email, username, display_name, avatar_url, banner_url, bio, loop_coins, is_premium, premium_expires_at, is_verified, is_admin, theme_data, theme_preferences, interests, onboarding_completed, location, website, phone, privacy_settings, notification_settings",
-      )
-      .eq("id", user.id)
-      .maybeSingle()
+    const selects = [
+      "id, email, username, display_name, avatar_url, banner_url, bio, loop_coins, is_premium, premium_expires_at, is_verified, is_admin, theme_data, theme_preferences, active_theme, active_cosmetics, level, xp_points, available_earnings, interests, onboarding_completed, location, website, phone, privacy_settings, notification_settings",
+      "id, email, username, display_name, avatar_url, banner_url, bio, loop_coins, is_premium, premium_expires_at, is_verified, is_admin, theme_data, theme_preferences, interests, onboarding_completed, location, website, phone, privacy_settings, notification_settings",
+      "id, email, username, display_name, avatar_url, banner_url, bio, loop_coins, is_premium, premium_expires_at, is_verified, is_admin, interests, onboarding_completed, location, website",
+    ]
 
-    if (error) {
-      // Older schemas may lack optional preference columns — fall back to a leaner select.
-      const { data: fallback, error: fallbackError } = await supabase
-        .from("profiles")
-        .select(
-          "id, email, username, display_name, avatar_url, banner_url, bio, loop_coins, is_premium, premium_expires_at, is_verified, is_admin, interests, onboarding_completed, location, website",
-        )
-        .eq("id", user.id)
-        .maybeSingle()
-
-      if (fallbackError) {
-        return NextResponse.json({ error: fallbackError.message || error.message }, { status: 500 })
+    let profile: any = null
+    let lastError: any = null
+    for (const select of selects) {
+      const { data, error } = await supabase.from("profiles").select(select).eq("id", user.id).maybeSingle()
+      if (!error && data) {
+        profile = data
+        break
       }
-
-      if (!fallback) {
-        return NextResponse.json({ error: "Profile not found" }, { status: 404 })
+      lastError = error
+      if (error && error.code !== "PGRST204" && !/column/i.test(error.message || "")) {
+        break
       }
-
-      return NextResponse.json({ success: true, profile: fallback })
     }
 
     if (!profile) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 404 })
+      return NextResponse.json({ error: lastError?.message || "Profile not found" }, { status: profile ? 500 : 404 })
     }
 
     return NextResponse.json({ success: true, profile })

@@ -83,8 +83,17 @@ export function UserInventory() {
         window.dispatchEvent(new CustomEvent("loop-theme-applied", { detail: data.theme }))
       }
 
+      if (typeof window !== "undefined" && data.cosmetics) {
+        window.dispatchEvent(new CustomEvent("loop-cosmetics-applied", { detail: data.cosmetics }))
+      }
+
       await fetchInventory()
-      toast({ title: "Applied", description: "Theme/effect is now active on your profile." })
+      toast({
+        title: "Applied",
+        description: data.theme
+          ? "Theme is now active across the app."
+          : "Badge/effect is now active on your profile.",
+      })
     } catch (err) {
       toast({
         title: "Error",
@@ -111,8 +120,14 @@ export function UserInventory() {
       }
 
       if (typeof window !== "undefined") {
-        localStorage.removeItem("loop-3d-custom-theme")
-        window.dispatchEvent(new CustomEvent("loop-theme-applied", { detail: null }))
+        if (data.cleared_theme) {
+          localStorage.removeItem("loop-3d-custom-theme")
+          localStorage.removeItem("loop-3d-theme")
+          window.dispatchEvent(new CustomEvent("loop-theme-applied", { detail: null }))
+        }
+        if (data.cosmetics) {
+          window.dispatchEvent(new CustomEvent("loop-cosmetics-applied", { detail: data.cosmetics }))
+        }
       }
 
       await fetchInventory()

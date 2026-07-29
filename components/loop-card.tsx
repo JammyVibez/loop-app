@@ -22,8 +22,9 @@ import {
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader } from "./ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
+import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar";
+import type { ActiveCosmetics } from "@/lib/cosmetics";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,6 +57,8 @@ interface LoopAuthor {
   is_verified?: boolean;
   is_premium?: boolean;
   level?: number;
+  cosmetics?: ActiveCosmetics | null;
+  active_cosmetics?: ActiveCosmetics | null;
 }
 
 interface LoopStats {
@@ -640,17 +643,14 @@ export function LoopCard({
                 href={`/profile/${loop.author.username}`}
                 className="flex-shrink-0"
               >
-                <Avatar
-                  className={`h-8 w-8 sm:h-10 sm:w-10 ${getAvatarStyle()}`}
-                >
-                  <AvatarImage
-                    src={loop.author.avatar_url || "/placeholder.svg"}
-                    alt={loop.author.display_name}
-                  />
-                  <AvatarFallback className="text-xs sm:text-sm">
-                    {loop.author.display_name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
+                <CosmeticAvatar
+                  src={loop.author.avatar_url || "/placeholder.svg"}
+                  alt={loop.author.display_name}
+                  fallback={loop.author.display_name}
+                  size="sm"
+                  cosmetics={loop.author.cosmetics || loop.author.active_cosmetics}
+                  className={getAvatarStyle()}
+                />
               </Link>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center space-x-1 flex-wrap">

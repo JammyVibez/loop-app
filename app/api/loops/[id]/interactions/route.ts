@@ -186,6 +186,23 @@ export async function POST(
                 interaction_type
               }
             })
+
+          if (interaction_type === "like") {
+            try {
+              const { awardXp } = await import("@/lib/xp")
+              await awardXp(supabase, user.id, "like_given", "Liked a loop")
+              await awardXp(supabase, loop.author_id, "like_received", "Received a like")
+            } catch (xpError) {
+              console.error("Like XP award error:", xpError)
+            }
+          }
+        } else if (interaction_type === "like") {
+          try {
+            const { awardXp } = await import("@/lib/xp")
+            await awardXp(supabase, user.id, "like_given", "Liked a loop")
+          } catch {
+            /* ignore */
+          }
         }
       }
     }

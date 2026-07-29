@@ -16,12 +16,12 @@ import {
   MoreHorizontal,
   Plus,
   Share2,
+  Sparkles,
   Trophy,
   Upload,
   Users,
   Package,
 } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -36,6 +36,10 @@ import { GiftModal } from "@/components/gifting/gift-modal"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
+import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
+import { cosmeticsFromInventory, type ActiveCosmetics } from "@/lib/cosmetics"
+import { isShopThemePayload } from "@/lib/theme-css"
+import { xpForNextLevel } from "@/lib/xp"
 
 interface Achievement {
   id: string
@@ -71,6 +75,11 @@ interface UserProfile {
   recent_branches?: any[]
   media_loops?: any[]
   is_following?: boolean
+  active_effects?: any[]
+  active_cosmetics?: ActiveCosmetics | null
+  theme_preferences?: any
+  available_earnings?: number
+  total_earnings?: number
 }
 
 function formatCount(value: number) {
@@ -116,6 +125,11 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             location: data.profile.location,
             website: data.profile.website,
           })
+          if (typeof window !== "undefined" && isShopThemePayload(data.profile.theme_preferences)) {
+            window.dispatchEvent(
+              new CustomEvent("loop-profile-theme", { detail: data.profile.theme_preferences }),
+            )
+          }
         }
       } else {
         setProfile(null)
@@ -286,6 +300,15 @@ export function Enhanced3DProfile({ username }: { username: string }) {
 
   const isOwnProfile = Boolean(user && (user.id === profile.id || user.username === profile.username))
   const displayName = profile.display_name || profile.username
+  const cosmetics: ActiveCosmetics =
+    profile.active_cosmetics && Object.keys(profile.active_cosmetics).length
+      ? profile.active_cosmetics
+      : cosmeticsFromInventory(profile.active_effects)
+  const xp = Number(profile.xp_points || 0)
+  const level = Number(profile.level || 1)
+  const nextXp = xpForNextLevel(level)
+  const prevXp = Math.pow(level, 2) * 100
+  const xpProgress = Math.min(100, Math.round(((xp - prevXp) / Math.max(1, nextXp - prevXp)) * 100))
 
   return (
     <div className="mx-auto w-full max-w-2xl border-x border-border/70 bg-background min-h-screen">
@@ -314,7 +337,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         )}
         {isOwnProfile && (
           <>
-            <input id="profile-cover-upload" type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+            <input id="profile-cover-upload" type="file" accept="image/*,.gif,image/gif" className="hidden" onChange={handleCoverUpload} />
             <Button
               size="sm"
               variant="secondary"
@@ -325,6 +348,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               <Upload className="mr-1.5 h-3.5 w-3.5" />
               {uploadingCover ? "Uploading…" : "Edit cover"}
             </Button>
+            <p className="absolute bottom-3 left-3 rounded-full bg-black/45 px-2 py-0.5 text-[10px] text-white/90">
+              JPG, PNG, or GIF
+            </p>
           </>
         )}
       </div>
@@ -332,10 +358,14 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       {/* Avatar + actions row */}
       <div className="relative px-4 pb-3">
         <div className="-mt-12 flex items-end justify-between sm:-mt-14">
-          <Avatar className="h-24 w-24 border-4 border-background bg-muted sm:h-28 sm:w-28">
-            <AvatarImage src={profile.avatar_url} />
-            <AvatarFallback className="text-3xl font-bold">{displayName.charAt(0).toUpperCase()}</AvatarFallback>
-          </Avatar>
+          <CosmeticAvatar
+            src={profile.avatar_url}
+            alt={displayName}
+            fallback={displayName}
+            size="lg"
+            cosmetics={cosmetics}
+            className="border-4 border-background"
+          />
 
           <div className="mb-1 flex flex-wrap justify-end gap-2">
             {isOwnProfile ? (
@@ -431,6 +461,11 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 <Coins className="h-4 w-4" /> {Number(profile.loop_coins ?? 0).toLocaleString()} coins
               </span>
             )}
+            {isOwnProfile && Number(profile.available_earnings || 0) > 0 && (
+              <span className="inline-flex items-center gap-1 text-emerald-500">
+                ${Number(profile.available_earnings || 0).toFixed(2)} earnings
+              </span>
+            )}
           </div>
 
           {/* Compact X-style stats */}
@@ -453,11 +488,47 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             </span>
             <span className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-xs">
               <Trophy className="h-3.5 w-3.5 text-amber-500" />
-              Level {profile.level ?? 1}
+              Level {level}
             </span>
             <span className="text-muted-foreground">
               <span className="font-bold text-foreground">{formatCount(profile.likes_received)}</span> Likes
             </span>
+          </div>
+
+          <div className="mt-2 space-y-1.5">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {xp.toLocaleString()} XP · next level at {nextXp.toLocaleString()}
+              </span>
+              <span>{xpProgress}%</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-[var(--theme-primary,#0ea5e9)] transition-all"
+                style={{ width: `${xpProgress}%` }}
+              />
+            </div>
+            {(cosmetics.badge || cosmetics.frame || cosmetics.aura || cosmetics.effect) && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {cosmetics.badge && (
+                  <Badge variant="secondary" className="gap-1 text-xs">
+                    <Flame className="h-3 w-3" />
+                    {cosmetics.badge.name || "Badge"}
+                  </Badge>
+                )}
+                {cosmetics.frame && (
+                  <Badge variant="outline" className="text-xs">
+                    {cosmetics.frame.name || "Frame"}
+                  </Badge>
+                )}
+                {(cosmetics.aura || cosmetics.effect) && (
+                  <Badge variant="outline" className="gap-1 text-xs">
+                    <Sparkles className="h-3 w-3" />
+                    {(cosmetics.aura || cosmetics.effect)?.name || "Effect"}
+                  </Badge>
+                )}
+              </div>
+            )}
           </div>
 
           {!isOwnProfile && (

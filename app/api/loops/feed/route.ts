@@ -6,6 +6,7 @@ import {
   hashtagAffinityBonus,
   smartEngagementScore,
 } from "@/lib/feed-ranking"
+import { cosmeticsFromInventory } from "@/lib/cosmetics"
 
 function createServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -55,6 +56,61 @@ async function buildHashtagAffinity(supabase: ReturnType<typeof createServerClie
   return affinity
 }
 
+/** Interleave own posts (~25–30%) into algorithmically ranked For You feed */
+function mixOwnPostsIntoFeed<T extends { id: string; author_id?: string }>(
+  ranked: T[],
+  ownPosts: T[],
+  userId: string,
+  limit: number,
+  offset: number,
+) {
+  if (!ownPosts.length) {
+    return ranked.slice(offset, offset + limit)
+  }
+
+  const ownQuota = Math.max(1, Math.round(limit * 0.28))
+  const ownSlice = ownPosts.slice(0, Math.max(ownQuota + 2, 6))
+  const ownIds = new Set(ownSlice.map((p) => p.id))
+
+  // Build a window larger than needed, then page
+  const mixed: T[] = []
+  let ownIdx = 0
+  let algoIdx = 0
+  const algoPool = ranked.filter((p) => !ownIds.has(p.id) || p.author_id !== userId)
+
+  // Pattern: every ~3–4 algo items, insert one own post
+  while (mixed.length < offset + limit + 8 && (ownIdx < ownSlice.length || algoIdx < algoPool.length)) {
+    const shouldInsertOwn =
+      ownIdx < ownSlice.length &&
+      (mixed.length === 0 || mixed.filter((m) => m.author_id === userId).length < ownQuota + offset) &&
+      (mixed.length % 4 === 1 || algoIdx >= algoPool.length)
+
+    if (shouldInsertOwn) {
+      const next = ownSlice[ownIdx++]
+      if (!mixed.some((m) => m.id === next.id)) mixed.push(next)
+      continue
+    }
+
+    if (algoIdx < algoPool.length) {
+      const next = algoPool[algoIdx++]
+      if (!mixed.some((m) => m.id === next.id)) mixed.push(next)
+    } else if (ownIdx < ownSlice.length) {
+      const next = ownSlice[ownIdx++]
+      if (!mixed.some((m) => m.id === next.id)) mixed.push(next)
+    } else {
+      break
+    }
+  }
+
+  // Ensure at least one own post appears in first page when available
+  if (offset === 0 && ownSlice[0] && !mixed.slice(0, limit).some((m) => m.author_id === userId)) {
+    const insertAt = Math.min(2, Math.max(0, limit - 1))
+    mixed.splice(insertAt, 0, ownSlice[0])
+  }
+
+  return mixed.slice(offset, offset + limit)
+}
+
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -89,7 +145,6 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: true, loops: [], hasMore: false, type })
       }
     } else if (type === "personalized") {
-      // Smart For You: pull a wider candidate pool, rank by engagement + affinity + following
       authorIds = null
       useSmartRank = true
       mode = followingIds.size === 0 ? "personalized_cold_start" : "personalized"
@@ -101,7 +156,7 @@ export async function GET(request: NextRequest) {
       .from("loops")
       .select(`
         *,
-        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, level),
         loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
       .is("parent_loop_id", null)
@@ -113,51 +168,101 @@ export async function GET(request: NextRequest) {
       query = query.in("author_id", authorIds)
     }
 
-    const { data, error } = await query
+    let { data, error } = await query
+
+    if (error && (/level|active_cosmetics/i.test(error.message || "") || error.code === "PGRST204")) {
+      let fallback = supabase
+        .from("loops")
+        .select(`
+          *,
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+          loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
+        `)
+        .is("parent_loop_id", null)
+        .eq("visibility", "public")
+        .order("created_at", { ascending: false })
+        .range(0, fetchLimit - 1)
+      if (type === "following" && authorIds) {
+        fallback = fallback.in("author_id", authorIds)
+      }
+      ;({ data, error } = await fallback)
+    }
+
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     let loops = data || []
     const affinity =
       type === "personalized" ? await buildHashtagAffinity(supabase, user.id) : new Map<string, number>()
 
+    let ownPosts: typeof loops = []
+    if (type === "personalized") {
+      const { data: mine } = await supabase
+        .from("loops")
+        .select(`
+          *,
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, level),
+          loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
+        `)
+        .eq("author_id", user.id)
+        .is("parent_loop_id", null)
+        .order("created_at", { ascending: false })
+        .limit(12)
+
+      ownPosts = mine || []
+      const seen = new Set(loops.map((l) => l.id))
+      for (const post of ownPosts) {
+        if (!seen.has(post.id)) {
+          loops.push(post)
+          seen.add(post.id)
+        }
+      }
+    }
+
     if (useSmartRank) {
-      loops = [...loops]
+      const ranked = [...loops]
         .map((loop) => ({
           loop,
           score:
             smartEngagementScore(loop) +
             hashtagAffinityBonus(loop, affinity) +
             followingBoost(loop, followingIds) +
-            // Slight boost for own posts so creators see them
-            (loop.author_id === user.id ? 6 : 0),
+            (loop.author_id === user.id ? 10 : 0),
         }))
         .sort((a, b) => b.score - a.score)
         .map((row) => ({ ...row.loop, _rank_score: row.score }))
 
-      // Light author diversity: avoid 4+ consecutive from same author
-      const diversified: typeof loops = []
+      // Light author diversity
+      const diversified: typeof ranked = []
       const recentAuthors: string[] = []
-      for (const loop of loops) {
+      for (const loop of ranked) {
         const author = loop.author_id
         const streak = recentAuthors.filter((id) => id === author).length
-        if (streak >= 2 && diversified.length < limit * 3) {
-          // defer — push later if needed
+        if (streak >= 2 && diversified.length < limit * 3 && loop.author_id !== user.id) {
           continue
         }
         diversified.push(loop)
         recentAuthors.push(author)
         if (recentAuthors.length > 3) recentAuthors.shift()
-        if (diversified.length >= offset + limit + 10) break
+        if (diversified.length >= offset + limit + 20) break
       }
-      // Fill gaps from remaining ranked list
       if (diversified.length < offset + limit) {
-        for (const loop of loops) {
+        for (const loop of ranked) {
           if (diversified.some((d) => d.id === loop.id)) continue
           diversified.push(loop)
-          if (diversified.length >= offset + limit) break
+          if (diversified.length >= offset + limit + 10) break
         }
       }
-      loops = diversified.slice(offset, offset + limit)
+
+      if (type === "personalized") {
+        const scoredOwn = ownPosts.map((loop) => ({
+          ...loop,
+          _rank_score: smartEngagementScore(loop) + 10,
+        }))
+        loops = mixOwnPostsIntoFeed(diversified, scoredOwn, user.id, limit, offset)
+        mode = `${mode}_mixed`
+      } else {
+        loops = diversified.slice(offset, offset + limit)
+      }
     } else if (type === "recent" || type === "following") {
       loops = loops.slice(offset, offset + limit)
     }
@@ -179,17 +284,53 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    const normalizedLoops = normalizeLoops(loops, interactionMap).map((loop, i) => ({
-      ...loop,
-      engagement_score: Number((loops[i] as any)?._rank_score ?? smartEngagementScore(loops[i] || loop)),
-    }))
+    // Attach active cosmetics for authors onto raw rows before normalize
+    const authorIdList = [...new Set(loops.map((l) => l.author_id).filter(Boolean))] as string[]
+    const cosmeticsByAuthor = new Map<string, ReturnType<typeof cosmeticsFromInventory>>()
+
+    if (authorIdList.length) {
+      const { data: activeItems } = await supabase
+        .from("user_inventory")
+        .select("user_id, item_id, item_type, is_active, shop_item:shop_items(id, name, category, item_type, item_data, preview_data, icon_url, preview_url, rarity)")
+        .in("user_id", authorIdList)
+        .eq("is_active", true)
+        .limit(200)
+
+      const grouped = new Map<string, any[]>()
+      for (const row of activeItems || []) {
+        if (!grouped.has(row.user_id)) grouped.set(row.user_id, [])
+        grouped.get(row.user_id)!.push(row)
+      }
+      for (const [uid, rows] of grouped) {
+        cosmeticsByAuthor.set(uid, cosmeticsFromInventory(rows))
+      }
+    }
+
+    loops = loops.map((loop: any) => {
+      const author = Array.isArray(loop.author) ? loop.author[0] : loop.author
+      const cosmetics = cosmeticsByAuthor.get(loop.author_id) || null
+      return {
+        ...loop,
+        author: author
+          ? { ...author, cosmetics, active_cosmetics: cosmetics }
+          : loop.author,
+      }
+    })
+
+    const normalizedLoops = normalizeLoops(loops, interactionMap).map((loop, i) => {
+      const raw = loops[i] as any
+      return {
+        ...loop,
+        engagement_score: Number(raw?._rank_score ?? smartEngagementScore(raw || loop)),
+      }
+    })
 
     return NextResponse.json({
       success: true,
       loops: normalizedLoops,
       hasMore: normalizedLoops.length === limit,
       type: mode,
-      algorithm: useSmartRank ? "smart_rank_v1" : "chronological",
+      algorithm: useSmartRank ? (type === "personalized" ? "smart_rank_mixed_v1" : "smart_rank_v1") : "chronological",
       pagination: { limit, offset, total: normalizedLoops.length },
     })
   } catch (error: any) {

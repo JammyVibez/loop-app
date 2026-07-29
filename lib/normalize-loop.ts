@@ -18,6 +18,8 @@ export type NormalizedLoop = {
     is_verified?: boolean
     is_premium?: boolean
     level?: number
+    cosmetics?: Record<string, any> | null
+    active_cosmetics?: Record<string, any> | null
   }
   stats: {
     likes_count: number
@@ -81,6 +83,8 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
       is_verified: Boolean(author?.is_verified),
       is_premium: Boolean(author?.is_premium),
       level: author?.level,
+      cosmetics: author?.cosmetics || author?.active_cosmetics || null,
+      active_cosmetics: author?.active_cosmetics || author?.cosmetics || null,
     },
     stats: {
       likes_count: Number(stats?.likes_count ?? stats?.likes ?? defaultStats.likes_count),

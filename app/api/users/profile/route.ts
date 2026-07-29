@@ -96,11 +96,13 @@ export async function GET(request: NextRequest) {
         .limit(12),
     ])
 
-    // Approximate likes from recent loops (fast) — avoids scanning every author loop id
     const likesReceived = (recentLoops || []).reduce((sum, loop: any) => {
       const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats
       return sum + Number(stats?.likes_count || 0)
     }, 0)
+
+    const { cosmeticsFromInventory } = await import("@/lib/cosmetics")
+    const derivedCosmetics = cosmeticsFromInventory(activeItems || [])
 
     const profileWithSocial = {
       ...profile,
@@ -115,6 +117,12 @@ export async function GET(request: NextRequest) {
       active_theme: profile.active_theme ?? null,
       theme_preferences: profile.theme_preferences ?? null,
       active_effects: activeItems || [],
+      active_cosmetics:
+        profile.active_cosmetics && Object.keys(profile.active_cosmetics || {}).length
+          ? profile.active_cosmetics
+          : derivedCosmetics,
+      available_earnings: profile.available_earnings ?? 0,
+      total_earnings: profile.total_earnings ?? 0,
       recent_loops: normalizeLoops(recentLoops || []),
       recent_branches: normalizeLoops(recentBranches || []),
       media_loops: normalizeLoops(mediaLoops || []),

@@ -141,6 +141,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Hydrate purchased shop theme into Theme3DProvider whenever auth profile loads
+  useEffect(() => {
+    if (!user?.theme_preferences) return
+    if (typeof window === "undefined") return
+    const prefs = user.theme_preferences
+    if (prefs && typeof prefs === "object" && (prefs as any).colors) {
+      window.dispatchEvent(new CustomEvent("loop-profile-theme", { detail: prefs }))
+    }
+  }, [user?.id, user?.theme_preferences])
+
   const fetchProfileViaApi = async (accessToken: string) => {
     try {
       const controller = new AbortController()

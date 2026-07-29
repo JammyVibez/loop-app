@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { cosmeticsFromInventory } from "@/lib/cosmetics"
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -14,6 +15,25 @@ async function getUserFromToken(token: string) {
   } catch {
     return null
   }
+}
+
+async function refreshActiveCosmetics(userId: string) {
+  const { data: activeItems } = await supabase
+    .from("user_inventory")
+    .select("id, item_id, item_type, is_active, shop_item:shop_items(id, name, category, item_type, item_data, preview_data, icon_url, preview_url, rarity)")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .limit(24)
+
+  const cosmetics = cosmeticsFromInventory(activeItems || [])
+  await supabase
+    .from("profiles")
+    .update({
+      active_cosmetics: cosmetics,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId)
+  return cosmetics
 }
 
 export async function POST(request: NextRequest) {
@@ -59,9 +79,9 @@ export async function POST(request: NextRequest) {
 
     const shopItem = Array.isArray(inventoryItem.shop_item) ? inventoryItem.shop_item[0] : inventoryItem.shop_item
     const itemType = String(inventoryItem.item_type || shopItem?.item_type || shopItem?.category || "")
-    const isThemeLike = /theme|effect|animation/i.test(itemType) || /theme|effect|animation/i.test(shopItem?.category || "")
+    const isTheme = /theme/i.test(itemType) || /theme/i.test(shopItem?.category || "")
 
-    if (isThemeLike) {
+    if (isTheme) {
       await supabase
         .from("profiles")
         .update({
@@ -72,9 +92,13 @@ export async function POST(request: NextRequest) {
         .eq("id", user.id)
     }
 
+    const cosmetics = await refreshActiveCosmetics(user.id)
+
     return NextResponse.json({
       success: true,
       message: "Item removed successfully",
+      cosmetics,
+      cleared_theme: isTheme,
     })
   } catch (error) {
     console.error("Error removing item:", error)

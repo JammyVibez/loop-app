@@ -73,9 +73,53 @@ export function DailyPulse() {
         body: JSON.stringify({ kind }),
       })
       const data = await res.json()
+      // Already-claimed responses must hide the banner (coins may have been credited earlier)
       if (!res.ok) {
+        if (data?.claimed || /already claimed/i.test(String(data?.error || ""))) {
+          setState((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  daily:
+                    kind === "daily"
+                      ? {
+                          ...prev.daily,
+                          claimed: true,
+                          next_available: data.next_available || prev.daily.next_available,
+                        }
+                      : prev.daily,
+                  weekly:
+                    kind === "weekly"
+                      ? {
+                          ...prev.weekly,
+                          claimed: true,
+                          next_available: data.next_available || prev.weekly.next_available,
+                        }
+                      : prev.weekly,
+                }
+              : prev,
+          )
+          await load()
+          return
+        }
         const wait = data.next_available ? ` Next in ${formatRemaining(data.next_available)}.` : ""
         throw new Error((data.error || "Could not claim") + wait)
+      }
+      // Optimistically hide daily banner immediately after successful claim
+      if (kind === "daily") {
+        setState((prev) =>
+          prev
+            ? {
+                ...prev,
+                daily: {
+                  ...prev.daily,
+                  claimed: true,
+                  next_available: data.next_available || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                },
+                coins: typeof data.coins === "number" ? data.coins : prev.coins,
+              }
+            : prev,
+        )
       }
       toast({
         title: kind === "daily" ? "Daily check-in claimed!" : "Weekly bonus unlocked!",

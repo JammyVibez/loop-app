@@ -43,6 +43,7 @@ export function EnhancedSettings() {
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [uploadingCover, setUploadingCover] = useState(false)
 
   const [formData, setFormData] = useState({
     display_name: "",
@@ -176,11 +177,46 @@ export function EnhancedSettings() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to update avatar")
       if (data.profile) applyServerProfile(data.profile)
-      toast({ title: "Avatar updated" })
+      toast({ title: "Avatar updated", description: file.type === "image/gif" ? "Animated GIF saved." : undefined })
     } catch (error: any) {
       toast({ title: "Avatar upload failed", description: error.message, variant: "destructive" })
     } finally {
       setUploading(false)
+      event.target.value = ""
+    }
+  }
+
+  const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !user) return
+    setUploadingCover(true)
+    try {
+      const body = new FormData()
+      body.append("file", file)
+      body.append("type", "image")
+      body.append("folder", "banners")
+      const upload = await fetch("/api/upload", {
+        method: "POST",
+        headers: { ...getAuthHeader() },
+        body,
+      })
+      const uploaded = await upload.json()
+      if (!upload.ok) throw new Error(uploaded.error || "Upload failed")
+
+      const response = await fetch("/api/users/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ banner_url: uploaded.url }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to update cover")
+      if (data.profile) applyServerProfile(data.profile)
+      toast({ title: "Cover updated", description: file.type === "image/gif" ? "Animated GIF cover saved." : undefined })
+    } catch (error: any) {
+      toast({ title: "Cover upload failed", description: error.message, variant: "destructive" })
+    } finally {
+      setUploadingCover(false)
+      event.target.value = ""
     }
   }
 
@@ -191,10 +227,7 @@ export function EnhancedSettings() {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({
-          profile_theme: {
-            mode: nextTheme,
-            updated_at: new Date().toISOString(),
-          },
+          appearance_mode: nextTheme,
         }),
       })
       const data = await response.json()
@@ -207,11 +240,13 @@ export function EnhancedSettings() {
   useEffect(() => {
     if (!mounted || !user) return
     const saved =
-      (user.theme_preferences && typeof user.theme_preferences === "object"
-        ? (user.theme_preferences as { mode?: string }).mode
-        : undefined) ||
       (user.theme_data && typeof user.theme_data === "object"
         ? (user.theme_data as { mode?: string }).mode
+        : undefined) ||
+      (user.theme_preferences &&
+      typeof user.theme_preferences === "object" &&
+      !("colors" in (user.theme_preferences as object))
+        ? (user.theme_preferences as { mode?: string }).mode
         : undefined)
     if (saved && ["light", "dark", "system"].includes(saved) && theme !== saved) {
       setTheme(saved)
@@ -274,7 +309,7 @@ export function EnhancedSettings() {
                   >
                     <Camera className="h-4 w-4" />
                   </Button>
-                  <input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+                  <input id="avatar-upload" type="file" accept="image/*,.gif,image/gif" className="hidden" onChange={handleAvatarUpload} />
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -283,8 +318,35 @@ export function EnhancedSettings() {
                     {user.is_premium && <Badge><Crown className="mr-1 h-3 w-3" />Premium</Badge>}
                   </div>
                   <p className="text-sm text-muted-foreground">@{formData.username}</p>
+                  <p className="text-xs text-muted-foreground">JPG, PNG, or animated GIF</p>
                   {uploading && <p className="text-xs text-muted-foreground">Uploading avatar…</p>}
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Cover photo</Label>
+                <div className="relative h-28 overflow-hidden rounded-xl border border-border bg-muted">
+                  {user.banner_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={user.banner_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                      No cover yet
+                    </div>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="absolute bottom-2 right-2 rounded-full"
+                    disabled={uploadingCover}
+                    onClick={() => document.getElementById("cover-upload")?.click()}
+                  >
+                    <Camera className="mr-1.5 h-3.5 w-3.5" />
+                    {uploadingCover ? "Uploading…" : "Edit cover"}
+                  </Button>
+                  <input id="cover-upload" type="file" accept="image/*,.gif,image/gif" className="hidden" onChange={handleCoverUpload} />
+                </div>
+                <p className="text-xs text-muted-foreground">Supports animated GIFs for cover photos.</p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">

@@ -30,7 +30,9 @@ export async function POST(request: NextRequest) {
       bio,
       interests,
       avatar_url,
+      banner_url,
       profile_theme,
+      appearance_mode,
       onboarding_completed,
       display_name,
       website,
@@ -40,10 +42,24 @@ export async function POST(request: NextRequest) {
       notification_settings,
     } = body
 
+    // Preserve shop theme_preferences — appearance mode lives on theme_data
+    let themeDataUpdate: Record<string, unknown> | undefined
+    if (appearance_mode && ["light", "dark", "system"].includes(appearance_mode)) {
+      const { data: current } = await supabase
+        .from("profiles")
+        .select("theme_data")
+        .eq("id", user.id)
+        .maybeSingle()
+      const existing =
+        current?.theme_data && typeof current.theme_data === "object" ? (current.theme_data as object) : {}
+      themeDataUpdate = { ...existing, mode: appearance_mode, updated_at: new Date().toISOString() }
+    }
+
     const payload = compactPayload({
       bio,
       interests,
       avatar_url: avatar_url === undefined ? undefined : avatar_url || null,
+      banner_url: banner_url === undefined ? undefined : banner_url || null,
       display_name: typeof display_name === "string" ? display_name.trim() : undefined,
       website: website === undefined ? undefined : website || null,
       location: location === undefined ? undefined : location || null,
@@ -52,7 +68,11 @@ export async function POST(request: NextRequest) {
       notification_settings,
       onboarding_completed: typeof onboarding_completed === "boolean" ? onboarding_completed : undefined,
       updated_at: new Date().toISOString(),
-      ...(profile_theme !== undefined ? { theme_preferences: profile_theme } : {}),
+      // Only write theme_preferences when explicitly sending a shop theme payload (has colors)
+      ...(profile_theme !== undefined && profile_theme?.colors
+        ? { theme_preferences: profile_theme }
+        : {}),
+      ...(themeDataUpdate ? { theme_data: themeDataUpdate } : {}),
     })
 
     let { data: profile, error: profileError } = await supabase
@@ -62,7 +82,7 @@ export async function POST(request: NextRequest) {
       .select("*")
       .maybeSingle()
 
-    for (const optionalColumn of ["theme_preferences", "interests", "phone", "privacy_settings", "notification_settings"]) {
+    for (const optionalColumn of ["theme_preferences", "theme_data", "interests", "phone", "privacy_settings", "notification_settings", "banner_url"]) {
       if (profileError?.code === "PGRST204" && optionalColumn in payload) {
         delete payload[optionalColumn]
         ;({ data: profile, error: profileError } = await supabase

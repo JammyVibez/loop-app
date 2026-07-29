@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { cosmeticsFromInventory } from "@/lib/cosmetics"
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -37,6 +38,43 @@ function themePayloadFromShopItem(shopItem: any) {
     item_type: shopItem.item_type,
     category: shopItem.category,
   }
+}
+
+function isThemeItem(shopItem: any, itemType: string) {
+  const hay = `${shopItem?.category || ""} ${itemType || ""}`.toLowerCase()
+  return hay.includes("theme") && !hay.includes("badge")
+}
+
+function isCosmeticItem(shopItem: any, itemType: string) {
+  const hay = `${shopItem?.category || ""} ${itemType || ""}`.toLowerCase()
+  return (
+    hay.includes("badge") ||
+    hay.includes("frame") ||
+    hay.includes("aura") ||
+    hay.includes("effect") ||
+    hay.includes("animation") ||
+    hay.includes("avatar")
+  )
+}
+
+async function refreshActiveCosmetics(userId: string) {
+  const { data: activeItems } = await supabase
+    .from("user_inventory")
+    .select("id, item_id, item_type, is_active, shop_item:shop_items(id, name, category, item_type, item_data, preview_data, icon_url, preview_url, rarity)")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .limit(24)
+
+  const cosmetics = cosmeticsFromInventory(activeItems || [])
+  await supabase
+    .from("profiles")
+    .update({
+      active_cosmetics: cosmetics,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId)
+
+  return cosmetics
 }
 
 export async function POST(request: NextRequest) {
@@ -100,15 +138,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to apply item" }, { status: 500 })
     }
 
-    const themeLike =
-      shopItem.category === "theme" ||
-      String(itemType).includes("theme") ||
-      shopItem.category === "effect" ||
-      String(itemType).includes("effect") ||
-      String(itemType).includes("animation")
+    let themePayload: ReturnType<typeof themePayloadFromShopItem> | null = null
+    const themeLike = isThemeItem(shopItem, itemType)
 
     if (themeLike) {
-      const themePayload = themePayloadFromShopItem(shopItem)
+      themePayload = themePayloadFromShopItem(shopItem)
       await supabase
         .from("profiles")
         .update({
@@ -119,10 +153,16 @@ export async function POST(request: NextRequest) {
         .eq("id", user.id)
     }
 
+    let cosmetics = null
+    if (isCosmeticItem(shopItem, itemType) || themeLike) {
+      cosmetics = await refreshActiveCosmetics(user.id)
+    }
+
     return NextResponse.json({
       success: true,
       message: "Item applied successfully",
-      theme: themeLike ? themePayloadFromShopItem(shopItem) : null,
+      theme: themePayload,
+      cosmetics,
       item: {
         id: inventoryItem.id,
         item_id: shopItem.id,

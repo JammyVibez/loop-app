@@ -264,6 +264,24 @@ export async function POST(request: NextRequest) {
         : []),
     ])
 
+    // Creator earnings + XP for both sides
+    try {
+      const { awardEarnings, coinsToEarnings } = await import("@/lib/earnings")
+      const { awardXp } = await import("@/lib/xp")
+      const earningAmount = coinsToEarnings(giftCost)
+      if (earningAmount > 0) {
+        await awardEarnings(supabase, recipientId, earningAmount, {
+          source: "gift",
+          reference_id: giftRecord.id,
+          description: `Earnings from ${giftItem.name}`,
+        })
+      }
+      await awardXp(supabase, user.id, "gift_sent", `Sent gift ${giftItem.name}`)
+      await awardXp(supabase, recipientId, "gift_received", `Received gift ${giftItem.name}`)
+    } catch (xpEarnError) {
+      console.error("Gift XP/earnings error:", xpEarnError)
+    }
+
     await supabase.from("notifications").insert({
       user_id: recipientId,
       type: "gift_received",

@@ -341,3 +341,40 @@ html.reduce-motion .landing-grid-bg {
 html.reduce-motion .landing-card-3d:hover {
   transform: none;
 }
+
+/* Shop theme effects — toggled by Theme3DProvider on body */
+body.theme-glow .bg-primary,
+body.theme-glow button[class*="bg-primary"],
+body.theme-glow .bg-sky-600 {
+  box-shadow: 0 0 18px color-mix(in srgb, var(--theme-primary, #8b5cf6) 45%, transparent);
+}
+
+body.theme-particles #theme-environment::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 18%, color-mix(in srgb, var(--theme-primary, #8b5cf6) 70%, transparent), transparent),
+    radial-gradient(1.5px 1.5px at 78% 32%, color-mix(in srgb, var(--theme-secondary, #3b82f6) 65%, transparent), transparent),
+    radial-gradient(1px 1px at 42% 72%, color-mix(in srgb, var(--theme-accent, #f59e0b) 60%, transparent), transparent),
+    radial-gradient(1.5px 1.5px at 88% 78%, color-mix(in srgb, var(--theme-primary, #8b5cf6) 55%, transparent), transparent);
+  opacity: 0.55;
+  animation: theme-particle-drift 18s linear infinite;
+}
+
+@keyframes theme-particle-drift {
+  from { transform: translateY(0); }
+  to { transform: translateY(-24px); }
+}
+
+body.theme-animations .rounded-2xl,
+body.theme-animations .rounded-xl {
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+}
+
+/* Ensure themed surfaces pick up CSS variable bridge */
+.min-h-screen.bg-background {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}

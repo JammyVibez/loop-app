@@ -1,6 +1,7 @@
 "use client";
 import type React from "react";
 import { createContext, useContext, useState, useEffect } from "react";
+import { applyThemeCssVars, clearThemeCssOverrides, isShopThemePayload } from "@/lib/theme-css";
 
 interface Theme3D {
   id: string
@@ -216,31 +217,55 @@ export function Theme3DProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const onApplied = (event: Event) => {
       const detail = (event as CustomEvent).detail
+      if (detail == null) {
+        setCurrentTheme(defaultTheme)
+        clearThemeCssOverrides(document.documentElement)
+        localStorage.removeItem("loop-3d-custom-theme")
+        localStorage.removeItem("loop-3d-theme")
+        return
+      }
       const next = coerceTheme(detail)
       if (next) setCurrentTheme(next)
     }
+    const onProfileTheme = (event: Event) => {
+      const detail = (event as CustomEvent).detail
+      if (isShopThemePayload(detail)) {
+        const next = coerceTheme(detail)
+        if (next) {
+          setCurrentTheme(next)
+          localStorage.setItem("loop-3d-theme", next.id)
+          localStorage.setItem("loop-3d-custom-theme", JSON.stringify(next))
+        }
+      }
+    }
     window.addEventListener("loop-theme-applied", onApplied as EventListener)
-    return () => window.removeEventListener("loop-theme-applied", onApplied as EventListener)
+    window.addEventListener("loop-profile-theme", onProfileTheme as EventListener)
+    return () => {
+      window.removeEventListener("loop-theme-applied", onApplied as EventListener)
+      window.removeEventListener("loop-profile-theme", onProfileTheme as EventListener)
+    }
   }, [])
 
   useEffect(() => {
-    // Apply theme to CSS variables
+    // Apply theme to CSS variables — bridge --theme-* into shadcn tokens app-wide
     const root = document.documentElement
-    root.style.setProperty("--theme-primary", currentTheme.colors.primary)
-    root.style.setProperty("--theme-secondary", currentTheme.colors.secondary)
-    root.style.setProperty("--theme-accent", currentTheme.colors.accent)
-    root.style.setProperty("--theme-background", currentTheme.colors.background)
-    root.style.setProperty("--theme-surface", currentTheme.colors.surface)
-    root.style.setProperty("--theme-text", currentTheme.colors.text)
+    applyThemeCssVars(root, currentTheme.colors)
 
     Array.from(document.body.classList)
       .filter((cls) => cls.startsWith("theme-"))
       .forEach((cls) => document.body.classList.remove(cls))
     document.body.classList.add(`theme-${currentTheme.id}`)
 
-    if (currentTheme.effects.glow) document.body.classList.add("theme-glow")
-    if (currentTheme.effects.particles) document.body.classList.add("theme-particles")
-    if (currentTheme.effects.animations) document.body.classList.add("theme-animations")
+    document.body.classList.toggle("theme-glow", Boolean(currentTheme.effects.glow))
+    document.body.classList.toggle("theme-particles", Boolean(currentTheme.effects.particles))
+    document.body.classList.toggle("theme-animations", Boolean(currentTheme.effects.animations))
+
+    // Soft page atmosphere from theme background
+    const env = document.getElementById("theme-environment")
+    if (env) {
+      env.style.background = `radial-gradient(1200px 600px at 10% -10%, ${currentTheme.colors.primary}22, transparent 55%), radial-gradient(900px 500px at 90% 0%, ${currentTheme.colors.secondary}18, transparent 50%), ${currentTheme.colors.background}`
+      env.style.opacity = "1"
+    }
   }, [currentTheme])
 
   const setTheme = (themeId: string) => {
@@ -267,6 +292,7 @@ export function Theme3DProvider({ children }: { children: React.ReactNode }) {
     setCurrentTheme(defaultTheme)
     localStorage.removeItem("loop-3d-theme")
     localStorage.removeItem("loop-3d-custom-theme")
+    clearThemeCssOverrides(document.documentElement)
   }
 
   const applyTheme = (theme: any) => {

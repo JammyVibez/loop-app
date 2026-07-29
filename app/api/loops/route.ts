@@ -250,6 +250,18 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    try {
+      const { awardXp } = await import("@/lib/xp")
+      await awardXp(
+        supabase,
+        user.id,
+        parentLoopId ? "create_branch" : "create_loop",
+        parentLoopId ? "Created a branch" : "Created a loop",
+      )
+    } catch (xpError) {
+      console.error("Loop XP award error:", xpError)
+    }
+
     return NextResponse.json({ success: true, loop: normalizeLoop(loop) })
   } catch (error: any) {
     console.error("Create loop error:", error)
