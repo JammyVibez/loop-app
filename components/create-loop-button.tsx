@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase"
 import { CODE_LANGUAGES } from "@/lib/pro-features"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { useLoginGate } from "@/hooks/use-login-gate"
+import { CoLoopStudio } from "@/components/loops/co-loop-studio"
 import {
   Code,
   Crop,
@@ -67,6 +68,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
   const [collabId, setCollabId] = useState<string | null>(null)
   const [collabPeers, setCollabPeers] = useState<string[]>([])
   const [joinCode, setJoinCode] = useState("")
+  const [studioOpen, setStudioOpen] = useState(false)
   const applyingRemote = useRef(false)
   const collabChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -425,27 +427,44 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-muted/20 p-3 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Users className="h-4 w-4 text-cyan-500" />
-            <p className="text-sm font-medium">Realtime collab</p>
-            {collabEnabled && collabId && (
-              <Badge variant="secondary" className="font-mono text-[10px]">
-                {collabId.slice(0, 8)}
-              </Badge>
-            )}
+        <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/20 via-purple-950/10 to-transparent p-3 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-cyan-400" />
+              <p className="text-sm font-semibold text-cyan-200">Co-Loop Studio</p>
+              {collabEnabled && collabId && (
+                <Badge variant="secondary" className="font-mono text-[10px] bg-cyan-500/20 text-cyan-300">
+                  {collabId.slice(0, 8)}
+                </Badge>
+              )}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                if (!collabId) {
+                  const id = makeCollabId()
+                  setCollabId(id)
+                  setCollabEnabled(true)
+                }
+                setStudioOpen(true)
+              }}
+              className="rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-xs h-8"
+            >
+              Launch Co-Loop Studio 🤝
+            </Button>
           </div>
           {!collabEnabled ? (
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button type="button" size="sm" className="rounded-full" onClick={startCollab}>
-                Start collab room
+            <div className="flex flex-col gap-2 sm:flex-row pt-1">
+              <Button type="button" size="sm" variant="outline" className="rounded-full border-cyan-500/40 text-cyan-300" onClick={startCollab}>
+                Start quick room
               </Button>
               <div className="flex flex-1 gap-2">
                 <Input
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value)}
                   placeholder="Paste collab code"
-                  className="h-9"
+                  className="h-9 text-xs"
                 />
                 <Button type="button" size="sm" variant="outline" onClick={joinCollab}>
                   Join
@@ -653,6 +672,22 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false }: CreateL
         )}
         <canvas ref={canvasRef} className="hidden" />
       </CardContent>
+
+      {collabId && (
+        <CoLoopStudio
+          open={studioOpen}
+          onOpenChange={setStudioOpen}
+          collabId={collabId}
+          initialContent={content}
+          initialHashtags={hashtags}
+          onPublished={(newLoop) => {
+            setContent("")
+            setHashtags("")
+            setIsOpen(false)
+            onLoopCreated?.()
+          }}
+        />
+      )}
 
       <ConfirmDialog
         open={discardOpen}

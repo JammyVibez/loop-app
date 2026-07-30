@@ -240,9 +240,25 @@ export function Theme3DProvider({ children }: { children: React.ReactNode }) {
     }
     window.addEventListener("loop-theme-applied", onApplied as EventListener)
     window.addEventListener("loop-profile-theme", onProfileTheme as EventListener)
+
+    const onStorageChange = (e: StorageEvent) => {
+      if (e.key === "loop-3d-custom-theme" && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue)
+          const next = coerceTheme(parsed)
+          if (next) setCurrentTheme(next)
+        } catch {}
+      } else if (e.key === "loop-3d-theme" && e.newValue) {
+        const found = availableThemes.find((t) => t.id === e.newValue)
+        if (found) setCurrentTheme(found)
+      }
+    }
+    window.addEventListener("storage", onStorageChange)
+
     return () => {
       window.removeEventListener("loop-theme-applied", onApplied as EventListener)
       window.removeEventListener("loop-profile-theme", onProfileTheme as EventListener)
+      window.removeEventListener("storage", onStorageChange)
     }
   }, [])
 
@@ -300,6 +316,7 @@ export function Theme3DProvider({ children }: { children: React.ReactNode }) {
     if (theme) {
       setCurrentTheme(theme)
       localStorage.setItem("loop-3d-theme", themeId)
+      window.dispatchEvent(new CustomEvent("loop-theme-applied", { detail: theme }))
     }
   }
 
@@ -313,6 +330,7 @@ export function Theme3DProvider({ children }: { children: React.ReactNode }) {
     setCurrentTheme(customTheme)
     localStorage.setItem("loop-3d-theme", "custom")
     localStorage.setItem("loop-3d-custom-theme", JSON.stringify(customTheme))
+    window.dispatchEvent(new CustomEvent("loop-theme-applied", { detail: customTheme }))
   }
 
   const resetTheme = () => {
@@ -320,6 +338,7 @@ export function Theme3DProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("loop-3d-theme")
     localStorage.removeItem("loop-3d-custom-theme")
     clearThemeCssOverrides(document.documentElement)
+    window.dispatchEvent(new CustomEvent("loop-theme-applied", { detail: defaultTheme }))
   }
 
   const applyTheme = (theme: any) => {
@@ -328,6 +347,7 @@ export function Theme3DProvider({ children }: { children: React.ReactNode }) {
     setCurrentTheme(nextTheme)
     localStorage.setItem("loop-3d-theme", nextTheme.id)
     localStorage.setItem("loop-3d-custom-theme", JSON.stringify(nextTheme))
+    window.dispatchEvent(new CustomEvent("loop-theme-applied", { detail: nextTheme }))
   }
 
   const previewTheme = (theme: any) => {

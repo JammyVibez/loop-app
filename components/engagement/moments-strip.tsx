@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus } from "lucide-react"
+import { Plus, Sparkles } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
+import { createClient } from "@supabase/supabase-js"
 
 type MomentItem = {
   id: string
@@ -36,23 +37,41 @@ export function MomentsStrip() {
   const [active, setActive] = useState<MomentGroup | null>(null)
   const [index, setIndex] = useState(0)
 
+  const fetchMoments = async () => {
+    try {
+      const res = await fetch("/api/loops/moments", {
+        headers: { ...getAuthHeader() },
+        cache: "no-store",
+      })
+      const data = await res.json()
+      if (res.ok) setMoments(data.moments || [])
+    } catch {
+      /* ignore */
+    }
+  }
+
   useEffect(() => {
     if (!user) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch("/api/loops/moments", {
-          headers: { ...getAuthHeader() },
-          cache: "no-store",
-        })
-        const data = await res.json()
-        if (!cancelled && res.ok) setMoments(data.moments || [])
-      } catch {
-        /* ignore */
-      }
-    })()
+    fetchMoments()
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+    )
+
+    const channel = supabase
+      .channel("moments-live-feed")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "loops" },
+        () => {
+          fetchMoments()
+        }
+      )
+      .subscribe()
+
     return () => {
-      cancelled = true
+      supabase.removeChannel(channel)
     }
   }, [user?.id])
 

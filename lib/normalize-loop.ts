@@ -41,6 +41,13 @@ export type NormalizedLoop = {
   gifts_received?: number
   total_gift_value?: number
   content_metadata?: Record<string, any> | null
+  co_authors?: Array<{
+    id: string
+    username: string
+    display_name: string
+    avatar_url?: string
+    role?: string
+  }>
 }
 
 const defaultStats = {
@@ -111,6 +118,14 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
     total_gift_value: Number(row?.total_gift_value ?? 0) || undefined,
     content_metadata:
       row?.content_metadata && typeof row.content_metadata === "object" ? row.content_metadata : null,
+    co_authors:
+      Array.isArray(row?.co_authors)
+        ? row.co_authors
+        : Array.isArray(row?.collaborators)
+        ? row.collaborators
+        : Array.isArray(row?.content_metadata?.co_authors)
+        ? row.content_metadata.co_authors
+        : undefined,
   }
 }
 

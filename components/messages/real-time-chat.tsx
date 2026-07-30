@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Phone, Video, MoreVertical, Image, Paperclip, Smile } from "lucide-react";
+import { Send, Phone, Video, MoreVertical, Image, Paperclip, Smile, Users, Sparkles, Check } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { createClient } from "@supabase/supabase-js";
 import { formatDistanceToNow } from "date-fns";
+import { CoLoopStudio } from "@/components/loops/co-loop-studio";
 
 interface Message {
   id: string
@@ -51,7 +52,30 @@ export function RealTimeChat({ conversationId, recipientId }: RealTimeChatProps)
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [studioOpen, setStudioOpen] = useState(false)
+  const [studioCollabId, setStudioCollabId] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const handleStartCoLoop = async () => {
+    const collabId = `coloop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    setStudioCollabId(collabId)
+    setStudioOpen(true)
+
+    // Send invitation message to chat recipient
+    if (conversation) {
+      await fetch(`/api/messages/${conversation.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user?.access_token}`
+        },
+        body: JSON.stringify({
+          content: `🤝 Invited you to collaborate on a Co-Loop! Code: [CO_LOOP_INVITE:${collabId}]`,
+          message_type: "text"
+        })
+      }).catch(() => {})
+    }
+  }
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -301,7 +325,35 @@ export function RealTimeChat({ conversationId, recipientId }: RealTimeChatProps)
                           className="max-w-xs rounded mb-2"
                         />
                       )}
-                      <p className="text-sm">{message.content}</p>
+                      {message.content?.includes("[CO_LOOP_INVITE:") || message.content?.includes("collaborate on a Co-Loop") ? (
+                        <div className="rounded-xl border border-cyan-500/40 bg-gradient-to-br from-cyan-950/80 via-purple-950/40 to-black p-3 space-y-2 text-white my-1 shadow-lg shadow-cyan-500/10">
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500 text-black font-bold">
+                              <Users className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-xs text-cyan-200">Co-Loop Studio Invitation</p>
+                              <p className="text-[11px] text-slate-300">Live multi-author post creation</p>
+                            </div>
+                          </div>
+                          <div className="pt-1 flex gap-2">
+                            <Button
+                              size="sm"
+                              className="rounded-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs h-8 flex-1"
+                              onClick={() => {
+                                const match = message.content.match(/\[CO_LOOP_INVITE:([^\]]+)\]/)
+                                const code = match ? match[1] : `coloop-${message.id}`
+                                setStudioCollabId(code)
+                                setStudioOpen(true)
+                              }}
+                            >
+                              <Sparkles className="h-3.5 w-3.5 mr-1" /> Accept & Join Studio
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm">{message.content}</p>
+                      )}
                       <p className={`text-xs mt-1 ${
                         message.sender_id === user?.id ? 'text-purple-200' : 'text-gray-500'
                       }`}>
@@ -349,11 +401,27 @@ export function RealTimeChat({ conversationId, recipientId }: RealTimeChatProps)
           <Button type="button" size="icon" variant="ghost">
             <Smile className="w-4 h-4" />
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleStartCoLoop}
+            className="rounded-full border-cyan-500/40 text-cyan-400 hover:bg-cyan-950/40 text-xs px-2.5 hidden sm:flex items-center gap-1"
+            title="Invite to Co-Loop Studio"
+          >
+            <Users className="w-3.5 h-3.5" /> Co-Loop
+          </Button>
           <Button type="submit" size="icon" disabled={!newMessage.trim() || sending}>
             <Send className="w-4 h-4" />
           </Button>
         </form>
       </div>
+
+      <CoLoopStudio
+        open={studioOpen}
+        onOpenChange={setStudioOpen}
+        collabId={studioCollabId}
+      />
     </Card>
   )
 }

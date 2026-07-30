@@ -11,6 +11,7 @@ import { LoopFeedSkeleton } from "@/components/loading-states"
 import { EmptyState } from "@/components/ui/empty-state"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { cn } from "@/lib/utils"
+import { GlobalEventBanner } from "@/components/events/global-event-banner"
 
 interface LoopFeedProps {
   feedType?: "personalized" | "following" | "trending" | "recent"
@@ -378,6 +379,8 @@ export function LoopFeed({
 
   return (
     <div className="relative space-y-4 sm:space-y-6">
+      <GlobalEventBanner />
+
       {pullDistance > 8 && (
         <div className="flex justify-center text-xs text-muted-foreground" style={{ height: pullDistance }}>
           {pullDistance > 48 ? "Release to refresh" : "Pull to refresh"}

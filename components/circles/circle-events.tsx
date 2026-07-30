@@ -81,6 +81,21 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
     }
 
     fetchEvents()
+
+    const channel = supabase
+      .channel(`circle_events_${circleId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "circle_events", filter: `circle_id=eq.${circleId}` },
+        () => {
+          fetchEvents()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [circleId, user])
 
   const handleRSVP = async (eventId: string, currentlyAttending: boolean) => {

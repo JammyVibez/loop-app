@@ -20,6 +20,7 @@ import {
   Loader2,
   Edit,
   Trash2,
+  Users,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader } from "./ui/card";
@@ -125,6 +126,7 @@ export function LoopCard({
   const [showFullContent, setShowFullContent] = useState(false);
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [showBranchDialog, setShowBranchDialog] = useState(false);
+  const [showCoAuthorsModal, setShowCoAuthorsModal] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editContent, setEditContent] = useState("");
@@ -193,6 +195,14 @@ export function LoopCard({
   // Defensive fallback for content and hashtags
   const content = typeof loop.content === "string" ? loop.content : "";
   const hashtags = Array.isArray(loop.hashtags) ? loop.hashtags : [];
+
+  const rawCoAuthors = loop.co_authors || loop.content_metadata?.co_authors || [];
+  const coAuthors = Array.isArray(rawCoAuthors) ? rawCoAuthors : [];
+  const isCoLoop = Boolean(loop.content_metadata?.is_co_loop || coAuthors.length > 0);
+  const allAuthors = [
+    loop.author,
+    ...coAuthors.filter((c: any) => c.id && c.id !== loop.author?.id)
+  ];
 
   const contentPreview =
     content.length > 200 ? content.substring(0, 200) + "..." : content;
@@ -435,8 +445,11 @@ export function LoopCard({
       : "hover:shadow-lg";
     const featuredStyle = loop.is_featured
       ? "ring-2 ring-yellow-400/50 bg-gradient-to-br from-yellow-50/50 to-orange-50/50 dark:from-yellow-900/10 dark:to-orange-900/10" :"";
+    const coLoopStyle = isCoLoop
+      ? "border-cyan-500/40 dark:border-cyan-400/35 shadow-md shadow-cyan-500/10 bg-gradient-to-br from-cyan-950/15 via-card to-purple-950/15 ring-1 ring-cyan-500/20"
+      : "";
 
-    return `${baseStyle} ${themeStyle} ${hoverStyle} ${featuredStyle}`;
+    return `${baseStyle} ${themeStyle} ${hoverStyle} ${featuredStyle} ${coLoopStyle}`;
   };
 
   const getAvatarStyle = () => {
@@ -669,31 +682,92 @@ export function LoopCard({
         )}
 
         <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6">
+          {/* Distinctive Co-Loop Banner */}
+          {isCoLoop && (
+            <div className="mb-2.5 flex items-center justify-between rounded-xl bg-gradient-to-r from-cyan-950/60 via-purple-950/40 to-cyan-950/60 px-3 py-1.5 border border-cyan-500/30 text-xs">
+              <div className="flex items-center gap-1.5">
+                <Badge className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white border-0 text-[10px] font-bold px-1.5 py-0.5">
+                  <Users className="h-3 w-3 mr-1" /> Co-Loop Studio
+                </Badge>
+                <span className="text-cyan-200 font-medium">Shared Collaboration</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCoAuthorsModal(true)}
+                className="h-6 px-2 text-[11px] text-cyan-300 hover:text-white hover:bg-cyan-900/40 rounded-full"
+              >
+                {allAuthors.length} Co-Authors
+              </Button>
+            </div>
+          )}
+
           <div className="flex items-start justify-between">
             <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
-              <Link
-                href={`/profile/${loop.author.username}`}
-                className="flex-shrink-0"
-              >
-                <CosmeticAvatar
-                  src={loop.author.avatar_url || "/placeholder.svg"}
-                  alt={loop.author.display_name}
-                  fallback={loop.author.display_name}
-                  size="sm"
-                  cosmetics={loop.author.cosmetics || loop.author.active_cosmetics}
-                  className={getAvatarStyle()}
-                />
-              </Link>
+              {isCoLoop ? (
+                /* Stacked PFPs for Co-Loop (Instagram / GitHub Collab style) */
+                <button
+                  type="button"
+                  onClick={() => setShowCoAuthorsModal(true)}
+                  className="flex -space-x-3 overflow-hidden p-0.5 rounded-full hover:opacity-95 transition-opacity flex-shrink-0"
+                  title="View Co-Authors"
+                >
+                  {allAuthors.slice(0, 4).map((author: any, idx: number) => (
+                    <CosmeticAvatar
+                      key={author.id || idx}
+                      src={author.avatar_url || "/placeholder.svg"}
+                      alt={author.display_name || "Author"}
+                      fallback={author.display_name || author.username || "?"}
+                      size="sm"
+                      cosmetics={author.cosmetics || author.active_cosmetics}
+                      className="ring-2 ring-cyan-500 dark:ring-cyan-400 bg-background shadow-md transition-transform hover:scale-110"
+                    />
+                  ))}
+                </button>
+              ) : (
+                <Link
+                  href={`/profile/${loop.author.username}`}
+                  className="flex-shrink-0"
+                >
+                  <CosmeticAvatar
+                    src={loop.author.avatar_url || "/placeholder.svg"}
+                    alt={loop.author.display_name}
+                    fallback={loop.author.display_name}
+                    size="sm"
+                    cosmetics={loop.author.cosmetics || loop.author.active_cosmetics}
+                    className={getAvatarStyle()}
+                  />
+                </Link>
+              )}
+
               <div className="min-w-0 flex-1">
                 <div className="flex items-center space-x-1 flex-wrap">
-                  <Link
-                    href={`/profile/${loop.author.username}`}
-                    className="min-w-0"
-                  >
-                    <span className="font-semibold hover:underline text-sm sm:text-base truncate block max-w-[120px] sm:max-w-none">
-                      {loop.author.display_name}
-                    </span>
-                  </Link>
+                  {isCoLoop ? (
+                    <div className="flex items-center gap-1 text-sm sm:text-base font-semibold truncate max-w-full">
+                      {allAuthors.slice(0, 2).map((a: any, idx: number) => (
+                        <span key={a.id || idx} className="flex items-center gap-1">
+                          {idx > 0 && <span className="text-cyan-400 font-bold">×</span>}
+                          <Link href={`/profile/${a.username}`} className="hover:underline text-cyan-200 truncate">
+                            {a.display_name || `@${a.username}`}
+                          </Link>
+                        </span>
+                      ))}
+                      {allAuthors.length > 2 && (
+                        <span className="text-xs text-muted-foreground ml-1">
+                          +{allAuthors.length - 2} more
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <Link
+                      href={`/profile/${loop.author.username}`}
+                      className="min-w-0"
+                    >
+                      <span className="font-semibold hover:underline text-sm sm:text-base truncate block max-w-[120px] sm:max-w-none">
+                        {loop.author.display_name}
+                      </span>
+                    </Link>
+                  )}
                   {loop.author.is_verified && (
                     <Badge
                       variant="secondary"
@@ -1061,6 +1135,57 @@ export function LoopCard({
             </Button>
             <Button onClick={saveEdit} disabled={savingEdit}>
               {savingEdit ? "Saving..." : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Co-Authors Roster Dialog */}
+      <Dialog open={showCoAuthorsModal} onOpenChange={setShowCoAuthorsModal}>
+        <DialogContent className="border-cyan-500/30 bg-[#070c18] text-white max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-cyan-300">
+              <Users className="h-5 w-5" /> Co-Loop Author Roster
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-xs text-slate-400">
+              This Co-Loop post was collaboratively created by the following co-authors:
+            </p>
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              {allAuthors.map((author: any, idx: number) => (
+                <div
+                  key={author.id || idx}
+                  className="flex items-center justify-between rounded-xl bg-white/[0.04] p-2.5 border border-white/5 hover:border-cyan-500/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <CosmeticAvatar
+                      src={author.avatar_url}
+                      alt={author.display_name}
+                      fallback={author.display_name}
+                      size="sm"
+                      className="ring-2 ring-cyan-500/60"
+                    />
+                    <div>
+                      <h4 className="font-semibold text-sm text-white">
+                        {author.display_name || author.username}
+                      </h4>
+                      <p className="text-xs text-cyan-400">@{author.username}</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px]">
+                    {idx === 0 ? "Lead Author" : author.role || "Co-Author"}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              className="w-full rounded-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold"
+              onClick={() => setShowCoAuthorsModal(false)}
+            >
+              Close Roster
             </Button>
           </DialogFooter>
         </DialogContent>
