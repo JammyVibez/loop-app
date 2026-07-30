@@ -7,7 +7,6 @@ import {
   smartEngagementScore,
 } from "@/lib/feed-ranking"
 import { cosmeticsFromInventory } from "@/lib/cosmetics"
-import { SAMPLE_LOOPS } from "@/lib/sample-data"
 
 function createServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -196,17 +195,8 @@ export async function GET(request: NextRequest) {
       }
 
       if (error) {
-        console.warn("Supabase since query error, serving sample loops:", error.message)
-        return NextResponse.json({
-          success: true,
-          loops: SAMPLE_LOOPS,
-          hasMore: false,
-          new_count: SAMPLE_LOOPS.length,
-          type,
-          algorithm: "since_refresh_fallback",
-          guest: !user,
-          pagination: { limit, offset: 0, total: SAMPLE_LOOPS.length },
-        })
+        console.error("Supabase since query error:", error.message)
+        return NextResponse.json({ error: error.message }, { status: 500 })
       }
 
       const loops = data || []
@@ -308,19 +298,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (error) {
-      console.warn("Supabase query error in feed route, serving fallback loops:", error.message)
-      return NextResponse.json({
-        success: true,
-        loops: SAMPLE_LOOPS,
-        hasMore: false,
-        type: mode,
-        algorithm: "sample_fallback",
-        guest: !user,
-        pagination: { limit, offset, total: SAMPLE_LOOPS.length },
-      })
+      console.error("Supabase query error in feed route:", error.message)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    let loops = data && data.length > 0 ? data : SAMPLE_LOOPS
+    let loops = data || []
     const affinity =
       type === "personalized" && user
         ? await buildHashtagAffinity(supabase, user.id)
@@ -468,15 +450,7 @@ export async function GET(request: NextRequest) {
       pagination: { limit, offset, total: normalizedLoops.length },
     })
   } catch (error: any) {
-    console.error("Error fetching feed, serving sample loops:", error)
-    return NextResponse.json({
-      success: true,
-      loops: SAMPLE_LOOPS,
-      hasMore: false,
-      type: "sample_fallback",
-      algorithm: "error_fallback",
-      guest: true,
-      pagination: { limit: 20, offset: 0, total: SAMPLE_LOOPS.length },
-    })
+    console.error("Error fetching feed:", error)
+    return NextResponse.json({ error: "Internal server error", details: error.message }, { status: 500 })
   }
 }

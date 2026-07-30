@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { normalizeLoops } from "@/lib/normalize-loop"
-import { SAMPLE_LOOPS, SAMPLE_HASHTAGS } from "@/lib/sample-data"
 
 function engagementScore(loop: any) {
   const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats
@@ -62,8 +61,7 @@ export async function GET(request: NextRequest) {
             .slice(0, limit)
             .map(([tag, usage_count]) => ({ tag, usage_count, count: usage_count, growth: "live" }))
 
-          const result = derived.length > 0 ? derived : SAMPLE_HASHTAGS
-          return NextResponse.json({ success: true, data: result, hashtags: result })
+          return NextResponse.json({ success: true, data: derived, hashtags: derived })
         }
 
         const normalized = (hashtags || []).map((row: any) => ({
@@ -72,8 +70,7 @@ export async function GET(request: NextRequest) {
           count: Number(row.usage_count ?? row.count ?? 0),
           growth: row.growth ?? "hot",
         }))
-        const resultHashtags = normalized.length > 0 ? normalized : SAMPLE_HASHTAGS
-        return NextResponse.json({ success: true, data: resultHashtags, hashtags: resultHashtags })
+        return NextResponse.json({ success: true, data: normalized, hashtags: normalized })
       }
 
       case "users": {
@@ -105,11 +102,11 @@ export async function GET(request: NextRequest) {
           .limit(fetchLimit)
 
         if (loopsError) {
-          console.warn("Error fetching explore loops, serving SAMPLE_LOOPS:", loopsError)
-          return NextResponse.json({ success: true, data: SAMPLE_LOOPS, loops: SAMPLE_LOOPS })
+          console.error("Error fetching explore loops:", loopsError)
+          return NextResponse.json({ error: loopsError.message || "Failed to fetch loops" }, { status: 500 })
         }
 
-        let rows = loops && loops.length > 0 ? loops : SAMPLE_LOOPS
+        let rows = loops || []
         if (sort === "creative") {
           rows = [...rows].sort((a, b) => engagementScore(b) - engagementScore(a)).slice(0, limit)
         } else if (sort === "deepest") {
