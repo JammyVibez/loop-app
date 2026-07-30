@@ -1,0 +1,108 @@
+import type { NormalizedLoop } from "@/lib/normalize-loop"
+
+export const SAMPLE_LOOPS: NormalizedLoop[] = [
+  {
+    id: "sample-loop-1",
+    author_id: "user-loop-official",
+    content: "Welcome to Loop! 🚀 A place for real-time discussions, dynamic community circles, and creative expression. Start by exploring trending hashtags or joining a circle!",
+    content_title: "Welcome to Loop Community",
+    media_type: "text",
+    hashtags: ["welcome", "loop", "community", "creators"],
+    created_at: new Date(Date.now() - 600000).toISOString(),
+    author: {
+      id: "user-loop-official",
+      username: "loopteam",
+      display_name: "Loop Official",
+      avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+      is_verified: true,
+      is_premium: true,
+      level: 10,
+    },
+    stats: {
+      likes_count: 84,
+      comments_count: 19,
+      branches_count: 7,
+      shares_count: 14,
+      views_count: 620,
+    },
+    user_interactions: {
+      is_liked: false,
+      is_saved: false,
+    },
+    category: "Announcements",
+    is_featured: true,
+    engagement_score: 95,
+  },
+  {
+    id: "sample-loop-2",
+    author_id: "user-alex-code",
+    content: "Just customized our Circle theme studio with custom accent colors and 3D card layouts! Community admins can now apply marketplace theme packs per Circle. Check out Dev Den!",
+    content_title: "Theme Studio & Layout Customization",
+    media_type: "text",
+    hashtags: ["webdev", "design", "circles", "customization"],
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+    author: {
+      id: "user-alex-code",
+      username: "alex_dev",
+      display_name: "Alex Rivera",
+      avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+      is_verified: true,
+      is_premium: false,
+      level: 7,
+    },
+    stats: {
+      likes_count: 52,
+      comments_count: 11,
+      branches_count: 4,
+      shares_count: 9,
+      views_count: 410,
+    },
+    user_interactions: {
+      is_liked: false,
+      is_saved: false,
+    },
+    category: "Development",
+    engagement_score: 78,
+  },
+  {
+    id: "sample-loop-3",
+    author_id: "user-maya-art",
+    content: "Global Events Hub is live! Admins can create platform events with Loop Coins rewards and stream links. Excited for the upcoming Design Showcase next week! 🎨✨",
+    content_title: "Global Events Hub Launch",
+    media_type: "text",
+    hashtags: ["events", "design", "rewards", "community"],
+    created_at: new Date(Date.now() - 7200000).toISOString(),
+    author: {
+      id: "user-maya-art",
+      username: "maya_design",
+      display_name: "Maya Lin",
+      avatar_url: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+      is_verified: true,
+      is_premium: true,
+      level: 9,
+    },
+    stats: {
+      likes_count: 126,
+      comments_count: 34,
+      branches_count: 12,
+      shares_count: 22,
+      views_count: 980,
+    },
+    user_interactions: {
+      is_liked: false,
+      is_saved: false,
+    },
+    category: "Events",
+    is_featured: true,
+    engagement_score: 140,
+  }
+]
+
+export const SAMPLE_HASHTAGS = [
+  { tag: "welcome", usage_count: 42, count: 42, growth: "hot" },
+  { tag: "webdev", usage_count: 38, count: 38, growth: "trending" },
+  { tag: "creators", usage_count: 29, count: 29, growth: "rising" },
+  { tag: "design", usage_count: 25, count: 25, growth: "live" },
+  { tag: "events", usage_count: 21, count: 21, growth: "hot" },
+  { tag: "community", usage_count: 18, count: 18, growth: "trending" },
+]
