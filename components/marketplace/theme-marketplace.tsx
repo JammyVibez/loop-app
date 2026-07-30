@@ -46,6 +46,46 @@ export function ThemeMarketplace({ userId }: ThemeMarketplaceProps) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState<string | null>(null)
+  const [targetCircleId, setTargetCircleId] = useState("")
+  const [selectedThemeForCircle, setSelectedThemeForCircle] = useState<MarketplaceTheme | null>(null)
+  const [applyingToCircle, setApplyingToCircle] = useState(false)
+
+  const handleApplyToCircleSubmit = async () => {
+    if (!targetCircleId.trim() || !selectedThemeForCircle || !user) return
+    try {
+      setApplyingToCircle(true)
+      const res = await fetch(`/api/circles/${targetCircleId.trim()}/studio`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({
+          theme_id: selectedThemeForCircle.id,
+          studio: {
+            theme_pack: selectedThemeForCircle.name,
+            accent: selectedThemeForCircle.theme_data?.accent || "#22d3ee",
+            layout: selectedThemeForCircle.category || "cinematic",
+            header_bg: selectedThemeForCircle.theme_data?.headerBg || "#06182c"
+          }
+        })
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to apply theme to Circle")
+
+      toast({
+        title: "Theme Applied to Circle! 🎨",
+        description: `Successfully applied "${selectedThemeForCircle.name}" to Circle ${targetCircleId}.`
+      })
+      setSelectedThemeForCircle(null)
+      setTargetCircleId("")
+    } catch (err: any) {
+      toast({ title: "Circle Theme Error", description: err.message, variant: "destructive" })
+    } finally {
+      setApplyingToCircle(false)
+    }
+  }
 
   const { currentTheme, applyTheme, previewTheme: previewThemeAction, stopPreview, isPreviewMode } = useTheme3D()
 
@@ -415,6 +455,16 @@ export function ThemeMarketplace({ userId }: ThemeMarketplaceProps) {
                       Preview
                     </Button>
 
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedThemeForCircle(theme)}
+                      className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
+                    >
+                      <Sparkles className="h-4 w-4 mr-1" />
+                      Apply to Circle
+                    </Button>
+
                     {currentTheme?.id === theme.id ? (
                       <Badge variant="secondary" className="px-3 py-1">
                         Active
@@ -490,6 +540,44 @@ export function ThemeMarketplace({ userId }: ThemeMarketplaceProps) {
           </div>
         </DialogContent>
       </Dialog>
+      {/* Apply to Circle Dialog */}
+      {selectedThemeForCircle && (
+        <Dialog open={Boolean(selectedThemeForCircle)} onOpenChange={() => setSelectedThemeForCircle(null)}>
+          <DialogContent className="border-white/10 bg-[#090d16] text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold text-purple-300 flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-purple-400" /> Apply Theme to Circle
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <p className="text-sm text-slate-300">
+                Apply theme pack <strong className="text-white">"{selectedThemeForCircle.name}"</strong> to an individual Circle layout & studio.
+              </p>
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block font-medium">Circle ID</label>
+                <Input
+                  placeholder="Enter Circle ID (e.g. dev-den, creators-hub)"
+                  value={targetCircleId}
+                  onChange={(e) => setTargetCircleId(e.target.value)}
+                  className="bg-black/50 border-white/10 text-white"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="ghost" onClick={() => setSelectedThemeForCircle(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleApplyToCircleSubmit}
+                  disabled={applyingToCircle || !targetCircleId.trim()}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-semibold"
+                >
+                  {applyingToCircle ? "Applying..." : "Apply Theme Pack"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

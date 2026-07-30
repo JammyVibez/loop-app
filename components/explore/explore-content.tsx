@@ -14,7 +14,11 @@ import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 
-type ExploreTab = "recent" | "deepest" | "creative" | "hashtags"
+import { GlobalEventsHub } from "@/components/events/global-events-hub"
+import { GlobalEventBanner } from "@/components/events/global-event-banner"
+import { Calendar } from "lucide-react"
+
+type ExploreTab = "events" | "recent" | "deepest" | "creative" | "hashtags"
 
 interface TrendingHashtag {
   tag: string
@@ -199,6 +203,8 @@ export function ExploreContent() {
 
   return (
     <div className="space-y-6">
+      <GlobalEventBanner />
+
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className={`inline-flex h-2 w-2 rounded-full ${live ? "bg-emerald-500" : "bg-amber-500"}`} />
@@ -211,7 +217,11 @@ export function ExploreContent() {
       </div>
 
       <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as ExploreTab)} className="w-full">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:grid-cols-4">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:grid-cols-5">
+          <TabsTrigger value="events" className="rounded-xl">
+            <Calendar className="mr-1.5 h-4 w-4 text-cyan-400" />
+            Global Events
+          </TabsTrigger>
           <TabsTrigger value="recent" className="rounded-xl">
             <Clock className="mr-1.5 h-4 w-4" />
             Recent
@@ -229,6 +239,10 @@ export function ExploreContent() {
             Hashtags
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="events" className="mt-6">
+          <GlobalEventsHub />
+        </TabsContent>
 
         <TabsContent value="recent" className="mt-6 space-y-4">
           <div className="flex items-center gap-2">

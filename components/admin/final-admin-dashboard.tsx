@@ -22,6 +22,7 @@ import { SettingsTabContent } from "./settings-tab-content";
 import { ContentModerationControl } from "./content-moderation-control";
 import { ShopManagement } from "./shop-management";
 import { ThemeManagement } from "./theme-management";
+import { EventManagement } from "./event-management";
 import { useAuth } from "@/hooks/use-auth";
 
 interface AdminStats {
@@ -264,8 +265,9 @@ export function FinalAdminDashboard() {
       </div>
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7">
+      <Tabs defaultValue="events" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-8">
+          <TabsTrigger value="events">Global Events</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="shop">Shop Items</TabsTrigger>
           <TabsTrigger value="themes">Themes</TabsTrigger>
@@ -274,6 +276,11 @@ export function FinalAdminDashboard() {
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
+
+        {/* Global Events Management */}
+        <TabsContent value="events">
+          <EventManagement />
+        </TabsContent>
 
         {/* Users Management */}
         <TabsContent value="users">
