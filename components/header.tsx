@@ -202,20 +202,12 @@ export function Header() {
                 </Link>
               </DropdownMenuItem>
               {user.is_admin && (
-                <>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin">
-                      <Shield className="mr-2 h-4 w-4 text-cyan-400" />
-                      <span>App Admin Panel</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin?tab=events">
-                      <Calendar className="mr-2 h-4 w-4 text-amber-400" />
-                      <span>Admin Global Events</span>
-                    </Link>
-                  </DropdownMenuItem>
-                </>
+                <DropdownMenuItem asChild>
+                  <Link href="/admin">
+                    <Shield className="mr-2 h-4 w-4 text-cyan-400" />
+                    <span>App Admin Panel</span>
+                  </Link>
+                </DropdownMenuItem>
               )}
               <DropdownMenuItem asChild>
                 <Link href="/marketplace">

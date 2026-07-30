@@ -1,14 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Calendar, Trophy, Users, Star, Video, Search, ExternalLink, Check, Sparkles, Filter, Clock, Flame, ShieldAlert, Award } from "lucide-react"
+import { Calendar, Trophy, Users, Star, Video, Search, ExternalLink, Check, Sparkles, Filter, Clock, Flame, ShieldAlert, Award, Play, MessageSquare, Send, Radio, Gift } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/lib/supabase"
 
 export interface GlobalEvent {
   id: string
@@ -28,6 +29,13 @@ export interface GlobalEvent {
   tags?: string[]
 }
 
+interface EventChatMessage {
+  id: string
+  user_name: string
+  text: string
+  timestamp: string
+}
+
 export function GlobalEventsHub() {
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
@@ -37,6 +45,17 @@ export function GlobalEventsHub() {
   const [searchQuery, setSearchQuery] = useState("")
   const [rsvpedEventIds, setRsvpedEventIds] = useState<Set<string>>(new Set())
   const [detailEvent, setDetailEvent] = useState<GlobalEvent | null>(null)
+  const [activeStageEvent, setActiveStageEvent] = useState<GlobalEvent | null>(null)
+
+  // Live Stage State
+  const [stageMessages, setStageMessages] = useState<EventChatMessage[]>([
+    { id: "m1", user_name: "Alex Dev", text: "Excited for this hackathon launch! 🚀", timestamp: "Just now" },
+    { id: "m2", user_name: "Sarah 3D", text: "Checking out the 3D lounge streams 🔥", timestamp: "1m ago" }
+  ])
+  const [chatInput, setChatInput] = useState("")
+  const [stageReactions, setStageReactions] = useState<{ id: string; emoji: string; x: number }[]>([])
+  const [rewardClaimed, setRewardClaimed] = useState(false)
+  const chatScrollRef = useRef<HTMLDivElement>(null)
 
   const fetchEvents = async () => {
     try {
@@ -55,7 +74,67 @@ export function GlobalEventsHub() {
 
   useEffect(() => {
     fetchEvents()
+
+    if (supabase) {
+      const channel = supabase
+        .channel("global_events_live_updates")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "global_events" },
+          (payload) => {
+            if (payload.eventType === "INSERT") {
+              setEvents((prev) => [payload.new as GlobalEvent, ...prev])
+            } else if (payload.eventType === "UPDATE") {
+              setEvents((prev) =>
+                prev.map((e) => (e.id === payload.new.id ? { ...e, ...(payload.new as GlobalEvent) } : e))
+              )
+            }
+          }
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channel)
+      }
+    }
   }, [])
+
+  const handleSendStageMessage = () => {
+    if (!chatInput.trim()) return
+    const newMsg: EventChatMessage = {
+      id: Date.now().toString(),
+      user_name: user?.display_name || user?.username || "Attending Member",
+      text: chatInput.trim(),
+      timestamp: "Just now"
+    }
+    setStageMessages((prev) => [...prev, newMsg])
+    setChatInput("")
+    setTimeout(() => {
+      if (chatScrollRef.current) {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
+      }
+    }, 100)
+  }
+
+  const handleSendReaction = (emoji: string) => {
+    const rx = {
+      id: Math.random().toString(),
+      emoji,
+      x: Math.random() * 80 + 10
+    }
+    setStageReactions((prev) => [...prev, rx])
+    setTimeout(() => {
+      setStageReactions((prev) => prev.filter((item) => item.id !== rx.id))
+    }, 2500)
+  }
+
+  const handleClaimReward = (event: GlobalEvent) => {
+    setRewardClaimed(true)
+    toast({
+      title: "Rewards Claimed! 🎁",
+      description: `You earned +${event.reward_coins} Loop Coins and the "${event.badge_reward}" badge!`
+    })
+  }
 
   const handleRsvp = async (eventId: string, eventTitle: string) => {
     if (!user) {
@@ -226,24 +305,19 @@ export function GlobalEventsHub() {
                       </span>
                     </div>
 
-                    <div className="flex gap-2 pt-1">
+                    <div className="grid grid-cols-2 gap-2 pt-1">
                       <Button
-                        onClick={() => handleRsvp(event.id, event.title)}
-                        disabled={hasRsvped}
-                        className={`flex-1 rounded-full text-xs font-semibold ${
-                          hasRsvped
-                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                            : "bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:opacity-90 shadow-md shadow-cyan-500/20"
-                        }`}
+                        onClick={() => {
+                          if (!hasRsvped) handleRsvp(event.id, event.title)
+                          setActiveStageEvent(event)
+                          setRewardClaimed(false)
+                        }}
+                        className="rounded-full text-xs font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:opacity-90 shadow-md shadow-cyan-500/20"
                       >
-                        {hasRsvped ? (
-                          <span className="flex items-center gap-1.5">
-                            <Check className="h-3.5 w-3.5" /> Registered
-                          </span>
-                        ) : (
-                          "RSVP & Join Event"
-                        )}
+                        <Play className="mr-1.5 h-3.5 w-3.5 fill-white" />
+                        Enter Stage
                       </Button>
+
                       <Button
                         variant="outline"
                         size="sm"
@@ -259,6 +333,146 @@ export function GlobalEventsHub() {
             )
           })}
         </div>
+      )}
+
+      {/* Interactive Live Event Stage Modal */}
+      {activeStageEvent && (
+        <Dialog open={Boolean(activeStageEvent)} onOpenChange={() => setActiveStageEvent(null)}>
+          <DialogContent className="border-white/15 bg-[#080d1a] text-white max-w-4xl p-0 overflow-hidden">
+            <div className="relative flex flex-col lg:flex-row h-[85vh] max-h-[700px]">
+
+              {/* Left Column: Live Video/Audio Stage Canvas */}
+              <div className="relative flex-1 bg-black flex flex-col justify-between p-4 overflow-hidden border-b lg:border-b-0 lg:border-r border-white/10">
+                {/* Header Overlay */}
+                <div className="z-10 flex items-center justify-between bg-black/60 backdrop-blur-md p-3 rounded-2xl border border-white/10">
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-red-500 animate-ping" />
+                    <Badge className="bg-red-500 text-white font-bold text-xs">LIVE BROADCAST</Badge>
+                    <span className="text-xs font-semibold text-white truncate max-w-[200px] sm:max-w-none">
+                      {activeStageEvent.title}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-cyan-300 font-medium">
+                    <Users className="h-4 w-4 text-cyan-400" />
+                    <span>{(activeStageEvent.rsvp_count || 12) + 48} Watching Live</span>
+                  </div>
+                </div>
+
+                {/* Floating Reactions overlay */}
+                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                  {stageReactions.map((rx) => (
+                    <div
+                      key={rx.id}
+                      className="absolute bottom-16 text-3xl animate-bounce transition-all duration-1000"
+                      style={{ left: `${rx.x}%` }}
+                    >
+                      {rx.emoji}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Stage Screen Display */}
+                <div className="my-auto text-center space-y-4 py-8">
+                  {activeStageEvent.banner_url ? (
+                    <div className="relative mx-auto max-w-lg overflow-hidden rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10">
+                      <img src={activeStageEvent.banner_url} alt="Stage" className="w-full h-56 object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent flex items-end justify-center p-4">
+                        <Button
+                          onClick={() => handleClaimReward(activeStageEvent)}
+                          disabled={rewardClaimed}
+                          className="rounded-full bg-gradient-to-r from-amber-400 to-orange-500 font-bold text-black shadow-lg hover:brightness-110"
+                        >
+                          <Gift className="mr-2 h-4 w-4" />
+                          {rewardClaimed ? "Reward Claimed! 🌟" : `Claim +${activeStageEvent.reward_coins} Loop Coins`}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mx-auto flex h-48 w-48 items-center justify-center rounded-full border-4 border-cyan-500/30 bg-cyan-950/40 backdrop-blur">
+                      <Radio className="h-20 w-20 text-cyan-400 animate-pulse" />
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <h2 className="text-xl font-bold text-white">{activeStageEvent.title}</h2>
+                    <p className="text-xs text-slate-400 max-w-md mx-auto">{activeStageEvent.description}</p>
+                  </div>
+                </div>
+
+                {/* Stage Controls Footer */}
+                <div className="z-10 flex items-center justify-between bg-black/60 backdrop-blur-md p-3 rounded-2xl border border-white/10">
+                  <div className="flex items-center gap-2">
+                    {["🔥", "👏", "🚀", "💎", "❤️"].map((emoji) => (
+                      <button
+                        key={emoji}
+                        onClick={() => handleSendReaction(emoji)}
+                        className="rounded-full bg-white/10 hover:bg-white/20 p-2 text-lg transition active:scale-125"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+
+                  {activeStageEvent.external_link && (
+                    <Button
+                      asChild
+                      size="sm"
+                      className="rounded-full bg-cyan-500 text-black font-semibold hover:bg-cyan-400"
+                    >
+                      <a href={activeStageEvent.external_link} target="_blank" rel="noreferrer">
+                        External Stream <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: Live Audience Chat */}
+              <div className="w-full lg:w-80 bg-[#060a14] flex flex-col justify-between p-4 border-t lg:border-t-0 border-white/10">
+                <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                  <h4 className="font-bold text-white text-sm flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-cyan-400" /> Live Stage Chat
+                  </h4>
+                  <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px]">
+                    Realtime Sync
+                  </Badge>
+                </div>
+
+                {/* Chat Stream */}
+                <div ref={chatScrollRef} className="flex-1 overflow-y-auto space-y-3 my-3 pr-1 text-xs">
+                  {stageMessages.map((msg) => (
+                    <div key={msg.id} className="rounded-xl bg-white/[0.04] p-2.5 border border-white/5 space-y-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-cyan-300">{msg.user_name}</span>
+                        <span className="text-slate-500 text-[10px]">{msg.timestamp}</span>
+                      </div>
+                      <p className="text-slate-200 leading-normal">{msg.text}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Chat Input */}
+                <div className="flex gap-2 pt-2 border-t border-white/10">
+                  <Input
+                    placeholder="Chat with live audience..."
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSendStageMessage()}
+                    className="rounded-full border-white/10 bg-black/60 text-xs text-white"
+                  />
+                  <Button
+                    size="icon"
+                    onClick={handleSendStageMessage}
+                    className="rounded-full bg-cyan-500 text-black hover:bg-cyan-400 shrink-0"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Detail Dialog */}
