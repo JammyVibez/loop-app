@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Home, Users, Clock, Flame, LayoutList, LayoutGrid, FileText, Hash, Search, Sparkles, Code2 } from "lucide-react"
+import { Home, Users, Clock, Flame, LayoutList, LayoutGrid, FileText, Hash, Search, Layers, Cpu, Code2 } from "lucide-react"
 import { LoopFeed } from "./loop-feed"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
@@ -16,9 +16,9 @@ const allTabs = [
 ] as const
 
 const TOPIC_CHIPS = [
-  { id: "all", label: "All Topics", icon: Sparkles },
+  { id: "all", label: "All Topics", icon: Layers },
   { id: "tech", label: "#Tech", icon: Code2 },
-  { id: "ai", label: "#AI & LLM", icon: Sparkles },
+  { id: "ai", label: "#AI & LLM", icon: Cpu },
   { id: "nextjs", label: "#NextJS", icon: Hash },
   { id: "design", label: "#UI & 3D", icon: Hash },
   { id: "showcase", label: "#Showcase", icon: Hash },

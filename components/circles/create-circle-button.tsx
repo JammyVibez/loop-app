@@ -93,8 +93,8 @@ export function CreateCircleButton() {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
-          <Plus className="w-4 h-4 mr-2" />
+        <Button className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium">
+          <Plus className="w-4 h-4 mr-1.5" />
           Create Circle
         </Button>
       </DialogTrigger>
@@ -164,7 +164,7 @@ export function CreateCircleButton() {
             <Button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex-1 bg-gradient-to-r from-purple-500 to-blue-500"
+              className="flex-1 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {isSubmitting ? "Creating..." : "Create Circle"}
             </Button>

@@ -19,29 +19,29 @@ const inter = Inter({ subsets: ["latin"] })
 
 // ✅ Moved themeColor + viewport here
 export const generateViewport = (): Viewport => ({
-  themeColor: "#6366f1",
+  themeColor: "#0f172a",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
 })
 
 export const metadata: Metadata = {
-  title: "Loop - Social Media Reimagined",
-  description: "Connect, create, and collaborate in the Loop ecosystem with stunning 3D effects",
-  generator: "_Halal_",
+  title: "Loop - Modern Social Platform",
+  description: "Connect, collaborate, share posts, and join community events on Loop.",
+  generator: "Loop App",
   manifest: "/manifest.json",
-  keywords: ["social media", "3D", "loops", "community", "gamification"],
+  keywords: ["social media", "loops", "community", "collaboration"],
   authors: [{ name: "Loop Team" }],
   openGraph: {
-    title: "Loop - Social Media Reimagined",
-    description: "Connect, create, and collaborate in the Loop ecosystem with stunning 3D effects",
+    title: "Loop - Modern Social Platform",
+    description: "Connect, collaborate, share posts, and join community events on Loop.",
     type: "website",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Loop - Social Media Reimagined",
-    description: "Connect, create, and collaborate in the Loop ecosystem with stunning 3D effects",
+    title: "Loop - Modern Social Platform",
+    description: "Connect, collaborate, share posts, and join community events on Loop.",
   },
   robots: {
     index: true,

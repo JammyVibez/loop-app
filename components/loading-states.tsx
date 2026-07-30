@@ -12,14 +12,14 @@ interface LoadingSpinnerProps {
 
 export function LoadingSpinner({ size = 'md', className }: LoadingSpinnerProps) {
   const sizeClasses = {
-    sm: 'h-4 w-4',
-    md: 'h-6 w-6',
-    lg: 'h-8 w-8'
+    sm: 'h-4 w-4 stroke-[2.5]',
+    md: 'h-5 w-5 stroke-[2.5]',
+    lg: 'h-8 w-8 stroke-[2.5]'
   }
 
   return (
     <Loader2 
-      className={cn('animate-spin', sizeClasses[size], className)} 
+      className={cn('animate-spin text-primary opacity-80', sizeClasses[size], className)} 
     />
   )
 }
@@ -29,24 +29,21 @@ interface PageLoadingProps {
   message?: string
 }
 
-export function PageLoading({ message = 'Loading...' }: PageLoadingProps) {
+export function PageLoading({ message = 'Loading' }: PageLoadingProps) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div className="text-center space-y-4">
-        <div className="relative">
-          <div className="absolute inset-0 animate-ping rounded-full bg-purple-400 opacity-20"></div>
-          <div className="relative flex items-center justify-center w-16 h-16 bg-purple-600 rounded-full">
-            <Sparkles className="h-8 w-8 text-white animate-pulse" />
-          </div>
+    <div className="min-h-screen flex items-center justify-center bg-background text-foreground transition-colors">
+      <div className="text-center space-y-4 max-w-xs px-4">
+        <div className="relative mx-auto w-12 h-12 flex items-center justify-center">
+          <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+          <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <div className="h-3 w-3 rounded-full bg-primary/80 animate-pulse" />
         </div>
-        <div className="space-y-2">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+        <div className="space-y-1">
+          <p className="text-sm font-medium tracking-wide text-foreground/90">
             {message}
-          </h2>
-          <div className="flex items-center justify-center space-x-1">
-            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"></div>
-            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          </p>
+          <div className="h-0.5 w-16 mx-auto bg-primary/20 overflow-hidden rounded-full">
+            <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: '60%' }} />
           </div>
         </div>
       </div>

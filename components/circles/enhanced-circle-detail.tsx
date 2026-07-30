@@ -47,6 +47,7 @@ import { RealtimeCircleChat } from "@/components/circles/realtime-circle-chat"
 import { CircleEvents } from "@/components/circles/circle-events"
 import { CommunityAdvancedPanel } from "@/components/circles/community-advanced-panel"
 import { GiftModal } from "@/components/gifting/gift-modal"
+import { PageLoading } from "@/components/loading-states"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
@@ -513,14 +514,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   }
 
   if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p>Loading circle...</p>
-        </div>
-      </div>
-    )
+    return <PageLoading message="Loading circle..." />
   }
 
   if (!user) {

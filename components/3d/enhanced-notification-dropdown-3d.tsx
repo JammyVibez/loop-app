@@ -192,17 +192,12 @@ export function EnhancedNotificationDropdown3D() {
             {/* Notification badges */}
             {unreadCount > 0 && (
               <>
-                <Badge className={`absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs transition-all duration-300 ${
+                <Badge className={`absolute -top-1 -right-1 h-5 min-w-[20px] px-1 flex items-center justify-center text-[10px] font-semibold text-white transition-all duration-300 ${
                   highPriorityCount > 0 
-                    ? "bg-red-500 animate-bounce" :"bg-blue-500 animate-pulse"
+                    ? "bg-rose-500 shadow-sm shadow-rose-500/30" : "bg-primary shadow-sm shadow-primary/30"
                 }`}>
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </Badge>
-                
-                {/* High priority indicator */}
-                {highPriorityCount > 0 && (
-                  <div className="absolute -top-2 -right-2 w-3 h-3 bg-red-500 rounded-full animate-ping" />
-                )}
               </>
             )}
           </div>

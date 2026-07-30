@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDistanceToNow } from "date-fns";
 import { supabase } from "@/lib/supabase";
+import { LoadingSpinner } from "@/components/loading-states";
 import { cn } from "@/lib/utils";
 
 interface Circle {
@@ -835,7 +836,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <LoadingSpinner size="lg" />
       </div>
     )
   }

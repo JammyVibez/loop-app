@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-  Sparkles,
+  Compass,
   Users,
   MessageCircle,
   Zap,
@@ -22,10 +22,10 @@ import { cn } from "@/lib/utils"
 
 const features = [
   {
-    title: "Spatial 3D chrome",
+    title: "Spatial 3D depth",
     description:
-      "Depth-aware surfaces, glass highlights, and motion that feels tactile—not gimmicky.",
-    icon: Sparkles,
+      "Depth-aware surfaces, smooth glass highlights, and responsive interactive elements.",
+    icon: Compass,
     className: "md:col-span-2",
     accent: "from-violet-500/30 to-fuchsia-500/20",
   },
@@ -303,10 +303,10 @@ export function LandingContent() {
                 >
                   <p className="flex items-center gap-2 font-semibold text-cyan-50">
                     <Bot className="h-3.5 w-3.5" />
-                    AI bots enabled
+                    Custom bots enabled
                   </p>
                   <p className="mt-1 text-[11px] text-cyan-200/80">
-                    Add moderation, support, and engagement bots to any community.
+                    Add moderation, support, and engagement bots to any community circle.
                   </p>
                 </div>
               </div>

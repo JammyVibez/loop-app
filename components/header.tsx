@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Search, MessageCircle, Settings, User, LogOut, Plus, Coins, Crown, Sparkles, Shield, Store, Radio, Package, Calendar } from "lucide-react"
+import { Search, MessageCircle, Settings, User, Users, LogOut, Plus, Coins, Crown, Sparkles, Shield, Store, Radio, Package, Calendar } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -157,7 +157,7 @@ export function Header() {
                     {user.is_verified && <Badge variant="secondary">✓</Badge>}
                     {user.is_premium && (
                       <Badge variant="outline">
-                        <Sparkles className="mr-1 h-3 w-3" /> Premium
+                        <Crown className="mr-1 h-3 w-3 text-amber-500" /> Premium
                       </Badge>
                     )}
                   </div>
@@ -179,7 +179,7 @@ export function Header() {
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/circles">
-                  <Sparkles className="mr-2 h-4 w-4" />
+                  <Users className="mr-2 h-4 w-4" />
                   <span>Circles</span>
                 </Link>
               </DropdownMenuItem>
