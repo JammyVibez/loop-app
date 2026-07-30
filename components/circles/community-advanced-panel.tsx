@@ -149,18 +149,28 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Theme Marketplace Packs Applied to Individual Circle */}
+          {/* Theme Marketplace Packs & Community Layout Preset Applied to Individual Circle */}
           <div className="space-y-3 rounded-2xl border border-white/10 bg-[#030712]/50 p-4">
-            <h4 className="font-semibold text-white text-sm flex items-center gap-2">
-              <ShoppingBag className="h-4 w-4 text-cyan-400" />
-              Theme Marketplace Packs (Applied to this Circle)
+            <h4 className="font-semibold text-white text-sm flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <ShoppingBag className="h-4 w-4 text-cyan-400" />
+                Community Design Layout & Platform Theme Packs
+              </span>
+              <a href="/marketplace" className="text-xs text-cyan-400 hover:underline">
+                Marketplace →
+              </a>
             </h4>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <p className="text-xs text-slate-400">
+              Transform this community's visual layout and experience. Select a pre-designed developer layout or apply an installed marketplace theme.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                { id: "dev-den-cyberpunk", name: "Developer's Den Cyberpunk", accent: "#22d3ee", headerBg: "#06182c", font: "Space Grotesk" },
-                { id: "creator-zone-ember", name: "Creator Zone Ember", accent: "#f97316", headerBg: "#1f0a02", font: "Plus Jakarta Sans" },
-                { id: "gojo-infinity-violet", name: "Gojo Infinity Void", accent: "#a855f7", headerBg: "#120324", font: "Cinematic Display" },
-                { id: "forest-mint-zen", name: "Forest Mint Zen", accent: "#34d399", headerBg: "#021a12", font: "Inter" }
+                { id: "telegram", name: "Telegram Channel Layout", accent: "#24A1DE", layout: "telegram", desc: "Left channel bar, center message bubbles, right room panel" },
+                { id: "discord", name: "Discord Server Layout", accent: "#5865F2", layout: "discord", desc: "Dark server icon bar, role tags, channel hierarchy & roster" },
+                { id: "reddit", name: "Reddit Subreddit Layout", accent: "#FF4500", layout: "reddit", desc: "Karma counter, upvote controls, Hot/Top post sorting & rules wiki" },
+                { id: "devto", name: "Dev.to Tech Blog Layout", accent: "#0A0A0A", layout: "devto", desc: "Developer article card feed, read-time chips & code syntax" },
+                { id: "forum", name: "Classic Bulletin Forum", accent: "#10B981", layout: "forum", desc: "Tabular thread categories, topic counts & last post activity" },
+                { id: "cyberpunk", name: "Cyberpunk 3D Matrix", accent: "#EC4899", layout: "cyberpunk", desc: "Glowing neon borders, 3D ambient canvas & futuristic HUD" }
               ].map((pack) => (
                 <button
                   key={pack.id}
@@ -169,23 +179,22 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
                   onClick={() =>
                     setStudio((prev: any) => ({
                       ...prev,
+                      layout: pack.layout,
                       theme_pack: pack.name,
                       accent: pack.accent,
-                      header_bg: pack.headerBg,
-                      font_family: pack.font
                     }))
                   }
                   className={`relative rounded-xl border p-3 text-left transition ${
-                    studio.theme_pack === pack.name
+                    studio.layout === pack.layout || studio.theme_pack === pack.name
                       ? "border-cyan-400 bg-cyan-500/10 shadow-md shadow-cyan-500/10"
                       : "border-white/10 bg-white/5 hover:bg-white/10"
                   } disabled:opacity-50`}
                 >
                   <span className="mb-2 block h-2 rounded-full" style={{ background: pack.accent }} />
                   <p className="font-semibold text-white text-xs">{pack.name}</p>
-                  <p className="text-[11px] text-slate-400">{pack.font}</p>
-                  {studio.theme_pack === pack.name && (
-                    <Badge className="absolute top-2 right-2 bg-cyan-500 text-black text-[10px] p-0.5 px-1 font-bold">
+                  <p className="text-[11px] text-slate-400 mt-1">{pack.desc}</p>
+                  {(studio.layout === pack.layout || studio.theme_pack === pack.name) && (
+                    <Badge className="absolute top-2 right-2 bg-cyan-500 text-black text-[10px] p-0.5 px-1.5 font-bold">
                       Active
                     </Badge>
                   )}

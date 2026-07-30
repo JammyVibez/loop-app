@@ -251,14 +251,25 @@ export function DevelopersContent() {
   return (
     <>
       <div className="space-y-6">
-        {/* Create Project Button */}
-        <div className="flex justify-center">
+        {/* Create Project & Developer Docs Navigation Buttons */}
+        <div className="flex flex-wrap justify-center items-center gap-3">
           <Button
             onClick={() => setShowCreateDialog(true)}
-            className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+            className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-full font-semibold"
           >
             <Plus className="w-4 h-4 mr-2" />
             Share Project
+          </Button>
+
+          <Button
+            asChild
+            variant="outline"
+            className="rounded-full border-cyan-500/40 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 font-semibold"
+          >
+            <a href="/developers/docs">
+              <Code className="w-4 h-4 mr-2 text-cyan-400" />
+              Developer Docs: Community Layout Specs 📚
+            </a>
           </Button>
         </div>
 

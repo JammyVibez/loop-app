@@ -40,7 +40,8 @@ import {
   MoreHorizontal,
   Pin,
   Archive,
-  Flag
+  Flag,
+  Sparkles
 } from "lucide-react"
 import { RealtimeCircleChat } from "@/components/circles/realtime-circle-chat"
 import { CircleEvents } from "@/components/circles/circle-events"
@@ -577,9 +578,10 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
           }}
         >
           <div className="absolute inset-0 bg-black/25" />
-          {(design.title || styling.css_variables) && (
-            <div className="absolute bottom-3 left-3 rounded-full bg-black/45 px-3 py-1 text-xs text-white backdrop-blur">
-              Layout: {layout}
+          {(design.title || styling.css_variables || layout !== "default") && (
+            <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-cyan-300 border border-cyan-500/30 backdrop-blur">
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              Layout Pack: {layout.toUpperCase()}
             </div>
           )}
           <div className="absolute right-3 top-3 flex max-w-[70%] flex-wrap justify-end gap-1.5 sm:right-4 sm:top-4 sm:gap-2">

@@ -16,9 +16,19 @@ interface LoopFeedProps {
   feedType?: "personalized" | "following" | "trending" | "recent"
   showComposer?: boolean
   guestMode?: boolean
+  topicFilter?: string
+  searchQuery?: string
+  viewMode?: "stream" | "cards" | "articles"
 }
 
-export function LoopFeed({ feedType = "personalized", showComposer = false, guestMode = false }: LoopFeedProps) {
+export function LoopFeed({
+  feedType = "personalized",
+  showComposer = false,
+  guestMode = false,
+  topicFilter = "all",
+  searchQuery = "",
+  viewMode = "stream"
+}: LoopFeedProps) {
   const [loops, setLoops] = useState<NormalizedLoop[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -336,6 +346,36 @@ export function LoopFeed({ feedType = "personalized", showComposer = false, gues
     )
   }
 
+  const filteredLoops = loops.filter((loop) => {
+    // Search query filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      const contentMatch = loop.content?.toLowerCase().includes(q)
+      const authorMatch = loop.author?.username?.toLowerCase().includes(q) || loop.author?.display_name?.toLowerCase().includes(q)
+      const tagMatch = loop.hashtags?.some((t) => t.toLowerCase().includes(q))
+      if (!contentMatch && !authorMatch && !tagMatch) return false
+    }
+
+    // Topic chip filter
+    if (topicFilter && topicFilter !== "all") {
+      const tf = topicFilter.toLowerCase()
+      const hasTag = loop.hashtags?.some((t) => t.toLowerCase().includes(tf) || tf.includes(t.toLowerCase()))
+      const contentIncludes = loop.content?.toLowerCase().includes(tf)
+      if (!hasTag && !contentIncludes) return false
+    }
+
+    return true
+  })
+
+  if (filteredLoops.length === 0 && loops.length > 0) {
+    return (
+      <EmptyState
+        title="No matching loops"
+        description={`No loops found matching "${searchQuery || topicFilter}". Try switching topics or clearing your search.`}
+      />
+    )
+  }
+
   return (
     <div className="relative space-y-4 sm:space-y-6">
       {pullDistance > 8 && (
@@ -371,18 +411,26 @@ export function LoopFeed({ feedType = "personalized", showComposer = false, gues
         )}
       </div>
 
-      {loops.map((loop) => (
-        <LoopCard
-          key={loop.id}
-          loop={loop}
-          interacting={interacting}
-          onInteraction={handleInteraction}
-          onDeleted={(loopId) => setLoops((prev) => prev.filter((item) => item.id !== loopId))}
-          onEdited={(updatedLoop) =>
-            setLoops((prev) => prev.map((item) => (item.id === updatedLoop.id ? updatedLoop : item)))
-          }
-        />
-      ))}
+      <div
+        className={cn(
+          viewMode === "cards" && "grid gap-4 sm:grid-cols-2",
+          viewMode === "articles" && "space-y-6",
+          viewMode === "stream" && "space-y-4 sm:space-y-6"
+        )}
+      >
+        {filteredLoops.map((loop) => (
+          <LoopCard
+            key={loop.id}
+            loop={loop}
+            interacting={interacting}
+            onInteraction={handleInteraction}
+            onDeleted={(loopId) => setLoops((prev) => prev.filter((item) => item.id !== loopId))}
+            onEdited={(updatedLoop) =>
+              setLoops((prev) => prev.map((item) => (item.id === updatedLoop.id ? updatedLoop : item)))
+            }
+          />
+        ))}
+      </div>
 
       {hasMore && (
         <div className="pb-4 text-center">

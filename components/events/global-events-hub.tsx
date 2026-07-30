@@ -118,6 +118,16 @@ export function GlobalEventsHub() {
           <p className="text-sm sm:text-base text-slate-300">
             Join official developer hackathons, content creator zone spotlights, 3D design showdowns, and live circle stages. Earn exclusive badges and Loop Coins!
           </p>
+          {user?.is_admin && (
+            <div className="pt-2">
+              <Button asChild className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-black font-bold shadow-lg hover:brightness-110">
+                <a href="/admin?tab=events">
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Admin: Create & Manage Global Events
+                </a>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

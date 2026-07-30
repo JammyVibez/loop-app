@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import {
   BadgeCheck,
   Ban,
@@ -14,6 +15,7 @@ import {
   Users,
   Coins,
   Flag,
+  Calendar,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
@@ -29,6 +31,7 @@ import { AdminFeaturedPanel } from "@/components/admin/admin-featured-panel"
 import { ContentModerationControl } from "@/components/admin/content-moderation-control"
 import { EconomyControl } from "@/components/admin/economy-control"
 import { SettingsTabContent } from "@/components/admin/settings-tab-content"
+import { EventManagement } from "@/components/admin/event-management"
 
 interface AdminUser {
   id: string
@@ -48,6 +51,8 @@ interface AdminUser {
 }
 
 export function AdminDashboard() {
+  const searchParams = useSearchParams()
+  const initialTab = searchParams?.get("tab") || "users"
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const [users, setUsers] = useState<AdminUser[]>([])
@@ -57,7 +62,7 @@ export function AdminDashboard() {
   const [q, setQ] = useState("")
   const [filter, setFilter] = useState("all")
   const [live, setLive] = useState(false)
-  const [section, setSection] = useState("users")
+  const [section, setSection] = useState(initialTab)
 
   const loadUsers = useCallback(async () => {
     if (!user?.is_admin) return
@@ -165,8 +170,9 @@ export function AdminDashboard() {
       </div>
 
       <Tabs value={section} onValueChange={setSection}>
-        <TabsList className="grid h-auto w-full max-w-3xl grid-cols-2 gap-1 sm:grid-cols-5">
+        <TabsList className="grid h-auto w-full max-w-4xl grid-cols-3 gap-1 sm:grid-cols-6">
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="events">Global Events</TabsTrigger>
           <TabsTrigger value="economy">Economy</TabsTrigger>
           <TabsTrigger value="catalog">Themes & Effects</TabsTrigger>
           <TabsTrigger value="featured">Featured</TabsTrigger>
@@ -345,6 +351,10 @@ export function AdminDashboard() {
               Changes sync live across open admin sessions. Recipients also get an in-app notification.
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="events" className="mt-6">
+          <EventManagement />
         </TabsContent>
 
         <TabsContent value="economy" className="mt-6 space-y-6">

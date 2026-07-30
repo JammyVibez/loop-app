@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Search, MessageCircle, Settings, User, LogOut, Plus, Coins, Crown, Sparkles, Shield, Store, Radio, Package } from "lucide-react"
+import { Search, MessageCircle, Settings, User, LogOut, Plus, Coins, Crown, Sparkles, Shield, Store, Radio, Package, Calendar } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -202,12 +202,20 @@ export function Header() {
                 </Link>
               </DropdownMenuItem>
               {user.is_admin && (
-                <DropdownMenuItem asChild>
-                  <Link href="/admin">
-                    <Shield className="mr-2 h-4 w-4" />
-                    <span>App Admin</span>
-                  </Link>
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin">
+                      <Shield className="mr-2 h-4 w-4 text-cyan-400" />
+                      <span>App Admin Panel</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin?tab=events">
+                      <Calendar className="mr-2 h-4 w-4 text-amber-400" />
+                      <span>Admin Global Events</span>
+                    </Link>
+                  </DropdownMenuItem>
+                </>
               )}
               <DropdownMenuItem asChild>
                 <Link href="/marketplace">
