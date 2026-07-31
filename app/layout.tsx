@@ -21,9 +21,11 @@ const SITE_URL = "https://loop-app-xi.vercel.app"
 const SITE_TITLE = "Loop - Social Media Reimagined"
 const SITE_DESCRIPTION =
   "Connect, create, and collaborate in the Loop ecosystem with stunning 3D effects"
-const OG_IMAGE_URL = "https://i.ibb.co/nsmk7mS2/grok-1785451308937.jpg"
+// Self-hosted — third-party hosts (e.g. ImgBB) 404 and break X/Twitter cards.
+const OG_IMAGE_URL = `${SITE_URL}/og-image.jpg`
 const OG_IMAGE = {
   url: OG_IMAGE_URL,
+  secureUrl: OG_IMAGE_URL,
   width: 1168,
   height: 784,
   alt: SITE_TITLE,
@@ -74,7 +76,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    images: [OG_IMAGE],
+    images: [OG_IMAGE_URL],
   },
 }
 
