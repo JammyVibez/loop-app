@@ -32,6 +32,8 @@ import { ContentModerationControl } from "@/components/admin/content-moderation-
 import { EconomyControl } from "@/components/admin/economy-control"
 import { SettingsTabContent } from "@/components/admin/settings-tab-content"
 import { EventManagement } from "@/components/admin/event-management"
+import { MaintenanceModeControl } from "@/components/admin/maintenance-mode-control"
+import { UserBadges } from "@/components/user-badge"
 
 interface AdminUser {
   id: string
@@ -40,6 +42,8 @@ interface AdminUser {
   avatar_url?: string
   email?: string
   is_verified?: boolean
+  is_team_member?: boolean
+  is_sponsor?: boolean
   is_premium?: boolean
   is_admin?: boolean
   is_banned?: boolean
@@ -170,8 +174,9 @@ export function AdminDashboard() {
       </div>
 
       <Tabs value={section} onValueChange={setSection}>
-        <TabsList className="grid h-auto w-full max-w-4xl grid-cols-3 gap-1 sm:grid-cols-6">
+        <TabsList className="grid h-auto w-full max-w-5xl grid-cols-4 gap-1 sm:grid-cols-7">
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
           <TabsTrigger value="events">Global Events</TabsTrigger>
           <TabsTrigger value="economy">Economy</TabsTrigger>
           <TabsTrigger value="catalog">Themes & Effects</TabsTrigger>
@@ -263,7 +268,13 @@ export function AdminDashboard() {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <p className="truncate font-semibold">{u.display_name || u.username}</p>
-                          {u.is_verified && <Badge className="bg-sky-500">Verified</Badge>}
+                          <UserBadges
+                            is_verified={u.is_verified}
+                            is_team_member={u.is_team_member}
+                            is_sponsor={u.is_sponsor}
+                            username={u.username}
+                            size="sm"
+                          />
                           {u.is_premium && <Badge className="bg-amber-500 text-slate-900">Premium</Badge>}
                           {u.is_admin && <Badge variant="secondary">Admin</Badge>}
                           {u.is_banned && <Badge variant="destructive">Banned</Badge>}
@@ -275,27 +286,50 @@ export function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="rounded-full"
+                        className="rounded-full text-xs"
                         disabled={busyId === `${u.id}:verify` || busyId === `${u.id}:unverify`}
                         onClick={() => runAction(u.id, u.is_verified ? "unverify" : "verify")}
+                        title="Toggle Creator Checkmark"
                       >
-                        <BadgeCheck className="mr-1.5 h-3.5 w-3.5" />
-                        {u.is_verified ? "Unverify" : "Verify"}
+                        <BadgeCheck className="mr-1 h-3.5 w-3.5 text-sky-500" />
+                        {u.is_verified ? "Rem Creator" : "Add Creator"}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="rounded-full"
+                        className="rounded-full text-xs"
+                        disabled={busyId === `${u.id}:grant_team_badge` || busyId === `${u.id}:revoke_team_badge`}
+                        onClick={() => runAction(u.id, u.is_team_member ? "revoke_team_badge" : "grant_team_badge")}
+                        title="Toggle Team Badge"
+                      >
+                        <Shield className="mr-1 h-3.5 w-3.5 text-violet-500" />
+                        {u.is_team_member ? "Rem Team" : "Add Team"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full text-xs"
+                        disabled={busyId === `${u.id}:grant_sponsor_badge` || busyId === `${u.id}:revoke_sponsor_badge`}
+                        onClick={() => runAction(u.id, u.is_sponsor ? "revoke_sponsor_badge" : "grant_sponsor_badge")}
+                        title="Toggle Sponsor Gold Badge"
+                      >
+                        <Sparkles className="mr-1 h-3.5 w-3.5 text-amber-500" />
+                        {u.is_sponsor ? "Rem Sponsor" : "Add Sponsor"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full text-xs"
                         disabled={busyId === `${u.id}:grant_premium` || busyId === `${u.id}:revoke_premium`}
                         onClick={() =>
                           runAction(u.id, u.is_premium ? "revoke_premium" : "grant_premium", { months: 1 })
                         }
                       >
-                        <Crown className="mr-1.5 h-3.5 w-3.5" />
+                        <Crown className="mr-1 h-3.5 w-3.5 text-amber-500" />
                         {u.is_premium ? "Revoke Pro" : "Grant Pro"}
                       </Button>
                       <Button
@@ -351,6 +385,10 @@ export function AdminDashboard() {
               Changes sync live across open admin sessions. Recipients also get an in-app notification.
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="maintenance" className="mt-6">
+          <MaintenanceModeControl />
         </TabsContent>
 
         <TabsContent value="events" className="mt-6">

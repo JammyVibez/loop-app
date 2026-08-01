@@ -20,9 +20,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
 
     const page = Number.parseInt(searchParams.get("page") || "1")
-    const limit = Number.parseInt(searchParams.get("limit") || "20")
+    const limit = Number.parseInt(searchParams.get("limit") || "30")
     const category = searchParams.get("category") || "trending"
     const hashtag = searchParams.get("hashtag")
+    const focusId = searchParams.get("focus")
+    const shouldShuffle = searchParams.get("shuffle") !== "false"
     const offset = (page - 1) * limit
 
     let query = supabase
@@ -39,7 +41,6 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq("visibility", "public")
-      .range(offset, offset + limit - 1)
 
     switch (category) {
       case "trending":
@@ -63,6 +64,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (hashtag) query = query.contains("hashtags", [hashtag])
+
+    // If shuffling, fetch a larger pool to randomize sequence
+    const fetchLimit = shouldShuffle ? Math.max(limit * 2, 40) : limit
+    query = query.range(0, fetchLimit - 1)
 
     const { data: reels, error } = await query
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -131,6 +136,29 @@ export async function GET(request: NextRequest) {
         })
         .filter(Boolean) as any[]
     }
+
+    // Shuffle & randomize sequence per session if requested
+    if (shouldShuffle && processed.length > 1) {
+      if (focusId) {
+        // Keep focus reel first, shuffle the rest
+        const focusReel = processed.find((r) => r.id === focusId)
+        const others = processed.filter((r) => r.id !== focusId)
+        for (let i = others.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1))
+          ;[others[i], others[j]] = [others[j], others[i]]
+        }
+        processed = focusReel ? [focusReel, ...others] : others
+      } else {
+        // Full Fisher-Yates shuffle
+        for (let i = processed.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1))
+          ;[processed[i], processed[j]] = [processed[j], processed[i]]
+        }
+      }
+    }
+
+    // Limit output to requested size
+    processed = processed.slice(0, limit)
 
     return NextResponse.json({
       success: true,

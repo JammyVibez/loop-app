@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("profiles")
       .select(
-        "id, username, display_name, avatar_url, email, is_verified, is_premium, is_admin, is_banned, ban_reason, premium_expires_at, loop_coins, created_at, last_active",
+        "id, username, display_name, avatar_url, email, is_verified, is_team_member, is_sponsor, is_premium, is_admin, is_banned, ban_reason, premium_expires_at, loop_coins, created_at, last_active",
       )
       .order("created_at", { ascending: false })
       .limit(limit)
@@ -96,10 +96,24 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case "verify":
+      case "grant_creator_badge":
         updates.is_verified = true
         break
       case "unverify":
+      case "revoke_creator_badge":
         updates.is_verified = false
+        break
+      case "grant_team_badge":
+        updates.is_team_member = true
+        break
+      case "revoke_team_badge":
+        updates.is_team_member = false
+        break
+      case "grant_sponsor_badge":
+        updates.is_sponsor = true
+        break
+      case "revoke_sponsor_badge":
+        updates.is_sponsor = false
         break
       case "grant_premium": {
         updates.is_premium = true
@@ -150,7 +164,7 @@ export async function POST(request: NextRequest) {
       .update(updates)
       .eq("id", userId)
       .select(
-        "id, username, display_name, avatar_url, email, is_verified, is_premium, is_admin, is_banned, ban_reason, premium_expires_at, loop_coins, created_at, last_active",
+        "id, username, display_name, avatar_url, email, is_verified, is_team_member, is_sponsor, is_premium, is_admin, is_banned, ban_reason, premium_expires_at, loop_coins, created_at, last_active",
       )
       .single()
 

@@ -219,40 +219,10 @@ export function Header() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
 
-              {/* Loop Coins Quick Action */}
-              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                <Link href="/wallet" className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Coins className="h-4 w-4 text-amber-500" />
-                    <span className="text-xs font-medium">Loop Coins</span>
-                  </div>
-                  <Badge variant="secondary" className="bg-amber-500/15 text-amber-500 font-bold text-[10px] px-1.5">
-                    🪙 {Number(user.loop_coins || 0).toLocaleString()}
-                  </Badge>
-                </Link>
-              </DropdownMenuItem>
-
-              {/* Live Streams */}
-              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                <Link href="/streams" className="flex items-center gap-2">
-                  <Radio className="h-4 w-4 text-rose-500" />
-                  <span className="text-xs font-medium">Live Streams</span>
-                </Link>
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
-
               <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
                 <Link href={`/profile/${user.username}`} className="flex items-center gap-2">
                   <User className="h-4 w-4 text-muted-foreground" />
                   <span className="text-xs font-medium">Your Profile</span>
-                </Link>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                <Link href="/bookmarks" className="flex items-center gap-2">
-                  <Bookmark className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs font-medium">Saved Bookmarks</span>
                 </Link>
               </DropdownMenuItem>
 
@@ -262,15 +232,6 @@ export function Header() {
                   <span className="text-xs font-medium">Settings</span>
                 </Link>
               </DropdownMenuItem>
-
-              {isAdmin && (
-                <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                  <Link href="/admin" className="flex items-center gap-2 text-amber-500">
-                    <Shield className="h-4 w-4 text-amber-500" />
-                    <span className="text-xs font-semibold">Admin Panel</span>
-                  </Link>
-                </DropdownMenuItem>
-              )}
 
               <DropdownMenuSeparator />
 

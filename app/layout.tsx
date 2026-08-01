@@ -26,27 +26,49 @@ export const generateViewport = (): Viewport => ({
   maximumScale: 1,
 })
 
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://loop-app.com"
+
 export const metadata: Metadata = {
-  title: "Loop - Social Media Reimagined",
-  description: "Connect, create, and collaborate in the Loop ecosystem with stunning 3D effects",
-  generator: "_Halal_",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "Loop - Next-Gen Collaborative Social OS",
+    template: "%s | Loop",
+  },
+  description: "Connect, create, and collaborate in the Loop ecosystem with live streams, real-time co-loops, interactive circles, and gamified reward economies.",
+  generator: "Loop Social OS",
+  applicationName: "Loop",
   manifest: "/manifest.json",
-  keywords: ["social media", "3D", "loops", "community", "gamification"],
-  authors: [{ name: "Loop Team" }],
+  keywords: ["social media", "co-loop", "real-time collaboration", "live streams", "circles", "gamification", "loop coins"],
+  authors: [{ name: "Loop Team", url: siteUrl }],
+  creator: "Loop Team",
+  publisher: "Loop Platform",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
-    title: "Loop - Social Media Reimagined",
-    description: "Connect, create, and collaborate in the Loop ecosystem with stunning 3D effects",
+    title: "Loop - Next-Gen Collaborative Social OS",
+    description: "Connect, create, and collaborate in the Loop ecosystem with live streams, real-time co-loops, and interactive circles.",
+    url: siteUrl,
+    siteName: "Loop Social OS",
     type: "website",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Loop - Social Media Reimagined",
-    description: "Connect, create, and collaborate in the Loop ecosystem with stunning 3D effects",
+    title: "Loop - Next-Gen Collaborative Social OS",
+    description: "Connect, create, and collaborate in the Loop ecosystem with live streams, real-time co-loops, and interactive circles.",
+    creator: "@LoopSocial",
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
 }
 
@@ -92,6 +114,26 @@ export default function RootLayout({
         {/* Performance optimizations */}
         <link rel="dns-prefetch" href="//fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+
+        {/* JSON-LD Structured Data for Search Engines */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "Loop",
+              alternateName: "Loop Social OS",
+              url: siteUrl,
+              description: "Connect, create, and collaborate in the Loop ecosystem with live streams, real-time co-loops, and gamified reward economies.",
+              potentialAction: {
+                "@type": "SearchAction",
+                target: `${siteUrl}/search?q={search_term_string}`,
+                "query-input": "required name=search_term_string",
+              },
+            }),
+          }}
+        />
       </head>
       <body className={`${inter.className} antialiased`}>
         <ThemeProvider
