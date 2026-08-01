@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { UserPlus, Users, RefreshCw } from "lucide-react"
+import { UserBadges } from "@/components/user-badge"
 
 interface Suggestion {
   id: string
@@ -15,6 +16,8 @@ interface Suggestion {
   display_name: string
   avatar_url?: string
   is_verified?: boolean
+  is_team_member?: boolean
+  is_sponsor?: boolean
   is_premium?: boolean
   bio?: string
   reason?: string
@@ -113,7 +116,13 @@ export function UserSuggestions({
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
                     <p className="truncate text-sm font-medium text-foreground">{person.display_name}</p>
-                    {person.is_verified && <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">✓</Badge>}
+                    <UserBadges
+                      is_verified={person.is_verified}
+                      is_team_member={person.is_team_member}
+                      is_sponsor={person.is_sponsor}
+                      username={person.username}
+                      size="sm"
+                    />
                   </div>
                   <p className="truncate text-xs text-muted-foreground">@{person.username}</p>
                   {!compact && person.reason && (

@@ -25,6 +25,8 @@ export interface Database {
           available_earnings: number
           is_premium: boolean
           is_verified: boolean
+          is_team_member: boolean
+          is_sponsor: boolean
           is_admin: boolean
           onboarding_completed: boolean
           active_theme: string | null

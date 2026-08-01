@@ -17,6 +17,8 @@ interface User {
   is_premium: boolean
   premium_expires_at?: string
   is_verified: boolean
+  is_team_member?: boolean
+  is_sponsor?: boolean
   is_admin: boolean
   theme_data?: any
   theme_preferences?: any

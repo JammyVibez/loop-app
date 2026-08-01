@@ -16,6 +16,8 @@ export type NormalizedLoop = {
     display_name: string
     avatar_url?: string
     is_verified?: boolean
+    is_team_member?: boolean
+    is_sponsor?: boolean
     is_premium?: boolean
     level?: number
     cosmetics?: Record<string, any> | null
@@ -91,6 +93,8 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
       display_name: author?.display_name || author?.username || "Unknown User",
       avatar_url: author?.avatar_url || undefined,
       is_verified: Boolean(author?.is_verified),
+      is_team_member: Boolean(author?.is_team_member || author?.email === "useehamza0@gmail.com"),
+      is_sponsor: Boolean(author?.is_sponsor),
       is_premium: Boolean(author?.is_premium),
       level: author?.level,
       cosmetics: author?.cosmetics || author?.active_cosmetics || null,

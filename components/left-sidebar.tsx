@@ -23,9 +23,10 @@ import {
   Sparkles,
   LogOut,
   Flame,
-  Activity,
   User,
+  Compass,
 } from "lucide-react"
+import { UserBadges } from "@/components/user-badge"
 
 interface CircleItem {
   id: string
@@ -35,22 +36,13 @@ interface CircleItem {
   avatar_url?: string
 }
 
-interface ActivityItem {
-  id: string
-  title: string
-  created_at: string
-  type: string
-}
-
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Menu } from "lucide-react"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 
 export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   const { user, signOut } = useAuth()
   const pathname = usePathname()
   const [trendingCircles, setTrendingCircles] = useState<CircleItem[]>([])
   const [unreadNotifs, setUnreadNotifs] = useState(0)
-  const [unreadMessages, setUnreadMessages] = useState(0)
 
   useEffect(() => {
     if (!user) return
@@ -74,43 +66,26 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
         }
       })
       .catch(() => {})
-
-    fetch("/api/messages/unread-count", {
-      headers: { Authorization: `Bearer ${user.access_token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && typeof data.count === "number") {
-          setUnreadMessages(data.count)
-        }
-      })
-      .catch(() => {})
   }, [user])
 
   if (!user) return null
 
-  const mainNav = [
-    { href: "/", label: "Home", icon: Home },
-    { href: "/explore", label: "Explore", icon: TrendingUp },
-    { href: "/reels", label: "Reels", icon: Video },
+  // Merged & Non-Redundant Navigation List:
+  // (Home, Reels, Messages are already pinned on the mobile bottom tab bar, so drawer focuses on unique destinations)
+  const discoveryNav = [
+    { href: "/explore", label: "Explore & Search", icon: Compass },
     { href: "/streams", label: "Live Streams", icon: Radio, badge: "LIVE" },
     { href: "/events", label: "Events Stage", icon: Calendar },
-    { href: "/circles", label: "Circles", icon: Users },
+    { href: "/circles", label: "Circles & Communities", icon: Users },
     { href: "/co-loop/studio", label: "Co-Loop Studio", icon: Sparkles, badge: "NEW" },
-    {
-      href: "/messages",
-      label: "Messages",
-      icon: MessageCircle,
-      count: unreadMessages > 0 ? unreadMessages : null,
-    },
+    { href: "/wallet", label: "Wallet & Gifts", icon: Coins },
+    { href: "/bookmarks", label: "Saved Bookmarks", icon: Bookmark },
     {
       href: "/notifications",
       label: "Notifications",
       icon: Bell,
       count: unreadNotifs > 0 ? unreadNotifs : null,
     },
-    { href: "/wallet", label: "Wallet & Gifts", icon: Coins },
-    { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
   ]
 
   const isAdmin = user.is_admin || (user as any).role === "admin" || user.email === "useehamza0@gmail.com"
@@ -138,12 +113,12 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
         </div>
 
         <ScrollArea className="flex-1 my-2 pr-2 scrollbar-thin">
-          {/* Main Navigation Links */}
+          {/* Main Discovery Navigation Links */}
           <div className="space-y-1">
             <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Navigation
+              Discover & Tools
             </p>
-            {mainNav.map((item) => {
+            {discoveryNav.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
               return (
@@ -257,7 +232,17 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
             <AvatarFallback>{(user.display_name || user.username || "U").charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold truncate">{user.display_name || user.username}</p>
+            <div className="flex items-center gap-1">
+              <p className="text-xs font-bold truncate">{user.display_name || user.username}</p>
+              <UserBadges
+                is_verified={user.is_verified}
+                is_team_member={user.is_team_member}
+                is_sponsor={user.is_sponsor}
+                email={user.email}
+                username={user.username}
+                size="sm"
+              />
+            </div>
             <p className="text-[10px] text-muted-foreground truncate">@{user.username}</p>
           </div>
         </Link>

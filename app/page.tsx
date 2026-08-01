@@ -32,8 +32,8 @@ export default function HomePage() {
       <Header />
 
       <main className="container mx-auto px-2 pb-24 pt-3 sm:px-4 sm:py-6 lg:pb-6">
-        <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="min-w-0 space-y-4 sm:space-y-5">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0 space-y-2.5 sm:space-y-3">
             {isGuest ? (
               <section className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-sky-500/10 via-background to-violet-500/10 p-4 sm:p-5">
                 <div className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full bg-sky-500/20 blur-3xl" />
@@ -73,55 +73,60 @@ export default function HomePage() {
               </>
             )}
 
-            <div className="scrollbar-none flex gap-2 overflow-x-auto pb-0.5">
-              {!isGuest && (
+            {/* Quick Filter & Nav Chips with Horizontal Scroll and Fade Edges */}
+            <div className="relative group">
+              <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-background to-transparent z-10" />
+              <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent z-10" />
+              <div className="scrollbar-none flex gap-1.5 overflow-x-auto pb-0.5 px-0.5 scroll-smooth">
+                {!isGuest && (
+                  <Link
+                    href="/create"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    New loop
+                  </Link>
+                )}
                 <Link
-                  href="/create"
-                  className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary"
+                  href="/explore"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
                 >
-                  <Plus className="h-3.5 w-3.5" />
-                  New loop
+                  <Compass className="h-3.5 w-3.5" />
+                  Explore
                 </Link>
-              )}
-              <Link
-                href="/explore"
-                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <Compass className="h-3.5 w-3.5" />
-                Explore
-              </Link>
-              <Link
-                href="/search"
-                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <Search className="h-3.5 w-3.5" />
-                Search
-              </Link>
-              <Link
-                href="/reels"
-                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <Video className="h-3.5 w-3.5" />
-                Reels
-              </Link>
-              {!isGuest && (
-                <>
-                  <Link
-                    href="/circles"
-                    className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    <Users className="h-3.5 w-3.5" />
-                    Circles
-                  </Link>
-                  <Link
-                    href="/bookmarks"
-                    className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    <Bookmark className="h-3.5 w-3.5" />
-                    Saved
-                  </Link>
-                </>
-              )}
+                <Link
+                  href="/search"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                >
+                  <Search className="h-3.5 w-3.5" />
+                  Search
+                </Link>
+                <Link
+                  href="/reels"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                >
+                  <Video className="h-3.5 w-3.5" />
+                  Reels
+                </Link>
+                {!isGuest && (
+                  <>
+                    <Link
+                      href="/circles"
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                    >
+                      <Users className="h-3.5 w-3.5" />
+                      Circles
+                    </Link>
+                    <Link
+                      href="/bookmarks"
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                    >
+                      <Bookmark className="h-3.5 w-3.5" />
+                      Saved
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
 
             <CreateLoopButton

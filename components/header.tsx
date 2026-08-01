@@ -15,15 +15,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Search, MessageCircle, Settings, User, Users, LogOut, Plus, Coins, Crown, Sparkles, Shield, Store, Radio, Package, Calendar } from "lucide-react"
+import {
+  Search,
+  MessageCircle,
+  Settings,
+  User,
+  LogOut,
+  Plus,
+  Coins,
+  Radio,
+  Bookmark,
+  Sparkles,
+  Shield,
+  X,
+} from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { UserBadges } from "@/components/user-badge"
 
 function LogoMark() {
   return (
-    <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-400 p-[1px] shadow-lg shadow-primary/20 transition-transform duration-300 group-hover:scale-105">
-      <div className="flex h-full w-full items-center justify-center rounded-2xl bg-background text-sm font-bold tracking-tight text-foreground dark:bg-[#0b1220] dark:text-white">
+    <div className="relative flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-400 p-[1px] shadow-lg shadow-primary/20 transition-transform duration-300 group-hover:scale-105">
+      <div className="flex h-full w-full items-center justify-center rounded-2xl bg-background text-xs font-black tracking-tight text-foreground dark:bg-[#0b1220] dark:text-white">
         L
       </div>
     </div>
@@ -32,7 +46,8 @@ function LogoMark() {
 
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("")
-  const { user, logout } = useAuth()
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const { user, signOut } = useAuth()
   const router = useRouter()
 
   const handleSearch = (e: React.FormEvent) => {
@@ -44,7 +59,7 @@ export function Header() {
 
   const handleLogout = async () => {
     try {
-      await logout()
+      await signOut()
       window.location.href = "/landing"
     } catch (error) {
       console.error("Logout error:", error)
@@ -53,23 +68,23 @@ export function Header() {
 
   if (!user) {
     return (
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-xl">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="group flex items-center gap-3">
+      <header className="sticky top-0 z-50 w-full border-b border-border/70 bg-background/80 backdrop-blur-xl">
+        <div className="container mx-auto flex h-14 items-center justify-between px-3 sm:px-6">
+          <Link href="/" className="group flex items-center gap-2.5">
             <LogoMark />
             <div className="flex flex-col leading-tight">
-              <span className="text-lg font-semibold tracking-tight text-foreground">Loop</span>
-              <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground">Social OS</span>
+              <span className="text-base font-bold tracking-tight text-foreground">Loop</span>
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Social OS</span>
             </div>
           </Link>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2">
             <ThemeToggle />
             <Link href="/login">
-              <Button variant="ghost">Log In</Button>
+              <Button variant="ghost" size="sm">Log In</Button>
             </Link>
             <Link href="/signup">
-              <Button className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-5 font-semibold text-white shadow-lg shadow-violet-600/30 hover:from-violet-500 hover:to-cyan-400">
+              <Button size="sm" className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-4 font-semibold text-white shadow-md">
                 Sign Up
               </Button>
             </Link>
@@ -79,75 +94,195 @@ export function Header() {
     )
   }
 
-  return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
-      <div className="container mx-auto flex h-16 items-center justify-between gap-3 px-3 sm:px-4 lg:px-6">
-        <Link href="/" className="group flex shrink-0 items-center gap-3">
-          <LogoMark />
-          <div className="hidden flex-col leading-tight sm:flex">
-            <span className="text-lg font-semibold tracking-tight text-foreground">Loop</span>
-            <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground">Social OS</span>
-          </div>
-        </Link>
+  const isAdmin = user.is_admin || (user as any).role === "admin" || user.email === "useehamza0@gmail.com"
 
-        <div className="hidden flex-1 justify-center md:flex">
-          <form onSubmit={handleSearch} className="relative w-full max-w-xl">
-            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search loops, people, circles..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-11 rounded-full border-border bg-muted/40 pl-11 pr-4 placeholder:text-muted-foreground"
-            />
-          </form>
+  return (
+    <header className="sticky top-0 z-40 w-full border-b border-border/70 bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
+      <div className="container mx-auto flex h-14 items-center justify-between gap-2 px-3 sm:px-4">
+        {/* Brand & Expandable Search Input */}
+        <div className="flex items-center gap-2 min-w-0">
+          <Link href="/" className="group flex shrink-0 items-center gap-2.5">
+            <LogoMark />
+            <div className="hidden flex-col leading-tight sm:flex">
+              <span className="text-base font-bold tracking-tight text-foreground">Loop</span>
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Social OS</span>
+            </div>
+          </Link>
+
+          {/* Desktop & Mobile Responsive Search */}
+          {mobileSearchOpen ? (
+            <form onSubmit={handleSearch} className="flex items-center gap-1 w-full max-w-xs animate-in fade-in duration-150">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  autoFocus
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-8 rounded-full border-border bg-muted/40 pl-8 pr-3 text-xs"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full"
+                onClick={() => setMobileSearchOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleSearch} className="hidden md:flex relative w-48 lg:w-72 transition-all">
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 rounded-full border-border bg-muted/40 pl-8 pr-3 text-xs placeholder:text-muted-foreground focus-visible:ring-sky-500"
+              />
+            </form>
+          )}
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Consolidated Actions Bar */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {/* Mobile search trigger */}
+          {!mobileSearchOpen && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full md:hidden"
+              onClick={() => setMobileSearchOpen(true)}
+              title="Search"
+            >
+              <Search className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          )}
+
           <ThemeToggle />
 
+          {/* Create Button */}
           <Link href="/create">
-            <Button size="sm" className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-3 font-semibold text-white shadow-lg shadow-violet-600/25 hover:from-violet-500 hover:to-cyan-400 sm:px-4">
-              <Plus className="h-4 w-4 sm:mr-2" />
+            <Button
+              size="sm"
+              className="h-8 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-3 font-semibold text-xs text-white shadow-sm hover:from-violet-500 hover:to-cyan-400"
+            >
+              <Plus className="h-3.5 w-3.5 sm:mr-1" />
               <span className="hidden sm:inline">Create</span>
             </Button>
           </Link>
 
-          <Link href="/streams" className="hidden md:block">
-            <Button variant="outline" size="sm" className="rounded-full">
-              <Radio className="mr-2 h-4 w-4 text-rose-500" />
-              Live
-            </Button>
-          </Link>
-
-          <Link href="/wallet" className="hidden sm:block">
-            <Button variant="outline" size="sm" className="rounded-full border-yellow-500/30 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500">
-              <Coins className="mr-1.5 h-4 w-4 text-yellow-500" />
-              <span className="font-semibold text-xs">{user.loop_coins.toLocaleString()}</span>
-            </Button>
-          </Link>
-
-          <Link href="/messages">
-            <Button variant="ghost" size="sm" className="rounded-full">
-              <MessageCircle className="h-5 w-5" />
-            </Button>
-          </Link>
-
+          {/* Notifications */}
           <NotificationDropdown />
 
-          <Link href={`/profile/${user.username}`}>
-            <Button variant="ghost" className="relative h-9 w-9 rounded-full border border-border bg-muted/40 p-0 hover:opacity-80 transition-opacity">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={user.avatar_url} alt={user.display_name} />
-                <AvatarFallback className="bg-gradient-to-br from-violet-600 to-cyan-500 text-xs text-white">
-                  {user.display_name.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              {user.is_premium && (
-                <Crown className="absolute -right-1 -top-1 h-3.5 w-3.5 text-yellow-500 drop-shadow" />
-              )}
+          {/* Messages */}
+          <Link href="/messages">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" title="Messages">
+              <MessageCircle className="h-4 w-4 text-muted-foreground" />
             </Button>
           </Link>
+
+          {/* Consolidated User Profile Avatar Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="relative h-8 w-8 rounded-full border border-border/80 bg-muted/50 p-0 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+              >
+                <Avatar className="h-full w-full">
+                  <AvatarImage src={user.avatar_url} alt={user.display_name} />
+                  <AvatarFallback className="bg-gradient-to-br from-violet-600 to-cyan-500 text-[10px] font-bold text-white">
+                    {(user.display_name || user.username || "U").charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 p-1.5 rounded-2xl">
+              <DropdownMenuLabel className="font-normal p-2">
+                <div className="flex flex-col space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-bold leading-none truncate">{user.display_name || user.username}</p>
+                    <UserBadges
+                      is_verified={user.is_verified}
+                      is_team_member={user.is_team_member}
+                      is_sponsor={user.is_sponsor}
+                      email={user.email}
+                      username={user.username}
+                      size="sm"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-none">@{user.username}</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+
+              {/* Loop Coins Quick Action */}
+              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                <Link href="/wallet" className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Coins className="h-4 w-4 text-amber-500" />
+                    <span className="text-xs font-medium">Loop Coins</span>
+                  </div>
+                  <Badge variant="secondary" className="bg-amber-500/15 text-amber-500 font-bold text-[10px] px-1.5">
+                    🪙 {Number(user.loop_coins || 0).toLocaleString()}
+                  </Badge>
+                </Link>
+              </DropdownMenuItem>
+
+              {/* Live Streams */}
+              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                <Link href="/streams" className="flex items-center gap-2">
+                  <Radio className="h-4 w-4 text-rose-500" />
+                  <span className="text-xs font-medium">Live Streams</span>
+                </Link>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                <Link href={`/profile/${user.username}`} className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-medium">Your Profile</span>
+                </Link>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                <Link href="/bookmarks" className="flex items-center gap-2">
+                  <Bookmark className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-medium">Saved Bookmarks</span>
+                </Link>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                <Link href="/settings" className="flex items-center gap-2">
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-medium">Settings</span>
+                </Link>
+              </DropdownMenuItem>
+
+              {isAdmin && (
+                <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                  <Link href="/admin" className="flex items-center gap-2 text-amber-500">
+                    <Shield className="h-4 w-4 text-amber-500" />
+                    <span className="text-xs font-semibold">Admin Panel</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="rounded-xl text-rose-500 hover:text-rose-600 focus:text-rose-600 cursor-pointer"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                <span className="text-xs font-semibold">Log Out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>

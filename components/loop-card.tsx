@@ -56,6 +56,7 @@ import { CodeBlock } from "@/components/loops/code-block";
 import { isCodeLoop } from "@/lib/pro-features";
 import { RichContent } from "@/components/content/rich-content";
 import { useLoginGate } from "@/hooks/use-login-gate";
+import { UserBadges } from "@/components/user-badge";
 
 interface LoopAuthor {
   id: string;
@@ -63,6 +64,8 @@ interface LoopAuthor {
   display_name: string;
   avatar_url?: string;
   is_verified?: boolean;
+  is_team_member?: boolean;
+  is_sponsor?: boolean;
   is_premium?: boolean;
   level?: number;
   cosmetics?: ActiveCosmetics | null;
@@ -783,16 +786,13 @@ export function LoopCard({
                       </span>
                     </Link>
                   )}
-                  {loop.author.is_verified && (
-                    <Badge
-                      variant="secondary"
-                      className="h-3 w-3 sm:h-4 sm:w-4 p-0 bg-blue-500 flex-shrink-0"
-                    >
-                      <span className="text-white text-[10px] sm:text-xs">
-                        ✓
-                      </span>
-                    </Badge>
-                  )}
+                  <UserBadges
+                    is_verified={loop.author.is_verified}
+                    is_team_member={loop.author.is_team_member}
+                    is_sponsor={loop.author.is_sponsor}
+                    username={loop.author.username}
+                    size="sm"
+                  />
                   {loop.author.is_premium && (
                     <Badge className="h-3 w-3 sm:h-4 sm:w-4 p-0 bg-amber-500 flex-shrink-0">
                       <Crown className="h-1.5 w-1.5 sm:h-2 sm:w-2 text-white" />

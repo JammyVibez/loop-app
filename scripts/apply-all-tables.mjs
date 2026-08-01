@@ -13,7 +13,8 @@ const sqlFiles = [
   'scripts/wallet-and-events-schema.sql',
   'scripts/complete-database-setup.sql',
   'scripts/launch-schema-alignment.sql',
-  'scripts/circles-schema-alignment.sql'
+  'scripts/circles-schema-alignment.sql',
+  'scripts/add-team-sponsor-badges.sql'
 ];
 
 async function run() {

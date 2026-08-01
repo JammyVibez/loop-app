@@ -41,6 +41,7 @@ import { cosmeticsFromInventory, type ActiveCosmetics } from "@/lib/cosmetics"
 import { isShopThemePayload } from "@/lib/theme-css"
 import { xpForNextLevel } from "@/lib/xp"
 import { uploadMediaFile } from "@/lib/client-media-upload"
+import { UserBadges } from "@/components/user-badge"
 
 interface Achievement {
   id: string
@@ -67,6 +68,8 @@ interface UserProfile {
   xp_points: number
   loop_coins: number
   is_verified: boolean
+  is_team_member?: boolean
+  is_sponsor?: boolean
   is_premium: boolean
   created_at: string
   website?: string
@@ -316,9 +319,13 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <h1 className="truncate text-base font-bold leading-tight sm:text-lg">{displayName}</h1>
-            {profile.is_verified && (
-              <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-sky-500 text-[10px] text-white">✓</span>
-            )}
+            <UserBadges
+              is_verified={profile.is_verified}
+              is_team_member={profile.is_team_member}
+              is_sponsor={profile.is_sponsor}
+              username={profile.username}
+              size="sm"
+            />
           </div>
           <p className="text-xs text-muted-foreground">{formatCount(profile.loops_count)} loops</p>
         </div>
@@ -435,9 +442,14 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           <div>
             <div className="flex flex-wrap items-center gap-1.5">
               <h2 className="text-xl font-extrabold tracking-tight">{displayName}</h2>
-              {profile.is_verified && (
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 text-[11px] text-white">✓</span>
-              )}
+              <UserBadges
+                is_verified={profile.is_verified}
+                is_team_member={profile.is_team_member}
+                is_sponsor={profile.is_sponsor}
+                username={profile.username}
+                showText={true}
+                size="md"
+              />
               {profile.is_premium && (
                 <Badge className="rounded-full border-0 bg-amber-400/20 text-amber-300">PRO</Badge>
               )}
