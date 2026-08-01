@@ -15,6 +15,7 @@ import { User, Bell, Shield, Palette, Trash2, Moon, Sun, Upload, Crown, Mail, Lo
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { useTheme } from "next-themes"
+import { animateThemeChange } from "@/lib/theme-transition"
 
 export function SettingsContent() {
   const { user, getAuthHeader, refreshUser, applyServerProfile } = useAuth()
@@ -229,7 +230,7 @@ export function SettingsContent() {
 
   const handleThemeToggle = () => {
     const newTheme = isDark ? "light" : "dark"
-    setTheme(newTheme)
+    animateThemeChange(newTheme, setTheme)
     toast({
       description: `Switched to ${newTheme} mode`,
     })
@@ -708,7 +709,7 @@ export function SettingsContent() {
                       ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20"
                       : "border-gray-200 dark:border-gray-700"
                   }`}
-                  onClick={() => setTheme("light")}
+                  onClick={() => animateThemeChange("light", setTheme)}
                 >
                   <div className="w-full h-20 bg-white rounded border mb-2"></div>
                   <p className="text-sm font-medium text-center">Light</p>
@@ -720,7 +721,7 @@ export function SettingsContent() {
                       ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20"
                       : "border-gray-200 dark:border-gray-700"
                   }`}
-                  onClick={() => setTheme("dark")}
+                  onClick={() => animateThemeChange("dark", setTheme)}
                 >
                   <div className="w-full h-20 bg-gray-900 rounded border mb-2"></div>
                   <p className="text-sm font-medium text-center">Dark</p>
@@ -732,7 +733,7 @@ export function SettingsContent() {
                       ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20"
                       : "border-gray-200 dark:border-gray-700"
                   }`}
-                  onClick={() => setTheme("system")}
+                  onClick={() => animateThemeChange("system", setTheme)}
                 >
                   <div className="w-full h-20 bg-gradient-to-r from-white to-gray-900 rounded border mb-2"></div>
                   <p className="text-sm font-medium text-center">System</p>

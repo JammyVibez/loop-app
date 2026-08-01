@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { animateThemeChange } from "@/lib/theme-transition"
 import {
   User,
   Bell,
@@ -221,7 +222,7 @@ export function EnhancedSettings() {
   }
 
   const applyAppearance = async (nextTheme: string) => {
-    setTheme(nextTheme)
+    animateThemeChange(nextTheme, setTheme)
     try {
       const response = await fetch("/api/users/update-profile", {
         method: "POST",
