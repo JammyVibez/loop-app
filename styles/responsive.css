@@ -1,0 +1,7 @@
+/* Enhanced Responsive Design for Loop Social Platform */
+@media (max-width: 475px) {
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}

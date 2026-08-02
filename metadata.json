@@ -1,0 +1,6 @@
+{
+  "name": "Loop",
+  "description": "Connect, create, and collaborate in the Loop ecosystem with stunning 3D effects",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

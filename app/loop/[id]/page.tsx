@@ -1,0 +1,85 @@
+import { Metadata } from "next"
+import { LoopDetailClient } from "@/components/loops/loop-detail-client"
+import { createClient } from "@supabase/supabase-js"
+import { getAbsoluteAppUrl } from "@/lib/app-url"
+
+export const dynamic = "force-dynamic"
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder"
+)
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  const baseUrl = await getAbsoluteAppUrl()
+
+  let title = "Loop Details — Collaborative Social OS"
+  let description = "View and interact with this loop on Loop Social OS."
+  let username = ""
+
+  try {
+    const { data: loop } = await supabase
+      .from("loops")
+      .select("content_title, content, author_id, profiles(username, display_name)")
+      .eq("id", id)
+      .single()
+
+    if (loop) {
+      const authorName = (loop as any)?.profiles?.display_name || (loop as any)?.profiles?.username || "Creator"
+      username = (loop as any)?.profiles?.username || ""
+      title = `${loop.content_title || loop.content.slice(0, 50)} by @${authorName}`
+      description = loop.content.slice(0, 160)
+    }
+  } catch (err) {
+    console.error("Error generating metadata for loop:", err)
+  }
+
+  const ogImageUrl = `${baseUrl}/api/og?type=loop&id=${id}&title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}&username=${encodeURIComponent(username)}`
+
+  return {
+    title,
+    description,
+    metadataBase: new URL(baseUrl),
+    alternates: {
+      canonical: `${baseUrl}/loop/${id}`,
+    },
+    openGraph: {
+      title,
+      description,
+      url: `${baseUrl}/loop/${id}`,
+      type: "article",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          type: "image/png",
+          alt: title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+    },
+  }
+}
+
+export default async function LoopPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  return <LoopDetailClient loopId={id} />
+}
