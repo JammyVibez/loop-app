@@ -93,8 +93,12 @@ export async function POST(request: NextRequest) {
     let visibility = "public"
     let mediaMetadata: Record<string, unknown> | null = null
 
-    if (headerContentType.includes("multipart/form-data")) {
+    const isMultipart = headerContentType.includes("multipart/form-data")
+    let formDataObj: FormData | null = null
+
+    if (isMultipart) {
       const formData = await request.formData()
+      formDataObj = formData
       contentText = String(formData.get("content_text") || formData.get("content") || "")
       contentTitle = (formData.get("content_title") || formData.get("title") || null) as string | null
       file = (formData.get("media") || formData.get("file")) as File | null
@@ -141,7 +145,15 @@ export async function POST(request: NextRequest) {
       treeDepth = (parent.tree_depth ?? 0) + 1
     }
 
-    if (file && file.size > 0) {
+    let mediaUrls: string[] = []
+    let uploadedFiles: File[] = []
+
+    if (isMultipart && formDataObj) {
+      const rawMediaList = formDataObj.getAll("media").concat(formDataObj.getAll("file"))
+      uploadedFiles = rawMediaList.filter((item): item is File => item instanceof File && item.size > 0)
+    }
+
+    if (uploadedFiles.length > 0) {
       if (!isCloudinaryConfigured()) {
         return NextResponse.json(
           { error: "Media uploads are not configured. Add Cloudinary env vars on Vercel." },
@@ -149,13 +161,20 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      if (file.type.startsWith("image/")) mediaType = "image"
-      else if (file.type.startsWith("video/")) mediaType = "video"
-      else if (file.type.startsWith("audio/")) mediaType = "audio"
+      const firstFile = uploadedFiles[0]
+      if (firstFile.type.startsWith("image/")) mediaType = "image"
+      else if (firstFile.type.startsWith("video/")) mediaType = "video"
+      else if (firstFile.type.startsWith("audio/")) mediaType = "audio"
       else mediaType = "file"
 
-      const uploadResult = await uploadFileToCloudinary(file, "loops")
-      mediaUrl = uploadResult.secure_url
+      for (const f of uploadedFiles) {
+        const uploadResult = await uploadFileToCloudinary(f, "loops")
+        if (uploadResult?.secure_url) {
+          mediaUrls.push(uploadResult.secure_url)
+        }
+      }
+
+      mediaUrl = mediaUrls[0] || null
     }
 
     const textContent = contentText.trim()
@@ -175,6 +194,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const mergedMetadata = {
+      ...(mediaMetadata || {}),
+      media_urls: mediaUrls.length > 0 ? mediaUrls : undefined,
+    }
+
     // Live DB has NOT NULL `content` (text) plus normalized content_* columns.
     const payload: Record<string, unknown> = {
       author_id: user.id,
@@ -183,6 +207,7 @@ export async function POST(request: NextRequest) {
       content_title: contentTitle || textContent.slice(0, 80) || null,
       content_media_url: mediaUrl,
       media_url: mediaUrl,
+      media_urls: mediaUrls.length > 0 ? mediaUrls : undefined,
       content_type: mediaType,
       media_type: mediaType,
       category,
@@ -190,7 +215,7 @@ export async function POST(request: NextRequest) {
       parent_loop_id: parentLoopId,
       visibility,
       tree_depth: treeDepth,
-      content_metadata: mediaMetadata || {},
+      content_metadata: mergedMetadata,
     }
 
     let { data: loop, error } = await supabase

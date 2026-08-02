@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { normalizeLoops } from "@/lib/normalize-loop"
+import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 
 async function getUserFromToken(token: string) {
   try {
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 })
     }
 
-    const [{ count: followersCount }, { count: followingCount }, { count: loopsCount }, { count: branchesCount }, { count: commentsCount }, { data: recentLoops }, { data: recentBranches }, { data: mediaLoops }, { data: followRecord }, { data: activeItems }] = await Promise.all([
+    const [{ count: followersCount }, { count: followingCount }, { count: loopsCount }, { count: branchesCount }, { count: commentsCount }, { data: rawRecentLoops }, { data: rawRecentBranches }, { data: rawMediaLoops }, { data: followRecord }, { data: activeItems }] = await Promise.all([
       supabase.from("follows").select("id", { count: "exact", head: true }).eq("following_id", profile.id),
       supabase.from("follows").select("id", { count: "exact", head: true }).eq("follower_id", profile.id),
       supabase.from("loops").select("id", { count: "exact", head: true }).eq("author_id", profile.id).is("parent_loop_id", null),
@@ -96,6 +97,10 @@ export async function GET(request: NextRequest) {
         .eq("is_active", true)
         .limit(12),
     ])
+
+    const recentLoops = await enrichLoopsWithPollsAndDuels(supabase, rawRecentLoops || [])
+    const recentBranches = await enrichLoopsWithPollsAndDuels(supabase, rawRecentBranches || [])
+    const mediaLoops = await enrichLoopsWithPollsAndDuels(supabase, rawMediaLoops || [])
 
     const likesReceived = (recentLoops || []).reduce((sum, loop: any) => {
       const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats

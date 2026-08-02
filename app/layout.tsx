@@ -14,6 +14,7 @@ import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav"
 import { LeftSidebar } from "@/components/left-sidebar"
 import { AppUpdateBanner } from "@/components/app-update-banner"
 import { GiftNotificationSystem } from "@/components/gifting/gift-notification"
+import { GlobalFab } from "@/components/global-fab"
 import { checkEnvironmentVariables, logEnvironmentStatus, validateEnvironment } from "@/lib/env-check"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -176,6 +177,7 @@ export default function RootLayout({
                       </div>
                     </div>
                     <MobileBottomNav />
+                    <GlobalFab />
                     <GiftNotificationSystem />
                     <Toaster />
                     <div id="performance-monitor" className="hidden" />

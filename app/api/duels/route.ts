@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { processMentions, extractMentions, attachMentionsColumn } from "@/lib/mentions"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
         .from("profiles")
         .select("id")
         .eq("username", cleanName)
-        .single()
+        .maybeSingle()
       if (oppProfile) {
         opponentId = oppProfile.id
       }
@@ -85,10 +86,30 @@ export async function POST(req: NextRequest) {
 
     const expiresAt = new Date(Date.now() + durationHours * 3600 * 1000).toISOString()
 
-    // Create duel
+    // 1. Create parent loop record so the duel post displays in feed and profile pages
+    const fullText = `${prompt}\n\n${creatorContent}${opponentUsername ? ` @${opponentUsername.replace("@", "")}` : ""}`
+    const { data: loopRecord, error: loopErr } = await supabase
+      .from("loops")
+      .insert({
+        author_id: userId,
+        content: prompt,
+        content_text: fullText,
+        content_title: prompt.slice(0, 80),
+        content_type: "duel",
+        post_type: "duel",
+        visibility: "public",
+        category: "general",
+      })
+      .select()
+      .single()
+
+    const loopId = loopRecord?.id || null
+
+    // 2. Create duel record
     const { data: duel, error: duelErr } = await supabase
       .from("loop_duels")
       .insert({
+        loop_id: loopId,
         prompt,
         creator_id: userId,
         opponent_id: opponentId,
@@ -105,7 +126,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: duelErr?.message || "Failed to create duel" }, { status: 500 })
     }
 
-    // Insert Side A entry for creator
+    // 3. Insert Side A entry for creator
     await supabase.from("loop_duel_entries").insert({
       duel_id: duel.id,
       user_id: userId,
@@ -115,8 +136,31 @@ export async function POST(req: NextRequest) {
       votes_count: 0,
     })
 
-    return NextResponse.json({ duel })
+    // 4. Process mentions for tagged users
+    try {
+      const usernames = extractMentions(fullText)
+      if (loopId && usernames.length) {
+        await attachMentionsColumn(supabase, "loops", loopId, usernames)
+        const { data: actorProfile } = await supabase
+          .from("profiles")
+          .select("username, display_name")
+          .eq("id", userId)
+          .maybeSingle()
+        await processMentions(supabase, fullText, {
+          source: "loop",
+          loop_id: loopId,
+          actor_id: userId,
+          actor_username: actorProfile?.username,
+          actor_display_name: actorProfile?.display_name,
+        })
+      }
+    } catch (mentionErr) {
+      console.error("Duel mention error:", mentionErr)
+    }
+
+    return NextResponse.json({ duel, loop: loopRecord })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
+

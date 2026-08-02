@@ -200,7 +200,14 @@ export function CoLoopStudio() {
         if (payload.hashtags !== undefined) setHashtags(payload.hashtags)
         if (payload.mediaUrl !== undefined) setMediaUrl(payload.mediaUrl)
         if (payload.mediaType !== undefined) setMediaType(payload.mediaType)
-        if (payload.coAuthors !== undefined) setCoAuthors(payload.coAuthors)
+        if (payload.coAuthors !== undefined) {
+          setCoAuthors((prev) => {
+            const map = new Map<string, Collaborator>()
+            prev.forEach((c) => map.set(c.id, c))
+            payload.coAuthors.forEach((c: Collaborator) => map.set(c.id, c))
+            return Array.from(map.values())
+          })
+        }
       })
       .on("broadcast", { event: "co-author-accepted" }, ({ payload }: any) => {
         if (payload?.user) {
@@ -271,6 +278,51 @@ export function CoLoopStudio() {
       channel.unsubscribe()
     }
   }, [user, sessionId])
+
+  // Handle accepting invitation when arriving via invite link
+  useEffect(() => {
+    if (!user || searchParams.get("invited") !== "true") return
+
+    const acceptInvitation = async () => {
+      try {
+        await fetch("/api/co-loop/invitation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ sessionId, status: "accepted" }),
+        })
+
+        const joiningUser: Collaborator = {
+          id: user.id,
+          username: user.username || "creator",
+          display_name: user.display_name || user.username || "Co-Author",
+          avatar_url: user.avatar_url,
+          role: "Co-Author",
+        }
+
+        setCoAuthors((prev) => {
+          if (prev.some((c) => c.id === joiningUser.id)) return prev
+          return [...prev, joiningUser]
+        })
+
+        if (channelRef.current) {
+          channelRef.current.send({
+            type: "broadcast",
+            event: "co-author-accepted",
+            payload: { user: joiningUser },
+          })
+        }
+
+        toast({
+          title: "Invitation Accepted! 🎉",
+          description: "You have joined this Co-Loop session as an official co-author.",
+        })
+      } catch (err) {
+        console.error("Failed accepting co-loop invite:", err)
+      }
+    }
+
+    acceptInvitation()
+  }, [user, sessionId, searchParams])
 
   // Scroll chat to bottom
   useEffect(() => {

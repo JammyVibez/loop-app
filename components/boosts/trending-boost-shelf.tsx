@@ -40,40 +40,40 @@ export function TrendingBoostShelf({ limit = 6 }: TrendingBoostShelfProps) {
   }
 
   return (
-    <div className="mb-6 rounded-3xl bg-gradient-to-r from-cyan-950/40 via-indigo-950/40 to-slate-900/60 p-4 sm:p-5 border border-cyan-500/20 shadow-xl backdrop-blur-md">
-      <div className="flex items-center justify-between mb-3.5">
+    <div className="mb-6 rounded-3xl bg-gradient-to-r from-cyan-950/40 via-indigo-950/40 to-slate-900/60 dark:from-cyan-950/40 dark:via-indigo-950/40 dark:to-slate-900/60 light:bg-card light:border-border p-3.5 sm:p-5 border border-cyan-500/20 shadow-xl backdrop-blur-md max-w-full overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 text-white shadow-md shadow-cyan-500/20">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 text-white shadow-md shadow-cyan-500/20 shrink-0">
             <Rocket className="h-4 w-4 animate-pulse" />
           </div>
           <div>
-            <h2 className="text-base font-black text-white flex items-center gap-1.5 tracking-tight">
+            <h2 className="text-sm sm:text-base font-black text-foreground dark:text-white flex items-center gap-1.5 tracking-tight">
               Trending Boosts
-              <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-[10px] px-1.5 py-0 font-bold">
+              <Badge className="bg-amber-500/20 text-amber-500 dark:text-amber-300 border-amber-500/30 text-[10px] px-1.5 py-0 font-bold">
                 Crowd-Funded
               </Badge>
             </h2>
-            <p className="text-[11px] text-cyan-200/70">Top community-boosted Loops</p>
+            <p className="text-[11px] text-muted-foreground dark:text-cyan-200/70">Top community-boosted Loops</p>
           </div>
         </div>
 
-        <span className="text-xs text-slate-400 flex items-center gap-1 font-medium">
-          <Flame className="h-3.5 w-3.5 text-amber-400" />
+        <span className="text-xs text-muted-foreground dark:text-slate-400 flex items-center gap-1 font-medium ml-auto">
+          <Flame className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
           Ranked by coins
         </span>
       </div>
 
-      <div className="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-none snap-x">
+      <div className="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-none snap-x snap-mandatory touch-pan-x">
         {boostedLoops.map((loop) => {
           const tier = loop.boostInfo?.tier || 1
           const coins = loop.boost_coins_current || loop.boostInfo?.coins || 0
           const author = loop.author || {}
-          const tierLabel = tier === 3 ? "Tier 3 · 2k+ Coins" : tier === 2 ? "Tier 2 · 500+ Coins" : "Tier 1 · 100+ Coins"
+          const tierLabel = tier === 3 ? "Tier 3 · 2k+" : tier === 2 ? "Tier 2 · 500+" : "Tier 1 · 100+"
 
           return (
             <div
               key={loop.id}
-              className="flex-none w-[260px] sm:w-[280px] snap-start rounded-2xl bg-slate-900/90 border border-cyan-500/30 p-3.5 shadow-lg flex flex-col justify-between transition-all duration-300 hover:border-cyan-400 hover:shadow-cyan-500/10 hover:-translate-y-0.5 group"
+              className="flex-none w-[220px] sm:w-[270px] snap-start rounded-2xl bg-card dark:bg-slate-900/90 border border-cyan-500/30 p-3 shadow-lg flex flex-col justify-between transition-all duration-300 hover:border-cyan-400 hover:shadow-cyan-500/10 hover:-translate-y-0.5 group"
             >
               <div>
                 {/* Header info */}

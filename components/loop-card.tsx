@@ -630,24 +630,28 @@ export function LoopCard({
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 text-white hover:bg-black/70"
-                onClick={() =>
+                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/60 text-white hover:bg-black/80 rounded-full p-1.5 z-20"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
                   setCurrentMediaIndex((prev) =>
                     prev > 0 ? prev - 1 : mediaUrls.length - 1
                   )
-                }
+                }}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 text-white hover:bg-black/70"
-                onClick={() =>
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/60 text-white hover:bg-black/80 rounded-full p-1.5 z-20"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
                   setCurrentMediaIndex((prev) =>
                     prev < mediaUrls.length - 1 ? prev + 1 : 0
                   )
-                }
+                }}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -656,14 +660,19 @@ export function LoopCard({
         </div>
 
         {mediaUrls.length > 1 && (
-          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
+          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1.5 z-20 bg-black/40 px-2 py-1 rounded-full backdrop-blur-xs">
             {mediaUrls.map((_: string, index: number) => (
               <button
                 key={index}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setCurrentMediaIndex(index)
+                }}
                 className={`w-2 h-2 rounded-full transition-all ${
-                  index === currentMediaIndex ? "bg-white" : "bg-white/50"
+                  index === currentMediaIndex ? "bg-white w-4" : "bg-white/50"
                 }`}
-                onClick={() => setCurrentMediaIndex(index)}
               />
             ))}
           </div>

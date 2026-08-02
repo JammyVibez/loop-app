@@ -4,10 +4,10 @@ import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Swords, Coins, Clock, Send, Sparkles } from "lucide-react"
+import { Swords, Coins, Clock, Sparkles } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { MentionTextarea } from "@/components/mentions/mention-textarea"
 
 interface CreateDuelDialogProps {
   open: boolean
@@ -51,13 +51,14 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
       })
 
       const data = await res.json()
-      if (res.ok && data.duel) {
-        toast({ title: "Duel Launched!", description: "Your duel is live for community votes!" })
+      if (res.ok && (data.duel || data.loop)) {
+        toast({ title: "Duel Launched! ⚔️", description: "Your duel is live on the feed for community votes!" })
         onOpenChange(false)
         setPrompt("")
         setOpponent("")
         setCreatorContent("")
         if (onDuelCreated) onDuelCreated()
+        else window.location.reload()
       } else {
         toast({ title: "Failed to create duel", description: data.error || "Unknown error" })
       }
@@ -70,55 +71,56 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl bg-[#0b1329] border-white/10 text-white rounded-3xl p-6 shadow-2xl">
+      <DialogContent className="max-w-xl bg-card text-card-foreground dark:bg-[#0b1329] dark:text-white border border-border/80 rounded-3xl p-6 shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold flex items-center gap-2 text-cyan-300">
-            <Swords className="h-6 w-6 text-amber-400" /> Launch Loop Duel
+          <DialogTitle className="text-xl font-bold flex items-center gap-2 text-cyan-600 dark:text-cyan-300">
+            <Swords className="h-6 w-6 text-amber-500 dark:text-amber-400" /> Launch Loop Duel
           </DialogTitle>
-          <p className="text-xs text-slate-400">
-            Post a paired duel topic, state your take (Side A), and invite the community or an opponent to debate!
+          <p className="text-xs text-muted-foreground dark:text-slate-400">
+            Post a paired duel topic, state your take (Side A), and invite the community or @mention an opponent to debate!
           </p>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           {/* Prompt / Topic */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300">Duel Topic or Prompt</label>
+            <label className="text-xs font-semibold text-foreground dark:text-slate-300">Duel Topic or Prompt</label>
             <Input
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="e.g. Next.js App Router vs Page Router for enterprise apps"
-              className="bg-slate-900 border-white/10 text-white placeholder-slate-500 rounded-xl"
+              placeholder="e.g. Next.js App Router vs Page Router @username"
+              className="bg-background dark:bg-slate-900 border-input text-foreground dark:text-white placeholder:text-muted-foreground rounded-xl"
             />
           </div>
 
           {/* Opponent Username */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300">Target Opponent (Optional)</label>
+            <label className="text-xs font-semibold text-foreground dark:text-slate-300">Target Opponent (Optional)</label>
             <Input
               value={opponent}
               onChange={(e) => setOpponent(e.target.value)}
               placeholder="@username (Leave blank for open public challenge)"
-              className="bg-slate-900 border-white/10 text-white placeholder-slate-500 rounded-xl"
+              className="bg-background dark:bg-slate-900 border-input text-foreground dark:text-white placeholder:text-muted-foreground rounded-xl"
             />
           </div>
 
           {/* Side A Take */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-rose-300">Your Take (Side A)</label>
-            <Textarea
+            <label className="text-xs font-semibold text-rose-600 dark:text-rose-300">Your Take (Side A) - Use @ to mention users</label>
+            <MentionTextarea
               value={creatorContent}
-              onChange={(e) => setCreatorContent(e.target.value)}
-              placeholder="State your opening argument clearly..."
-              className="bg-slate-900 border-white/10 text-white placeholder-slate-500 rounded-xl min-h-[100px]"
+              onChange={(val) => setCreatorContent(val)}
+              placeholder="State your opening argument clearly... Type @ to tag users"
+              rows={4}
+              className="bg-background dark:bg-slate-900 border-input text-foreground dark:text-white placeholder:text-muted-foreground rounded-xl min-h-[100px]"
             />
           </div>
 
           {/* Coins Stake & Duration */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1">
-                <Coins className="h-3.5 w-3.5 text-amber-400" /> Stake Coins
+              <label className="text-xs font-semibold text-foreground dark:text-slate-300 flex items-center gap-1">
+                <Coins className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" /> Stake Coins
               </label>
               <Input
                 type="number"
@@ -126,18 +128,18 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
                 max={1000}
                 value={stakeCoins}
                 onChange={(e) => setStakeCoins(Number(e.target.value))}
-                className="bg-slate-900 border-white/10 text-white rounded-xl"
+                className="bg-background dark:bg-slate-900 border-input text-foreground dark:text-white rounded-xl"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5 text-cyan-400" /> Voting Window
+              <label className="text-xs font-semibold text-foreground dark:text-slate-300 flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" /> Voting Window
               </label>
               <select
                 value={durationHours}
                 onChange={(e) => setDurationHours(Number(e.target.value))}
-                className="w-full h-10 bg-slate-900 border border-white/10 rounded-xl px-3 text-sm text-white focus:outline-none"
+                className="w-full h-10 bg-background dark:bg-slate-900 border border-input rounded-xl px-3 text-sm text-foreground dark:text-white focus:outline-none"
               >
                 <option value={12}>12 Hours</option>
                 <option value={24}>24 Hours</option>
@@ -152,7 +154,7 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
               type="button"
               variant="ghost"
               onClick={() => onOpenChange(false)}
-              className="text-slate-400 hover:text-white"
+              className="text-muted-foreground hover:text-foreground"
             >
               Cancel
             </Button>
@@ -169,3 +171,4 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
     </Dialog>
   )
 }
+
