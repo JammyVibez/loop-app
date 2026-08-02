@@ -26,14 +26,14 @@ export function WelcomeBanner() {
               <h3 className="text-base sm:text-lg font-semibold truncate">
                 Welcome back, {user.display_name}!
               </h3>
-              <p className="text-xs sm:text-sm text-muted-foreground flex flex-wrap items-center gap-1">
+              <div className="text-xs sm:text-sm text-muted-foreground flex flex-wrap items-center gap-1">
                 You have{" "}
                 <Badge variant="secondary" className="px-2 py-0.5 text-xs font-semibold">
                   <Coins className="w-3 h-3 mr-1 text-yellow-500" />
                   {user.loop_coins.toLocaleString()}
                 </Badge>
                 coins available.
-              </p>
+              </div>
             </div>
           </div>
           <div className="flex items-center space-x-2 shrink-0 self-end sm:self-auto">

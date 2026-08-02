@@ -79,20 +79,9 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
     }
   }, [initialDuel, loopId])
 
-  if (!duel) return null
-
-  const entryA = duel.entries?.find((e) => e.side === "A")
-  const entryB = duel.entries?.find((e) => e.side === "B")
-
-  const votesA = entryA?.votes_count || 0
-  const votesB = entryB?.votes_count || 0
-  const totalVotes = votesA + votesB
-  const percentA = totalVotes > 0 ? Math.round((votesA / totalVotes) * 100) : 50
-  const percentB = totalVotes > 0 ? 100 - percentA : 50
-
   // Real-time votes subscription
   useEffect(() => {
-    if (!duel.id) return
+    if (!duel?.id) return
 
     const channel = supabase
       .channel(`duel_live:${duel.id}`)
@@ -117,7 +106,18 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [duel.id])
+  }, [duel?.id])
+
+  if (!duel) return null
+
+  const entryA = duel.entries?.find((e) => e.side === "A")
+  const entryB = duel.entries?.find((e) => e.side === "B")
+
+  const votesA = entryA?.votes_count || 0
+  const votesB = entryB?.votes_count || 0
+  const totalVotes = votesA + votesB
+  const percentA = totalVotes > 0 ? Math.round((votesA / totalVotes) * 100) : 50
+  const percentB = totalVotes > 0 ? 100 - percentA : 50
 
   const handleVote = async (side: "A" | "B") => {
     if (!user) {
