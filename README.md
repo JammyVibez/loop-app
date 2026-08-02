@@ -23,7 +23,6 @@ A full-stack social media platform focused on collaborative storytelling and cre
 - Voice and video chat capabilities
 - Admin dashboard for managing members, events, and contests
 - Real-time messaging and file sharing
-- community customization 
 
 ### 👤 **Profile Customization**
 - Upload custom banners and avatars
