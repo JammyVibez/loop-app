@@ -16,7 +16,7 @@ function normalizeUsername(username: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, username, display_name } = await request.json()
+    const { email, password, username, display_name, invited_via_coloop, invited_by_username } = await request.json()
     const cleanUsername = normalizeUsername(username || "")
     const displayName = String(display_name || "").trim()
 
@@ -104,6 +104,8 @@ export async function POST(request: NextRequest) {
       privacy_settings: { profile_visibility: "public", message_privacy: "everyone" },
       notification_settings: { email: true, push: true, in_app: true },
       onboarding_completed: false,
+      invited_via_coloop: Boolean(invited_via_coloop),
+      invited_by_username: invited_by_username ? String(invited_by_username).toLowerCase().trim() : null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }

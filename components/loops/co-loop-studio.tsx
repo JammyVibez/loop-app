@@ -484,12 +484,13 @@ export function CoLoopStudio() {
 
   // Copy shareable session link
   const handleCopyInviteLink = () => {
-    const url = `${window.location.origin}/co-loop/studio?session=${sessionId}`
+    const inviterNameParam = user?.username ? `?invitedBy=${encodeURIComponent(user.username)}` : ""
+    const url = `${window.location.origin}/co-loop/join/${sessionId}${inviterNameParam}`
     navigator.clipboard.writeText(url)
     setLinkCopied(true)
     toast({
-      title: "Session Link Copied! 🔗",
-      description: "Shareable link copied to clipboard. Anyone with this link can request to join.",
+      title: "Session Invite Link Copied! 🔗",
+      description: "Asymmetric invite link copied to clipboard. Anyone clicking will see your invite & landing screen!",
     })
     setTimeout(() => setLinkCopied(false), 3000)
   }
@@ -1093,7 +1094,11 @@ export function CoLoopStudio() {
               <div className="flex items-center gap-2">
                 <Input
                   readOnly
-                  value={typeof window !== "undefined" ? `${window.location.origin}/co-loop/studio?session=${sessionId}` : ""}
+                  value={
+                    typeof window !== "undefined"
+                      ? `${window.location.origin}/co-loop/join/${sessionId}${user?.username ? `?invitedBy=${encodeURIComponent(user.username)}` : ""}`
+                      : ""
+                  }
                   className="rounded-xl border-cyan-500/30 bg-muted/50 text-xs font-mono"
                 />
                 <Button

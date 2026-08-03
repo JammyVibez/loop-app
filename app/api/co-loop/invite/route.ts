@@ -32,6 +32,9 @@ export async function POST(request: NextRequest) {
     const inviterName = inviterProfile?.display_name || inviterProfile?.username || "A collaborator"
     const titleText = session_title ? `"${session_title}"` : "a new Co-Loop"
 
+    const inviterUsername = inviterProfile?.username || ""
+    const joinUrl = `/co-loop/join/${session_id}?invitedBy=${encodeURIComponent(inviterUsername)}`
+
     // 1. Create System Notification for invitee
     await supabase.from("notifications").insert({
       user_id: invitee_id,
@@ -43,7 +46,7 @@ export async function POST(request: NextRequest) {
         inviter_id: inviter.id,
         inviter_name: inviterName,
         inviter_avatar: inviterProfile?.avatar_url,
-        action_url: `/co-loop/studio?session=${session_id}&invited=true`,
+        action_url: joinUrl,
       },
       is_read: false,
     })
@@ -95,7 +98,7 @@ export async function POST(request: NextRequest) {
 
     // Post direct message with studio link
     if (conversationId) {
-      const inviteMsg = `🚀 **Co-Loop Collaboration Invitation**\n${inviterName} invited you to edit live on ${titleText}.\n\n👉 [Click here to Accept & Join Session](/co-loop/studio?session=${session_id}&invited=true)`
+      const inviteMsg = `🚀 **Co-Loop Collaboration Invitation**\n${inviterName} invited you to edit live on ${titleText}.\n\n👉 [Click here to Accept & Join Session](${joinUrl})`
 
       await supabase.from("messages").insert({
         conversation_id: conversationId,
@@ -104,7 +107,7 @@ export async function POST(request: NextRequest) {
         recipient_id: invitee_id,
         content: inviteMsg,
         message_type: "co_loop_invite",
-        media_url: `/co-loop/studio?session=${session_id}&invited=true`,
+        media_url: joinUrl,
         created_at: new Date().toISOString(),
       })
 

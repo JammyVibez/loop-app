@@ -48,7 +48,14 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   loginWithGoogle: () => Promise<void>
   googleSignIn: () => Promise<void>
-  signup: (email: string, password: string, username: string, display_name: string) => Promise<void>
+  signup: (
+    email: string,
+    password: string,
+    username: string,
+    display_name: string,
+    invited_via_coloop?: boolean,
+    invited_by_username?: string
+  ) => Promise<void>
   logout: () => Promise<void>
   signOut: () => Promise<void>
   refreshUser: () => Promise<void>
@@ -313,11 +320,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const signup = async (email: string, password: string, username: string, display_name: string) => {
+  const signup = async (
+    email: string,
+    password: string,
+    username: string,
+    display_name: string,
+    invited_via_coloop?: boolean,
+    invited_by_username?: string
+  ) => {
     const response = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, username, display_name }),
+      body: JSON.stringify({ email, password, username, display_name, invited_via_coloop, invited_by_username }),
     })
 
     const data = await response.json()

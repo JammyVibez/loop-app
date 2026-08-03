@@ -88,8 +88,31 @@ export function CoLoopInviteCard({
       if (onStatusChange) onStatusChange(action)
 
       if (action === "accepted") {
+        try {
+          const rewardRes = await fetch("/api/co-loop/activate-reward", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...getAuthHeader(),
+            },
+            body: JSON.stringify({
+              session_id: sessionId,
+              inviter_username: inviterName,
+            }),
+          })
+          const rewardData = await rewardRes.json()
+          if (rewardData.success) {
+            toast({
+              title: "🎉 Collaboration Bonus Unlocked!",
+              description: "You and your co-author both earned +50 Loop Coins!",
+            })
+          }
+        } catch (rErr) {
+          console.warn("Reward activation call:", rErr)
+        }
+
         toast({
-          title: "Co-Loop Invitation Accepted!",
+          title: "Co-Loop Invitation Accepted! 🎉",
           description: "Joining real-time co-authoring studio...",
         })
       } else {

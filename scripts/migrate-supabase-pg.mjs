@@ -21,6 +21,7 @@ const files = [
   "scripts/rls-policies.sql",
   "scripts/realtime-functions.sql",
   "scripts/boost-system-enhancements.sql",
+  "scripts/co-loop-viral-rewards.sql",
 ]
 
 async function runMigrations() {
