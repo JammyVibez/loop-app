@@ -39,6 +39,7 @@ interface GiftModalProps {
     id: string
     title?: string
   }
+  onGiftSent?: (gift: { id: string; name: string; cost: number; type: string; rarity: string }) => void
 }
 
 interface GiftItem {
@@ -83,7 +84,7 @@ function giftIcon(type: string) {
   }
 }
 
-export function GiftModal({ open, onOpenChange, recipient, context }: GiftModalProps) {
+export function GiftModal({ open, onOpenChange, recipient, context, onGiftSent }: GiftModalProps) {
   const { toast } = useToast()
   const { user, getAuthHeader, refreshUser } = useAuth()
   const [selectedGift, setSelectedGift] = useState<GiftItem | null>(null)
@@ -193,6 +194,14 @@ export function GiftModal({ open, onOpenChange, recipient, context }: GiftModalP
       toast({
         title: "Gift sent",
         description: `You sent ${selectedGift.name} to ${recipient.display_name}.`,
+      })
+
+      onGiftSent?.({
+        id: selectedGift.id,
+        name: selectedGift.name,
+        cost: selectedGift.cost,
+        type: selectedGift.type,
+        rarity: selectedGift.rarity,
       })
 
       onOpenChange(false)

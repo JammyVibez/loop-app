@@ -101,17 +101,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Stream title is required" }, { status: 400 })
     }
 
-    // Generate stream key and URLs
+    // Generate stream key and playback placeholders.
+    // Browser Live uses WebRTC over Supabase Realtime signaling on /streams/[id].
+    // Optional RTMP/HLS env vars remain for OBS / external ingest later.
     const streamKey = crypto.randomUUID()
     const streamId = crypto.randomUUID()
-    
-    // In production, you would integrate with a streaming service like:
-    // - AWS IVS (Interactive Video Service)
-    // - Agora
-    // - Twilio Video
-    // - Custom RTMP server
-    const rtmpUrl = `rtmp://your-streaming-server.com/live/${streamKey}`
-    const hlsUrl = `https://your-streaming-server.com/hls/${streamKey}/index.m3u8`
+    const rtmpBase = (process.env.RTMP_SERVER_URL || "webrtc://loop.live").replace(/\/$/, "")
+    const hlsBase = (process.env.HLS_SERVER_URL || "https://loop-app-xi.vercel.app/live").replace(/\/$/, "")
+    const rtmpUrl = `${rtmpBase}/${streamKey}`
+    const hlsUrl = `${hlsBase}/${streamKey}/index.m3u8`
 
     const { data: stream, error } = await supabase
       .from('live_streams')

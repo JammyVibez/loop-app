@@ -1,15 +1,14 @@
-"use client";
-import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Radio, Eye, Search, Play, Crown } from "lucide-react";
-import Link from "next/link";
-import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { Eye, Loader2, Radio, Search, Sparkles } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 
 interface Stream {
   id: string
@@ -31,6 +30,23 @@ interface Stream {
   }
 }
 
+const CATEGORIES = [
+  { id: "all", label: "For You" },
+  { id: "gaming", label: "Gaming" },
+  { id: "music", label: "Music" },
+  { id: "art", label: "Art" },
+  { id: "tech", label: "Tech" },
+  { id: "education", label: "Learn" },
+  { id: "lifestyle", label: "Life" },
+  { id: "entertainment", label: "Fun" },
+]
+
+function formatViewers(count: number) {
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`
+  return String(count || 0)
+}
+
 export default function StreamsPage() {
   const { user } = useAuth()
   const { toast } = useToast()
@@ -38,281 +54,180 @@ export default function StreamsPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
-  const [activeTab, setActiveTab] = useState("live")
-
-  const categories = [
-    { id: "all", label: "All Categories" },
-    { id: "gaming", label: "Gaming" },
-    { id: "music", label: "Music" },
-    { id: "art", label: "Art & Design" },
-    { id: "tech", label: "Technology" },
-    { id: "education", label: "Education" },
-    { id: "lifestyle", label: "Lifestyle" },
-    { id: "entertainment", label: "Entertainment" }
-  ]
+  const [activeTab, setActiveTab] = useState<"live" | "recent" | "popular">("live")
 
   useEffect(() => {
-    fetchStreams()
-  }, [activeTab, selectedCategory])
-
-  const fetchStreams = async () => {
-    try {
-      setLoading(true)
-      const params = new URLSearchParams({
-        status: activeTab,
-        ...(selectedCategory !== "all" && { category: selectedCategory }),
-        limit: "20"
-      })
-
-      const response = await fetch(`/api/streams?${params}`)
-      if (response.ok) {
-        const data = await response.json()
-        setStreams(data.data.streams || [])
+    const fetchStreams = async () => {
+      try {
+        setLoading(true)
+        const params = new URLSearchParams({
+          status: activeTab,
+          ...(selectedCategory !== "all" ? { category: selectedCategory } : {}),
+          limit: "30",
+        })
+        const response = await fetch(`/api/streams?${params}`, { cache: "no-store" })
+        if (response.ok) {
+          const data = await response.json()
+          setStreams(data.data?.streams || [])
+        }
+      } catch {
+        toast({ title: "Could not load lives", variant: "destructive" })
+      } finally {
+        setLoading(false)
       }
-    } catch (error) {
-      console.error("Failed to fetch streams:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load streams",
-        variant: "destructive"
-      })
-    } finally {
-      setLoading(false)
     }
-  }
+    void fetchStreams()
+    const t = window.setInterval(() => void fetchStreams(), 20000)
+    return () => window.clearInterval(t)
+  }, [activeTab, selectedCategory, toast])
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Implement search functionality
-    console.log("Searching for:", searchQuery)
-  }
-
-  const formatViewerCount = (count: number) => {
-    if (count >= 1000000) {
-      return `${(count / 1000000).toFixed(1)}M`
-    } else if (count >= 1000) {
-      return `${(count / 1000).toFixed(1)}K`
-    }
-    return count.toString()
-  }
-
-  const getTimeAgo = (dateString: string) => {
-    const now = new Date()
-    const date = new Date(dateString)
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
-    
-    if (diffInMinutes < 60) {
-      return `${diffInMinutes}m ago`
-    } else if (diffInMinutes < 1440) {
-      return `${Math.floor(diffInMinutes / 60)}h ago`
-    } else {
-      return `${Math.floor(diffInMinutes / 1440)}d ago`
-    }
-  }
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return streams
+    return streams.filter(
+      (s) =>
+        s.title?.toLowerCase().includes(q) ||
+        s.streamer?.username?.toLowerCase().includes(q) ||
+        s.streamer?.display_name?.toLowerCase().includes(q) ||
+        s.category?.toLowerCase().includes(q),
+    )
+  }, [streams, searchQuery])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-indigo-900/20">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 space-y-4 lg:space-y-0">
+    <div className="min-h-screen bg-black text-white">
+      <div className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-              Live Streams
-            </h1>
-            <p className="text-gray-400 mt-2">Discover amazing live content from creators around the world</p>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-rose-500/15 px-3 py-1 text-xs font-semibold text-rose-300">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-400" />
+              LIVE NOW
+            </div>
+            <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Livestream</h1>
+            <p className="mt-1 text-sm text-white/60">
+              Watch creators in real time — chat, react, gift, and join the vibe.
+            </p>
           </div>
-          
-          <div className="flex items-center space-x-4">
-            {/* Search */}
-            <form onSubmit={handleSearch} className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                type="text"
-                placeholder="Search streams..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-64 bg-gray-800/50 border-gray-600"
-              />
-            </form>
-
-            {/* Go Live Button */}
-            {user && (
-              <Link href="/create/stream">
-                <Button className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600">
-                  <Radio className="w-4 h-4 mr-2" />
-                  Go Live
-                </Button>
-              </Link>
-            )}
-          </div>
+          <Link href={user ? "/create/stream" : "/login"}>
+            <Button className="h-11 rounded-full bg-rose-500 px-6 font-bold hover:bg-rose-400">
+              <Radio className="mr-2 h-4 w-4" />
+              Go Live
+            </Button>
+          </Link>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="bg-gray-800/50 border-gray-600">
-            <TabsTrigger value="live" className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              <span>Live Now</span>
-            </TabsTrigger>
-            <TabsTrigger value="recent">Recent</TabsTrigger>
-            <TabsTrigger value="popular">Popular</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <form
+          className="relative mb-4"
+          onSubmit={(e) => {
+            e.preventDefault()
+          }}
+        >
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search lives, creators, categories…"
+            className="h-11 rounded-full border-white/10 bg-white/5 pl-10 text-white placeholder:text-white/40"
+          />
+        </form>
 
-        {/* Categories */}
-        <div className="flex flex-wrap gap-2 mb-8">
-          {categories.map((category) => (
-            <Button
-              key={category.id}
-              variant={selectedCategory === category.id ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedCategory(category.id)}
-              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+        <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+          {(["live", "popular", "recent"] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "rounded-full px-4 py-1.5 text-sm font-semibold capitalize",
+                activeTab === tab ? "bg-white text-black" : "bg-white/10 text-white/70",
+              )}
             >
-              {category.label}
-            </Button>
+              {tab}
+            </button>
           ))}
         </div>
 
-        {/* Streams Grid */}
+        <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setSelectedCategory(cat.id)}
+              className={cn(
+                "whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold",
+                selectedCategory === cat.id
+                  ? "bg-rose-500 text-white"
+                  : "bg-white/8 text-white/65",
+              )}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Card key={i} className="bg-gray-900/50 border-gray-700 animate-pulse">
-                <div className="aspect-video bg-gray-800 rounded-t-lg"></div>
-                <CardContent className="p-4">
-                  <div className="h-4 bg-gray-800 rounded mb-2"></div>
-                  <div className="h-3 bg-gray-800 rounded w-3/4 mb-3"></div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-gray-800 rounded-full"></div>
-                    <div className="h-3 bg-gray-800 rounded w-1/2"></div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="flex min-h-[40vh] items-center justify-center text-white/60">
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading lives…
           </div>
-        ) : streams.length === 0 ? (
-          <div className="text-center py-12">
-            <Radio className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-300 mb-2">No streams found</h3>
-            <p className="text-gray-400 mb-6">
-              {activeTab === "live" ?"No one is streaming right now. Be the first to go live!" :"No streams match your current filters."}
+        ) : filtered.length === 0 ? (
+          <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-center">
+            <Sparkles className="h-10 w-10 text-white/30" />
+            <p className="text-lg font-semibold">No lives right now</p>
+            <p className="max-w-sm text-sm text-white/50">
+              Be the first to go live — share your camera or screen with fans in real time.
             </p>
-            {user && (
-              <Link href="/create/stream">
-                <Button className="bg-gradient-to-r from-red-500 to-pink-500">
-                  <Radio className="w-4 h-4 mr-2" />
-                  Start Streaming
-                </Button>
-              </Link>
-            )}
+            <Link href={user ? "/create/stream" : "/login"}>
+              <Button className="rounded-full bg-rose-500 hover:bg-rose-400">Start a Live</Button>
+            </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {streams.map((stream) => (
-              <Link key={stream.id} href={`/streams/${stream.id}`}>
-                <Card className="bg-gray-900/50 border-gray-700 hover:bg-gray-800/50 transition-colors cursor-pointer group">
-                  <div className="relative aspect-video overflow-hidden rounded-t-lg">
-                    <img
-                      src={stream.thumbnail_url || "/placeholder.svg?height=200&width=300"}
-                      alt={stream.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    
-                    {/* Live Badge */}
-                    {stream.status === "live" && (
-                      <div className="absolute top-3 left-3 flex items-center space-x-1 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                        <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                        <span>LIVE</span>
-                      </div>
-                    )}
-
-                    {/* Viewer Count */}
-                    <div className="absolute top-3 right-3 bg-black/70 text-white px-2 py-1 rounded-full text-xs flex items-center space-x-1">
-                      <Eye className="w-3 h-3" />
-                      <span>{formatViewerCount(stream.viewer_count)}</span>
-                    </div>
-
-                    {/* Play Button Overlay */}
-                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
-                        <Play className="w-6 h-6 text-white" />
-                      </div>
-                    </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {filtered.map((stream) => (
+              <Link
+                key={stream.id}
+                href={`/streams/${stream.id}`}
+                className="group relative aspect-[9/14] overflow-hidden rounded-2xl bg-zinc-900"
+              >
+                {stream.thumbnail_url ? (
+                  <img
+                    src={stream.thumbnail_url}
+                    alt={stream.title}
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-rose-900/50 via-zinc-900 to-indigo-950">
+                    <Radio className="h-10 w-10 text-white/35" />
                   </div>
-
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold text-white mb-2 line-clamp-2 group-hover:text-purple-400 transition-colors">
-                      {stream.title}
-                    </h3>
-                    
-                    <div className="flex items-center space-x-2 mb-3">
-                      <Avatar className="w-6 h-6">
-                        <AvatarImage src={stream.streamer.avatar_url || "/placeholder.svg"} />
-                        <AvatarFallback className="text-xs">
-                          {stream.streamer.display_name.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex items-center space-x-1 min-w-0">
-                        <span className="text-sm text-gray-300 truncate">
-                          {stream.streamer.display_name}
-                        </span>
-                        {stream.streamer.is_verified && (
-                          <Badge className="bg-blue-500 text-white text-xs px-1 py-0">
-                            ✓
-                          </Badge>
-                        )}
-                        {stream.streamer.is_premium && (
-                          <Crown className="w-3 h-3 text-yellow-500" />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Category & Tags */}
-                    <div className="flex items-center justify-between text-xs text-gray-400">
-                      <span className="capitalize">{stream.category}</span>
-                      <span>{getTimeAgo(stream.created_at)}</span>
-                    </div>
-
-                    {/* Tags */}
-                    {stream.tags && stream.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {stream.tags.slice(0, 3).map((tag, index) => (
-                          <Badge
-                            key={index}
-                            variant="secondary"
-                            className="bg-purple-900/50 text-purple-300 text-xs px-1 py-0"
-                          >
-                            #{tag}
-                          </Badge>
-                        ))}
-                        {stream.tags.length > 3 && (
-                          <Badge
-                            variant="secondary"
-                            className="bg-gray-700 text-gray-300 text-xs px-1 py-0"
-                          >
-                            +{stream.tags.length - 3}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/30" />
+                <div className="absolute left-2 top-2 flex items-center gap-1.5">
+                  {stream.status === "live" ? (
+                    <span className="rounded bg-rose-500 px-1.5 py-0.5 text-[10px] font-black tracking-wide">
+                      LIVE
+                    </span>
+                  ) : (
+                    <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase">
+                      {stream.status}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold backdrop-blur">
+                    <Eye className="h-3 w-3" />
+                    {formatViewers(stream.viewer_count)}
+                  </span>
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 p-3">
+                  <p className="line-clamp-2 text-sm font-bold leading-snug">{stream.title}</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <Avatar className="h-6 w-6 border border-white/20">
+                      <AvatarImage src={stream.streamer?.avatar_url} />
+                      <AvatarFallback>{stream.streamer?.display_name?.[0] || "?"}</AvatarFallback>
+                    </Avatar>
+                    <p className="truncate text-xs text-white/80">
+                      {stream.streamer?.display_name || stream.streamer?.username}
+                    </p>
+                  </div>
+                </div>
               </Link>
             ))}
-          </div>
-        )}
-
-        {/* Load More */}
-        {streams.length > 0 && streams.length % 20 === 0 && (
-          <div className="text-center mt-8">
-            <Button
-              variant="outline"
-              onClick={fetchStreams}
-              className="border-gray-600 text-gray-300 hover:bg-gray-700"
-            >
-              Load More Streams
-            </Button>
           </div>
         )}
       </div>
