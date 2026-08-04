@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { createClient } from "@supabase/supabase-js"
@@ -41,6 +41,7 @@ import {
   Upload,
   Film,
   Paperclip,
+  Power,
 } from "lucide-react"
 import {
   Dialog,
@@ -178,45 +179,102 @@ export function CoLoopStudio() {
     return () => clearTimeout(timer)
   }, [invitedUserInput])
 
-  // Session Owner State
-  const [sessionOwner, setSessionOwner] = useState<{ id?: string; username?: string; display_name?: string } | null>(null)
+  // Session Owner & Ownership State
+  const [sessionOwner, setSessionOwner] = useState<{ id?: string; username?: string; display_name?: string; avatar_url?: string } | null>(null)
+  const [isOwner, setIsOwner] = useState<boolean>(false)
+  const [isSessionOwnerLoading, setIsSessionOwnerLoading] = useState<boolean>(true)
 
-  // Fetch Session Info to identify Primary Creator vs Co-Author
+  // Ref to hold latest doc state for doc-sync broadcasts without re-subscribing channel
+  const docStateRef = useRef({
+    title: "",
+    content: "",
+    hashtags: [] as string[],
+    mediaUrl: "",
+    mediaUrls: [] as string[],
+    mediaType: "text" as "text" | "image" | "video",
+    coAuthors: [] as Collaborator[],
+  })
+
   useEffect(() => {
-    const fetchSessionInfo = async () => {
-      try {
-        const invitedByParam = searchParams.get("invitedBy") || ""
-        const authHeaders = getAuthHeader()
-        const res = await fetch(
-          `/api/co-loop/session-info?session=${encodeURIComponent(sessionId)}&invitedBy=${encodeURIComponent(invitedByParam)}`,
-          { headers: authHeaders }
-        )
-        const data = await res.json()
+    docStateRef.current = {
+      title: postTitle,
+      content: postContent,
+      hashtags,
+      mediaUrl,
+      mediaUrls,
+      mediaType,
+      coAuthors,
+    }
+  }, [postTitle, postContent, hashtags, mediaUrl, mediaUrls, mediaType, coAuthors])
 
-        if (data.inviter && (data.inviter.id || data.inviter.username)) {
-          setSessionOwner(data.inviter)
-        } else if (user && !searchParams.get("invited") && !searchParams.get("invitedBy")) {
-          setSessionOwner({
-            id: user.id,
-            username: user.username,
-            display_name: user.display_name || user.username,
+  // Fetch Session Info to resolve Primary Creator vs Co-Author
+  useEffect(() => {
+    if (!user || !sessionId) return
+
+    const resolveSessionInfo = async () => {
+      try {
+        setIsSessionOwnerLoading(true)
+        const invitedByParam = searchParams.get("invitedBy") || ""
+        const isInvitedFlag = searchParams.get("invited") === "true"
+        const authHeaders = getAuthHeader()
+
+        // If user is opening studio directly as creator
+        if (!isInvitedFlag && !invitedByParam) {
+          const res = await fetch("/api/co-loop/session-info", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...authHeaders,
+            },
+            body: JSON.stringify({ session_id: sessionId }),
           })
+          const data = await res.json()
+          if (data.owner_id || data.inviter) {
+            const ownerObj = data.inviter || { id: data.owner_id, username: data.owner_username }
+            setSessionOwner(ownerObj)
+            const isCallerOwner = Boolean(
+              (data.owner_id && data.owner_id === user.id) ||
+              (ownerObj.id && ownerObj.id === user.id) ||
+              (ownerObj.username && user.username && ownerObj.username.toLowerCase() === user.username.toLowerCase())
+            )
+            setIsOwner(isCallerOwner)
+          } else {
+            setSessionOwner({
+              id: user.id,
+              username: user.username,
+              display_name: user.display_name || user.username,
+            })
+            setIsOwner(true)
+          }
+        } else {
+          // Invited user: fetch session info via GET
+          const res = await fetch(
+            `/api/co-loop/session-info?session=${encodeURIComponent(sessionId)}&invitedBy=${encodeURIComponent(invitedByParam)}&invited=true`,
+            { headers: authHeaders }
+          )
+          const data = await res.json()
+          if (data.owner_id || data.inviter) {
+            const ownerObj = data.inviter || { id: data.owner_id, username: data.owner_username }
+            setSessionOwner(ownerObj)
+            const isCallerOwner = Boolean(
+              (data.owner_id && data.owner_id === user.id) ||
+              (ownerObj.id && ownerObj.id === user.id) ||
+              (ownerObj.username && user.username && ownerObj.username.toLowerCase() === user.username.toLowerCase())
+            )
+            setIsOwner(isCallerOwner)
+          } else {
+            setIsOwner(false)
+          }
         }
       } catch (err) {
         console.error("Session info fetch error:", err)
+      } finally {
+        setIsSessionOwnerLoading(false)
       }
     }
-    fetchSessionInfo()
-  }, [sessionId, searchParams, user, getAuthHeader])
 
-  // Determine if current logged in user is the Primary Creator / Owner
-  const isOwner = Boolean(
-    user?.id && sessionOwner?.id
-      ? sessionOwner.id === user.id
-      : user?.username && sessionOwner?.username
-      ? sessionOwner.username.toLowerCase() === user.username.toLowerCase()
-      : !searchParams.get("invited") && !searchParams.get("invitedBy")
-  )
+    resolveSessionInfo()
+  }, [sessionId, searchParams, user, getAuthHeader])
 
   const currentUserRole = isOwner ? "Primary Creator" : "Co-Author"
 
@@ -230,7 +288,7 @@ export function CoLoopStudio() {
 
   // Join Realtime Channel for Studio Presence & Broadcast
   useEffect(() => {
-    if (!user || !supabaseRef.current) return
+    if (!user || !supabaseRef.current || isSessionOwnerLoading) return
 
     const supabase = supabaseRef.current
     const channel = supabase.channel(`co-loop-studio:${sessionId}`, {
@@ -289,17 +347,18 @@ export function CoLoopStudio() {
       // Request doc sync when a co-author enters
       .on("broadcast", { event: "request-doc-sync" }, () => {
         if (isOwner && channelRef.current) {
+          const st = docStateRef.current
           channelRef.current.send({
             type: "broadcast",
             event: "doc-update",
             payload: {
-              title: postTitle,
-              content: postContent,
-              hashtags,
-              mediaUrl,
-              mediaUrls,
-              mediaType,
-              coAuthors,
+              title: st.title,
+              content: st.content,
+              hashtags: st.hashtags,
+              mediaUrl: st.mediaUrl,
+              mediaUrls: st.mediaUrls,
+              mediaType: st.mediaType,
+              coAuthors: st.coAuthors,
             },
           })
         }
@@ -350,6 +409,16 @@ export function CoLoopStudio() {
         if (!isChatOpen) {
           setUnreadChatCount((prev) => prev + 1)
         }
+      })
+      // Handle Session Ended Broadcast
+      .on("broadcast", { event: "session_ended" }, ({ payload }: any) => {
+        toast({
+          title: "Co-Loop Session Ended 🛑",
+          description: `${payload?.endedBy || "The Primary Creator"} has closed this Co-Loop session.`,
+        })
+        setTimeout(() => {
+          router.push("/")
+        }, 1500)
       })
       // Handle Studio Version Snapshots
       .on("broadcast", { event: "version-saved" }, ({ payload }: any) => {
@@ -403,7 +472,7 @@ export function CoLoopStudio() {
     return () => {
       channel.unsubscribe()
     }
-  }, [user, sessionId, isChatOpen, isOwner, currentUserRole, sessionOwner, postTitle, postContent, hashtags, mediaUrl, mediaUrls, mediaType, coAuthors])
+  }, [user, sessionId, isSessionOwnerLoading, isOwner, currentUserRole, sessionOwner, isChatOpen, router, toast])
 
   // Handle accepting invitation when arriving via invite link
   useEffect(() => {
@@ -884,22 +953,96 @@ export function CoLoopStudio() {
     )
   }
 
-  // Combine creator and connected collaborators for the Studio Presence Ring
-  const activeParticipants = [
-    {
-      id: user.id,
-      username: user.username || "creator",
-      display_name: user.display_name || user.username || "Primary Creator",
-      avatar_url: user.avatar_url,
-      role: "Primary Creator",
-      isCreator: true,
-    },
-    ...coAuthors.map((ca) => ({
-      ...ca,
-      role: ca.role || "Co-Author",
-      isCreator: false,
-    })),
-  ]
+  // Handle Primary Creator Ending the Co-Loop Session
+  const handleEndSession = async () => {
+    if (!isOwner) return
+    try {
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: "broadcast",
+          event: "session_ended",
+          payload: { endedBy: user?.display_name || user?.username || "Primary Creator" },
+        })
+      }
+      toast({
+        title: "Session Ended 🛑",
+        description: "You closed this Co-Loop studio room.",
+      })
+      setTimeout(() => {
+        router.push("/")
+      }, 1000)
+    } catch (err: any) {
+      console.error("End session error:", err)
+    }
+  }
+
+  // Combine session owner and collaborators for the Studio Presence Ring
+  const activeParticipants = useMemo(() => {
+    const list: (Collaborator & { isCreator: boolean })[] = []
+    const seenIds = new Set<string>()
+
+    // 1. Session Owner
+    if (sessionOwner?.id) {
+      list.push({
+        id: sessionOwner.id,
+        username: sessionOwner.username || "creator",
+        display_name: sessionOwner.display_name || sessionOwner.username || "Primary Creator",
+        avatar_url: sessionOwner.avatar_url,
+        role: "Primary Creator",
+        isCreator: true,
+      })
+      seenIds.add(sessionOwner.id)
+    } else if (isOwner && user) {
+      list.push({
+        id: user.id,
+        username: user.username || "creator",
+        display_name: user.display_name || user.username || "Primary Creator",
+        avatar_url: user.avatar_url,
+        role: "Primary Creator",
+        isCreator: true,
+      })
+      seenIds.add(user.id)
+    }
+
+    // 2. Collaborators from Supabase Presence
+    collaborators.forEach((c) => {
+      if (!seenIds.has(c.id)) {
+        const isThisOwner = sessionOwner?.id ? c.id === sessionOwner.id : c.role === "Primary Creator"
+        list.push({
+          ...c,
+          role: isThisOwner ? "Primary Creator" : "Co-Author",
+          isCreator: isThisOwner,
+        })
+        seenIds.add(c.id)
+      }
+    })
+
+    // 3. Co-Authors list
+    coAuthors.forEach((ca) => {
+      if (!seenIds.has(ca.id)) {
+        list.push({
+          ...ca,
+          role: "Co-Author",
+          isCreator: false,
+        })
+        seenIds.add(ca.id)
+      }
+    })
+
+    // 4. Current user if not yet listed
+    if (user && !seenIds.has(user.id)) {
+      list.push({
+        id: user.id,
+        username: user.username || "collaborator",
+        display_name: user.display_name || user.username || (isOwner ? "Primary Creator" : "Co-Author"),
+        avatar_url: user.avatar_url,
+        role: isOwner ? "Primary Creator" : "Co-Author",
+        isCreator: isOwner,
+      })
+    }
+
+    return list
+  }, [sessionOwner, isOwner, user, collaborators, coAuthors])
 
   const wordCount = postContent.trim() ? postContent.trim().split(/\s+/).length : 0
   const charCount = postContent.length
@@ -937,6 +1080,17 @@ export function CoLoopStudio() {
 
           {/* Action Tools */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto justify-end">
+            {isOwner && (
+              <Button
+                variant="outline"
+                onClick={handleEndSession}
+                className="rounded-xl border-rose-500/40 bg-rose-950/30 text-rose-300 hover:bg-rose-500/20 text-xs font-bold gap-1.5 shadow-sm"
+              >
+                <Power className="h-4 w-4 text-rose-400" />
+                End Co-Loop
+              </Button>
+            )}
+
             <Button
               variant="outline"
               onClick={() => setGiftModalOpen(true)}

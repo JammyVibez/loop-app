@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
+import { createClient } from "@supabase/supabase-js"
 import {
   ArrowLeft,
   Eye,
@@ -89,6 +90,11 @@ export default function StreamDetailPage() {
   )
   const [subscribersOnlyChat, setSubscribersOnlyChat] = useState(false)
   const [recentTipAlert, setRecentTipAlert] = useState<{ sender: string; amount: number } | null>(null)
+  const [activeViewersCount, setActiveViewersCount] = useState<number>(1)
+
+  // Realtime channel refs
+  const channelRef = useRef<any>(null)
+  const supabaseRef = useRef<any>(null)
 
   // Gifting Modal State
   const [giftModalOpen, setGiftModalOpen] = useState(false)
@@ -106,6 +112,15 @@ export default function StreamDetailPage() {
 
   const chatScrollRef = useRef<HTMLDivElement>(null)
 
+  // Initialize Supabase Client
+  useEffect(() => {
+    supabaseRef.current = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+    )
+  }, [])
+
+  // Load Stream Details & Historical Chat
   useEffect(() => {
     if (!streamId) return
     const load = async () => {
@@ -117,23 +132,30 @@ export default function StreamDetailPage() {
         const st = data.data?.stream || data.stream
         setStream(st)
 
-        // Seed initial chat
-        if (st?.streamer?.display_name) {
-          setChatMessages((prev) => [
-            ...prev,
-            {
-              id: "host-welcome",
-              user_id: st.streamer_id,
-              username: st.streamer.username || "streamer",
-              display_name: st.streamer.display_name,
-              avatar_url: st.streamer.avatar_url,
-              message: `Stream started: "${st.title}"! Thanks for tuning in.`,
-              is_verified: st.streamer.is_verified,
-              is_premium: st.streamer.is_premium,
-              is_host: true,
-              timestamp: "1m ago",
-            },
-          ])
+        // Load historical chat from API
+        try {
+          const chatRes = await fetch(`/api/streams/${streamId}/chat`)
+          const chatData = await chatRes.json()
+          if (chatData.success && Array.isArray(chatData.messages) && chatData.messages.length > 0) {
+            setChatMessages(chatData.messages)
+          } else if (st?.streamer?.display_name) {
+            setChatMessages([
+              {
+                id: "host-welcome",
+                user_id: st.streamer_id,
+                username: st.streamer.username || "streamer",
+                display_name: st.streamer.display_name,
+                avatar_url: st.streamer.avatar_url,
+                message: `Stream started: "${st.title}"! Thanks for tuning in.`,
+                is_verified: st.streamer.is_verified,
+                is_premium: st.streamer.is_premium,
+                is_host: true,
+                timestamp: "Just now",
+              },
+            ])
+          }
+        } catch (chatErr) {
+          console.warn("Failed loading stream chat history:", chatErr)
         }
       } catch (error: any) {
         toast({ title: "Stream unavailable", description: error.message, variant: "destructive" })
@@ -142,7 +164,87 @@ export default function StreamDetailPage() {
       }
     }
     void load()
-  }, [streamId])
+  }, [streamId, toast])
+
+  // Subscribe to Realtime Stream Channel
+  useEffect(() => {
+    if (!streamId || !supabaseRef.current) return
+
+    const supabase = supabaseRef.current
+    const channel = supabase.channel(`stream:${streamId}`, {
+      config: {
+        presence: {
+          key: user?.id || `guest-${Math.random().toString(36).substring(2, 7)}`,
+        },
+      },
+    })
+
+    channelRef.current = channel
+
+    channel
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState()
+        const count = Object.keys(state).length
+        setActiveViewersCount(Math.max(1, count))
+      })
+      .on("broadcast", { event: "stream-chat" }, ({ payload }: any) => {
+        if (payload?.id) {
+          setChatMessages((prev) => {
+            if (prev.some((m) => m.id === payload.id)) return prev
+            return [...prev, payload]
+          })
+        }
+      })
+      .on("broadcast", { event: "stream-gift" }, ({ payload }: any) => {
+        if (payload?.tipMsg) {
+          setChatMessages((prev) => [...prev, payload.tipMsg])
+          if (payload.senderName && payload.amount) {
+            setRecentTipAlert({ sender: payload.senderName, amount: payload.amount })
+            setTimeout(() => setRecentTipAlert(null), 4000)
+          }
+        }
+      })
+      .on("broadcast", { event: "stream-status-change" }, ({ payload }: any) => {
+        if (payload?.status) {
+          setStream((prev: any) => (prev ? { ...prev, status: payload.status } : prev))
+          if (payload.status === "ended") {
+            toast({ title: "Stream Ended 🛑", description: "The host has ended this live broadcast." })
+          } else if (payload.status === "live") {
+            toast({ title: "Stream Live! 🔴", description: "The host is now broadcasting live!" })
+          }
+        }
+      })
+      .on("broadcast", { event: "stream-pinned-msg" }, ({ payload }: any) => {
+        if (payload?.pinnedMessage !== undefined) {
+          setPinnedMessage(payload.pinnedMessage)
+        }
+      })
+      .on("broadcast", { event: "stream-sub-chat-toggle" }, ({ payload }: any) => {
+        if (payload?.subscribersOnlyChat !== undefined) {
+          setSubscribersOnlyChat(payload.subscribersOnlyChat)
+          toast({
+            title: payload.subscribersOnlyChat ? "Subscriber Chat Enabled 🔒" : "Public Chat Enabled 💬",
+            description: payload.subscribersOnlyChat
+              ? "Subscribers Only Chat mode is now active."
+              : "All viewers can now chat.",
+          })
+        }
+      })
+      .subscribe(async (status: string) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({
+            user_id: user?.id || "guest",
+            username: user?.username || "guest",
+            display_name: user?.display_name || user?.username || "Guest Viewer",
+            avatar_url: user?.avatar_url,
+          })
+        }
+      })
+
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [streamId, user, toast])
 
   // Auto scroll chat to bottom
   useEffect(() => {
@@ -161,6 +263,16 @@ export default function StreamDetailPage() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Update failed")
       setStream(data.data?.stream || { ...stream, status })
+
+      // Broadcast status change to all viewers
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: "broadcast",
+          event: "stream-status-change",
+          payload: { status },
+        })
+      }
+
       toast({ title: status === "live" ? "You’re live! 🔴" : `Stream ${status}` })
     } catch (error: any) {
       toast({ title: "Update failed", description: error.message, variant: "destructive" })
@@ -215,7 +327,7 @@ export default function StreamDetailPage() {
   }
 
   // Handle Sending Chat Message
-  const handleSendChat = (e: React.FormEvent) => {
+  const handleSendChat = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!chatInput.trim()) return
 
@@ -228,21 +340,44 @@ export default function StreamDetailPage() {
       return
     }
 
+    const textToSend = chatInput.trim()
+    setChatInput("")
+
     const newMsg: ChatMessage = {
-      id: `chat-${Date.now()}`,
+      id: `chat-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
       user_id: user?.id || "guest",
       username: user?.username || "guest",
       display_name: user?.display_name || user?.username || "Guest Viewer",
       avatar_url: user?.avatar_url,
-      message: chatInput.trim(),
+      message: textToSend,
       is_verified: isUserVerified,
       is_premium: isUserPro,
       is_host: isOwner,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     }
 
+    // Add locally
     setChatMessages((prev) => [...prev, newMsg])
-    setChatInput("")
+
+    // Broadcast via Realtime channel
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: "broadcast",
+        event: "stream-chat",
+        payload: newMsg,
+      })
+    }
+
+    // Save to Database
+    try {
+      await fetch(`/api/streams/${streamId}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ message: textToSend }),
+      })
+    } catch (err) {
+      console.warn("Failed saving stream chat:", err)
+    }
   }
 
   // Handle Tipping Stream Coins
@@ -254,9 +389,6 @@ export default function StreamDetailPage() {
 
     setSendingGift(true)
     try {
-      // Bonus earnings for Pro host (+10%)
-      const netAmount = isStreamerPro ? Math.floor(amount * 1.1) : amount
-
       const res = await fetch("/api/gifts/send", {
         method: "POST",
         headers: {
@@ -274,7 +406,6 @@ export default function StreamDetailPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Gift sending failed")
 
-      // Add Tip Message to live chat
       const tipMsg: ChatMessage = {
         id: `tip-${Date.now()}`,
         user_id: user.id,
@@ -292,6 +423,30 @@ export default function StreamDetailPage() {
       setChatMessages((prev) => [...prev, tipMsg])
       setRecentTipAlert({ sender: user.display_name || user.username || "Fan", amount })
       setTimeout(() => setRecentTipAlert(null), 4000)
+
+      // Broadcast Gift to all connected viewers
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: "broadcast",
+          event: "stream-gift",
+          payload: {
+            tipMsg,
+            senderName: user.display_name || user.username || "Fan",
+            amount,
+          },
+        })
+      }
+
+      // Save tip chat message
+      try {
+        await fetch(`/api/streams/${streamId}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ is_tip: true, tip_amount: amount, message: tipMsg.message }),
+        })
+      } catch (chatErr) {
+        console.warn("Failed saving tip chat:", chatErr)
+      }
 
       setGiftModalOpen(false)
       toast({
@@ -399,7 +554,7 @@ export default function StreamDetailPage() {
 
                     <Badge className="bg-slate-950/80 text-white border border-white/15 backdrop-blur-md">
                       <Eye className="mr-1.5 h-3.5 w-3.5 text-cyan-400" />
-                      {Number(stream.viewer_count || 1).toLocaleString()} Viewers
+                      {Number(activeViewersCount || stream.viewer_count || 1).toLocaleString()} Viewers
                     </Badge>
                   </div>
 

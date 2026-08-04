@@ -209,7 +209,7 @@ export function CoLoopInviteCard({
             </span>
           </div>
           <Button asChild size="sm" className="w-full rounded-xl bg-cyan-500 font-bold text-slate-950 hover:bg-cyan-400 text-xs">
-            <Link href={`/co-loop/studio?session=${sessionId}`}>
+            <Link href={`/co-loop/studio?session=${encodeURIComponent(sessionId)}&invited=true${inviterName ? `&invitedBy=${encodeURIComponent(inviterName)}` : ""}`}>
               Enter Co-Loop Studio →
             </Link>
           </Button>
