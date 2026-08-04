@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/components/ui/use-toast"
@@ -23,18 +23,21 @@ import {
   MessageSquare,
   Plus,
   Trash2,
-  UploadCloud,
   Loader2,
   Radio,
   History,
-  RotateCcw,
-  GitCommit,
   UserPlus,
-  Gift,
   Copy,
   Check,
   Crown,
   Coins,
+  X,
+  Flame,
+  Zap,
+  Rocket,
+  ShieldCheck,
+  ExternalLink,
+  Layers,
 } from "lucide-react"
 import {
   Dialog,
@@ -64,7 +67,7 @@ interface ChatMessage {
   timestamp: string
 }
 
-const AVATAR_COLORS = ["#3b82f6", "#ec4899", "#10b981", "#8b5cf6"]
+const AVATAR_COLORS = ["#22d3ee", "#a855f7", "#34d399", "#f43f5e", "#fbbf24"]
 
 export function CoLoopStudio() {
   const { user, getAuthHeader } = useAuth()
@@ -93,9 +96,22 @@ export function CoLoopStudio() {
   const [searchingUsers, setSearchingUsers] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
 
-  // Version History State
+  // Side Chat Thread Drawer State
+  const [isChatOpen, setIsChatOpen] = useState(false)
+  const [unreadChatCount, setUnreadChatCount] = useState(0)
+
+  // Ceremonial Publish State
+  const [publishCeremonyOpen, setPublishCeremonyOpen] = useState(false)
+  const [publishedLoopData, setPublishedLoopData] = useState<any>(null)
+
+  // Version History & Modals State
   const [versions, setVersions] = useState<CoLoopVersion[]>([])
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [inviteModalOpen, setInviteModalOpen] = useState(false)
+  const [giftModalOpen, setGiftModalOpen] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
+  const [isSendingGift, setIsSendingGift] = useState(false)
+  const [sendingInvite, setSendingInvite] = useState(false)
 
   const supabaseRef = useRef<any>(null)
   const channelRef = useRef<any>(null)
@@ -180,15 +196,15 @@ export function CoLoopStudio() {
       .on("presence", { event: "join" }, ({ newPresences }: any) => {
         if (newPresences?.[0]?.display_name) {
           toast({
-            title: "Creator Joined!",
-            description: `${newPresences[0].display_name} entered the Co-Loop Studio.`,
+            title: "Creator Entered Room! 🌟",
+            description: `${newPresences[0].display_name} joined the live studio table.`,
           })
         }
       })
       .on("presence", { event: "leave" }, ({ leftPresences }: any) => {
         if (leftPresences?.[0]?.display_name) {
           toast({
-            title: "Creator Left",
+            title: "Creator Left Room",
             description: `${leftPresences[0].display_name} disconnected from studio.`,
           })
         }
@@ -234,6 +250,9 @@ export function CoLoopStudio() {
       // Handle Studio Chat Messages
       .on("broadcast", { event: "chat-msg" }, ({ payload }: any) => {
         setChatMessages((prev) => [...prev, payload])
+        if (!isChatOpen) {
+          setUnreadChatCount((prev) => prev + 1)
+        }
       })
       // Handle Studio Version Snapshots
       .on("broadcast", { event: "version-saved" }, ({ payload }: any) => {
@@ -277,7 +296,7 @@ export function CoLoopStudio() {
     return () => {
       channel.unsubscribe()
     }
-  }, [user, sessionId])
+  }, [user, sessionId, isChatOpen])
 
   // Handle accepting invitation when arriving via invite link
   useEffect(() => {
@@ -322,12 +341,21 @@ export function CoLoopStudio() {
     }
 
     acceptInvitation()
-  }, [user, sessionId, searchParams])
+  }, [user, sessionId, searchParams, getAuthHeader, toast])
 
   // Scroll chat to bottom
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [chatMessages])
+    if (isChatOpen) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
+  }, [chatMessages, isChatOpen])
+
+  // Clear unread count when chat drawer opens
+  useEffect(() => {
+    if (isChatOpen) {
+      setUnreadChatCount(0)
+    }
+  }, [isChatOpen])
 
   // Save version snapshot
   const handleSaveSnapshot = (label?: string) => {
@@ -451,37 +479,6 @@ export function CoLoopStudio() {
     broadcastDocUpdate({ hashtags: nextTags })
   }
 
-  // Send In-Studio Chat
-  const handleSendChatMessage = (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    const text = chatInput.trim()
-    if (!text || !user || !channelRef.current) return
-
-    const msg: ChatMessage = {
-      id: "msg-" + Date.now(),
-      sender_id: user.id,
-      sender_name: user.display_name || user.username || "Creator",
-      sender_avatar: user.avatar_url,
-      text,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    }
-
-    setChatMessages((prev) => [...prev, msg])
-    channelRef.current.send({
-      type: "broadcast",
-      event: "chat-msg",
-      payload: msg,
-    })
-    setChatInput("")
-  }
-
-  // Modals & Links state
-  const [inviteModalOpen, setInviteModalOpen] = useState(false)
-  const [giftModalOpen, setGiftModalOpen] = useState(false)
-  const [linkCopied, setLinkCopied] = useState(false)
-  const [sendingInvite, setSendingInvite] = useState(false)
-  const [isSendingGift, setIsSendingGift] = useState(false)
-
   // Copy shareable session link
   const handleCopyInviteLink = () => {
     const inviterNameParam = user?.username ? `?invitedBy=${encodeURIComponent(user.username)}` : ""
@@ -495,106 +492,115 @@ export function CoLoopStudio() {
     setTimeout(() => setLinkCopied(false), 3000)
   }
 
-  // Send Direct DM & Notification Invite to a creator
+  // Send Direct Invite to User
   const handleSendInviteToUser = async (targetUser: any) => {
-    if (!targetUser?.id) return
     setSendingInvite(true)
     try {
       const res = await fetch("/api/co-loop/invite", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
-        },
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({
-          invitee_id: targetUser.id,
           session_id: sessionId,
-          session_title: postTitle || "Untitled Co-Loop",
+          session_title: postTitle || "New Collaborative Loop",
+          invitee_id: targetUser.id,
         }),
       })
 
       const data = await res.json()
-      if (res.ok && data.success) {
-        toast({
-          title: "Invitation Sent! 📩",
-          description: `Sent DM & notification to @${targetUser.username || targetUser.display_name}. They will be listed as co-author once they accept!`,
-        })
-      } else {
-        toast({
-          title: "Failed to send invite",
-          description: data.error || "Could not send invitation",
-          variant: "destructive",
-        })
-      }
-    } catch (err) {
-      toast({ title: "Error sending invite", variant: "destructive" })
+      if (!res.ok) throw new Error(data.error || "Failed to send invitation")
+
+      toast({
+        title: "Invitation Sent! 🚀",
+        description: `Direct invite sent to @${targetUser.username} via DM & Notification.`,
+      })
+
+      setInvitedUserInput("")
+      setShowSuggestions(false)
+      setInviteModalOpen(false)
+    } catch (err: any) {
+      toast({
+        title: "Invite Failed",
+        description: err.message || "Could not send invite",
+        variant: "destructive",
+      })
     } finally {
       setSendingInvite(false)
-      setInvitedUserInput("")
-      setUserSuggestions([])
-      setShowSuggestions(false)
     }
   }
 
-  // Handle Split Gifting among co-authors
+  // Send In-Studio Chat Message
+  const handleSendChatMessage = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!chatInput.trim() || !user) return
+
+    const msg: ChatMessage = {
+      id: `chat-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      sender_id: user.id,
+      sender_name: user.display_name || user.username || "Creator",
+      sender_avatar: user.avatar_url,
+      text: chatInput.trim(),
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    }
+
+    setChatMessages((prev) => [...prev, msg])
+    setChatInput("")
+
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: "broadcast",
+        event: "chat-msg",
+        payload: msg,
+      })
+    }
+  }
+
+  // Send Split Gift to Co-Authors
   const handleSendSplitGift = async (amount: number) => {
     if (!user) return
     setIsSendingGift(true)
     try {
-      // Gather active authors (Primary Creator + Accepted Co-Authors)
-      const allAuthors = [
-        { id: user.id, username: user.username, display_name: user.display_name },
-        ...coAuthors,
-      ]
-
       const res = await fetch("/api/co-loop/gift", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
-        },
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({
           session_id: sessionId,
-          gift_amount: amount,
-          recipients: allAuthors,
+          amount,
+          co_author_ids: coAuthors.map((c) => c.id),
         }),
       })
 
       const data = await res.json()
-      if (res.ok && data.success) {
-        toast({
-          title: "Co-Loop Gift Sent! 🎁",
-          description: `Gifted ${amount} coins! Each co-author received ${data.splitAmount} Loop Coins!`,
-        })
+      if (!res.ok) throw new Error(data.error || "Failed to send split gift")
 
-        // Broadcast gift event live to studio
-        if (channelRef.current) {
-          channelRef.current.send({
-            type: "broadcast",
-            event: "co-loop-gift",
-            payload: {
-              senderName: user.display_name || user.username,
-              amount,
-              splitAmount: data.splitAmount,
-            },
-          })
-        }
-        setGiftModalOpen(false)
-      } else {
-        toast({
-          title: "Gifting Failed",
-          description: data.error || "Could not process gift",
-          variant: "destructive",
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: "broadcast",
+          event: "co-loop-gift",
+          payload: {
+            senderName: user.display_name || user.username,
+            amount,
+            splitAmount: data.split_amount || Math.floor(amount / (coAuthors.length + 1)),
+          },
         })
       }
-    } catch (err) {
-      toast({ title: "Gifting Error", variant: "destructive" })
+
+      toast({
+        title: "Split Gift Sent! 🎁",
+        description: `Successfully distributed ${amount} Loop Coins equally across active co-authors!`,
+      })
+      setGiftModalOpen(false)
+    } catch (err: any) {
+      toast({
+        title: "Gift Failed",
+        description: err.message || "Could not send gift",
+        variant: "destructive",
+      })
     } finally {
       setIsSendingGift(false)
     }
   }
 
-  // Publish Co-Loop Post
+  // Handle Ceremonial Publish
   const handlePublishCoLoop = async () => {
     if (!postContent.trim()) {
       toast({ title: "Content required", description: "Write something for your co-loop post!", variant: "destructive" })
@@ -638,11 +644,13 @@ export function CoLoopStudio() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to publish co-loop")
 
-      toast({
-        title: "Co-Loop Published! 🎉",
-        description: "Your collaborative post is live with stacked co-author credits!",
+      // Trigger ceremonial publish modal celebration
+      setPublishedLoopData({
+        ...data,
+        title: postTitle || "Co-Loop Collaboration",
+        coAuthorsCount: coAuthors.length + 1,
       })
-      router.push("/")
+      setPublishCeremonyOpen(true)
     } catch (err: any) {
       toast({
         title: "Publish failed",
@@ -657,404 +665,515 @@ export function CoLoopStudio() {
   if (!user) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center p-6 text-center">
-        <Card className="max-w-md p-6 border-cyan-500/30">
-          <Lock className="mx-auto h-12 w-12 text-cyan-400 mb-3" />
+        <Card className="max-w-md p-6 border-cyan-500/30 bg-[#090d1a] text-slate-100 shadow-2xl">
+          <Lock className="mx-auto h-12 w-12 text-cyan-400 mb-3 animate-pulse" />
           <h2 className="text-xl font-bold">Studio Authentication Required</h2>
-          <p className="text-sm text-muted-foreground mt-2">Log in to collaborate live in the Co-Loop Studio.</p>
+          <p className="text-sm text-slate-400 mt-2">Log in to collaborate live in the Co-Loop Studio.</p>
         </Card>
       </div>
     )
   }
 
+  // Combine creator and connected collaborators for the Studio Presence Ring
+  const activeParticipants = [
+    {
+      id: user.id,
+      username: user.username || "creator",
+      display_name: user.display_name || user.username || "Primary Creator",
+      avatar_url: user.avatar_url,
+      role: "Primary Creator",
+      isCreator: true,
+    },
+    ...coAuthors.map((ca) => ({
+      ...ca,
+      role: ca.role || "Co-Author",
+      isCreator: false,
+    })),
+  ]
+
+  const wordCount = postContent.trim() ? postContent.trim().split(/\s+/).length : 0
+  const charCount = postContent.length
+
   return (
-    <div className="container max-w-7xl mx-auto px-4 py-6 space-y-6">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-2xl border border-cyan-500/40 bg-gradient-to-r from-cyan-950/40 via-card to-purple-950/40 p-5 shadow-lg shadow-cyan-500/10">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-600 text-white font-bold shadow-md shadow-cyan-500/20">
-            <Sparkles className="h-6 w-6 animate-pulse" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-400 bg-clip-text text-transparent">
-                Co-Loop Studio
-              </h1>
-              <Badge className="bg-cyan-500/20 text-cyan-300 border-cyan-500/40 text-[10px] font-bold">
-                <Radio className="h-3 w-3 mr-1 text-cyan-400 animate-pulse" />
-                LIVE SUPABASE SYNC
-              </Badge>
+    <div className="relative min-h-[92vh] overflow-hidden rounded-3xl border border-cyan-500/20 bg-[#030712] text-slate-100 p-3 sm:p-6 shadow-2xl">
+      {/* Dark Ambient Studio Background Lights & Grid */}
+      <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-20" />
+      <div className="landing-aurora-blob pointer-events-none absolute left-1/2 top-[-10%] h-[75vmin] w-[75vmin] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.25),transparent_65%)] blur-3xl" />
+      <div className="landing-aurora-blob pointer-events-none absolute -right-1/4 top-[40%] h-[60vmin] w-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.2),transparent_65%)] blur-3xl [animation-delay:-4s]" />
+      <div className="landing-aurora-blob pointer-events-none absolute -left-1/4 bottom-[10%] h-[60vmin] w-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.18),transparent_65%)] blur-3xl [animation-delay:-8s]" />
+
+      <div className="relative z-10 max-w-6xl mx-auto space-y-6">
+        {/* Studio Control Header */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-2xl border border-cyan-500/30 bg-[#080d1e]/80 p-4 sm:p-5 backdrop-blur-xl shadow-lg shadow-cyan-950/40">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-purple-600 text-white font-bold shadow-lg shadow-cyan-500/25">
+              <Sparkles className="h-6 w-6 animate-pulse" />
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Real-time multi-author co-creation stage • Session #{sessionId}
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-black tracking-tight bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-300 bg-clip-text text-transparent">
+                  Co-Loop Studio Room
+                </h1>
+                <Badge className="bg-cyan-500/20 text-cyan-300 border-cyan-500/40 text-[10px] font-bold px-2 py-0.5">
+                  <Radio className="h-3 w-3 mr-1 text-cyan-400 animate-pulse" />
+                  LIVE STAGE
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Real-time collaborative room • Session #{sessionId}
+              </p>
+            </div>
+          </div>
+
+          {/* Action Tools */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setGiftModalOpen(true)}
+              className="rounded-xl border-amber-500/40 bg-amber-950/30 text-amber-300 hover:bg-amber-500/20 text-xs font-bold gap-1.5 shadow-sm"
+            >
+              <Coins className="h-4 w-4 text-amber-400" />
+              Split Gift
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => setHistoryOpen(true)}
+              className="rounded-xl border-cyan-500/40 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-500/20 text-xs font-bold gap-1.5 shadow-sm"
+            >
+              <History className="h-4 w-4 text-cyan-400" />
+              History
+              {versions.length > 0 && (
+                <Badge className="bg-cyan-500 text-black text-[10px] px-1.5 py-0 rounded-full font-extrabold ml-1">
+                  {versions.length}
+                </Badge>
+              )}
+            </Button>
+
+            {/* Slide-In Chat Toggle Button */}
+            <Button
+              onClick={() => setIsChatOpen(!isChatOpen)}
+              className={`rounded-xl text-xs font-bold gap-1.5 transition-all shadow-md ${
+                isChatOpen
+                  ? "bg-cyan-500 text-black hover:bg-cyan-400"
+                  : "border border-cyan-500/50 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-500/20"
+              }`}
+            >
+              <MessageSquare className="h-4 w-4" />
+              In-Studio Chat
+              {unreadChatCount > 0 && !isChatOpen && (
+                <Badge className="bg-rose-500 text-white text-[10px] px-1.5 py-0 rounded-full font-black animate-bounce">
+                  {unreadChatCount}
+                </Badge>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* PRESENCE STAGE ORBS ("Sitting Around the Table") */}
+        <div className="relative rounded-3xl border border-cyan-500/20 bg-gradient-to-b from-[#0a1128]/90 via-[#060b18]/80 to-[#080e22]/90 p-4 sm:p-6 backdrop-blur-xl shadow-inner">
+          <div className="flex items-center justify-between mb-4 border-b border-cyan-500/20 pb-2">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-cyan-400" />
+              <span className="text-xs font-extrabold tracking-wider uppercase text-cyan-300">
+                Collaborators Around the Room ({activeParticipants.length})
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 hidden sm:block italic">
+              Avatars pulse live as creators co-write together
             </p>
           </div>
-        </div>
 
-        {/* Active Collaborators, Invites & Version History Bar */}
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() => setInviteModalOpen(true)}
-            className="rounded-xl border-cyan-500/50 bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-cyan-300 hover:bg-cyan-500/30 text-xs font-bold gap-1.5 shadow-md shadow-cyan-500/10"
-          >
-            <UserPlus className="h-4 w-4 text-cyan-400 animate-bounce" />
-            Invite Collaborator
-          </Button>
+          {/* Glowing Orbs Grid/Arc */}
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 py-2">
+            {activeParticipants.map((participant, idx) => {
+              const isMe = participant.id === user.id
+              const orbColor = AVATAR_COLORS[idx % AVATAR_COLORS.length]
 
-          <Button
-            variant="outline"
-            onClick={() => setGiftModalOpen(true)}
-            className="rounded-xl border-amber-500/40 bg-amber-950/30 text-amber-300 hover:bg-amber-500/20 text-xs font-bold gap-1.5 shadow-sm"
-          >
-            <Coins className="h-4 w-4 text-amber-400" />
-            Gift Co-Loop
-          </Button>
+              return (
+                <div
+                  key={participant.id}
+                  className="group relative flex flex-col items-center transition-all duration-300 hover:scale-105"
+                >
+                  {/* Glowing Aura Orb Ring */}
+                  <div className="relative">
+                    <div
+                      className="absolute -inset-1.5 rounded-full blur-md opacity-75 group-hover:opacity-100 transition-opacity animate-pulse"
+                      style={{ backgroundColor: orbColor }}
+                    />
+                    <Avatar className="relative h-14 w-14 sm:h-16 sm:w-16 border-2 border-white/20 ring-4 ring-cyan-500/50 shadow-2xl">
+                      <AvatarImage src={participant.avatar_url || undefined} />
+                      <AvatarFallback className="bg-gradient-to-tr from-cyan-600 via-indigo-600 to-purple-600 text-white font-black text-lg">
+                        {participant.display_name?.charAt(0) || "C"}
+                      </AvatarFallback>
+                    </Avatar>
 
-          <Button
-            variant="outline"
-            onClick={() => setHistoryOpen(true)}
-            className="rounded-xl border-cyan-500/40 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-500/20 text-xs font-bold gap-1.5 shadow-sm"
-          >
-            <History className="h-4 w-4 text-cyan-400" />
-            Version History
-            {versions.length > 0 && (
-              <Badge className="bg-cyan-500 text-black text-[10px] px-1.5 py-0 rounded-full font-extrabold ml-1">
-                {versions.length}
-              </Badge>
-            )}
-          </Button>
+                    {/* Role / Crown Badge */}
+                    {participant.isCreator ? (
+                      <div className="absolute -top-1 -right-1 bg-amber-500 text-black p-1 rounded-full shadow-lg border border-amber-300">
+                        <Crown className="h-3 w-3" />
+                      </div>
+                    ) : (
+                      <div className="absolute -bottom-1 -right-1 bg-cyan-500 text-black px-1.5 py-0.5 rounded-full text-[9px] font-black border border-cyan-200">
+                        Co
+                      </div>
+                    )}
+                  </div>
 
-          <div className="flex items-center gap-3 bg-muted/40 border border-border/60 rounded-xl px-3 py-1.5">
-            <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-              <Users className="h-4 w-4 text-cyan-400" />
-              Active ({collaborators.length || 1}/4):
-            </span>
-            <div className="flex items-center -space-x-2 overflow-hidden">
-              <Avatar className="h-8 w-8 ring-2 ring-cyan-500">
-                <AvatarImage src={user.avatar_url} />
-                <AvatarFallback>{(user.display_name || user.username || "U").charAt(0)}</AvatarFallback>
-              </Avatar>
-              {collaborators
-                .filter((c) => c.id !== user.id)
-                .map((collab) => (
-                  <Avatar key={collab.id} className="h-8 w-8 ring-2 ring-purple-500" title={collab.display_name}>
-                    <AvatarImage src={collab.avatar_url} />
-                    <AvatarFallback>{collab.display_name?.charAt(0) || "C"}</AvatarFallback>
-                  </Avatar>
-                ))}
-            </div>
+                  {/* Name Tag */}
+                  <div className="mt-2 text-center max-w-[100px]">
+                    <p className="text-xs font-extrabold text-white truncate">
+                      {participant.display_name} {isMe && "(You)"}
+                    </p>
+                    <p className="text-[10px] text-cyan-300/80 truncate">@{participant.username}</p>
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* Quick Invite Orb Button */}
+            <button
+              type="button"
+              onClick={() => setInviteModalOpen(true)}
+              className="group flex flex-col items-center justify-center transition-all hover:scale-105"
+            >
+              <div className="relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full border-2 border-dashed border-cyan-400/60 bg-cyan-950/30 text-cyan-300 hover:border-cyan-300 hover:bg-cyan-500/20 shadow-lg">
+                <Plus className="h-6 w-6 group-hover:scale-110 transition-transform" />
+              </div>
+              <span className="mt-2 text-xs font-bold text-cyan-300">Add Co-Author</span>
+            </button>
+
+            {/* Quick Link Orb Button */}
+            <button
+              type="button"
+              onClick={handleCopyInviteLink}
+              className="group flex flex-col items-center justify-center transition-all hover:scale-105"
+            >
+              <div className="relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full border-2 border-slate-700 bg-slate-900/60 text-slate-300 hover:border-cyan-400 hover:text-cyan-300 shadow-lg">
+                {linkCopied ? <Check className="h-5 w-5 text-emerald-400" /> : <Copy className="h-5 w-5" />}
+              </div>
+              <span className="mt-2 text-xs font-bold text-slate-300">{linkCopied ? "Copied Link!" : "Copy Invite"}</span>
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Main Studio Grid: Left Editor & Right Chat/Co-Authors */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Editor Area (2 cols) */}
-        <div className="lg:col-span-2 space-y-5">
-          <Card className="border-border/60 bg-card p-5 space-y-4 shadow-sm">
-            <div className="flex items-center justify-between border-b border-border/60 pb-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5" /> Co-Loop Editor
-              </span>
-              <span className="text-[11px] text-muted-foreground italic">
-                Changes sync live across all collaborators
-              </span>
+        {/* FLOATING GLASS PANEL EDITOR (CENTERED CANVAS) */}
+        <div className="relative mx-auto max-w-4xl">
+          <Card className="border-cyan-500/30 bg-[#080d1e]/85 p-5 sm:p-8 backdrop-blur-2xl shadow-[0_0_60px_rgba(6,182,212,0.12)] rounded-3xl space-y-6 text-slate-100">
+            {/* Live Synchronized Notice */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-cyan-400 animate-pulse" />
+                <span className="text-xs font-black uppercase tracking-wider text-cyan-300">
+                  Interactive Collaborative Canvas
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3 text-xs text-slate-400">
+                <span>{wordCount} words</span>
+                <span>•</span>
+                <span>{charCount} characters</span>
+              </div>
             </div>
 
-            {/* Optional Title Input */}
-            <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
+            {/* Post Title Field */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
                 Co-Loop Title (Optional)
               </label>
               <Input
                 value={postTitle}
                 onChange={(e) => handleTitleChange(e.target.value)}
-                placeholder="e.g. Next-Gen AI Social Architecture..."
-                className="rounded-xl border-border bg-muted/40 text-sm font-semibold"
+                placeholder="e.g. Next-Gen Collaborative Social OS..."
+                className="rounded-2xl border-white/10 bg-slate-950/60 text-base font-bold text-white placeholder:text-slate-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30 h-12"
               />
             </div>
 
-            {/* Post Content Input */}
-            <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
-                Post Content
+            {/* Main Content Area */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                Story / Post Content
               </label>
               <Textarea
                 value={postContent}
                 onChange={(e) => handleContentChange(e.target.value)}
-                placeholder="Co-write your story, insights, or code snippet live..."
-                className="min-h-[180px] rounded-xl border-border bg-muted/40 text-sm leading-relaxed"
+                placeholder="Co-author your story, announcement, or code snippet live in real-time..."
+                className="min-h-[220px] rounded-2xl border-white/10 bg-slate-950/60 text-sm sm:text-base leading-relaxed text-slate-100 placeholder:text-slate-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30 p-4"
               />
             </div>
 
-            {/* Hashtags Input */}
-            <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
-                Hashtags
-              </label>
-              <div className="flex items-center gap-2 mb-2">
-                <Input
-                  value={hashtagInput}
-                  onChange={(e) => setHashtagInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddHashtag())}
-                  placeholder="e.g. #CoLoop #Tech"
-                  className="rounded-xl border-border bg-muted/40 text-xs"
-                />
-                <Button type="button" onClick={handleAddHashtag} variant="secondary" size="sm" className="rounded-xl">
-                  Add
-                </Button>
+            {/* Hashtags & Media Rows */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              {/* Hashtags */}
+              <div className="space-y-2">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                  Hashtags
+                </label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={hashtagInput}
+                    onChange={(e) => setHashtagInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddHashtag())}
+                    placeholder="e.g. #CoLoop #Innovation"
+                    className="rounded-xl border-white/10 bg-slate-950/60 text-xs h-9"
+                  />
+                  <Button type="button" onClick={handleAddHashtag} size="sm" className="rounded-xl bg-cyan-600 text-white font-bold h-9">
+                    Add
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 min-h-[28px]">
+                  {hashtags.map((tag) => (
+                    <Badge
+                      key={tag}
+                      className="bg-cyan-500/20 text-cyan-300 border-cyan-500/40 text-xs py-1 px-2.5 rounded-lg flex items-center gap-1"
+                    >
+                      #{tag}
+                      <button type="button" onClick={() => handleRemoveHashtag(tag)} className="hover:text-rose-400 ml-1">
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {hashtags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    className="bg-cyan-500/20 text-cyan-300 border-cyan-500/30 text-xs py-1 px-2.5 rounded-lg flex items-center gap-1"
-                  >
-                    #{tag}
-                    <button type="button" onClick={() => handleRemoveHashtag(tag)} className="hover:text-rose-400">
-                      ×
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            </div>
 
-            {/* Media Attachment */}
-            <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
-                Media URL (Image / Video)
-              </label>
-              <div className="flex items-center gap-2">
+              {/* Media URL */}
+              <div className="space-y-2">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                  Media Attachment URL
+                </label>
                 <Input
                   value={mediaUrl}
                   onChange={(e) => {
                     setMediaUrl(e.target.value)
                     broadcastDocUpdate({ mediaUrl: e.target.value })
                   }}
-                  placeholder="https://images.unsplash.com/photo-..."
-                  className="rounded-xl border-border bg-muted/40 text-xs"
+                  placeholder="https://images.unsplash.com/..."
+                  className="rounded-xl border-white/10 bg-slate-950/60 text-xs h-9"
                 />
-                <Button
-                  type="button"
-                  variant={mediaType === "image" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setMediaType("image")
-                    broadcastDocUpdate({ mediaType: "image" })
-                  }}
-                  className="rounded-xl text-xs"
-                >
-                  Image
-                </Button>
-                <Button
-                  type="button"
-                  variant={mediaType === "video" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setMediaType("video")
-                    broadcastDocUpdate({ mediaType: "video" })
-                  }}
-                  className="rounded-xl text-xs"
-                >
-                  Video
-                </Button>
-              </div>
-            </div>
-
-            {/* Publish Action Button */}
-            <div className="pt-3 border-t border-border/60 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                Stacked co-authors will receive post credits
-              </div>
-              <Button
-                onClick={handlePublishCoLoop}
-                disabled={publishing}
-                className="rounded-xl bg-gradient-to-r from-cyan-500 via-teal-500 to-indigo-600 font-bold text-white shadow-lg shadow-cyan-500/25 px-6"
-              >
-                {publishing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Publishing...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" /> Publish Co-Loop
-                  </>
-                )}
-              </Button>
-            </div>
-          </Card>
-        </div>
-
-        {/* Right Side Panel: In-Studio Chat & Co-Authors List */}
-        <div className="space-y-5">
-          {/* Co-Authors Manager */}
-          <Card className="border-border/60 bg-card p-4 space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5 text-purple-400" />
-              Co-Authors Roster ({coAuthors.length + 1})
-            </h3>
-
-            <div className="space-y-2">
-              {/* Creator */}
-              <div className="flex items-center justify-between rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-2.5">
-                <div className="flex items-center gap-2.5">
-                  <Avatar className="h-8 w-8 ring-2 ring-cyan-500">
-                    <AvatarImage src={user.avatar_url} />
-                    <AvatarFallback>{(user.display_name || user.username).charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-xs font-bold">{user.display_name || user.username}</p>
-                    <p className="text-[10px] text-cyan-400 font-semibold">Primary Creator</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Added Co-authors */}
-              {coAuthors.map((ca) => (
-                <div key={ca.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 p-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <Avatar className="h-8 w-8 ring-2 ring-purple-500">
-                      <AvatarImage src={ca.avatar_url} />
-                      <AvatarFallback>{ca.display_name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-xs font-bold">{ca.display_name}</p>
-                      <p className="text-[10px] text-muted-foreground">@{ca.username}</p>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2">
                   <Button
-                    size="icon"
-                    variant="ghost"
+                    type="button"
+                    variant={mediaType === "image" ? "default" : "outline"}
+                    size="sm"
                     onClick={() => {
-                      const updated = coAuthors.filter((c) => c.id !== ca.id)
-                      setCoAuthors(updated)
-                      broadcastDocUpdate({ coAuthors: updated })
+                      setMediaType("image")
+                      broadcastDocUpdate({ mediaType: "image" })
                     }}
-                    className="h-7 w-7 text-muted-foreground hover:text-rose-400"
+                    className={`rounded-xl text-xs h-7 ${mediaType === "image" ? "bg-cyan-500 text-black font-bold" : "border-white/10 text-slate-300"}`}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    Image
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={mediaType === "video" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      setMediaType("video")
+                      broadcastDocUpdate({ mediaType: "video" })
+                    }}
+                    className={`rounded-xl text-xs h-7 ${mediaType === "video" ? "bg-cyan-500 text-black font-bold" : "border-white/10 text-slate-300"}`}
+                  >
+                    Video
                   </Button>
                 </div>
-              ))}
+              </div>
             </div>
 
-            {/* Add Co-author input with live suggestions */}
-            <div className="relative pt-1">
-              <div className="flex items-center gap-2">
-                <Input
-                  value={invitedUserInput}
-                  onChange={(e) => setInvitedUserInput(e.target.value)}
-                  onFocus={() => invitedUserInput.trim() && setShowSuggestions(true)}
-                  placeholder="Search @username to send invite..."
-                  className="rounded-xl border-border bg-muted/40 text-xs h-8"
-                />
-                <Button onClick={() => setInviteModalOpen(true)} size="sm" variant="outline" className="rounded-xl text-xs h-8 shrink-0 gap-1 border-cyan-500/40 text-cyan-400">
-                  <UserPlus className="h-3.5 w-3.5" /> Invite
+            {/* CEREMONIAL PUBLISH BAR */}
+            <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-xs text-slate-300">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                <span>Stacked co-author credits will display on feed with +50 activation bonus</span>
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  onClick={() => handleSaveSnapshot()}
+                  variant="outline"
+                  className="rounded-xl border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/10 text-xs font-bold h-11"
+                >
+                  Save Snapshot
+                </Button>
+
+                <Button
+                  onClick={handlePublishCoLoop}
+                  disabled={publishing}
+                  className="flex-1 sm:flex-initial rounded-xl bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-600 text-white font-extrabold shadow-xl shadow-cyan-500/25 px-8 h-11 hover:scale-105 transition-all"
+                >
+                  {publishing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Publishing...
+                    </>
+                  ) : (
+                    <>
+                      <Rocket className="mr-2 h-4 w-4" /> Publish Co-Loop
+                    </>
+                  )}
                 </Button>
               </div>
-
-              {/* Suggestions Dropdown Overlay */}
-              {showSuggestions && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl border border-cyan-500/30 bg-card/95 p-1.5 shadow-xl backdrop-blur-md space-y-1 max-h-48 overflow-y-auto">
-                  {searchingUsers ? (
-                    <div className="flex items-center justify-center py-2 text-xs text-muted-foreground gap-2">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-400" />
-                      Searching creators...
-                    </div>
-                  ) : userSuggestions.length === 0 ? (
-                    <p className="p-2 text-xs text-muted-foreground text-center italic">No matching creators found</p>
-                  ) : (
-                    userSuggestions.map((u) => (
-                      <button
-                        key={u.id}
-                        type="button"
-                        onClick={() => handleSendInviteToUser(u)}
-                        className="w-full flex items-center justify-between rounded-lg p-1.5 text-left text-xs hover:bg-cyan-500/10 transition-colors"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={u.avatar_url} />
-                            <AvatarFallback className="text-[10px] bg-cyan-500/20 text-cyan-300">
-                              {(u.display_name || u.username || "U").charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-bold truncate text-foreground">{u.display_name || u.username}</p>
-                            <p className="text-[10px] text-muted-foreground truncate">@{u.username}</p>
-                          </div>
-                        </div>
-                        <Badge variant="outline" className="text-[9px] border-cyan-500/30 text-cyan-400 font-bold shrink-0">
-                          Send Invite
-                        </Badge>
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
             </div>
-          </Card>
-
-          {/* In-Studio Chat Panel */}
-          <Card className="border-border/60 bg-card p-4 flex flex-col h-[380px]">
-            <div className="flex items-center justify-between border-b border-border/60 pb-2 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <MessageSquare className="h-3.5 w-3.5 text-cyan-400" />
-                In-Studio Chat
-              </span>
-              <span className="text-[10px] text-muted-foreground font-semibold">Real-time</span>
-            </div>
-
-            <ScrollArea className="flex-1 pr-2">
-              <div className="space-y-3 py-1">
-                {chatMessages.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-8 italic">
-                    No messages yet. Brainstorm ideas live with your co-authors!
-                  </p>
-                ) : (
-                  chatMessages.map((msg) => {
-                    const isMe = msg.sender_id === user.id
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex gap-2 text-xs ${isMe ? "flex-row-reverse" : "flex-row"}`}
-                      >
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={msg.sender_avatar} />
-                          <AvatarFallback>{msg.sender_name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div
-                          className={`rounded-xl px-3 py-2 max-w-[80%] ${
-                            isMe
-                              ? "bg-cyan-500 text-black font-medium"
-                              : "bg-muted border border-border/60 text-foreground"
-                          }`}
-                        >
-                          <p className="text-[10px] font-bold opacity-75">{msg.sender_name}</p>
-                          <p className="text-xs">{msg.text}</p>
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-                <div ref={chatEndRef} />
-              </div>
-            </ScrollArea>
-
-            <form onSubmit={handleSendChatMessage} className="flex gap-2 pt-2 border-t border-border/60 mt-2">
-              <Input
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Discuss post..."
-                className="rounded-xl border-border bg-muted/40 text-xs h-8"
-              />
-              <Button type="submit" size="icon" className="rounded-xl h-8 w-8 bg-cyan-500 text-black hover:bg-cyan-400">
-                <Send className="h-3.5 w-3.5" />
-              </Button>
-            </form>
           </Card>
         </div>
       </div>
+
+      {/* SLIDE-IN SIDE CHAT THREAD DRAWER */}
+      <div
+        className={`fixed inset-y-0 right-0 z-50 w-80 sm:w-96 border-l border-cyan-500/30 bg-[#080d1e]/95 backdrop-blur-2xl shadow-2xl p-4 flex flex-col transition-transform duration-300 ease-in-out ${
+          isChatOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-cyan-400" />
+            <h3 className="text-sm font-extrabold text-white">In-Studio Thread</h3>
+          </div>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setIsChatOpen(false)}
+            className="h-8 w-8 text-slate-400 hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <ScrollArea className="flex-1 py-4 pr-2">
+          <div className="space-y-3">
+            {chatMessages.length === 0 ? (
+              <div className="text-center py-12 px-4 text-slate-400 space-y-2">
+                <Sparkles className="h-8 w-8 text-cyan-400 mx-auto animate-pulse" />
+                <p className="text-xs font-semibold">No thread messages yet.</p>
+                <p className="text-[11px] text-slate-500">
+                  Discuss ideas live with your co-authors sitting in the room!
+                </p>
+              </div>
+            ) : (
+              chatMessages.map((msg) => {
+                const isMe = msg.sender_id === user.id
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex gap-2 text-xs ${isMe ? "flex-row-reverse" : "flex-row"}`}
+                  >
+                    <Avatar className="h-7 w-7 border border-cyan-500/30">
+                      <AvatarImage src={msg.sender_avatar} />
+                      <AvatarFallback className="bg-cyan-600 text-white font-bold text-xs">
+                        {msg.sender_name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div
+                      className={`rounded-2xl px-3.5 py-2.5 max-w-[82%] shadow-md ${
+                        isMe
+                          ? "bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-medium"
+                          : "bg-slate-900 border border-white/10 text-slate-100"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <span className="text-[10px] font-bold opacity-80">{msg.sender_name}</span>
+                        <span className="text-[9px] opacity-60">{msg.timestamp}</span>
+                      </div>
+                      <p className="text-xs leading-relaxed">{msg.text}</p>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+            <div ref={chatEndRef} />
+          </div>
+        </ScrollArea>
+
+        {/* Chat Input Form */}
+        <form onSubmit={handleSendChatMessage} className="pt-2 border-t border-white/10 flex gap-2">
+          <Input
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            placeholder="Type message to room..."
+            className="rounded-xl border-white/10 bg-slate-900 text-white text-xs h-10"
+          />
+          <Button type="submit" className="rounded-xl bg-cyan-500 text-black hover:bg-cyan-400 font-bold h-10 px-4">
+            <Send className="h-4 w-4" />
+          </Button>
+        </form>
+      </div>
+
+      {/* CEREMONIAL PUBLISH CELEBRATION MODAL */}
+      <Dialog open={publishCeremonyOpen} onOpenChange={setPublishCeremonyOpen}>
+        <DialogContent className="sm:max-w-lg border-cyan-500/40 bg-[#080d1e] text-slate-100 p-6 overflow-hidden">
+          {/* Background Ring Effects */}
+          <div className="pointer-events-none absolute -inset-10 rounded-full border border-cyan-500/30 animate-ping opacity-20" />
+          <div className="pointer-events-none absolute -inset-20 rounded-full border border-purple-500/20 animate-pulse opacity-20" />
+
+          <DialogHeader className="text-center space-y-3 relative z-10">
+            <div className="flex justify-center">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-400 via-indigo-600 to-purple-600 shadow-2xl shadow-cyan-500/50">
+                <Rocket className="h-10 w-10 text-white animate-bounce" />
+              </div>
+            </div>
+
+            <DialogTitle className="text-2xl font-black text-white tracking-tight">
+              Co-Loop Broadcasted Live! 🚀
+            </DialogTitle>
+            <DialogDescription className="text-slate-300 text-xs sm:text-sm">
+              Your collaborative creation is officially published to the community feed with stacked co-author credit!
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3 relative z-10">
+            {/* Reward Highlight */}
+            <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-950/60 via-amber-900/30 to-amber-950/60 p-3.5 text-center shadow-lg">
+              <p className="text-xs font-bold text-amber-300 flex items-center justify-center gap-1.5">
+                <Coins className="h-4 w-4 text-amber-400" />
+                Collaboration Bonus Unlocked!
+              </p>
+              <p className="text-xs text-amber-200/90 mt-1">
+                +50 Loop Coins awarded to all {publishedLoopData?.coAuthorsCount || coAuthors.length + 1} active co-authors!
+              </p>
+            </div>
+
+            {/* Stacked Co-Authors Credit */}
+            <div className="rounded-2xl border border-cyan-500/30 bg-slate-900/80 p-3.5 space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-cyan-300">Official Co-Authors</p>
+              <div className="flex items-center -space-x-3 overflow-hidden py-1">
+                <Avatar className="h-9 w-9 ring-2 ring-cyan-400">
+                  <AvatarImage src={user.avatar_url} />
+                  <AvatarFallback className="bg-cyan-600 font-bold">{user.username?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                {coAuthors.map((ca) => (
+                  <Avatar key={ca.id} className="h-9 w-9 ring-2 ring-purple-500">
+                    <AvatarImage src={ca.avatar_url} />
+                    <AvatarFallback className="bg-purple-600 font-bold">{ca.display_name?.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col gap-2 pt-2">
+              <Button
+                onClick={() => {
+                  setPublishCeremonyOpen(false)
+                  router.push("/")
+                }}
+                className="w-full bg-gradient-to-r from-cyan-500 via-indigo-600 to-purple-600 text-white font-bold h-11 rounded-xl shadow-lg shadow-cyan-500/25"
+              >
+                View in Community Feed <ExternalLink className="ml-2 h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPublishCeremonyOpen(false)
+                  setPostTitle("")
+                  setPostContent("")
+                }}
+                className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 rounded-xl h-10 text-xs"
+              >
+                Start Another Co-Loop Session
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Version History Sidebar Drawer */}
       <CoLoopVersionHistory
@@ -1075,21 +1194,21 @@ export function CoLoopStudio() {
 
       {/* Invite Collaborator Dialog */}
       <Dialog open={inviteModalOpen} onOpenChange={setInviteModalOpen}>
-        <DialogContent className="sm:max-w-md border-cyan-500/40 bg-card">
+        <DialogContent className="sm:max-w-md border-cyan-500/40 bg-[#080d1e] text-slate-100">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-cyan-400">
               <UserPlus className="h-5 w-5" /> Invite Collaborator to Co-Loop
             </DialogTitle>
-            <DialogDescription className="text-xs">
-              Generate a shareable live session link or search a creator to send an invitation via DM and Notification. (Invitations require acceptance before co-author credit is added).
+            <DialogDescription className="text-xs text-slate-400">
+              Generate a shareable live session link or search a creator to send an invitation via DM and Notification.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             {/* Shareable Link Box */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
-                Shareable Session Link
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+                Shareable Asymmetric Session Link
               </label>
               <div className="flex items-center gap-2">
                 <Input
@@ -1099,7 +1218,7 @@ export function CoLoopStudio() {
                       ? `${window.location.origin}/co-loop/join/${sessionId}${user?.username ? `?invitedBy=${encodeURIComponent(user.username)}` : ""}`
                       : ""
                   }
-                  className="rounded-xl border-cyan-500/30 bg-muted/50 text-xs font-mono"
+                  className="rounded-xl border-cyan-500/30 bg-slate-900 text-xs font-mono text-cyan-200"
                 />
                 <Button
                   onClick={handleCopyInviteLink}
@@ -1113,7 +1232,7 @@ export function CoLoopStudio() {
 
             {/* Direct DM Search */}
             <div className="space-y-1.5 relative">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
                 Invite via DM & Notification
               </label>
               <Input
@@ -1121,11 +1240,11 @@ export function CoLoopStudio() {
                 onChange={(e) => setInvitedUserInput(e.target.value)}
                 onFocus={() => invitedUserInput.trim() && setShowSuggestions(true)}
                 placeholder="Search @username..."
-                className="rounded-xl border-border bg-muted/40 text-xs"
+                className="rounded-xl border-white/10 bg-slate-900 text-xs"
               />
 
               {showSuggestions && userSuggestions.length > 0 && (
-                <div className="rounded-xl border border-cyan-500/30 bg-card p-2 space-y-1 shadow-xl max-h-48 overflow-y-auto">
+                <div className="rounded-xl border border-cyan-500/30 bg-slate-900 p-2 space-y-1 shadow-xl max-h-48 overflow-y-auto">
                   {userSuggestions.map((u) => (
                     <div
                       key={u.id}
@@ -1138,7 +1257,7 @@ export function CoLoopStudio() {
                         </Avatar>
                         <div>
                           <p className="font-bold">{u.display_name || u.username}</p>
-                          <p className="text-[10px] text-muted-foreground">@{u.username}</p>
+                          <p className="text-[10px] text-slate-400">@{u.username}</p>
                         </div>
                       </div>
                       <Button
@@ -1160,13 +1279,13 @@ export function CoLoopStudio() {
 
       {/* Split Gift Dialog */}
       <Dialog open={giftModalOpen} onOpenChange={setGiftModalOpen}>
-        <DialogContent className="sm:max-w-md border-amber-500/40 bg-card">
+        <DialogContent className="sm:max-w-md border-amber-500/40 bg-[#080d1e] text-slate-100">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-400">
               <Coins className="h-5 w-5" /> Co-Loop Split Gift 🎁
             </DialogTitle>
-            <DialogDescription className="text-xs">
-              Gift Loop Coins to this Co-Loop! Coins will be split equally among all ({coAuthors.length + 1}) active co-authors on this session.
+            <DialogDescription className="text-xs text-slate-400">
+              Gift Loop Coins to this Co-Loop! Coins will be split equally among all ({coAuthors.length + 1}) active co-authors sitting in the room.
             </DialogDescription>
           </DialogHeader>
 
@@ -1179,12 +1298,12 @@ export function CoLoopStudio() {
                     key={amount}
                     disabled={isSendingGift}
                     onClick={() => handleSendSplitGift(amount)}
-                    className="flex flex-col items-center justify-center h-20 rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-950/40 via-card to-amber-900/20 hover:border-amber-400 text-amber-300 font-bold"
+                    className="flex flex-col items-center justify-center h-20 rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-950/40 via-slate-900 to-amber-900/20 hover:border-amber-400 text-amber-300 font-bold"
                   >
                     <span className="text-lg font-extrabold flex items-center gap-1">
                       <Coins className="h-4 w-4 text-amber-400" /> {amount} Coins
                     </span>
-                    <span className="text-[10px] text-muted-foreground mt-0.5">
+                    <span className="text-[10px] text-slate-400 mt-0.5">
                       ({perAuthor} coins each)
                     </span>
                   </Button>
