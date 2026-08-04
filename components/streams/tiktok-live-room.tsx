@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import { createClient, type RealtimeChannel } from "@supabase/supabase-js"
 import {
   ArrowLeft,
-  Camera,
   Eye,
   Gift,
   Heart,
