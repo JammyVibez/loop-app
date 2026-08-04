@@ -180,6 +180,23 @@ CREATE INDEX IF NOT EXISTS idx_withdrawals_status ON withdrawals(status);
 CREATE INDEX IF NOT EXISTS idx_withdrawals_requested_at ON withdrawals(requested_at DESC);
 
 -- =============================================
+-- 8b. Create co_loop_sessions table
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS co_loop_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id TEXT UNIQUE NOT NULL,
+    owner_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    owner_username TEXT,
+    title TEXT DEFAULT 'Untitled Co-Loop',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_co_loop_sessions_session_id ON co_loop_sessions(session_id);
+CREATE INDEX IF NOT EXISTS idx_co_loop_sessions_owner_id ON co_loop_sessions(owner_id);
+
+-- =============================================
 -- 9. Create reels table
 -- =============================================
 

@@ -178,6 +178,48 @@ export function CoLoopStudio() {
     return () => clearTimeout(timer)
   }, [invitedUserInput])
 
+  // Session Owner State
+  const [sessionOwner, setSessionOwner] = useState<{ id?: string; username?: string; display_name?: string } | null>(null)
+
+  // Fetch Session Info to identify Primary Creator vs Co-Author
+  useEffect(() => {
+    const fetchSessionInfo = async () => {
+      try {
+        const invitedByParam = searchParams.get("invitedBy") || ""
+        const authHeaders = getAuthHeader()
+        const res = await fetch(
+          `/api/co-loop/session-info?session=${encodeURIComponent(sessionId)}&invitedBy=${encodeURIComponent(invitedByParam)}`,
+          { headers: authHeaders }
+        )
+        const data = await res.json()
+
+        if (data.inviter && (data.inviter.id || data.inviter.username)) {
+          setSessionOwner(data.inviter)
+        } else if (user && !searchParams.get("invited") && !searchParams.get("invitedBy")) {
+          setSessionOwner({
+            id: user.id,
+            username: user.username,
+            display_name: user.display_name || user.username,
+          })
+        }
+      } catch (err) {
+        console.error("Session info fetch error:", err)
+      }
+    }
+    fetchSessionInfo()
+  }, [sessionId, searchParams, user, getAuthHeader])
+
+  // Determine if current logged in user is the Primary Creator / Owner
+  const isOwner = Boolean(
+    user?.id && sessionOwner?.id
+      ? sessionOwner.id === user.id
+      : user?.username && sessionOwner?.username
+      ? sessionOwner.username.toLowerCase() === user.username.toLowerCase()
+      : !searchParams.get("invited") && !searchParams.get("invitedBy")
+  )
+
+  const currentUserRole = isOwner ? "Primary Creator" : "Co-Author"
+
   // Initialize Supabase Client
   useEffect(() => {
     supabaseRef.current = createClient(
@@ -213,12 +255,26 @@ export function CoLoopStudio() {
           }
         })
         setCollaborators(activeUsers)
+
+        // Automatically list active non-owner participants as co-authors
+        const coAuthList = activeUsers.filter(
+          (u) => u.role === "Co-Author" || (sessionOwner?.id && u.id !== sessionOwner.id)
+        )
+        if (coAuthList.length > 0) {
+          setCoAuthors((prev) => {
+            const map = new Map<string, Collaborator>()
+            prev.forEach((c) => map.set(c.id, c))
+            coAuthList.forEach((c) => map.set(c.id, { ...c, role: "Co-Author" }))
+            return Array.from(map.values())
+          })
+        }
       })
       .on("presence", { event: "join" }, ({ newPresences }: any) => {
         if (newPresences?.[0]?.display_name) {
+          const joinedUser = newPresences[0]
           toast({
-            title: "Collaborator Entered Room! 🚀",
-            description: `${newPresences[0].display_name} joined the live studio table.`,
+            title: `${joinedUser.role === "Primary Creator" ? "Primary Creator" : "Co-Author"} Entered Room! 🚀`,
+            description: `${joinedUser.display_name} joined the live studio table.`,
           })
         }
       })
@@ -227,6 +283,24 @@ export function CoLoopStudio() {
           toast({
             title: "Collaborator Left Room",
             description: `${leftPresences[0].display_name} disconnected from studio.`,
+          })
+        }
+      })
+      // Request doc sync when a co-author enters
+      .on("broadcast", { event: "request-doc-sync" }, () => {
+        if (isOwner && channelRef.current) {
+          channelRef.current.send({
+            type: "broadcast",
+            event: "doc-update",
+            payload: {
+              title: postTitle,
+              content: postContent,
+              hashtags,
+              mediaUrl,
+              mediaUrls,
+              mediaType,
+              coAuthors,
+            },
           })
         }
       })
@@ -242,7 +316,7 @@ export function CoLoopStudio() {
           setCoAuthors((prev) => {
             const map = new Map<string, Collaborator>()
             prev.forEach((c) => map.set(c.id, c))
-            payload.coAuthors.forEach((c: Collaborator) => map.set(c.id, c))
+            payload.coAuthors.forEach((c: Collaborator) => map.set(c.id, { ...c, role: "Co-Author" }))
             return Array.from(map.values())
           })
         }
@@ -253,7 +327,7 @@ export function CoLoopStudio() {
           setCoAuthors((prev) => {
             if (prev.some((c) => c.id === acceptedUser.id)) return prev
             if (prev.length >= MAX_CO_AUTHORS) return prev
-            const updated = [...prev, acceptedUser]
+            const updated = [...prev, { ...acceptedUser, role: "Co-Author" }]
             toast({
               title: "Invite Accepted! 🎉",
               description: `@${acceptedUser.username} joined as an official co-author!`,
@@ -310,17 +384,26 @@ export function CoLoopStudio() {
             username: user.username || "creator",
             display_name: user.display_name || user.username || "Creator",
             avatar_url: user.avatar_url,
-            role: "Primary Creator",
+            role: currentUserRole,
             color: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
           }
           await channel.track(myProfile)
+
+          // If joining as Co-Author, request current document state from Primary Creator
+          if (!isOwner) {
+            channel.send({
+              type: "broadcast",
+              event: "request-doc-sync",
+              payload: { requesterId: user.id },
+            })
+          }
         }
       })
 
     return () => {
       channel.unsubscribe()
     }
-  }, [user, sessionId, isChatOpen])
+  }, [user, sessionId, isChatOpen, isOwner, currentUserRole, sessionOwner, postTitle, postContent, hashtags, mediaUrl, mediaUrls, mediaType, coAuthors])
 
   // Handle accepting invitation when arriving via invite link
   useEffect(() => {

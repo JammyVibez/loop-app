@@ -84,7 +84,8 @@ export function CoLoopJoinLanding({ sessionId, invitedByUsername }: CoLoopJoinLa
         } catch (err) {
           console.error("Auto reward error:", err)
         } finally {
-          router.replace(`/co-loop/studio?session=${encodeURIComponent(session)}&invited=true&activated=true`)
+          const invBy = inviterUsername || invitedBy || ""
+          router.replace(`/co-loop/studio?session=${encodeURIComponent(session)}&invited=true&activated=true${invBy ? `&invitedBy=${encodeURIComponent(invBy)}` : ""}`)
         }
       }
       autoJoin()
@@ -160,8 +161,9 @@ export function CoLoopJoinLanding({ sessionId, invitedByUsername }: CoLoopJoinLa
         }
       }
 
-      // Route directly to studio
-      router.push(`/co-loop/studio?session=${encodeURIComponent(session)}&invited=true&activated=true`)
+      // Route directly to studio with inviter context
+      const invBy = inviterUsername || invitedBy || ""
+      router.push(`/co-loop/studio?session=${encodeURIComponent(session)}&invited=true&activated=true${invBy ? `&invitedBy=${encodeURIComponent(invBy)}` : ""}`)
     } catch (err: any) {
       setError(err.message || "Authentication failed. Please check your details.")
     } finally {
