@@ -121,6 +121,10 @@ export function CoLoopStudio() {
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [unreadChatCount, setUnreadChatCount] = useState(0)
 
+  // Real-time Typing Status State
+  const [typingUsers, setTypingUsers] = useState<Record<string, { username: string; display_name: string; field: "title" | "content" }>>({})
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   // Ceremonial Publish State
   const [publishCeremonyOpen, setPublishCeremonyOpen] = useState(false)
   const [publishedLoopData, setPublishedLoopData] = useState<any>(null)
@@ -193,6 +197,7 @@ export function CoLoopStudio() {
     mediaUrls: [] as string[],
     mediaType: "text" as "text" | "image" | "video",
     coAuthors: [] as Collaborator[],
+    chatMessages: [] as ChatMessage[],
   })
 
   useEffect(() => {
@@ -204,8 +209,9 @@ export function CoLoopStudio() {
       mediaUrls,
       mediaType,
       coAuthors,
+      chatMessages,
     }
-  }, [postTitle, postContent, hashtags, mediaUrl, mediaUrls, mediaType, coAuthors])
+  }, [postTitle, postContent, hashtags, mediaUrl, mediaUrls, mediaType, coAuthors, chatMessages])
 
   // Fetch Session Info to resolve Primary Creator vs Co-Author
   useEffect(() => {
@@ -359,6 +365,7 @@ export function CoLoopStudio() {
               mediaUrls: st.mediaUrls,
               mediaType: st.mediaType,
               coAuthors: st.coAuthors,
+              chatMessages: st.chatMessages,
             },
           })
         }
@@ -371,6 +378,9 @@ export function CoLoopStudio() {
         if (payload.mediaUrl !== undefined) setMediaUrl(payload.mediaUrl)
         if (payload.mediaUrls !== undefined) setMediaUrls(payload.mediaUrls)
         if (payload.mediaType !== undefined) setMediaType(payload.mediaType)
+        if (payload.chatMessages !== undefined && Array.isArray(payload.chatMessages)) {
+          setChatMessages(payload.chatMessages)
+        }
         if (payload.coAuthors !== undefined) {
           setCoAuthors((prev) => {
             const map = new Map<string, Collaborator>()
@@ -379,6 +389,23 @@ export function CoLoopStudio() {
             return Array.from(map.values())
           })
         }
+      })
+      // Handle Typing Status Broadcast
+      .on("broadcast", { event: "typing-status" }, ({ payload }: any) => {
+        if (!payload?.userId || payload.userId === user?.id) return
+        setTypingUsers((prev) => {
+          const next = { ...prev }
+          if (payload.field) {
+            next[payload.userId] = {
+              username: payload.username || "collaborator",
+              display_name: payload.display_name || payload.username || "Collaborator",
+              field: payload.field,
+            }
+          } else {
+            delete next[payload.userId]
+          }
+          return next
+        })
       })
       .on("broadcast", { event: "co-author-accepted" }, ({ payload }: any) => {
         if (payload?.user) {
@@ -634,14 +661,47 @@ export function CoLoopStudio() {
     })
   }
 
+  // Broadcast Live Typing Signal
+  const sendTypingSignal = (field: "title" | "content") => {
+    if (!channelRef.current || !user) return
+    channelRef.current.send({
+      type: "broadcast",
+      event: "typing-status",
+      payload: {
+        userId: user.id,
+        username: user.username || "creator",
+        display_name: user.display_name || user.username || "Collaborator",
+        field,
+      },
+    })
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    typingTimeoutRef.current = setTimeout(() => {
+      if (channelRef.current && user) {
+        channelRef.current.send({
+          type: "broadcast",
+          event: "typing-status",
+          payload: {
+            userId: user.id,
+            username: user.username || "creator",
+            display_name: user.display_name || user.username || "Collaborator",
+            field: null,
+          },
+        })
+      }
+    }, 2500)
+  }
+
   const handleTitleChange = (val: string) => {
     setPostTitle(val)
     broadcastDocUpdate({ title: val })
+    sendTypingSignal("title")
   }
 
   const handleContentChange = (val: string) => {
     setPostContent(val)
     broadcastDocUpdate({ content: val })
+    sendTypingSignal("content")
   }
 
   const handleAddHashtag = () => {
@@ -1153,17 +1213,28 @@ export function CoLoopStudio() {
             {activeParticipants.map((participant, idx) => {
               const isMe = participant.id === user.id
               const orbColor = AVATAR_COLORS[idx % AVATAR_COLORS.length]
+              const userTyping = typingUsers[participant.id]
 
               return (
                 <div
                   key={participant.id}
                   className="group relative flex flex-col items-center transition-all duration-300 hover:scale-105"
                 >
+                  {/* Typing Indicator Pill on Avatar */}
+                  {userTyping && (
+                    <div className="absolute -top-3 z-30 flex items-center gap-1 rounded-full bg-cyan-400 px-2 py-0.5 text-[9px] font-black text-slate-950 shadow-lg shadow-cyan-500/50 animate-bounce">
+                      <span>✍️</span>
+                      <span>{userTyping.field === "title" ? "Title" : "Writing"}</span>
+                    </div>
+                  )}
+
                   {/* Glowing Aura Orb Ring */}
                   <div className="relative">
                     <div
-                      className="absolute -inset-1.5 rounded-full blur-md opacity-75 group-hover:opacity-100 transition-opacity animate-pulse"
-                      style={{ backgroundColor: orbColor }}
+                      className={`absolute -inset-1.5 rounded-full blur-md transition-opacity ${
+                        userTyping ? "opacity-100 bg-cyan-400 animate-ping" : "opacity-75 group-hover:opacity-100 animate-pulse"
+                      }`}
+                      style={{ backgroundColor: userTyping ? "#22d3ee" : orbColor }}
                     />
                     <Avatar className="relative h-14 w-14 sm:h-16 sm:w-16 border-2 border-white/20 ring-4 ring-cyan-500/50 shadow-2xl">
                       <AvatarImage src={participant.avatar_url || undefined} />
@@ -1189,7 +1260,13 @@ export function CoLoopStudio() {
                     <p className="text-xs font-extrabold text-white truncate">
                       {participant.display_name} {isMe && "(You)"}
                     </p>
-                    <p className="text-[10px] text-cyan-300/80 truncate">@{participant.username}</p>
+                    <p className="text-[10px] text-cyan-300/80 truncate">
+                      {userTyping ? (
+                        <span className="text-cyan-400 font-bold animate-pulse">typing...</span>
+                      ) : (
+                        `@${participant.username}`
+                      )}
+                    </p>
                   </div>
                 </div>
               )
@@ -1257,9 +1334,23 @@ export function CoLoopStudio() {
 
             {/* Post Title Field */}
             <div className="space-y-1.5">
-              <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                Co-Loop Title (Optional)
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                  Co-Loop Title (Optional)
+                </label>
+                {Object.values(typingUsers).filter((u) => u.field === "title").length > 0 && (
+                  <span className="flex items-center gap-1.5 text-[11px] font-black text-cyan-300 bg-cyan-950/80 border border-cyan-500/50 rounded-full px-2.5 py-0.5 animate-pulse">
+                    <span className="inline-block animate-bounce">✍️</span>
+                    <span>
+                      {Object.values(typingUsers)
+                        .filter((u) => u.field === "title")
+                        .map((u) => `@${u.username}`)
+                        .join(", ")}{" "}
+                      is typing title...
+                    </span>
+                  </span>
+                )}
+              </div>
               <Input
                 value={postTitle}
                 onChange={(e) => handleTitleChange(e.target.value)}
@@ -1270,9 +1361,23 @@ export function CoLoopStudio() {
 
             {/* Main Content Area */}
             <div className="space-y-1.5">
-              <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                Story / Post Content
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                  Story / Post Content
+                </label>
+                {Object.values(typingUsers).filter((u) => u.field === "content").length > 0 && (
+                  <span className="flex items-center gap-1.5 text-[11px] font-black text-cyan-300 bg-cyan-950/80 border border-cyan-500/50 rounded-full px-2.5 py-0.5 animate-pulse">
+                    <span className="inline-block animate-bounce">✍️</span>
+                    <span>
+                      {Object.values(typingUsers)
+                        .filter((u) => u.field === "content")
+                        .map((u) => `@${u.username}`)
+                        .join(", ")}{" "}
+                      is co-writing story...
+                    </span>
+                  </span>
+                )}
+              </div>
               <Textarea
                 value={postContent}
                 onChange={(e) => handleContentChange(e.target.value)}
@@ -1401,6 +1506,84 @@ export function CoLoopStudio() {
               </div>
             </div>
 
+            {/* INLINE IN-STUDIO DISCUSSION SPACE */}
+            <div className="pt-3 border-t border-white/10 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-cyan-400" />
+                  <span className="text-xs font-black uppercase tracking-wider text-cyan-300">
+                    In-Studio Thread Discussion ({chatMessages.length})
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsChatOpen(!isChatOpen)}
+                  className="text-xs text-cyan-400 hover:text-cyan-300 font-bold h-7 px-2"
+                >
+                  {isChatOpen ? "Close Side Panel" : "Expand Side Panel →"}
+                </Button>
+              </div>
+
+              {/* Embedded Chat Stream Box */}
+              <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/70 p-3.5 space-y-3 max-h-56 overflow-y-auto">
+                {chatMessages.length === 0 ? (
+                  <div className="text-center py-6 text-slate-400 space-y-1">
+                    <MessageSquare className="h-6 w-6 text-cyan-400 mx-auto opacity-60" />
+                    <p className="text-xs font-semibold">No in-studio thread messages yet.</p>
+                    <p className="text-[11px] text-slate-500">
+                      Discuss ideas live with your co-authors sitting in the room!
+                    </p>
+                  </div>
+                ) : (
+                  chatMessages.map((msg) => {
+                    const isMe = msg.sender_id === user.id
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`flex gap-2 text-xs ${isMe ? "flex-row-reverse" : "flex-row"}`}
+                      >
+                        <Avatar className="h-7 w-7 border border-cyan-500/30 shrink-0">
+                          <AvatarImage src={msg.sender_avatar} />
+                          <AvatarFallback className="bg-cyan-600 text-white font-bold text-xs">
+                            {msg.sender_name.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div
+                          className={`rounded-2xl px-3.5 py-2 max-w-[85%] shadow-md ${
+                            isMe
+                              ? "bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-medium"
+                              : "bg-slate-900 border border-white/10 text-slate-100"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-0.5">
+                            <span className="text-[10px] font-bold opacity-80">{msg.sender_name}</span>
+                            <span className="text-[9px] opacity-60">{msg.timestamp}</span>
+                          </div>
+                          <p className="text-xs leading-relaxed">{msg.text}</p>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+
+              {/* Inline Chat Input Form */}
+              <form onSubmit={handleSendChatMessage} className="flex gap-2">
+                <Input
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Discuss live with co-authors..."
+                  className="rounded-xl border-white/10 bg-slate-950/80 text-white text-xs h-10"
+                />
+                <Button type="submit" className="rounded-xl bg-cyan-500 text-black hover:bg-cyan-400 font-extrabold h-10 px-4 text-xs gap-1 shrink-0">
+                  <Send className="h-3.5 w-3.5" />
+                  <span>Send</span>
+                </Button>
+              </form>
+            </div>
+
             {/* CEREMONIAL PUBLISH BAR */}
             <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2 text-xs text-slate-300">
@@ -1444,7 +1627,7 @@ export function CoLoopStudio() {
         <button
           type="button"
           onClick={() => setIsChatOpen(true)}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 px-4 py-3 text-black font-extrabold shadow-2xl shadow-cyan-500/50 hover:scale-105 transition-transform"
+          className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[990] flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 px-4 py-3 text-black font-extrabold shadow-2xl shadow-cyan-500/50 hover:scale-105 transition-transform"
         >
           <MessageSquare className="h-5 w-5" />
           <span>In-Studio Chat</span>
@@ -1456,9 +1639,17 @@ export function CoLoopStudio() {
         </button>
       )}
 
+      {/* Mobile Drawer Backdrop Overlay */}
+      {isChatOpen && (
+        <div
+          onClick={() => setIsChatOpen(false)}
+          className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-sm sm:hidden transition-opacity"
+        />
+      )}
+
       {/* SLIDE-IN SIDE CHAT THREAD DRAWER */}
       <div
-        className={`fixed inset-y-0 right-0 z-50 w-80 sm:w-96 border-l border-cyan-500/30 bg-[#080d1e]/95 backdrop-blur-2xl shadow-2xl p-4 flex flex-col h-full max-h-screen transition-transform duration-300 ease-in-out ${
+        className={`fixed inset-y-0 right-0 z-[9999] w-full sm:w-96 border-l border-cyan-500/30 bg-[#080d1e] backdrop-blur-2xl shadow-2xl p-4 flex flex-col h-full max-h-screen transition-transform duration-300 ease-in-out ${
           isChatOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
