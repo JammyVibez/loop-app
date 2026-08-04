@@ -1,23 +1,63 @@
-import { Header } from "@/components/header";
-import { CirclesList } from "@/components/circles/circles-list";
-import { CreateCircleButton } from "@/components/circles/create-circle-button";
+import { Header } from "@/components/header"
+import { CirclesList } from "@/components/circles/circles-list"
+import { CreateCircleButton } from "@/components/circles/create-circle-button"
+import { Users, Sparkles, MessageSquare, ShieldCheck } from "lucide-react"
 
 export default function CirclesPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[var(--theme-bg-start,hsl(var(--background)))] via-[var(--theme-bg-mid,hsl(var(--muted)))] to-[var(--theme-bg-end,hsl(var(--background)))] transition-colors duration-500">
+    <div className="min-h-screen bg-[#040814] text-slate-100 selection:bg-cyan-500 selection:text-black">
       <Header />
-      <main className="container mx-auto px-4 py-6 max-w-6xl">
-        <div className="space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-[var(--theme-primary,#8b5cf6)] to-[var(--theme-secondary,#3b82f6)] bg-clip-text text-transparent">
-              Loop Circles
-            </h1>
-            <p className="text-muted-foreground text-lg">Join communities and collaborate on amazing loop projects</p>
-          </div>
+      
+      <main className="container mx-auto px-4 py-8 max-w-7xl space-y-8">
+        {/* Hero Section */}
+        <div className="relative overflow-hidden rounded-3xl border border-cyan-500/20 bg-gradient-to-r from-[#090d20] via-[#0d1530] to-[#0a1128] p-6 sm:p-10 shadow-2xl shadow-cyan-950/40">
+          <div className="absolute top-0 right-0 -mt-12 -mr-12 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-1/3 -mb-12 h-64 w-64 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
 
-          <CreateCircleButton />
-          <CirclesList />
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-3 max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-950/50 px-3 py-1 text-xs font-extrabold text-cyan-300 backdrop-blur-md">
+                <Sparkles className="h-3.5 w-3.5 animate-pulse text-cyan-400" />
+                <span>Next-Gen Creator Communities & Co-Loop Hub</span>
+              </div>
+
+              <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
+                Discover & Build{" "}
+                <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                  Loop Communities
+                </span>
+              </h1>
+
+              <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+                Join private or public creator hubs, collaborate on live Co-Loops, share exclusive content, and interact with verified founders and Pro creators worldwide.
+              </p>
+
+              {/* Stats Bar */}
+              <div className="pt-2 flex flex-wrap items-center gap-6 text-xs text-slate-400 font-semibold">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-cyan-400" />
+                  <span><strong className="text-white font-extrabold">12.4K+</strong> Active Members</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-indigo-400" />
+                  <span><strong className="text-white font-extrabold">850+</strong> Daily Discussions</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                  <span><strong className="text-white font-extrabold">Verified</strong> Host Privileges</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Create Circle Action CTA */}
+            <div className="shrink-0 w-full md:w-auto">
+              <CreateCircleButton />
+            </div>
+          </div>
         </div>
+
+        {/* Community List Component */}
+        <CirclesList />
       </main>
     </div>
   )

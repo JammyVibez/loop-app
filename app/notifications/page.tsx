@@ -12,6 +12,7 @@ import { formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
 import { Header } from "@/components/header"
 import { mentionHref } from "@/lib/mentions"
+import { PushNotificationManager } from "@/components/pwa/push-notification-manager"
 
 type Notification = {
   id: string
@@ -158,7 +159,10 @@ function NotificationsContent() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="mx-auto w-full max-w-xl px-0 sm:px-4 sm:py-6">
+      <main className="mx-auto w-full max-w-xl px-2 sm:px-4 py-4 sm:py-6 space-y-4">
+        {/* Browser Push Notification Controller */}
+        <PushNotificationManager />
+
         <div className="border-border/70 bg-background sm:rounded-2xl sm:border">
           <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
             <div>
