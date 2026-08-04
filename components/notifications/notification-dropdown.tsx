@@ -240,11 +240,13 @@ export function NotificationDropdown() {
                 const isCoLoopInvite = notification.type === "co_loop" || notification.type === "co_loop_invite" || notification.title.toLowerCase().includes("co-loop")
 
                 if (isCoLoopInvite) {
+                  const inviteSessionId = notification.data?.session_id || notification.data?.sessionId || "demo-session-1"
+                  const inviterDisplayName = notification.data?.inviter_name || notification.data?.inviter_username || notification.message?.split(" invited")[0] || "A Collaborator"
                   return (
                     <div key={notification.id} className="p-2">
                       <CoLoopInviteCard
-                        sessionId={notification.data?.sessionId || notification.data?.session_id || "studio-session"}
-                        inviterName={notification.title.replace("Co-Loop Invite", "").trim() || "Creator"}
+                        sessionId={inviteSessionId}
+                        inviterName={inviterDisplayName}
                         createdAt={notification.created_at}
                       />
                     </div>

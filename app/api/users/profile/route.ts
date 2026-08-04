@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 })
     }
 
-    const [{ count: followersCount }, { count: followingCount }, { count: loopsCount }, { count: branchesCount }, { count: commentsCount }, { data: rawRecentLoops }, { data: rawRecentBranches }, { data: rawMediaLoops }, { data: followRecord }, { data: activeItems }] = await Promise.all([
+    const [{ count: followersCount }, { count: followingCount }, { count: loopsCount }, { count: branchesCount }, { count: commentsCount }, { data: rawRecentLoops }, { data: rawCoLoops }, { data: rawRecentBranches }, { data: rawMediaLoops }, { data: followRecord }, { data: activeItems }] = await Promise.all([
       supabase.from("follows").select("id", { count: "exact", head: true }).eq("following_id", profile.id),
       supabase.from("follows").select("id", { count: "exact", head: true }).eq("follower_id", profile.id),
       supabase.from("loops").select("id", { count: "exact", head: true }).eq("author_id", profile.id).is("parent_loop_id", null),
@@ -60,6 +60,17 @@ export async function GET(request: NextRequest) {
         .is("parent_loop_id", null)
         .order("created_at", { ascending: false })
         .limit(20),
+      supabase
+        .from("loops")
+        .select(`
+          *,
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+          loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
+        `)
+        .is("parent_loop_id", null)
+        .or(`is_co_loop.eq.true,content_metadata->>is_co_loop.eq.true`)
+        .order("created_at", { ascending: false })
+        .limit(30),
       supabase
         .from("loops")
         .select(`
@@ -98,7 +109,22 @@ export async function GET(request: NextRequest) {
         .limit(12),
     ])
 
-    const recentLoops = await enrichLoopsWithPollsAndDuels(supabase, rawRecentLoops || [])
+    // Filter co-authored loops where profile is listed in co_authors or author
+    const matchedCoLoops = (rawCoLoops || []).filter((l: any) => {
+      if (l.author_id === profile.id) return true
+      const coAuthorsList = l.co_authors || l.content_metadata?.co_authors || []
+      return Array.isArray(coAuthorsList) && coAuthorsList.some((ca: any) => ca.id === profile.id || ca.username === profile.username)
+    })
+
+    // Merge recent loops + co-authored loops, deduplicate by ID, sort by created_at desc
+    const loopMap = new Map<string, any>()
+    ;(rawRecentLoops || []).forEach((l: any) => loopMap.set(l.id, l))
+    matchedCoLoops.forEach((l: any) => loopMap.set(l.id, l))
+    const combinedRecentLoops = Array.from(loopMap.values()).sort(
+      (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    ).slice(0, 30)
+
+    const recentLoops = await enrichLoopsWithPollsAndDuels(supabase, combinedRecentLoops)
     const recentBranches = await enrichLoopsWithPollsAndDuels(supabase, rawRecentBranches || [])
     const mediaLoops = await enrichLoopsWithPollsAndDuels(supabase, rawMediaLoops || [])
 

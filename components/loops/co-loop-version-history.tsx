@@ -31,6 +31,7 @@ export interface CoLoopVersion {
   content: string
   hashtags: string[]
   mediaUrl: string
+  mediaUrls?: string[]
   mediaType: "text" | "image" | "video"
   coAuthors: {
     id: string
@@ -58,6 +59,7 @@ interface CoLoopVersionHistoryProps {
     content: string
     hashtags: string[]
     mediaUrl: string
+    mediaUrls?: string[]
     mediaType: "text" | "image" | "video"
     coAuthors: any[]
   }

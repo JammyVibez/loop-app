@@ -4,16 +4,16 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { createClient } from "@supabase/supabase-js"
+import { uploadMediaFile } from "@/lib/client-media-upload"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/components/ui/use-toast"
 import {
-  Sparkles,
   Users,
   Send,
   Image as ImageIcon,
@@ -38,6 +38,9 @@ import {
   ShieldCheck,
   ExternalLink,
   Layers,
+  Upload,
+  Film,
+  Paperclip,
 } from "lucide-react"
 import {
   Dialog,
@@ -68,6 +71,7 @@ interface ChatMessage {
 }
 
 const AVATAR_COLORS = ["#22d3ee", "#a855f7", "#34d399", "#f43f5e", "#fbbf24"]
+const MAX_CO_AUTHORS = 4 // 1 primary creator + up to 4 invited co-authors
 
 export function CoLoopStudio() {
   const { user, getAuthHeader } = useAuth()
@@ -75,7 +79,21 @@ export function CoLoopStudio() {
   const router = useRouter()
   const { toast } = useToast()
 
-  const sessionId = searchParams.get("session") || "demo-session-1"
+  // Ensure every session has a unique session ID
+  const paramSession = searchParams.get("session")
+  const [sessionId, setSessionId] = useState<string>(() => {
+    return paramSession || `session-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
+  })
+
+  // Keep URL searchParam in sync with active sessionId
+  useEffect(() => {
+    const currentParam = searchParams.get("session")
+    if (!currentParam && sessionId) {
+      router.replace(`/co-loop/studio?session=${encodeURIComponent(sessionId)}`)
+    } else if (currentParam && currentParam !== sessionId) {
+      setSessionId(currentParam)
+    }
+  }, [searchParams, sessionId, router])
 
   // Live Post State
   const [postTitle, setPostTitle] = useState("")
@@ -83,7 +101,9 @@ export function CoLoopStudio() {
   const [hashtags, setHashtags] = useState<string[]>([])
   const [hashtagInput, setHashtagInput] = useState("")
   const [mediaUrl, setMediaUrl] = useState("")
+  const [mediaUrls, setMediaUrls] = useState<string[]>([])
   const [mediaType, setMediaType] = useState<"text" | "image" | "video">("text")
+  const [uploadingMedia, setUploadingMedia] = useState(false)
 
   // Real-time Collaboration & Version History State
   const [collaborators, setCollaborators] = useState<Collaborator[]>([])
@@ -116,6 +136,7 @@ export function CoLoopStudio() {
   const supabaseRef = useRef<any>(null)
   const channelRef = useRef<any>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Load saved versions from local storage for session
   useEffect(() => {
@@ -196,7 +217,7 @@ export function CoLoopStudio() {
       .on("presence", { event: "join" }, ({ newPresences }: any) => {
         if (newPresences?.[0]?.display_name) {
           toast({
-            title: "Creator Entered Room! 🌟",
+            title: "Collaborator Entered Room! 🚀",
             description: `${newPresences[0].display_name} joined the live studio table.`,
           })
         }
@@ -204,7 +225,7 @@ export function CoLoopStudio() {
       .on("presence", { event: "leave" }, ({ leftPresences }: any) => {
         if (leftPresences?.[0]?.display_name) {
           toast({
-            title: "Creator Left Room",
+            title: "Collaborator Left Room",
             description: `${leftPresences[0].display_name} disconnected from studio.`,
           })
         }
@@ -215,6 +236,7 @@ export function CoLoopStudio() {
         if (payload.content !== undefined) setPostContent(payload.content)
         if (payload.hashtags !== undefined) setHashtags(payload.hashtags)
         if (payload.mediaUrl !== undefined) setMediaUrl(payload.mediaUrl)
+        if (payload.mediaUrls !== undefined) setMediaUrls(payload.mediaUrls)
         if (payload.mediaType !== undefined) setMediaType(payload.mediaType)
         if (payload.coAuthors !== undefined) {
           setCoAuthors((prev) => {
@@ -230,6 +252,7 @@ export function CoLoopStudio() {
           const acceptedUser = payload.user
           setCoAuthors((prev) => {
             if (prev.some((c) => c.id === acceptedUser.id)) return prev
+            if (prev.length >= MAX_CO_AUTHORS) return prev
             const updated = [...prev, acceptedUser]
             toast({
               title: "Invite Accepted! 🎉",
@@ -269,6 +292,7 @@ export function CoLoopStudio() {
           setPostContent(v.content || "")
           setHashtags(v.hashtags || [])
           setMediaUrl(v.mediaUrl || "")
+          setMediaUrls(v.mediaUrls || (v.mediaUrl ? [v.mediaUrl] : []))
           setMediaType(v.mediaType || "text")
           if (v.coAuthors) {
             setCoAuthors(v.coAuthors.map((ca: any) => ({ ...ca, role: ca.role || "Co-Author" })))
@@ -286,7 +310,7 @@ export function CoLoopStudio() {
             username: user.username || "creator",
             display_name: user.display_name || user.username || "Creator",
             avatar_url: user.avatar_url,
-            role: "Co-Creator",
+            role: "Primary Creator",
             color: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
           }
           await channel.track(myProfile)
@@ -312,7 +336,7 @@ export function CoLoopStudio() {
 
         const joiningUser: Collaborator = {
           id: user.id,
-          username: user.username || "creator",
+          username: user.username || "coauthor",
           display_name: user.display_name || user.username || "Co-Author",
           avatar_url: user.avatar_url,
           role: "Co-Author",
@@ -320,6 +344,7 @@ export function CoLoopStudio() {
 
         setCoAuthors((prev) => {
           if (prev.some((c) => c.id === joiningUser.id)) return prev
+          if (prev.length >= MAX_CO_AUTHORS) return prev
           return [...prev, joiningUser]
         })
 
@@ -369,6 +394,7 @@ export function CoLoopStudio() {
       content: postContent,
       hashtags,
       mediaUrl,
+      mediaUrls,
       mediaType,
       coAuthors,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", month: "short", day: "numeric" }),
@@ -408,6 +434,7 @@ export function CoLoopStudio() {
     setPostContent(version.content || "")
     setHashtags(version.hashtags || [])
     setMediaUrl(version.mediaUrl || "")
+    setMediaUrls(version.mediaUrls || (version.mediaUrl ? [version.mediaUrl] : []))
     setMediaType(version.mediaType || "text")
     if (version.coAuthors) {
       setCoAuthors(version.coAuthors.map((ca: any) => ({ ...ca, role: ca.role || "Co-Author" })))
@@ -418,6 +445,7 @@ export function CoLoopStudio() {
       content: version.content || "",
       hashtags: version.hashtags || [],
       mediaUrl: version.mediaUrl || "",
+      mediaUrls: version.mediaUrls || (version.mediaUrl ? [version.mediaUrl] : []),
       mediaType: version.mediaType || "text",
       coAuthors: version.coAuthors || [],
     }
@@ -479,8 +507,96 @@ export function CoLoopStudio() {
     broadcastDocUpdate({ hashtags: nextTags })
   }
 
+  // Handle Media File Uploads for all co-authors (with Pro multi-file support)
+  const handleFileUpload = async (files: FileList | File[] | null) => {
+    if (!files || files.length === 0) return
+    const isPro = Boolean(user?.is_premium)
+    const fileArray = Array.from(files)
+
+    // Non-Pro users are limited to 1 file upload; Pro users can upload multiple files (max 4)
+    if (!isPro && fileArray.length > 1) {
+      toast({
+        title: "Pro Feature",
+        description: "Multiple media uploads are available for Pro members! Single file uploaded.",
+      })
+    }
+
+    const filesToUpload = isPro ? fileArray.slice(0, 4) : [fileArray[0]]
+    setUploadingMedia(true)
+
+    try {
+      const uploadedUrls: string[] = []
+      let detectedType: "image" | "video" = "image"
+
+      for (const file of filesToUpload) {
+        const type = file.type.startsWith("video/") ? "video" : "image"
+        if (type === "video") detectedType = "video"
+
+        const res = await uploadMediaFile(file, {
+          authHeaders: getAuthHeader(),
+          type,
+          folder: "co-loops",
+        })
+
+        if (res.url) {
+          uploadedUrls.push(res.url)
+        }
+      }
+
+      if (uploadedUrls.length > 0) {
+        const newUrls = isPro ? [...mediaUrls, ...uploadedUrls].slice(0, 4) : [uploadedUrls[0]]
+        setMediaUrls(newUrls)
+        setMediaUrl(newUrls[0] || "")
+        setMediaType(detectedType)
+
+        broadcastDocUpdate({
+          mediaUrls: newUrls,
+          mediaUrl: newUrls[0] || "",
+          mediaType: detectedType,
+        })
+
+        toast({
+          title: "Media Attached! 📸",
+          description: `${uploadedUrls.length} file(s) attached by ${user?.display_name || "co-author"}.`,
+        })
+      }
+    } catch (err: any) {
+      console.error("Co-loop media upload error:", err)
+      toast({
+        title: "Upload Failed",
+        description: err.message || "Failed to upload media attachment.",
+        variant: "destructive",
+      })
+    } finally {
+      setUploadingMedia(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
+
+  const handleRemoveMedia = (index: number) => {
+    const updated = mediaUrls.filter((_, i) => i !== index)
+    setMediaUrls(updated)
+    setMediaUrl(updated[0] || "")
+    if (updated.length === 0) setMediaType("text")
+
+    broadcastDocUpdate({
+      mediaUrls: updated,
+      mediaUrl: updated[0] || "",
+      mediaType: updated.length === 0 ? "text" : mediaType,
+    })
+  }
+
   // Copy shareable session link
   const handleCopyInviteLink = () => {
+    if (coAuthors.length >= MAX_CO_AUTHORS) {
+      toast({
+        title: "Collaborator Limit Reached",
+        description: `Maximum limit of ${MAX_CO_AUTHORS} invited co-authors per Co-Loop has been reached.`,
+        variant: "destructive",
+      })
+      return
+    }
+
     const inviterNameParam = user?.username ? `?invitedBy=${encodeURIComponent(user.username)}` : ""
     const url = `${window.location.origin}/co-loop/join/${sessionId}${inviterNameParam}`
     navigator.clipboard.writeText(url)
@@ -494,6 +610,15 @@ export function CoLoopStudio() {
 
   // Send Direct Invite to User
   const handleSendInviteToUser = async (targetUser: any) => {
+    if (coAuthors.length >= MAX_CO_AUTHORS) {
+      toast({
+        title: "Collaborator Limit Reached",
+        description: `Maximum limit of ${MAX_CO_AUTHORS} invited co-authors per Co-Loop has been reached.`,
+        variant: "destructive",
+      })
+      return
+    }
+
     setSendingInvite(true)
     try {
       const res = await fetch("/api/co-loop/invite", {
@@ -620,7 +745,8 @@ export function CoLoopStudio() {
       const payload = {
         content: postContent,
         content_title: postTitle || null,
-        media_url: mediaUrl || null,
+        media_url: mediaUrls[0] || mediaUrl || null,
+        media_urls: mediaUrls,
         media_type: mediaType,
         hashtags,
         is_co_loop: true,
@@ -629,6 +755,7 @@ export function CoLoopStudio() {
           is_co_loop: true,
           co_authors: coAuthorsMetadata,
           studio_session_id: sessionId,
+          media_urls: mediaUrls,
         },
       }
 
@@ -707,7 +834,7 @@ export function CoLoopStudio() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-2xl border border-cyan-500/30 bg-[#080d1e]/80 p-4 sm:p-5 backdrop-blur-xl shadow-lg shadow-cyan-950/40">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-purple-600 text-white font-bold shadow-lg shadow-cyan-500/25">
-              <Sparkles className="h-6 w-6 animate-pulse" />
+              <Radio className="h-6 w-6 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -776,7 +903,7 @@ export function CoLoopStudio() {
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-cyan-400" />
               <span className="text-xs font-extrabold tracking-wider uppercase text-cyan-300">
-                Collaborators Around the Room ({activeParticipants.length})
+                Collaborators Around the Room ({activeParticipants.length}/5)
               </span>
             </div>
             <p className="text-[11px] text-slate-400 hidden sm:block italic">
@@ -834,13 +961,28 @@ export function CoLoopStudio() {
             {/* Quick Invite Orb Button */}
             <button
               type="button"
-              onClick={() => setInviteModalOpen(true)}
-              className="group flex flex-col items-center justify-center transition-all hover:scale-105"
+              onClick={() => {
+                if (coAuthors.length >= MAX_CO_AUTHORS) {
+                  toast({
+                    title: "Collaborator Limit Reached",
+                    description: `Maximum limit of ${MAX_CO_AUTHORS} invited co-authors per Co-Loop has been reached.`,
+                    variant: "destructive",
+                  })
+                  return
+                }
+                setInviteModalOpen(true)
+              }}
+              disabled={coAuthors.length >= MAX_CO_AUTHORS}
+              className={`group flex flex-col items-center justify-center transition-all ${
+                coAuthors.length >= MAX_CO_AUTHORS ? "opacity-50 cursor-not-allowed" : "hover:scale-105"
+              }`}
             >
               <div className="relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full border-2 border-dashed border-cyan-400/60 bg-cyan-950/30 text-cyan-300 hover:border-cyan-300 hover:bg-cyan-500/20 shadow-lg">
                 <Plus className="h-6 w-6 group-hover:scale-110 transition-transform" />
               </div>
-              <span className="mt-2 text-xs font-bold text-cyan-300">Add Co-Author</span>
+              <span className="mt-2 text-xs font-bold text-cyan-300">
+                {coAuthors.length >= MAX_CO_AUTHORS ? "Limit Reached" : "Add Co-Author"}
+              </span>
             </button>
 
             {/* Quick Link Orb Button */}
@@ -863,7 +1005,7 @@ export function CoLoopStudio() {
             {/* Live Synchronized Notice */}
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-cyan-400 animate-pulse" />
+                <Radio className="h-4 w-4 text-cyan-400 animate-pulse" />
                 <span className="text-xs font-black uppercase tracking-wider text-cyan-300">
                   Interactive Collaborative Canvas
                 </span>
@@ -902,7 +1044,7 @@ export function CoLoopStudio() {
               />
             </div>
 
-            {/* Hashtags & Media Rows */}
+            {/* Hashtags & Media Attachments (Allowing image/video upload for creator and co-authors) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               {/* Hashtags */}
               <div className="space-y-2">
@@ -936,46 +1078,89 @@ export function CoLoopStudio() {
                 </div>
               </div>
 
-              {/* Media URL */}
+              {/* Media Attachments Section (All Co-Authors Upload Images/Videos) */}
               <div className="space-y-2">
-                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                  Media Attachment URL
-                </label>
-                <Input
-                  value={mediaUrl}
-                  onChange={(e) => {
-                    setMediaUrl(e.target.value)
-                    broadcastDocUpdate({ mediaUrl: e.target.value })
-                  }}
-                  placeholder="https://images.unsplash.com/..."
-                  className="rounded-xl border-white/10 bg-slate-950/60 text-xs h-9"
-                />
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant={mediaType === "image" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setMediaType("image")
-                      broadcastDocUpdate({ mediaType: "image" })
-                    }}
-                    className={`rounded-xl text-xs h-7 ${mediaType === "image" ? "bg-cyan-500 text-black font-bold" : "border-white/10 text-slate-300"}`}
-                  >
-                    Image
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={mediaType === "video" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setMediaType("video")
-                      broadcastDocUpdate({ mediaType: "video" })
-                    }}
-                    className={`rounded-xl text-xs h-7 ${mediaType === "video" ? "bg-cyan-500 text-black font-bold" : "border-white/10 text-slate-300"}`}
-                  >
-                    Video
-                  </Button>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <ImageIcon className="h-3.5 w-3.5 text-cyan-400" />
+                    Media Attachments
+                  </label>
+                  {user?.is_premium && (
+                    <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] font-bold">
+                      PRO Multi-File Enabled
+                    </Badge>
+                  )}
                 </div>
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={(e) => handleFileUpload(e.target.files)}
+                  multiple={Boolean(user?.is_premium)}
+                  accept="image/*,video/*"
+                  className="hidden"
+                />
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingMedia}
+                    variant="outline"
+                    className="rounded-xl border-cyan-500/40 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-500/20 text-xs font-bold gap-1.5 h-9"
+                  >
+                    {uploadingMedia ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+                    ) : (
+                      <Upload className="h-4 w-4 text-cyan-400" />
+                    )}
+                    {uploadingMedia ? "Uploading..." : "Upload Image or Video"}
+                  </Button>
+
+                  {/* URL Fallback */}
+                  <Input
+                    value={mediaUrl}
+                    onChange={(e) => {
+                      setMediaUrl(e.target.value)
+                      if (e.target.value && !mediaUrls.includes(e.target.value)) {
+                        const updated = [e.target.value, ...mediaUrls]
+                        setMediaUrls(updated)
+                        broadcastDocUpdate({ mediaUrls: updated, mediaUrl: e.target.value })
+                      } else {
+                        broadcastDocUpdate({ mediaUrl: e.target.value })
+                      }
+                    }}
+                    placeholder="or paste URL..."
+                    className="rounded-xl border-white/10 bg-slate-950/60 text-xs h-9 flex-1 min-w-[120px]"
+                  />
+                </div>
+
+                {/* Media Previews List */}
+                {mediaUrls.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                    {mediaUrls.map((url, index) => {
+                      const isVid = url.match(/\.(mp4|webm|ogg|mov)$/i) || mediaType === "video"
+                      return (
+                        <div key={url + index} className="relative group rounded-xl overflow-hidden border border-cyan-500/30 bg-slate-900 h-20">
+                          {isVid ? (
+                            <div className="flex h-full w-full items-center justify-center bg-slate-950 text-cyan-400">
+                              <Film className="h-6 w-6" />
+                            </div>
+                          ) : (
+                            <img src={url} alt="Media attachment" className="h-full w-full object-cover" />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMedia(index)}
+                            className="absolute top-1 right-1 bg-rose-600 text-white rounded-full p-1 opacity-80 hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1017,13 +1202,30 @@ export function CoLoopStudio() {
         </div>
       </div>
 
+      {/* Floating Chat Drawer Trigger Button (Bottom Right) */}
+      {!isChatOpen && (
+        <button
+          type="button"
+          onClick={() => setIsChatOpen(true)}
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 px-4 py-3 text-black font-extrabold shadow-2xl shadow-cyan-500/50 hover:scale-105 transition-transform"
+        >
+          <MessageSquare className="h-5 w-5" />
+          <span>In-Studio Chat</span>
+          {unreadChatCount > 0 && (
+            <Badge className="bg-rose-500 text-white text-xs px-2 py-0.5 rounded-full font-black animate-bounce">
+              {unreadChatCount}
+            </Badge>
+          )}
+        </button>
+      )}
+
       {/* SLIDE-IN SIDE CHAT THREAD DRAWER */}
       <div
-        className={`fixed inset-y-0 right-0 z-50 w-80 sm:w-96 border-l border-cyan-500/30 bg-[#080d1e]/95 backdrop-blur-2xl shadow-2xl p-4 flex flex-col transition-transform duration-300 ease-in-out ${
+        className={`fixed inset-y-0 right-0 z-50 w-80 sm:w-96 border-l border-cyan-500/30 bg-[#080d1e]/95 backdrop-blur-2xl shadow-2xl p-4 flex flex-col h-full max-h-screen transition-transform duration-300 ease-in-out ${
           isChatOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3 shrink-0">
           <div className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4 text-cyan-400" />
             <h3 className="text-sm font-extrabold text-white">In-Studio Thread</h3>
@@ -1038,11 +1240,11 @@ export function CoLoopStudio() {
           </Button>
         </div>
 
-        <ScrollArea className="flex-1 py-4 pr-2">
+        <ScrollArea className="flex-1 min-h-0 py-4 pr-2">
           <div className="space-y-3">
             {chatMessages.length === 0 ? (
               <div className="text-center py-12 px-4 text-slate-400 space-y-2">
-                <Sparkles className="h-8 w-8 text-cyan-400 mx-auto animate-pulse" />
+                <MessageSquare className="h-8 w-8 text-cyan-400 mx-auto opacity-70" />
                 <p className="text-xs font-semibold">No thread messages yet.</p>
                 <p className="text-[11px] text-slate-500">
                   Discuss ideas live with your co-authors sitting in the room!
@@ -1083,8 +1285,8 @@ export function CoLoopStudio() {
           </div>
         </ScrollArea>
 
-        {/* Chat Input Form */}
-        <form onSubmit={handleSendChatMessage} className="pt-2 border-t border-white/10 flex gap-2">
+        {/* Chat Input Form - Anchored at bottom */}
+        <form onSubmit={handleSendChatMessage} className="pt-2 border-t border-white/10 flex gap-2 shrink-0 pb-2">
           <Input
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
@@ -1185,6 +1387,7 @@ export function CoLoopStudio() {
           content: postContent,
           hashtags,
           mediaUrl,
+          mediaUrls,
           mediaType,
           coAuthors,
         }}
@@ -1200,79 +1403,87 @@ export function CoLoopStudio() {
               <UserPlus className="h-5 w-5" /> Invite Collaborator to Co-Loop
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-400">
-              Generate a shareable live session link or search a creator to send an invitation via DM and Notification.
+              Generate a shareable live session link or search a creator to send an invitation via DM and Notification. (Maximum {MAX_CO_AUTHORS} invited co-authors per Co-Loop).
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            {/* Shareable Link Box */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
-                Shareable Asymmetric Session Link
-              </label>
-              <div className="flex items-center gap-2">
-                <Input
-                  readOnly
-                  value={
-                    typeof window !== "undefined"
-                      ? `${window.location.origin}/co-loop/join/${sessionId}${user?.username ? `?invitedBy=${encodeURIComponent(user.username)}` : ""}`
-                      : ""
-                  }
-                  className="rounded-xl border-cyan-500/30 bg-slate-900 text-xs font-mono text-cyan-200"
-                />
-                <Button
-                  onClick={handleCopyInviteLink}
-                  className="rounded-xl bg-cyan-500 text-black hover:bg-cyan-400 font-bold shrink-0 text-xs gap-1"
-                >
-                  {linkCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  {linkCopied ? "Copied!" : "Copy Link"}
-                </Button>
+            {coAuthors.length >= MAX_CO_AUTHORS ? (
+              <div className="rounded-xl border border-rose-500/40 bg-rose-950/40 p-3 text-center text-xs text-rose-200">
+                ⚠️ Collaborator Limit Reached ({MAX_CO_AUTHORS}/{MAX_CO_AUTHORS} invited co-authors). You cannot invite additional collaborators to this Co-Loop session.
               </div>
-            </div>
-
-            {/* Direct DM Search */}
-            <div className="space-y-1.5 relative">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
-                Invite via DM & Notification
-              </label>
-              <Input
-                value={invitedUserInput}
-                onChange={(e) => setInvitedUserInput(e.target.value)}
-                onFocus={() => invitedUserInput.trim() && setShowSuggestions(true)}
-                placeholder="Search @username..."
-                className="rounded-xl border-white/10 bg-slate-900 text-xs"
-              />
-
-              {showSuggestions && userSuggestions.length > 0 && (
-                <div className="rounded-xl border border-cyan-500/30 bg-slate-900 p-2 space-y-1 shadow-xl max-h-48 overflow-y-auto">
-                  {userSuggestions.map((u) => (
-                    <div
-                      key={u.id}
-                      className="flex items-center justify-between p-2 hover:bg-cyan-500/10 rounded-lg text-xs"
+            ) : (
+              <>
+                {/* Shareable Link Box */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+                    Shareable Asymmetric Session Link
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      readOnly
+                      value={
+                        typeof window !== "undefined"
+                          ? `${window.location.origin}/co-loop/join/${sessionId}${user?.username ? `?invitedBy=${encodeURIComponent(user.username)}` : ""}`
+                          : ""
+                      }
+                      className="rounded-xl border-cyan-500/30 bg-slate-900 text-xs font-mono text-cyan-200"
+                    />
+                    <Button
+                      onClick={handleCopyInviteLink}
+                      className="rounded-xl bg-cyan-500 text-black hover:bg-cyan-400 font-bold shrink-0 text-xs gap-1"
                     >
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-7 w-7">
-                          <AvatarImage src={u.avatar_url} />
-                          <AvatarFallback>{u.username?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-bold">{u.display_name || u.username}</p>
-                          <p className="text-[10px] text-slate-400">@{u.username}</p>
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        disabled={sendingInvite}
-                        onClick={() => handleSendInviteToUser(u)}
-                        className="rounded-lg bg-cyan-500 text-black font-bold text-[11px] h-7"
-                      >
-                        {sendingInvite ? <Loader2 className="h-3 w-3 animate-spin" /> : "Send Invite"}
-                      </Button>
-                    </div>
-                  ))}
+                      {linkCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      {linkCopied ? "Copied!" : "Copy Link"}
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </div>
+
+                {/* Direct DM Search */}
+                <div className="space-y-1.5 relative">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+                    Invite via DM & Notification
+                  </label>
+                  <Input
+                    value={invitedUserInput}
+                    onChange={(e) => setInvitedUserInput(e.target.value)}
+                    onFocus={() => invitedUserInput.trim() && setShowSuggestions(true)}
+                    placeholder="Search @username..."
+                    className="rounded-xl border-white/10 bg-slate-900 text-xs"
+                  />
+
+                  {showSuggestions && userSuggestions.length > 0 && (
+                    <div className="rounded-xl border border-cyan-500/30 bg-slate-900 p-2 space-y-1 shadow-xl max-h-48 overflow-y-auto">
+                      {userSuggestions.map((u) => (
+                        <div
+                          key={u.id}
+                          className="flex items-center justify-between p-2 hover:bg-cyan-500/10 rounded-lg text-xs"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-7 w-7">
+                              <AvatarImage src={u.avatar_url} />
+                              <AvatarFallback>{u.username?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-bold">{u.display_name || u.username}</p>
+                              <p className="text-[10px] text-slate-400">@{u.username}</p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            disabled={sendingInvite || coAuthors.length >= MAX_CO_AUTHORS}
+                            onClick={() => handleSendInviteToUser(u)}
+                            className="rounded-lg bg-cyan-500 text-black font-bold text-[11px] h-7"
+                          >
+                            {sendingInvite ? <Loader2 className="h-3 w-3 animate-spin" /> : "Send Invite"}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
