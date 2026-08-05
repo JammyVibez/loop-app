@@ -31,11 +31,14 @@ export default function LoginPage() {
 
     const messages: Record<string, string> = {
       auth_error: "We could not complete authentication. Please try again.",
+      oauth_error: "The sign-in provider rejected the request.",
       profile_error: "Your account was created, but the profile could not be loaded.",
       server_error: "Authentication is temporarily unavailable. Please try again.",
     }
 
-    setError(messages[errorCode] || "Authentication failed. Please try again.")
+    const base = messages[errorCode] || "Authentication failed. Please try again."
+    const reason = searchParams?.get("reason")
+    setError(reason ? `${base} (${reason})` : base)
   }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {

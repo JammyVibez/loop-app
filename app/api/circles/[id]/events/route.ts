@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { checkCirclePrivateAccess } from "@/lib/circle-access";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
 
@@ -26,6 +27,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const type = searchParams.get("type") // discussion, voice_chat, screen_share, game
 
     const { id: circleId } = await params
+
+    // Private circles: events are only visible to approved members/owner.
+    const access = await checkCirclePrivateAccess(circleId, request.headers.get("authorization"))
+    if (access.isPrivate && !access.canView) {
+      return NextResponse.json({ success: true, events: [], hasMore: false, locked: true })
+    }
 
     let query = supabase
       .from("circle_events")

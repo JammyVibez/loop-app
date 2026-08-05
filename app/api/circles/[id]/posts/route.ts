@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { checkCirclePrivateAccess } from "@/lib/circle-access";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
 
@@ -26,6 +27,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const order = searchParams.get("order") || "desc"
 
     const { id: circleId } = await params
+
+    // Private circles: only approved members (or the owner) may read posts.
+    const access = await checkCirclePrivateAccess(circleId, request.headers.get("authorization"))
+    if (access.isPrivate && !access.canView) {
+      return NextResponse.json({ success: true, posts: [], hasMore: false, locked: true })
+    }
 
     // Fetch posts with author info
     const { data: posts, error } = await supabase
@@ -333,16 +340,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "You can only edit your own posts" }, { status: 403 })
     }
 
+    // Only touch fields that were actually sent — omitting media_url/
+    // hashtags previously wiped them out on every plain text edit.
+    const updatePayload: Record<string, any> = { updated_at: new Date().toISOString() }
+    if (typeof content === "string") updatePayload.content = content.trim()
+    if (media_url !== undefined) updatePayload.media_url = media_url
+    if (media_type !== undefined) updatePayload.media_type = media_type
+    if (Array.isArray(hashtags)) updatePayload.hashtags = hashtags
+
     // Update post content
     const { data: updatedPost, error: updateError } = await supabase
       .from("circle_posts")
-      .update({
-        content: content?.trim() || "",
-        media_url,
-        media_type,
-        hashtags: hashtags || [],
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq("id", postId)
       .select(`
         *,

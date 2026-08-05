@@ -23,23 +23,32 @@ export async function generateMetadata({ params }: CirclePageProps): Promise<Met
 
   let title = "Circle Community — Loop"
   let description = "Join this Circle community on Loop Social OS to connect and collaborate."
+  let avatarUrl = ""
+  let memberCount = 0
 
   try {
-    const { data: circle } = await supabase
-      .from("circles")
-      .select("name, description")
-      .eq("id", id)
-      .single()
+    const [{ data: circle }, { count }] = await Promise.all([
+      supabase.from("circles").select("name, description, avatar_url").eq("id", id).single(),
+      supabase.from("circle_members").select("id", { count: "exact", head: true }).eq("circle_id", id).eq("status", "active"),
+    ])
 
     if (circle) {
       title = `${circle.name} Circle — Loop Community`
       if (circle.description) description = circle.description.slice(0, 160)
+      avatarUrl = circle.avatar_url || ""
     }
+    memberCount = count || 0
   } catch (err) {
     console.error("Error generating circle metadata:", err)
   }
 
-  const ogImageUrl = `${baseUrl}/api/og?type=circle&title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`
+  const ogParams = new URLSearchParams({ type: "circle", title, description })
+  if (avatarUrl) ogParams.set("avatar", avatarUrl)
+  if (memberCount > 0) {
+    ogParams.set("stat", memberCount.toLocaleString())
+    ogParams.set("stat_label", memberCount === 1 ? "member" : "members")
+  }
+  const ogImageUrl = `${baseUrl}/api/og?${ogParams.toString()}`
 
   return {
     title,
