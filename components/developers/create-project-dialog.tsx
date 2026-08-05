@@ -88,10 +88,19 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
   const handleSubmit = async () => {
     if (!requireAuth("post")) return
 
-    if (!formData.title.trim() || !formData.description.trim() || !formData.code.trim() || !formData.language) {
+    if (!formData.title.trim() || !formData.description.trim() || !formData.language) {
       toast({
         title: "Missing Information",
-        description: "Please fill in title, description, language, and code.",
+        description: "Please fill in title, description, and language.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!formData.code.trim() && files.length === 0) {
+      toast({
+        title: "Nothing to share",
+        description: "Add a code snippet or attach at least one file.",
         variant: "destructive",
       })
       return
@@ -179,7 +188,7 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="language">Programming Language *</Label>
               <Select
@@ -222,7 +231,7 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
 
           <div>
             <div className="flex items-center justify-between">
-              <Label htmlFor="code">Code *</Label>
+              <Label htmlFor="code">Code (optional if you attach a file below)</Label>
               <Button
                 type="button"
                 variant="ghost"

@@ -155,14 +155,14 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
 
   const getLanguageColor = (language: string) => {
     const colors: { [key: string]: string } = {
-      JavaScript: "bg-yellow-100 text-yellow-700",
-      TypeScript: "bg-blue-100 text-blue-700",
-      Python: "bg-green-100 text-green-700",
-      Go: "bg-cyan-100 text-cyan-700",
-      Rust: "bg-orange-100 text-orange-700",
-      Java: "bg-red-100 text-red-700",
+      JavaScript: "bg-yellow-100 text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-300",
+      TypeScript: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+      Python: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300",
+      Go: "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300",
+      Rust: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300",
+      Java: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
     }
-    return colors[language] || "bg-gray-100 text-gray-700"
+    return colors[language] || "bg-muted text-foreground"
   }
 
   const getVerificationBadge = () => {
@@ -171,7 +171,9 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
       <Badge
         variant="secondary"
         className={`ml-2 ${
-          project.author.verification_level === "root" ?"bg-green-100 text-green-700 border-green-200" :"bg-blue-100 text-blue-700 border-blue-200"
+          project.author.verification_level === "root"
+            ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30"
+            : "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30"
         }`}
       >
         {project.author.verification_level === "root" ? "🌱" : "⭐"}
@@ -184,21 +186,21 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
       {LoginGateDialog}
       <Card className="hover:shadow-lg transition-shadow">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <Avatar className="w-10 h-10">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex items-center space-x-3 min-w-0">
+            <Avatar className="w-10 h-10 shrink-0">
               <AvatarImage src={project.author.avatar_url || "/placeholder.svg"} />
               <AvatarFallback>{project.author.display_name.charAt(0)}</AvatarFallback>
             </Avatar>
-            <div className="flex items-center">
-              <div>
-                <p className="font-semibold text-sm">{project.author.display_name}</p>
-                <p className="text-muted-foreground text-xs">@{project.author.username}</p>
+            <div className="flex items-center min-w-0">
+              <div className="min-w-0">
+                <p className="font-semibold text-sm truncate">{project.author.display_name}</p>
+                <p className="text-muted-foreground text-xs truncate">@{project.author.username}</p>
               </div>
               {getVerificationBadge()}
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge className={getLanguageColor(project.language)}>{project.language}</Badge>
             {project.framework !== "None" && <Badge variant="outline">{project.framework}</Badge>}
           </div>
@@ -220,38 +222,40 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
           ))}
         </div>
 
-        {/* Code Preview — real syntax highlighting, not flat monospace */}
-        <div className="bg-muted/50 border border-border rounded-lg overflow-hidden">
-          <div className="flex items-center justify-between bg-muted px-4 py-2">
-            <div className="flex items-center space-x-2">
-              <Code className="w-4 h-4 text-muted-foreground" />
-              <span className="text-muted-foreground text-sm">Code Preview</span>
-            </div>
-            <Button variant="ghost" size="sm" onClick={handleCopyCode} className="text-muted-foreground hover:text-foreground">
-              <Copy className="w-4 h-4" />
-            </Button>
-          </div>
-          <div className="max-h-[28rem] overflow-auto">
-            <SyntaxHighlightedCode
-              code={project.code_snippet}
-              language={project.language}
-              maxLines={showFullCode ? undefined : 8}
-              showLineNumbers={false}
-            />
-          </div>
-          {project.code_snippet.split("\n").length > 8 && (
-            <div className="px-4 pb-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowFullCode(!showFullCode)}
-                className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300"
-              >
-                {showFullCode ? "Show Less" : "Show More"}
+        {/* Code Preview — real syntax highlighting, not flat monospace. Hidden entirely for file-only shares. */}
+        {project.code_snippet.trim().length > 0 && (
+          <div className="bg-muted/50 border border-border rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between bg-muted px-4 py-2">
+              <div className="flex items-center space-x-2">
+                <Code className="w-4 h-4 text-muted-foreground" />
+                <span className="text-muted-foreground text-sm">Code Preview</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={handleCopyCode} className="text-muted-foreground hover:text-foreground">
+                <Copy className="w-4 h-4" />
               </Button>
             </div>
-          )}
-        </div>
+            <div className="max-h-[28rem] overflow-auto">
+              <SyntaxHighlightedCode
+                code={project.code_snippet}
+                language={project.language}
+                maxLines={showFullCode ? undefined : 8}
+                showLineNumbers={false}
+              />
+            </div>
+            {project.code_snippet.split("\n").length > 8 && (
+              <div className="px-4 pb-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowFullCode(!showFullCode)}
+                  className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300"
+                >
+                  {showFullCode ? "Show Less" : "Show More"}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Attached Files */}
         {project.files && project.files.length > 0 && (
@@ -280,14 +284,14 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
         )}
 
         {/* Stats */}
-        <div className="flex items-center justify-between pt-2 border-t">
-          <div className="flex items-center space-x-6">
+        <div className="flex flex-col gap-3 pt-2 border-t sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4 sm:gap-6">
             <Button
               variant="ghost"
               size="sm"
               onClick={handleStar}
               disabled={starring}
-              className={`flex items-center space-x-2 ${isStarred ? "text-yellow-500" : "text-muted-foreground"}`}
+              className={`flex items-center space-x-2 px-2 ${isStarred ? "text-yellow-500" : "text-muted-foreground"}`}
             >
               {starring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Star className={`w-4 h-4 ${isStarred ? "fill-current" : ""}`} />}
               <span>{formatNumber(starCount)}</span>
@@ -304,8 +308,8 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" onClick={handleFork} disabled={forking || isForked}>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleFork} disabled={forking || isForked} className="flex-1 sm:flex-initial">
               {forking ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : isForked ? (
@@ -315,10 +319,12 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
               )}
               {isForked ? "Forked" : "Fork"}
             </Button>
-            <Button size="sm" onClick={handleDownload} className="bg-gradient-to-r from-purple-500 to-blue-500">
-              <Download className="w-4 h-4 mr-2" />
-              Download
-            </Button>
+            {project.code_snippet.trim().length > 0 && (
+              <Button size="sm" onClick={handleDownload} className="flex-1 sm:flex-initial bg-gradient-to-r from-purple-500 to-blue-500 text-white">
+                <Download className="w-4 h-4 mr-2" />
+                Download
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>
