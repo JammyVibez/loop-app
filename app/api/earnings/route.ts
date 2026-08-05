@@ -1,79 +1,124 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { type NextRequest, NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase"
+
+export const dynamic = "force-dynamic"
+
+async function getUserFromToken(token: string | null) {
+  if (!token) return null
+  try {
+    const supabase = createServerClient()
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(token)
+    if (error || !user) return null
+    return user
+  } catch {
+    return null
+  }
+}
+
+const COUNTED_GIFT_STATUSES = ["sent", "delivered", "claimed"]
 
 export async function GET(request: NextRequest) {
   try {
+    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
+    const user = await getUserFromToken(token)
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const supabase = createServerClient()
-    
-    // Get user from session
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
-    }
 
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
-    }
+    const [
+      profileRes,
+      giftsAggRes,
+      recentGiftsRes,
+      topLoopsRes,
+      topReelsRes,
+      streamsRes,
+      boostsRes,
+      withdrawalsRes,
+    ] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("loop_coins, total_earnings, available_earnings, is_verified")
+        .eq("id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("gifts")
+        .select("cost")
+        .eq("recipient_id", user.id)
+        .in("status", COUNTED_GIFT_STATUSES),
+      supabase
+        .from("gifts")
+        .select("id, gift_name, cost, sender_id, is_anonymous, created_at, context_type, context_id")
+        .eq("recipient_id", user.id)
+        .in("status", COUNTED_GIFT_STATUSES)
+        .order("created_at", { ascending: false })
+        .limit(10),
+      supabase
+        .from("loops")
+        .select("id, content_title, content_text, content, media_type, like_count, comment_count, view_count, share_count, created_at")
+        .eq("author_id", user.id)
+        .order("like_count", { ascending: false })
+        .limit(5),
+      supabase
+        .from("reels")
+        .select("id, title, like_count, comment_count, view_count, share_count, created_at")
+        .eq("author_id", user.id)
+        .order("like_count", { ascending: false })
+        .limit(5),
+      supabase
+        .from("live_streams")
+        .select("id, title, status, viewer_count, max_viewers, total_earnings, started_at, ended_at")
+        .eq("streamer_id", user.id)
+        .order("max_viewers", { ascending: false })
+        .limit(5),
+      supabase.from("loop_boosts").select("coins").eq("user_id", user.id),
+      supabase
+        .from("withdrawal_requests")
+        .select("id, coins_amount, estimated_usd, status, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5),
+    ])
 
-    const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const status = searchParams.get('status')
-    const source_type = searchParams.get('source_type')
-    const offset = (page - 1) * limit
-
-    // Get user's earnings
-    let query = supabase
-      .from('earnings')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
-
-    if (status) {
-      query = query.eq('status', status)
-    }
-
-    if (source_type) {
-      query = query.eq('source_type', source_type)
-    }
-
-    const { data: earnings, error } = await query
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    // Get earnings summary
-    const { data: summary } = await supabase
-      .from('profiles')
-      .select('total_earnings, available_earnings')
-      .eq('id', user.id)
-      .single()
-
-    // Get earnings by status
-    const { data: statusBreakdown } = await supabase
-      .from('earnings')
-      .select('status, amount.sum()')
-      .eq('user_id', user.id)
+    const profile = profileRes.data
+    const giftsReceivedCoins = (giftsAggRes.data || []).reduce((sum, g) => sum + Number(g.cost || 0), 0)
+    const giftsReceivedCount = (giftsAggRes.data || []).length
+    const boostSpendCoins = (boostsRes.data || []).reduce((sum, b) => sum + Number(b.coins || 0), 0)
+    const liveTotalEarnings = (streamsRes.data || []).reduce((sum, s) => sum + Number(s.total_earnings || 0), 0)
+    const livePeakViewers = (streamsRes.data || []).reduce((max, s) => Math.max(max, Number(s.max_viewers || 0)), 0)
 
     return NextResponse.json({
       success: true,
-      data: {
-        earnings,
-        summary: summary || { total_earnings: 0, available_earnings: 0 },
-        breakdown: statusBreakdown || [],
-        page,
-        limit,
-        has_more: earnings?.length === limit
-      }
+      balance: {
+        loop_coins: Number(profile?.loop_coins || 0),
+        total_earnings: Number(profile?.total_earnings || 0),
+        available_earnings: Number(profile?.available_earnings || 0),
+        is_verified: Boolean(profile?.is_verified),
+      },
+      gifts: {
+        received_count: giftsReceivedCount,
+        received_coins: giftsReceivedCoins,
+        recent: recentGiftsRes.data || [],
+      },
+      top_loops: topLoopsRes.data || [],
+      top_reels: topReelsRes.data || [],
+      live: {
+        streams: streamsRes.data || [],
+        peak_viewers: livePeakViewers,
+        total_earnings: liveTotalEarnings,
+      },
+      boosts: {
+        total_spend_coins: boostSpendCoins,
+        count: (boostsRes.data || []).length,
+      },
+      withdrawals: withdrawalsRes.data || [],
     })
-
-  } catch (error) {
-    console.error("Get earnings error:", error)
-    return NextResponse.json({ error: "Failed to fetch earnings" }, { status: 500 })
+  } catch (error: any) {
+    console.error("GET /api/earnings error:", error)
+    return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 })
   }
 }

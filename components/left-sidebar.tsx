@@ -25,6 +25,7 @@ import {
   Flame,
   User,
   Compass,
+  DollarSign,
 } from "lucide-react"
 import { UserBadges } from "@/components/user-badge"
 
@@ -89,6 +90,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
     { href: "/events", label: "Events Stage", icon: Calendar },
     { href: "/circles", label: "Circles & Communities", icon: Users },
     { href: "/co-loop/studio", label: "Co-Loop Studio", icon: Sparkles, badge: "NEW" },
+    { href: "/earnings", label: "Creator Studio", icon: DollarSign },
     { href: "/wallet", label: "Wallet & Gifts", icon: Coins },
     { href: "/bookmarks", label: "Saved Bookmarks", icon: Bookmark },
     {

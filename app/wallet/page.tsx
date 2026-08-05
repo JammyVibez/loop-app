@@ -105,6 +105,13 @@ export default function WalletPage() {
   const [withdrawing, setWithdrawing] = useState(false)
 
   const [activeTab, setActiveTab] = useState("transactions")
+
+  useEffect(() => {
+    const tab = searchParams?.get("tab")
+    if (tab && ["transactions", "gifts", "inventory", "withdrawals"].includes(tab)) {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
   const [filterType, setFilterType] = useState("all")
 
   useEffect(() => {
