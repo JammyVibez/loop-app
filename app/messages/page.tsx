@@ -11,7 +11,7 @@ function MessagesShell() {
   const inChat = Boolean(searchParams.get("c"))
 
   return (
-    <div className={`flex min-h-dvh flex-col bg-[#0b141a] text-foreground ${inChat ? "pb-0" : "pb-[4.25rem]"} lg:pb-0`}>
+    <div className={`flex min-h-dvh flex-col bg-background text-foreground ${inChat ? "pb-0" : "pb-[4.25rem]"} lg:pb-0`}>
       <div className={inChat ? "hidden" : "hidden lg:block"}>
         <Header />
       </div>
@@ -29,7 +29,7 @@ function MessagesShell() {
 
 export default function MessagesPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-dvh items-center justify-center bg-[#0b141a] text-slate-400">Loading messages…</div>}>
+    <Suspense fallback={<div className="flex min-h-dvh items-center justify-center bg-background text-muted-foreground">Loading messages…</div>}>
       <MessagesShell />
     </Suspense>
   )

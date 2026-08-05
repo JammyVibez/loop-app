@@ -548,20 +548,20 @@ export function MessagesWorkspace() {
   }
 
   const inbox = (
-    <aside className="flex h-full min-h-0 flex-col bg-[#0b141a] text-slate-100">
-      <div className="space-y-3 border-b border-white/10 px-4 py-3">
+    <aside className="flex h-full min-h-0 flex-col bg-background text-foreground">
+      <div className="space-y-3 border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold">Chats</h1>
-          <span className="text-xs text-emerald-400">{conversations.length} active</span>
+          <span className="text-xs text-emerald-600 dark:text-emerald-400">{conversations.length} active</span>
         </div>
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search or start new chat"
-              className="border-white/10 bg-[#202c33] pl-9 text-slate-100 placeholder:text-slate-400"
+              className="border-border bg-muted pl-9 text-foreground placeholder:text-muted-foreground"
               onKeyDown={(e) => e.key === "Enter" && void startChat()}
             />
           </div>
@@ -572,11 +572,11 @@ export function MessagesWorkspace() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {loading ? (
-          <div className="flex items-center justify-center py-10 text-slate-400">
+          <div className="flex items-center justify-center py-10 text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
           </div>
         ) : conversations.length === 0 ? (
-          <div className="p-8 text-center text-sm text-slate-400">
+          <div className="p-8 text-center text-sm text-muted-foreground">
             No chats yet. Search a username to message someone.
           </div>
         ) : (
@@ -586,8 +586,8 @@ export function MessagesWorkspace() {
               type="button"
               onClick={() => openConversation(conversation.id)}
               className={cn(
-                "flex w-full items-center gap-3 border-b border-white/5 px-4 py-3 text-left hover:bg-white/5",
-                selectedId === conversation.id && "bg-white/10",
+                "flex w-full items-center gap-3 border-b border-border/60 px-4 py-3 text-left hover:bg-muted/50",
+                selectedId === conversation.id && "bg-muted",
               )}
             >
               <Avatar className="h-12 w-12">
@@ -604,12 +604,12 @@ export function MessagesWorkspace() {
                       : conversation.other_user?.display_name || `@${conversation.other_user?.username || "user"}`}
                   </p>
                   {conversation.last_message?.created_at && (
-                    <span className="shrink-0 text-[11px] text-slate-400">
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
                       {formatDistanceToNow(new Date(conversation.last_message.created_at), { addSuffix: false })}
                     </span>
                   )}
                 </div>
-                <p className="truncate text-sm text-slate-400">{conversation.last_message?.content || "Say hello 👋"}</p>
+                <p className="truncate text-sm text-muted-foreground">{conversation.last_message?.content || "Say hello 👋"}</p>
               </div>
             </button>
           ))
@@ -619,9 +619,9 @@ export function MessagesWorkspace() {
   )
 
   const chatPane = selected ? (
-    <section className="relative flex h-full min-h-0 flex-col bg-[url('data:image/svg+xml,%3Csvg width%3D%2260%27 height%3D%2260%27 viewBox%3D%220 0 60 60%27 xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%3E%3Cg fill%3D%22none%22 fill-rule%3D%22evenodd%22%3E%3Cg fill%3D%22%23ffffff%22 fill-opacity%3D%220.03%22%3E%3Cpath d%3D%22M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] bg-[#0b141a]">
-      <div className="flex items-center gap-2 border-b border-white/10 bg-[#202c33] px-2 py-2.5 sm:px-4">
-        <Button variant="ghost" size="icon" className="text-slate-200 lg:hidden" onClick={backToInbox}>
+    <section className="relative flex h-full min-h-0 flex-col bg-background bg-[url('data:image/svg+xml,%3Csvg width%3D%2260%27 height%3D%2260%27 viewBox%3D%220 0 60 60%27 xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%3E%3Cg fill%3D%22none%22 fill-rule%3D%22evenodd%22%3E%3Cg fill%3D%22%23888888%22 fill-opacity%3D%220.05%22%3E%3Cpath d%3D%22M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]">
+      <div className="flex items-center gap-2 border-b border-border bg-muted px-2 py-2.5 sm:px-4">
+        <Button variant="ghost" size="icon" className="text-foreground lg:hidden" onClick={backToInbox}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <Avatar className="h-10 w-10">
@@ -629,17 +629,17 @@ export function MessagesWorkspace() {
           <AvatarFallback>{(selected.other_user?.display_name || "U").charAt(0)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-slate-100">
+          <p className="truncate font-semibold text-foreground">
             {selected.other_user?.display_name || selected.name || "Conversation"}
           </p>
-          <p className="truncate text-xs text-emerald-400">
+          <p className="truncate text-xs text-emerald-600 dark:text-emerald-400">
             {typingPeer ? "typing…" : peerOnline ? "online" : `@${selected.other_user?.username || "group"}`}
           </p>
         </div>
         <Button
           variant="ghost"
           size="icon"
-          className="text-slate-200"
+          className="text-foreground"
           title="Search in chat"
           onClick={() => setShowChatSearch((v) => !v)}
         >
@@ -662,12 +662,12 @@ export function MessagesWorkspace() {
       </div>
 
       {showChatSearch && (
-        <div className="border-b border-white/10 bg-[#111b21] px-3 py-2">
+        <div className="border-b border-border bg-card px-3 py-2">
           <Input
             value={chatSearch}
             onChange={(e) => setChatSearch(e.target.value)}
             placeholder="Search this chat…"
-            className="border-white/10 bg-[#202c33] text-slate-100"
+            className="border-border bg-muted text-foreground"
           />
         </div>
       )}
@@ -682,11 +682,11 @@ export function MessagesWorkspace() {
                 Only on Loop
               </span>
             </p>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-300" onClick={() => setShowCoLoop(false)}>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => setShowCoLoop(false)}>
               <X className="h-4 w-4" />
             </Button>
           </div>
-          <p className="mb-2 text-xs text-slate-400">
+          <p className="mb-2 text-xs text-muted-foreground">
             Write a public loop together in realtime — Instagram and X can’t co-author posts inside DMs.
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -694,11 +694,11 @@ export function MessagesWorkspace() {
               value={coLoopDraft}
               onChange={(e) => syncCoLoop(e.target.value)}
               placeholder="Your half of the Co-Loop…"
-              className="min-h-[88px] border-white/10 bg-[#202c33] text-slate-100"
+              className="min-h-[88px] border-border bg-muted text-foreground"
             />
-            <div className="rounded-md border border-dashed border-white/15 bg-[#0b141a] p-3 text-sm text-slate-300">
-              <p className="mb-1 text-[11px] uppercase tracking-wide text-slate-500">Their live draft</p>
-              {coLoopPeerDraft || <span className="text-slate-500">Waiting for them to type…</span>}
+            <div className="rounded-md border border-dashed border-border bg-background p-3 text-sm text-muted-foreground">
+              <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">Their live draft</p>
+              {coLoopPeerDraft || <span className="text-muted-foreground">Waiting for them to type…</span>}
             </div>
           </div>
           <div className="mt-2 flex justify-end">
@@ -716,7 +716,7 @@ export function MessagesWorkspace() {
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-4 sm:px-6">
         {messagesLoading && messages.length === 0 ? (
-          <div className="flex justify-center py-10 text-slate-400">
+          <div className="flex justify-center py-10 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>
         ) : null}
@@ -728,7 +728,7 @@ export function MessagesWorkspace() {
                 <div
                   className={cn(
                     "relative rounded-2xl px-3 py-2 text-sm shadow-sm",
-                    mine ? "rounded-br-md bg-[#005c4b] text-white" : "rounded-bl-md bg-[#202c33] text-slate-100",
+                    mine ? "rounded-br-md bg-emerald-600 dark:bg-emerald-700 text-white" : "rounded-bl-md bg-muted text-foreground",
                   )}
                 >
                   {message.reply_to && (
@@ -757,7 +757,7 @@ export function MessagesWorkspace() {
                       (peerOnline ? (
                         <CheckCheck className="h-3 w-3 text-sky-300" />
                       ) : (
-                        <Check className="h-3 w-3 text-slate-300" />
+                        <Check className="h-3 w-3 text-muted-foreground" />
                       ))}
                   </div>
                 </div>
@@ -769,7 +769,7 @@ export function MessagesWorkspace() {
                         key={r.emoji}
                         type="button"
                         onClick={() => void toggleReaction(message, r.emoji)}
-                        className="rounded-full bg-[#202c33] px-1.5 py-0.5 text-xs"
+                        className="rounded-full bg-muted px-1.5 py-0.5 text-xs"
                       >
                         {r.emoji} {r.count}
                       </button>
@@ -786,7 +786,7 @@ export function MessagesWorkspace() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 px-2 text-slate-300"
+                    className="h-7 px-2 text-muted-foreground"
                     onClick={() => setReplyTo(message)}
                   >
                     <Reply className="mr-1 h-3.5 w-3.5" /> Reply
@@ -795,7 +795,7 @@ export function MessagesWorkspace() {
                     <button
                       key={emoji}
                       type="button"
-                      className="rounded-full px-1.5 text-sm hover:bg-white/10"
+                      className="rounded-full px-1.5 text-sm hover:bg-muted"
                       onClick={() => void toggleReaction(message, emoji)}
                     >
                       {emoji}
@@ -808,16 +808,16 @@ export function MessagesWorkspace() {
         })}
         {typingPeer && (
           <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-md bg-[#202c33] px-3 py-2 text-xs text-slate-300">typing…</div>
+            <div className="rounded-2xl rounded-bl-md bg-muted px-3 py-2 text-xs text-muted-foreground">typing…</div>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
       {replyTo && (
-        <div className="flex items-center justify-between border-t border-white/10 bg-[#111b21] px-3 py-2 text-sm text-slate-200">
+        <div className="flex items-center justify-between border-t border-border bg-card px-3 py-2 text-sm text-foreground">
           <div className="min-w-0">
-            <p className="text-xs text-emerald-400">Replying</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">Replying</p>
             <p className="truncate">{replyTo.content || "Media"}</p>
           </div>
           <Button variant="ghost" size="icon" onClick={() => setReplyTo(null)}>
@@ -826,7 +826,7 @@ export function MessagesWorkspace() {
         </div>
       )}
 
-      <div className="flex items-end gap-2 border-t border-white/10 bg-[#202c33] p-2 sm:p-3">
+      <div className="flex items-end gap-2 border-t border-border bg-muted p-2 sm:p-3">
         <input
           ref={fileRef}
           type="file"
@@ -843,7 +843,7 @@ export function MessagesWorkspace() {
         <Button
           variant="ghost"
           size="icon"
-          className="text-slate-300"
+          className="text-muted-foreground"
           disabled={uploading}
           onClick={() => fileRef.current?.click()}
         >
@@ -852,7 +852,7 @@ export function MessagesWorkspace() {
         <Button
           variant="ghost"
           size="icon"
-          className={cn("text-slate-300", recording && "text-red-400")}
+          className={cn("text-muted-foreground", recording && "text-red-400")}
           onClick={() => (recording ? stopVoice() : void startVoice())}
         >
           {recording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
@@ -863,7 +863,7 @@ export function MessagesWorkspace() {
             onChange={onDraftChange}
             rows={1}
             placeholder="Message… @ to tag"
-            className="min-h-[40px] resize-none border-white/10 bg-[#2a3942] pr-10 text-slate-100 placeholder:text-slate-400"
+            className="min-h-[40px] resize-none border-border bg-muted pr-10 text-foreground placeholder:text-muted-foreground"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault()
@@ -871,7 +871,7 @@ export function MessagesWorkspace() {
               }
             }}
           />
-          <Smile className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Smile className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         </div>
         <Button
           onClick={() => void sendMessage()}
@@ -898,12 +898,12 @@ export function MessagesWorkspace() {
       )}
     </section>
   ) : selectedId ? (
-    <section className="flex h-full flex-col items-center justify-center bg-[#0b141a] px-6 text-center text-slate-400">
+    <section className="flex h-full flex-col items-center justify-center bg-background px-6 text-center text-muted-foreground">
       {loading || messagesLoading ? (
         <Loader2 className="h-6 w-6 animate-spin" />
       ) : (
         <>
-          <p className="text-lg font-medium text-slate-200">Conversation unavailable</p>
+          <p className="text-lg font-medium text-foreground">Conversation unavailable</p>
           <p className="mt-1 max-w-sm text-sm">This chat may have been removed or you don’t have access.</p>
           <Button variant="outline" className="mt-4" onClick={backToInbox}>
             Back to inbox
@@ -912,9 +912,9 @@ export function MessagesWorkspace() {
       )}
     </section>
   ) : (
-    <section className="hidden h-full flex-col items-center justify-center bg-[#0b141a] text-slate-400 lg:flex">
+    <section className="hidden h-full flex-col items-center justify-center bg-background text-muted-foreground lg:flex">
       <ImageIcon className="mb-3 h-12 w-12 opacity-40" />
-      <p className="text-lg font-medium text-slate-200">Loop Chat</p>
+      <p className="text-lg font-medium text-foreground">Loop Chat</p>
       <p className="mt-1 max-w-sm text-center text-sm">
         Pick a conversation — or start a Co-Loop and publish a post together from the chat.
       </p>
@@ -924,7 +924,7 @@ export function MessagesWorkspace() {
   return (
     <div
       className={cn(
-        "grid overflow-hidden border border-white/10 bg-[#0b141a] lg:grid-cols-[340px_1fr] lg:rounded-2xl",
+        "grid overflow-hidden border border-border bg-background lg:grid-cols-[340px_1fr] lg:rounded-2xl",
         mobileShowChat ? "h-[100dvh] lg:h-[calc(100dvh-4rem)]" : "h-[calc(100dvh-4.25rem)] lg:h-[calc(100dvh-4rem)]",
       )}
     >

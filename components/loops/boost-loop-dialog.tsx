@@ -76,12 +76,12 @@ export function BoostLoopDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-[#0b1329] border-cyan-500/30 text-white rounded-3xl p-6 shadow-2xl">
+      <DialogContent className="max-w-md bg-card border-cyan-500/30 text-foreground rounded-3xl p-6 shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-xl font-extrabold flex items-center gap-2 text-cyan-300">
             <Rocket className="h-6 w-6 text-cyan-400 animate-bounce" /> Crowd-Fund Feed Boost
           </DialogTitle>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-muted-foreground">
             Pool coins to push &ldquo;{loopTitle || "this Loop"}&rdquo; to the top of everyone&apos;s feed!
           </p>
         </DialogHeader>
@@ -89,7 +89,7 @@ export function BoostLoopDialog({
         <div className="space-y-5 py-3">
           {/* Progress Goal Widget */}
           <div className="p-4 rounded-2xl bg-cyan-950/30 border border-cyan-500/20 space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-200">
+            <div className="flex items-center justify-between text-xs font-bold text-foreground">
               <span className="flex items-center gap-1 text-cyan-300">
                 <Coins className="h-4 w-4 text-amber-400" />
                 {currentCoins + amountToContribute} / {targetCoins} Coins
@@ -97,7 +97,7 @@ export function BoostLoopDialog({
               <span className="text-cyan-400">{percent}% Funded</span>
             </div>
 
-            <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden p-0.5 border border-white/10">
+            <div className="h-3 w-full bg-muted rounded-full overflow-hidden p-0.5 border border-border">
               <div
                 className="h-full bg-gradient-to-r from-cyan-500 via-indigo-500 to-amber-400 rounded-full transition-all duration-300 shadow-[0_0_12px_#22d3ee]"
                 style={{ width: `${percent}%` }}
@@ -107,7 +107,7 @@ export function BoostLoopDialog({
 
           {/* Quick Select Buttons */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300">Select Coin Contribution</label>
+            <label className="text-xs font-semibold text-muted-foreground">Select Coin Contribution</label>
             <div className="grid grid-cols-4 gap-2">
               {[20, 50, 100, 250].map((amt) => (
                 <button
@@ -120,7 +120,7 @@ export function BoostLoopDialog({
                   className={`flex items-center justify-center gap-1 p-2.5 rounded-xl border text-xs font-bold transition-all ${
                     selectedAmount === amt && !customAmount
                       ? "bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-lg"
-                      : "bg-slate-900 border-white/10 text-slate-300 hover:border-cyan-500/30"
+                      : "bg-muted border-border text-muted-foreground hover:border-cyan-500/30"
                   }`}
                 >
                   <Coins className="h-3.5 w-3.5 text-amber-400" />
@@ -132,14 +132,14 @@ export function BoostLoopDialog({
 
           {/* Custom Amount Input */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300">Or enter custom amount</label>
+            <label className="text-xs font-semibold text-muted-foreground">Or enter custom amount</label>
             <input
               type="number"
               min={1}
               value={customAmount}
               onChange={(e) => setCustomAmount(e.target.value)}
               placeholder="e.g. 500"
-              className="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+              className="w-full bg-muted border border-border rounded-xl p-2.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-400"
             />
           </div>
         </div>
@@ -149,7 +149,7 @@ export function BoostLoopDialog({
             type="button"
             variant="ghost"
             onClick={() => onOpenChange(false)}
-            className="text-slate-400 hover:text-white"
+            className="text-muted-foreground hover:text-foreground"
           >
             Cancel
           </Button>

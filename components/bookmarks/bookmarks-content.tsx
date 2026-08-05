@@ -146,7 +146,7 @@ export function BookmarksContent() {
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-3 py-2 border border-white/10 rounded-md text-sm bg-[#0a1020] text-slate-100"
+                className="px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground"
               >
                 {categories.map((category) => (
                   <option key={category} value={category}>
@@ -158,7 +158,7 @@ export function BookmarksContent() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 border border-white/10 rounded-md text-sm bg-[#0a1020] text-slate-100"
+                className="px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground"
               >
                 <option value="recent">Most Recent</option>
                 <option value="oldest">Oldest First</option>

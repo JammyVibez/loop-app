@@ -1130,7 +1130,7 @@ export function LoopCard({
                       </span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="bg-[#0b1329] border-white/10 text-slate-100">
+                  <DropdownMenuContent align="start" className="bg-popover border-border text-foreground">
                     <DropdownMenuItem onClick={handleBranch} className="cursor-pointer hover:bg-slate-800">
                       <GitBranch className="h-4 w-4 mr-2 text-green-400" /> Branch this Loop
                     </DropdownMenuItem>
@@ -1254,17 +1254,17 @@ export function LoopCard({
       />
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="border-white/10 bg-[#0a1020] text-slate-100">
+        <DialogContent className="border-border bg-popover text-foreground">
           <DialogHeader>
             <DialogTitle>Edit loop</DialogTitle>
           </DialogHeader>
           <Textarea
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
-            className="min-h-[140px] border-white/10 bg-white/5"
+            className="min-h-[140px] border-border bg-muted"
           />
           <DialogFooter>
-            <Button variant="outline" className="border-white/10" onClick={() => setEditOpen(false)}>
+            <Button variant="outline" className="border-border" onClick={() => setEditOpen(false)}>
               Cancel
             </Button>
             <Button onClick={saveEdit} disabled={savingEdit}>

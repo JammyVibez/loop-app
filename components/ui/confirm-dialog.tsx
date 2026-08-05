@@ -34,13 +34,13 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="border-white/10 bg-[#0a1020] text-slate-100">
+      <AlertDialogContent className="border-border bg-popover text-foreground">
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription className="text-slate-400">{description}</AlertDialogDescription>
+          <AlertDialogDescription className="text-muted-foreground">{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="border-white/10 bg-white/5 text-slate-200">{cancelLabel}</AlertDialogCancel>
+          <AlertDialogCancel className="border-border bg-muted text-foreground">{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction
             className={destructive ? "bg-red-600 hover:bg-red-500" : "bg-violet-600 hover:bg-violet-500"}
             onClick={() => void onConfirm()}
