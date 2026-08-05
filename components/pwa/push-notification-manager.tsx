@@ -51,9 +51,14 @@ export function PushNotificationManager() {
   const [savingPrefs, setSavingPrefs] = useState(false)
   const [subscribed, setSubscribed] = useState(false)
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS)
+  const [iosNeedsInstall, setIosNeedsInstall] = useState(false)
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) return
+    if (typeof window === "undefined") return
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
+    const isStandalone = (window.navigator as any).standalone || window.matchMedia("(display-mode: standalone)").matches
+    setIosNeedsInstall(isIos && !isStandalone)
+    if (!("Notification" in window)) return
     setPermission(Notification.permission)
 
     const boot = async () => {
@@ -123,6 +128,13 @@ export function PushNotificationManager() {
   const handleEnablePush = async () => {
     if (!user) {
       toast({ title: "Log in required", variant: "destructive" })
+      return
+    }
+    if (iosNeedsInstall) {
+      toast({
+        title: "Add Loop to your Home Screen first",
+        description: "iPhone/iPad only support push notifications for installed apps: tap Share → Add to Home Screen, then open Loop from there and enable push.",
+      })
       return
     }
     setLoading(true)
@@ -242,7 +254,9 @@ export function PushNotificationManager() {
               ? "Active"
               : permission === "denied"
                 ? "Blocked"
-                : "Off"}
+                : iosNeedsInstall
+                  ? "Install required"
+                  : "Off"}
           </Badge>
         </div>
       </CardHeader>
@@ -257,9 +271,11 @@ export function PushNotificationManager() {
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              {permission === "denied"
-                ? "Notifications are blocked in your browser site settings."
-                : "Enable once — Loop uses the Web Push API + your service worker."}
+              {iosNeedsInstall
+                ? "On iPhone/iPad: tap Share → Add to Home Screen, then open Loop from there to enable push."
+                : permission === "denied"
+                  ? "Notifications are blocked in your browser site settings."
+                  : "Enable once — Loop uses the Web Push API + your service worker."}
             </p>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">

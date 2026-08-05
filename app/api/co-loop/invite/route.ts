@@ -35,21 +35,28 @@ export async function POST(request: NextRequest) {
     const inviterUsername = inviterProfile?.username || ""
     const joinUrl = `/co-loop/join/${session_id}?invitedBy=${encodeURIComponent(inviterUsername)}`
 
-    // 1. Create System Notification for invitee
-    await supabase.from("notifications").insert({
-      user_id: invitee_id,
-      type: "co_loop_invite",
-      title: "Co-Loop Session Invitation 🚀",
-      message: `${inviterName} invited you to collaborate on ${titleText}!`,
-      data: {
-        session_id,
-        inviter_id: inviter.id,
-        inviter_name: inviterName,
-        inviter_avatar: inviterProfile?.avatar_url,
-        action_url: joinUrl,
-      },
-      is_read: false,
-    })
+    // 1. Create System Notification + real push for invitee
+    try {
+      const { notifyUser } = await import("@/lib/notifications")
+      await notifyUser(supabase, {
+        userId: invitee_id,
+        type: "co_loop_invite",
+        title: "Co-Loop Session Invitation 🚀",
+        message: `${inviterName} invited you to collaborate on ${titleText}!`,
+        actorId: inviter.id,
+        actionUrl: joinUrl,
+        data: {
+          session_id,
+          inviter_id: inviter.id,
+          inviter_name: inviterName,
+          inviter_avatar: inviterProfile?.avatar_url,
+          action_url: joinUrl,
+        },
+        pushCategory: "circleInvites",
+      })
+    } catch (notifyErr) {
+      console.warn("Co-loop invite notify failed:", notifyErr)
+    }
 
     // 2. Locate or Create DM conversation with invitee
     let conversationId: string | null = null
