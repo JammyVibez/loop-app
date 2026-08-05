@@ -194,7 +194,7 @@ export function CirclesList() {
     return (
       <Card
         key={circle.id}
-        className="group relative overflow-hidden rounded-3xl border border-white/10 bg-[#090f1d]/90 text-slate-100 shadow-xl transition-all duration-300 hover:-translate-y-1 hover:border-cyan-500/40 hover:shadow-2xl hover:shadow-cyan-950/40"
+        className="group relative overflow-hidden rounded-3xl border border-border bg-card text-foreground shadow-xl transition-all duration-300 hover:-translate-y-1 hover:border-cyan-500/40 hover:shadow-2xl hover:shadow-cyan-950/40"
       >
         {/* Banner with 3D gradient overlay */}
         <div
@@ -205,7 +205,7 @@ export function CirclesList() {
             backgroundPosition: "center",
           }}
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-[#090f1d] via-[#090f1d]/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
 
           {/* Top Badges */}
           <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
@@ -240,7 +240,7 @@ export function CirclesList() {
         <CardContent className="relative pb-5 pt-0 px-5 space-y-4">
           <div className="-mt-10 flex items-end justify-between">
             <div className="relative">
-              <Avatar className="h-20 w-20 border-4 border-[#090f1d] shadow-2xl ring-2 ring-cyan-500/40">
+              <Avatar className="h-20 w-20 border-4 border-card shadow-2xl ring-2 ring-cyan-500/40">
                 <AvatarImage src={circle.avatar_url || circle.owner?.avatar_url || "/placeholder.svg"} alt={circle.name} />
                 <AvatarFallback className="bg-gradient-to-tr from-cyan-600 via-indigo-600 to-purple-600 font-black text-xl text-white">
                   {circle.name?.charAt(0) || "C"}
@@ -249,19 +249,19 @@ export function CirclesList() {
 
               {/* Founder Verified / Pro Badge */}
               {isOwnerVerified && (
-                <div className="absolute -bottom-1 -right-1 rounded-full bg-blue-600 text-white p-1 shadow-lg ring-2 ring-[#090f1d]">
+                <div className="absolute -bottom-1 -right-1 rounded-full bg-blue-600 text-white p-1 shadow-lg ring-2 ring-card">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                 </div>
               )}
               {isOwnerPro && !isOwnerVerified && (
-                <div className="absolute -bottom-1 -right-1 rounded-full bg-amber-500 text-black p-1 shadow-lg ring-2 ring-[#090f1d]">
+                <div className="absolute -bottom-1 -right-1 rounded-full bg-amber-500 text-black p-1 shadow-lg ring-2 ring-card">
                   <Crown className="h-3.5 w-3.5" />
                 </div>
               )}
             </div>
 
             {/* Member count indicator */}
-            <div className="flex items-center gap-1.5 rounded-full bg-slate-900/90 border border-white/10 px-3 py-1 text-xs font-bold text-slate-300 shadow-inner">
+            <div className="flex items-center gap-1.5 rounded-full bg-muted border border-border px-3 py-1 text-xs font-bold text-muted-foreground shadow-inner">
               <Users className="h-3.5 w-3.5 text-cyan-400" />
               <span>{formatMemberCount(circle.member_count || 0)} Members</span>
             </div>
@@ -270,7 +270,7 @@ export function CirclesList() {
           {/* Title & Description */}
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-extrabold text-white group-hover:text-cyan-300 transition-colors line-clamp-1">
+              <h3 className="text-lg font-extrabold text-foreground group-hover:text-cyan-500 dark:group-hover:text-cyan-300 transition-colors line-clamp-1">
                 {circle.name}
               </h3>
               {circle.membership_status === "pending" && (
@@ -278,16 +278,16 @@ export function CirclesList() {
               )}
             </div>
 
-            <p className="line-clamp-2 text-xs leading-relaxed text-slate-400">
+            <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
               {circle.description || "A vibrant community for creators to connect, collaborate, and share loops."}
             </p>
           </div>
 
           {/* Owner Info & Activity Pill */}
-          <div className="flex items-center justify-between border-t border-white/10 pt-3 text-xs text-slate-400">
+          <div className="flex items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5 truncate">
-              <span className="text-slate-500">Created by</span>
-              <span className="font-bold text-slate-200 truncate">@{circle.owner?.username || "creator"}</span>
+              <span className="text-muted-foreground">Created by</span>
+              <span className="font-bold text-foreground truncate">@{circle.owner?.username || "creator"}</span>
               {isOwnerVerified && <CheckCircle2 className="h-3 w-3 text-blue-400 shrink-0" />}
               {isOwnerPro && <Crown className="h-3 w-3 text-amber-400 shrink-0" />}
             </div>
@@ -338,21 +338,21 @@ export function CirclesList() {
   return (
     <div className="space-y-6">
       {/* Search Bar & Sorting Controls Bar */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-3 rounded-3xl border border-white/10 bg-[#070c18]/90 p-3 sm:p-4 backdrop-blur-2xl shadow-xl">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-3 rounded-3xl border border-border bg-card/90 p-3 sm:p-4 backdrop-blur-2xl shadow-xl">
         {/* Search Input */}
         <div className="relative w-full md:w-80">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search communities, topics, creators..."
-            className="pl-10 rounded-2xl border-white/10 bg-slate-950/80 text-xs text-white placeholder:text-slate-500 h-10 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
+            className="pl-10 rounded-2xl border-border bg-muted text-xs text-foreground placeholder:text-muted-foreground h-10 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
             >
               ×
             </button>
@@ -361,7 +361,7 @@ export function CirclesList() {
 
         {/* Sort Controls */}
         <div className="flex items-center gap-2 w-full md:w-auto justify-end overflow-x-auto pb-1 md:pb-0">
-          <span className="text-xs font-bold text-slate-400 flex items-center gap-1 shrink-0">
+          <span className="text-xs font-bold text-muted-foreground flex items-center gap-1 shrink-0">
             <ArrowUpDown className="h-3.5 w-3.5 text-cyan-400" /> Sort:
           </span>
           <Button
@@ -371,7 +371,7 @@ export function CirclesList() {
             className={`rounded-xl text-xs font-bold h-8 px-3 ${
               sortBy === "trending"
                 ? "bg-cyan-500 text-black hover:bg-cyan-400"
-                : "border-white/10 bg-slate-900/60 text-slate-300 hover:bg-white/10"
+                : "border-border bg-muted text-muted-foreground hover:bg-muted/70"
             }`}
           >
             Trending 🔥
@@ -383,7 +383,7 @@ export function CirclesList() {
             className={`rounded-xl text-xs font-bold h-8 px-3 ${
               sortBy === "members"
                 ? "bg-cyan-500 text-black hover:bg-cyan-400"
-                : "border-white/10 bg-slate-900/60 text-slate-300 hover:bg-white/10"
+                : "border-border bg-muted text-muted-foreground hover:bg-muted/70"
             }`}
           >
             Most Popular 👥
@@ -395,7 +395,7 @@ export function CirclesList() {
             className={`rounded-xl text-xs font-bold h-8 px-3 ${
               sortBy === "recent"
                 ? "bg-cyan-500 text-black hover:bg-cyan-400"
-                : "border-white/10 bg-slate-900/60 text-slate-300 hover:bg-white/10"
+                : "border-border bg-muted text-muted-foreground hover:bg-muted/70"
             }`}
           >
             Recently Added ✨
@@ -416,7 +416,7 @@ export function CirclesList() {
               className={`flex items-center gap-1.5 whitespace-nowrap rounded-2xl px-4 py-2 text-xs font-bold transition-all shadow-md ${
                 isActive
                   ? "bg-gradient-to-r from-cyan-500 to-indigo-600 text-black shadow-cyan-500/20 scale-105"
-                  : "border border-white/10 bg-[#080d1e]/80 text-slate-300 hover:bg-white/10 hover:text-white"
+                  : "border border-cyan-500/50 bg-cyan-500/10 text-cyan-600 dark:text-cyan-300"
               }`}
             >
               <Icon className={`h-3.5 w-3.5 ${isActive ? "text-black" : "text-cyan-400"}`} />
@@ -428,7 +428,7 @@ export function CirclesList() {
 
       {/* Main Community Tabs */}
       <Tabs defaultValue="discover" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 rounded-2xl border border-white/10 bg-[#070c18]/90 p-1.5 backdrop-blur-xl">
+        <TabsList className="grid w-full grid-cols-2 rounded-2xl border border-border bg-card/90 p-1.5 backdrop-blur-xl">
           <TabsTrigger
             value="discover"
             className="rounded-xl text-xs font-extrabold data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-indigo-600 data-[state=active]:text-black"
@@ -448,16 +448,16 @@ export function CirclesList() {
           {loading ? (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <Card key={i} className="h-80 animate-pulse rounded-3xl border border-white/10 bg-[#090f1d]/50" />
+                <Card key={i} className="h-80 animate-pulse rounded-3xl border border-border bg-muted/50" />
               ))}
             </div>
           ) : discoverCircles.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">{discoverCircles.map(renderCircleCard)}</div>
           ) : (
-            <div className="py-16 text-center rounded-3xl border border-white/10 bg-[#080d1e]/60 p-8 space-y-3">
+            <div className="py-16 text-center rounded-3xl border border-border bg-muted/60 p-8 space-y-3">
               <Compass className="mx-auto h-12 w-12 text-cyan-400 opacity-60" />
-              <h3 className="text-lg font-extrabold text-white">No matching communities found</h3>
-              <p className="text-xs text-slate-400 max-w-md mx-auto">
+              <h3 className="text-lg font-extrabold text-foreground">No matching communities found</h3>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
                 Try searching for a different keyword or category, or create your own community circle!
               </p>
             </div>
@@ -469,16 +469,16 @@ export function CirclesList() {
           {loading ? (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <Card key={i} className="h-80 animate-pulse rounded-3xl border border-white/10 bg-[#090f1d]/50" />
+                <Card key={i} className="h-80 animate-pulse rounded-3xl border border-border bg-muted/50" />
               ))}
             </div>
           ) : myCircles.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">{myCircles.map(renderCircleCard)}</div>
           ) : (
-            <div className="py-16 text-center rounded-3xl border border-white/10 bg-[#080d1e]/60 p-8 space-y-3">
+            <div className="py-16 text-center rounded-3xl border border-border bg-muted/60 p-8 space-y-3">
               <Users className="mx-auto h-12 w-12 text-cyan-400 opacity-60" />
-              <h3 className="text-lg font-extrabold text-white">You haven't joined any communities yet</h3>
-              <p className="text-xs text-slate-400 max-w-md mx-auto">
+              <h3 className="text-lg font-extrabold text-foreground">You haven't joined any communities yet</h3>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
                 Explore the discover tab to find active circles or create your custom circle stage today!
               </p>
             </div>

@@ -5,7 +5,7 @@ import { Users, Sparkles, MessageSquare, ShieldCheck } from "lucide-react"
 
 export default function CirclesPage() {
   return (
-    <div className="min-h-screen bg-[#040814] text-slate-100 selection:bg-cyan-500 selection:text-black">
+    <div className="min-h-screen bg-background text-foreground selection:bg-cyan-500 selection:text-black">
       <Header />
       
       <main className="container mx-auto px-4 py-8 max-w-7xl space-y-8">
