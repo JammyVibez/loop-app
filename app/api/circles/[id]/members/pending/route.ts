@@ -1,7 +1,21 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { notifyUser } from "@/lib/notifications";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
+
+async function isCircleModerator(circleId: string, userId: string): Promise<boolean> {
+  const { data: circle } = await supabase.from("circles").select("owner_id, creator_id").eq("id", circleId).maybeSingle()
+  if (circle && (circle.owner_id === userId || circle.creator_id === userId)) return true
+
+  const { data: member } = await supabase
+    .from("circle_members")
+    .select("role")
+    .eq("circle_id", circleId)
+    .eq("user_id", userId)
+    .maybeSingle()
+  return Boolean(member && ["owner", "admin"].includes(member.role))
+}
 
 async function getUserFromToken(token: string) {
   try {
@@ -33,15 +47,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { id: circleId } = await params
 
-    // Check if user is admin/owner of the circle
-    const { data: member, error: memberError } = await supabase
-      .from("circle_members")
-      .select("role")
-      .eq("circle_id", circleId)
-      .eq("user_id", user.id)
-      .single()
-
-    if (memberError || !member || (member.role !== "admin" && member.role !== "owner")) {
+    if (!(await isCircleModerator(circleId, user.id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
@@ -88,17 +94,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { id: circleId } = await params
     const { memberId, action, role = "member" } = await request.json()
 
-    // Check if user is admin/owner of the circle
-    const { data: member, error: memberError } = await supabase
-      .from("circle_members")
-      .select("role")
-      .eq("circle_id", circleId)
-      .eq("user_id", user.id)
-      .single()
-
-    if (memberError || !member || (member.role !== "admin" && member.role !== "owner")) {
+    if (!(await isCircleModerator(circleId, user.id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
+
+    const { data: pendingMember } = await supabase
+      .from("circle_members")
+      .select("user_id")
+      .eq("id", memberId)
+      .eq("circle_id", circleId)
+      .maybeSingle()
+
+    const { data: circle } = await supabase.from("circles").select("name").eq("id", circleId).maybeSingle()
+    const circleName = circle?.name || "the circle"
 
     if (action === "approve") {
       // Approve the join request
@@ -117,6 +125,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         return NextResponse.json({ error: "Failed to approve member" }, { status: 500 })
       }
 
+      if (pendingMember?.user_id) {
+        await notifyUser(supabase, {
+          userId: pendingMember.user_id,
+          type: "circle_join_approved",
+          title: "Join request approved",
+          message: `You're in! Your request to join ${circleName} was approved.`,
+          actionUrl: `/circles/${circleId}`,
+          pushCategory: "circleInvites",
+          data: { circleId },
+        })
+      }
+
       return NextResponse.json({
         success: true,
         message: "Member approved successfully",
@@ -132,6 +152,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (deleteError) {
         console.error("Database delete error:", deleteError)
         return NextResponse.json({ error: "Failed to reject member" }, { status: 500 })
+      }
+
+      if (pendingMember?.user_id) {
+        await notifyUser(supabase, {
+          userId: pendingMember.user_id,
+          type: "circle_join_rejected",
+          title: "Join request declined",
+          message: `Your request to join ${circleName} was declined.`,
+          pushCategory: "circleInvites",
+          inAppOnly: true,
+          data: { circleId },
+        })
       }
 
       return NextResponse.json({

@@ -29,10 +29,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { id: circleId } = await params
 
     // Private circles: only approved members (or the owner) may read posts.
-    const access = await checkCirclePrivateAccess(circleId, request.headers.get("authorization"))
+    const authHeader = request.headers.get("authorization")
+    const access = await checkCirclePrivateAccess(circleId, authHeader)
     if (access.isPrivate && !access.canView) {
       return NextResponse.json({ success: true, posts: [], hasMore: false, locked: true })
     }
+
+    const token = authHeader?.replace("Bearer ", "") ?? null
+    const currentUser = token ? await getUserFromToken(token) : null
 
     // Fetch posts with author info
     const { data: posts, error } = await supabase
@@ -61,19 +65,25 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (postIds.length > 0) {
       const { data: interactions } = await supabase
         .from("circle_post_interactions")
-        .select("post_id, interaction_type")
+        .select("post_id, user_id, interaction_type")
         .in("post_id", postIds)
 
-      // Add interaction counts + poll to posts
+      // Add interaction counts + poll to posts. Previously never reported
+      // is_liked at all, so the like button always rendered "not liked"
+      // even for posts the viewer had already liked.
       const postsWithCounts = posts?.map(post => {
         const postInteractions = interactions?.filter(interaction => interaction.post_id === post.id) || []
         const likes = postInteractions.filter(i => i.interaction_type === "like").length
         const shares = postInteractions.filter(i => i.interaction_type === "share").length
-        
+        const isLiked = Boolean(
+          currentUser && postInteractions.some((i) => i.interaction_type === "like" && i.user_id === currentUser.id),
+        )
+
         return {
           ...post,
           like_count: likes,
           share_count: shares,
+          is_liked: isLiked,
           poll: pollByPostId.get(post.id) || null,
         }
       }) || []
@@ -215,8 +225,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       createdPoll = pollRow
     }
 
-    // Update circle post count
+    // Update circle post count + this author's leaderboard score
     await supabase.rpc('increment_circle_post_count', { circle_id: circleId })
+    await supabase.rpc('increment_circle_contribution', { p_circle_id: circleId, p_user_id: user.id, p_amount: 5 })
 
     try {
       const { processMentions, extractMentions, attachMentionsColumn } = await import("@/lib/mentions")

@@ -334,25 +334,34 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         body: JSON.stringify({ memberId, action, role })
       })
 
-      if (response.ok) {
-        // Remove the member from pending list (memberId is membership row id)
-        setPendingMembers(prev => prev.filter(member => (member.membership_id || member.id) !== memberId))
-        
-        // If approved, add to members list
-        if (action === 'approve') {
-          const approvedMember = pendingMembers.find(member => (member.membership_id || member.id) === memberId);
-          if (approvedMember) {
-            setMembers(prev => [...prev, {
-              ...approvedMember,
-              role,
-              status: 'active',
-              joined_at: new Date().toISOString(),
-            }]);
-          }
-        }
-        
-        toast({ description: `Member ${action} action completed successfully` })
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        toast({
+          title: "Error",
+          description: data.error || `Failed to ${action} member`,
+          variant: "destructive",
+        })
+        return
       }
+
+      // Remove the member from pending list (memberId is membership row id)
+      setPendingMembers(prev => prev.filter(member => (member.membership_id || member.id) !== memberId))
+
+      // If approved, add to members list
+      if (action === 'approve') {
+        const approvedMember = pendingMembers.find(member => (member.membership_id || member.id) === memberId);
+        if (approvedMember) {
+          setMembers(prev => [...prev, {
+            ...approvedMember,
+            role,
+            status: 'active',
+            joined_at: new Date().toISOString(),
+          }]);
+        }
+      }
+
+      toast({ description: `Member ${action} action completed successfully` })
     } catch (error) {
       console.error(`Failed to ${action} member:`, error)
       toast({

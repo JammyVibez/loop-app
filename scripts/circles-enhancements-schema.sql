@@ -89,3 +89,24 @@ CREATE TABLE IF NOT EXISTS circle_room_members (
 
 CREATE INDEX IF NOT EXISTS idx_circle_room_members_room_id ON circle_room_members(room_id);
 CREATE INDEX IF NOT EXISTS idx_circle_room_members_user_id ON circle_room_members(user_id);
+
+-- 8. The leaderboard tab has always read circle_members.contribution_score,
+-- but nothing ever wrote to it, so every circle's "Top Contributors" board
+-- showed a flat 0-point tie. Add an atomic increment helper and call it from
+-- the API whenever a member posts, comments, or gets liked.
+CREATE OR REPLACE FUNCTION increment_circle_contribution(p_circle_id UUID, p_user_id UUID, p_amount INTEGER)
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+    UPDATE circle_members
+    SET contribution_score = GREATEST(0, COALESCE(contribution_score, 0) + p_amount)
+    WHERE circle_id = p_circle_id AND user_id = p_user_id;
+END;
+$$;
+
+-- 9. circle_posts was already on the realtime publication, but
+-- circle_post_comments never was, so the main community feed (unlike circle
+-- rooms and the admin dashboard) had no live updates when new posts or
+-- comments came in — it was fetch-once-on-load only.
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.circle_post_comments;
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN undefined_object THEN NULL; END $$;

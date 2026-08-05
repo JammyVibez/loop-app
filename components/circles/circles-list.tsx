@@ -171,8 +171,13 @@ export function CirclesList() {
     } else if (sortBy === "recent") {
       result.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
     } else {
-      // Trending (mix of member count + post activity)
-      result.sort((a, b) => (b.member_count || 0) * 1.5 - (a.member_count || 0) * 1.5)
+      // Trending: real post activity weighted higher than raw member count,
+      // so a small, active circle can outrank a large, quiet one. (This
+      // previously multiplied member_count by 1.5 on both sides of the
+      // comparison, which is a no-op — it was identical to sorting by
+      // members alone despite the comment claiming otherwise.)
+      const score = (c: any) => (Number(c.post_count) || 0) * 3 + (Number(c.member_count) || 0)
+      result.sort((a, b) => score(b) - score(a))
     }
 
     return result

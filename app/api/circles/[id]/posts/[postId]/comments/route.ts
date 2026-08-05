@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { notifyUser } from "@/lib/notifications"
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
 
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const { data: post } = await supabase
       .from("circle_posts")
-      .select("id, comment_count")
+      .select("id, comment_count, author_id")
       .eq("id", postId)
       .eq("circle_id", circleId)
       .maybeSingle()
@@ -98,6 +99,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .from("circle_posts")
       .update({ comment_count: Number(post.comment_count || 0) + 1, updated_at: new Date().toISOString() })
       .eq("id", postId)
+
+    // Commenting counts toward the circle leaderboard.
+    await supabase.rpc("increment_circle_contribution", { p_circle_id: circleId, p_user_id: user.id, p_amount: 2 })
+
+    if (post.author_id && post.author_id !== user.id) {
+      const commenterName = comment.author?.display_name || comment.author?.username || "Someone"
+      await notifyUser(supabase, {
+        userId: post.author_id,
+        type: "circle_post_comment",
+        title: "New comment on your post",
+        message: `${commenterName} commented: "${content.slice(0, 80)}"`,
+        actionUrl: `/circles/${circleId}`,
+        actorId: user.id,
+        pushCategory: "social",
+        data: { circleId, postId },
+      })
+    }
 
     try {
       const { processMentions, extractMentions } = await import("@/lib/mentions")

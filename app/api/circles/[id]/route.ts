@@ -116,6 +116,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .order("created_at", { ascending: false })
       .limit(20)
 
+    // Posts previously always reported is_liked: false regardless of the
+    // viewer's actual interactions, which desynced the like button after a
+    // page refresh (server said "not liked" even though it was).
+    let likedPostIds = new Set<string>()
+    if (currentUser && posts && posts.length > 0) {
+      const { data: likeRows } = await supabase
+        .from("circle_post_interactions")
+        .select("post_id")
+        .eq("user_id", currentUser.id)
+        .eq("interaction_type", "like")
+        .in("post_id", posts.map((p: any) => p.id))
+      likedPostIds = new Set((likeRows || []).map((r: any) => r.post_id))
+    }
+
     // Get upcoming events
     const { data: events } = await supabase
       .from("circle_events")
@@ -184,7 +198,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         likes: post.like_count || 0,
         comments: post.comment_count || 0,
         shares: post.share_count || 0,
-        is_liked: false,
+        is_liked: likedPostIds.has(post.id),
         is_bookmarked: false,
       })),
       events: events || [],

@@ -62,6 +62,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useTheme3D } from "@/providers/theme-3d-provider"
 import { formatDistanceToNow } from "date-fns"
 import { uploadMediaFile } from "@/lib/client-media-upload"
+import { supabase } from "@/lib/supabase"
 
 interface EnhancedCircleDetailProps {
   circleId: string
@@ -346,6 +347,45 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
     loadCircleData()
   }, [circleId, user, authLoading])
 
+  // Refetches just the posts feed — used by the realtime subscription below
+  // so new posts/comments/likes from other members show up without a full
+  // page reload. Previously this feed was fetch-once-on-load only, while
+  // circle rooms and the admin dashboard already had live updates.
+  const refreshPosts = async () => {
+    try {
+      const response = await fetch(`/api/circles/${circleId}/posts`, { headers: getAuthHeader() })
+      if (response.ok) {
+        const data = await response.json()
+        setPosts((data.posts || []).map(mapCirclePost))
+      }
+    } catch (error) {
+      console.error("Failed to refresh circle posts:", error)
+    }
+  }
+
+  useEffect(() => {
+    if (!circleId || !isJoined) return
+
+    const channel = supabase
+      .channel(`circle-feed:${circleId}`, { config: { broadcast: { self: false } } })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "circle_posts", filter: `circle_id=eq.${circleId}` },
+        () => void refreshPosts(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "circle_post_comments", filter: `circle_id=eq.${circleId}` },
+        () => void refreshPosts(),
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [circleId, isJoined])
+
   // Handle join/leave circle
   const handleJoinLeave = async () => {
     if (!user || !circle) return
@@ -489,9 +529,21 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
     }
   }
 
-  // Handle post interactions
+  // Handle post interactions. Optimistic toggle first, then reconcile with
+  // the server's authoritative is_liked so a stale/incorrect initial load
+  // (posts never told us whether *this* user had liked them) can't desync.
   const handleLike = async (postId: string) => {
     if (!user) return
+
+    const target = posts.find((p) => p.id === postId)
+    if (!target) return
+    const optimisticLiked = !target.is_liked
+
+    setPosts(prev => prev.map(post =>
+      post.id === postId
+        ? { ...post, is_liked: optimisticLiked, likes: post.likes + (optimisticLiked ? 1 : -1) }
+        : post
+    ))
 
     try {
       const response = await fetch(`/api/circles/${circleId}/posts/${postId}`, {
@@ -503,19 +555,26 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
         body: JSON.stringify({ action: 'like' })
       })
 
-      if (response.ok) {
-        setPosts(prev => prev.map(post => 
-          post.id === postId 
-            ? { 
-                ...post, 
-                is_liked: !post.is_liked,
-                likes: post.likes + (post.is_liked ? -1 : 1)
-              }
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) throw new Error(data.error || "Failed to like post")
+
+      if (typeof data.is_liked === "boolean" && data.is_liked !== optimisticLiked) {
+        // Server disagreed with our optimistic guess (e.g. two tabs open) — reconcile.
+        setPosts(prev => prev.map(post =>
+          post.id === postId
+            ? { ...post, is_liked: data.is_liked, likes: Math.max(0, post.likes + (data.is_liked ? 1 : -1)) }
             : post
         ))
       }
-    } catch (error) {
-      console.error('Failed to like post:', error)
+    } catch (error: any) {
+      // Roll back the optimistic update on failure.
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? { ...post, is_liked: !optimisticLiked, likes: Math.max(0, post.likes + (optimisticLiked ? -1 : 1)) }
+          : post
+      ))
+      toast({ title: "Couldn't like post", description: error.message, variant: "destructive" })
     }
   }
 
