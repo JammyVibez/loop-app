@@ -1,14 +1,32 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { TreePine, Camera, Palette, Users, Sparkles, ArrowRight, Check } from "lucide-react";
+import { TreePine, Camera, Palette, Users, Sparkles, ArrowRight, Check, UserPlus, Home, Video } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+
+interface SuggestedUser {
+  id: string
+  username: string
+  display_name: string
+  avatar_url?: string
+  is_verified?: boolean
+  reason?: string
+}
+
+interface SuggestedCircle {
+  id: string
+  name: string
+  description?: string
+  member_count?: number
+  avatar_url?: string
+}
 
 const INTERESTS = [
   "Art & Design",
@@ -83,6 +101,57 @@ export default function OnboardingPage() {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // "First win" data for the final step — real suggestions seeded from the
+  // interests just picked, not canned/mock accounts.
+  const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([])
+  const [suggestedCircles, setSuggestedCircles] = useState<SuggestedCircle[]>([])
+  const [followedIds, setFollowedIds] = useState<Set<string>>(new Set())
+  const [joinedCircleIds, setJoinedCircleIds] = useState<Set<string>>(new Set())
+  const [loadingFirstWin, setLoadingFirstWin] = useState(false)
+
+  useEffect(() => {
+    if (step !== 5 || !user) return
+    setLoadingFirstWin(true)
+    Promise.all([
+      fetch("/api/users/suggestions?limit=4", { headers: { ...getAuthHeader() } })
+        .then((r) => (r.ok ? r.json() : { suggestions: [] }))
+        .catch(() => ({ suggestions: [] })),
+      fetch("/api/circles?limit=3", { headers: { ...getAuthHeader() } })
+        .then((r) => (r.ok ? r.json() : { circles: [] }))
+        .catch(() => ({ circles: [] })),
+    ]).then(([usersData, circlesData]) => {
+      setSuggestedUsers(usersData.suggestions || [])
+      setSuggestedCircles(circlesData.circles || [])
+      setLoadingFirstWin(false)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, user])
+
+  const handleFollow = async (targetId: string) => {
+    try {
+      const res = await fetch("/api/users/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ target_user_id: targetId, action: "follow" }),
+      })
+      if (res.ok) setFollowedIds((prev) => new Set(prev).add(targetId))
+    } catch {
+      /* non-blocking */
+    }
+  }
+
+  const handleJoinCircle = async (circleId: string) => {
+    try {
+      const res = await fetch(`/api/circles/${circleId}/join`, {
+        method: "POST",
+        headers: { ...getAuthHeader() },
+      })
+      if (res.ok) setJoinedCircleIds((prev) => new Set(prev).add(circleId))
+    } catch {
+      /* non-blocking */
+    }
+  }
 
   const handleInterestToggle = (interest: string) => {
     setProfileData((prev) => ({
@@ -387,16 +456,94 @@ export default function OnboardingPage() {
             <CardHeader className="text-center">
               <Sparkles className="w-12 h-12 text-purple-600 mx-auto mb-4" />
               <CardTitle className="text-2xl">You're all set!</CardTitle>
-              <CardDescription>Welcome to the Loop community. Start creating and connecting!</CardDescription>
+              <CardDescription>Get your first win in — follow a few creators and join a circle.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur">
-                <h3 className="font-semibold mb-4">Your setup</h3>
-                <ul className="space-y-2 text-sm text-slate-300">
-                  <li>{profileData.interests.length} interests selected</li>
-                  <li>Theme: {profileData.theme.name}</li>
-                  <li>Goals: {profileData.goals.join(", ") || "None"}</li>
-                </ul>
+            <CardContent className="space-y-5">
+              {loadingFirstWin ? (
+                <p className="text-center text-sm text-slate-400">Finding people and circles for you…</p>
+              ) : (
+                <>
+                  {suggestedUsers.length > 0 && (
+                    <div>
+                      <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-200">
+                        <UserPlus className="h-4 w-4 text-violet-400" /> Creators picked for you
+                      </h3>
+                      <div className="space-y-2">
+                        {suggestedUsers.map((u) => (
+                          <div
+                            key={u.id}
+                            className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5"
+                          >
+                            <div className="flex min-w-0 items-center gap-2.5">
+                              <Avatar className="h-9 w-9">
+                                <AvatarImage src={u.avatar_url} />
+                                <AvatarFallback>{(u.display_name || u.username).charAt(0).toUpperCase()}</AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium">{u.display_name || u.username}</p>
+                                <p className="truncate text-xs text-slate-400">{u.reason || `@${u.username}`}</p>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant={followedIds.has(u.id) ? "secondary" : "outline"}
+                              className="shrink-0 rounded-full"
+                              disabled={followedIds.has(u.id)}
+                              onClick={() => handleFollow(u.id)}
+                            >
+                              {followedIds.has(u.id) ? <Check className="h-3.5 w-3.5" /> : "Follow"}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {suggestedCircles.length > 0 && (
+                    <div>
+                      <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-200">
+                        <Users className="h-4 w-4 text-cyan-400" /> Join a circle
+                      </h3>
+                      <div className="space-y-2">
+                        {suggestedCircles.slice(0, 2).map((c) => (
+                          <div
+                            key={c.id}
+                            className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">{c.name}</p>
+                              <p className="truncate text-xs text-slate-400">
+                                {c.member_count ? `${c.member_count} members` : c.description || "Community circle"}
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant={joinedCircleIds.has(c.id) ? "secondary" : "outline"}
+                              className="shrink-0 rounded-full"
+                              disabled={joinedCircleIds.has(c.id)}
+                              onClick={() => handleJoinCircle(c.id)}
+                            >
+                              {joinedCircleIds.has(c.id) ? <Check className="h-3.5 w-3.5" /> : "Join"}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="rounded-2xl border border-dashed border-violet-500/30 bg-violet-500/[0.06] p-4 text-center">
+                <p className="text-sm font-medium text-slate-200">Ready to share something?</p>
+                <p className="mt-0.5 text-xs text-slate-400">Your first Loop or Reel gets you into the feed instantly.</p>
+                <div className="mt-3 flex justify-center gap-2">
+                  <Button asChild size="sm" variant="outline" className="rounded-full">
+                    <Link href="/create/loop"><Home className="mr-1.5 h-3.5 w-3.5" /> First Loop</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline" className="rounded-full">
+                    <Link href="/create/reel"><Video className="mr-1.5 h-3.5 w-3.5" /> First Reel</Link>
+                  </Button>
+                </div>
               </div>
 
               {errors.general && (
