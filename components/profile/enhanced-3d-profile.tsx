@@ -14,6 +14,8 @@ import {
   MapPin,
   MessageCircle,
   MoreHorizontal,
+  Pin,
+  PinOff,
   Plus,
   Share2,
   Sparkles,
@@ -152,6 +154,26 @@ export function Enhanced3DProfile({ username }: { username: string }) {
     // Intentionally only re-fetch when the route username or signed-in user changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username, user?.id])
+
+  const [pinningId, setPinningId] = useState<string | null>(null)
+  const handleTogglePin = async (loopId: string, nextPinned: boolean) => {
+    setPinningId(loopId)
+    try {
+      const res = await fetch(`/api/loops/${loopId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ is_pinned: nextPinned }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to update pin")
+      toast({ description: nextPinned ? "Pinned to your profile" : "Unpinned from your profile" })
+      await fetchProfile({ silent: true })
+    } catch (error: any) {
+      toast({ title: "Couldn't update pin", description: error.message, variant: "destructive" })
+    } finally {
+      setPinningId(null)
+    }
+  }
 
   useEffect(() => {
     if (!profile?.id) return
@@ -594,15 +616,62 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         </TabsList>
 
         <TabsContent value="loops" className="mt-0 space-y-0">
-          {profile.recent_loops?.length > 0 ? (
-            profile.recent_loops.map((loop) => (
-              <div key={loop.id} className="border-b border-border/60 px-0 py-0">
-                <LoopCard loop={loop} className="rounded-none border-0 shadow-none" />
-              </div>
-            ))
-          ) : (
-            <EmptyBlock icon={Flame} label="No loops yet" />
-          )}
+          {(() => {
+            const pinnedLoops = (profile.recent_loops || []).filter((l: any) => l.is_pinned)
+            const unpinnedLoops = (profile.recent_loops || []).filter((l: any) => !l.is_pinned)
+            const canPin = isOwnProfile
+            const renderPinButton = (loop: any) => {
+              if (!canPin) return null
+              if (!loop.is_pinned && pinnedLoops.length >= 3) return null
+              return (
+                <button
+                  type="button"
+                  disabled={pinningId === loop.id}
+                  onClick={() => handleTogglePin(loop.id, !loop.is_pinned)}
+                  className={cn(
+                    "absolute right-3 top-3 z-10 flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold shadow-sm backdrop-blur transition-colors",
+                    loop.is_pinned
+                      ? "border-sky-500/50 bg-sky-500/15 text-sky-500 hover:bg-sky-500/25"
+                      : "border-border/60 bg-background/80 text-muted-foreground hover:text-foreground",
+                  )}
+                  title={loop.is_pinned ? "Unpin from profile" : "Pin to profile (best work)"}
+                >
+                  {loop.is_pinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
+                  {loop.is_pinned ? "Pinned" : "Pin"}
+                </button>
+              )
+            }
+
+            if (!profile.recent_loops?.length) {
+              return <EmptyBlock icon={Flame} label="No loops yet" />
+            }
+
+            return (
+              <>
+                {pinnedLoops.length > 0 && (
+                  <div className="border-b border-border/60 bg-muted/20 px-4 py-3">
+                    <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      <Pin className="h-3.5 w-3.5 text-sky-500" /> Pinned
+                    </p>
+                    <div className="space-y-0 divide-y divide-border/40 rounded-xl border border-border/50 overflow-hidden bg-background">
+                      {pinnedLoops.map((loop: any) => (
+                        <div key={loop.id} className="relative">
+                          {renderPinButton(loop)}
+                          <LoopCard loop={loop} className="rounded-none border-0 shadow-none" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {unpinnedLoops.map((loop: any) => (
+                  <div key={loop.id} className="relative border-b border-border/60 px-0 py-0">
+                    {renderPinButton(loop)}
+                    <LoopCard loop={loop} className="rounded-none border-0 shadow-none" />
+                  </div>
+                ))}
+              </>
+            )
+          })()}
         </TabsContent>
 
         <TabsContent value="branches" className="mt-0 space-y-0">
