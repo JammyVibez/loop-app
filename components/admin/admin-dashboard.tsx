@@ -30,6 +30,7 @@ import { AdminCatalogPanel } from "@/components/admin/admin-catalog-panel"
 import { AdminFeaturedPanel } from "@/components/admin/admin-featured-panel"
 import { ContentModerationControl } from "@/components/admin/content-moderation-control"
 import { EconomyControl } from "@/components/admin/economy-control"
+import { WithdrawalsControl } from "@/components/admin/withdrawals-control"
 import { SettingsTabContent } from "@/components/admin/settings-tab-content"
 import { EventManagement } from "@/components/admin/event-management"
 import { MaintenanceModeControl } from "@/components/admin/maintenance-mode-control"
@@ -174,11 +175,12 @@ export function AdminDashboard() {
       </div>
 
       <Tabs value={section} onValueChange={setSection}>
-        <TabsList className="grid h-auto w-full max-w-5xl grid-cols-4 gap-1 sm:grid-cols-7">
+        <TabsList className="grid h-auto w-full max-w-5xl grid-cols-4 gap-1 sm:grid-cols-8">
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
           <TabsTrigger value="events">Global Events</TabsTrigger>
           <TabsTrigger value="economy">Economy</TabsTrigger>
+          <TabsTrigger value="payouts">Payouts</TabsTrigger>
           <TabsTrigger value="catalog">Themes & Effects</TabsTrigger>
           <TabsTrigger value="featured">Featured</TabsTrigger>
           <TabsTrigger value="moderation">Moderation</TabsTrigger>
@@ -398,6 +400,10 @@ export function AdminDashboard() {
         <TabsContent value="economy" className="mt-6 space-y-6">
           <EconomyControl />
           <SettingsTabContent />
+        </TabsContent>
+
+        <TabsContent value="payouts" className="mt-6">
+          <WithdrawalsControl />
         </TabsContent>
 
         <TabsContent value="catalog" className="mt-6">

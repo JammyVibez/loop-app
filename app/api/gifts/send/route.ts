@@ -264,17 +264,25 @@ export async function POST(request: NextRequest) {
         : []),
     ])
 
-    // Creator earnings + XP for both sides
+    // Creator earnings + XP for both sides.
+    // IMPORTANT: "coins" gifts already deposit real spendable loop_coins into
+    // the recipient's balance above — crediting withdrawable available_earnings
+    // for the same value on top of that would let a single Stripe-purchased
+    // coin pack be both spent in-app AND cashed out as real money. Only
+    // non-coin gifts (themes/premium/badges/effects — where the recipient gets
+    // an item, not raw coins) convert their coin cost into creator earnings.
     try {
       const { awardEarnings, coinsToEarnings } = await import("@/lib/earnings")
       const { awardXp } = await import("@/lib/xp")
-      const earningAmount = coinsToEarnings(giftCost)
-      if (earningAmount > 0) {
-        await awardEarnings(supabase, recipientId, earningAmount, {
-          source: "gift",
-          reference_id: giftRecord.id,
-          description: `Earnings from ${giftItem.name}`,
-        })
+      if (giftType !== "coins") {
+        const earningAmount = coinsToEarnings(giftCost)
+        if (earningAmount > 0) {
+          await awardEarnings(supabase, recipientId, earningAmount, {
+            source: "gift",
+            reference_id: giftRecord.id,
+            description: `Earnings from ${giftItem.name}`,
+          })
+        }
       }
       await awardXp(supabase, user.id, "gift_sent", `Sent gift ${giftItem.name}`)
       await awardXp(supabase, recipientId, "gift_received", `Received gift ${giftItem.name}`)
