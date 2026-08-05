@@ -146,16 +146,19 @@ export function ShopContent() {
     setPurchasing(item.id)
 
     try {
-      const itemPrice = Number(item.price_coins ?? item.price ?? 0)
+      const isCoinPack = item.category === "coins"
 
-      if ((user?.loop_coins || 0) < itemPrice) {
-        toast({
-          title: "Insufficient Loop Coins",
-          description: "You don't have enough Loop Coins for this purchase.",
-          variant: "destructive",
-        })
-        setPurchasing(null)
-        return
+      if (!isCoinPack) {
+        const itemPrice = Number(item.price_coins ?? item.price ?? 0)
+        if ((user?.loop_coins || 0) < itemPrice) {
+          toast({
+            title: "Insufficient Loop Coins",
+            description: "You don't have enough Loop Coins for this purchase.",
+            variant: "destructive",
+          })
+          setPurchasing(null)
+          return
+        }
       }
 
       const response = await fetch("/api/shop/purchase", {
@@ -166,30 +169,32 @@ export function ShopContent() {
         },
         body: JSON.stringify({
           item_id: item.id,
-          payment_method: "coins",
+          payment_method: isCoinPack ? "stripe" : "coins",
         }),
       })
 
       const data = await response.json()
 
+      if (data.success && isCoinPack && data.checkout_url) {
+        // Redirect to Stripe Checkout — coins are credited by the webhook once payment succeeds.
+        window.location.href = data.checkout_url
+        return
+      }
+
       if (data.success) {
-        if (item.category !== "coins") {
-          setPurchasedItems((prev) => new Set([...prev, item.id]))
-        }
+        setPurchasedItems((prev) => new Set([...prev, item.id]))
         toast({
           title: "Purchase Successful!",
           description: `You've purchased ${item.name}. Open Inventory to apply themes & effects.`,
         })
         await refreshUser?.()
         await fetchUserInventory()
-        if (item.category !== "coins") {
-          window.setTimeout(() => {
-            toast({
-              title: "Activate in Inventory",
-              description: "Profile menu → Inventory, or go to /inventory",
-            })
-          }, 1200)
-        }
+        window.setTimeout(() => {
+          toast({
+            title: "Activate in Inventory",
+            description: "Profile menu → Inventory, or go to /inventory",
+          })
+        }, 1200)
       } else {
         toast({
           title: "Purchase Failed",

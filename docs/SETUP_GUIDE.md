@@ -159,7 +159,8 @@ CLOUDINARY_UPLOAD_PRESET=your_preset_name
 
 3. **Configure Webhooks:**
    - Add endpoint: `https://yourdomain.com/api/payments/webhook`
-   - Select events: `payment_intent.succeeded`, `payment_intent.payment_failed`
+   - Select events: `checkout.session.completed` (required — credits Loop Coins after a
+     coin pack purchase), `payment_intent.succeeded`, `payment_intent.payment_failed`
 
 ### 3. Live Streaming Setup
 

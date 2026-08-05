@@ -18,6 +18,9 @@ const files = [
   "scripts/circles-schema-alignment.sql",
   "scripts/enhanced-database-schema-part2.sql",
   "scripts/enhanced-database-schema-part3.sql",
+  // Wallet ledger, coin gifts, and withdrawal request tables. Required for the
+  // Stripe-backed coin economy (see /api/payments/webhook and /api/wallet/*).
+  "scripts/wallet-and-events-schema.sql",
   "scripts/rls-policies.sql",
   "scripts/realtime-functions.sql",
 ]
@@ -30,7 +33,7 @@ const ignorable = [
   /policy .* already exists/i,
   /relation .* does not exist/i,
   /column .* does not exist/i,
-  /is already a member of publication/i,
+  /is already a? ?member of publication/i,
   /type .* already exists/i,
   /constraint .* already exists/i,
   /trigger .* already exists/i,

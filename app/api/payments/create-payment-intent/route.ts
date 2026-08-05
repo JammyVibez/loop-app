@@ -41,21 +41,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if Stripe is configured
-    if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.includes('your_stripe_secret_key')) {
-      if (process.env.NODE_ENV === "production") {
-        return NextResponse.json({ error: "Stripe is not configured" }, { status: 503 })
-      }
-
-      return NextResponse.json({
-        success: true,
-        client_secret: "pi_mock_client_secret_" + Date.now(),
-        payment_intent_id: "pi_mock_" + Date.now(),
-        message: "Mock payment intent created. Configure STRIPE_SECRET_KEY in .env.local for real payments.",
-        mock: true,
-      })
-    }
-
     const stripe = await getStripeServer()
     if (!stripe) {
       return NextResponse.json({ error: "Stripe is not configured" }, { status: 503 })

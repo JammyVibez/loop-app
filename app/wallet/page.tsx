@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -61,18 +62,20 @@ interface WithdrawalRequest {
   created_at: string
 }
 
-const DEPOSIT_PACKAGES = [
-  { coins: 500, usd: 4.99, bonus: "0%", popular: false, badge: "Starter" },
-  { coins: 1200, usd: 9.99, bonus: "20% Bonus", popular: true, badge: "Most Popular" },
-  { coins: 2500, usd: 19.99, bonus: "25% Bonus", popular: false, badge: "Pro Pack" },
-  { coins: 6500, usd: 49.99, bonus: "30% Bonus", popular: false, badge: "Legend Vault" },
-]
+interface CoinPackage {
+  id: string
+  name: string
+  price_usd: number
+  item_data?: { coins_amount?: number; bonus?: number }
+}
 
 export default function WalletPage() {
   const { user } = useAuth()
   const { toast } = useToast()
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
-  const [balance, setBalance] = useState<number>(2500)
+  const [balance, setBalance] = useState<number>(0)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [receivedGifts, setReceivedGifts] = useState<CoinGift[]>([])
   const [sentGifts, setSentGifts] = useState<CoinGift[]>([])
@@ -82,7 +85,9 @@ export default function WalletPage() {
 
   // Deposit Modal State
   const [depositOpen, setDepositOpen] = useState(false)
-  const [selectedPkg, setSelectedPkg] = useState(DEPOSIT_PACKAGES[1])
+  const [coinPackages, setCoinPackages] = useState<CoinPackage[]>([])
+  const [packagesLoading, setPackagesLoading] = useState(false)
+  const [selectedPkgId, setSelectedPkgId] = useState<string | null>(null)
   const [depositing, setDepositing] = useState(false)
 
   // Gift Modal State
@@ -147,6 +152,50 @@ export default function WalletPage() {
     }
   }, [user])
 
+  useEffect(() => {
+    const checkoutStatus = searchParams?.get("checkout")
+    if (!checkoutStatus) return
+
+    if (checkoutStatus === "success") {
+      toast({
+        title: "Payment received! 🎉",
+        description: "Your Loop Coins are on the way — this updates within a few seconds.",
+      })
+      // Stripe credits coins via webhook; poll briefly so the balance updates without a manual refresh.
+      fetchWalletData()
+      const retry = window.setTimeout(fetchWalletData, 3000)
+      router.replace("/wallet")
+      return () => window.clearTimeout(retry)
+    }
+
+    if (checkoutStatus === "cancelled") {
+      toast({
+        title: "Checkout cancelled",
+        description: "No charge was made. You can try again anytime.",
+      })
+      router.replace("/wallet")
+    }
+  }, [searchParams])
+
+  const fetchCoinPackages = async () => {
+    setPackagesLoading(true)
+    try {
+      const res = await fetch("/api/shop/items?category=coins")
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          const packs: CoinPackage[] = data.items || []
+          setCoinPackages(packs)
+          if (packs.length > 0) setSelectedPkgId((prev) => prev ?? packs[0].id)
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load coin packages:", err)
+    } finally {
+      setPackagesLoading(false)
+    }
+  }
+
   const fetchWalletData = async () => {
     setLoading(true)
     try {
@@ -157,7 +206,7 @@ export default function WalletPage() {
       if (res.ok) {
         const data = await res.json()
         if (data.success) {
-          setBalance(data.balance ?? 2500)
+          setBalance(data.balance ?? 0)
           setTransactions(data.transactions || [])
         }
       }
@@ -253,38 +302,35 @@ export default function WalletPage() {
   }
 
   const handleDeposit = async () => {
+    if (!selectedPkgId) {
+      toast({ title: "Choose a pack", description: "Select a Loop Coin pack to continue.", variant: "destructive" })
+      return
+    }
+
     setDepositing(true)
     try {
       const token = user?.access_token
-      const res = await fetch("/api/wallet/transactions", {
+      const res = await fetch("/api/shop/purchase", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          amount_usd: selectedPkg.usd,
-          coins_amount: selectedPkg.coins,
-          payment_method: "card",
-          description: `Purchased ${selectedPkg.coins.toLocaleString()} Loop Coins (${selectedPkg.badge})`,
+          item_id: selectedPkgId,
+          payment_method: "stripe",
         }),
       })
 
       const data = await res.json()
-      if (res.ok && data.success) {
-        setBalance(data.newBalance)
-        if (data.transaction) {
-          setTransactions((prev) => [data.transaction, ...prev])
-        }
-        setDepositOpen(false)
-        toast({
-          title: "Deposit Successful! 🎉",
-          description: `Added ${selectedPkg.coins.toLocaleString()} Loop Coins to your vault.`,
-        })
+      if (res.ok && data.success && data.checkout_url) {
+        // Redirect to Stripe Checkout. Coins are credited by the webhook once
+        // payment actually succeeds — never before.
+        window.location.href = data.checkout_url
       } else {
         toast({
-          title: "Deposit Failed",
-          description: data.error || "Could not complete transaction",
+          title: "Checkout Failed",
+          description: data.error || "Could not start checkout",
           variant: "destructive",
         })
       }
@@ -461,7 +507,10 @@ export default function WalletPage() {
             {/* Quick Action Buttons */}
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <Button
-                onClick={() => setDepositOpen(true)}
+                onClick={() => {
+                  setDepositOpen(true)
+                  fetchCoinPackages()
+                }}
                 className="rounded-xl px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white shadow-md shadow-indigo-600/20 font-semibold text-sm"
               >
                 <PlusCircle className="w-4 h-4 mr-2" />
@@ -583,7 +632,15 @@ export default function WalletPage() {
                 <div className="py-12 text-center space-y-3">
                   <Coins className="w-10 h-10 mx-auto text-muted-foreground/40" />
                   <p className="text-sm font-medium text-muted-foreground">No transactions recorded yet</p>
-                  <Button size="sm" variant="outline" onClick={() => setDepositOpen(true)} className="rounded-full text-xs">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setDepositOpen(true)
+                      fetchCoinPackages()
+                    }}
+                    className="rounded-full text-xs"
+                  >
                     Make your first deposit
                   </Button>
                 </div>
@@ -763,41 +820,54 @@ export default function WalletPage() {
               Deposit Loop Coins
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Select a coin package to instantly top up your account balance.
+              Select a coin package to securely pay with card via Stripe Checkout.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-4">
-            {DEPOSIT_PACKAGES.map((pkg) => {
-              const selected = selectedPkg.coins === pkg.coins
-              return (
-                <div
-                  key={pkg.coins}
-                  onClick={() => setSelectedPkg(pkg)}
-                  className={`cursor-pointer rounded-xl border p-4 transition-all relative ${
-                    selected
-                      ? "border-primary bg-primary/10 shadow-sm"
-                      : "border-border/60 hover:border-border bg-card"
-                  }`}
-                >
-                  {pkg.popular && (
-                    <Badge className="absolute -top-2.5 right-3 bg-gradient-to-r from-indigo-500 to-cyan-500 text-white text-[10px] px-2 py-0">
-                      {pkg.badge}
-                    </Badge>
-                  )}
-                  <p className="text-xs text-muted-foreground font-medium">{pkg.badge}</p>
-                  <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-xl font-extrabold">{pkg.coins.toLocaleString()}</span>
-                    <span className="text-xs text-yellow-500 font-semibold">Coins</span>
+          {packagesLoading ? (
+            <div className="py-10 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin text-primary" />
+              Loading coin packs...
+            </div>
+          ) : coinPackages.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              No coin packs are available right now. Please check back soon.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-4">
+              {coinPackages.map((pkg, idx) => {
+                const selected = selectedPkgId === pkg.id
+                const coinsAmount = Number(pkg.item_data?.coins_amount || 0)
+                const bonus = Number(pkg.item_data?.bonus || 0)
+                return (
+                  <div
+                    key={pkg.id}
+                    onClick={() => setSelectedPkgId(pkg.id)}
+                    className={`cursor-pointer rounded-xl border p-4 transition-all relative ${
+                      selected
+                        ? "border-primary bg-primary/10 shadow-sm"
+                        : "border-border/60 hover:border-border bg-card"
+                    }`}
+                  >
+                    {idx === 1 && (
+                      <Badge className="absolute -top-2.5 right-3 bg-gradient-to-r from-indigo-500 to-cyan-500 text-white text-[10px] px-2 py-0">
+                        Most Popular
+                      </Badge>
+                    )}
+                    <p className="text-xs text-muted-foreground font-medium truncate">{pkg.name}</p>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-xl font-extrabold">{(coinsAmount + bonus).toLocaleString()}</span>
+                      <span className="text-xs text-yellow-500 font-semibold">Coins</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/40 text-xs">
+                      <span className="font-bold text-foreground">${pkg.price_usd}</span>
+                      {bonus > 0 && <span className="text-emerald-500 font-medium">+{bonus.toLocaleString()} bonus</span>}
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/40 text-xs">
-                    <span className="font-bold text-foreground">${pkg.usd}</span>
-                    <span className="text-emerald-500 font-medium">{pkg.bonus}</span>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setDepositOpen(false)} className="rounded-xl">
@@ -805,10 +875,14 @@ export default function WalletPage() {
             </Button>
             <Button
               onClick={handleDeposit}
-              disabled={depositing}
+              disabled={depositing || !selectedPkgId}
               className="rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-semibold"
             >
-              {depositing ? "Processing..." : `Pay $${selectedPkg.usd} & Deposit`}
+              {depositing
+                ? "Redirecting to checkout..."
+                : selectedPkgId
+                  ? `Pay $${coinPackages.find((p) => p.id === selectedPkgId)?.price_usd ?? ""} with Stripe`
+                  : "Select a pack"}
             </Button>
           </DialogFooter>
         </DialogContent>

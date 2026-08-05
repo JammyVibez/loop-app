@@ -86,13 +86,12 @@ export function LoopCoinsBalance({ showDetails = false }: LoopCoinsBalanceProps)
 
       const data = await response.json()
 
-      if (data.success) {
+      if (data.success && data.checkout_url) {
         toast({
           title: "Redirecting to Payment",
           description: "You'll be redirected to complete your purchase.",
         })
-        // TODO: Integrate Stripe Elements here
-        setShowPurchaseDialog(false)
+        window.location.href = data.checkout_url
       } else {
         toast({
           title: "Purchase Failed",
