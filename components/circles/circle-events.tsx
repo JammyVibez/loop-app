@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Calendar, MapPin, Users, Plus, Clock, ExternalLink, Flame } from "lucide-react"
 import { CreateEventModal } from "./create-event-modal"
-import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { getEventStatus, formatEventTime, getEventStatusBadge } from "@/lib/events"
@@ -22,60 +21,49 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
   const [events, setEvents] = useState<any[]>([])
   const [showCreateEvent, setShowCreateEvent] = useState(false)
   const [loading, setLoading] = useState(true)
-  const { user } = useAuth()
+  const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const { checkStatus } = useLiveEventTimer(15000)
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const { data: eventsData, error } = await supabase
-          .from("circle_events")
-          .select(`
-            *,
-            host:profiles(*),
-            attendees:circle_event_participants(count),
-            user_attendance:circle_event_participants!inner(
-              user_id,
-              status
-            )
-          `)
-          .eq("circle_id", circleId)
-          .gte("event_date", new Date().toISOString())
-          .order("event_date", { ascending: true })
-
-        if (error) {
-          console.error("Error fetching events:", error)
+        // Real API — matches the columns the create/update/delete routes
+        // actually use (starts_at/organizer_id), instead of querying
+        // Supabase directly for event_date/host_id, which never existed on
+        // circle_events, and a circle_event_participants table that didn't
+        // exist at all (so every fetch here silently errored and RSVPs were
+        // never actually saved anywhere).
+        const response = await fetch(`/api/circles/${circleId}/events?status=upcoming`, {
+          headers: getAuthHeader(),
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) {
+          console.error("Error fetching events:", data.error)
+          setEvents([])
           return
         }
 
-        if (user) {
-          const eventsWithAttendance = await Promise.all(
-            (eventsData || []).map(async (event) => {
-              const { data: attendanceData } = await supabase
-                .from("circle_event_participants")
-                .select("status")
-                .eq("event_id", event.id)
-                .eq("user_id", user.id)
-                .single()
-
+        const eventsData = data.events || []
+        const eventsWithAttendance = await Promise.all(
+          eventsData.map(async (event: any) => {
+            try {
+              const attRes = await fetch(`/api/circles/${circleId}/events/${event.id}/participants`, {
+                headers: getAuthHeader(),
+              })
+              const attData = await attRes.json().catch(() => ({}))
               return {
                 ...event,
-                is_attending: attendanceData?.status === "attending",
-                attendee_count: event.attendees?.[0]?.count || 0,
+                host: event.organizer,
+                is_attending: Boolean(attData.is_attending),
+                attendee_count: attData.attendee_count ?? event.participant_count ?? 0,
               }
-            }),
-          )
-          setEvents(eventsWithAttendance)
-        } else {
-          setEvents(
-            (eventsData || []).map((event) => ({
-              ...event,
-              is_attending: false,
-              attendee_count: event.attendees?.[0]?.count || 0,
-            })),
-          )
-        }
+            } catch {
+              return { ...event, host: event.organizer, is_attending: false, attendee_count: event.participant_count ?? 0 }
+            }
+          }),
+        )
+        setEvents(eventsWithAttendance)
       } catch (error) {
         console.error("Error fetching events:", error)
       } finally {
@@ -97,57 +85,31 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
     }
 
     try {
-      if (currentlyAttending) {
-        const { error } = await supabase
-          .from("circle_event_participants")
-          .delete()
-          .eq("event_id", eventId)
-          .eq("user_id", user.id)
+      const response = await fetch(`/api/circles/${circleId}/events/${eventId}/participants`, {
+        method: currentlyAttending ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "Failed to update RSVP")
 
-        if (error) throw error
+      setEvents((prev) =>
+        prev.map((event: any) =>
+          event.id === eventId
+            ? {
+                ...event,
+                is_attending: !currentlyAttending,
+                attendee_count: Math.max(0, event.attendee_count + (currentlyAttending ? -1 : 1)),
+              }
+            : event,
+        ),
+      )
 
-        setEvents((prev) =>
-          prev.map((event: any) =>
-            event.id === eventId
-              ? {
-                  ...event,
-                  is_attending: false,
-                  attendee_count: Math.max(0, event.attendee_count - 1),
-                }
-              : event,
-          ),
-        )
-
-        toast({ description: "RSVP cancelled successfully!" })
-      } else {
-        const { error } = await supabase.from("circle_event_participants").insert({
-          event_id: eventId,
-          user_id: user.id,
-          status: "attending",
-          created_at: new Date().toISOString(),
-        })
-
-        if (error) throw error
-
-        setEvents((prev) =>
-          prev.map((event: any) =>
-            event.id === eventId
-              ? {
-                  ...event,
-                  is_attending: true,
-                  attendee_count: event.attendee_count + 1,
-                }
-              : event,
-          ),
-        )
-
-        toast({ description: "RSVP confirmed! Event added to your calendar." })
-      }
-    } catch (error) {
+      toast({ description: currentlyAttending ? "RSVP cancelled successfully!" : "RSVP confirmed! Event added to your calendar." })
+    } catch (error: any) {
       console.error("Error handling RSVP:", error)
       toast({
         title: "Error",
-        description: "Failed to update RSVP. Please try again.",
+        description: error?.message || "Failed to update RSVP. Please try again.",
         variant: "destructive",
       })
     }
@@ -216,7 +178,7 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
       <div className="grid gap-4">
         {activeEvents.map((event: any) => {
           const badgeConfig = getEventStatusBadge(event.derivedStatus)
-          const formattedTime = formatEventTime(event.event_date || event.starts_at, event.derivedStatus)
+          const formattedTime = formatEventTime(event.starts_at, event.derivedStatus)
 
           return (
             <Card key={event.id} className="hover:shadow-md transition-shadow">
@@ -266,7 +228,7 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
                 <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-4 h-4" />
-                    <span>{formatEventDate(event.event_date)}</span>
+                    <span>{formatEventDate(event.starts_at)}</span>
                   </div>
                   {event.location && (
                     <div className="flex items-center space-x-2">

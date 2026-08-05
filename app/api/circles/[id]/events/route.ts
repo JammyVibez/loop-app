@@ -93,7 +93,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       ends_at, 
       max_participants,
       is_recurring,
-      recurrence_pattern
+      recurrence_pattern,
+      location,
+      event_link,
+      tags,
+      requires_approval,
     } = await request.json()
 
     // Check if user has permission to create events (member with appropriate role)
@@ -143,6 +147,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         max_participants: max_participants || 50,
         is_recurring: is_recurring || false,
         recurrence_pattern: recurrence_pattern || null,
+        location: location?.trim() || null,
+        event_link: event_link?.trim() || null,
+        tags: Array.isArray(tags) ? tags : [],
+        requires_approval: Boolean(requires_approval),
         created_at: new Date().toISOString()
       })
       .select(`

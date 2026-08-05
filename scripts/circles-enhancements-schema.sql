@@ -49,3 +49,26 @@ ALTER TABLE circle_members ADD COLUMN IF NOT EXISTS permissions JSONB NOT NULL D
 -- (subscribers = joined circle members) without inventing a new paid tier.
 -- (is_private already exists on circle_rooms; nothing to add here, this is
 -- enforced at the query layer — see /api/circles/[id]/rooms.)
+
+-- 6. Circle events: the create/update/delete API always used starts_at/
+-- ends_at/organizer_id (matches this table), but the events LIST UI
+-- (circle-events.tsx) queried event_date/host_id — columns that never
+-- existed here — and RSVP wrote directly to a circle_event_participants
+-- table that didn't exist at all. Add the columns the UI actually displays
+-- and the missing participants table.
+ALTER TABLE circle_events ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE circle_events ADD COLUMN IF NOT EXISTS event_link TEXT;
+ALTER TABLE circle_events ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
+ALTER TABLE circle_events ADD COLUMN IF NOT EXISTS requires_approval BOOLEAN DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS circle_event_participants (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID REFERENCES circle_events(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'attending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(event_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_circle_event_participants_event_id ON circle_event_participants(event_id);
+CREATE INDEX IF NOT EXISTS idx_circle_event_participants_user_id ON circle_event_participants(user_id);

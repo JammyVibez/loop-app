@@ -57,6 +57,8 @@ export function CreateEventModal({ isOpen, onClose, circleId, onEventCreated }: 
           starts_at: startsAt,
           ends_at: new Date(new Date(startsAt).getTime() + 60 * 60 * 1000).toISOString(),
           max_participants: eventData.maxAttendees ? Number.parseInt(eventData.maxAttendees) : undefined,
+          location: eventData.isVirtual ? undefined : eventData.location || undefined,
+          requires_approval: eventData.requiresApproval,
         }),
       })
       const data = await response.json()
