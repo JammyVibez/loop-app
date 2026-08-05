@@ -173,19 +173,25 @@ export async function POST(
           .single()
 
         if (loop && loop.author_id !== user.id) {
-          await supabase
-            .from('notifications')
-            .insert({
-              user_id: loop.author_id,
+          try {
+            const { notifyUser } = await import("@/lib/notifications")
+            await notifyUser(supabase, {
+              userId: loop.author_id,
               type: interaction_type === "save" ? "system" : interaction_type,
               title: `${user.user_metadata?.display_name || user.email} ${interaction_type}d your loop`,
               message: `Your loop received a new ${interaction_type}`,
+              actorId: user.id,
+              actionUrl: `/loop/${loopId}`,
               data: {
                 loop_id: loopId,
                 user_id: user.id,
-                interaction_type
-              }
+                interaction_type,
+              },
+              pushCategory: "social",
             })
+          } catch (notifyErr) {
+            console.warn("Loop interaction notify failed:", notifyErr)
+          }
 
           if (interaction_type === "like") {
             try {

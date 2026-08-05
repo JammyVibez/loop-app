@@ -215,25 +215,26 @@ self.addEventListener("push", (event) => {
   let notificationData = {
     title: "Loop Social",
     body: "You have a new notification!",
-    icon: "/icons/icon-192x192.png",
-    badge: "/icons/icon-72x72.png",
+    icon: "/icons/icon-144x144.png",
+    badge: "/icons/icon-144x144.png",
     tag: "loop-notification",
     requireInteraction: false,
     vibrate: [200, 100, 200],
     data: {
       dateOfArrival: Date.now(),
       primaryKey: Math.random(),
+      url: "/",
     },
     actions: [
       {
         action: "open",
         title: "Open Loop",
-        icon: "/icons/icon-96x96.png",
+        icon: "/icons/icon-144x144.png",
       },
       {
         action: "close",
         title: "Close",
-        icon: "/icons/icon-96x96.png",
+        icon: "/icons/icon-144x144.png",
       },
     ],
   }

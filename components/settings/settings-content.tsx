@@ -212,9 +212,32 @@ export function SettingsContent() {
     }
   }
 
-  const handleNotificationUpdate = async () => {
+  const handleNotificationUpdate = async (next = notifications) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      const notification_settings = {
+        ...((user as any)?.notification_settings || {}),
+        email_loops: next.email_loops,
+        email_branches: next.email_branches,
+        email_messages: next.email_messages,
+        marketing: next.marketing,
+        push_loops: next.push_loops,
+        push_branches: next.push_branches,
+        push_messages: next.push_messages,
+        // Align with push preference keys used by lib/web-push.ts
+        push: next.push_loops || next.push_branches || next.push_messages,
+        push_notifications: next.push_loops || next.push_branches || next.push_messages,
+        social: next.push_loops || next.push_branches,
+        directMessages: next.push_messages,
+        messages: next.push_messages,
+      }
+      const res = await fetch("/api/users/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ notification_settings }),
+      })
+      if (!res.ok) throw new Error("Failed to save notification preferences")
+      applyServerProfile?.({ notification_settings })
+      await refreshUser?.()
       toast({
         description: "Notification preferences updated.",
       })
@@ -479,8 +502,9 @@ export function SettingsContent() {
                 <Switch
                   checked={notifications.email_loops}
                   onCheckedChange={(checked) => {
-                    setNotifications({ ...notifications, email_loops: checked })
-                    handleNotificationUpdate()
+                    const next = { ...notifications, email_loops: checked }
+                    setNotifications(next)
+                    handleNotificationUpdate(next)
                   }}
                 />
               </div>
@@ -493,8 +517,9 @@ export function SettingsContent() {
                 <Switch
                   checked={notifications.email_branches}
                   onCheckedChange={(checked) => {
-                    setNotifications({ ...notifications, email_branches: checked })
-                    handleNotificationUpdate()
+                    const next = { ...notifications, email_branches: checked }
+                    setNotifications(next)
+                    handleNotificationUpdate(next)
                   }}
                 />
               </div>
@@ -507,8 +532,9 @@ export function SettingsContent() {
                 <Switch
                   checked={notifications.email_messages}
                   onCheckedChange={(checked) => {
-                    setNotifications({ ...notifications, email_messages: checked })
-                    handleNotificationUpdate()
+                    const next = { ...notifications, email_messages: checked }
+                    setNotifications(next)
+                    handleNotificationUpdate(next)
                   }}
                 />
               </div>
@@ -521,8 +547,9 @@ export function SettingsContent() {
                 <Switch
                   checked={notifications.marketing}
                   onCheckedChange={(checked) => {
-                    setNotifications({ ...notifications, marketing: checked })
-                    handleNotificationUpdate()
+                    const next = { ...notifications, marketing: checked }
+                    setNotifications(next)
+                    handleNotificationUpdate(next)
                   }}
                 />
               </div>
@@ -545,8 +572,9 @@ export function SettingsContent() {
                 <Switch
                   checked={notifications.push_loops}
                   onCheckedChange={(checked) => {
-                    setNotifications({ ...notifications, push_loops: checked })
-                    handleNotificationUpdate()
+                    const next = { ...notifications, push_loops: checked }
+                    setNotifications(next)
+                    handleNotificationUpdate(next)
                   }}
                 />
               </div>
@@ -559,8 +587,9 @@ export function SettingsContent() {
                 <Switch
                   checked={notifications.push_branches}
                   onCheckedChange={(checked) => {
-                    setNotifications({ ...notifications, push_branches: checked })
-                    handleNotificationUpdate()
+                    const next = { ...notifications, push_branches: checked }
+                    setNotifications(next)
+                    handleNotificationUpdate(next)
                   }}
                 />
               </div>
@@ -573,8 +602,9 @@ export function SettingsContent() {
                 <Switch
                   checked={notifications.push_messages}
                   onCheckedChange={(checked) => {
-                    setNotifications({ ...notifications, push_messages: checked })
-                    handleNotificationUpdate()
+                    const next = { ...notifications, push_messages: checked }
+                    setNotifications(next)
+                    handleNotificationUpdate(next)
                   }}
                 />
               </div>

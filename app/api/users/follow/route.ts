@@ -97,6 +97,28 @@ export async function POST(request: NextRequest) {
           ])
           await tryStatsRpc(supabase, targetUserId, "follower_gained", 1)
           await tryStatsRpc(supabase, user.id, "following_added", 1)
+
+          try {
+            const { data: actor } = await supabase
+              .from("profiles")
+              .select("username, display_name, avatar_url")
+              .eq("id", user.id)
+              .maybeSingle()
+            const { notifyUser } = await import("@/lib/notifications")
+            const name = actor?.display_name || actor?.username || "Someone"
+            await notifyUser(supabase, {
+              userId: targetUserId,
+              type: "follow",
+              title: "New follower",
+              message: `${name} started following you`,
+              actorId: user.id,
+              actionUrl: actor?.username ? `/profile/${actor.username}` : "/notifications",
+              data: { follower_id: user.id },
+              pushCategory: "social",
+            })
+          } catch (notifyErr) {
+            console.warn("Follow notify failed:", notifyErr)
+          }
         }
       }
       isFollowing = true

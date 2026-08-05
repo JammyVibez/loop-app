@@ -73,12 +73,14 @@
     "tailwindcss-animate": "^1.0.7",
     "uuid": "latest",
     "vaul": "latest",
+    "web-push": "^3.6.7",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "eslint": "^8.57.0",
     "eslint-config-next": "15.2.9",
     "postcss": "^8.5",

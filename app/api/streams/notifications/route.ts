@@ -1,171 +1,135 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase';
+import { NextRequest, NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth"
+import { notifyUsers } from "@/lib/notifications"
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
     const supabase = createServerClient()
-    const { streamId, action } = await request.json() // action: 'start' or 'end'
-    
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { streamId, action } = await request.json()
+
+    if (!streamId || !["start", "end"].includes(action)) {
+      return NextResponse.json({ error: "streamId and action (start|end) required" }, { status: 400 })
     }
 
-    // Get stream details
     const { data: stream, error: streamError } = await supabase
-      .from('live_streams')
-      .select(`
+      .from("live_streams")
+      .select(
+        `
         *,
-        streamer:profiles!live_streams_streamer_id_fkey(
+        streamer:profiles!streamer_id(
           id,
           username,
           display_name,
           avatar_url
         )
-      `)
-      .eq('id', streamId)
-      .eq('streamer_id', user.id)
+      `,
+      )
+      .eq("id", streamId)
+      .eq("streamer_id", user.id)
       .single()
 
     if (streamError || !stream) {
-      return NextResponse.json({ error: 'Stream not found or access denied' }, { status: 404 })
+      return NextResponse.json({ error: "Stream not found or access denied" }, { status: 404 })
     }
 
-    if (action === 'start') {
-      // Update stream status to live
+    const streamer = Array.isArray(stream.streamer) ? stream.streamer[0] : stream.streamer
+
+    if (action === "start") {
       await supabase
-        .from('live_streams')
-        .update({ 
-          is_live: true,
-          started_at: new Date().toISOString()
+        .from("live_streams")
+        .update({
+          status: "live",
+          started_at: stream.started_at || new Date().toISOString(),
         })
-        .eq('id', streamId)
+        .eq("id", streamId)
 
-      // Get all followers of the streamer
+      // Best-effort is_live column for older schemas
+      try {
+        await supabase.from("live_streams").update({ is_live: true }).eq("id", streamId)
+      } catch {}
+
       const { data: followers } = await supabase
-        .from('follows')
-        .select('follower_id')
-        .eq('following_id', user.id)
+        .from("follows")
+        .select("follower_id")
+        .eq("following_id", user.id)
 
-      if (followers && followers.length > 0) {
-        // Create notifications for all followers
-        const notifications = followers.map(follow => ({
-          user_id: follow.follower_id,
-          type: 'live_stream_started',
-          title: `${stream.streamer.display_name} is now live!`,
-          message: `${stream.streamer.display_name} started streaming: ${stream.title}`,
+      const followerIds = (followers || []).map((f: any) => f.follower_id).filter(Boolean)
+      if (followerIds.length) {
+        await notifyUsers(supabase, followerIds, {
+          type: "live_stream_started",
+          title: `${streamer?.display_name || "A creator"} is live`,
+          message: `Started streaming: ${stream.title}`,
+          actorId: user.id,
+          actionUrl: `/streams/${streamId}`,
           data: {
             stream_id: streamId,
             streamer_id: user.id,
-            streamer_username: stream.streamer.username,
+            streamer_username: streamer?.username,
             stream_title: stream.title,
-            stream_category: stream.category
           },
-          action_url: `/streams/${streamId}`
-        }))
-
-        await supabase
-          .from('notifications')
-          .insert(notifications)
-
-        // Send real-time notifications (if using Supabase realtime)
-        const channel = supabase.channel('live_notifications')
-        followers.forEach(follow => {
-          channel.send({
-            type: 'broadcast',
-            event: 'live_stream_started',
-            payload: {
-              user_id: follow.follower_id,
-              stream_id: streamId,
-              streamer: stream.streamer,
-              stream_title: stream.title
-            }
-          })
+          pushCategory: "liveStreams",
         })
       }
 
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Stream started and notifications sent',
-        notified_followers: followers?.length || 0
-      })
-
-    } else if (action === 'end') {
-      // Update stream status
-      await supabase
-        .from('live_streams')
-        .update({ 
-          is_live: false,
-          ended_at: new Date().toISOString()
-        })
-        .eq('id', streamId)
-
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Stream ended'
+      return NextResponse.json({
+        success: true,
+        message: "Stream started and push notifications sent",
+        notified_followers: followerIds.length,
       })
     }
 
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
-  } catch (error) {
-    console.error('Error handling stream notification:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    await supabase
+      .from("live_streams")
+      .update({
+        status: "ended",
+        ended_at: new Date().toISOString(),
+      })
+      .eq("id", streamId)
+
+    try {
+      await supabase.from("live_streams").update({ is_live: false }).eq("id", streamId)
+    } catch {}
+
+    return NextResponse.json({ success: true, message: "Stream ended" })
+  } catch (error: any) {
+    console.error("Stream notifications error:", error)
+    return NextResponse.json({ error: error.message || "Failed" }, { status: 500 })
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
     const supabase = createServerClient()
-    
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { data: following } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", user.id)
 
-    const { data: followedUsers, error: followsError } = await supabase
-      .from('follows')
-      .select('following_id')
-      .eq('follower_id', user.id)
+    const ids = (following || []).map((f: any) => f.following_id)
+    if (!ids.length) return NextResponse.json({ success: true, streams: [] })
 
-    if (followsError) {
-      return NextResponse.json({ error: followsError.message }, { status: 500 })
-    }
+    const { data: streams } = await supabase
+      .from("live_streams")
+      .select(
+        `
+        id, title, thumbnail_url, viewer_count, category, status, started_at,
+        streamer:profiles!streamer_id(id, username, display_name, avatar_url)
+      `,
+      )
+      .in("streamer_id", ids)
+      .eq("status", "live")
+      .order("viewer_count", { ascending: false })
+      .limit(20)
 
-    const followingIds = (followedUsers || []).map((follow) => follow.following_id).filter(Boolean)
-
-    if (followingIds.length === 0) {
-      return NextResponse.json({ live_streams: [], count: 0 })
-    }
-
-    // Get live streams from users the current user follows
-    const { data: liveStreams, error } = await supabase
-      .from('live_streams')
-      .select(`
-        *,
-        streamer:profiles!live_streams_streamer_id_fkey(
-          id,
-          username,
-          display_name,
-          avatar_url,
-          is_verified
-        )
-      `)
-      .eq('is_live', true)
-      .in('streamer_id', followingIds)
-      .order('started_at', { ascending: false })
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ 
-      live_streams: liveStreams || [],
-      count: liveStreams?.length || 0
-    })
-  } catch (error) {
-    console.error('Error fetching live streams:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ success: true, streams: streams || [] })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Failed" }, { status: 500 })
   }
 }

@@ -306,6 +306,22 @@ export async function POST(request: NextRequest) {
     })
 
     try {
+      const { sendWebPushToUser } = await import("@/lib/web-push")
+      await sendWebPushToUser(
+        recipientId,
+        {
+          title: "Gift received",
+          body: `${isAnonymous ? "Someone" : sender.display_name || sender.username} sent you ${giftItem.name}`,
+          url: "/notifications",
+          tag: `gift-${giftRecord.id}`,
+        },
+        { category: "giftRewards" },
+      )
+    } catch (pushErr) {
+      console.warn("Gift push failed:", pushErr)
+    }
+
+    try {
       await supabase.channel(`user:${recipientId}`).send({
         type: "broadcast",
         event: "gift_received",

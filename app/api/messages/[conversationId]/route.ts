@@ -124,6 +124,38 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .update({ updated_at: new Date().toISOString() })
       .eq("id", conversationId)
 
+    // Notify other participants (in-app + real Web Push)
+    try {
+      const { data: participants } = await supabase
+        .from("conversation_participants")
+        .select("user_id")
+        .eq("conversation_id", conversationId)
+        .is("left_at", null)
+
+      const sender = Array.isArray(message.sender) ? message.sender[0] : message.sender
+      const preview = String(content || (media_url ? "Sent an attachment" : "New message")).slice(0, 120)
+      const { notifyUser } = await import("@/lib/notifications")
+      await Promise.all(
+        (participants || [])
+          .map((p: any) => p.user_id)
+          .filter((id: string) => id && id !== user.id)
+          .map((recipientId: string) =>
+            notifyUser(supabase, {
+              userId: recipientId,
+              type: "message",
+              title: sender?.display_name || sender?.username || "New message",
+              message: preview,
+              actorId: user.id,
+              actionUrl: `/messages?c=${conversationId}`,
+              data: { conversation_id: conversationId, message_id: message.id },
+              pushCategory: "directMessages",
+            }),
+          ),
+      )
+    } catch (notifyErr) {
+      console.warn("Message push notify failed:", notifyErr)
+    }
+
     const text = String(content || "").trim()
     if (text) {
       try {

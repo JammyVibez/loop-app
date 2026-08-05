@@ -219,6 +219,22 @@ export async function processMentions(
 
     const { error } = await supabase.from("notifications").insert(rows)
     if (error) console.error("mention notifications:", error.message)
+
+    try {
+      const { sendWebPushToUsers } = await import("@/lib/web-push")
+      await sendWebPushToUsers(
+        notifyTargets.map((u) => u.id),
+        {
+          title: `${actorName} tagged you`,
+          body: `Tagged you in ${where}${snippet ? `: “${snippet}”` : ""}`,
+          url: href || "/notifications",
+          tag: `mention-${context.actor_id || "loop"}`,
+        },
+        { category: "directMessages" },
+      )
+    } catch (pushErr) {
+      console.warn("mention push failed:", pushErr)
+    }
   }
 
   return { mentions: resolved, notified: notifyTargets.length }

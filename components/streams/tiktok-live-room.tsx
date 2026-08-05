@@ -373,6 +373,12 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
         throw new Error("Camera/mic permission is required to go live.")
       }
       await updateStatus("live")
+      // Notify followers with real Web Push
+      void fetch("/api/streams/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ streamId, action: "start" }),
+      }).catch(() => {})
       // Ask currently connected viewers to request the WebRTC offer again
       await channelRef.current?.send({
         type: "broadcast",
