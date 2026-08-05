@@ -23,6 +23,7 @@ function normalizeProject(row: any) {
       branches: Number(row.branches || 0),
     },
     code_snippet: row.code_snippet || "",
+    files: Array.isArray(row.files) ? row.files : [],
     created_at: row.created_at ? new Date(row.created_at) : new Date(),
   }
 }

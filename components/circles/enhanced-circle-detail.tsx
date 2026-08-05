@@ -180,6 +180,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   const [activeTab, setActiveTab] = useState("posts")
   const [activeRoom, setActiveRoom] = useState<string | null>(null)
   const [isJoined, setIsJoined] = useState(false)
+  const [membershipPending, setMembershipPending] = useState(false)
   const [userRole, setUserRole] = useState<string>('member')
   const [loading, setLoading] = useState(true)
   const [newPost, setNewPost] = useState("")
@@ -253,6 +254,9 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
           const circleData = await circleResponse.json()
           setCircle(circleData.circle)
           setIsJoined(Boolean(circleData.is_member ?? circleData.circle?.is_member))
+          setMembershipPending(
+            (circleData.membership_status ?? circleData.circle?.membership_status) === "pending"
+          )
           setUserRole(circleData.user_role || circleData.circle?.user_role || 'member')
           setPosts((circleData.posts || []).map(mapCirclePost))
           setRooms((circleData.rooms || []).map((room: any) => ({
@@ -315,31 +319,53 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   const handleJoinLeave = async () => {
     if (!user || !circle) return
 
+    const leaving = isJoined || membershipPending
+
     try {
       const response = await fetch(`/api/circles/${circleId}/join`, {
-        method: isJoined ? 'DELETE' : 'POST',
+        method: leaving ? 'DELETE' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...getAuthHeader()
         }
       })
 
-      if (response.ok) {
-        setIsJoined(!isJoined)
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "Failed to update membership")
+
+      if (leaving) {
+        setIsJoined(false)
+        setMembershipPending(false)
         setCircle((prev: any) => ({
           ...prev,
-          member_count: prev.member_count + (isJoined ? -1 : 1)
+          member_count: Math.max(0, prev.member_count - (isJoined ? 1 : 0)),
         }))
-        
+        toast({ description: membershipPending ? "Join request cancelled" : "Left the circle" })
+      } else {
+        // Private circles come back with status "pending" — the user has NOT
+        // actually joined yet and must wait for a moderator to approve them.
+        // This used to be ignored, which showed "Joined!" and unlocked the
+        // post composer client-side even though the backend still rejected
+        // their posts/comments with 403 until approved.
+        const joined = data.status === "active"
+        setIsJoined(joined)
+        setMembershipPending(data.status === "pending")
+        if (joined) {
+          setCircle((prev: any) => ({ ...prev, member_count: prev.member_count + 1 }))
+        }
         toast({
-          description: isJoined ? "Left the circle" : "Joined the circle!"
+          title: data.status === "pending" ? "Request sent 📨" : undefined,
+          description:
+            data.status === "pending"
+              ? "A moderator will need to approve your request before you can post or chat."
+              : "Joined the circle!",
         })
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to join/leave circle:', error)
       toast({
         title: "Error",
-        description: "Failed to update membership",
+        description: error?.message || "Failed to update membership",
         variant: "destructive"
       })
     }
@@ -645,16 +671,22 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                   onClick={handleJoinLeave}
                   size="sm"
                   className={
-                    isJoined
+                    isJoined || membershipPending
                       ? "rounded-full"
                       : "rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white"
                   }
-                  variant={isJoined ? "outline" : "default"}
+                  variant={isJoined || membershipPending ? "outline" : "default"}
+                  title={membershipPending ? "Click to cancel your join request" : undefined}
                 >
                   {isJoined ? (
                     <>
                       <UserMinus className="mr-1.5 h-4 w-4" />
                       Leave
+                    </>
+                  ) : membershipPending ? (
+                    <>
+                      <Users className="mr-1.5 h-4 w-4" />
+                      Request Pending
                     </>
                   ) : (
                     <>

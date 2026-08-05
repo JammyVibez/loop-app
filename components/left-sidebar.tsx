@@ -26,6 +26,7 @@ import {
   User,
   Compass,
   DollarSign,
+  Code2,
 } from "lucide-react"
 import { UserBadges } from "@/components/user-badge"
 
@@ -86,6 +87,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   const discoveryNav = [
     { href: "/messages", label: "Messages & Chat", icon: MessageCircle, count: unreadMessages > 0 ? unreadMessages : null },
     { href: "/explore", label: "Explore & Search", icon: Compass },
+    { href: "/developers", label: "Developer Hub", icon: Code2 },
     { href: "/streams", label: "Live Streams", icon: Radio, badge: "LIVE" },
     { href: "/events", label: "Events Stage", icon: Calendar },
     { href: "/circles", label: "Circles & Communities", icon: Users },

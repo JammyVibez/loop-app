@@ -1,10 +1,11 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { Check, Copy, GitFork } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { SyntaxHighlightedCode } from "@/components/loops/syntax-highlighted-code"
 
 type Props = {
   code: string
@@ -28,7 +29,6 @@ export function CodeBlock({
   showFork = true,
 }: Props) {
   const [copied, setCopied] = useState(false)
-  const lines = useMemo(() => code.replace(/\n$/, "").split("\n"), [code])
 
   const copy = async () => {
     try {
@@ -84,18 +84,7 @@ export function CodeBlock({
         </div>
       </div>
       <div className="max-h-[28rem] overflow-auto">
-        <pre className="m-0 p-0 text-[12px] leading-5 sm:text-[13px]">
-          <code className="block min-w-full font-mono">
-            {lines.map((line, i) => (
-              <div key={i} className="flex hover:bg-muted/50">
-                <span className="sticky left-0 w-10 shrink-0 select-none border-r border-border bg-muted/50 px-2 text-right text-muted-foreground">
-                  {i + 1}
-                </span>
-                <span className="whitespace-pre px-3 text-foreground">{line || " "}</span>
-              </div>
-            ))}
-          </code>
-        </pre>
+        <SyntaxHighlightedCode code={code} language={language} />
       </div>
     </div>
   )

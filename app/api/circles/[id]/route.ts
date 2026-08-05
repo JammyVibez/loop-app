@@ -43,7 +43,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Check if current user is a member
     let isMember = false
     let userRole = "guest"
-    
+    let membershipStatus: string | null = null
+
     if (currentUser) {
       const { data: memberData } = await supabase
         .from("circle_members")
@@ -54,6 +55,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       
       if (memberData) {
         const status = String(memberData.status || "active").toLowerCase()
+        membershipStatus = status
         if (["active", "approved"].includes(status) || !memberData.status) {
           isMember = true
           userRole = memberData.role || "member"
@@ -64,6 +66,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       if (circle.owner_id === currentUser.id || circle.creator_id === currentUser.id) {
         isMember = true
         userRole = "owner"
+        membershipStatus = "active"
       }
     }
 
@@ -104,6 +107,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         member_count: memberCount,
         is_member: isMember,
         user_role: userRole,
+        membership_status: membershipStatus,
         stats: {
           member_count: memberCount,
           post_count: circle.post_count || posts?.length || 0,
@@ -113,6 +117,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
       is_member: isMember,
       user_role: userRole,
+      membership_status: membershipStatus,
       posts: (posts || []).map((post: any) => ({
         ...post,
         timestamp: post.created_at,

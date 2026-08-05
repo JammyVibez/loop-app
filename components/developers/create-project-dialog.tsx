@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,10 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Code, X } from "lucide-react";
+import { Code, Eye, FileText, Loader2, Paperclip, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useLoginGate } from "@/hooks/use-login-gate";
+import { uploadMediaFile } from "@/lib/client-media-upload";
+import { SyntaxHighlightedCode } from "@/components/loops/syntax-highlighted-code";
 
 interface CreateProjectDialogProps {
   open: boolean
@@ -18,8 +20,11 @@ interface CreateProjectDialogProps {
   onProjectCreated?: (project: any) => void
 }
 
+type AttachedFile = { name: string; url: string; size?: number; format?: string }
+
 const languages = ["JavaScript", "TypeScript", "Python", "Go", "Rust", "Java", "C++", "PHP", "Ruby"]
 const frameworks = ["React", "Vue", "Angular", "Node.js", "Django", "Flask", "Express", "Spring", "Rails"]
+const MAX_FILES = 5
 
 export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: CreateProjectDialogProps) {
   const [formData, setFormData] = useState({
@@ -32,9 +37,36 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
     newTag: "",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const [files, setFiles] = useState<AttachedFile[]>([])
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const { getAuthHeader } = useAuth()
   const { requireAuth, LoginGateDialog } = useLoginGate()
+
+  const handleFilePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = e.target.files?.[0]
+    e.target.value = ""
+    if (!picked) return
+    if (files.length >= MAX_FILES) {
+      toast({ title: `Up to ${MAX_FILES} files`, description: "Remove a file before adding another.", variant: "destructive" })
+      return
+    }
+    setUploadingFile(true)
+    try {
+      const result = await uploadMediaFile(picked, { type: "file", folder: "developer-projects", authHeaders: getAuthHeader() })
+      setFiles((prev) => [...prev, { name: picked.name, url: result.url, size: picked.size, format: result.format }])
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message || "Could not upload file.", variant: "destructive" })
+    } finally {
+      setUploadingFile(false)
+    }
+  }
+
+  const handleRemoveFile = (url: string) => {
+    setFiles((prev) => prev.filter((f) => f.url !== url))
+  }
 
   const handleAddTag = () => {
     if (formData.newTag.trim() && !formData.tags.includes(formData.newTag.trim())) {
@@ -77,6 +109,7 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
           framework: formData.framework || "None",
           tags: formData.tags,
           codeSnippet: formData.code,
+          files,
         }),
       })
       const data = await response.json()
@@ -98,6 +131,8 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
         tags: [],
         newTag: "",
       })
+      setFiles([])
+      setShowPreview(false)
     } catch (error: any) {
       toast({
         title: "Error",
@@ -186,14 +221,69 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
           </div>
 
           <div>
-            <Label htmlFor="code">Code *</Label>
-            <Textarea
-              id="code"
-              placeholder="Paste your code here..."
-              value={formData.code}
-              onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-              className="mt-2 min-h-[200px] font-mono text-sm"
-            />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="code">Code *</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPreview((v) => !v)}
+                disabled={!formData.code.trim()}
+                className="h-7 gap-1.5 text-xs"
+              >
+                <Eye className="h-3.5 w-3.5" />
+                {showPreview ? "Edit" : "Preview"}
+              </Button>
+            </div>
+            {showPreview ? (
+              <div className="mt-2 min-h-[200px] max-h-[320px] overflow-auto rounded-md border border-border bg-muted/50">
+                <SyntaxHighlightedCode code={formData.code} language={formData.language} />
+              </div>
+            ) : (
+              <Textarea
+                id="code"
+                placeholder="Paste your code here..."
+                value={formData.code}
+                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                className="mt-2 min-h-[200px] font-mono text-sm"
+              />
+            )}
+          </div>
+
+          <div>
+            <Label>Attach files (optional)</Label>
+            <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
+              Share assets, docs, or a project zip alongside your code — up to {MAX_FILES} files, 25MB each.
+            </p>
+            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFilePick} />
+            <div className="flex flex-wrap items-center gap-2">
+              {files.map((file) => (
+                <Badge key={file.url} variant="secondary" className="flex items-center gap-1.5 py-1.5 pl-2 pr-1">
+                  <FileText className="h-3.5 w-3.5" />
+                  <span className="max-w-[140px] truncate">{file.name}</span>
+                  <button type="button" onClick={() => handleRemoveFile(file.url)} className="ml-1 hover:text-red-600">
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              ))}
+              {files.length < MAX_FILES && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingFile}
+                  className="h-8"
+                >
+                  {uploadingFile ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Paperclip className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {uploadingFile ? "Uploading…" : "Add file"}
+                </Button>
+              )}
+            </div>
           </div>
 
           <div>
