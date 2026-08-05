@@ -92,6 +92,11 @@ export async function POST(request: NextRequest) {
     let parentLoopId: string | null = null
     let visibility = "public"
     let mediaMetadata: Record<string, unknown> | null = null
+    // Already-uploaded media (e.g. Co-Loop Studio, which uploads to
+    // Cloudinary during the session and publishes a JSON payload with the
+    // resulting URLs rather than re-uploading files here).
+    let preUploadedMediaUrl: string | null = null
+    let preUploadedMediaUrls: string[] = []
 
     const isMultipart = headerContentType.includes("multipart/form-data")
     let formDataObj: FormData | null = null
@@ -113,22 +118,32 @@ export async function POST(request: NextRequest) {
       const body = await request.json().catch(() => ({}))
       contentText = String(body.content_text ?? body.content ?? "")
       contentTitle = body.content_title ?? body.title ?? null
-      loopType = body.content_type ?? body.type ?? "text"
+      loopType = body.content_type ?? body.type ?? body.media_type ?? "text"
       category = body.category ?? "general"
       hashtags = parseHashtags(body.hashtags)
       parentLoopId = body.parent_loop_id ?? null
       visibility = body.visibility ?? (body.is_public === false ? "private" : "public")
       mediaMetadata = body.content_metadata ?? body.media_metadata ?? null
+
+      if (Array.isArray(body.media_urls)) {
+        preUploadedMediaUrls = body.media_urls.filter((u: unknown): u is string => typeof u === "string" && u.length > 0)
+      }
+      if (typeof body.media_url === "string" && body.media_url) {
+        preUploadedMediaUrl = body.media_url
+        if (!preUploadedMediaUrls.length) preUploadedMediaUrls = [body.media_url]
+      } else if (preUploadedMediaUrls.length) {
+        preUploadedMediaUrl = preUploadedMediaUrls[0]
+      }
     }
 
     hashtags = hashtags.map((tag) => String(tag).replace(/^#/, "").toLowerCase().trim()).filter(Boolean)
 
-    if (!contentText.trim() && (!file || file.size === 0)) {
+    if (!contentText.trim() && (!file || file.size === 0) && !preUploadedMediaUrl) {
       return NextResponse.json({ error: "Either text content or media is required" }, { status: 400 })
     }
 
     const supabase = createServerClient()
-    let mediaUrl: string | null = null
+    let mediaUrl: string | null = preUploadedMediaUrl
     let mediaType = loopType || "text"
     let treeDepth = 0
 
@@ -145,7 +160,7 @@ export async function POST(request: NextRequest) {
       treeDepth = (parent.tree_depth ?? 0) + 1
     }
 
-    let mediaUrls: string[] = []
+    let mediaUrls: string[] = preUploadedMediaUrls
     let uploadedFiles: File[] = []
 
     if (isMultipart && formDataObj) {

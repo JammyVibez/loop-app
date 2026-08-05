@@ -120,6 +120,13 @@ export function CoLoopStudio() {
   // Side Chat Thread Drawer State
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [unreadChatCount, setUnreadChatCount] = useState(0)
+  // Mirrors isChatOpen for use inside the realtime channel's broadcast
+  // handlers without making the channel-setup effect depend on it (see
+  // isChatOpenRef usage below for why).
+  const isChatOpenRef = useRef(false)
+  useEffect(() => {
+    isChatOpenRef.current = isChatOpen
+  }, [isChatOpen])
 
   // Real-time Typing Status State
   const [typingUsers, setTypingUsers] = useState<Record<string, { username: string; display_name: string; field: "title" | "content" }>>({})
@@ -433,7 +440,7 @@ export function CoLoopStudio() {
       // Handle Studio Chat Messages
       .on("broadcast", { event: "chat-msg" }, ({ payload }: any) => {
         setChatMessages((prev) => [...prev, payload])
-        if (!isChatOpen) {
+        if (!isChatOpenRef.current) {
           setUnreadChatCount((prev) => prev + 1)
         }
       })
@@ -499,7 +506,13 @@ export function CoLoopStudio() {
     return () => {
       channel.unsubscribe()
     }
-  }, [user, sessionId, isSessionOwnerLoading, isOwner, currentUserRole, sessionOwner, isChatOpen, router, toast])
+    // isChatOpen is intentionally excluded — it's read via isChatOpenRef inside
+    // the chat-msg handler so toggling the chat drawer never tears down and
+    // recreates this presence channel (that used to fire spurious "left the
+    // room" / "entered the room" toasts for every other collaborator on every
+    // open/close).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, sessionId, isSessionOwnerLoading, isOwner, currentUserRole, sessionOwner, router, toast])
 
   // Handle accepting invitation when arriving via invite link
   useEffect(() => {
@@ -1001,42 +1014,10 @@ export function CoLoopStudio() {
     }
   }
 
-  if (!user) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center p-6 text-center">
-        <Card className="max-w-md p-6 border-cyan-500/30 bg-[#090d1a] text-slate-100 shadow-2xl">
-          <Lock className="mx-auto h-12 w-12 text-cyan-400 mb-3 animate-pulse" />
-          <h2 className="text-xl font-bold">Studio Authentication Required</h2>
-          <p className="text-sm text-slate-400 mt-2">Log in to collaborate live in the Co-Loop Studio.</p>
-        </Card>
-      </div>
-    )
-  }
-
-  // Handle Primary Creator Ending the Co-Loop Session
-  const handleEndSession = async () => {
-    if (!isOwner) return
-    try {
-      if (channelRef.current) {
-        channelRef.current.send({
-          type: "broadcast",
-          event: "session_ended",
-          payload: { endedBy: user?.display_name || user?.username || "Primary Creator" },
-        })
-      }
-      toast({
-        title: "Session Ended 🛑",
-        description: "You closed this Co-Loop studio room.",
-      })
-      setTimeout(() => {
-        router.push("/")
-      }, 1000)
-    } catch (err: any) {
-      console.error("End session error:", err)
-    }
-  }
-
-  // Combine session owner and collaborators for the Studio Presence Ring
+  // Combine session owner and collaborators for the Studio Presence Ring.
+  // Computed unconditionally (before the `!user` early return below) — this
+  // used to be called after that return, which violated React's Rules of
+  // Hooks (a hook can never be called conditionally).
   const activeParticipants = useMemo(() => {
     const list: (Collaborator & { isCreator: boolean })[] = []
     const seenIds = new Set<string>()
@@ -1103,6 +1084,41 @@ export function CoLoopStudio() {
 
     return list
   }, [sessionOwner, isOwner, user, collaborators, coAuthors])
+
+  if (!user) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center p-6 text-center">
+        <Card className="max-w-md p-6 border-cyan-500/30 bg-[#090d1a] text-slate-100 shadow-2xl">
+          <Lock className="mx-auto h-12 w-12 text-cyan-400 mb-3 animate-pulse" />
+          <h2 className="text-xl font-bold">Studio Authentication Required</h2>
+          <p className="text-sm text-slate-400 mt-2">Log in to collaborate live in the Co-Loop Studio.</p>
+        </Card>
+      </div>
+    )
+  }
+
+  // Handle Primary Creator Ending the Co-Loop Session
+  const handleEndSession = async () => {
+    if (!isOwner) return
+    try {
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: "broadcast",
+          event: "session_ended",
+          payload: { endedBy: user?.display_name || user?.username || "Primary Creator" },
+        })
+      }
+      toast({
+        title: "Session Ended 🛑",
+        description: "You closed this Co-Loop studio room.",
+      })
+      setTimeout(() => {
+        router.push("/")
+      }, 1000)
+    } catch (err: any) {
+      console.error("End session error:", err)
+    }
+  }
 
   const wordCount = postContent.trim() ? postContent.trim().split(/\s+/).length : 0
   const charCount = postContent.length
