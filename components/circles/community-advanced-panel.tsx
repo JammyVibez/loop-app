@@ -101,10 +101,10 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Card className="border-white/10 bg-white/[0.04]">
+      <Card className="border-border bg-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Bot className="h-5 w-5 text-cyan-300" />
+            <Bot className="h-5 w-5 text-primary" />
             AI community bots
           </CardTitle>
         </CardHeader>
@@ -113,10 +113,10 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
             { label: "Welcome bot", bot: welcomeBot, type: "welcome", description: "Greets new members and explains the rules." },
             { label: "Moderation bot", bot: moderationBot, type: "moderation", description: "Flags spam and unsafe posts for review." },
           ].map(({ label, bot, type, description }) => (
-            <div key={type} className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#030712]/40 p-3">
+            <div key={type} className="flex items-center justify-between rounded-2xl border border-border bg-muted/40 p-3">
               <div>
-                <p className="font-medium text-white">{label}</p>
-                <p className="text-sm text-slate-400">{description}</p>
+                <p className="font-medium text-foreground">{label}</p>
+                <p className="text-sm text-muted-foreground">{description}</p>
               </div>
               <Switch
                 checked={Boolean(bot?.enabled)}
@@ -125,33 +125,33 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
               />
             </div>
           ))}
-          {!canManage && <p className="text-xs text-slate-500">Only owners and moderators can change bot settings.</p>}
-          <Button asChild variant="outline" className="w-full rounded-full border-white/15 bg-white/5">
+          {!canManage && <p className="text-xs text-muted-foreground">Only owners and moderators can change bot settings.</p>}
+          <Button asChild variant="outline" className="w-full rounded-full border-border bg-muted/30">
             <a href="/marketplace">Browse bot & design marketplace</a>
           </Button>
         </CardContent>
       </Card>
 
       {/* Community Theme / Studio Card */}
-      <Card className="border-white/10 bg-white/[0.04] lg:col-span-2">
+      <Card className="border-border bg-card lg:col-span-2">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg text-white">
-              <Palette className="h-5 w-5 text-violet-400" />
+            <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+              <Palette className="h-5 w-5 text-primary" />
               Community Studio & Theme Customization
             </CardTitle>
             <Badge className="border-violet-500/30 bg-violet-500/10 text-violet-300">
               Per-Circle Layout & Marketplace Packs
             </Badge>
           </div>
-          <CardDescription className="text-slate-400 text-xs">
+          <CardDescription className="text-muted-foreground text-xs">
             Customize header styles, sidebar layouts, chat density, forum post designs, and apply marketplace theme packs to this Circle.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Theme Marketplace Packs & Community Layout Preset Applied to Individual Circle */}
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-[#030712]/50 p-4">
-            <h4 className="font-semibold text-white text-sm flex items-center justify-between">
+          <div className="space-y-3 rounded-2xl border border-border bg-muted/40 p-4">
+            <h4 className="font-semibold text-foreground text-sm flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <ShoppingBag className="h-4 w-4 text-cyan-400" />
                 Community Design Layout & Platform Theme Packs
@@ -160,7 +160,7 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
                 Marketplace →
               </a>
             </h4>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted-foreground">
               Transform this community's visual layout and experience. Select a pre-designed developer layout or apply an installed marketplace theme.
             </p>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -187,12 +187,12 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
                   className={`relative rounded-xl border p-3 text-left transition ${
                     studio.layout === pack.layout || studio.theme_pack === pack.name
                       ? "border-cyan-400 bg-cyan-500/10 shadow-md shadow-cyan-500/10"
-                      : "border-white/10 bg-white/5 hover:bg-white/10"
+                      : "border-border bg-muted/30 hover:bg-muted"
                   } disabled:opacity-50`}
                 >
                   <span className="mb-2 block h-2 rounded-full" style={{ background: pack.accent }} />
-                  <p className="font-semibold text-white text-xs">{pack.name}</p>
-                  <p className="text-[11px] text-slate-400 mt-1">{pack.desc}</p>
+                  <p className="font-semibold text-foreground text-xs">{pack.name}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">{pack.desc}</p>
                   {(studio.layout === pack.layout || studio.theme_pack === pack.name) && (
                     <Badge className="absolute top-2 right-2 bg-cyan-500 text-black text-[10px] p-0.5 px-1.5 font-bold">
                       Active
@@ -206,13 +206,13 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
           {/* Per-Circle Layout Customization */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <Label className="text-xs text-slate-300 mb-1.5 block">Header Style</Label>
+              <Label className="text-xs text-muted-foreground mb-1.5 block">Header Style</Label>
               <Select
                 disabled={!canManage}
                 value={studio.header_style || "glass-gradient"}
                 onValueChange={(val) => setStudio((prev: any) => ({ ...prev, header_style: val }))}
               >
-                <SelectTrigger className="bg-[#030712] border-white/10 text-xs text-white">
+                <SelectTrigger className="bg-background border-border text-xs text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -225,13 +225,13 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
             </div>
 
             <div>
-              <Label className="text-xs text-slate-300 mb-1.5 block">Sidebar Layout</Label>
+              <Label className="text-xs text-muted-foreground mb-1.5 block">Sidebar Layout</Label>
               <Select
                 disabled={!canManage}
                 value={studio.sidebar_layout || "full-nav"}
                 onValueChange={(val) => setStudio((prev: any) => ({ ...prev, sidebar_layout: val }))}
               >
-                <SelectTrigger className="bg-[#030712] border-white/10 text-xs text-white">
+                <SelectTrigger className="bg-background border-border text-xs text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -243,13 +243,13 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
             </div>
 
             <div>
-              <Label className="text-xs text-slate-300 mb-1.5 block">Chat Density</Label>
+              <Label className="text-xs text-muted-foreground mb-1.5 block">Chat Density</Label>
               <Select
                 disabled={!canManage}
                 value={studio.chat_density || "spacious-bubbles"}
                 onValueChange={(val) => setStudio((prev: any) => ({ ...prev, chat_density: val }))}
               >
-                <SelectTrigger className="bg-[#030712] border-white/10 text-xs text-white">
+                <SelectTrigger className="bg-background border-border text-xs text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -261,13 +261,13 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
             </div>
 
             <div>
-              <Label className="text-xs text-slate-300 mb-1.5 block">Forum Layout</Label>
+              <Label className="text-xs text-muted-foreground mb-1.5 block">Forum Layout</Label>
               <Select
                 disabled={!canManage}
                 value={studio.forum_layout || "3d-cards"}
                 onValueChange={(val) => setStudio((prev: any) => ({ ...prev, forum_layout: val }))}
               >
-                <SelectTrigger className="bg-[#030712] border-white/10 text-xs text-white">
+                <SelectTrigger className="bg-background border-border text-xs text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -280,9 +280,9 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
           </div>
 
           {/* Header/Sidebar/Chat/Forum Styling Controls */}
-          <div className="grid gap-4 sm:grid-cols-3 rounded-2xl border border-white/10 bg-[#030712]/40 p-4">
+          <div className="grid gap-4 sm:grid-cols-3 rounded-2xl border border-border bg-muted/40 p-4">
             <div>
-              <Label className="text-xs text-slate-300">Accent Color</Label>
+              <Label className="text-xs text-muted-foreground">Accent Color</Label>
               <div className="mt-1 flex gap-2">
                 <Input
                   type="color"
@@ -295,30 +295,30 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
                   value={studio.accent || "#22d3ee"}
                   disabled={!canManage}
                   onChange={(e) => setStudio((prev: any) => ({ ...prev, accent: e.target.value }))}
-                  className="bg-[#030712] border-white/10 text-xs text-white"
+                  className="bg-background border-border text-xs text-foreground"
                 />
               </div>
             </div>
 
             <div>
-              <Label className="text-xs text-slate-300">Header Background Tint</Label>
+              <Label className="text-xs text-muted-foreground">Header Background Tint</Label>
               <Input
                 placeholder="#06182c"
                 value={studio.header_bg || "#06182c"}
                 disabled={!canManage}
                 onChange={(e) => setStudio((prev: any) => ({ ...prev, header_bg: e.target.value }))}
-                className="mt-1 bg-[#030712] border-white/10 text-xs text-white"
+                className="mt-1 bg-background border-border text-xs text-foreground"
               />
             </div>
 
             <div>
-              <Label className="text-xs text-slate-300">Font Family</Label>
+              <Label className="text-xs text-muted-foreground">Font Family</Label>
               <Select
                 disabled={!canManage}
                 value={studio.font_family || "Plus Jakarta Sans"}
                 onValueChange={(val) => setStudio((prev: any) => ({ ...prev, font_family: val }))}
               >
-                <SelectTrigger className="mt-1 bg-[#030712] border-white/10 text-xs text-white">
+                <SelectTrigger className="mt-1 bg-background border-border text-xs text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -340,14 +340,14 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
             }}
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-white" style={{ fontFamily: studio.font_family }}>
+              <span className="text-xs font-semibold text-foreground" style={{ fontFamily: studio.font_family }}>
                 Preview Circle Theme: {studio.theme_pack || "Custom Studio"}
               </span>
               <Badge style={{ background: studio.accent || "#22d3ee", color: "#000" }} className="font-bold text-[10px]">
                 {studio.header_style || "glass-gradient"}
               </Badge>
             </div>
-            <p className="mt-2 text-xs text-slate-300">
+            <p className="mt-2 text-xs text-muted-foreground">
               Header tint: <span style={{ color: studio.accent || "#22d3ee" }}>{studio.header_bg || "#06182c"}</span> • Layout: {studio.forum_layout || "3d-cards"}
             </p>
           </div>
@@ -355,7 +355,7 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
           <Button
             disabled={!canManage}
             onClick={() => saveStudio(studio)}
-            className="w-full rounded-full bg-gradient-to-r from-violet-600 via-cyan-500 to-blue-600 text-white font-semibold py-2.5 shadow-lg shadow-cyan-500/20"
+            className="w-full rounded-full font-semibold py-2.5"
           >
             <Wand2 className="mr-2 h-4 w-4" />
             Apply Studio & Circle Layout Theme
@@ -363,16 +363,16 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
         </CardContent>
       </Card>
 
-      <Card className="border-white/10 bg-white/[0.04]">
+      <Card className="border-border bg-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-amber-300" />
+            <Trophy className="h-5 w-5 text-amber-500" />
             Challenges & contests
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {canManage && (
-            <div className="space-y-2 rounded-2xl border border-white/10 bg-[#030712]/40 p-3">
+            <div className="space-y-2 rounded-2xl border border-border bg-muted/40 p-3">
               <Input
                 placeholder="Challenge title"
                 value={challengeDraft.title}
@@ -389,20 +389,20 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
                 value={challengeDraft.reward_coins}
                 onChange={(event) => setChallengeDraft((prev) => ({ ...prev, reward_coins: Number(event.target.value) }))}
               />
-              <Button onClick={createChallenge} className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+              <Button onClick={createChallenge} className="rounded-full">
                 Create challenge
               </Button>
             </div>
           )}
           <div className="space-y-2">
             {challenges.length === 0 ? (
-              <p className="text-sm text-slate-400">No active challenges yet.</p>
+              <p className="text-sm text-muted-foreground">No active challenges yet.</p>
             ) : (
               challenges.slice(0, 5).map((challenge) => (
-                <div key={challenge.id} className="rounded-2xl border border-white/10 bg-[#030712]/40 p-3">
-                  <p className="font-medium text-white">{challenge.title}</p>
-                  <p className="text-sm text-slate-400">{challenge.description}</p>
-                  <p className="mt-1 text-xs text-amber-200">{challenge.reward_coins || 0} Loop Coins reward</p>
+                <div key={challenge.id} className="rounded-2xl border border-border bg-muted/40 p-3">
+                  <p className="font-medium text-foreground">{challenge.title}</p>
+                  <p className="text-sm text-muted-foreground">{challenge.description}</p>
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-300">{challenge.reward_coins || 0} Loop Coins reward</p>
                 </div>
               ))
             )}
@@ -410,36 +410,36 @@ export function CommunityAdvancedPanel({ circleId, canManage }: CommunityAdvance
         </CardContent>
       </Card>
 
-      <Card className="border-white/10 bg-white/[0.04]">
+      <Card className="border-border bg-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Video className="h-5 w-5 text-emerald-300" />
+            <Video className="h-5 w-5 text-emerald-500" />
             Voice/video rooms
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3 text-sm text-slate-300">
-          <div className="rounded-2xl border border-white/10 bg-[#030712]/40 p-3">
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-border bg-muted/40 p-3">
             Rooms can now track live presence through the room presence API. Voice/video provider wiring is ready for LiveKit, Agora, Daily, or Twilio.
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-500">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Boxes className="h-4 w-4" />
             Provider adapter needed for real audio/video streams.
           </div>
         </CardContent>
       </Card>
 
-      <Card className="border-white/10 bg-white/[0.04] lg:col-span-2">
+      <Card className="border-border bg-card lg:col-span-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-sky-300" />
+            <Shield className="h-5 w-5 text-sky-500" />
             Role permissions
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {ROLE_PERMISSIONS.map((item) => (
-            <div key={item.role} className="rounded-2xl border border-white/10 bg-[#030712]/40 p-3">
-              <p className="mb-2 font-medium text-white">{item.label}</p>
-              <ul className="space-y-1 text-xs text-slate-400">
+            <div key={item.role} className="rounded-2xl border border-border bg-muted/40 p-3">
+              <p className="mb-2 font-medium text-foreground">{item.label}</p>
+              <ul className="space-y-1 text-xs text-muted-foreground">
                 {item.abilities.map((ability) => (
                   <li key={ability}>• {ability}</li>
                 ))}

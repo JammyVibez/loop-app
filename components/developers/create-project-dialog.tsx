@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,10 +14,24 @@ import { useLoginGate } from "@/hooks/use-login-gate";
 import { uploadMediaFile } from "@/lib/client-media-upload";
 import { SyntaxHighlightedCode } from "@/components/loops/syntax-highlighted-code";
 
+export type EditableProject = {
+  id: string
+  title: string
+  description: string
+  language: string
+  framework?: string
+  tags?: string[]
+  code_snippet?: string
+  files?: AttachedFile[]
+}
+
 interface CreateProjectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onProjectCreated?: (project: any) => void
+  onProjectUpdated?: (project: any) => void
+  /** When set, dialog operates in edit mode for this project. */
+  project?: EditableProject | null
 }
 
 type AttachedFile = { name: string; url: string; size?: number; format?: string }
@@ -26,16 +40,25 @@ const languages = ["JavaScript", "TypeScript", "Python", "Go", "Rust", "Java", "
 const frameworks = ["React", "Vue", "Angular", "Node.js", "Django", "Flask", "Express", "Spring", "Rails"]
 const MAX_FILES = 5
 
-export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: CreateProjectDialogProps) {
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    language: "",
-    framework: "",
-    code: "",
-    tags: [] as string[],
-    newTag: "",
-  })
+const emptyForm = {
+  title: "",
+  description: "",
+  language: "",
+  framework: "",
+  code: "",
+  tags: [] as string[],
+  newTag: "",
+}
+
+export function CreateProjectDialog({
+  open,
+  onOpenChange,
+  onProjectCreated,
+  onProjectUpdated,
+  project = null,
+}: CreateProjectDialogProps) {
+  const isEdit = Boolean(project?.id)
+  const [formData, setFormData] = useState(emptyForm)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [files, setFiles] = useState<AttachedFile[]>([])
@@ -44,6 +67,27 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
   const { toast } = useToast()
   const { getAuthHeader } = useAuth()
   const { requireAuth, LoginGateDialog } = useLoginGate()
+
+  useEffect(() => {
+    if (!open) return
+    if (project) {
+      setFormData({
+        title: project.title || "",
+        description: project.description || "",
+        language: project.language || "",
+        framework: project.framework && project.framework !== "None" ? project.framework : "",
+        code: project.code_snippet || "",
+        tags: project.tags || [],
+        newTag: "",
+      })
+      setFiles(Array.isArray(project.files) ? project.files : [])
+      setShowPreview(false)
+    } else {
+      setFormData(emptyForm)
+      setFiles([])
+      setShowPreview(false)
+    }
+  }, [open, project])
 
   const handleFilePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = e.target.files?.[0]
@@ -108,44 +152,46 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
 
     setIsSubmitting(true)
     try {
-      const response = await fetch("/api/developers/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({
-          title: formData.title.trim(),
-          description: formData.description.trim(),
-          language: formData.language,
-          framework: formData.framework || "None",
-          tags: formData.tags,
-          codeSnippet: formData.code,
-          files,
-        }),
-      })
+      const payload = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        language: formData.language,
+        framework: formData.framework || "None",
+        tags: formData.tags,
+        codeSnippet: formData.code,
+        files,
+      }
+
+      const response = await fetch(
+        isEdit ? `/api/developers/projects/${project!.id}` : "/api/developers/projects",
+        {
+          method: isEdit ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify(payload),
+        },
+      )
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "Failed to share project")
+      if (!response.ok) throw new Error(data.error || (isEdit ? "Failed to update project" : "Failed to share project"))
 
       toast({
-        title: "Project Shared!",
-        description: "Your project has been shared with the developer community.",
+        title: isEdit ? "Project Updated" : "Project Shared!",
+        description: isEdit
+          ? "Your changes are live."
+          : "Your project has been shared with the developer community.",
       })
 
-      onProjectCreated?.(data.project)
+      if (isEdit) onProjectUpdated?.(data.project)
+      else onProjectCreated?.(data.project)
       onOpenChange(false)
-      setFormData({
-        title: "",
-        description: "",
-        language: "",
-        framework: "",
-        code: "",
-        tags: [],
-        newTag: "",
-      })
-      setFiles([])
+      if (!isEdit) {
+        setFormData(emptyForm)
+        setFiles([])
+      }
       setShowPreview(false)
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to share project. Please try again.",
+        description: error.message || "Something went wrong. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -160,8 +206,8 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
       <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            <Code className="w-5 h-5 text-purple-600" />
-            <span>Share Your Project</span>
+            <Code className="w-5 h-5 text-primary" />
+            <span>{isEdit ? "Edit Project" : "Share Your Project"}</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -211,8 +257,8 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
             <div>
               <Label htmlFor="framework">Framework (Optional)</Label>
               <Select
-                value={formData.framework}
-                onValueChange={(value) => setFormData({ ...formData, framework: value })}
+                value={formData.framework || "None"}
+                onValueChange={(value) => setFormData({ ...formData, framework: value === "None" ? "" : value })}
               >
                 <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Select framework" />
@@ -270,7 +316,7 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
                 <Badge key={file.url} variant="secondary" className="flex items-center gap-1.5 py-1.5 pl-2 pr-1">
                   <FileText className="h-3.5 w-3.5" />
                   <span className="max-w-[140px] truncate">{file.name}</span>
-                  <button type="button" onClick={() => handleRemoveFile(file.url)} className="ml-1 hover:text-red-600">
+                  <button type="button" onClick={() => handleRemoveFile(file.url)} className="ml-1 hover:text-destructive">
                     <X className="w-3 h-3" />
                   </button>
                 </Badge>
@@ -315,7 +361,7 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
                   {formData.tags.map((tag) => (
                     <Badge key={tag} variant="secondary" className="flex items-center space-x-1">
                       <span>#{tag}</span>
-                      <button type="button" onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-red-600">
+                      <button type="button" onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive">
                         <X className="w-3 h-3" />
                       </button>
                     </Badge>
@@ -332,9 +378,15 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
             <Button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex-1 bg-gradient-to-r from-purple-500 to-blue-500"
+              className="flex-1"
             >
-              {isSubmitting ? "Sharing..." : "Share Project"}
+              {isSubmitting
+                ? isEdit
+                  ? "Saving..."
+                  : "Sharing..."
+                : isEdit
+                  ? "Save Changes"
+                  : "Share Project"}
             </Button>
           </div>
         </div>

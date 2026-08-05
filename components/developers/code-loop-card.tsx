@@ -1,14 +1,40 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Star, GitBranch, Eye, Download, Copy, Code, Loader2, Check, Paperclip, FileText } from "lucide-react";
+import {
+  Star,
+  GitBranch,
+  Eye,
+  Download,
+  Copy,
+  Code,
+  Loader2,
+  Check,
+  Paperclip,
+  FileText,
+  Share2,
+  Pencil,
+  Trash2,
+  MoreHorizontal,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CreateProjectDialog, type EditableProject } from "@/components/developers/create-project-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useLoginGate } from "@/hooks/use-login-gate";
 import { SyntaxHighlightedCode } from "@/components/loops/syntax-highlighted-code";
+import { absoluteAppUrl, shareContent } from "@/lib/share";
 
 export type ProjectFile = {
   name: string
@@ -20,6 +46,7 @@ export type ProjectFile = {
 interface CodeLoopCardProps {
   project: {
     id: string
+    author_id?: string
     title: string
     description: string
     author: any
@@ -36,6 +63,8 @@ interface CodeLoopCardProps {
     files?: ProjectFile[]
     created_at: Date
   }
+  onUpdated?: (project: any) => void
+  onDeleted?: (projectId: string) => void
 }
 
 function formatFileSize(bytes?: number) {
@@ -45,8 +74,8 @@ function formatFileSize(bytes?: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function CodeLoopCard({ project }: CodeLoopCardProps) {
-  const { getAuthHeader } = useAuth()
+export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProps) {
+  const { user, getAuthHeader } = useAuth()
   const { requireAuth, LoginGateDialog } = useLoginGate()
   const [isStarred, setIsStarred] = useState(false)
   const [starCount, setStarCount] = useState(project.stats.stars)
@@ -55,7 +84,14 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
   const [starring, setStarring] = useState(false)
   const [forking, setForking] = useState(false)
   const [showFullCode, setShowFullCode] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const { toast } = useToast()
+
+  const authorId = project.author_id || project.author?.id
+  const isOwner = Boolean(user?.id && authorId && user.id === authorId)
+  const projectUrl = absoluteAppUrl(`/developers/${project.id}`)
 
   useEffect(() => {
     fetch(`/api/developers/projects/${project.id}/interactions`, { headers: { ...getAuthHeader() } })
@@ -87,7 +123,6 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
       if (!res.ok) throw new Error(data.error || "Failed to star project")
       if (typeof data.stars === "number") setStarCount(data.stars)
     } catch (error: any) {
-      // Roll back optimistic update on failure
       setIsStarred(!nextStarred)
       setStarCount((prev) => Math.max(0, prev + (nextStarred ? -1 : 1)))
       toast({ title: "Couldn't update star", description: error.message, variant: "destructive" })
@@ -114,11 +149,43 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
       setIsForked(true)
       if (typeof data.forks === "number") setForkCount(data.forks)
       else setForkCount((prev) => prev + 1)
-      toast({ title: "Forked! 🍴", description: "A copy of this project was added to your gallery." })
+      toast({ title: "Forked!", description: "A copy of this project was added to your gallery." })
     } catch (error: any) {
       toast({ title: "Fork failed", description: error.message, variant: "destructive" })
     } finally {
       setForking(false)
+    }
+  }
+
+  const handleShare = async () => {
+    const result = await shareContent({
+      url: projectUrl,
+      title: project.title,
+      text: project.description?.slice(0, 140) || `Check out ${project.title} on Loop Developers`,
+    })
+    if (result === "copied") {
+      toast({ title: "Link copied", description: "Project link is on your clipboard." })
+    } else if (result === "failed") {
+      toast({ title: "Couldn't share", variant: "destructive" })
+    }
+  }
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/developers/projects/${project.id}`, {
+        method: "DELETE",
+        headers: { ...getAuthHeader() },
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to delete project")
+      toast({ title: "Project deleted" })
+      onDeleted?.(project.id)
+      setShowDelete(false)
+    } catch (error: any) {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" })
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -176,21 +243,32 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
             : "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30"
         }`}
       >
-        {project.author.verification_level === "root" ? "🌱" : "⭐"}
+        {project.author.verification_level === "root" ? "Root" : "Verified"}
       </Badge>
     )
+  }
+
+  const editableProject: EditableProject = {
+    id: project.id,
+    title: project.title,
+    description: project.description,
+    language: project.language,
+    framework: project.framework,
+    tags: project.tags,
+    code_snippet: project.code_snippet,
+    files: project.files,
   }
 
   return (
     <>
       {LoginGateDialog}
-      <Card className="hover:shadow-lg transition-shadow">
+      <Card className="hover:shadow-lg transition-shadow border-border bg-card text-card-foreground">
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex items-center space-x-3 min-w-0">
             <Avatar className="w-10 h-10 shrink-0">
               <AvatarImage src={project.author.avatar_url || "/placeholder.svg"} />
-              <AvatarFallback>{project.author.display_name.charAt(0)}</AvatarFallback>
+              <AvatarFallback>{project.author.display_name?.charAt(0) || "?"}</AvatarFallback>
             </Avatar>
             <div className="flex items-center min-w-0">
               <div className="min-w-0">
@@ -203,17 +281,54 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
           <div className="flex items-center gap-2 flex-wrap">
             <Badge className={getLanguageColor(project.language)}>{project.language}</Badge>
             {project.framework !== "None" && <Badge variant="outline">{project.framework}</Badge>}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Project actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleShare}>
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={`/developers/${project.id}`}>
+                    <Eye className="mr-2 h-4 w-4" />
+                    Open
+                  </Link>
+                </DropdownMenuItem>
+                {isOwner && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setShowEdit(true)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setShowDelete(true)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
         <div>
-          <h3 className="font-bold text-lg mb-2">{project.title}</h3>
+          <Link href={`/developers/${project.id}`} className="hover:underline">
+            <h3 className="font-bold text-lg mb-2">{project.title}</h3>
+          </Link>
           <p className="text-muted-foreground text-sm">{project.description}</p>
         </div>
 
-        {/* Tags */}
         <div className="flex flex-wrap gap-2">
           {project.tags.map((tag) => (
             <Badge key={tag} variant="secondary" className="text-xs">
@@ -222,7 +337,6 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
           ))}
         </div>
 
-        {/* Code Preview — real syntax highlighting, not flat monospace. Hidden entirely for file-only shares. */}
         {project.code_snippet.trim().length > 0 && (
           <div className="bg-muted/50 border border-border rounded-lg overflow-hidden">
             <div className="flex items-center justify-between bg-muted px-4 py-2">
@@ -248,7 +362,7 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowFullCode(!showFullCode)}
-                  className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300"
+                  className="text-primary hover:text-primary/80"
                 >
                   {showFullCode ? "Show Less" : "Show More"}
                 </Button>
@@ -257,7 +371,6 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
           </div>
         )}
 
-        {/* Attached Files */}
         {project.files && project.files.length > 0 && (
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
@@ -274,7 +387,7 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
                   download={file.name}
                   className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs font-medium hover:bg-muted/70 transition-colors"
                 >
-                  <FileText className="h-3.5 w-3.5 text-cyan-500" />
+                  <FileText className="h-3.5 w-3.5 text-primary" />
                   <span className="max-w-[140px] truncate">{file.name}</span>
                   {file.size ? <span className="text-muted-foreground">{formatFileSize(file.size)}</span> : null}
                 </a>
@@ -283,8 +396,7 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
           </div>
         )}
 
-        {/* Stats */}
-        <div className="flex flex-col gap-3 pt-2 border-t sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 pt-2 border-t border-border sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4 sm:gap-6">
             <Button
               variant="ghost"
@@ -309,7 +421,11 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleFork} disabled={forking || isForked} className="flex-1 sm:flex-initial">
+            <Button variant="outline" size="sm" onClick={handleShare} className="flex-1 sm:flex-initial">
+              <Share2 className="w-4 h-4 mr-2" />
+              Share
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleFork} disabled={forking || isForked || isOwner} className="flex-1 sm:flex-initial">
               {forking ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : isForked ? (
@@ -320,7 +436,7 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
               {isForked ? "Forked" : "Fork"}
             </Button>
             {project.code_snippet.trim().length > 0 && (
-              <Button size="sm" onClick={handleDownload} className="flex-1 sm:flex-initial bg-gradient-to-r from-purple-500 to-blue-500 text-white">
+              <Button size="sm" onClick={handleDownload} className="flex-1 sm:flex-initial">
                 <Download className="w-4 h-4 mr-2" />
                 Download
               </Button>
@@ -329,6 +445,23 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
         </div>
       </CardContent>
     </Card>
+
+    <CreateProjectDialog
+      open={showEdit}
+      onOpenChange={setShowEdit}
+      project={editableProject}
+      onProjectUpdated={onUpdated}
+    />
+
+    <ConfirmDialog
+      open={showDelete}
+      onOpenChange={setShowDelete}
+      title="Delete this project?"
+      description="This permanently removes your project from the Developer Hub. This can't be undone."
+      confirmLabel={deleting ? "Deleting…" : "Delete"}
+      destructive
+      onConfirm={handleDelete}
+    />
     </>
   )
 }

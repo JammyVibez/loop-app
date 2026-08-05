@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { useIntersectionObserver, useOptimizedImage } from "@/hooks/use-optimized-loading";
 import { useAdaptivePerformance } from "@/lib/performance-monitor";
+import { absoluteAppUrl, shareContent } from "@/lib/share";
 import { formatDistanceToNow } from "date-fns";
 
 interface OptimizedLoopCardProps {
@@ -64,6 +65,14 @@ export const OptimizedLoopCard = memo<OptimizedLoopCardProps>(({ loop, onLike, o
   const handleBookmark = useCallback(() => {
     onBookmark(loop.id)
   }, [onBookmark, loop.id])
+
+  const handleShare = useCallback(async () => {
+    await shareContent({
+      url: absoluteAppUrl(`/loop/${loop.id}`),
+      title: `@${loop.user.username} on Loop`,
+      text: loop.content?.slice(0, 120) || "Check out this loop",
+    })
+  }, [loop.id, loop.user.username, loop.content])
 
   const handleToggleContent = useCallback(() => {
     setShowFullContent((prev) => !prev)
@@ -213,7 +222,7 @@ export const OptimizedLoopCard = memo<OptimizedLoopCardProps>(({ loop, onLike, o
               <Bookmark className={`h-4 w-4 ${loop.is_bookmarked ? "fill-current" : ""}`} />
             </Button>
 
-            <Button variant="ghost" size="sm" className="hover:text-blue-500">
+            <Button variant="ghost" size="sm" className="hover:text-blue-500" onClick={handleShare} aria-label="Share loop">
               <Share className="h-4 w-4" />
             </Button>
           </div>

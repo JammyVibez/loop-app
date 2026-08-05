@@ -9,6 +9,7 @@ import { Badge } from "../ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
 import { useTheme3D } from "@/providers/theme-3d-provider";
+import { absoluteAppUrl, shareContent } from "@/lib/share";
 
 interface Loop {
   id: string
@@ -74,6 +75,14 @@ export function EnhancedLoopCard3D({
   const content = typeof loop.content === "string" ? loop.content : ""
   const hashtags = Array.isArray(loop.hashtags) ? loop.hashtags : []
   const contentPreview = content.length > 200 ? content.substring(0, 200) + "..." : content
+
+  const handleShare = async () => {
+    await shareContent({
+      url: absoluteAppUrl(`/loop/${loop.id}`),
+      title: `@${user.username} on Loop`,
+      text: content.slice(0, 120) || "Check out this loop",
+    })
+  }
 
   // Mouse tracking for 3D tilt effect
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -386,7 +395,13 @@ export function EnhancedLoopCard3D({
                   <Bookmark className={`h-4 w-4 ${loop.is_bookmarked ? "fill-current" : ""}`} />
                 </Button>
 
-                <Button variant="ghost" size="sm" className="btn-3d hover:scale-105 transition-all duration-300">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="btn-3d hover:scale-105 transition-all duration-300"
+                  onClick={handleShare}
+                  aria-label="Share loop"
+                >
                   <Share className="h-4 w-4" />
                 </Button>
               </div>

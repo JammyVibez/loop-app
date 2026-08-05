@@ -5,7 +5,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, MapPin, Users, Plus, Clock, ExternalLink, Flame } from "lucide-react"
+import { Calendar, MapPin, Users, Plus, Clock, ExternalLink, Flame, Share2 } from "lucide-react"
+import { absoluteAppUrl, shareContent } from "@/lib/share"
 import { CreateEventModal } from "./create-event-modal"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
@@ -149,6 +150,19 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
     toast({ description: "Event created successfully!" })
   }
 
+  const handleShareEvent = async (event: any) => {
+    const result = await shareContent({
+      url: absoluteAppUrl(`/circles/${circleId}?tab=events&event=${event.id}`),
+      title: event.title || "Circle event on Loop",
+      text: event.description?.slice(0, 140) || `Join ${event.title} on Loop`,
+    })
+    if (result === "copied") {
+      toast({ title: "Link copied", description: "Event link is on your clipboard." })
+    } else if (result === "failed") {
+      toast({ title: "Couldn't share", variant: "destructive" })
+    }
+  }
+
   if (loading) {
     return <div className="flex justify-center p-8">Loading events...</div>
   }
@@ -168,7 +182,7 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
           <span>Circle Events Stage</span>
         </h2>
         {isAdmin && (
-          <Button onClick={() => setShowCreateEvent(true)} className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl">
+          <Button onClick={() => setShowCreateEvent(true)} className="rounded-xl">
             <Plus className="w-4 h-4 mr-2" />
             Create Event
           </Button>
@@ -198,7 +212,7 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
                           </Badge>
                         )}
                       </div>
-                    <p className="text-gray-600 dark:text-gray-400 mb-3">{event.description}</p>
+                    <p className="text-muted-foreground mb-3">{event.description}</p>
 
                     {/* Event Tags */}
                     {event.tags && event.tags.length > 0 && (
@@ -218,14 +232,14 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
                     >
                       {event.is_attending ? "Attending" : "Not Attending"}
                     </Badge>
-                    <div className="flex items-center space-x-1 text-xs text-gray-500 font-medium">
-                      <Clock className="w-3 h-3 text-cyan-500" />
+                    <div className="flex items-center space-x-1 text-xs text-muted-foreground font-medium">
+                      <Clock className="w-3 h-3 text-primary" />
                       <span>{formattedTime}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex items-center space-x-6 text-sm text-muted-foreground">
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-4 h-4" />
                     <span>{formatEventDate(event.starts_at)}</span>
@@ -268,11 +282,15 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
                     </Avatar>
                     <div>
                       <div className="text-sm font-medium">{event.host?.display_name || "Event Host"}</div>
-                      <div className="text-xs text-gray-500">Event Host</div>
+                      <div className="text-xs text-muted-foreground">Event Host</div>
                     </div>
                   </div>
 
                   <div className="flex items-center space-x-2">
+                    <Button variant="outline" size="sm" onClick={() => handleShareEvent(event)} aria-label="Share event">
+                      <Share2 className="w-4 h-4 mr-1" />
+                      Share
+                    </Button>
                     {event.event_link && event.is_attending && (
                       <Button variant="outline" size="sm" onClick={() => window.open(event.event_link, "_blank")}>
                         <ExternalLink className="w-4 h-4 mr-1" />
@@ -308,9 +326,9 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
         {activeEvents.length === 0 && (
           <Card>
             <CardContent className="p-12 text-center">
-              <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <Calendar className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No Upcoming Events</h3>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-muted-foreground">
                 {isAdmin ? "Create the first event for this circle!" : "Check back later for new events."}
               </p>
             </CardContent>

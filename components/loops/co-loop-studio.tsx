@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { createClient } from "@supabase/supabase-js"
 import { uploadMediaFile } from "@/lib/client-media-upload"
+import { absoluteAppUrl, shareContent } from "@/lib/share"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -847,8 +848,8 @@ export function CoLoopStudio() {
     })
   }
 
-  // Copy shareable session link
-  const handleCopyInviteLink = () => {
+  // Share / copy shareable session link
+  const handleCopyInviteLink = async () => {
     if (coAuthors.length >= MAX_CO_AUTHORS) {
       toast({
         title: "Collaborator Limit Reached",
@@ -859,12 +860,20 @@ export function CoLoopStudio() {
     }
 
     const inviterNameParam = user?.username ? `?invitedBy=${encodeURIComponent(user.username)}` : ""
-    const url = `${window.location.origin}/co-loop/join/${sessionId}${inviterNameParam}`
-    navigator.clipboard.writeText(url)
+    const url = absoluteAppUrl(`/co-loop/join/${sessionId}${inviterNameParam}`)
+    const result = await shareContent({
+      url,
+      title: "Join my Co-Loop session",
+      text: `Collaborate with @${user?.username || "me"} on Loop`,
+    })
+    if (result === "aborted" || result === "failed") {
+      if (result === "failed") toast({ title: "Couldn't share", variant: "destructive" })
+      return
+    }
     setLinkCopied(true)
     toast({
-      title: "Session Invite Link Copied! 🔗",
-      description: "Asymmetric invite link copied to clipboard. Anyone clicking will see your invite & landing screen!",
+      title: result === "shared" ? "Invite shared" : "Session invite link copied",
+      description: "Anyone with the link can join your Co-Loop session.",
     })
     setTimeout(() => setLinkCopied(false), 3000)
   }
@@ -1937,11 +1946,11 @@ export function CoLoopStudio() {
                       className="rounded-xl border-cyan-500/30 bg-slate-900 text-xs font-mono text-cyan-200"
                     />
                     <Button
-                      onClick={handleCopyInviteLink}
-                      className="rounded-xl bg-cyan-500 text-black hover:bg-cyan-400 font-bold shrink-0 text-xs gap-1"
+                      onClick={() => void handleCopyInviteLink()}
+                      className="rounded-xl font-bold shrink-0 text-xs gap-1"
                     >
-                      {linkCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                      {linkCopied ? "Copied!" : "Copy Link"}
+                      {linkCopied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+                      {linkCopied ? "Done!" : "Share"}
                     </Button>
                   </div>
                 </div>
