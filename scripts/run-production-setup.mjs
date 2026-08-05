@@ -33,7 +33,7 @@ const ignorable = [
   /policy .* already exists/i,
   /relation .* does not exist/i,
   /column .* does not exist/i,
-  /is already a member of publication/i,
+  /is already a? ?member of publication/i,
   /type .* already exists/i,
   /constraint .* already exists/i,
   /trigger .* already exists/i,
