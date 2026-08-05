@@ -154,26 +154,26 @@ export function PollCardWidget({ poll: initialPoll, loopId }: { poll?: PollData;
   const showResults = Boolean(userVotedOptionId || isExpired)
 
   return (
-    <div className="p-5 rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-[#0b142c]/90 to-[#080f24]/90 space-y-4 my-3 shadow-xl">
+    <div className="p-5 rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 to-card space-y-4 my-3 shadow-xl">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Badge className="bg-cyan-500/20 text-cyan-300 border-cyan-400/30 font-bold px-2.5 py-0.5 text-xs flex items-center gap-1">
-            <Vote className="h-3.5 w-3.5 text-cyan-400" /> LIVE POLL
+          <Badge className="bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 border-cyan-400/30 font-bold px-2.5 py-0.5 text-xs flex items-center gap-1">
+            <Vote className="h-3.5 w-3.5 text-cyan-500 dark:text-cyan-400" /> LIVE POLL
           </Badge>
-          <span className="text-xs text-slate-400 font-medium">{totalVotes} Total Votes</span>
+          <span className="text-xs text-muted-foreground font-medium">{totalVotes} Total Votes</span>
         </div>
 
         {poll.expires_at && (
-          <div className="flex items-center gap-1 text-[11px] text-slate-400">
-            <Clock className="h-3.5 w-3.5 text-cyan-400" />
+          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            <Clock className="h-3.5 w-3.5 text-cyan-500 dark:text-cyan-400" />
             <span>{isExpired ? "Ended " : "Ends "}</span>
             <FreshnessTimestamp date={poll.expires_at} />
           </div>
         )}
       </div>
 
-      <h4 className="text-base font-bold text-white leading-snug">{poll.question}</h4>
+      <h4 className="text-base font-bold text-foreground leading-snug">{poll.question}</h4>
 
       {/* Options list */}
       <div className="space-y-2.5 pt-1">
@@ -189,8 +189,8 @@ export function PollCardWidget({ poll: initialPoll, loopId }: { poll?: PollData;
                 <div
                   className={`relative overflow-hidden p-3 rounded-xl border text-xs font-semibold flex items-center justify-between transition-all ${
                     isUserChoice
-                      ? "border-cyan-400 bg-cyan-950/40 text-cyan-200 ring-1 ring-cyan-400/40 shadow-md"
-                      : "border-white/10 bg-slate-900/60 text-slate-200"
+                      ? "border-cyan-400 bg-cyan-500/10 text-cyan-700 dark:text-cyan-200 ring-1 ring-cyan-400/40 shadow-md"
+                      : "border-border bg-muted text-foreground"
                   }`}
                 >
                   {/* Progress fill */}
@@ -198,19 +198,19 @@ export function PollCardWidget({ poll: initialPoll, loopId }: { poll?: PollData;
                     className={`absolute left-0 top-0 bottom-0 transition-all duration-500 ${
                       isUserChoice
                         ? "bg-cyan-500/30"
-                        : "bg-slate-700/40"
+                        : "bg-muted-foreground/20"
                     }`}
                     style={{ width: `${percent}%` }}
                   />
 
                   <div className="relative z-10 flex items-center gap-2 truncate pr-2">
-                    {isUserChoice && <CheckCircle2 className="h-4 w-4 text-cyan-400 shrink-0" />}
+                    {isUserChoice && <CheckCircle2 className="h-4 w-4 text-cyan-500 dark:text-cyan-400 shrink-0" />}
                     <span className="truncate">{option.text}</span>
                   </div>
 
                   <div className="relative z-10 font-bold flex items-center gap-2 shrink-0">
                     <span>{percent}%</span>
-                    <span className="text-[10px] text-slate-400 font-normal">({votesCount})</span>
+                    <span className="text-[10px] text-muted-foreground font-normal">({votesCount})</span>
                   </div>
                 </div>
               ) : (
@@ -219,10 +219,10 @@ export function PollCardWidget({ poll: initialPoll, loopId }: { poll?: PollData;
                   type="button"
                   disabled={isVoting}
                   onClick={() => handleVote(option.id)}
-                  className="w-full text-left p-3 rounded-xl border border-white/10 bg-slate-900/80 hover:bg-cyan-950/40 hover:border-cyan-500/50 text-xs font-semibold text-slate-100 hover:text-cyan-300 transition-all duration-200 flex items-center justify-between group shadow-sm"
+                  className="w-full text-left p-3 rounded-xl border border-border bg-muted hover:bg-cyan-500/10 hover:border-cyan-500/50 text-xs font-semibold text-foreground hover:text-cyan-600 dark:hover:text-cyan-300 transition-all duration-200 flex items-center justify-between group shadow-sm"
                 >
                   <span className="truncate pr-2">{option.text}</span>
-                  <Vote className="h-4 w-4 text-slate-500 group-hover:text-cyan-400 shrink-0 transition-colors" />
+                  <Vote className="h-4 w-4 text-muted-foreground group-hover:text-cyan-500 dark:group-hover:text-cyan-400 shrink-0 transition-colors" />
                 </button>
               )}
             </div>

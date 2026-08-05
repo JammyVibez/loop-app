@@ -27,6 +27,8 @@ const files = [
   // Durable Co-Loop Studio session ownership + co-author roster (see
   // /api/co-loop/session-info and components/loops/co-loop-studio.tsx).
   "scripts/co-loop-sessions-schema.sql",
+  // DM reaction schema fix — see /api/messages/reactions.
+  "scripts/message-reactions-schema-fix.sql",
   "scripts/rls-policies.sql",
   "scripts/realtime-functions.sql",
 ]

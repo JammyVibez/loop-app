@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { normalizeLoops } from "@/lib/normalize-loop"
+import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 
 function engagementScore(loop: any) {
   const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats
@@ -144,7 +145,8 @@ export async function GET(request: NextRequest) {
           })
         }
 
-        const normalized = normalizeLoops(rows, interactionMap)
+        const enriched = await enrichLoopsWithPollsAndDuels(supabase, rows)
+        const normalized = normalizeLoops(enriched, interactionMap)
         return NextResponse.json({ success: true, data: normalized, loops: normalized })
       }
 
