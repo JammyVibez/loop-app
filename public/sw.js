@@ -261,18 +261,27 @@ self.addEventListener("notificationclick", (event) => {
     return
   }
 
-  const urlToOpen = event.action === "open" ? "/" : event.notification.data?.url || "/"
+  const urlToOpen =
+    event.action === "open"
+      ? event.notification.data?.url || "/"
+      : event.notification.data?.url || event.notification.data?.data?.url || "/"
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      // Check if there's already a window/tab open with the target URL
       for (const client of clientList) {
-        if (client.url === urlToOpen && "focus" in client) {
-          return client.focus()
+        if ("focus" in client) {
+          if (client.url.includes(self.location.origin)) {
+            client.focus()
+            if ("navigate" in client && urlToOpen) {
+              try {
+                client.navigate(urlToOpen)
+              } catch (_) {}
+            }
+            return
+          }
         }
       }
 
-      // If no existing window, open a new one
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen)
       }
