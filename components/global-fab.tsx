@@ -7,8 +7,11 @@ import { Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // Pages where a global "create" FAB doesn't belong: auth flows, the create
-// flow itself (redundant), Co-Loop studio/join (has its own primary actions),
-// messages (has its own "new message" action), and settings/admin surfaces.
+// flow itself (redundant), Co-Loop studio/join (has its own primary
+// actions), chat/messages (has its own "new message" action), Reels (full-
+// screen video with its own controls), Circles/communities (has its own
+// per-room compose actions), Live streams (video + chat + gifting already
+// fill the screen), and settings/admin surfaces.
 const EXCLUDED_PREFIXES = [
   "/login",
   "/signup",
@@ -16,6 +19,9 @@ const EXCLUDED_PREFIXES = [
   "/create",
   "/co-loop",
   "/messages",
+  "/reels",
+  "/circles",
+  "/streams",
   "/settings",
   "/admin",
   "/verify-email",
@@ -25,13 +31,7 @@ const EXCLUDED_PREFIXES = [
 ]
 
 function isExcludedPath(pathname: string) {
-  if (EXCLUDED_PREFIXES.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
-    return true
-  }
-  // Hide while inside an individual live stream room — video, chat, and gift
-  // controls already fill the screen — but keep it on the /streams list.
-  if (/^\/streams\/[^/]+/.test(pathname)) return true
-  return false
+  return EXCLUDED_PREFIXES.some((path) => pathname === path || pathname.startsWith(`${path}/`))
 }
 
 export function GlobalFab() {

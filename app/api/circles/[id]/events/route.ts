@@ -93,19 +93,27 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       ends_at, 
       max_participants,
       is_recurring,
-      recurrence_pattern
+      recurrence_pattern,
+      location,
+      event_link,
+      tags,
+      requires_approval,
     } = await request.json()
 
-    // Check if user has permission to create events (member with appropriate role)
+    // Check if user has permission to create events — a fixed admin/mod
+    // role, or a member an admin explicitly granted can_manage_events to
+    // (custom role permission, without making them a full moderator).
     const { data: member } = await supabase
       .from("circle_members")
-      .select("role")
+      .select("role, permissions")
       .eq("circle_id", circleId)
       .eq("user_id", user.id)
-      .in("role", ["owner", "admin", "moderator"])
-      .single()
+      .maybeSingle()
 
-    if (!member) {
+    const canManageEvents =
+      member && (["owner", "admin", "moderator"].includes(member.role) || member.permissions?.can_manage_events)
+
+    if (!canManageEvents) {
       return NextResponse.json({ error: "Insufficient permissions to create events" }, { status: 403 })
     }
 
@@ -143,6 +151,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         max_participants: max_participants || 50,
         is_recurring: is_recurring || false,
         recurrence_pattern: recurrence_pattern || null,
+        location: location?.trim() || null,
+        event_link: event_link?.trim() || null,
+        tags: Array.isArray(tags) ? tags : [],
+        requires_approval: Boolean(requires_approval),
         created_at: new Date().toISOString()
       })
       .select(`

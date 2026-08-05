@@ -43,15 +43,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Failed to fetch posts" }, { status: 500 })
     }
 
-    // Get interaction counts for each post
+    // Get interaction counts + polls for each post
     const postIds = posts?.map(post => post.id) || []
+    let pollByPostId = new Map<string, any>()
+    if (postIds.length > 0) {
+      const { data: pollRows } = await supabase.from("circle_post_polls").select("*").in("post_id", postIds)
+      pollByPostId = new Map((pollRows || []).map((p: any) => [p.post_id, p]))
+    }
+
     if (postIds.length > 0) {
       const { data: interactions } = await supabase
         .from("circle_post_interactions")
         .select("post_id, interaction_type")
         .in("post_id", postIds)
 
-      // Add interaction counts to posts
+      // Add interaction counts + poll to posts
       const postsWithCounts = posts?.map(post => {
         const postInteractions = interactions?.filter(interaction => interaction.post_id === post.id) || []
         const likes = postInteractions.filter(i => i.interaction_type === "like").length
@@ -60,7 +66,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         return {
           ...post,
           like_count: likes,
-          share_count: shares
+          share_count: shares,
+          poll: pollByPostId.get(post.id) || null,
         }
       }) || []
 
@@ -73,7 +80,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     return NextResponse.json({
       success: true,
-      posts: posts || [],
+      posts: (posts || []).map((p: any) => ({ ...p, poll: pollByPostId.get(p.id) || null })),
       hasMore: posts?.length === limit,
     })
   } catch (error) {
@@ -98,12 +105,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const { id: circleId } = await params
-    const { content, media_url, media_type, hashtags } = await request.json()
+    const body = await request.json()
+    const { content, media_url, media_type, hashtags, poll, room_id } = body
+    const mediaUrls: string[] = Array.isArray(body.media_urls)
+      ? body.media_urls.filter((u: any) => typeof u === "string" && u.trim())
+      : media_url
+        ? [media_url]
+        : []
 
-    // Check if user is a member of the circle
+    // Check if user is a member of the circle (role needed for announcement-room + max-files checks)
     const { data: member } = await supabase
       .from("circle_members")
-      .select("id")
+      .select("id, role, permissions")
       .eq("circle_id", circleId)
       .eq("user_id", user.id)
       .in("status", ["active", "approved"])
@@ -113,9 +126,39 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "You must be a member to post" }, { status: 403 })
     }
 
+    // Announcement rooms are read-for-everyone, post-for-admins-only (or a
+    // member explicitly granted can_post_announcements).
+    if (room_id) {
+      const { data: room } = await supabase.from("circle_rooms").select("type").eq("id", room_id).eq("circle_id", circleId).maybeSingle()
+      const isCircleAdmin = ["owner", "admin", "moderator"].includes(member.role)
+      if (room?.type === "announcement" && !isCircleAdmin && !member.permissions?.can_post_announcements) {
+        return NextResponse.json({ error: "Only circle admins can post in an announcement channel" }, { status: 403 })
+      }
+    }
+
+    // Free members: 1 media file. Verified: 4. Pro (is_premium): up to 10 —
+    // same tiers as loop posts (components/create-loop-button.tsx getMaxFiles).
+    if (mediaUrls.length > 1) {
+      const { data: authorProfile } = await supabase
+        .from("profiles")
+        .select("is_premium, is_verified")
+        .eq("id", user.id)
+        .maybeSingle()
+      const maxFiles = authorProfile?.is_premium ? 10 : authorProfile?.is_verified ? 4 : 1
+      if (mediaUrls.length > maxFiles) {
+        return NextResponse.json(
+          { error: `Up to ${maxFiles} media files allowed on your account. Upgrade to Pro for up to 10.` },
+          { status: 400 },
+        )
+      }
+    }
+
     // Validate content
-    if (!content?.trim() && !media_url) {
-      return NextResponse.json({ error: "Content or media is required" }, { status: 400 })
+    if (!content?.trim() && mediaUrls.length === 0 && !poll?.question) {
+      return NextResponse.json({ error: "Content, media, or a poll is required" }, { status: 400 })
+    }
+    if (poll && (!poll.question?.trim() || !Array.isArray(poll.options) || poll.options.length < 2)) {
+      return NextResponse.json({ error: "Poll requires a question and at least 2 options" }, { status: 400 })
     }
 
     // Create post
@@ -125,8 +168,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         circle_id: circleId,
         author_id: user.id,
         content: content?.trim() || "",
-        media_url,
-        media_type,
+        media_url: mediaUrls[0] || null,
+        media_urls: mediaUrls,
+        media_type: mediaUrls.length ? media_type || "image" : null,
         hashtags: hashtags || [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -140,6 +184,28 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (insertError) {
       console.error("Database insert error:", insertError)
       return NextResponse.json({ error: "Failed to create post" }, { status: 500 })
+    }
+
+    let createdPoll: any = null
+    if (poll?.question) {
+      const formattedOptions = poll.options.map((opt: string, idx: number) => ({
+        id: `opt_${idx + 1}`,
+        text: opt,
+        votes: 0,
+      }))
+      const { data: pollRow } = await supabase
+        .from("circle_post_polls")
+        .insert({
+          post_id: post.id,
+          circle_id: circleId,
+          question: poll.question.trim(),
+          options: formattedOptions,
+          total_votes: 0,
+          expires_at: new Date(Date.now() + (poll.durationHours || 24) * 3600 * 1000).toISOString(),
+        })
+        .select()
+        .single()
+      createdPoll = pollRow
     }
 
     // Update circle post count
@@ -172,7 +238,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     return NextResponse.json({
       success: true,
-      post,
+      post: { ...post, poll: createdPoll },
       message: "Post created successfully"
     })
   } catch (error) {
@@ -212,18 +278,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Post not found" }, { status: 404 })
     }
 
-    // Pin/unpin can be done by author or circle admins/moderators.
+    // Pin/unpin can be done by author, circle admins/moderators, or a
+    // member explicitly granted can_pin_posts.
     if (typeof is_pinned === "boolean") {
       let hasPermission = post.author_id === user.id
       if (!hasPermission) {
         const { data: member } = await supabase
           .from("circle_members")
-          .select("role")
+          .select("role, permissions")
           .eq("circle_id", circleId)
           .eq("user_id", user.id)
-          .in("role", ["owner", "admin", "moderator"])
           .maybeSingle()
-        hasPermission = Boolean(member)
+        hasPermission = Boolean(member && (["owner", "admin", "moderator"].includes(member.role) || member.permissions?.can_pin_posts))
       }
 
       if (!hasPermission) {
@@ -335,19 +401,18 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: "Post not found" }, { status: 404 })
     }
 
-    // Check if user is author or has admin/moderator permissions
+    // Check if user is author, has admin/moderator role, or was granted can_moderate
     let hasPermission = post.author_id === user.id
     
     if (!hasPermission) {
       const { data: member } = await supabase
         .from("circle_members")
-        .select("role")
+        .select("role, permissions")
         .eq("circle_id", circleId)
         .eq("user_id", user.id)
-        .in("role", ["admin", "moderator"])
-        .single()
+        .maybeSingle()
       
-      hasPermission = !!member
+      hasPermission = Boolean(member && (["owner", "admin", "moderator"].includes(member.role) || member.permissions?.can_moderate))
     }
 
     if (!hasPermission) {

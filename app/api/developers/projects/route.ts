@@ -86,13 +86,6 @@ export async function POST(request: NextRequest) {
       files,
     } = await request.json()
 
-    if (!title?.trim() || !description?.trim() || !language?.trim() || !codeSnippet?.trim()) {
-      return NextResponse.json(
-        { error: 'title, description, language, and codeSnippet are required' },
-        { status: 400 },
-      )
-    }
-
     const safeFiles = Array.isArray(files)
       ? files
           .filter((f: any) => f && typeof f.url === "string" && typeof f.name === "string")
@@ -105,6 +98,22 @@ export async function POST(request: NextRequest) {
           }))
       : []
 
+    // Code is optional as long as at least one file is attached — someone
+    // sharing a design asset, dataset, or doc shouldn't have to paste fake
+    // code just to satisfy a form field.
+    if (!title?.trim() || !description?.trim() || !language?.trim()) {
+      return NextResponse.json(
+        { error: 'title, description, and language are required' },
+        { status: 400 },
+      )
+    }
+    if (!codeSnippet?.trim() && safeFiles.length === 0) {
+      return NextResponse.json(
+        { error: 'Add a code snippet or attach at least one file' },
+        { status: 400 },
+      )
+    }
+
     // Create developer project
     let { data: project, error } = await supabase
       .from('developer_projects')
@@ -115,7 +124,7 @@ export async function POST(request: NextRequest) {
         language: language,
         framework: framework || 'None',
         tags: tags || [],
-        code_snippet: codeSnippet,
+        code_snippet: codeSnippet?.trim() || "",
         files: safeFiles,
         repository_url: repositoryUrl,
         demo_url: demoUrl,
@@ -148,7 +157,7 @@ export async function POST(request: NextRequest) {
           language,
           framework: framework || 'None',
           tags: tags || [],
-          code_snippet: codeSnippet,
+          code_snippet: codeSnippet?.trim() || "",
           repository_url: repositoryUrl,
           demo_url: demoUrl,
           stars: 0,

@@ -108,11 +108,11 @@ export function DevelopersContent() {
           <Button
             asChild
             variant="outline"
-            className="rounded-full border-cyan-500/40 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 font-semibold"
+            className="rounded-full border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 font-semibold whitespace-normal text-center"
           >
             <a href="/developers/docs">
-              <Code className="w-4 h-4 mr-2 text-cyan-400" />
-              Developer Docs: Community Layout Specs 📚
+              <Code className="w-4 h-4 mr-2 text-cyan-600 dark:text-cyan-400 shrink-0" />
+              Developer Docs
             </a>
           </Button>
         </div>
@@ -124,7 +124,7 @@ export function DevelopersContent() {
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="px-3 py-2 border rounded-md text-sm"
+                className="px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground"
               >
                 {languages.map((lang) => (
                   <option key={lang} value={lang}>
@@ -136,7 +136,7 @@ export function DevelopersContent() {
               <select
                 value={selectedFramework}
                 onChange={(e) => setSelectedFramework(e.target.value)}
-                className="px-3 py-2 border rounded-md text-sm"
+                className="px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground"
               >
                 {frameworks.map((framework) => (
                   <option key={framework} value={framework}>
@@ -148,7 +148,7 @@ export function DevelopersContent() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 border rounded-md text-sm"
+                className="px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground"
               >
                 <option value="recent">Most Recent</option>
                 <option value="popular">Most Stars</option>
