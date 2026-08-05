@@ -6,6 +6,33 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder"
 )
 
+// Used by PollCardWidget's client-side fallback when a loop is rendered
+// without a server-attached `poll` (e.g. any page that fetches loops
+// without calling enrichLoopsWithPollsAndDuels first). Without this, votes
+// on those pages silently never rendered — `if (!poll) return null`.
+export async function GET(req: NextRequest) {
+  try {
+    const loopId = req.nextUrl.searchParams.get("loop_id") || req.nextUrl.searchParams.get("loopId")
+    if (!loopId) {
+      return NextResponse.json({ error: "loop_id is required" }, { status: 400 })
+    }
+
+    const { data: poll, error } = await supabase
+      .from("loop_polls")
+      .select("*")
+      .eq("loop_id", loopId)
+      .maybeSingle()
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ poll: poll || null })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 })
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization")

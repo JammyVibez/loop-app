@@ -19,6 +19,7 @@ import {
   Copy,
   ExternalLink,
   Sparkles,
+  Users,
 } from "lucide-react"
 import { CommentsSection } from "@/components/comments/comments-section"
 import { CreateBranchDialog } from "@/components/create-branch-dialog"
@@ -26,9 +27,18 @@ import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp"
 import { LoopChainDialog } from "@/components/loops/loop-chain-dialog"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@supabase/supabase-js"
+
+type CoAuthor = {
+  id: string
+  username: string
+  display_name?: string
+  avatar_url?: string
+  role?: string
+}
 
 interface LoopData {
   id: string
@@ -76,6 +86,8 @@ interface LoopData {
   isLiked: boolean
   isBookmarked: boolean
   isFollowing: boolean
+  isCoLoop: boolean
+  coAuthors: CoAuthor[]
 }
 
 const supabase = createClient(
@@ -89,6 +101,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
   const [showFullTree, setShowFullTree] = useState(false)
   const [branchOpen, setBranchOpen] = useState(false)
   const [chainOpen, setChainOpen] = useState(false)
+  const [rosterOpen, setRosterOpen] = useState(false)
   const [reactions, setReactions] = useState<{ [emoji: string]: number }>({})
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
@@ -139,6 +152,8 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
         isLiked: Boolean(loopData.user_interactions?.is_liked),
         isBookmarked: Boolean(loopData.user_interactions?.is_saved),
         isFollowing: false,
+        isCoLoop: Boolean(loopData.is_co_loop),
+        coAuthors: Array.isArray(loopData.co_authors) ? loopData.co_authors : [],
       })
     } catch (error) {
       console.error("Failed to load loop:", error)
@@ -316,17 +331,74 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 text-foreground">
       {/* Loop Container */}
-      <Card className="border border-border bg-card/80 backdrop-blur-md shadow-2xl rounded-2xl overflow-hidden">
+      <Card
+        className={`border bg-card/80 backdrop-blur-md shadow-2xl rounded-2xl overflow-hidden ${
+          loop.isCoLoop ? "border-cyan-500/40" : "border-border"
+        }`}
+      >
         <CardHeader className="p-6 border-b border-border">
+          {loop.isCoLoop && (
+            <div className="mb-3 flex items-center justify-between">
+              <Badge className="bg-gradient-to-r from-cyan-500 via-teal-500 to-indigo-600 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-md shadow-cyan-500/20 border border-cyan-400/40 flex items-center gap-1">
+                <Sparkles className="h-3 w-3 animate-pulse text-cyan-200" />
+                Co-Loop Studio Collaboration
+              </Badge>
+              <button
+                type="button"
+                onClick={() => setRosterOpen(true)}
+                className="text-[11px] font-semibold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1"
+              >
+                <Users className="h-3 w-3" />
+                View {loop.coAuthors.length + 1} Co-Authors
+              </button>
+            </div>
+          )}
+
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <Avatar className="h-12 w-12 border-2 border-cyan-500/40">
-                <AvatarImage src={loop.author.avatar} />
-                <AvatarFallback>{loop.author.displayName.charAt(0)}</AvatarFallback>
-              </Avatar>
+              {loop.isCoLoop ? (
+                <div
+                  onClick={() => setRosterOpen(true)}
+                  className="flex items-center cursor-pointer group flex-shrink-0"
+                  title="Click to view Co-Authors roster"
+                >
+                  <div className="relative z-10">
+                    <Avatar className="h-12 w-12 ring-2 ring-cyan-500 ring-offset-2 ring-offset-background group-hover:scale-105 transition-transform">
+                      <AvatarImage src={loop.author.avatar} />
+                      <AvatarFallback>{loop.author.displayName.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                  </div>
+                  {loop.coAuthors.slice(0, 3).map((ca, i) => (
+                    <div key={ca.id || i} className="-ml-3 relative z-[9] transition-transform group-hover:scale-105" style={{ zIndex: 8 - i }}>
+                      <Avatar className="h-12 w-12 ring-2 ring-cyan-400 ring-offset-2 ring-offset-background">
+                        <AvatarImage src={ca.avatar_url} />
+                        <AvatarFallback>{(ca.display_name || ca.username || "C").charAt(0)}</AvatarFallback>
+                      </Avatar>
+                    </div>
+                  ))}
+                  {loop.coAuthors.length > 3 && (
+                    <div className="-ml-3 relative z-0 flex h-12 w-12 items-center justify-center rounded-full bg-cyan-950 text-xs font-bold text-cyan-300 ring-2 ring-cyan-400">
+                      +{loop.coAuthors.length - 3}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Avatar className="h-12 w-12 border-2 border-cyan-500/40">
+                  <AvatarImage src={loop.author.avatar} />
+                  <AvatarFallback>{loop.author.displayName.charAt(0)}</AvatarFallback>
+                </Avatar>
+              )}
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-lg text-foreground">{loop.author.displayName}</span>
+                  <span className="font-bold text-lg text-foreground">
+                    {loop.author.displayName}
+                    {loop.isCoLoop && loop.coAuthors.length > 0 && (
+                      <span className="text-muted-foreground font-normal">
+                        {" "}
+                        × {loop.coAuthors.map((ca) => `@${ca.username}`).join(" × ")}
+                      </span>
+                    )}
+                  </span>
                   {loop.author.verified && (
                     <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-300 text-[10px]">
                       Verified
@@ -470,6 +542,71 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
         open={chainOpen}
         onOpenChange={setChainOpen}
       />
+
+      {/* Co-Loop Contributors Roster Dialog */}
+      {loop.isCoLoop && (
+        <Dialog open={rosterOpen} onOpenChange={setRosterOpen}>
+          <DialogContent className="border-border/60 bg-card text-foreground sm:max-w-md rounded-2xl p-5">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base font-bold">
+                <Sparkles className="h-5 w-5 text-cyan-400" />
+                Co-Loop Contributors Roster
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <div className="flex items-center justify-between rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10 ring-2 ring-cyan-500">
+                    <AvatarImage src={loop.author.avatar} />
+                    <AvatarFallback>{loop.author.displayName.charAt(0) || "A"}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-bold text-xs sm:text-sm">{loop.author.displayName}</p>
+                      <Badge className="bg-cyan-500 text-[9px] font-bold px-1.5 py-0 text-black">CREATOR</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">@{loop.author.username}</p>
+                  </div>
+                </div>
+                <Button asChild size="sm" variant="outline" className="rounded-xl text-xs h-8">
+                  <Link href={`/profile/${loop.author.username}`}>Profile</Link>
+                </Button>
+              </div>
+
+              {loop.coAuthors.map((ca, idx) => (
+                <div
+                  key={ca.id || idx}
+                  className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 p-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10 ring-2 ring-purple-500">
+                      <AvatarImage src={ca.avatar_url} />
+                      <AvatarFallback>{(ca.display_name || ca.username)?.charAt(0) || "C"}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-bold text-xs sm:text-sm">{ca.display_name || ca.username}</p>
+                        <Badge variant="secondary" className="text-[9px] font-bold px-1.5 py-0">
+                          {ca.role || "CO-AUTHOR"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">@{ca.username}</p>
+                    </div>
+                  </div>
+                  <Button asChild size="sm" variant="outline" className="rounded-xl text-xs h-8">
+                    <Link href={`/profile/${ca.username}`}>Profile</Link>
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" className="w-full rounded-xl" onClick={() => setRosterOpen(false)}>
+                Close Roster
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }
