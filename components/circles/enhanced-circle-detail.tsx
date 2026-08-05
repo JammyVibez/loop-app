@@ -41,18 +41,23 @@ import {
   Pin,
   Archive,
   Flag,
-  Sparkles
+  Sparkles,
+  X,
+  Loader2,
+  Image as ImageIcon,
 } from "lucide-react"
 import { RealtimeCircleChat } from "@/components/circles/realtime-circle-chat"
 import { CircleEvents } from "@/components/circles/circle-events"
 import { CommunityAdvancedPanel } from "@/components/circles/community-advanced-panel"
 import { GiftModal } from "@/components/gifting/gift-modal"
+import { CirclePostPollWidget } from "@/components/circles/circle-post-poll-widget"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { useTheme3D } from "@/providers/theme-3d-provider"
 import { formatDistanceToNow } from "date-fns"
+import { uploadMediaFile } from "@/lib/client-media-upload"
 
 interface EnhancedCircleDetailProps {
   circleId: string
@@ -70,6 +75,7 @@ interface CirclePost {
   }
   content: string
   media_url?: string
+  media_urls?: string[]
   media_type?: 'image' | 'video' | 'audio'
   timestamp: string
   likes: number
@@ -134,6 +140,7 @@ function mapCirclePost(post: any): CirclePost {
     author,
     content: post?.content || "",
     media_url: post?.media_url || undefined,
+    media_urls: Array.isArray(post?.media_urls) && post.media_urls.length ? post.media_urls : post?.media_url ? [post.media_url] : [],
     media_type: post?.media_type || undefined,
     timestamp: post?.timestamp || post?.created_at || new Date().toISOString(),
     likes: Number(post?.likes ?? post?.like_count ?? 0),
@@ -144,6 +151,15 @@ function mapCirclePost(post: any): CirclePost {
     is_pinned: Boolean(post?.is_pinned),
     hashtags: Array.isArray(post?.hashtags) ? post.hashtags : [],
     mentions: Array.isArray(post?.mentions) ? post.mentions : [],
+    poll: post?.poll
+      ? {
+          question: post.poll.question,
+          options: post.poll.options || [],
+          total_votes: Number(post.poll.total_votes || 0),
+          expires_at: post.poll.expires_at,
+          user_vote: post.poll.user_vote,
+        }
+      : undefined,
   }
 }
 
@@ -184,6 +200,12 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   const [userRole, setUserRole] = useState<string>('member')
   const [loading, setLoading] = useState(true)
   const [newPost, setNewPost] = useState("")
+  const [newPostMedia, setNewPostMedia] = useState<string[]>([])
+  const [uploadingPostMedia, setUploadingPostMedia] = useState(false)
+  const [showPollBuilder, setShowPollBuilder] = useState(false)
+  const [pollQuestion, setPollQuestion] = useState("")
+  const [pollOptions, setPollOptions] = useState(["", ""])
+  const [postingCircle, setPostingCircle] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showGiftModal, setShowGiftModal] = useState(false)
   const [giftRecipient, setGiftRecipient] = useState<any>(null)
@@ -371,10 +393,54 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
     }
   }
 
+  // Pro (is_premium): up to 10 media files. Verified: 4. Everyone else: 1 —
+  // same tiers as loop posts (components/create-loop-button.tsx getMaxFiles).
+  const getMaxCirclePostFiles = () => (user?.is_premium ? 10 : user?.is_verified ? 4 : 1)
+
+  const handlePickPostMedia = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    e.target.value = ""
+    if (!files.length) return
+
+    const maxFiles = getMaxCirclePostFiles()
+    if (newPostMedia.length >= maxFiles) {
+      toast({
+        title: `Up to ${maxFiles} files`,
+        description: user?.is_premium ? "You've reached the file limit." : "Upgrade to Pro for up to 10 files per post.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setUploadingPostMedia(true)
+    try {
+      const allowed = files.slice(0, Math.max(0, maxFiles - newPostMedia.length))
+      const uploaded = await Promise.all(
+        allowed.map((file) => uploadMediaFile(file, { type: "image", folder: "circle-posts", authHeaders: getAuthHeader() })),
+      )
+      setNewPostMedia((prev) => [...prev, ...uploaded.map((u) => u.url)])
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message || "Could not upload file.", variant: "destructive" })
+    } finally {
+      setUploadingPostMedia(false)
+    }
+  }
+
+  const handleRemovePostMedia = (url: string) => {
+    setNewPostMedia((prev) => prev.filter((u) => u !== url))
+  }
+
   // Handle create post
   const handleCreatePost = async () => {
-    if (!newPost.trim() || !user) return
+    if (!user) return
+    const pollPayload =
+      showPollBuilder && pollQuestion.trim() && pollOptions.filter((o) => o.trim()).length >= 2
+        ? { question: pollQuestion.trim(), options: pollOptions.filter((o) => o.trim()) }
+        : null
 
+    if (!newPost.trim() && newPostMedia.length === 0 && !pollPayload) return
+
+    setPostingCircle(true)
     try {
       const response = await fetch(`/api/circles/${circleId}/posts`, {
         method: 'POST',
@@ -384,16 +450,23 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
         },
         body: JSON.stringify({
           content: newPost,
-          media_url: null,
-          media_type: null
+          media_urls: newPostMedia,
+          media_type: newPostMedia.length ? "image" : null,
+          poll: pollPayload,
         })
       })
 
+      const data = await response.json().catch(() => ({}))
       if (response.ok) {
-        const data = await response.json()
         setPosts(prev => [mapCirclePost(data.post), ...prev])
         setNewPost("")
+        setNewPostMedia([])
+        setShowPollBuilder(false)
+        setPollQuestion("")
+        setPollOptions(["", ""])
         toast({ description: "Post shared with the circle!" })
+      } else {
+        toast({ title: "Couldn't post", description: data.error || "Failed to create post", variant: "destructive" })
       }
     } catch (error) {
       console.error('Failed to create post:', error)
@@ -402,6 +475,8 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
         description: "Failed to create post",
         variant: "destructive"
       })
+    } finally {
+      setPostingCircle(false)
     }
   }
 
@@ -770,22 +845,106 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                       className="resize-none"
                       rows={3}
                     />
+
+                    {newPostMedia.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {newPostMedia.map((url) => (
+                          <div key={url} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border">
+                            <img src={url} alt="" className="h-full w-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePostMedia(url)}
+                              className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {showPollBuilder && (
+                      <div className="space-y-2 rounded-xl border border-cyan-500/30 bg-cyan-500/5 p-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs font-semibold">Poll question</Label>
+                          <button type="button" onClick={() => setShowPollBuilder(false)} className="text-muted-foreground hover:text-foreground">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <Input
+                          value={pollQuestion}
+                          onChange={(e) => setPollQuestion(e.target.value)}
+                          placeholder="Ask the community something…"
+                        />
+                        {pollOptions.map((opt, i) => (
+                          <Input
+                            key={i}
+                            value={opt}
+                            onChange={(e) =>
+                              setPollOptions((prev) => prev.map((o, idx) => (idx === i ? e.target.value : o)))
+                            }
+                            placeholder={`Option ${i + 1}`}
+                          />
+                        ))}
+                        <div className="flex items-center gap-2">
+                          {pollOptions.length < 4 && (
+                            <Button type="button" variant="outline" size="sm" onClick={() => setPollOptions((prev) => [...prev, ""])}>
+                              Add option
+                            </Button>
+                          )}
+                          {pollOptions.length > 2 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setPollOptions((prev) => prev.slice(0, -1))}
+                            >
+                              Remove last
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" size="sm" type="button">
-                          <Plus className="mr-1 h-4 w-4" />
-                          Media
+                        <input
+                          id="circle-post-media-input"
+                          type="file"
+                          accept="image/*"
+                          multiple={getMaxCirclePostFiles() > 1}
+                          className="hidden"
+                          onChange={handlePickPostMedia}
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          type="button"
+                          disabled={uploadingPostMedia || newPostMedia.length >= getMaxCirclePostFiles()}
+                          onClick={() => document.getElementById("circle-post-media-input")?.click()}
+                        >
+                          {uploadingPostMedia ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-1 h-4 w-4" />}
+                          Media{getMaxCirclePostFiles() > 1 ? ` (${getMaxCirclePostFiles()})` : ""}
                         </Button>
-                        <Button variant="outline" size="sm" type="button">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          type="button"
+                          onClick={() => setShowPollBuilder((v) => !v)}
+                        >
                           <Hash className="mr-1 h-4 w-4" />
                           Poll
                         </Button>
                       </div>
                       <Button
                         onClick={handleCreatePost}
-                        disabled={!newPost.trim()}
+                        disabled={
+                          postingCircle ||
+                          (!newPost.trim() && newPostMedia.length === 0 && !(showPollBuilder && pollQuestion.trim()))
+                        }
                         className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white"
                       >
+                        {postingCircle ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
                         Share
                       </Button>
                     </div>
@@ -838,12 +997,22 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                           className="mb-3 text-sm leading-relaxed sm:text-base"
                         />
 
-                        {post.media_url && (
-                          <div className="mb-3 overflow-hidden rounded-xl border border-border/60">
-                            {post.media_type === "video" ? (
-                              <video src={post.media_url} controls className="max-h-96 w-full bg-black object-contain" />
-                            ) : (
-                              <img src={post.media_url} alt="Post media" className="max-h-96 w-full object-cover" />
+                        {post.poll && (
+                          <CirclePostPollWidget circleId={circleId} postId={post.id} poll={post.poll} />
+                        )}
+
+                        {post.media_urls && post.media_urls.length > 0 && (
+                          <div
+                            className={`mb-3 overflow-hidden rounded-xl border border-border/60 ${
+                              post.media_urls.length > 1 ? `grid gap-0.5 ${post.media_urls.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}` : ""
+                            }`}
+                          >
+                            {post.media_urls.map((url, i) =>
+                              post.media_type === "video" && i === 0 ? (
+                                <video key={url} src={url} controls className="max-h-96 w-full bg-black object-contain" />
+                              ) : (
+                                <img key={url} src={url} alt="Post media" className="h-full max-h-96 w-full object-cover" />
+                              ),
                             )}
                           </div>
                         )}

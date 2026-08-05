@@ -29,6 +29,8 @@ const files = [
   "scripts/co-loop-sessions-schema.sql",
   // DM reaction schema fix — see /api/messages/reactions.
   "scripts/message-reactions-schema-fix.sql",
+  // Circle multi-media posts, polls, and per-member custom roles/permissions.
+  "scripts/circles-enhancements-schema.sql",
   "scripts/rls-policies.sql",
   "scripts/realtime-functions.sql",
 ]

@@ -99,6 +99,28 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const memberCount = Array.isArray(circle.member_count) ? circle.member_count[0]?.count || 0 : Number(circle.member_count || 0)
 
+    // Real stats — computed the same way here for both the main community
+    // page (which reads circle.stats.* directly) and the admin dashboard
+    // (which remaps post_count/comment_count with fallbacks). Previously
+    // this only returned member_count/post_count/room_count/event_count,
+    // so the community page's "Total Comments"/"Active Members"/"Weekly
+    // Growth" cards — which read total_comments/active_members/
+    // weekly_growth — always showed 0 no matter what actually happened.
+    const [{ count: totalPostsCount }, { count: activeMembersCount }, { count: newMembersThisWeek }, { data: postCommentRows }] =
+      await Promise.all([
+        supabase.from("circle_posts").select("id", { count: "exact", head: true }).eq("circle_id", circleId),
+        supabase.from("circle_members").select("id", { count: "exact", head: true }).eq("circle_id", circleId).eq("status", "active"),
+        supabase
+          .from("circle_members")
+          .select("id", { count: "exact", head: true })
+          .eq("circle_id", circleId)
+          .gte("joined_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+        supabase.from("circle_posts").select("comment_count").eq("circle_id", circleId),
+      ])
+
+    const totalComments = (postCommentRows || []).reduce((sum, p: any) => sum + Number(p.comment_count || 0), 0)
+    const weeklyGrowth = memberCount > 0 ? Math.round(((newMembersThisWeek || 0) / memberCount) * 100) : 0
+
     return NextResponse.json({
       success: true,
       circle: {
@@ -110,9 +132,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         membership_status: membershipStatus,
         stats: {
           member_count: memberCount,
-          post_count: circle.post_count || posts?.length || 0,
+          post_count: totalPostsCount || 0,
           room_count: rooms?.length || 0,
-          event_count: events?.length || 0
+          event_count: events?.length || 0,
+          total_posts: totalPostsCount || 0,
+          total_comments: totalComments,
+          active_members: activeMembersCount || 0,
+          weekly_growth: weeklyGrowth,
         }
       },
       is_member: isMember,
