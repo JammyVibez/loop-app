@@ -77,7 +77,7 @@ export async function POST(
     const { coins } = await req.json()
     const coinAmount = Number(coins)
 
-    if (!coinAmount || coinAmount <= 0) {
+    if (!coinAmount || coinAmount <= 0 || !Number.isFinite(coinAmount)) {
       return NextResponse.json({ error: "Coin contribution must be greater than 0" }, { status: 400 })
     }
 
@@ -91,6 +91,40 @@ export async function POST(
     if (loopErr || !loop) {
       return NextResponse.json({ error: "Loop not found" }, { status: 404 })
     }
+
+    // Boosting used to pool "coins" against the loop's target without ever
+    // touching the booster's real wallet — anyone could boost unlimited
+    // loops for free. Charge the booster's actual loop_coins balance first,
+    // atomically, the same way gifts and shop purchases do.
+    const { data: booster, error: boosterErr } = await supabase
+      .from("profiles")
+      .select("id, loop_coins, username, display_name")
+      .eq("id", userId)
+      .single()
+
+    if (boosterErr || !booster) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 })
+    }
+
+    if (Number(booster.loop_coins || 0) < coinAmount) {
+      return NextResponse.json({ error: "Insufficient Loop Coins" }, { status: 400 })
+    }
+
+    const { data: deductedRows, error: deductError } = await supabase
+      .from("profiles")
+      .update({
+        loop_coins: Number(booster.loop_coins) - coinAmount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId)
+      .gte("loop_coins", coinAmount)
+      .select("loop_coins")
+
+    if (deductError || !deductedRows?.length) {
+      return NextResponse.json({ error: "Failed to deduct coins" }, { status: 400 })
+    }
+
+    const newBalance = deductedRows[0].loop_coins
 
     const currentCoins = loop.boost_coins_current || 0
     const newCoinsCurrent = currentCoins + coinAmount
@@ -132,8 +166,21 @@ export async function POST(
 
     if (updateErr) {
       console.error("Failed to update loop boost:", updateErr)
+      // Refund — the coins were already deducted above.
+      await supabase
+        .from("profiles")
+        .update({ loop_coins: Number(booster.loop_coins), updated_at: new Date().toISOString() })
+        .eq("id", userId)
       return NextResponse.json({ error: updateErr.message }, { status: 500 })
     }
+
+    await supabase.from("coin_transactions").insert({
+      user_id: userId,
+      amount: -coinAmount,
+      transaction_type: "boost_spent",
+      description: `Boosted a loop with ${coinAmount} Loop Coins`,
+      reference_id: loopId,
+    })
 
     const boostInfo = calculateBoostInfo(updatedLoop)
 
@@ -188,6 +235,7 @@ export async function POST(
       contributors: rawBoosts?.slice(0, 10) || [],
       contributorCount,
       loop: updatedLoop,
+      newLoopCoinsBalance: newBalance,
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })

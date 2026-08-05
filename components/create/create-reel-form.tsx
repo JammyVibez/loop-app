@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { uploadMediaFile } from "@/lib/client-media-upload"
+import { parseJsonResponse } from "@/lib/parse-json-response"
 
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024
 
@@ -72,20 +74,17 @@ export function CreateReelForm({ onReelCreated }: CreateReelFormProps) {
     setUploading(true)
     try {
       setUploadProgressLabel("Uploading video…")
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("type", "video")
-      formData.append("folder", "reels")
-
-      const uploadRes = await fetch("/api/upload", {
-        method: "POST",
-        headers: { ...getAuthHeader() },
-        body: formData,
+      // Videos always go straight to Cloudinary via a signed direct upload
+      // instead of through /api/upload — a 50MB reel bundled into a Next.js
+      // API request body blows well past Vercel's ~4.5MB serverless request
+      // limit, and Vercel's resulting error page isn't JSON, so the old
+      // `uploadRes.json()` call here would throw a confusing parse error
+      // instead of a real "file too large" message.
+      const uploaded = await uploadMediaFile(file, {
+        type: "video",
+        folder: "reels",
+        authHeaders: getAuthHeader(),
       })
-      const uploadData = await uploadRes.json()
-      if (!uploadRes.ok || !uploadData.url) {
-        throw new Error(uploadData.error || "Video upload failed")
-      }
 
       setUploadProgressLabel("Publishing reel…")
       const tags = hashtags
@@ -100,14 +99,14 @@ export function CreateReelForm({ onReelCreated }: CreateReelFormProps) {
           title: title.trim(),
           description: description.trim(),
           content_type: "video",
-          content_url: uploadData.url,
+          content_url: uploaded.url,
           thumbnail_url: null,
-          duration: uploadData.duration || null,
+          duration: uploaded.duration || null,
           hashtags: tags,
         }),
       })
-      const reelData = await reelRes.json()
-      if (!reelRes.ok) throw new Error(reelData.error || "Failed to publish reel")
+      const { data: reelData } = await parseJsonResponse<any>(reelRes)
+      if (!reelRes.ok) throw new Error(reelData?.error || "Failed to publish reel")
 
       toast({ title: "Reel published! 🎬", description: "Your reel is live in the feed." })
       setFile(null)

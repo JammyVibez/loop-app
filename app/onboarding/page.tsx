@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TreePine, Camera, Palette, Users, Sparkles, ArrowRight, Check, UserPlus, Home, Video } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { uploadMediaFile } from "@/lib/client-media-upload";
 
 interface SuggestedUser {
   id: string
@@ -167,23 +168,12 @@ export default function OnboardingPage() {
     if (!file) return
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('type', 'image')
-      formData.append('folder', 'avatars')
-
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${user?.token || user?.access_token}`
-        },
-        body: formData
+      const uploaded = await uploadMediaFile(file, {
+        type: "image",
+        folder: "avatars",
+        authHeaders: getAuthHeader(),
       })
-
-      const result = await response.json()
-      if (result.success) {
-        setProfileData(prev => ({ ...prev, avatar_url: result.url }))
-      }
+      setProfileData(prev => ({ ...prev, avatar_url: uploaded.url }))
     } catch (error) {
       console.error("Avatar upload failed:", error)
     }

@@ -31,15 +31,26 @@ export function BoostLoopDialog({
   const [customAmount, setCustomAmount] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
 
-  const { getAuthHeader } = useAuth()
+  const { user, getAuthHeader, refreshUser } = useAuth()
   const { toast } = useToast()
 
   const amountToContribute = customAmount ? Number(customAmount) : selectedAmount
   const percent = Math.min(100, Math.round(((currentCoins + amountToContribute) / targetCoins) * 100))
+  const walletBalance = Number(user?.loop_coins || 0)
+  const insufficientFunds = amountToContribute > walletBalance
 
   const handleBoost = async () => {
     if (!amountToContribute || amountToContribute <= 0) {
       toast({ title: "Invalid amount", description: "Please enter a valid coin amount!" })
+      return
+    }
+
+    if (insufficientFunds) {
+      toast({
+        title: "Not enough Loop Coins",
+        description: `You have ${walletBalance} coins — buy more to boost with ${amountToContribute}.`,
+        variant: "destructive",
+      })
       return
     }
 
@@ -54,21 +65,26 @@ export function BoostLoopDialog({
         body: JSON.stringify({ coins: amountToContribute }),
       })
 
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (res.ok && data.success) {
         toast({
           title: "🚀 Loop Boosted!",
-          description: `You contributed ${amountToContribute} coins to boost this Loop into feed visibility!`,
+          description: `${amountToContribute} coins were deducted from your wallet to boost this Loop into feed visibility!`,
         })
+        // The boost actually charges the wallet server-side now — refresh so
+        // the coin balance shown everywhere (header, wallet page) is correct
+        // instead of silently going stale.
+        void refreshUser()
         if (onBoostSuccess) {
           onBoostSuccess(data.boost.current, data.boost.isBoosted)
         }
         onOpenChange(false)
       } else {
-        toast({ title: "Boost failed", description: data.error || "Could not contribute coins" })
+        toast({ title: "Boost failed", description: data.error || "Could not contribute coins", variant: "destructive" })
       }
     } catch (err) {
       console.error("Failed to boost loop:", err)
+      toast({ title: "Boost failed", description: "Please try again.", variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -83,6 +99,10 @@ export function BoostLoopDialog({
           </DialogTitle>
           <p className="text-xs text-muted-foreground">
             Pool coins to push &ldquo;{loopTitle || "this Loop"}&rdquo; to the top of everyone&apos;s feed!
+          </p>
+          <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+            <Coins className="h-3.5 w-3.5 text-amber-400" />
+            Your balance: {walletBalance.toLocaleString()} coins
           </p>
         </DialogHeader>
 
@@ -142,6 +162,12 @@ export function BoostLoopDialog({
               className="w-full bg-muted border border-border rounded-xl p-2.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-400"
             />
           </div>
+
+          {insufficientFunds && (
+            <p className="text-xs font-semibold text-red-500">
+              Not enough coins — you have {walletBalance.toLocaleString()}, need {amountToContribute.toLocaleString()}.
+            </p>
+          )}
         </div>
 
         <DialogFooter className="pt-2">
@@ -155,7 +181,7 @@ export function BoostLoopDialog({
           </Button>
           <Button
             onClick={handleBoost}
-            disabled={loading || amountToContribute <= 0}
+            disabled={loading || amountToContribute <= 0 || insufficientFunds}
             className="bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white font-extrabold rounded-xl shadow-lg flex items-center gap-1.5"
           >
             {loading ? (
