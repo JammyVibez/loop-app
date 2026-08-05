@@ -92,6 +92,14 @@ export const PRO_FEATURES = [
     pro: "Instant 4K Live",
     icon: "video",
   },
+  {
+    id: "communities",
+    title: "More Communities",
+    description: "Create and run more Circles for your audiences",
+    free: "Up to 2 communities",
+    pro: "Up to 15 communities",
+    icon: "users",
+  },
 ] as const
 
 export const CODE_LANGUAGES = [

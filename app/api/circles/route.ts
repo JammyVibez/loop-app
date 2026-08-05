@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { circleCreateLimitMessage, getCircleCreateLimit } from "@/lib/circle-limits"
 
 function createServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -50,19 +51,25 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category")
     const search = searchParams.get("search")
     const mine = searchParams.get("mine") === "true"
+    const joined = searchParams.get("joined") === "true"
     const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
     const user = await getUserFromToken(token)
     const supabase = createServerClient()
 
-    if (mine) {
+    if (mine || joined) {
       if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-      const { data: memberships, error: membershipError } = await supabase
+      let membershipQuery = supabase
         .from("circle_members")
         .select("circle_id, role, status")
         .eq("user_id", user.id)
-        .in("role", ["owner", "admin", "moderator"])
         .neq("status", "banned")
+
+      if (mine && !joined) {
+        membershipQuery = membershipQuery.in("role", ["owner", "admin", "moderator"])
+      }
+
+      const { data: memberships, error: membershipError } = await membershipQuery
 
       if (membershipError) {
         return NextResponse.json({ error: "Failed to fetch managed circles" }, { status: 500 })
@@ -75,7 +82,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: true, circles: [], hasMore: false })
       }
 
-      const { data: circles, error } = await supabase
+      let circlesQuery = supabase
         .from("circles")
         .select(`
           *,
@@ -85,6 +92,23 @@ export async function GET(request: NextRequest) {
         `)
         .in("id", ids)
         .order("created_at", { ascending: false })
+
+      // Bio tags / joined list should only show active communities
+      if (joined) circlesQuery = circlesQuery.eq("is_active", true)
+
+      let { data: circles, error } = await circlesQuery
+      if (error && (/is_active/i.test(error.message || "") || error.code === "PGRST204")) {
+        ;({ data: circles, error } = await supabase
+          .from("circles")
+          .select(`
+            *,
+            owner:profiles!owner_id(id, username, display_name, avatar_url),
+            creator:profiles!creator_id(id, username, display_name, avatar_url),
+            member_count:circle_members(count)
+          `)
+          .in("id", ids)
+          .order("created_at", { ascending: false }))
+      }
 
       if (error) {
         return NextResponse.json({ error: "Failed to fetch circles" }, { status: 500 })
@@ -105,12 +129,29 @@ export async function GET(request: NextRequest) {
         creator:profiles!creator_id(id, username, display_name, avatar_url),
         member_count:circle_members(count)
       `)
+      .eq("is_active", true)
       .order("created_at", { ascending: false })
 
     if (category && category !== "all") query = query.eq("category", category)
     if (search) query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
 
-    const { data: circles, error } = await query.range(offset, offset + limit - 1)
+    let { data: circles, error } = await query.range(offset, offset + limit - 1)
+    // Compat if is_active column missing on older DBs
+    if (error?.code === "PGRST204" || /is_active/i.test(error?.message || "")) {
+      ;({ data: circles, error } = await supabase
+        .from("circles")
+        .select(`
+          *,
+          owner:profiles!owner_id(id, username, display_name, avatar_url),
+          creator:profiles!creator_id(id, username, display_name, avatar_url),
+          member_count:circle_members(count)
+        `)
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1))
+      if (category && category !== "all") {
+        circles = (circles || []).filter((c: any) => c.category === category)
+      }
+    }
     if (error) {
       console.error("Error fetching circles:", error)
       return NextResponse.json({ error: "Failed to fetch circles" }, { status: 500 })
@@ -153,13 +194,33 @@ export async function POST(request: NextRequest) {
     if (!category) return NextResponse.json({ error: "Category is required" }, { status: 400 })
 
     const supabase = createServerClient()
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_premium, premium_expires_at")
+      .eq("id", user.id)
+      .maybeSingle()
+
+    const premiumActive =
+      Boolean(profile?.is_premium) &&
+      (!profile?.premium_expires_at || new Date(profile.premium_expires_at) > new Date())
+    const createLimit = getCircleCreateLimit(premiumActive)
+
     const { data: existingCircles, error: countError } = await supabase
       .from("circles")
       .select("id")
       .or(`owner_id.eq.${user.id},creator_id.eq.${user.id}`)
     if (countError) return NextResponse.json({ error: "Failed to check existing circles" }, { status: 500 })
-    if (existingCircles && existingCircles.length >= 5) {
-      return NextResponse.json({ error: "You can only create up to 5 circles" }, { status: 400 })
+    const ownedCount = existingCircles?.length || 0
+    if (ownedCount >= createLimit) {
+      return NextResponse.json(
+        {
+          error: circleCreateLimitMessage(premiumActive, ownedCount),
+          limit: createLimit,
+          current: ownedCount,
+          upgrade_required: !premiumActive,
+        },
+        { status: 400 },
+      )
     }
 
     const { data: existingCircle } = await supabase.from("circles").select("id").eq("name", name.trim()).maybeSingle()

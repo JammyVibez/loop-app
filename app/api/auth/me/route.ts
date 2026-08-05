@@ -30,7 +30,8 @@ export async function GET(request: NextRequest) {
     }
 
     const selects = [
-      "id, email, username, display_name, avatar_url, banner_url, bio, loop_coins, is_premium, premium_expires_at, is_verified, is_admin, theme_data, theme_preferences, active_theme, active_cosmetics, level, xp_points, available_earnings, interests, onboarding_completed, location, website, phone, privacy_settings, notification_settings",
+      "id, email, username, display_name, avatar_url, banner_url, bio, tagged_circles, loop_coins, is_premium, premium_expires_at, is_verified, is_admin, theme_data, theme_preferences, active_theme, active_cosmetics, level, xp_points, available_earnings, interests, onboarding_completed, location, website, phone, privacy_settings, notification_settings",
+      "id, email, username, display_name, avatar_url, banner_url, bio, tagged_circles, loop_coins, is_premium, premium_expires_at, is_verified, is_admin, theme_data, theme_preferences, interests, onboarding_completed, location, website, phone, privacy_settings, notification_settings",
       "id, email, username, display_name, avatar_url, banner_url, bio, loop_coins, is_premium, premium_expires_at, is_verified, is_admin, theme_data, theme_preferences, interests, onboarding_completed, location, website, phone, privacy_settings, notification_settings",
       "id, email, username, display_name, avatar_url, banner_url, bio, loop_coins, is_premium, premium_expires_at, is_verified, is_admin, interests, onboarding_completed, location, website",
     ]

@@ -18,6 +18,11 @@ import { PRO_PRICING } from "@/lib/pro-features"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { ensureServiceWorker, subscribeToPush, subscriptionToJSON, unsubscribeFromPush } from "@/lib/push-client"
 import {
+  MAX_BIO_COMMUNITY_TAGS,
+  serializeCircleBioToken,
+  type TaggedCircle,
+} from "@/lib/circle-limits"
+import {
   User,
   Bell,
   Shield,
@@ -30,6 +35,7 @@ import {
   Star,
   Users,
   Monitor,
+  X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -74,6 +80,9 @@ export function EnhancedSettings() {
       promotional: false,
     },
   })
+  const [taggedCircles, setTaggedCircles] = useState<TaggedCircle[]>([])
+  const [joinedCircles, setJoinedCircles] = useState<TaggedCircle[]>([])
+  const [loadingCircles, setLoadingCircles] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -176,7 +185,40 @@ export function EnhancedSettings() {
         promotional: Boolean(notifications.promotional),
       },
     })
+    const existingTags = Array.isArray((user as any).tagged_circles) ? (user as any).tagged_circles : []
+    setTaggedCircles(
+      existingTags
+        .filter((t: any) => t?.id && t?.name)
+        .map((t: any) => ({ id: t.id, name: t.name, avatar_url: t.avatar_url || null })),
+    )
   }, [user])
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    ;(async () => {
+      setLoadingCircles(true)
+      try {
+        const res = await fetch("/api/circles?joined=true", { headers: { ...getAuthHeader() } })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok || cancelled) return
+        const mine = (data.circles || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          avatar_url: c.avatar_url || null,
+        }))
+        setJoinedCircles(mine)
+      } catch {
+        if (!cancelled) setJoinedCircles([])
+      } finally {
+        if (!cancelled) setLoadingCircles(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   const saveSettings = async () => {
     if (!user) return
@@ -193,6 +235,7 @@ export function EnhancedSettings() {
           bio: formData.bio,
           website: formData.website,
           location: formData.location,
+          tagged_circles: taggedCircles,
           privacy_settings: {
             profile_visibility: formData.privacy.profile_visibility,
             show_email: formData.privacy.show_email,
@@ -217,6 +260,9 @@ export function EnhancedSettings() {
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to save")
+      if (Array.isArray(data.profile?.tagged_circles)) {
+        setTaggedCircles(data.profile.tagged_circles)
+      }
 
       if (data.profile) applyServerProfile(data.profile)
       await refreshUser()
@@ -466,6 +512,84 @@ export function EnhancedSettings() {
                   className="min-h-[110px]"
                 />
                 <p className="text-xs text-muted-foreground">{formData.bio.length}/500</p>
+              </div>
+
+              <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <Label className="inline-flex items-center gap-1.5">
+                      <Users className="h-4 w-4 text-primary" />
+                      Tag communities in your bio
+                    </Label>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Others can tap a tag to open that community. Up to {MAX_BIO_COMMUNITY_TAGS}.
+                    </p>
+                  </div>
+                  <Badge variant="secondary">
+                    {taggedCircles.length}/{MAX_BIO_COMMUNITY_TAGS}
+                  </Badge>
+                </div>
+
+                {taggedCircles.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {taggedCircles.map((tag) => (
+                      <Badge key={tag.id} variant="secondary" className="gap-1.5 py-1.5 pl-2 pr-1">
+                        <span className="max-w-[140px] truncate">{tag.name}</span>
+                        <button
+                          type="button"
+                          className="rounded-full p-0.5 hover:bg-destructive/20 hover:text-destructive"
+                          onClick={() => setTaggedCircles((prev) => prev.filter((t) => t.id !== tag.id))}
+                          aria-label={`Remove ${tag.name}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2">
+                  {loadingCircles ? (
+                    <p className="text-xs text-muted-foreground">Loading your communities…</p>
+                  ) : joinedCircles.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Join or create a community first, then tag it here.
+                    </p>
+                  ) : (
+                    joinedCircles
+                      .filter((c) => !taggedCircles.some((t) => t.id === c.id))
+                      .slice(0, 12)
+                      .map((circle) => (
+                        <Button
+                          key={circle.id}
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 rounded-full"
+                          disabled={taggedCircles.length >= MAX_BIO_COMMUNITY_TAGS}
+                          onClick={() => {
+                            setTaggedCircles((prev) => {
+                              if (prev.some((t) => t.id === circle.id) || prev.length >= MAX_BIO_COMMUNITY_TAGS) {
+                                return prev
+                              }
+                              return [...prev, circle]
+                            })
+                            // Also drop a tappable token into the bio when there's room
+                            const token = serializeCircleBioToken(circle)
+                            setFormData((prev) => {
+                              if (prev.bio.includes(token) || prev.bio.length + token.length + 1 > 500) {
+                                return prev
+                              }
+                              const next = prev.bio.trim() ? `${prev.bio.trim()} ${token}` : token
+                              return { ...prev, bio: next.slice(0, 500) }
+                            })
+                          }}
+                        >
+                          + {circle.name}
+                        </Button>
+                      ))
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>

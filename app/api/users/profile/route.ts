@@ -203,7 +203,8 @@ export async function PUT(request: NextRequest) {
       'banner_url',
       'theme_data',
       'privacy_settings',
-      'notification_settings'
+      'notification_settings',
+      'tagged_circles',
     ]
 
     const filteredUpdates = Object.keys(updates)

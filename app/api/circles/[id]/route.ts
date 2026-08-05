@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { hardDeleteCircle, setCircleActive } from "@/lib/circle-lifecycle";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
 
@@ -44,15 +45,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     let isMember = false
     let userRole = "guest"
     let membershipStatus: string | null = null
+    let isPlatformAdmin = false
 
     if (currentUser) {
-      const { data: memberData } = await supabase
-        .from("circle_members")
-        .select("role, status")
-        .eq("circle_id", circleId)
-        .eq("user_id", currentUser.id)
-        .maybeSingle()
-      
+      const [{ data: memberData }, { data: adminProfile }] = await Promise.all([
+        supabase
+          .from("circle_members")
+          .select("role, status")
+          .eq("circle_id", circleId)
+          .eq("user_id", currentUser.id)
+          .maybeSingle(),
+        supabase.from("profiles").select("is_admin").eq("id", currentUser.id).maybeSingle(),
+      ])
+
+      isPlatformAdmin = Boolean(adminProfile?.is_admin)
+
       if (memberData) {
         const status = String(memberData.status || "active").toLowerCase()
         membershipStatus = status
@@ -68,6 +75,27 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         userRole = "owner"
         membershipStatus = "active"
       }
+    }
+
+    const canManageLifecycle =
+      userRole === "owner" || userRole === "admin" || isPlatformAdmin
+
+    // Deactivated communities are hidden from the public; managers can still open admin.
+    if (circle.is_active === false && !canManageLifecycle) {
+      return NextResponse.json(
+        {
+          error: "This community has been deactivated",
+          deactivated: true,
+          circle: {
+            id: circle.id,
+            name: circle.name,
+            description: circle.description,
+            avatar_url: circle.avatar_url,
+            is_active: false,
+          },
+        },
+        { status: 410 },
+      )
     }
 
     const memberCount = Array.isArray(circle.member_count) ? circle.member_count[0]?.count || 0 : Number(circle.member_count || 0)
@@ -286,6 +314,72 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const token = authHeader.replace("Bearer ", "")
+    const user = await getUserFromToken(token)
+    if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+
+    const { id: circleId } = await params
+    const body = await request.json().catch(() => ({}))
+    const action = String(body.action || "")
+
+    const { data: circle } = await supabase
+      .from("circles")
+      .select("id, owner_id, creator_id, is_active")
+      .eq("id", circleId)
+      .maybeSingle()
+
+    if (!circle) return NextResponse.json({ error: "Circle not found" }, { status: 404 })
+
+    const [{ data: member }, { data: adminProfile }] = await Promise.all([
+      supabase
+        .from("circle_members")
+        .select("role")
+        .eq("circle_id", circleId)
+        .eq("user_id", user.id)
+        .in("role", ["owner", "admin"])
+        .maybeSingle(),
+      supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle(),
+    ])
+
+    const isOwner = circle.owner_id === user.id || circle.creator_id === user.id
+    const canManage = isOwner || Boolean(member) || Boolean(adminProfile?.is_admin)
+    if (!canManage) {
+      return NextResponse.json({ error: "Only community admins can manage this circle" }, { status: 403 })
+    }
+
+    if (action === "deactivate" || action === "activate") {
+      const { data, error } = await setCircleActive(supabase, circleId, action === "activate", user.id)
+      if (error) {
+        // Compat without lifecycle columns
+        if (error.code === "PGRST204" || /is_active|deactivated/i.test(error.message || "")) {
+          return NextResponse.json(
+            { error: "Deactivate requires a database update. Please retry after schema sync." },
+            { status: 500 },
+          )
+        }
+        return NextResponse.json({ error: error.message || "Failed to update circle status" }, { status: 500 })
+      }
+      return NextResponse.json({
+        success: true,
+        circle: data,
+        message: action === "activate" ? "Community reactivated" : "Community deactivated",
+      })
+    }
+
+    return NextResponse.json({ error: "Invalid action. Use activate or deactivate." }, { status: 400 })
+  } catch (error) {
+    console.error("Error patching circle:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -302,22 +396,34 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     const { id: circleId } = await params
 
-    // Check if user is the owner
     const { data: circle } = await supabase
       .from("circles")
-      .select("owner_id")
+      .select("owner_id, creator_id")
       .eq("id", circleId)
-      .single()
+      .maybeSingle()
 
-    if (!circle || circle.owner_id !== user.id) {
-      return NextResponse.json({ error: "Only the owner can delete the circle" }, { status: 403 })
+    if (!circle) {
+      return NextResponse.json({ error: "Circle not found" }, { status: 404 })
     }
 
-    // Delete circle (this will cascade delete related records due to foreign key constraints)
-    const { error: deleteError } = await supabase
-      .from("circles")
-      .delete()
-      .eq("id", circleId)
+    const [{ data: member }, { data: adminProfile }] = await Promise.all([
+      supabase
+        .from("circle_members")
+        .select("role")
+        .eq("circle_id", circleId)
+        .eq("user_id", user.id)
+        .in("role", ["owner", "admin"])
+        .maybeSingle(),
+      supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle(),
+    ])
+
+    const isOwner = circle.owner_id === user.id || circle.creator_id === user.id
+    const canDelete = isOwner || member?.role === "admin" || Boolean(adminProfile?.is_admin)
+    if (!canDelete) {
+      return NextResponse.json({ error: "Only community admins can delete this circle" }, { status: 403 })
+    }
+
+    const { error: deleteError } = await hardDeleteCircle(supabase, circleId)
 
     if (deleteError) {
       console.error("Database delete error:", deleteError)
@@ -326,7 +432,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     return NextResponse.json({
       success: true,
-      message: "Circle deleted successfully"
+      message: "Circle deleted successfully. All community content has been removed.",
     })
   } catch (error) {
     console.error("Error deleting circle:", error)

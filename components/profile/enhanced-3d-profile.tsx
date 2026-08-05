@@ -44,6 +44,8 @@ import { isShopThemePayload } from "@/lib/theme-css"
 import { xpForNextLevel } from "@/lib/xp"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { UserBadges } from "@/components/user-badge"
+import { RichContent } from "@/components/content/rich-content"
+import { BioCommunityTags } from "@/components/profile/bio-community-tags"
 
 interface Achievement {
   id: string
@@ -59,6 +61,7 @@ interface UserProfile {
   username: string
   display_name: string
   bio?: string
+  tagged_circles?: Array<{ id: string; name: string; avatar_url?: string | null }>
   avatar_url?: string
   banner_url?: string
   followers_count: number
@@ -125,6 +128,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             avatar_url: data.profile.avatar_url,
             banner_url: data.profile.banner_url,
             bio: data.profile.bio,
+            tagged_circles: Array.isArray(data.profile.tagged_circles) ? data.profile.tagged_circles : [],
             loop_coins: data.profile.loop_coins,
             is_premium: data.profile.is_premium,
             is_verified: data.profile.is_verified,
@@ -480,9 +484,14 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             <p className="text-muted-foreground">@{profile.username}</p>
           </div>
 
-          <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
-            {profile.bio || "Building thoughtful communities with depth, style, and signal."}
-          </p>
+          {profile.bio ? (
+            <RichContent text={profile.bio} className="text-[15px] leading-relaxed" showPreviewCard={false} />
+          ) : (
+            <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-muted-foreground">
+              Building thoughtful communities with depth, style, and signal.
+            </p>
+          )}
+          <BioCommunityTags tags={profile.tagged_circles} />
 
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {profile.location && (

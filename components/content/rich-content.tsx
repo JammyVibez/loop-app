@@ -9,7 +9,8 @@ import { UrlPreviewCard } from "./url-preview-card"
 const HASHTAG_RE = /#([a-zA-Z0-9_]{1,50})\b/g
 const URL_RE = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/g
 const MARKDOWN_IMG_RE = /^!\[([^\]]*)\]\((https?:\/\/[^\s<]+|\/[^\s<]+)\)$/i
-const COMBINED_RE = /(!\[[^\]]*\]\((?:https?:\/\/[^\s<]+|\/[^\s<]+)\)|@[a-zA-Z0-9_]{3,30}\b|#[a-zA-Z0-9_]{1,50}\b|https?:\/\/[^\s<]+|www\.[^\s<]+)/g
+const CIRCLE_TOKEN_RE = /^\[\[c:([0-9a-f-]{36})\|([^\]]{1,80})\]\]$/i
+const COMBINED_RE = /(\[\[[cC]:[0-9a-f-]{36}\|[^\]]{1,80}\]\]|!\[[^\]]*\]\((?:https?:\/\/[^\s<]+|\/[^\s<]+)\)|@[a-zA-Z0-9_]{3,30}\b|#[a-zA-Z0-9_]{1,50}\b|https?:\/\/[^\s<]+|www\.[^\s<]+)/g
 
 type Props = {
   text: string
@@ -57,6 +58,21 @@ export function RichContent({
       <Tag className={cn("whitespace-pre-wrap break-words", className)}>
         {parts.map((part, i) => {
           if (!part) return null
+
+          // 0. Community tags in bio/posts: [[c:uuid|Name]]
+          const circleToken = part.match(CIRCLE_TOKEN_RE)
+          if (circleToken) {
+            return (
+              <Link
+                key={`${i}-${part}`}
+                href={`/circles/${circleToken[1]}`}
+                className="mx-0.5 inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary hover:bg-primary/20"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {circleToken[2]}
+              </Link>
+            )
+          }
 
           // 1. Markdown Images: ![alt](url)
           const imgMatch = part.match(MARKDOWN_IMG_RE)

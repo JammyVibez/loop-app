@@ -335,11 +335,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Circle not found" }, { status: 404 })
     }
 
-    // Delete circle (this will cascade delete related records)
-    const { error: deleteError } = await supabase
-      .from("circles")
-      .delete()
-      .eq("id", circleId)
+    const { hardDeleteCircle } = await import("@/lib/circle-lifecycle")
+    const { error: deleteError } = await hardDeleteCircle(supabase, circleId)
 
     if (deleteError) {
       console.error("Database delete error:", deleteError)
@@ -348,7 +345,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Circle deleted successfully"
+      message: "Circle deleted successfully. All related community data was removed.",
     })
   } catch (error) {
     console.error("Error deleting circle:", error)
