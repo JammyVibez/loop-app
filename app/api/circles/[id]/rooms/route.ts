@@ -16,7 +16,9 @@ async function getUserFromToken(token: string) {
   }
 }
 
-// Get circle rooms
+// Get circle rooms — private rooms are only listed to members an admin
+// explicitly granted access to (circle_room_members), not just any circle
+// member. Non-members of the circle see nothing (rooms are circle-internal).
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { searchParams } = new URL(request.url)
@@ -25,6 +27,26 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const type = searchParams.get("type")
 
     const { id: circleId } = await params
+
+    const authHeader = request.headers.get("authorization")
+    const token = authHeader?.replace("Bearer ", "")
+    const user = token ? await getUserFromToken(token) : null
+
+    let role: string | null = null
+    if (user) {
+      const { data: member } = await supabase
+        .from("circle_members")
+        .select("role")
+        .eq("circle_id", circleId)
+        .eq("user_id", user.id)
+        .in("status", ["active", "approved"])
+        .maybeSingle()
+      role = member?.role || null
+    }
+
+    if (!role) {
+      return NextResponse.json({ success: true, rooms: [], hasMore: false })
+    }
 
     let query = supabase
       .from("circle_rooms")
@@ -44,9 +66,25 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Failed to fetch rooms" }, { status: 500 })
     }
 
+    const isCircleAdmin = ["owner", "admin", "moderator"].includes(role)
+    const privateRoomIds = (rooms || []).filter((r: any) => r.is_private).map((r: any) => r.id)
+    let grantedRoomIds = new Set<string>()
+    if (!isCircleAdmin && privateRoomIds.length > 0 && user) {
+      const { data: grants } = await supabase
+        .from("circle_room_members")
+        .select("room_id")
+        .eq("user_id", user.id)
+        .in("room_id", privateRoomIds)
+      grantedRoomIds = new Set((grants || []).map((g: any) => g.room_id))
+    }
+
+    const visibleRooms = (rooms || []).filter(
+      (room: any) => !room.is_private || isCircleAdmin || grantedRoomIds.has(room.id),
+    )
+
     return NextResponse.json({
       success: true,
-      rooms: rooms || [],
+      rooms: visibleRooms,
       hasMore: rooms?.length === limit,
     })
   } catch (error) {
@@ -91,8 +129,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Room name is required" }, { status: 400 })
     }
 
-    // Validate room type
-    const validTypes = ["text", "voice", "video"]
+    // Validate room type — "announcement" is admin/moderator-post-only but
+    // readable by every circle member (enforced in the messages route).
+    const validTypes = ["text", "voice", "video", "announcement"]
     if (!type || !validTypes.includes(type)) {
       return NextResponse.json({ error: "Invalid room type" }, { status: 400 })
     }
@@ -115,6 +154,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (insertError) {
       console.error("Database insert error:", insertError)
       return NextResponse.json({ error: "Failed to create room" }, { status: 500 })
+    }
+
+    // A private room's creator (an admin/moderator) always has access to it.
+    if (room.is_private) {
+      await supabase
+        .from("circle_room_members")
+        .upsert({ room_id: room.id, user_id: user.id, added_by: user.id }, { onConflict: "room_id,user_id" })
     }
 
     try {

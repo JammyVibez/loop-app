@@ -72,3 +72,20 @@ CREATE TABLE IF NOT EXISTS circle_event_participants (
 
 CREATE INDEX IF NOT EXISTS idx_circle_event_participants_event_id ON circle_event_participants(event_id);
 CREATE INDEX IF NOT EXISTS idx_circle_event_participants_user_id ON circle_event_participants(user_id);
+
+-- 7. Per-room membership for private rooms — "private channel for community
+-- subscribers" means something beyond "any circle member" (every room
+-- already requires circle membership to read/post at all): a private room
+-- is only visible to the specific members an admin granted access to,
+-- tracked here instead of circle-wide membership.
+CREATE TABLE IF NOT EXISTS circle_room_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    room_id UUID REFERENCES circle_rooms(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    added_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(room_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_circle_room_members_room_id ON circle_room_members(room_id);
+CREATE INDEX IF NOT EXISTS idx_circle_room_members_user_id ON circle_room_members(user_id);

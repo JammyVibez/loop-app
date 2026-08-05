@@ -117,7 +117,7 @@ interface CircleRoom {
   id: string
   name: string
   description?: string
-  type: 'text' | 'voice' | 'video'
+  type: 'text' | 'voice' | 'video' | 'announcement'
   is_private: boolean
   member_count: number
   is_active: boolean
@@ -220,7 +220,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   const [newRoom, setNewRoom] = useState({
     name: "",
     description: "",
-    type: "text" as "text" | "voice" | "video",
+    type: "text" as "text" | "voice" | "video" | "announcement",
     is_private: false
   })
 
@@ -1097,6 +1097,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                         {room.type === 'voice' && <Mic className="h-4 w-4 text-emerald-500" />}
                         {room.type === 'video' && <Video className="h-4 w-4 text-sky-500" />}
                         {room.type === 'text' && <MessageCircle className="h-4 w-4 text-violet-500" />}
+                        {room.type === 'announcement' && <Bell className="h-4 w-4 text-amber-500" />}
                         {room.is_private && <Lock className="h-3 w-3 text-muted-foreground" />}
                       </div>
                     </div>
@@ -1349,7 +1350,24 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                     <Video className="w-4 h-4" />
                     <span>Video</span>
                   </label>
+                  {(userRole === "owner" || userRole === "admin") && (
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        value="announcement"
+                        checked={newRoom.type === 'announcement'}
+                        onChange={(e) => setNewRoom(prev => ({ ...prev, type: e.target.value as any }))}
+                      />
+                      <Bell className="w-4 h-4" />
+                      <span>Announcement</span>
+                    </label>
+                  )}
                 </div>
+                {newRoom.type === "announcement" && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Everyone in the circle can read this channel — only admins and moderators can post.
+                  </p>
+                )}
               </div>
               <div className="flex items-center space-x-2">
                 <Switch
@@ -1358,6 +1376,11 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                 />
                 <Label>Private Room</Label>
               </div>
+              {newRoom.is_private && (
+                <p className="text-xs text-muted-foreground">
+                  Only members you explicitly grant access to (from the room's menu after creating it) can see or post in this channel.
+                </p>
+              )}
               <div className="flex space-x-2">
                 <Button variant="outline" onClick={() => setShowCreateRoom(false)} className="flex-1">
                   Cancel

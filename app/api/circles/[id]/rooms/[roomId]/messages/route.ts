@@ -29,7 +29,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Check if room exists and user has access
     const { data: room } = await supabase
       .from("circle_rooms")
-      .select("id")
+      .select("id, is_private")
       .eq("id", roomId)
       .eq("circle_id", circleId)
       .single()
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { data: member } = await supabase
       .from("circle_members")
-      .select("id")
+      .select("id, role")
       .eq("circle_id", circleId)
       .eq("user_id", user.id)
       .in("status", ["active", "approved"])
@@ -61,6 +61,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (!member) {
       return NextResponse.json({ error: "You must be a member to view messages" }, { status: 403 })
+    }
+
+    // Private channels ("for community subscribers") are only visible to
+    // members an admin explicitly granted access to, not every circle member.
+    if (room.is_private && !["owner", "admin", "moderator"].includes(member.role)) {
+      const { data: grant } = await supabase
+        .from("circle_room_members")
+        .select("id")
+        .eq("room_id", roomId)
+        .eq("user_id", user.id)
+        .maybeSingle()
+      if (!grant) {
+        return NextResponse.json({ error: "You don't have access to this private channel" }, { status: 403 })
+      }
     }
 
     let query = supabase
@@ -137,7 +151,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Check if room exists
     const { data: room } = await supabase
       .from("circle_rooms")
-      .select("id")
+      .select("id, is_private, type")
       .eq("id", roomId)
       .eq("circle_id", circleId)
       .single()
@@ -149,7 +163,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Check if user is a member of the circle
     const { data: member } = await supabase
       .from("circle_members")
-      .select("id")
+      .select("id, role")
       .eq("circle_id", circleId)
       .eq("user_id", user.id)
       .in("status", ["active", "approved"])
@@ -157,6 +171,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (!member) {
       return NextResponse.json({ error: "You must be a member to send messages" }, { status: 403 })
+    }
+
+    const isCircleAdmin = ["owner", "admin", "moderator"].includes(member.role)
+
+    // Announcement channels: everyone can read, only admins/moderators can post.
+    if (room.type === "announcement" && !isCircleAdmin) {
+      return NextResponse.json({ error: "Only circle admins can post in an announcement channel" }, { status: 403 })
+    }
+
+    // Private channels: posting requires the same explicit grant as reading.
+    if (room.is_private && !isCircleAdmin) {
+      const { data: grant } = await supabase
+        .from("circle_room_members")
+        .select("id")
+        .eq("room_id", roomId)
+        .eq("user_id", user.id)
+        .maybeSingle()
+      if (!grant) {
+        return NextResponse.json({ error: "You don't have access to this private channel" }, { status: 403 })
+      }
     }
 
     // Validate content
