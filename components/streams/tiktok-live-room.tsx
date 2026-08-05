@@ -681,6 +681,14 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
             <Eye className="h-3.5 w-3.5" />
             {viewerCount.toLocaleString()}
           </span>
+          {isOwner && viewerCount >= 20 && (
+            <span
+              className="hidden items-center gap-1 rounded-md bg-amber-500/90 px-2 py-1 text-[11px] font-bold text-black sm:inline-flex"
+              title="This live uses peer-to-peer video — quality can degrade with large audiences. Consider a dedicated streaming provider for bigger crowds."
+            >
+              High viewer load
+            </span>
+          )}
           {mediaMode === "screen" && (
             <span className="hidden items-center gap-1 rounded-md bg-sky-500/90 px-2 py-1 text-[11px] font-bold sm:inline-flex">
               <MonitorUp className="h-3.5 w-3.5" /> Screen
