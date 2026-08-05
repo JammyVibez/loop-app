@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,6 +26,8 @@ export default function SignupPage() {
 
   const { signup, googleSignIn } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const referrerUsername = searchParams.get("ref")?.trim().toLowerCase() || undefined
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,7 +51,7 @@ export default function SignupPage() {
     setLoading(true)
 
     try {
-      await signup(email, password, username, displayName)
+      await signup(email, password, username, displayName, false, referrerUsername)
       router.push("/onboarding")
     } catch (err: any) {
       setError(err.message || "Failed to create account")

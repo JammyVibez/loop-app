@@ -114,12 +114,25 @@ export async function POST(request: NextRequest) {
 
     if (profileError) {
       if (profileError.code === "23505") {
+        // A DB trigger (on_auth_user_created) already inserted a bare-bones
+        // profile row (id/email/username/display_name/loop_coins only) the
+        // instant auth.users got the new row, so our own insert above always
+        // collides here. This update used to only reset email/username/
+        // display_name, silently dropping privacy_settings,
+        // notification_settings, onboarding_completed, and — the reason this
+        // was found — invited_by_username/invited_via_coloop, so referral
+        // attribution never actually persisted for any real signup.
         const { error: updateError } = await supabase
           .from("profiles")
           .update({
             email,
             username: cleanUsername,
             display_name: displayName,
+            privacy_settings: profilePayload.privacy_settings,
+            notification_settings: profilePayload.notification_settings,
+            onboarding_completed: false,
+            invited_via_coloop: profilePayload.invited_via_coloop,
+            invited_by_username: profilePayload.invited_by_username,
             updated_at: new Date().toISOString(),
           })
           .eq("id", createdUser.id)
