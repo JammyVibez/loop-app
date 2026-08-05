@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -71,6 +72,7 @@ const DEPOSIT_PACKAGES = [
 export default function WalletPage() {
   const { user } = useAuth()
   const { toast } = useToast()
+  const searchParams = useSearchParams()
 
   const [balance, setBalance] = useState<number>(2500)
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -100,6 +102,13 @@ export default function WalletPage() {
   const [withdrawing, setWithdrawing] = useState(false)
 
   const [activeTab, setActiveTab] = useState("transactions")
+
+  useEffect(() => {
+    const tab = searchParams?.get("tab")
+    if (tab && ["transactions", "gifts", "inventory", "withdrawals"].includes(tab)) {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
   const [filterType, setFilterType] = useState("all")
 
   useEffect(() => {
