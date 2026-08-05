@@ -10,7 +10,7 @@ export const revalidate = 3600
 // should be indexing for organic discovery — were completely invisible to
 // crawlers because nothing ever listed their URLs here.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://loop-app.com"
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://loop-app.com").replace(/\/$/, "")
   const now = new Date()
 
   const staticRoutes = [
