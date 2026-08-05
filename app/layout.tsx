@@ -31,7 +31,7 @@ export const generateViewport = (): Viewport => ({
 })
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://loop-app.com"
-const defaultOgImage = `${siteUrl.replace(/\/$/, "")}/api/og?type=loop&title=${encodeURIComponent("Loop - Next-Gen Collaborative Social OS")}&description=${encodeURIComponent("Connect, create, and collaborate in the Loop ecosystem with live streams, real-time co-loops, and interactive circles.")}`
+const defaultOgImage = `${siteUrl.replace(/\/$/, "")}/api/og?type=home&title=${encodeURIComponent("Loop - Next-Gen Collaborative Social OS")}&description=${encodeURIComponent("Connect, create, and collaborate in the Loop ecosystem with live streams, real-time co-loops, and interactive circles.")}`
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

@@ -3,9 +3,14 @@ import { NextRequest } from "next/server"
 
 export const runtime = "edge"
 
-type OgType = "loop" | "profile" | "circle" | "developer" | "reel" | "live"
+type OgType = "home" | "loop" | "profile" | "circle" | "developer" | "reel" | "live"
 
 const THEMES: Record<OgType, { from: string; to: string; accent: string; label: string; icon: string }> = {
+  // The sitewide default (homepage, signup, login, any page without its own
+  // metadata) used to share the exact same colors as an individual loop
+  // post, so the "improved" OG image looked identical to the old one on the
+  // pages people actually share most (the homepage / invite links).
+  home: { from: "#7c3aed", to: "#0891b2", accent: "#a78bfa", label: "Social OS", icon: "∞" },
   loop: { from: "#06b6d4", to: "#4f46e5", accent: "#22d3ee", label: "Loop", icon: "∞" },
   profile: { from: "#8b5cf6", to: "#ec4899", accent: "#c084fc", label: "Profile", icon: "@" },
   circle: { from: "#f59e0b", to: "#ea580c", accent: "#fbbf24", label: "Circle", icon: "◎" },
@@ -26,8 +31,8 @@ export async function GET(req: NextRequest) {
     const description =
       searchParams.get("description") ||
       "Connect, create, and collaborate in real time with live streams, co-loops, and interactive circles."
-    const rawType = searchParams.get("type") || "loop"
-    const type: OgType = isOgType(rawType) ? rawType : "loop"
+    const rawType = searchParams.get("type") || "home"
+    const type: OgType = isOgType(rawType) ? rawType : "home"
     const username = searchParams.get("username")
     const verified = searchParams.get("verified") === "true"
     const stat = searchParams.get("stat")
@@ -205,6 +210,28 @@ export async function GET(req: NextRequest) {
                 {statLabel && (
                   <span style={{ fontSize: "20px", color: "#64748b", fontWeight: "600" }}>{statLabel}</span>
                 )}
+              </div>
+            )}
+
+            {type === "home" && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "6px" }}>
+                {["Loops", "Reels", "Live", "Circles", "Developer Hub"].map((feature) => (
+                  <div
+                    key={feature}
+                    style={{
+                      display: "flex",
+                      padding: "7px 16px",
+                      borderRadius: "999px",
+                      border: `1px solid ${theme.accent}55`,
+                      backgroundColor: "rgba(255,255,255,0.05)",
+                      color: "#e2e8f0",
+                      fontSize: "16px",
+                      fontWeight: "600",
+                    }}
+                  >
+                    {feature}
+                  </div>
+                ))}
               </div>
             )}
           </div>
