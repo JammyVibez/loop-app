@@ -59,6 +59,8 @@
     "next": "15.2.9",
     "next-themes": "latest",
     "pg": "^8.22.0",
+    "prism-react-renderer": "^2.4.1",
+    "prismjs": "^1.30.0",
     "react": "^19",
     "react-day-picker": "10.0.1",
     "react-dom": "^19",
@@ -79,6 +81,7 @@
   },
   "devDependencies": {
     "@types/node": "^22",
+    "@types/prismjs": "^1.26.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",

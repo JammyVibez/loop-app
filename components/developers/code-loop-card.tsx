@@ -4,10 +4,18 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Star, GitBranch, Eye, Download, Copy, Code, Loader2, Check } from "lucide-react";
+import { Star, GitBranch, Eye, Download, Copy, Code, Loader2, Check, Paperclip, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useLoginGate } from "@/hooks/use-login-gate";
+import { SyntaxHighlightedCode } from "@/components/loops/syntax-highlighted-code";
+
+export type ProjectFile = {
+  name: string
+  url: string
+  size?: number
+  format?: string
+}
 
 interface CodeLoopCardProps {
   project: {
@@ -25,8 +33,16 @@ interface CodeLoopCardProps {
       branches: number
     }
     code_snippet: string
+    files?: ProjectFile[]
     created_at: Date
   }
+}
+
+function formatFileSize(bytes?: number) {
+  if (!bytes) return ""
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 export function CodeLoopCard({ project }: CodeLoopCardProps) {
@@ -177,7 +193,7 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
             <div className="flex items-center">
               <div>
                 <p className="font-semibold text-sm">{project.author.display_name}</p>
-                <p className="text-gray-500 text-xs">@{project.author.username}</p>
+                <p className="text-muted-foreground text-xs">@{project.author.username}</p>
               </div>
               {getVerificationBadge()}
             </div>
@@ -192,7 +208,7 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
       <CardContent className="space-y-4">
         <div>
           <h3 className="font-bold text-lg mb-2">{project.title}</h3>
-          <p className="text-gray-600 text-sm">{project.description}</p>
+          <p className="text-muted-foreground text-sm">{project.description}</p>
         </div>
 
         {/* Tags */}
@@ -204,38 +220,64 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
           ))}
         </div>
 
-        {/* Code Preview */}
-        <div className="bg-gray-900 rounded-lg overflow-hidden">
-          <div className="flex items-center justify-between bg-gray-800 px-4 py-2">
+        {/* Code Preview — real syntax highlighting, not flat monospace */}
+        <div className="bg-muted/50 border border-border rounded-lg overflow-hidden">
+          <div className="flex items-center justify-between bg-muted px-4 py-2">
             <div className="flex items-center space-x-2">
-              <Code className="w-4 h-4 text-gray-400" />
-              <span className="text-gray-300 text-sm">Code Preview</span>
+              <Code className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground text-sm">Code Preview</span>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleCopyCode} className="text-gray-300 hover:text-white">
+            <Button variant="ghost" size="sm" onClick={handleCopyCode} className="text-muted-foreground hover:text-foreground">
               <Copy className="w-4 h-4" />
             </Button>
           </div>
-          <div className="p-4">
-            <pre className="text-sm text-gray-300 overflow-x-auto">
-              <code>
-                {showFullCode
-                  ? project.code_snippet
-                  : project.code_snippet.split("\n").slice(0, 8).join("\n") +
-                    (project.code_snippet.split("\n").length > 8 ? "\n..." : "")}
-              </code>
-            </pre>
-            {project.code_snippet.split("\n").length > 8 && (
+          <div className="max-h-[28rem] overflow-auto">
+            <SyntaxHighlightedCode
+              code={project.code_snippet}
+              language={project.language}
+              maxLines={showFullCode ? undefined : 8}
+              showLineNumbers={false}
+            />
+          </div>
+          {project.code_snippet.split("\n").length > 8 && (
+            <div className="px-4 pb-3">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowFullCode(!showFullCode)}
-                className="text-blue-400 hover:text-blue-300 mt-2"
+                className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300"
               >
                 {showFullCode ? "Show Less" : "Show More"}
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
+
+        {/* Attached Files */}
+        {project.files && project.files.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+              <Paperclip className="h-3.5 w-3.5" />
+              {project.files.length} attached file{project.files.length === 1 ? "" : "s"}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {project.files.map((file, i) => (
+                <a
+                  key={i}
+                  href={file.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download={file.name}
+                  className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs font-medium hover:bg-muted/70 transition-colors"
+                >
+                  <FileText className="h-3.5 w-3.5 text-cyan-500" />
+                  <span className="max-w-[140px] truncate">{file.name}</span>
+                  {file.size ? <span className="text-muted-foreground">{formatFileSize(file.size)}</span> : null}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="flex items-center justify-between pt-2 border-t">
@@ -245,18 +287,18 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
               size="sm"
               onClick={handleStar}
               disabled={starring}
-              className={`flex items-center space-x-2 ${isStarred ? "text-yellow-500" : "text-gray-500"}`}
+              className={`flex items-center space-x-2 ${isStarred ? "text-yellow-500" : "text-muted-foreground"}`}
             >
               {starring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Star className={`w-4 h-4 ${isStarred ? "fill-current" : ""}`} />}
               <span>{formatNumber(starCount)}</span>
             </Button>
 
-            <div className="flex items-center space-x-2 text-gray-500">
+            <div className="flex items-center space-x-2 text-muted-foreground">
               <GitBranch className="w-4 h-4" />
               <span>{formatNumber(forkCount)}</span>
             </div>
 
-            <div className="flex items-center space-x-2 text-gray-500">
+            <div className="flex items-center space-x-2 text-muted-foreground">
               <Eye className="w-4 h-4" />
               <span>{formatNumber(project.stats.views)}</span>
             </div>

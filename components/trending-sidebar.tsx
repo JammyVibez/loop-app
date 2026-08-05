@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Hash, Loader2 } from "lucide-react";
+import { TrendingUp, Hash, Loader2, Code2, Star, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 import { UserSuggestions } from "@/components/users/user-suggestions";
@@ -12,14 +12,24 @@ interface TrendingHashtag {
   count: number
 }
 
+interface TrendingProject {
+  id: string
+  title: string
+  language: string
+  stars: number
+  author: { username?: string; display_name?: string } | null
+}
+
 export function TrendingSidebar() {
   const [trendingHashtags, setTrendingHashtags] = useState<TrendingHashtag[]>([])
+  const [trendingProjects, setTrendingProjects] = useState<TrendingProject[]>([])
   const [loading, setLoading] = useState(true)
   const { user, getAuthHeader } = useAuth()
 
   useEffect(() => {
     if (user) {
       void fetchTrendingData()
+      void fetchTrendingProjects()
     }
   }, [user?.id])
 
@@ -48,6 +58,18 @@ export function TrendingSidebar() {
       setTrendingHashtags([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchTrendingProjects = async () => {
+    try {
+      const res = await fetch("/api/developers/projects?sortBy=popular&limit=3", { cache: "no-store" })
+      const data = await res.json()
+      if (Array.isArray(data.projects)) {
+        setTrendingProjects(data.projects)
+      }
+    } catch (error) {
+      console.error("Error fetching trending projects:", error)
     }
   }
 
@@ -94,6 +116,50 @@ export function TrendingSidebar() {
           )}
         </CardContent>
       </Card>
+
+      {trendingProjects.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-lg">
+              <span className="flex items-center space-x-2">
+                <Code2 className="h-5 w-5" />
+                <span>Developer Hub</span>
+              </span>
+              <Badge variant="secondary" className="text-[10px]">New</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {trendingProjects.map((project) => (
+              <Link
+                key={project.id}
+                href={`/developers`}
+                className="-m-2 block rounded-lg p-2 transition-colors hover:bg-muted"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{project.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {project.language}
+                      {project.author?.username ? ` · @${project.author.username}` : ""}
+                    </p>
+                  </div>
+                  <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                    <Star className="h-3 w-3" />
+                    {project.stars || 0}
+                  </span>
+                </div>
+              </Link>
+            ))}
+            <Link
+              href="/developers"
+              className="mt-1 flex items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium text-primary hover:underline"
+            >
+              Explore Developer Hub
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       <UserSuggestions title="Who to follow" limit={5} compact />
 

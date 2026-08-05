@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const language = searchParams.get('language')
     const framework = searchParams.get('framework')
     const sortBy = searchParams.get('sortBy') || 'recent'
+    const limit = Math.min(Number.parseInt(searchParams.get('limit') || '20', 10) || 20, 50)
     
     let query = supabase
       .from('developer_projects')
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
         break
     }
 
-    const { data: projects, error } = await query.limit(20)
+    const { data: projects, error } = await query.limit(limit)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
@@ -81,7 +82,8 @@ export async function POST(request: NextRequest) {
       tags,
       codeSnippet,
       repositoryUrl,
-      demoUrl
+      demoUrl,
+      files,
     } = await request.json()
 
     if (!title?.trim() || !description?.trim() || !language?.trim() || !codeSnippet?.trim()) {
@@ -91,8 +93,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const safeFiles = Array.isArray(files)
+      ? files
+          .filter((f: any) => f && typeof f.url === "string" && typeof f.name === "string")
+          .slice(0, 5)
+          .map((f: any) => ({
+            name: String(f.name).slice(0, 200),
+            url: f.url,
+            size: Number(f.size) || undefined,
+            format: f.format || undefined,
+          }))
+      : []
+
     // Create developer project
-    const { data: project, error } = await supabase
+    let { data: project, error } = await supabase
       .from('developer_projects')
       .insert({
         author_id: user.id,
@@ -102,6 +116,7 @@ export async function POST(request: NextRequest) {
         framework: framework || 'None',
         tags: tags || [],
         code_snippet: codeSnippet,
+        files: safeFiles,
         repository_url: repositoryUrl,
         demo_url: demoUrl,
         stars: 0,
@@ -121,6 +136,39 @@ export async function POST(request: NextRequest) {
         )
       `)
       .single()
+
+    // Retry without `files` if an older schema cache doesn't have the column yet.
+    if (error?.code === "PGRST204" && /files/i.test(error.message || "")) {
+      ;({ data: project, error } = await supabase
+        .from('developer_projects')
+        .insert({
+          author_id: user.id,
+          title,
+          description,
+          language,
+          framework: framework || 'None',
+          tags: tags || [],
+          code_snippet: codeSnippet,
+          repository_url: repositoryUrl,
+          demo_url: demoUrl,
+          stars: 0,
+          forks: 0,
+          views: 0,
+          branches: 0,
+        })
+        .select(`
+          *,
+          author:profiles!developer_projects_author_id_fkey(
+            id,
+            username,
+            display_name,
+            avatar_url,
+            is_verified,
+            verification_level
+          )
+        `)
+        .single())
+    }
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })

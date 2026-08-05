@@ -14,6 +14,9 @@ CREATE TABLE IF NOT EXISTS developer_projects (
     framework VARCHAR(50) DEFAULT 'None',
     tags TEXT[] DEFAULT '{}',
     code_snippet TEXT NOT NULL,
+    -- Attached files (zips, assets, docs, …) uploaded via /api/upload:
+    -- [{ name, url, size, format }]
+    files JSONB DEFAULT '[]'::jsonb,
     repository_url TEXT,
     demo_url TEXT,
     stars INTEGER DEFAULT 0,
@@ -25,6 +28,13 @@ CREATE TABLE IF NOT EXISTS developer_projects (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='developer_projects' AND column_name='files') THEN
+        ALTER TABLE developer_projects ADD COLUMN files JSONB DEFAULT '[]'::jsonb;
+    END IF;
+END $$;
 
 -- =============================================
 -- PROJECT STARS TABLE
