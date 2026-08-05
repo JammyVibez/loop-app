@@ -64,6 +64,8 @@ interface CircleMember {
   status: 'active' | 'pending' | 'banned'
   ban_reason?: string
   banned_until?: string
+  custom_title?: string | null
+  permissions?: Record<string, boolean>
 }
 
 interface CirclePost {
@@ -141,6 +143,10 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showPendingRequests, setShowPendingRequests] = useState(false)
   const [selectedMember, setSelectedMember] = useState<CircleMember | null>(null)
+  const [rolesDialogMember, setRolesDialogMember] = useState<CircleMember | null>(null)
+  const [customTitleInput, setCustomTitleInput] = useState("")
+  const [permissionsInput, setPermissionsInput] = useState<Record<string, boolean>>({})
+  const [savingPermissions, setSavingPermissions] = useState(false)
   
   // Form states
   const [editCircleForm, setEditCircleForm] = useState({
@@ -208,6 +214,8 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
       status: (member?.status || "active") as CircleMember["status"],
       ban_reason: member?.ban_reason,
       banned_until: member?.banned_until,
+      custom_title: member?.custom_title || null,
+      permissions: member?.permissions && typeof member.permissions === "object" ? member.permissions : {},
     }
   }
 
@@ -704,6 +712,42 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
     }
   }
 
+  // Save a member's custom title + granular permissions (a "custom role"
+  // beyond the 4 fixed owner/admin/moderator/member roles — e.g. label
+  // someone "Events Lead" and grant can_manage_events without promoting
+  // them to a full moderator).
+  const handleSaveMemberPermissions = async () => {
+    if (!rolesDialogMember) return
+    setSavingPermissions(true)
+    try {
+      const response = await fetch(`/api/circles/${circleId}/members`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({
+          targetUserId: rolesDialogMember.id,
+          customTitle: customTitleInput,
+          permissions: permissionsInput,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "Failed to update member")
+
+      setMembers(prev =>
+        prev.map(m =>
+          m.id === rolesDialogMember.id
+            ? { ...m, custom_title: customTitleInput.trim() || null, permissions: permissionsInput }
+            : m,
+        ),
+      )
+      toast({ description: "Member role updated" })
+      setRolesDialogMember(null)
+    } catch (error: any) {
+      toast({ title: "Error", description: error?.message || "Failed to update member", variant: "destructive" })
+    } finally {
+      setSavingPermissions(false)
+    }
+  }
+
   // Handle post action
   const handlePostAction = async (postId: string, action: 'delete' | 'pin') => {
     if (!user) return
@@ -1164,6 +1208,11 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                             }`}>
                               {member.role}
                             </Badge>
+                            {member.custom_title && (
+                              <Badge variant="outline" className="text-xs border-cyan-500/40 text-cyan-600 dark:text-cyan-300">
+                                {member.custom_title}
+                              </Badge>
+                            )}
                             <Badge className={`text-xs ${
                               member.status === 'active' ? 'bg-green-100 text-green-700' :
                               member.status === 'pending'? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
@@ -1194,6 +1243,21 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                           <Eye className="w-4 h-4 mr-1" />
                           View
                         </Button>
+
+                        {member.role !== 'owner' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setRolesDialogMember(member)
+                              setCustomTitleInput(member.custom_title || "")
+                              setPermissionsInput(member.permissions || {})
+                            }}
+                          >
+                            <Shield className="w-4 h-4 mr-1" />
+                            Custom Role
+                          </Button>
+                        )}
                         
                         {member.role !== 'owner' && (
                           <>
@@ -1772,6 +1836,65 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                     </Button>
                   </>
                 )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Custom Role Dialog — per-member title + granular permissions, on
+          top of the fixed owner/admin/moderator/member roles */}
+      {rolesDialogMember && (
+        <Dialog open={Boolean(rolesDialogMember)} onOpenChange={(open) => !open && setRolesDialogMember(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Custom role for {rolesDialogMember.display_name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="custom-title">Custom title (optional)</Label>
+                <Input
+                  id="custom-title"
+                  value={customTitleInput}
+                  onChange={(e) => setCustomTitleInput(e.target.value)}
+                  placeholder="e.g. Events Lead, Community VIP"
+                  maxLength={40}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">Shows as a badge next to their base role — doesn't change permissions by itself.</p>
+              </div>
+
+              <div>
+                <Label>Abilities</Label>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Grant specific abilities without changing their base role ({rolesDialogMember.role}).
+                </p>
+                <div className="space-y-2">
+                  {[
+                    { key: "can_manage_events", label: "Create & manage events" },
+                    { key: "can_manage_rooms", label: "Create rooms (not announcement channels)" },
+                    { key: "can_pin_posts", label: "Pin posts" },
+                    { key: "can_moderate", label: "Delete others' posts/messages" },
+                    { key: "can_post_announcements", label: "Post in announcement channels" },
+                  ].map(({ key, label }) => (
+                    <div key={key} className="flex items-center justify-between rounded-lg border p-2.5">
+                      <Label htmlFor={key} className="text-sm font-normal cursor-pointer">{label}</Label>
+                      <Switch
+                        id={key}
+                        checked={Boolean(permissionsInput[key])}
+                        onCheckedChange={(checked) => setPermissionsInput((prev) => ({ ...prev, [key]: checked }))}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setRolesDialogMember(null)}>
+                  Cancel
+                </Button>
+                <Button className="flex-1" onClick={handleSaveMemberPermissions} disabled={savingPermissions}>
+                  {savingPermissions ? "Saving..." : "Save"}
+                </Button>
               </div>
             </div>
           </DialogContent>

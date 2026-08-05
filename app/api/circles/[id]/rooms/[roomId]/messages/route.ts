@@ -163,7 +163,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Check if user is a member of the circle
     const { data: member } = await supabase
       .from("circle_members")
-      .select("id, role")
+      .select("id, role, permissions")
       .eq("circle_id", circleId)
       .eq("user_id", user.id)
       .in("status", ["active", "approved"])
@@ -175,8 +175,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const isCircleAdmin = ["owner", "admin", "moderator"].includes(member.role)
 
-    // Announcement channels: everyone can read, only admins/moderators can post.
-    if (room.type === "announcement" && !isCircleAdmin) {
+    // Announcement channels: everyone can read, only admins/moderators (or
+    // a member explicitly granted can_post_announcements) can post.
+    if (room.type === "announcement" && !isCircleAdmin && !member.permissions?.can_post_announcements) {
       return NextResponse.json({ error: "Only circle admins can post in an announcement channel" }, { status: 403 })
     }
 

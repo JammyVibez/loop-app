@@ -100,16 +100,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       requires_approval,
     } = await request.json()
 
-    // Check if user has permission to create events (member with appropriate role)
+    // Check if user has permission to create events — a fixed admin/mod
+    // role, or a member an admin explicitly granted can_manage_events to
+    // (custom role permission, without making them a full moderator).
     const { data: member } = await supabase
       .from("circle_members")
-      .select("role")
+      .select("role, permissions")
       .eq("circle_id", circleId)
       .eq("user_id", user.id)
-      .in("role", ["owner", "admin", "moderator"])
-      .single()
+      .maybeSingle()
 
-    if (!member) {
+    const canManageEvents =
+      member && (["owner", "admin", "moderator"].includes(member.role) || member.permissions?.can_manage_events)
+
+    if (!canManageEvents) {
       return NextResponse.json({ error: "Insufficient permissions to create events" }, { status: 403 })
     }
 

@@ -111,17 +111,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { id: circleId } = await params
     const { name, description, type, is_private } = await request.json()
 
-    // Check if user has permission to create rooms (member with appropriate role)
+    // Check if user has permission to create rooms — a fixed admin/mod
+    // role, or a member an admin explicitly granted can_manage_rooms to.
     const { data: member } = await supabase
       .from("circle_members")
-      .select("role")
+      .select("role, permissions")
       .eq("circle_id", circleId)
       .eq("user_id", user.id)
-      .in("role", ["owner", "admin", "moderator"])
-      .single()
+      .maybeSingle()
 
-    if (!member) {
+    const canManageRooms =
+      member && (["owner", "admin", "moderator"].includes(member.role) || member.permissions?.can_manage_rooms)
+
+    if (!canManageRooms) {
       return NextResponse.json({ error: "Insufficient permissions to create rooms" }, { status: 403 })
+    }
+
+    // Only real admins/moderators can create announcement channels, even
+    // with can_manage_rooms — that permission covers regular rooms only.
+    if (type === "announcement" && !["owner", "admin", "moderator"].includes(member.role)) {
+      return NextResponse.json({ error: "Only circle admins can create announcement channels" }, { status: 403 })
     }
 
     // Validate room name

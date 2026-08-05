@@ -79,7 +79,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const { id: circleId } = await params
-    const { targetUserId, newRole, status } = await request.json()
+    const { targetUserId, newRole, status, customTitle, permissions } = await request.json()
 
     // Check if requesting user has permission (owner or admin)
     const { data: requestingMember } = await supabase
@@ -94,15 +94,45 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
     }
 
-    // Validate role
-    const validRoles = ["member", "moderator", "admin"]
-    if (!validRoles.includes(newRole)) {
-      return NextResponse.json({ error: "Invalid role" }, { status: 400 })
-    }
+    const updates: Record<string, any> = {}
 
-    const updates: Record<string, string> = { role: newRole }
+    // Role is optional now — an admin may only want to set a custom
+    // title/permissions without changing the base owner/admin/moderator/
+    // member role.
+    if (newRole) {
+      const validRoles = ["member", "moderator", "admin"]
+      if (!validRoles.includes(newRole)) {
+        return NextResponse.json({ error: "Invalid role" }, { status: 400 })
+      }
+      updates.role = newRole
+    }
     if (status === "active" || status === "pending" || status === "banned") {
       updates.status = status
+    }
+
+    // Custom title + granular per-member permission overrides — lets an
+    // admin label someone "Events Lead" and grant can_manage_events without
+    // making them a full moderator (custom roles beyond the 4 fixed ones).
+    if (typeof customTitle === "string") {
+      updates.custom_title = customTitle.trim().slice(0, 40) || null
+    }
+    if (permissions && typeof permissions === "object") {
+      const ALLOWED_PERMISSIONS = [
+        "can_manage_events",
+        "can_manage_rooms",
+        "can_pin_posts",
+        "can_moderate",
+        "can_post_announcements",
+      ]
+      const sanitized: Record<string, boolean> = {}
+      for (const key of ALLOWED_PERMISSIONS) {
+        if (key in permissions) sanitized[key] = Boolean(permissions[key])
+      }
+      updates.permissions = sanitized
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "Nothing to update" }, { status: 400 })
     }
 
     // Update member role
@@ -129,7 +159,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({
       success: true,
       member: updatedMember,
-      message: `Member role updated to ${newRole}`
+      message: newRole ? `Member role updated to ${newRole}` : "Member updated"
     })
   } catch (error) {
     console.error("Error updating member role:", error)

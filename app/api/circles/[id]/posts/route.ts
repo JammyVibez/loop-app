@@ -116,7 +116,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Check if user is a member of the circle (role needed for announcement-room + max-files checks)
     const { data: member } = await supabase
       .from("circle_members")
-      .select("id, role")
+      .select("id, role, permissions")
       .eq("circle_id", circleId)
       .eq("user_id", user.id)
       .in("status", ["active", "approved"])
@@ -126,10 +126,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "You must be a member to post" }, { status: 403 })
     }
 
-    // Announcement rooms are read-for-everyone, post-for-admins-only.
+    // Announcement rooms are read-for-everyone, post-for-admins-only (or a
+    // member explicitly granted can_post_announcements).
     if (room_id) {
       const { data: room } = await supabase.from("circle_rooms").select("type").eq("id", room_id).eq("circle_id", circleId).maybeSingle()
-      if (room?.type === "announcement" && !["owner", "admin", "moderator"].includes(member.role)) {
+      const isCircleAdmin = ["owner", "admin", "moderator"].includes(member.role)
+      if (room?.type === "announcement" && !isCircleAdmin && !member.permissions?.can_post_announcements) {
         return NextResponse.json({ error: "Only circle admins can post in an announcement channel" }, { status: 403 })
       }
     }
@@ -276,18 +278,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Post not found" }, { status: 404 })
     }
 
-    // Pin/unpin can be done by author or circle admins/moderators.
+    // Pin/unpin can be done by author, circle admins/moderators, or a
+    // member explicitly granted can_pin_posts.
     if (typeof is_pinned === "boolean") {
       let hasPermission = post.author_id === user.id
       if (!hasPermission) {
         const { data: member } = await supabase
           .from("circle_members")
-          .select("role")
+          .select("role, permissions")
           .eq("circle_id", circleId)
           .eq("user_id", user.id)
-          .in("role", ["owner", "admin", "moderator"])
           .maybeSingle()
-        hasPermission = Boolean(member)
+        hasPermission = Boolean(member && (["owner", "admin", "moderator"].includes(member.role) || member.permissions?.can_pin_posts))
       }
 
       if (!hasPermission) {
@@ -399,19 +401,18 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: "Post not found" }, { status: 404 })
     }
 
-    // Check if user is author or has admin/moderator permissions
+    // Check if user is author, has admin/moderator role, or was granted can_moderate
     let hasPermission = post.author_id === user.id
     
     if (!hasPermission) {
       const { data: member } = await supabase
         .from("circle_members")
-        .select("role")
+        .select("role, permissions")
         .eq("circle_id", circleId)
         .eq("user_id", user.id)
-        .in("role", ["admin", "moderator"])
-        .single()
+        .maybeSingle()
       
-      hasPermission = !!member
+      hasPermission = Boolean(member && (["owner", "admin", "moderator"].includes(member.role) || member.permissions?.can_moderate))
     }
 
     if (!hasPermission) {
