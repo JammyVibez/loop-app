@@ -88,8 +88,8 @@ export function LoopChainDialog({ loopId, open, onOpenChange, onBranchSelect }: 
             isSelected
               ? "bg-gradient-to-br from-cyan-950/80 to-indigo-950/80 border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.3)] ring-2 ring-cyan-400/50"
               : isRoot
-              ? "bg-slate-900/90 border-cyan-500/50 shadow-lg"
-              : "bg-slate-900/70 border-white/10 hover:border-cyan-500/40 hover:bg-slate-800/80"
+              ? "bg-muted border-cyan-500/50 shadow-lg"
+              : "bg-muted/70 border-border hover:border-cyan-500/40 hover:bg-muted"
           }`}
         >
           {/* Header & Avatar */}
@@ -100,8 +100,8 @@ export function LoopChainDialog({ loopId, open, onOpenChange, onBranchSelect }: 
                 <AvatarFallback>{node.author.displayName.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-white truncate">{node.author.displayName}</span>
-                <span className="text-[10px] text-slate-400">@{node.author.username}</span>
+                <span className="text-xs font-bold text-foreground truncate">{node.author.displayName}</span>
+                <span className="text-[10px] text-muted-foreground">@{node.author.username}</span>
               </div>
             </div>
 
@@ -119,12 +119,12 @@ export function LoopChainDialog({ loopId, open, onOpenChange, onBranchSelect }: 
 
           {/* Title & Content */}
           <div className="space-y-1">
-            <h4 className="text-sm font-semibold text-white line-clamp-1">{node.title}</h4>
-            <p className="text-xs text-slate-300 line-clamp-2 leading-snug">{node.content}</p>
+            <h4 className="text-sm font-semibold text-foreground line-clamp-1">{node.title}</h4>
+            <p className="text-xs text-muted-foreground line-clamp-2 leading-snug">{node.content}</p>
           </div>
 
           {/* Footer Stats & Links */}
-          <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px] text-slate-400">
+          <div className="flex items-center justify-between pt-2 border-t border-border/60 text-[11px] text-muted-foreground">
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1 text-rose-400">
                 <Heart className="h-3 w-3 fill-rose-500/30" /> {node.stats.likes}
@@ -140,7 +140,7 @@ export function LoopChainDialog({ loopId, open, onOpenChange, onBranchSelect }: 
                 asChild
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 text-slate-400 hover:text-cyan-300"
+                className="h-6 w-6 text-muted-foreground hover:text-cyan-500 dark:hover:text-cyan-300"
                 onClick={(e) => e.stopPropagation()}
               >
                 <Link href={`/loop/${node.id}`}>
@@ -176,13 +176,13 @@ export function LoopChainDialog({ loopId, open, onOpenChange, onBranchSelect }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl w-[95vw] h-[85vh] bg-[#070d1e] border-white/10 text-white flex flex-col p-0 overflow-hidden shadow-2xl rounded-3xl">
-        <DialogHeader className="p-6 border-b border-white/10 flex flex-row items-center justify-between">
+      <DialogContent className="max-w-5xl w-[95vw] h-[85vh] bg-card border-border text-foreground flex flex-col p-0 overflow-hidden shadow-2xl rounded-3xl">
+        <DialogHeader className="p-6 border-b border-border flex flex-row items-center justify-between">
           <div>
             <DialogTitle className="text-xl font-bold flex items-center gap-2 text-cyan-300">
               <GitBranch className="h-5 w-5 text-cyan-400" /> Loop Chain Tree Map
             </DialogTitle>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Interactive branch visualizer — trace remixes, forks, and child extensions.
             </p>
           </div>
@@ -195,7 +195,7 @@ export function LoopChainDialog({ loopId, open, onOpenChange, onBranchSelect }: 
               variant="outline"
               size="icon"
               onClick={() => setZoomLevel((z) => Math.min(z + 15, 140))}
-              className="h-8 w-8 border-white/10 text-slate-300 hover:text-white"
+              className="h-8 w-8 border-border text-muted-foreground hover:text-foreground"
             >
               <ZoomIn className="h-4 w-4" />
             </Button>
@@ -203,7 +203,7 @@ export function LoopChainDialog({ loopId, open, onOpenChange, onBranchSelect }: 
               variant="outline"
               size="icon"
               onClick={() => setZoomLevel((z) => Math.max(z - 15, 60))}
-              className="h-8 w-8 border-white/10 text-slate-300 hover:text-white"
+              className="h-8 w-8 border-border text-muted-foreground hover:text-foreground"
             >
               <ZoomOut className="h-4 w-4" />
             </Button>
@@ -211,7 +211,7 @@ export function LoopChainDialog({ loopId, open, onOpenChange, onBranchSelect }: 
               variant="ghost"
               size="icon"
               onClick={fetchChain}
-              className="h-8 w-8 text-slate-400 hover:text-white"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
@@ -223,7 +223,7 @@ export function LoopChainDialog({ loopId, open, onOpenChange, onBranchSelect }: 
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full space-y-3">
               <RefreshCw className="h-8 w-8 text-cyan-400 animate-spin" />
-              <p className="text-sm text-slate-400">Building visual branch map...</p>
+              <p className="text-sm text-muted-foreground">Building visual branch map...</p>
             </div>
           ) : tree ? (
             <div
@@ -233,7 +233,7 @@ export function LoopChainDialog({ loopId, open, onOpenChange, onBranchSelect }: 
               {renderTreeNode(tree, true)}
             </div>
           ) : (
-            <div className="text-center py-20 text-slate-400">No chain data found.</div>
+            <div className="text-center py-20 text-muted-foreground">No chain data found.</div>
           )}
         </div>
       </DialogContent>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { calculateBoostInfo } from "@/lib/boost"
+import { notifyUser } from "@/lib/notifications"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -83,7 +84,7 @@ export async function POST(
     // 1. Fetch current loop boost state
     const { data: loop, error: loopErr } = await supabase
       .from("loops")
-      .select("id, boost_coins_current, boost_coins_target, is_boosted, boosted_at, boost_tier, trending_score")
+      .select("id, author_id, boost_coins_current, boost_coins_target, is_boosted, boosted_at, boost_tier, trending_score")
       .eq("id", loopId)
       .single()
 
@@ -135,6 +136,30 @@ export async function POST(
     }
 
     const boostInfo = calculateBoostInfo(updatedLoop)
+
+    if (loop.author_id && loop.author_id !== userId) {
+      try {
+        const { data: booster } = await supabase
+          .from("profiles")
+          .select("display_name, username")
+          .eq("id", userId)
+          .maybeSingle()
+        const boosterName = booster?.display_name || booster?.username || "Someone"
+        const tierCrossed = newTier > (loop.boost_tier || 0)
+        await notifyUser(supabase, {
+          userId: loop.author_id,
+          type: "boost",
+          title: tierCrossed ? `Your loop just got boosted to Tier ${newTier}! 🚀` : "Your loop got boosted 🚀",
+          message: `${boosterName} contributed ${coinAmount} Loop Coins to boost your loop.`,
+          actorId: userId,
+          actionUrl: `/loop/${loopId}`,
+          data: { loop_id: loopId, coins: coinAmount, tier: newTier },
+          pushCategory: "social",
+        })
+      } catch (notifyErr) {
+        console.warn("Boost notify failed:", notifyErr)
+      }
+    }
 
     // Fetch total contributors count
     const { data: rawBoosts } = await supabase

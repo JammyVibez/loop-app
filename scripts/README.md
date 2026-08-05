@@ -24,8 +24,10 @@ applies files **in this exact order**:
    withdrawal_requests (the real Stripe-backed coin economy)
 10. `developer-features.sql` — developer_projects and related tables
     (the real Developers gallery)
-11. `rls-policies.sql`
-12. `realtime-functions.sql`
+11. `co-loop-sessions-schema.sql` — co_loop_sessions (durable Co-Loop Studio
+    ownership + co-author roster; see `/api/co-loop/session-info`)
+12. `rls-policies.sql`
+13. `realtime-functions.sql`
 
 Every file in this list uses `CREATE TABLE IF NOT EXISTS` / `ADD COLUMN IF
 NOT EXISTS` so it's safe to re-run against a database that already has
@@ -52,6 +54,22 @@ defines, verify what's actually live (`\d table_name` against the real
 DB, or check `information_schema.columns`) and, if genuinely missing,
 add an idempotent migration to the canonical list instead of running the
 old file directly.
+
+## One-off data-quality scripts (not schema, not in the pipeline)
+
+`seed-user-realism.mjs`, `seed-engagement-realism.mjs`, and
+`reconcile-profile-and-loop-stats.sql` were run once against the live
+database to fix seed accounts that reused ~10 template sentences
+verbatim across 20 profiles (duplicate bios, duplicate loop content,
+sequential loop_coins), and to back their likes/comments/shares/branch
+counts with real rows instead of decorative numbers (the same "no fake
+engagement" principle applied elsewhere in the product). They're kept
+here as a record of what changed, not as repeatable migrations — running
+`seed-user-realism.mjs` again would just re-apply the same content
+(harmless), but there's no reason to unless new template-duplicate seed
+accounts show up. `reconcile-profile-and-loop-stats.sql` **is** safe and
+useful to re-run any time counters drift, since it only recomputes from
+real source-of-truth tables.
 
 ## Adding new schema
 

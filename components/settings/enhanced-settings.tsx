@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { PRO_PRICING } from "@/lib/pro-features"
+import { ensureServiceWorker, subscribeToPush, subscriptionToJSON, unsubscribeFromPush } from "@/lib/push-client"
 import {
   User,
   Bell,
@@ -45,6 +46,8 @@ export function EnhancedSettings() {
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | "unsupported">("default")
 
   const [formData, setFormData] = useState({
     display_name: "",
@@ -71,7 +74,78 @@ export function EnhancedSettings() {
     },
   })
 
-  useEffect(() => setMounted(true), [])
+  useEffect(() => {
+    setMounted(true)
+    if (typeof window === "undefined") return
+    const isIosSafariTab =
+      /iphone|ipad|ipod/i.test(navigator.userAgent) &&
+      !(window.navigator as any).standalone &&
+      !window.matchMedia("(display-mode: standalone)").matches
+    if (!("Notification" in window) || !("PushManager" in window) || isIosSafariTab) {
+      setPushPermission("unsupported")
+    } else {
+      setPushPermission(Notification.permission)
+    }
+  }, [])
+
+  // Toggling this switch used to only flip a preference flag in
+  // notification_settings — it never actually called the browser Push API,
+  // so users who enabled it here (the most discoverable place to do so)
+  // never got a real subscription and push silently never fired. This now
+  // drives the real subscribe/unsubscribe flow, same as the Notifications
+  // page's push manager.
+  const handleTogglePush = async (checked: boolean) => {
+    if (pushPermission === "unsupported") {
+      toast({
+        title: "Push isn't supported here",
+        description: /iphone|ipad|ipod/i.test(navigator.userAgent)
+          ? "On iPhone/iPad, add Loop to your Home Screen first (Share → Add to Home Screen), then enable push from there."
+          : "This browser doesn't support Web Push notifications.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setPushBusy(true)
+    try {
+      if (checked) {
+        await ensureServiceWorker()
+        const subscription = await subscribeToPush()
+        if (!subscription) throw new Error("Browser did not return a push subscription")
+        const payload = subscriptionToJSON(subscription)
+        const res = await fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify(payload),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(data.error || "Failed to save subscription")
+        setPushPermission("granted")
+        toast({ title: "Push notifications enabled", description: "You'll get alerts even when Loop is in the background." })
+      } else {
+        const endpoint = await unsubscribeFromPush()
+        await fetch("/api/push/subscribe", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify(endpoint ? { endpoint } : {}),
+        })
+        toast({ title: "Push notifications disabled" })
+      }
+      setFormData((prev) => ({
+        ...prev,
+        notifications: { ...prev.notifications, push_notifications: checked },
+      }))
+    } catch (err: any) {
+      setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default")
+      toast({
+        title: "Push setup failed",
+        description: err.message || "Could not update push notifications.",
+        variant: "destructive",
+      })
+    } finally {
+      setPushBusy(false)
+    }
+  }
 
   useEffect(() => {
     if (!user) return
@@ -468,10 +542,29 @@ export function EnhancedSettings() {
               <CardDescription>Choose what Loop can notify you about.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-border px-3 py-3">
+                <div>
+                  <Label htmlFor="push_notifications">Push notifications</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {pushPermission === "unsupported"
+                      ? /iphone|ipad|ipod/i.test(typeof navigator !== "undefined" ? navigator.userAgent : "")
+                        ? "Add Loop to your Home Screen to enable this on iPhone"
+                        : "Not supported in this browser"
+                      : pushPermission === "denied"
+                        ? "Blocked in your browser's site settings"
+                        : "Real device alerts, even in the background"}
+                  </p>
+                </div>
+                <Switch
+                  id="push_notifications"
+                  checked={formData.notifications.push_notifications && pushPermission === "granted"}
+                  disabled={pushBusy || pushPermission === "denied" || pushPermission === "unsupported"}
+                  onCheckedChange={handleTogglePush}
+                />
+              </div>
               {(
                 [
                   ["email_notifications", "Email notifications"],
-                  ["push_notifications", "Push notifications"],
                   ["loop_likes", "Likes on your loops"],
                   ["loop_comments", "Comments"],
                   ["new_followers", "New followers"],

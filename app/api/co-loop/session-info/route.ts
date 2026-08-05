@@ -3,6 +3,30 @@ import { createServerClient } from "@/lib/supabase"
 
 export const dynamic = "force-dynamic"
 
+type CoAuthorEntry = {
+  id: string
+  username: string
+  display_name: string
+  avatar_url?: string | null
+  role: "Co-Author"
+}
+
+function toCoAuthorEntry(profile: any): CoAuthorEntry {
+  return {
+    id: profile.id,
+    username: profile.username,
+    display_name: profile.display_name || profile.username,
+    avatar_url: profile.avatar_url || null,
+    role: "Co-Author",
+  }
+}
+
+function mergeCoAuthors(existing: any[], addition: CoAuthorEntry) {
+  const list = Array.isArray(existing) ? existing : []
+  if (list.some((c) => c?.id === addition.id)) return list
+  return [...list, addition]
+}
+
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -25,6 +49,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "session_id is required" }, { status: 400 })
     }
 
+    const { data: callerProfile } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, bio, is_verified")
+      .eq("id", callingUser.id)
+      .maybeSingle()
+
     // Check existing session
     const { data: existingSession } = await supabase
       .from("co_loop_sessions")
@@ -33,6 +63,24 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (existingSession) {
+      // Caller is not the owner and not already a co-author — persist them as
+      // a real co-author of this session (this is the durable roster that
+      // both the Primary Creator's and every Co-Author's studio view read
+      // from, instead of relying solely on ephemeral realtime presence).
+      let coAuthors = Array.isArray(existingSession.co_authors) ? existingSession.co_authors : []
+      if (existingSession.owner_id !== callingUser.id && callerProfile) {
+        const nextCoAuthors = mergeCoAuthors(coAuthors, toCoAuthorEntry(callerProfile))
+        if (nextCoAuthors.length !== coAuthors.length) {
+          const { data: updated } = await supabase
+            .from("co_loop_sessions")
+            .update({ co_authors: nextCoAuthors, updated_at: new Date().toISOString() })
+            .eq("session_id", session_id)
+            .select("co_authors")
+            .maybeSingle()
+          coAuthors = updated?.co_authors || nextCoAuthors
+        }
+      }
+
       return NextResponse.json({
         success: true,
         session_id,
@@ -40,15 +88,9 @@ export async function POST(request: NextRequest) {
         owner_username: existingSession.owner_username,
         inviter: existingSession.owner || { id: existingSession.owner_id, username: existingSession.owner_username },
         is_owner: existingSession.owner_id === callingUser.id,
+        co_authors: coAuthors,
       })
     }
-
-    // Get caller profile
-    const { data: callerProfile } = await supabase
-      .from("profiles")
-      .select("id, username, display_name, avatar_url, bio, is_verified")
-      .eq("id", callingUser.id)
-      .maybeSingle()
 
     // Create session record setting caller as primary creator owner
     const ownerUsername = callerProfile?.username || callingUser.email?.split("@")[0] || "creator"
@@ -58,6 +100,7 @@ export async function POST(request: NextRequest) {
         session_id,
         owner_id: callingUser.id,
         owner_username: ownerUsername,
+        co_authors: [],
       })
       .select("*, owner:profiles!owner_id(id, username, display_name, avatar_url, bio, is_verified)")
       .single()
@@ -73,9 +116,49 @@ export async function POST(request: NextRequest) {
       owner_username: ownerUsername,
       inviter: callerProfile || newSession?.owner || { id: callingUser.id, username: ownerUsername },
       is_owner: true,
+      co_authors: newSession?.co_authors || [],
     })
   } catch (error: any) {
     console.error("Session info POST error:", error)
+    return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get("authorization")
+    const token = authHeader?.replace("Bearer ", "") || null
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const supabase = createServerClient()
+    const { data: { user: callingUser }, error: authErr } = await supabase.auth.getUser(token)
+    if (authErr || !callingUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const session_id = body.session_id || body.sessionId
+    const status = body.status
+    const published_loop_id = body.published_loop_id || body.publishedLoopId || null
+
+    if (!session_id || !["active", "published", "ended"].includes(status)) {
+      return NextResponse.json({ error: "session_id and a valid status are required" }, { status: 400 })
+    }
+
+    const { error } = await supabase
+      .from("co_loop_sessions")
+      .update({ status, published_loop_id, updated_at: new Date().toISOString() })
+      .eq("session_id", session_id)
+
+    if (error) {
+      console.warn("co_loop_sessions status update failed:", error.message)
+    }
+
+    return NextResponse.json({ success: true, session_id, status })
+  } catch (error: any) {
+    console.error("Session info PATCH error:", error)
     return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 })
   }
 }
@@ -103,6 +186,7 @@ export async function GET(request: NextRequest) {
     }
 
     let inviterProfile: any = null
+    let coAuthors: any[] = []
 
     // 1. Check existing co_loop_sessions table
     const { data: sessionRecord } = await supabase
@@ -110,6 +194,10 @@ export async function GET(request: NextRequest) {
       .select("*, owner:profiles!owner_id(id, username, display_name, avatar_url, bio, is_verified)")
       .eq("session_id", session_id)
       .maybeSingle()
+
+    if (sessionRecord) {
+      coAuthors = Array.isArray(sessionRecord.co_authors) ? sessionRecord.co_authors : []
+    }
 
     if (sessionRecord?.owner) {
       inviterProfile = sessionRecord.owner
@@ -184,6 +272,7 @@ export async function GET(request: NextRequest) {
             session_id,
             owner_id: inviterProfile.id,
             owner_username: inviterProfile.username,
+            co_authors: [],
           })
       } catch (err) {
         // ignore duplicate
@@ -207,6 +296,7 @@ export async function GET(request: NextRequest) {
               session_id,
               owner_id: callerProfile.id,
               owner_username: callerProfile.username,
+              co_authors: [],
             })
         } catch (err) {
           // ignore duplicate
@@ -224,6 +314,7 @@ export async function GET(request: NextRequest) {
       } : null),
       owner_id: inviterProfile?.id || null,
       owner_username: inviterProfile?.username || null,
+      co_authors: coAuthors,
     })
   } catch (error: any) {
     console.error("Session info API error:", error)

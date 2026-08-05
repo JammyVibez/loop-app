@@ -101,12 +101,12 @@ export function ProfileShareCard({ username, displayName, bio, avatarUrl, trigge
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className={triggerClassName || "border-white/10 bg-white/5"}>
+        <Button variant="outline" className={triggerClassName || "border-border bg-muted"}>
           <Share2 className="mr-2 h-4 w-4" />
           Share profile
         </Button>
       </DialogTrigger>
-      <DialogContent className="border-white/10 bg-[#0a1020] text-slate-100 sm:max-w-md">
+      <DialogContent className="border-border bg-popover text-foreground sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <QrCode className="h-5 w-5 text-cyan-300" />
@@ -122,26 +122,26 @@ export function ProfileShareCard({ username, displayName, bio, avatarUrl, trigge
             </Avatar>
             <div>
               <p className="text-lg font-semibold">{displayName}</p>
-              <p className="text-sm text-slate-400">@{username}</p>
+              <p className="text-sm text-muted-foreground">@{username}</p>
             </div>
           </div>
-          {bio && <p className="mb-4 line-clamp-3 text-sm text-slate-300">{bio}</p>}
+          {bio && <p className="mb-4 line-clamp-3 text-sm text-muted-foreground">{bio}</p>}
           <div className="flex items-center justify-between gap-3">
             <img
               src={qrUrl || qrSvgDataUrl(profileUrl)}
               alt="Profile QR"
-              className="h-[120px] w-[120px] rounded-xl border border-white/10 bg-[#030712] p-2"
+              className="h-[120px] w-[120px] rounded-xl border border-border bg-muted p-2"
               onError={() => setQrUrl(qrSvgDataUrl(profileUrl))}
             />
             <div className="flex-1 space-y-2">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Scan or copy</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Scan or copy</p>
               <Input readOnly value={profileUrl} className="border-white/10 bg-white/5 text-xs" />
             </div>
           </div>
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={copyLink} variant="outline" className="flex-1 border-white/10">
+          <Button onClick={copyLink} variant="outline" className="flex-1 border-border">
             <Copy className="mr-2 h-4 w-4" /> Copy
           </Button>
           <Button onClick={nativeShare} className="flex-1 bg-gradient-to-r from-violet-600 to-cyan-500">

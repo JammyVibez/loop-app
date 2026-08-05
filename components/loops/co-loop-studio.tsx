@@ -227,57 +227,50 @@ export function CoLoopStudio() {
     const resolveSessionInfo = async () => {
       try {
         setIsSessionOwnerLoading(true)
-        const invitedByParam = searchParams.get("invitedBy") || ""
-        const isInvitedFlag = searchParams.get("invited") === "true"
         const authHeaders = getAuthHeader()
 
-        // If user is opening studio directly as creator
-        if (!isInvitedFlag && !invitedByParam) {
-          const res = await fetch("/api/co-loop/session-info", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...authHeaders,
-            },
-            body: JSON.stringify({ session_id: sessionId }),
-          })
-          const data = await res.json()
-          if (data.owner_id || data.inviter) {
-            const ownerObj = data.inviter || { id: data.owner_id, username: data.owner_username }
-            setSessionOwner(ownerObj)
-            const isCallerOwner = Boolean(
-              (data.owner_id && data.owner_id === user.id) ||
-              (ownerObj.id && ownerObj.id === user.id) ||
-              (ownerObj.username && user.username && ownerObj.username.toLowerCase() === user.username.toLowerCase())
-            )
-            setIsOwner(isCallerOwner)
-          } else {
-            setSessionOwner({
-              id: user.id,
-              username: user.username,
-              display_name: user.display_name || user.username,
-            })
-            setIsOwner(true)
-          }
-        } else {
-          // Invited user: fetch session info via GET
-          const res = await fetch(
-            `/api/co-loop/session-info?session=${encodeURIComponent(sessionId)}&invitedBy=${encodeURIComponent(invitedByParam)}&invited=true`,
-            { headers: authHeaders }
+        // POST is used for both the owner (creates the session record) and
+        // any invited co-author (durably joins the session's co_authors
+        // roster). This is the single source of truth both the Primary
+        // Creator's and every Co-Author's studio view read from — it used to
+        // be presence-only, which meant the Primary Creator could miss a
+        // co-author whose "join" broadcast arrived before their own
+        // subscription settled, or after a reconnect.
+        const res = await fetch("/api/co-loop/session-info", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders,
+          },
+          body: JSON.stringify({ session_id: sessionId }),
+        })
+        const data = await res.json()
+
+        if (data.owner_id || data.inviter) {
+          const ownerObj = data.inviter || { id: data.owner_id, username: data.owner_username }
+          setSessionOwner(ownerObj)
+          const isCallerOwner = Boolean(
+            (data.owner_id && data.owner_id === user.id) ||
+            (ownerObj.id && ownerObj.id === user.id) ||
+            (ownerObj.username && user.username && ownerObj.username.toLowerCase() === user.username.toLowerCase())
           )
-          const data = await res.json()
-          if (data.owner_id || data.inviter) {
-            const ownerObj = data.inviter || { id: data.owner_id, username: data.owner_username }
-            setSessionOwner(ownerObj)
-            const isCallerOwner = Boolean(
-              (data.owner_id && data.owner_id === user.id) ||
-              (ownerObj.id && ownerObj.id === user.id) ||
-              (ownerObj.username && user.username && ownerObj.username.toLowerCase() === user.username.toLowerCase())
-            )
-            setIsOwner(isCallerOwner)
-          } else {
-            setIsOwner(false)
-          }
+          setIsOwner(isCallerOwner)
+        } else {
+          setSessionOwner({
+            id: user.id,
+            username: user.username,
+            display_name: user.display_name || user.username,
+          })
+          setIsOwner(true)
+        }
+
+        if (Array.isArray(data.co_authors) && data.co_authors.length > 0) {
+          setCoAuthors((prev) => {
+            const map = new Map<string, Collaborator>()
+            prev.forEach((c) => map.set(c.id, c))
+            data.co_authors.forEach((c: Collaborator) => map.set(c.id, { ...c, role: "Co-Author" }))
+            return Array.from(map.values())
+          })
         }
       } catch (err) {
         console.error("Session info fetch error:", err)
@@ -290,6 +283,31 @@ export function CoLoopStudio() {
   }, [sessionId, searchParams, user, getAuthHeader])
 
   const currentUserRole = isOwner ? "Primary Creator" : "Co-Author"
+
+  // Pull the durable co-author roster from the server. Called on mount (via
+  // resolveSessionInfo) and again whenever a realtime "join" fires, so the
+  // Primary Creator's view self-heals even if a presence event was missed.
+  const refetchCoAuthors = async () => {
+    if (!user || !sessionId) return
+    try {
+      const res = await fetch("/api/co-loop/session-info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ session_id: sessionId }),
+      })
+      const data = await res.json()
+      if (Array.isArray(data.co_authors) && data.co_authors.length > 0) {
+        setCoAuthors((prev) => {
+          const map = new Map<string, Collaborator>()
+          prev.forEach((c) => map.set(c.id, c))
+          data.co_authors.forEach((c: Collaborator) => map.set(c.id, { ...c, role: "Co-Author" }))
+          return Array.from(map.values())
+        })
+      }
+    } catch {
+      /* best-effort — presence sync remains the primary live path */
+    }
+  }
 
   // Initialize Supabase Client
   useEffect(() => {
@@ -348,6 +366,11 @@ export function CoLoopStudio() {
             description: `${joinedUser.display_name} joined the live studio table.`,
           })
         }
+        // Belt-and-suspenders: re-pull the durable co-author roster from the
+        // server whenever anyone joins, instead of relying solely on
+        // presence state (which is what caused the Primary Creator's view to
+        // sometimes miss a co-author the co-author's own view already showed).
+        void refetchCoAuthors()
       })
       .on("presence", { event: "leave" }, ({ leftPresences }: any) => {
         if (leftPresences?.[0]?.display_name) {
@@ -452,6 +475,19 @@ export function CoLoopStudio() {
         })
         setTimeout(() => {
           router.push("/")
+        }, 1500)
+      })
+      // Publishing closes the session for everyone still in the room — only
+      // the publisher sees the ceremony modal (set locally in
+      // handlePublishCoLoop); every other participant gets redirected home
+      // automatically since there's nothing left to collaborate on.
+      .on("broadcast", { event: "coloop_published" }, ({ payload }: any) => {
+        toast({
+          title: "Co-Loop Published! 🚀",
+          description: `${payload?.publishedBy || "A collaborator"} published this Co-Loop. Taking you to the feed…`,
+        })
+        setTimeout(() => {
+          router.push(payload?.loopId ? `/loop/${payload.loopId}` : "/")
         }, 1500)
       })
       // Handle Studio Version Snapshots
@@ -995,6 +1031,32 @@ export function CoLoopStudio() {
 
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to publish co-loop")
+
+      const publishedLoopId = data.loop?.id
+
+      // Tell every other participant still in the room — they don't get a
+      // ceremony modal, they just get redirected since the session is over.
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: "broadcast",
+          event: "coloop_published",
+          payload: {
+            publishedBy: user?.display_name || user?.username || "A collaborator",
+            loopId: publishedLoopId,
+          },
+        })
+      }
+
+      // Mark the session closed server-side so it can't be re-joined/reused.
+      try {
+        await fetch("/api/co-loop/session-info", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ session_id: sessionId, status: "published", published_loop_id: publishedLoopId }),
+        })
+      } catch {
+        /* best-effort */
+      }
 
       // Trigger ceremonial publish modal celebration
       setPublishedLoopData({
@@ -1809,8 +1871,9 @@ export function CoLoopStudio() {
                 variant="outline"
                 onClick={() => {
                   setPublishCeremonyOpen(false)
-                  setPostTitle("")
-                  setPostContent("")
+                  // This session is published/closed — start a genuinely new
+                  // one rather than reusing this (now-stale) session id.
+                  router.push("/co-loop/studio")
                 }}
                 className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 rounded-xl h-10 text-xs"
               >

@@ -127,7 +127,7 @@ export function PWAInstallPrompt() {
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:w-96">
-      <Card className="overflow-hidden border-white/10 bg-[#0a1020]/95 text-slate-100 shadow-2xl shadow-black/40 backdrop-blur-xl">
+      <Card className="overflow-hidden border-border bg-card/95 text-foreground shadow-2xl shadow-black/40 backdrop-blur-xl">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
@@ -145,7 +145,7 @@ export function PWAInstallPrompt() {
               variant="ghost"
               size="sm"
               onClick={handleDismiss}
-              className="h-8 w-8 p-0 text-slate-400 hover:bg-white/10 hover:text-white"
+              className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -153,7 +153,7 @@ export function PWAInstallPrompt() {
         </CardHeader>
         
         <CardContent className="space-y-4">
-          <CardDescription className="text-sm text-slate-300">
+          <CardDescription className="text-sm text-muted-foreground">
             Add Loop to your phone home screen for a fast app-like experience today. Native Play Store release is coming soon.
           </CardDescription>
 
@@ -189,11 +189,11 @@ export function PWAInstallPrompt() {
 
           {/* Install Instructions */}
           {isIOS ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-sm">
+            <div className="rounded-2xl border border-border bg-muted p-3 text-sm">
               <p className="font-medium text-cyan-100 mb-1">
                 To install on iOS:
               </p>
-              <ol className="text-slate-300 space-y-1 text-xs">
+              <ol className="text-muted-foreground space-y-1 text-xs">
                 <li>1. Tap the Share button in Safari</li>
                 <li>2. Scroll down and tap "Add to Home Screen"</li>
                 <li>3. Tap "Add" to install Loop</li>
@@ -209,13 +209,13 @@ export function PWAInstallPrompt() {
                 <Download className="w-4 h-4 mr-2" />
                 Install Now
               </Button>
-              <Button variant="outline" onClick={handleDismiss} className="rounded-full border-white/15 bg-white/[0.04] text-slate-100 hover:bg-white/10">
+              <Button variant="outline" onClick={handleDismiss} className="rounded-full border-border bg-muted text-foreground hover:bg-muted/70">
                 Later
               </Button>
             </div>
           )}
 
-          <p className="text-xs text-slate-500 text-center">
+          <p className="text-xs text-muted-foreground text-center">
             Free forever • Install from browser now • Play Store coming soon
           </p>
         </CardContent>

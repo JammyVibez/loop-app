@@ -295,17 +295,17 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
   if (loading) {
     return (
       <div className="mx-auto max-w-4xl space-y-6 p-4">
-        <div className="h-64 animate-pulse rounded-2xl bg-white/5" />
-        <div className="h-32 animate-pulse rounded-2xl bg-white/5" />
+        <div className="h-64 animate-pulse rounded-2xl bg-muted" />
+        <div className="h-32 animate-pulse rounded-2xl bg-muted" />
       </div>
     )
   }
 
   if (!loop) {
     return (
-      <div className="mx-auto max-w-4xl p-8 text-center text-slate-300 space-y-4">
+      <div className="mx-auto max-w-4xl p-8 text-center text-muted-foreground space-y-4">
         <h2 className="text-2xl font-bold">Loop Not Found</h2>
-        <p className="text-sm text-slate-400">This loop may have been deleted or is private.</p>
+        <p className="text-sm text-muted-foreground">This loop may have been deleted or is private.</p>
         <Button asChild>
           <Link href="/explore">Explore Other Loops</Link>
         </Button>
@@ -314,10 +314,10 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 text-slate-100">
+    <div className="mx-auto max-w-4xl space-y-6 p-4 text-foreground">
       {/* Loop Container */}
-      <Card className="border border-white/10 bg-[#0b1329]/80 backdrop-blur-md shadow-2xl rounded-2xl overflow-hidden">
-        <CardHeader className="p-6 border-b border-white/10">
+      <Card className="border border-border bg-card/80 backdrop-blur-md shadow-2xl rounded-2xl overflow-hidden">
+        <CardHeader className="p-6 border-b border-border">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12 border-2 border-cyan-500/40">
@@ -326,14 +326,14 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
               </Avatar>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-lg text-white">{loop.author.displayName}</span>
+                  <span className="font-bold text-lg text-foreground">{loop.author.displayName}</span>
                   {loop.author.verified && (
                     <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-300 text-[10px]">
                       Verified
                     </Badge>
                   )}
                 </div>
-                <div className="flex items-center gap-2 text-xs text-slate-400">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>@{loop.author.username}</span>
                   <span>•</span>
                   <FreshnessTimestamp date={loop.createdAt} showIcon />
@@ -346,11 +346,11 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
                   <MoreHorizontal className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white">
+              <DropdownMenuContent align="end" className="bg-popover border-border text-foreground">
                 <DropdownMenuItem onClick={handleShare}>
                   <Copy className="h-4 w-4 mr-2" /> Copy link
                 </DropdownMenuItem>
@@ -363,12 +363,12 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
         </CardHeader>
 
         <CardContent className="p-6 space-y-6">
-          <h1 className="text-2xl font-extrabold text-white leading-tight">{loop.title}</h1>
-          <p className="text-base text-slate-200 leading-relaxed whitespace-pre-wrap">{loop.content}</p>
+          <h1 className="text-2xl font-extrabold text-foreground leading-tight">{loop.title}</h1>
+          <p className="text-base text-foreground leading-relaxed whitespace-pre-wrap">{loop.content}</p>
 
           {/* Media Display */}
           {loop.media && (
-            <div className="rounded-xl overflow-hidden border border-white/10 max-h-[450px]">
+            <div className="rounded-xl overflow-hidden border border-border max-h-[450px]">
               {loop.media.type === "video" ? (
                 <video src={loop.media.url} controls className="w-full h-full object-cover" />
               ) : (
@@ -390,14 +390,14 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           )}
 
           {/* Interactive Reactions */}
-          <div className="flex items-center gap-2 pt-2 border-t border-white/5">
-            <span className="text-xs text-slate-400 font-medium mr-2">Quick React:</span>
+          <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+            <span className="text-xs text-muted-foreground font-medium mr-2">Quick React:</span>
             {["🔥", "❤️", "🚀", "💡", "👏", "💯"].map((emoji) => (
               <button
                 key={emoji}
                 type="button"
                 onClick={() => handleReaction(emoji)}
-                className="flex items-center gap-1 rounded-full bg-white/5 border border-white/10 px-2.5 py-1 text-xs hover:bg-cyan-500/20 hover:border-cyan-400 transition-all"
+                className="flex items-center gap-1 rounded-full bg-muted border border-border px-2.5 py-1 text-xs hover:bg-cyan-500/20 hover:border-cyan-400 transition-all"
               >
                 <span>{emoji}</span>
                 {reactions[emoji] ? (
@@ -408,24 +408,24 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           </div>
 
           {/* Stats & Actions */}
-          <div className="flex items-center justify-between pt-4 border-t border-white/10">
+          <div className="flex items-center justify-between pt-4 border-t border-border">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleLike}
-                className={`gap-2 ${loop.isLiked ? "text-rose-400 bg-rose-500/10" : "text-slate-400 hover:text-white"}`}
+                className={`gap-2 ${loop.isLiked ? "text-rose-400 bg-rose-500/10" : "text-muted-foreground hover:text-foreground"}`}
               >
                 <Heart className={`h-4 w-4 ${loop.isLiked ? "fill-rose-500" : ""}`} />
                 <span className="font-semibold">{loop.stats.likes}</span>
               </Button>
 
-              <div className="flex items-center gap-2 text-slate-400 text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
                 <MessageCircle className="h-4 w-4" />
                 <span className="font-semibold">{loop.stats.comments}</span>
               </div>
 
-              <Button variant="ghost" size="sm" onClick={handleShare} className="gap-2 text-slate-400 hover:text-white">
+              <Button variant="ghost" size="sm" onClick={handleShare} className="gap-2 text-muted-foreground hover:text-foreground">
                 <Share2 className="h-4 w-4" />
                 <span>{loop.stats.shares}</span>
               </Button>
@@ -441,11 +441,11 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                   <GitBranch className="h-3.5 w-3.5" /> Branch / Chain
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white">
-                <DropdownMenuItem onClick={() => setBranchOpen(true)} className="cursor-pointer hover:bg-slate-800">
+              <DropdownMenuContent align="end" className="bg-popover border-border text-foreground">
+                <DropdownMenuItem onClick={() => setBranchOpen(true)} className="cursor-pointer hover:bg-muted">
                   <GitBranch className="h-4 w-4 mr-2 text-green-400" /> Branch this Loop
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setChainOpen(true)} className="cursor-pointer hover:bg-slate-800">
+                <DropdownMenuItem onClick={() => setChainOpen(true)} className="cursor-pointer hover:bg-muted">
                   <Sparkles className="h-4 w-4 mr-2 text-cyan-400" /> View Loop Chain Map
                 </DropdownMenuItem>
               </DropdownMenuContent>

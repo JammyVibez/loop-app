@@ -147,20 +147,25 @@ export async function POST(
       .eq('id', loopId)
       .single()
 
+    const actorName = user.user_metadata?.display_name || user.user_metadata?.username || user.email || "Someone"
+    const snippet = content.substring(0, 100) + (content.length > 100 ? '...' : '')
+
     if (loop && loop.author_id !== user.id) {
-      await supabase
-        .from('notifications')
-        .insert({
-          user_id: loop.author_id,
+      try {
+        const { notifyUser } = await import("@/lib/notifications")
+        await notifyUser(supabase, {
+          userId: loop.author_id,
           type: 'comment',
-          title: `${user.user_metadata?.display_name || user.email} commented on your loop`,
-          message: content.substring(0, 100) + (content.length > 100 ? '...' : ''),
-          data: {
-            loop_id: loopId,
-            comment_id: comment.id,
-            user_id: user.id
-          }
+          title: `${actorName} commented on your loop`,
+          message: snippet,
+          actorId: user.id,
+          actionUrl: `/loop/${loopId}`,
+          data: { loop_id: loopId, comment_id: comment.id, user_id: user.id },
+          pushCategory: "social",
         })
+      } catch (notifyErr) {
+        console.warn("Comment notify failed:", notifyErr)
+      }
     }
 
     // If it's a reply, notify the parent comment author
@@ -172,20 +177,21 @@ export async function POST(
         .single()
 
       if (parentComment && parentComment.author_id !== user.id) {
-        await supabase
-          .from('notifications')
-          .insert({
-            user_id: parentComment.author_id,
+        try {
+          const { notifyUser } = await import("@/lib/notifications")
+          await notifyUser(supabase, {
+            userId: parentComment.author_id,
             type: 'reply',
-            title: `${user.user_metadata?.display_name || user.email} replied to your comment`,
-            message: content.substring(0, 100) + (content.length > 100 ? '...' : ''),
-            data: {
-              loop_id: loopId,
-              comment_id: comment.id,
-              parent_comment_id,
-              user_id: user.id
-            }
+            title: `${actorName} replied to your comment`,
+            message: snippet,
+            actorId: user.id,
+            actionUrl: `/loop/${loopId}`,
+            data: { loop_id: loopId, comment_id: comment.id, parent_comment_id, user_id: user.id },
+            pushCategory: "social",
           })
+        } catch (notifyErr) {
+          console.warn("Reply notify failed:", notifyErr)
+        }
       }
     }
 

@@ -24,6 +24,9 @@ const files = [
   // developer_projects and related tables backing the real Developers gallery
   // (see /api/developers/projects and components/developers/developers-content.tsx).
   "scripts/developer-features.sql",
+  // Durable Co-Loop Studio session ownership + co-author roster (see
+  // /api/co-loop/session-info and components/loops/co-loop-studio.tsx).
+  "scripts/co-loop-sessions-schema.sql",
   "scripts/rls-policies.sql",
   "scripts/realtime-functions.sql",
 ]

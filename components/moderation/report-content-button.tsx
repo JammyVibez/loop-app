@@ -100,7 +100,7 @@ export function ReportContentButton({
         ) : (
           <button
             type="button"
-            className={className || "flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm text-red-300 hover:bg-white/10"}
+            className={className || "flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm text-red-500 dark:text-red-300 hover:bg-muted"}
             onClick={(e) => e.stopPropagation()}
           >
             <Flag className="mr-2 h-4 w-4" />
@@ -108,13 +108,13 @@ export function ReportContentButton({
           </button>
         )}
       </DialogTrigger>
-      <DialogContent className="border-white/10 bg-[#0a1020] text-slate-100 sm:max-w-md">
+      <DialogContent className="border-border bg-popover text-foreground sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Report {contentType.replace("_", " ")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <Select value={flagType} onValueChange={setFlagType}>
-            <SelectTrigger className="border-white/10 bg-white/5">
+            <SelectTrigger className="border-border bg-muted">
               <SelectValue placeholder="Why are you reporting this?" />
             </SelectTrigger>
             <SelectContent>
@@ -129,7 +129,7 @@ export function ReportContentButton({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Optional details..."
-            className="min-h-[100px] border-white/10 bg-white/5"
+            className="min-h-[100px] border-border bg-muted"
           />
           <Button onClick={handleSubmit} disabled={loading} className="w-full bg-red-600 hover:bg-red-500">
             {loading ? "Submitting..." : "Submit report"}

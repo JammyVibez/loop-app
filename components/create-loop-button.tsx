@@ -591,13 +591,13 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                     value={codeTitle}
                     onChange={(e) => setCodeTitle(e.target.value)}
                     placeholder="Snippet title (optional)"
-                    className="border-white/10 bg-white/5"
+                    className="border-border bg-muted"
                     maxLength={80}
                   />
                   <select
                     value={codeLanguage}
                     onChange={(e) => setCodeLanguage(e.target.value)}
-                    className="h-10 rounded-md border border-white/10 bg-white/5 px-3 text-sm"
+                    className="h-10 rounded-md border border-border bg-muted px-3 text-sm"
                   >
                     {CODE_LANGUAGES.map((lang) => (
                       <option key={lang.id} value={lang.id}>
@@ -610,10 +610,10 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder={`// Paste your ${codeLanguage} code here…\nfunction hello() {\n  return "Loop";\n}`}
-                  className="min-h-[220px] border-white/10 bg-[#0b1220] font-mono text-sm text-slate-100"
+                  className="min-h-[220px] border-border bg-muted font-mono text-sm text-foreground"
                   maxLength={12000}
                 />
-                <div className="flex items-center justify-between text-xs text-slate-500">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{content.length}/12000 · others can fork, like, comment, or branch</span>
                   <span className="inline-flex items-center gap-1"><Save className="h-3 w-3" /> Draft saved</span>
                 </div>
@@ -624,10 +624,10 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   value={content}
                   onChange={setContent}
                   placeholder="Share a story, idea, or tag someone with @username…"
-                  className="min-h-[120px] border-white/10 bg-white/5"
+                  className="min-h-[120px] border-border bg-muted"
                   maxLength={500}
                 />
-                <div className="flex items-center justify-between text-xs text-slate-500">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{content.length}/500 · type @ to tag people</span>
                   <span className="inline-flex items-center gap-1"><Save className="h-3 w-3" /> Draft saved</span>
                 </div>
@@ -641,7 +641,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   value={hashtags}
                   onChange={(e) => setHashtags(e.target.value)}
                   placeholder="design creativity storytelling"
-                  className="border-white/10 bg-white/5"
+                  className="border-border bg-muted"
                 />
               </div>
               <div className="flex flex-wrap gap-2">
@@ -650,7 +650,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                     key={tag}
                     type="button"
                     onClick={() => addSuggestion(tag)}
-                    className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-white/10"
+                    className="rounded-full border border-border bg-muted px-2.5 py-1 text-muted-foreground hover:bg-muted"
                   >
                     #{tag}
                   </button>
@@ -673,7 +673,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   type="button"
                   size="sm"
                   variant={mediaType === item.type ? "default" : "outline"}
-                  className="border-white/10"
+                  className="border-border"
                   onClick={() => setMediaType(item.type)}
                 >
                   <item.icon className="mr-1 h-4 w-4" />
@@ -701,12 +701,12 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                     value={pollQuestion}
                     onChange={(e) => setPollQuestion(e.target.value)}
                     placeholder="e.g. What is your favorite state management solution?"
-                    className="bg-slate-900 border-white/10 text-white rounded-xl text-xs"
+                    className="bg-muted border-border text-foreground rounded-xl text-xs"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-300">Poll Options (2 to 4)</label>
+                  <label className="text-xs font-bold text-muted-foreground">Poll Options (2 to 4)</label>
                   {pollOptions.map((opt, idx) => (
                     <Input
                       key={idx}
@@ -717,7 +717,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                         setPollOptions(copy)
                       }}
                       placeholder={`Option ${idx + 1}`}
-                      className="bg-slate-900 border-white/10 text-white rounded-xl text-xs"
+                      className="bg-muted border-border text-foreground rounded-xl text-xs"
                     />
                   ))}
                   {pollOptions.length < 4 && (
@@ -735,14 +735,14 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
               </div>
             )}
 
-            <div className="rounded-xl border border-dashed border-white/15 p-4">
+            <div className="rounded-xl border border-dashed border-border p-4">
               {mediaType === "code" ? (
-                <p className="text-center text-sm text-slate-400">
+                <p className="text-center text-sm text-muted-foreground">
                   Code loops publish as text snippets — no media upload needed. Peers can fork your code into their profile.
                 </p>
               ) : (
                 <>
-                  <label className="flex cursor-pointer flex-col items-center gap-2 text-sm text-slate-400 border border-dashed border-white/10 rounded-2xl p-4 hover:bg-slate-900/40 transition-colors">
+                  <label className="flex cursor-pointer flex-col items-center gap-2 text-sm text-muted-foreground border border-dashed border-border rounded-2xl p-4 hover:bg-muted/60 transition-colors">
                     <Upload className="h-5 w-5 text-violet-400" />
                     <span>Upload media ({getMaxFiles()} file limit{user?.is_premium ? " · Pro" : ""})</span>
                     <input
@@ -759,7 +759,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                         type="button"
                         size="sm"
                         variant={recording ? "destructive" : "outline"}
-                        className="border-white/10"
+                        className="border-border"
                         onClick={toggleAudioRecord}
                       >
                         {recording ? <Square className="mr-1.5 h-3.5 w-3.5" /> : <Mic className="mr-1.5 h-3.5 w-3.5" />}
@@ -769,7 +769,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   )}
                   {mediaFiles.length > 0 && (
                     <div className="mt-3 space-y-3">
-                      <div className="flex items-center justify-between text-xs text-slate-400">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>{mediaFiles.length} of {getMaxFiles()} files selected</span>
                         {mediaFiles.length < getMaxFiles() && (
                           <label className="cursor-pointer text-violet-400 font-semibold hover:underline">
@@ -786,7 +786,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                       </div>
                       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                         {mediaFiles.map((file, idx) => (
-                          <div key={idx} className="relative group rounded-xl overflow-hidden border border-white/10 bg-slate-900/80 p-1">
+                          <div key={idx} className="relative group rounded-xl overflow-hidden border border-border bg-muted p-1">
                             {file.type.startsWith("image/") ? (
                               <img
                                 src={URL.createObjectURL(file)}
@@ -799,7 +799,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                                 className="h-28 w-full object-cover rounded-lg"
                               />
                             ) : (
-                              <div className="flex h-28 items-center justify-center bg-slate-800 text-xs text-slate-300 p-2 text-center truncate rounded-lg">
+                              <div className="flex h-28 items-center justify-center bg-muted text-xs text-muted-foreground p-2 text-center truncate rounded-lg">
                                 {file.name}
                               </div>
                             )}
@@ -821,7 +821,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" className="border-white/10" onClick={() => setDiscardOpen(true)}>
+              <Button type="button" variant="outline" className="border-border" onClick={() => setDiscardOpen(true)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={creating || (!content.trim() && mediaFiles.length === 0)} className="bg-gradient-to-r from-violet-600 to-cyan-500">

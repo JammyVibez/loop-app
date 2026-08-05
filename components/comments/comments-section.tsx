@@ -219,18 +219,18 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="font-semibold text-white">{comment.author?.display_name}</span>
-                <span className="text-slate-400 text-xs">@{comment.author?.username}</span>
+                <span className="font-semibold text-foreground">{comment.author?.display_name}</span>
+                <span className="text-muted-foreground text-xs">@{comment.author?.username}</span>
                 <FreshnessTimestamp date={comment.created_at} showIcon />
-                {comment.is_edited && <span className="text-xs text-slate-500">(edited)</span>}
+                {comment.is_edited && <span className="text-xs text-muted-foreground">(edited)</span>}
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-white">
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground">
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="border-white/10 bg-[#0a1020] text-slate-100">
+                <DropdownMenuContent align="end" className="border-border bg-popover text-foreground">
                   {isOwner && (
                     <>
                       <DropdownMenuItem
@@ -253,22 +253,22 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
 
             {editingId === comment.id ? (
               <div className="space-y-2">
-                <Textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} className="bg-white/5 border-white/10 text-white" />
+                <Textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} className="bg-muted border-border text-foreground" />
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleSaveEdit}>Save</Button>
                   <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
                 </div>
               </div>
             ) : (
-              <RichContent text={comment.content} className="text-sm text-slate-200" />
+              <RichContent text={comment.content} className="text-sm text-foreground" />
             )}
 
             <div className="mt-2 flex items-center gap-3">
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-slate-400 hover:text-white" onClick={() => handleLike(comment.id)}>
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => handleLike(comment.id)}>
                 <Heart className={`mr-1 h-3.5 w-3.5 ${comment.isLiked ? "fill-red-500 text-red-500" : ""}`} />
                 {likes}
               </Button>
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-slate-400 hover:text-white" onClick={() => setReplyingTo(comment.id)}>
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => setReplyingTo(comment.id)}>
                 <Reply className="mr-1 h-3.5 w-3.5" /> Reply
               </Button>
             </div>
@@ -280,7 +280,7 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
                     value={replyContent}
                     onChange={setReplyContent}
                     placeholder={`Reply to @${comment.author?.username || "comment"}… use @ to tag`}
-                    className="bg-white/5 border-white/10 text-white min-h-[70px] pr-10"
+                    className="bg-muted border-border text-foreground min-h-[70px] pr-10"
                   />
                   <div className="absolute right-2 bottom-2">
                     <MediaEmojiPicker onSelectEmoji={(emoji) => setReplyContent((prev) => prev + emoji)} />
@@ -302,9 +302,9 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+    <div className="space-y-4 rounded-2xl border border-border bg-muted/30 p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+        <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
           Comments <span className="text-xs text-cyan-400 font-normal">({commentsData.length}) • Live</span>
         </h3>
       </div>
@@ -316,7 +316,7 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
               value={newComment}
               onChange={setNewComment}
               placeholder="Share your thoughts… type @ to tag, insert emojis, GIFs or stickers"
-              className="min-h-[85px] border-white/10 bg-white/5 text-white pr-12"
+              className="min-h-[85px] border-border bg-muted text-foreground pr-12"
             />
             <div className="absolute right-2 bottom-2">
               <MediaEmojiPicker onSelectEmoji={(emoji) => setNewComment((prev) => prev + emoji)} />
@@ -327,7 +327,7 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
           </Button>
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-white/15 px-4 py-3 text-sm text-slate-300">
+        <div className="rounded-xl border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
           <p className="mb-2">Browsing as guest — sign in to reply.</p>
           <Button asChild size="sm" className="rounded-full">
             <Link href="/login">Log in to comment</Link>
@@ -338,7 +338,7 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-xl bg-white/5" />
+            <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />
           ))}
         </div>
       ) : commentsData.length === 0 ? (
