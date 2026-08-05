@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
 import { Header } from "@/components/header"
-import { mentionHref } from "@/lib/mentions"
+import { mentionHref } from "@/lib/mentions-shared"
 import { PushNotificationManager } from "@/components/pwa/push-notification-manager"
 
 type Notification = {

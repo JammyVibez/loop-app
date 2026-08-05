@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { sourceLabel } from "@/lib/mentions"
+import { sourceLabel } from "@/lib/mentions-shared"
 
 export const dynamic = "force-dynamic"
 

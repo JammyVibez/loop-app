@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
-  // Avoid bundling Stripe into route chunks (can run at build "collect page data" without env).
-  serverExternalPackages: ["stripe"],
+  // Keep Node-only packages out of the client/Edge bundles.
+  serverExternalPackages: ["stripe", "web-push", "https-proxy-agent", "agent-base"],
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -17,11 +17,31 @@ const nextConfig = {
       { protocol: "https", hostname: "localhost" },
     ],
   },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        net: false,
+        tls: false,
+        fs: false,
+        dns: false,
+        child_process: false,
+      }
+    }
+    return config
+  },
   async headers() {
     return [
       {
         source: "/manifest.json",
         headers: [{ key: "Content-Type", value: "application/manifest+json" }],
+      },
+      {
+        source: "/og-image.jpg",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" },
+          { key: "Content-Type", value: "image/jpeg" },
+        ],
       },
     ]
   },

@@ -1,3 +1,4 @@
+import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { sendWebPushToUser, sendWebPushToUsers, type PushCategory, type PushPayload } from "@/lib/web-push"
 

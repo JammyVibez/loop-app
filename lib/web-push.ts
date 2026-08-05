@@ -1,3 +1,4 @@
+import "server-only"
 import webpush from "web-push"
 import { createServerClient } from "@/lib/supabase"
 

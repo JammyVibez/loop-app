@@ -23,12 +23,17 @@ export type SignalSend = (event: string, payload: SignalPayload) => void | Promi
 const MAX_VIEWER_PEERS = 28
 
 function makePeer(): RTCPeerConnection {
-  return new RTCPeerConnection({ iceServers: LIVE_ICE_SERVERS })
+  return new RTCPeerConnection({
+    iceServers: LIVE_ICE_SERVERS,
+    // Helps some NATs with media mid-session changes (camera <-> screen)
+    bundlePolicy: "max-bundle",
+  })
 }
 
 async function attachLocalTracks(pc: RTCPeerConnection, stream: MediaStream) {
+  const existingSenders = pc.getSenders()
   for (const track of stream.getTracks()) {
-    const existing = pc.getSenders().find((s) => s.track?.kind === track.kind)
+    const existing = existingSenders.find((s) => s.track?.kind === track.kind)
     if (existing) {
       await existing.replaceTrack(track)
     } else {
@@ -47,6 +52,7 @@ export class LiveBroadcaster {
   private peerId: string
   private send: SignalSend
   private disposed = false
+  onLocalStream?: (stream: MediaStream, mode: MediaMode) => void
 
   constructor(peerId: string, send: SignalSend) {
     this.peerId = peerId
@@ -69,52 +75,94 @@ export class LiveBroadcaster {
     this.cameraStream = stream
     this.localStream = stream
     this.mediaMode = "camera"
-    await this.renegotiateAll()
+    await this.pushTracksToPeers()
     await this.send("webrtc-signal", { type: "media-mode", from: this.peerId, mode: "camera" })
+    this.onLocalStream?.(stream, "camera")
     return stream
   }
 
+  /**
+   * Share screen in realtime by replacing the outbound video track
+   * (no full peer teardown — viewers update live).
+   */
   async startScreenShare() {
-    const display = await navigator.mediaDevices.getDisplayMedia({
-      video: {
-        frameRate: { ideal: 30 },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-      },
-      audio: true,
-    })
-
-    // Keep mic from camera stream when screen has no audio
-    const mic = this.cameraStream?.getAudioTracks()[0]
-    if (mic && display.getAudioTracks().length === 0) {
-      display.addTrack(mic)
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      throw new Error("Screen sharing is not supported in this browser. Try Chrome or Edge on desktop.")
     }
 
-    display.getVideoTracks()[0]?.addEventListener("ended", () => {
+    let display: MediaStream
+    try {
+      display = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          frameRate: { ideal: 30 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        // audio:true fails on many browsers; capture video first
+        audio: false,
+      })
+    } catch (err: any) {
+      if (err?.name === "NotAllowedError") {
+        throw new Error("Screen share permission denied. Allow sharing and try again.")
+      }
+      throw new Error(err?.message || "Could not start screen share")
+    }
+
+    const screenTrack = display.getVideoTracks()[0]
+    if (!screenTrack) {
+      display.getTracks().forEach((t) => t.stop())
+      throw new Error("No screen video track available")
+    }
+
+    screenTrack.addEventListener("ended", () => {
       void this.stopScreenShare()
     })
 
+    // Compose preview stream: screen video + camera mic
+    const composed = new MediaStream([screenTrack])
+    const mic = this.cameraStream?.getAudioTracks()[0]
+    if (mic && mic.readyState === "live") {
+      composed.addTrack(mic)
+    }
+
     this.screenStream = display
-    this.localStream = display
+    this.localStream = composed
     this.mediaMode = "screen"
-    await this.renegotiateAll()
+
+    // Hot-swap video on existing peers (realtime)
+    await this.replaceVideoTrack(screenTrack)
+    // Ensure audio sender still has mic
+    if (mic) await this.replaceAudioTrack(mic)
+
     await this.send("webrtc-signal", { type: "media-mode", from: this.peerId, mode: "screen" })
-    return display
+    this.onLocalStream?.(composed, "screen")
+    return composed
   }
 
   async stopScreenShare() {
-    this.screenStream?.getTracks().forEach((t) => {
-      if (t.kind === "video" || !this.cameraStream?.getAudioTracks().includes(t)) {
+    const screenTracks = this.screenStream?.getTracks() || []
+    screenTracks.forEach((t) => {
+      try {
         t.stop()
-      }
+      } catch {}
     })
     this.screenStream = null
-    if (this.cameraStream) {
-      this.localStream = this.cameraStream
+
+    if (!this.cameraStream) {
+      this.localStream = null
       this.mediaMode = "camera"
-      await this.renegotiateAll()
-      await this.send("webrtc-signal", { type: "media-mode", from: this.peerId, mode: "camera" })
+      return
     }
+
+    this.localStream = this.cameraStream
+    this.mediaMode = "camera"
+    const camVideo = this.cameraStream.getVideoTracks()[0]
+    const camAudio = this.cameraStream.getAudioTracks()[0]
+    if (camVideo) await this.replaceVideoTrack(camVideo)
+    if (camAudio) await this.replaceAudioTrack(camAudio)
+
+    await this.send("webrtc-signal", { type: "media-mode", from: this.peerId, mode: "camera" })
+    this.onLocalStream?.(this.cameraStream, "camera")
   }
 
   async flipCamera() {
@@ -133,43 +181,71 @@ export class LiveBroadcaster {
       this.cameraStream.addTrack(newTrack)
       this.localStream = this.cameraStream
       await this.replaceVideoTrack(newTrack)
+      this.onLocalStream?.(this.cameraStream, "camera")
     }
     next.getAudioTracks().forEach((t) => t.stop())
     return this.localStream
   }
 
   setMicEnabled(enabled: boolean) {
+    this.cameraStream?.getAudioTracks().forEach((t) => {
+      t.enabled = enabled
+    })
     this.localStream?.getAudioTracks().forEach((t) => {
       t.enabled = enabled
     })
   }
 
   setCameraEnabled(enabled: boolean) {
+    // Only toggle camera video when not screen sharing
+    if (this.mediaMode === "screen") return
     this.localStream?.getVideoTracks().forEach((t) => {
       t.enabled = enabled
     })
   }
 
   private async replaceVideoTrack(track: MediaStreamTrack) {
+    const tasks: Promise<void>[] = []
     for (const pc of this.peers.values()) {
-      const sender = pc.getSenders().find((s) => s.track?.kind === "video")
-      if (sender) await sender.replaceTrack(track)
+      const videoSender = pc.getSenders().find((s) => s.track?.kind === "video")
+      if (videoSender) {
+        tasks.push(
+          videoSender.replaceTrack(track).catch(() => {
+            if (this.localStream) pc.addTrack(track, this.localStream)
+          }),
+        )
+      } else if (this.localStream) {
+        pc.addTrack(track, this.localStream)
+      }
     }
+    await Promise.all(tasks)
   }
 
-  private async renegotiateAll() {
+  private async replaceAudioTrack(track: MediaStreamTrack) {
+    const tasks: Promise<void>[] = []
+    for (const pc of this.peers.values()) {
+      const audioSender = pc.getSenders().find((s) => s.track?.kind === "audio")
+      if (audioSender) {
+        tasks.push(audioSender.replaceTrack(track).catch(() => undefined))
+      } else if (this.localStream) {
+        pc.addTrack(track, this.localStream)
+      }
+    }
+    await Promise.all(tasks)
+  }
+
+  private async pushTracksToPeers() {
     if (!this.localStream) return
-    const ids = [...this.peers.keys()]
-    await Promise.all(ids.map((id) => this.createOfferFor(id)))
+    if (this.peers.size === 0) return
+    const video = this.localStream.getVideoTracks()[0]
+    const audio = this.localStream.getAudioTracks()[0]
+    if (video) await this.replaceVideoTrack(video)
+    if (audio) await this.replaceAudioTrack(audio)
   }
 
   async handleHello(viewerId: string) {
     if (this.disposed || !this.localStream) return
-    if (this.peers.has(viewerId)) {
-      await this.createOfferFor(viewerId)
-      return
-    }
-    if (this.peers.size >= MAX_VIEWER_PEERS) return
+    if (this.peers.size >= MAX_VIEWER_PEERS && !this.peers.has(viewerId)) return
     await this.createOfferFor(viewerId)
   }
 
@@ -198,10 +274,13 @@ export class LiveBroadcaster {
 
     pc.onconnectionstatechange = () => {
       if (pc && ["failed", "closed", "disconnected"].includes(pc.connectionState)) {
-        try {
-          pc.close()
-        } catch {}
-        this.peers.delete(viewerId)
+        // Soft-fail: keep map entry briefly; hello can recreate
+        if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+          try {
+            pc.close()
+          } catch {}
+          this.peers.delete(viewerId)
+        }
       }
     }
 
@@ -287,6 +366,7 @@ export class LiveViewer {
       } catch {}
     }
     this.hostId = hostId
+    this.remoteStream = new MediaStream()
     const pc = makePeer()
     this.pc = pc
 
@@ -301,11 +381,17 @@ export class LiveViewer {
     }
 
     pc.ontrack = (ev) => {
-      const stream = ev.streams[0] || this.remoteStream
-      stream.getTracks().forEach((track) => {
-        const exists = this.remoteStream.getTracks().some((t) => t.id === track.id)
-        if (!exists) this.remoteStream.addTrack(track)
-      })
+      const incoming = ev.track
+      // Replace same-kind tracks so screen/camera swaps update the <video> live
+      this.remoteStream.getTracks()
+        .filter((t) => t.kind === incoming.kind)
+        .forEach((t) => {
+          this.remoteStream.removeTrack(t)
+          try {
+            t.stop()
+          } catch {}
+        })
+      this.remoteStream.addTrack(incoming)
       this.onTrack?.(this.remoteStream)
     }
 
@@ -321,7 +407,30 @@ export class LiveViewer {
   async handleOffer(from: string, sdp: RTCSessionDescriptionInit) {
     if (this.disposed) return
     const pc = this.ensurePc(from)
-    await pc.setRemoteDescription(sdp)
+    if (pc.signalingState !== "stable" && pc.signalingState !== "have-local-offer") {
+      try {
+        await pc.setRemoteDescription(sdp)
+      } catch {
+        // recreate on glare
+        try {
+          pc.close()
+        } catch {}
+        this.pc = null
+        const fresh = this.ensurePc(from)
+        await fresh.setRemoteDescription(sdp)
+        const answer = await fresh.createAnswer()
+        await fresh.setLocalDescription(answer)
+        await this.send("webrtc-signal", {
+          type: "answer",
+          from: this.peerId,
+          to: from,
+          sdp: answer,
+        })
+        return
+      }
+    } else {
+      await pc.setRemoteDescription(sdp)
+    }
     const answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
     await this.send("webrtc-signal", {

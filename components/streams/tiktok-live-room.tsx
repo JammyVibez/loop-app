@@ -334,10 +334,15 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
     if (!isOwner) return null
     if (broadcasterRef.current?.localStream) {
       setHasLocalPreview(true)
-      bindVideo(broadcasterRef.current.localStream, mediaMode === "camera")
+      bindVideo(broadcasterRef.current.localStream, broadcasterRef.current.mediaMode === "camera")
       return broadcasterRef.current.localStream
     }
     const broadcaster = new LiveBroadcaster(peerIdRef.current, sendSignal)
+    broadcaster.onLocalStream = (stream, mode) => {
+      setMediaMode(mode)
+      setHasLocalPreview(true)
+      bindVideo(stream, mode === "camera")
+    }
     broadcasterRef.current = broadcaster
     const local = await broadcaster.startCamera("user")
     setMediaMode("camera")
@@ -414,24 +419,42 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
   }
 
   const handleScreenShare = async () => {
-    if (!isOwner || !broadcasterRef.current) return
+    if (!isOwner) return
+    if (!broadcasterRef.current) {
+      toast({
+        title: "Go live first",
+        description: "Start your live before sharing your screen.",
+        variant: "destructive",
+      })
+      return
+    }
+    if (busy) return
     setBusy(true)
     try {
       if (mediaMode === "screen") {
         await broadcasterRef.current.stopScreenShare()
         setMediaMode("camera")
-        if (broadcasterRef.current.localStream) bindVideo(broadcasterRef.current.localStream, true)
+        const cam = broadcasterRef.current.localStream
+        if (cam) bindVideo(cam, true)
         toast({ title: "Back to camera" })
       } else {
+        if (!isLive) {
+          toast({
+            title: "Go live first",
+            description: "Screen share is available while you are LIVE.",
+            variant: "destructive",
+          })
+          return
+        }
         const display = await broadcasterRef.current.startScreenShare()
         setMediaMode("screen")
         bindVideo(display, false)
-        toast({ title: "Screen sharing", description: "Viewers now see your screen." })
+        toast({ title: "Sharing screen", description: "Viewers see your screen in real time." })
       }
     } catch (error: any) {
       toast({
         title: "Screen share failed",
-        description: error?.message || "Pick a screen/window and allow sharing.",
+        description: error?.message || "Pick a screen or window and allow sharing.",
         variant: "destructive",
       })
     } finally {

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { ExternalLink } from "lucide-react"
-import { MENTION_RE } from "@/lib/mentions"
+import { MENTION_RE } from "@/lib/mentions-shared"
 import { cn } from "@/lib/utils"
 import { UrlPreviewCard } from "./url-preview-card"
 
