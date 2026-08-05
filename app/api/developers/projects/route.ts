@@ -61,21 +61,34 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient()
-    const { 
-      title, 
-      description, 
-      language, 
-      framework, 
-      tags, 
-      codeSnippet,
-      repositoryUrl,
-      demoUrl 
-    } = await request.json()
-    
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.replace('Bearer ', '') ?? null
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const {
+      title,
+      description,
+      language,
+      framework,
+      tags,
+      codeSnippet,
+      repositoryUrl,
+      demoUrl
+    } = await request.json()
+
+    if (!title?.trim() || !description?.trim() || !language?.trim() || !codeSnippet?.trim()) {
+      return NextResponse.json(
+        { error: 'title, description, language, and codeSnippet are required' },
+        { status: 400 },
+      )
     }
 
     // Create developer project

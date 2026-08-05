@@ -3,217 +3,60 @@
 import React, { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Code, Plus } from "lucide-react"
+import { Code, Plus, Loader2 } from "lucide-react"
 import { CreateProjectDialog } from "@/components/developers/create-project-dialog"
 import { CodeLoopCard } from "@/components/developers/code-loop-card"
 
-// Mock developer projects
-const mockProjects = [
-  {
-    id: "project-1",
-    title: "React Loop Tree Component",
-    description: "A reusable React component for rendering interactive loop trees with animations",
-    author: {
-      id: "1",
-      username: "reactdev",
-      display_name: "React Developer",
-      avatar_url: "/placeholder.svg?height=40&width=40",
-      is_verified: true,
-      verification_level: "influencer" as const,
-    },
-    language: "JavaScript",
-    framework: "React",
-    tags: ["react", "components", "trees", "animation"],
+function normalizeProject(row: any) {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    author: row.author || { username: "unknown", display_name: "Unknown", avatar_url: null },
+    language: row.language,
+    framework: row.framework || "None",
+    tags: row.tags || [],
     stats: {
-      stars: 234,
-      forks: 45,
-      views: 1200,
-      branches: 12,
+      stars: Number(row.stars || 0),
+      forks: Number(row.forks || 0),
+      views: Number(row.views || 0),
+      branches: Number(row.branches || 0),
     },
-    code_snippet: `import React, { useState } from 'react';
-import { TreeNode } from './TreeNode';
-
-export const LoopTree = ({ data, onBranch }) => {
-  const [expanded, setExpanded] = useState(new Set());
-  
-  const toggleNode = (nodeId) => {
-    setExpanded(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(nodeId)) {
-        newSet.delete(nodeId);
-      } else {
-        newSet.add(nodeId);
-      }
-      return newSet;
-    });
-  };
-
-  return (
-    <div className="loop-tree">
-      <TreeNode 
-        node={data} 
-        expanded={expanded}
-        onToggle={toggleNode}
-        onBranch={onBranch}
-      />
-    </div>
-  );
-};`,
-    created_at: new Date("2024-01-15T10:30:00Z"),
-  },
-  {
-    id: "project-2",
-    title: "Python Loop Tree Algorithm",
-    description: "Efficient algorithms for traversing and manipulating loop tree data structures",
-    author: {
-      id: "2",
-      username: "pythonista",
-      display_name: "Python Expert",
-      avatar_url: "/placeholder.svg?height=40&width=40",
-      is_verified: true,
-      verification_level: "root" as const,
-    },
-    language: "Python",
-    framework: "None",
-    tags: ["python", "algorithms", "data-structures", "trees"],
-    stats: {
-      stars: 189,
-      forks: 34,
-      views: 890,
-      branches: 8,
-    },
-    code_snippet: `class LoopTree:
-    def __init__(self, content, author_id):
-        self.id = generate_id()
-        self.content = content
-        self.author_id = author_id
-        self.branches = []
-        self.parent = None
-        self.created_at = datetime.now()
-    
-    def add_branch(self, branch_content, author_id):
-        """Add a new branch to this loop"""
-        branch = LoopTree(branch_content, author_id)
-        branch.parent = self
-        self.branches.append(branch)
-        return branch
-    
-    def traverse_depth_first(self, visit_func):
-        """Traverse the tree depth-first"""
-        visit_func(self)
-        for branch in self.branches:
-            branch.traverse_depth_first(visit_func)
-    
-    def get_tree_stats(self):
-        """Calculate statistics for the entire tree"""
-        total_nodes = 0
-        max_depth = 0
-        
-        def count_nodes(node, depth=0):
-            nonlocal total_nodes, max_depth
-            total_nodes += 1
-            max_depth = max(max_depth, depth)
-            for branch in node.branches:
-                count_nodes(branch, depth + 1)
-        
-        count_nodes(self)
-        return {
-            'total_nodes': total_nodes,
-            'max_depth': max_depth,
-            'branch_count': len(self.branches)
-        }`,
-    created_at: new Date("2024-01-14T15:20:00Z"),
-  },
-  {
-    id: "project-3",
-    title: "Loop Social API Design",
-    description: "RESTful API design patterns for social media platforms with tree-like content structures",
-    author: {
-      id: "3",
-      username: "apiarchitect",
-      display_name: "API Architect",
-      avatar_url: "/placeholder.svg?height=40&width=40",
-      is_verified: false,
-      is_premium: true,
-    },
-    language: "TypeScript",
-    framework: "Node.js",
-    tags: ["api", "nodejs", "typescript", "social-media"],
-    stats: {
-      stars: 156,
-      forks: 28,
-      views: 670,
-      branches: 6,
-    },
-    code_snippet: `// Loop Tree API Endpoints
-interface LoopAPI {
-  // Create a new root loop
-  POST('/api/loops', {
-    content: LoopContent,
-    tags?: string[],
-    visibility: 'public' | 'private' | 'circle'
-  }): Promise<Loop>
-  
-  // Add a branch to existing loop
-  POST('/api/loops/:loopId/branches', {
-    content: LoopContent,
-    branch_type: 'extension' | 'remix' | 'response'
-  }): Promise<Branch>
-  
-  // Get loop tree with all branches
-  GET('/api/loops/:loopId/tree', {
-    depth?: number,
-    include_stats?: boolean
-  }): Promise<LoopTree>
-  
-  // Get trending loops
-  GET('/api/loops/trending', {
-    timeframe: '1h' | '24h' | '7d' | '30d',
-    category?: string,
-    limit?: number
-  }): Promise<Loop[]>
+    code_snippet: row.code_snippet || "",
+    created_at: row.created_at ? new Date(row.created_at) : new Date(),
+  }
 }
-
-// Real-time events for collaborative features
-interface LoopEvents {
-  'loop:created': (loop: Loop) => void
-  'loop:branched': (branch: Branch) => void
-  'loop:liked': (loopId: string, userId: string) => void
-  'loop:commented': (comment: Comment) => void
-}`,
-    created_at: new Date("2024-01-13T14:45:00Z"),
-  },
-]
 
 const languages = ["All", "JavaScript", "Python", "TypeScript", "Go", "Rust", "Java", "C++"]
 const frameworks = ["All", "React", "Vue", "Angular", "Node.js", "Django", "Flask", "Express"]
 
 export function DevelopersContent() {
-  const [projects, setProjects] = useState(mockProjects)
+  const [projects, setProjects] = useState<ReturnType<typeof normalizeProject>[]>([])
   const [selectedLanguage, setSelectedLanguage] = useState("All")
   const [selectedFramework, setSelectedFramework] = useState("All")
   const [sortBy, setSortBy] = useState("recent")
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Fetch projects from API
+  // Fetch real projects from the database — never fall back to fake/mock data.
   const fetchProjects = async () => {
     try {
       setLoading(true)
+      setError(null)
       const params = new URLSearchParams()
       if (selectedLanguage !== "All") params.append('language', selectedLanguage)
       if (selectedFramework !== "All") params.append('framework', selectedFramework)
       params.append('sortBy', sortBy)
 
       const response = await fetch(`/api/developers/projects?${params}`)
-      if (response.ok) {
-        const data = await response.json()
-        setProjects(data.projects || mockProjects)
-      }
-    } catch (error) {
-      console.error('Error fetching projects:', error)
-      // Fallback to mock data
-      setProjects(mockProjects)
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "Failed to load projects")
+      setProjects((data.projects || []).map(normalizeProject))
+    } catch (err: any) {
+      console.error('Error fetching projects:', err)
+      setError(err.message || "Couldn't load developer projects")
+      setProjects([])
     } finally {
       setLoading(false)
     }
@@ -315,11 +158,36 @@ export function DevelopersContent() {
         </Card>
 
         {/* Projects Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {sortedProjects.map((project) => (
-            <CodeLoopCard key={project.id} project={project} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading developer projects…
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center text-sm text-muted-foreground">
+            <p>{error}</p>
+            <Button size="sm" variant="outline" onClick={fetchProjects}>
+              Retry
+            </Button>
+          </div>
+        ) : sortedProjects.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border p-12 text-center">
+            <Code className="h-8 w-8 text-muted-foreground" />
+            <p className="font-medium">No developer projects yet</p>
+            <p className="text-sm text-muted-foreground">
+              Be the first to share your code with the community.
+            </p>
+            <Button onClick={() => setShowCreateDialog(true)} className="mt-2 rounded-full">
+              <Plus className="w-4 h-4 mr-2" />
+              Share Project
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {sortedProjects.map((project) => (
+              <CodeLoopCard key={project.id} project={project} />
+            ))}
+          </div>
+        )}
 
         {/* Featured Section */}
         <Card>
@@ -330,28 +198,20 @@ export function DevelopersContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30 rounded-lg p-4">
                 <h3 className="font-semibold mb-2">Loop API Documentation</h3>
-                <p className="text-sm text-gray-600 mb-3">Complete API reference for building Loop integrations</p>
-                <Button variant="outline" size="sm">
-                  View Docs
+                <p className="text-sm text-muted-foreground mb-3">Real Bearer-token API reference for building on Loop</p>
+                <Button asChild variant="outline" size="sm">
+                  <a href="/developers/docs">View Docs</a>
                 </Button>
               </div>
 
-              <div className="bg-gradient-to-br from-green-50 to-teal-50 rounded-lg p-4">
-                <h3 className="font-semibold mb-2">SDK & Libraries</h3>
-                <p className="text-sm text-gray-600 mb-3">Official SDKs for JavaScript, Python, and more</p>
-                <Button variant="outline" size="sm">
-                  Download
-                </Button>
-              </div>
-
-              <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-4">
-                <h3 className="font-semibold mb-2">Developer Community</h3>
-                <p className="text-sm text-gray-600 mb-3">Join our Discord for collaboration and support</p>
-                <Button variant="outline" size="sm">
-                  Join Discord
+              <div className="bg-gradient-to-br from-cyan-50 to-teal-50 dark:from-cyan-950/30 dark:to-teal-950/30 rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Community Layout Packs</h3>
+                <p className="text-sm text-muted-foreground mb-3">Build marketplace packs that restyle Circles</p>
+                <Button asChild variant="outline" size="sm">
+                  <a href="/developers/community-layouts">View Spec</a>
                 </Button>
               </div>
             </div>
@@ -359,7 +219,11 @@ export function DevelopersContent() {
         </Card>
       </div>
 
-      <CreateProjectDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} />
+      <CreateProjectDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onProjectCreated={() => fetchProjects()}
+      />
     </>
   )
 }

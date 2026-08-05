@@ -1,144 +1,93 @@
-// @ts-nocheck
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { TrendingUp, Hash, Users, GitBranch } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { TrendingUp, Hash, Users, GitBranch, RefreshCw } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
+import { useAuth } from "@/hooks/use-auth"
 
-// Mock trending data
-const trendingHashtags = [
-  { tag: "timetravel", count: 15600, growth: "+234%" },
-  { tag: "digitalart", count: 12400, growth: "+189%" },
-  { tag: "musiccollab", count: 9800, growth: "+156%" },
-  { tag: "scifi", count: 8900, growth: "+134%" },
-  { tag: "philosophy", count: 7600, growth: "+112%" },
-  { tag: "poetry", count: 6800, growth: "+98%" },
-  { tag: "coding", count: 5900, growth: "+87%" },
-  { tag: "photography", count: 5200, growth: "+76%" },
-  { tag: "storytelling", count: 4800, growth: "+65%" },
-  { tag: "mindfulness", count: 4200, growth: "+54%" },
+interface TrendingHashtag {
+  tag: string
+  usage_count: number
+  count: number
+}
+
+interface TrendingUser {
+  id: string
+  username: string
+  display_name: string
+  avatar_url?: string
+  is_verified?: boolean
+  is_premium?: boolean
+  bio?: string
+  followers_count?: number
+  loops_count?: number
+}
+
+const TIMEFRAMES = [
+  { id: "1h", label: "Last Hour", days: 1 },
+  { id: "24h", label: "24 Hours", days: 1 },
+  { id: "7d", label: "7 Days", days: 7 },
+  { id: "30d", label: "30 Days", days: 30 },
 ]
 
-const trendingLoops = [
-  {
-    id: "trending-1",
-    author: {
-      id: "1",
-      username: "creativemind",
-      display_name: "Creative Mind",
-      avatar_url: "/placeholder.svg?height=40&width=40",
-      is_verified: true,
-      verification_level: "root" as const,
-      is_premium: true,
-    },
-    content: {
-      type: "text" as const,
-      text: "What if we could travel through time but only to witness, never to change anything? 🤔 This thought has been looping in my mind all day... #timetravel #philosophy",
-    },
-    created_at: new Date("2024-01-15T10:30:00Z"),
-    stats: {
-      likes: 15600,
-      branches: 234,
-      comments: 890,
-      saves: 1200,
-    },
-    trending_score: 98.5,
-    hashtags: ["timetravel", "philosophy"],
-  },
-  {
-    id: "trending-2",
-    author: {
-      id: "2",
-      username: "musicmaker",
-      display_name: "Music Maker",
-      avatar_url: "/placeholder.svg?height=40&width=40",
-      is_verified: true,
-      verification_level: "influencer" as const,
-      is_premium: true,
-    },
-    content: {
-      type: "audio" as const,
-      audio_url: "/placeholder-audio.mp3",
-      title: "Midnight Thoughts - Collaborative Beat",
-      duration: 120,
-    },
-    created_at: new Date("2024-01-15T09:20:00Z"),
-    stats: {
-      likes: 12400,
-      branches: 189,
-      comments: 567,
-      saves: 890,
-    },
-    trending_score: 94.2,
-    hashtags: ["musiccollab", "beats"],
-  },
-]
-
-const trendingUsers = [
-  {
-    id: "1",
-    username: "creativemind",
-    display_name: "Creative Mind",
-    avatar_url: "/placeholder.svg?height=60&width=60",
-    is_verified: true,
-    verification_level: "root" as const,
-    is_premium: true,
-    followers: 125000,
-    loops_count: 234,
-    trending_reason: "Viral time travel loop tree",
-  },
-  {
-    id: "2",
-    username: "storyteller",
-    display_name: "Story Teller",
-    avatar_url: "/placeholder.svg?height=60&width=60",
-    is_verified: true,
-    verification_level: "influencer" as const,
-    is_premium: false,
-    followers: 89000,
-    loops_count: 456,
-    trending_reason: "Amazing collaborative stories",
-  },
-  {
-    id: "3",
-    username: "digitalartist",
-    display_name: "Digital Artist",
-    avatar_url: "/placeholder.svg?height=60&width=60",
-    is_verified: false,
-    is_premium: true,
-    followers: 67000,
-    loops_count: 189,
-    trending_reason: "Stunning visual loop trees",
-  },
-]
+function formatNumber(num: number) {
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + "M"
+  if (num >= 1000) return (num / 1000).toFixed(1) + "K"
+  return String(num)
+}
 
 export function TrendingContent() {
+  const { getAuthHeader } = useAuth()
   const [selectedTimeframe, setSelectedTimeframe] = useState("24h")
+  const [activeTab, setActiveTab] = useState("hashtags")
 
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M"
-    if (num >= 1000) return (num / 1000).toFixed(1) + "K"
-    return num.toString()
+  const [hashtags, setHashtags] = useState<TrendingHashtag[]>([])
+  const [loops, setLoops] = useState<any[]>([])
+  const [users, setUsers] = useState<TrendingUser[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchData = async () => {
+    setLoading(true)
+    setError(null)
+    const days = TIMEFRAMES.find((t) => t.id === selectedTimeframe)?.days || 7
+    try {
+      const [hashtagsRes, loopsRes, usersRes] = await Promise.all([
+        fetch(`/api/explore/trending?type=hashtags&days=${days}&limit=12`),
+        fetch(`/api/explore/trending?type=loops&sort=creative&limit=8`, { headers: { ...getAuthHeader() } }),
+        fetch(`/api/explore/trending?type=users&limit=9`),
+      ])
+
+      if (hashtagsRes.ok) {
+        const data = await hashtagsRes.json()
+        setHashtags(data.data || data.hashtags || [])
+      }
+      if (loopsRes.ok) {
+        const data = await loopsRes.json()
+        setLoops(data.data || data.loops || [])
+      }
+      if (usersRes.ok) {
+        const data = await usersRes.json()
+        setUsers(data.data || [])
+      }
+    } catch (err) {
+      console.error("Failed to load trending data:", err)
+      setError("Couldn't load trending right now. Try again in a moment.")
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const getVerificationBadge = (user: any) => {
-    if (!user.is_verified) return null
-    return (
-      <Badge
-        variant="secondary"
-        className={`${
-          user.verification_level === "root"
-            ? "bg-green-100 text-green-700 border-green-200"
-            : "bg-blue-100 text-blue-700 border-blue-200"
-        }`}
-      >
-        {user.verification_level === "root" ? "🌱 Root" : "⭐ Verified"}
-      </Badge>
-    )
-  }
+  useEffect(() => {
+    fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTimeframe])
 
   return (
     <div className="space-y-6">
@@ -146,15 +95,25 @@ export function TrendingContent() {
       <div className="flex justify-center">
         <Tabs value={selectedTimeframe} onValueChange={setSelectedTimeframe} className="w-auto">
           <TabsList>
-            <TabsTrigger value="1h">Last Hour</TabsTrigger>
-            <TabsTrigger value="24h">24 Hours</TabsTrigger>
-            <TabsTrigger value="7d">7 Days</TabsTrigger>
-            <TabsTrigger value="30d">30 Days</TabsTrigger>
+            {TIMEFRAMES.map((tf) => (
+              <TabsTrigger key={tf.id} value={tf.id}>
+                {tf.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </Tabs>
       </div>
 
-      <Tabs defaultValue="hashtags" className="w-full">
+      {error && (
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-center text-sm text-muted-foreground">
+          <p>{error}</p>
+          <Button size="sm" variant="outline" onClick={fetchData}>
+            <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Retry
+          </Button>
+        </div>
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="hashtags" className="flex items-center space-x-2">
             <Hash className="w-4 h-4" />
@@ -171,106 +130,134 @@ export function TrendingContent() {
         </TabsList>
 
         <TabsContent value="hashtags" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {trendingHashtags.map((hashtag, index) => (
-              <Card key={hashtag.tag} className="hover:shadow-lg transition-shadow cursor-pointer">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-2xl font-bold text-gray-400">#{index + 1}</span>
-                      <Hash className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <Badge variant="secondary" className="bg-green-100 text-green-700">
-                      <TrendingUp className="w-3 h-3 mr-1" />
-                      {hashtag.growth}
-                    </Badge>
-                  </div>
-                  <h3 className="text-lg font-bold text-purple-600">#{hashtag.tag}</h3>
-                  <p className="text-sm text-gray-600">{formatNumber(hashtag.count)} loops</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {loading ? (
+            <div className="py-16 text-center text-sm text-muted-foreground">Loading trending hashtags…</div>
+          ) : hashtags.length === 0 ? (
+            <div className="py-16 text-center text-sm text-muted-foreground">
+              No trending hashtags yet. Be the first to start one!
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {hashtags.map((hashtag, index) => (
+                <Link key={hashtag.tag} href={`/hashtag/${encodeURIComponent(hashtag.tag)}`}>
+                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-2xl font-bold text-muted-foreground">#{index + 1}</span>
+                          <Hash className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                          <TrendingUp className="w-3 h-3 mr-1" />
+                          Live
+                        </Badge>
+                      </div>
+                      <h3 className="text-lg font-bold text-purple-600">#{hashtag.tag}</h3>
+                      <p className="text-sm text-muted-foreground">{formatNumber(hashtag.usage_count || hashtag.count)} loops</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="loops" className="mt-6">
-          <div className="space-y-6">
-            {trendingLoops.map((loop, index) => (
-              <div key={loop.id} className="relative">
-                <div className="absolute -left-4 top-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">
-                  #{index + 1}
-                </div>
-                <div className="ml-8">
-                  <LoopCard loop={loop} />
-                  <div className="mt-2 flex items-center space-x-4 text-sm text-gray-600">
-                    <div className="flex items-center space-x-1">
-                      <TrendingUp className="w-4 h-4 text-green-600" />
-                      <span>Trending Score: {loop.trending_score}%</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {loop.hashtags.map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-purple-600">
-                          #{tag}
-                        </Badge>
-                      ))}
-                    </div>
+          {loading ? (
+            <div className="py-16 text-center text-sm text-muted-foreground">Loading trending loops…</div>
+          ) : loops.length === 0 ? (
+            <div className="py-16 text-center text-sm text-muted-foreground">
+              No trending loops yet.{" "}
+              <Link href="/create" className="font-medium text-primary underline">
+                Create the first one
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {loops.map((loop, index) => (
+                <div key={loop.id} className="relative">
+                  <div className="absolute -left-4 top-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm z-10">
+                    #{index + 1}
+                  </div>
+                  <div className="ml-8">
+                    <LoopCard loop={loop} />
+                    {loop.hashtags?.length > 0 && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {loop.hashtags.map((tag: string) => (
+                          <Badge key={tag} variant="outline" className="text-purple-600">
+                            #{tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="creators" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {trendingUsers.map((user, index) => (
-              <Card key={user.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-2xl font-bold text-gray-400">#{index + 1}</span>
-                      <img
-                        src={user.avatar_url || "/placeholder.svg"}
-                        alt={user.display_name}
-                        className="w-12 h-12 rounded-full"
-                      />
-                    </div>
-                    <Badge variant="secondary" className="bg-orange-100 text-orange-700">
-                      <TrendingUp className="w-3 h-3 mr-1" />
-                      Trending
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <h3 className="font-bold">{user.display_name}</h3>
-                      {getVerificationBadge(user)}
-                      {user.is_premium && (
-                        <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">Premium</Badge>
+          {loading ? (
+            <div className="py-16 text-center text-sm text-muted-foreground">Loading trending creators…</div>
+          ) : users.length === 0 ? (
+            <div className="py-16 text-center text-sm text-muted-foreground">No creators to show yet.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {users.map((user, index) => (
+                <Link key={user.id} href={`/profile/${user.username}`}>
+                  <Card className="hover:shadow-lg transition-shadow h-full">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-2xl font-bold text-muted-foreground">#{index + 1}</span>
+                          <Avatar className="w-12 h-12">
+                            <AvatarImage src={user.avatar_url || "/placeholder.svg"} />
+                            <AvatarFallback>{(user.display_name || user.username).charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                        </div>
+                        {(user.followers_count || 0) > 0 && (
+                          <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300">
+                            <TrendingUp className="w-3 h-3 mr-1" />
+                            Trending
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <h3 className="font-bold">{user.display_name || user.username}</h3>
+                          {user.is_verified && <Badge className="bg-blue-500 text-white">Verified</Badge>}
+                          {user.is_premium && (
+                            <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">Premium</Badge>
+                          )}
+                        </div>
+                        <p className="text-muted-foreground text-sm">@{user.username}</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 text-center">
+                        <div>
+                          <div className="font-bold text-lg">{formatNumber(user.followers_count || 0)}</div>
+                          <div className="text-sm text-muted-foreground">Followers</div>
+                        </div>
+                        <div>
+                          <div className="font-bold text-lg">{formatNumber(user.loops_count || 0)}</div>
+                          <div className="text-sm text-muted-foreground">Loops</div>
+                        </div>
+                      </div>
+
+                      {user.bio && (
+                        <div className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-3">
+                          <p className="text-sm text-purple-700 dark:text-purple-300 font-medium line-clamp-2">{user.bio}</p>
+                        </div>
                       )}
-                    </div>
-                    <p className="text-gray-600 text-sm">@{user.username}</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 text-center">
-                    <div>
-                      <div className="font-bold text-lg">{formatNumber(user.followers)}</div>
-                      <div className="text-sm text-gray-600">Followers</div>
-                    </div>
-                    <div>
-                      <div className="font-bold text-lg">{user.loops_count}</div>
-                      <div className="text-sm text-gray-600">Loops</div>
-                    </div>
-                  </div>
-
-                  <div className="bg-purple-50 rounded-lg p-3">
-                    <p className="text-sm text-purple-700 font-medium">🔥 {user.trending_reason}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

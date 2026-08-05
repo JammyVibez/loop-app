@@ -21,6 +21,9 @@ const files = [
   // Wallet ledger, coin gifts, and withdrawal request tables. Required for the
   // Stripe-backed coin economy (see /api/payments/webhook and /api/wallet/*).
   "scripts/wallet-and-events-schema.sql",
+  // developer_projects and related tables backing the real Developers gallery
+  // (see /api/developers/projects and components/developers/developers-content.tsx).
+  "scripts/developer-features.sql",
   "scripts/rls-policies.sql",
   "scripts/realtime-functions.sql",
 ]
