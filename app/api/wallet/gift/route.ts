@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       .eq("id", sender.id)
       .single()
 
-    const senderBalance = Number(senderProfile?.loop_coins ?? 2500)
+    const senderBalance = Number(senderProfile?.loop_coins ?? 0)
     if (senderBalance < amount) {
       return NextResponse.json({ error: `Insufficient balance. You need ${amount} coins.` }, { status: 400 })
     }
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Deduct coins from sender & add to receiver
     const newSenderBalance = senderBalance - amount
-    const receiverBalance = Number(receiverProfile.loop_coins ?? 2500)
+    const receiverBalance = Number(receiverProfile.loop_coins ?? 0)
     const newReceiverBalance = receiverBalance + amount
 
     await supabase.from("profiles").upsert({ id: sender.id, loop_coins: newSenderBalance })

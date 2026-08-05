@@ -1,13 +1,19 @@
 -- Wallet & Events Schema Alignment Migration for Supabase
 
 -- 1. Profiles (Ensure loop_coins exists)
+-- NOTE: public.profiles is owned by scripts/complete-database-setup.sql, which
+-- already runs before this file in scripts/run-production-setup.mjs and seeds
+-- loop_coins via the app's economy defaults (see lib/economy.ts). This
+-- CREATE TABLE is only a safety net for environments that run this file in
+-- isolation, so its default must match the real signup bonus (not a fake
+-- "everyone starts rich" balance).
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY,
     username TEXT,
     display_name TEXT,
     avatar_url TEXT,
     bio TEXT,
-    loop_coins BIGINT DEFAULT 2500,
+    loop_coins BIGINT DEFAULT 50,
     is_verified BOOLEAN DEFAULT FALSE,
     is_premium BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -16,7 +22,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 DO $$ 
 BEGIN 
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='loop_coins') THEN
-        ALTER TABLE public.profiles ADD COLUMN loop_coins BIGINT DEFAULT 2500;
+        ALTER TABLE public.profiles ADD COLUMN loop_coins BIGINT DEFAULT 50;
     END IF;
 END $$;
 

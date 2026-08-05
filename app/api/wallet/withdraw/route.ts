@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id)
       .maybeSingle()
 
-    const currentCoins = profile?.loop_coins ?? 2500
+    const currentCoins = profile?.loop_coins ?? 0
     const isVerified = profile?.is_verified || user.user_metadata?.is_verified || false
 
     if (!isVerified) {

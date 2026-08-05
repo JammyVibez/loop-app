@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { notifyUser } from "@/lib/notifications"
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,6 +39,87 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient()
 
     switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object as any
+        const metadata = session.metadata || {}
+
+        if (metadata.kind === "coin_pack" && metadata.user_id && metadata.coins_amount) {
+          const userId = String(metadata.user_id)
+          const coinsToAdd = Number(metadata.coins_amount) || 0
+          const txId = `stripe_${session.id}`
+
+          // Idempotency: Stripe may retry webhook delivery — never double-credit.
+          const { data: existingTx } = await supabase
+            .from("wallet_transactions")
+            .select("id")
+            .eq("id", txId)
+            .maybeSingle()
+
+          if (existingTx) {
+            console.log(`Checkout session ${session.id} already credited, skipping`)
+            break
+          }
+
+          if (session.payment_status !== "paid") {
+            console.warn(`Checkout session ${session.id} completed but payment_status=${session.payment_status}`)
+            break
+          }
+
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("loop_coins")
+            .eq("id", userId)
+            .maybeSingle()
+
+          const currentCoins = Number(profile?.loop_coins || 0)
+          const newBalance = currentCoins + coinsToAdd
+
+          const { error: creditError } = await supabase
+            .from("profiles")
+            .upsert({ id: userId, loop_coins: newBalance, updated_at: new Date().toISOString() })
+
+          if (creditError) {
+            console.error("Failed to credit loop_coins from checkout session:", creditError)
+            break
+          }
+
+          const amountUsd = typeof session.amount_total === "number" ? session.amount_total / 100 : 0
+
+          await supabase.from("wallet_transactions").insert({
+            id: txId,
+            user_id: userId,
+            amount_usd: amountUsd,
+            coins_amount: coinsToAdd,
+            type: "deposit",
+            description: `Purchased ${coinsToAdd.toLocaleString()} Loop Coins`,
+            status: "completed",
+            payment_method: "stripe",
+            created_at: new Date().toISOString(),
+          })
+
+          if (metadata.item_id) {
+            const { data: item } = await supabase
+              .from("shop_items")
+              .select("purchase_count")
+              .eq("id", metadata.item_id)
+              .maybeSingle()
+            await supabase
+              .from("shop_items")
+              .update({ purchase_count: Number(item?.purchase_count || 0) + 1 })
+              .eq("id", metadata.item_id)
+          }
+
+          await notifyUser(supabase, {
+            userId,
+            type: "system",
+            title: "Coins added! 🎉",
+            message: `${coinsToAdd.toLocaleString()} Loop Coins were added to your wallet.`,
+            data: { coins_amount: coinsToAdd },
+            actionUrl: "/wallet",
+          })
+        }
+        break
+      }
       case "payment_intent.succeeded":
         const paymentIntent = event.data.object as any
         await supabase

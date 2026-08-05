@@ -18,6 +18,9 @@ const files = [
   "scripts/circles-schema-alignment.sql",
   "scripts/enhanced-database-schema-part2.sql",
   "scripts/enhanced-database-schema-part3.sql",
+  // Wallet ledger, coin gifts, and withdrawal request tables. Required for the
+  // Stripe-backed coin economy (see /api/payments/webhook and /api/wallet/*).
+  "scripts/wallet-and-events-schema.sql",
   "scripts/rls-policies.sql",
   "scripts/realtime-functions.sql",
 ]

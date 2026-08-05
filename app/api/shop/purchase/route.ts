@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getStripeServer } from "@/lib/stripe-server"
+import { getAppUrl } from "@/lib/app-url"
 
 export const dynamic = "force-dynamic"
 
@@ -11,11 +13,16 @@ function resolveItemType(item: any) {
   return String(item.item_type || item.category || "item")
 }
 
+function coinPackTotalCoins(item: any) {
+  const base = Number(item.item_data?.coins_amount ?? 0) || 0
+  const bonus = Number(item.item_data?.bonus ?? 0) || 0
+  return base + bonus
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
     const itemId = body.item_id || body.itemId
-    // Always prefer coins for non-coin-pack items; coin packs can use coins too for demo reliability
     let paymentMethod = body.payment_method || "coins"
     const supabase = createServerClient()
 
@@ -59,22 +66,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Item already owned" }, { status: 400 })
     }
 
-    // Force coin checkout for themes/effects/badges so purchases work without Stripe Elements
+    // Themes/effects/badges are always bought with coins; coin packs are always bought
+    // with real money via Stripe Checkout — never mint coins by "spending" coins.
     if (!isCoinPack) paymentMethod = "coins"
-    if (isCoinPack && paymentMethod === "stripe" && !item.price_usd) {
-      return NextResponse.json(
-        { success: false, error: "Coin packs require a Stripe price. Contact support." },
-        { status: 400 },
-      )
-    }
+    if (isCoinPack) paymentMethod = "stripe"
 
-    // Coin packs are purchase-only (Stripe) — never mint by spending 0 / underpriced coins
-    if (isCoinPack && paymentMethod === "coins") {
+    if (isCoinPack && !item.price_usd) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Buy coin packs with real money. Free or coin-to-coin minting is disabled.",
-        },
+        { success: false, error: "This coin pack isn't configured for purchase yet. Contact support." },
         { status: 400 },
       )
     }
@@ -169,10 +168,68 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    if (isCoinPack && paymentMethod === "stripe") {
+      const totalCoins = coinPackTotalCoins(item)
+      const priceUsd = Number(item.price_usd || 0)
+
+      if (totalCoins <= 0 || priceUsd <= 0) {
+        return NextResponse.json(
+          { success: false, error: "This coin pack is not configured for purchase yet." },
+          { status: 400 },
+        )
+      }
+
+      const stripe = await getStripeServer()
+      if (!stripe) {
+        return NextResponse.json(
+          { success: false, error: "Card payments are temporarily unavailable. Please try again later." },
+          { status: 503 },
+        )
+      }
+
+      const appUrl = getAppUrl(request)
+
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        customer_email: user.email || undefined,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "usd",
+              unit_amount: Math.round(priceUsd * 100),
+              product_data: {
+                name: item.name || "Loop Coins",
+                description: item.description || `${totalCoins.toLocaleString()} Loop Coins`,
+              },
+            },
+          },
+        ],
+        metadata: {
+          kind: "coin_pack",
+          user_id: user.id,
+          item_id: item.id,
+          coins_amount: String(totalCoins),
+        },
+        success_url: `${appUrl}/wallet?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${appUrl}/wallet?checkout=cancelled`,
+      })
+
+      if (!session.url) {
+        return NextResponse.json(
+          { success: false, error: "Could not start checkout. Please try again." },
+          { status: 502 },
+        )
+      }
+
+      return NextResponse.json({ success: true, checkout_url: session.url })
+    }
+
     return NextResponse.json(
       {
         success: false,
-        error: "Card checkout is not available yet. Buy with Loop Coins instead.",
+        error: "Card checkout is not available for this item. Buy with Loop Coins instead.",
       },
       { status: 400 },
     )
