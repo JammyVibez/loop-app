@@ -13,6 +13,7 @@ import { formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
+import { uploadMediaFile } from "@/lib/client-media-upload"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "🔥", "👏", "😮"]
 
@@ -215,21 +216,14 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
     if (!user) return
     setUploadingAudio(true)
     try {
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("type", mediaType)
-      formData.append("folder", "circle-chat")
-      const uploadRes = await fetch("/api/upload", {
-        method: "POST",
-        headers: getAuthHeader(),
-        body: formData,
+      const uploaded = await uploadMediaFile(file, {
+        type: mediaType,
+        folder: "circle-chat",
+        authHeaders: getAuthHeader(),
       })
-      const uploadData = await uploadRes.json()
-      const url = uploadData.url || uploadData.data?.url
-      if (!uploadRes.ok || !url) throw new Error(uploadData.error || "Upload failed")
       await handleSendMessage({
         content: mediaType === "audio" ? "Voice note" : "",
-        media_url: url,
+        media_url: uploaded.url,
         media_type: mediaType,
       })
     } catch (error: any) {

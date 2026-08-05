@@ -13,6 +13,8 @@ import { supabase } from "@/lib/supabase"
 import { CODE_LANGUAGES } from "@/lib/pro-features"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { useLoginGate } from "@/hooks/use-login-gate"
+import { uploadMediaFile } from "@/lib/client-media-upload"
+import { parseJsonResponse } from "@/lib/parse-json-response"
 import {
   Code,
   Crop,
@@ -67,6 +69,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""])
   const [duelDialogOpen, setDuelDialogOpen] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [cropScale, setCropScale] = useState(1)
@@ -264,13 +267,13 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
         // Create Moment post directly
         if (mediaFiles.length > 0) {
           const prepared = await applyCropToImage(mediaFiles[0])
-          const mediaRes = await fetch("/api/upload", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${authToken}`, ...getAuthHeader() },
-            body: prepared,
+          setUploadStatus("Uploading...")
+          const uploaded = await uploadMediaFile(prepared, {
+            type: prepared.type.startsWith("video") ? "video" : "image",
+            folder: "moments",
+            authHeaders: { Authorization: `Bearer ${authToken}`, ...getAuthHeader() },
           })
-          const mediaData = await mediaRes.json().catch(() => ({}))
-          const mediaUrl = mediaData.url || mediaData.file_url
+          setUploadStatus(null)
 
           res = await fetch("/api/loops/moments", {
             method: "POST",
@@ -280,7 +283,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
               ...getAuthHeader(),
             },
             body: JSON.stringify({
-              media_url: mediaUrl,
+              media_url: uploaded.url,
               media_type: prepared.type.startsWith("video") ? "video" : "image",
               caption: content,
             }),
@@ -300,19 +303,63 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
           })
         }
       } else if (mediaFiles.length > 0) {
-        const formData = new FormData()
-        formData.append("content_text", content)
-        formData.append("content_title", content.slice(0, 80) || "")
-        formData.append("content_type", mediaType)
-        formData.append("hashtags", JSON.stringify(tags))
-        for (const file of mediaFiles) {
-          const prepared = await applyCropToImage(file)
-          formData.append("media", prepared)
-        }
+        // Upload every file in parallel straight to Cloudinary (video/large
+        // files go direct via a signed upload, bypassing the Next.js API
+        // route entirely) instead of bundling all raw files into one
+        // multipart POST to /api/loops. That old path uploaded files one at
+        // a time on the server via base64, which was slow for multiple
+        // files/video and could exceed Vercel's ~4.5MB request body limit —
+        // when that happened, Vercel returned a plain-text/HTML error that
+        // the old `res.json()` call couldn't parse, surfacing as a generic
+        // "JSON error" instead of a real message.
+        setUploadStatus(mediaFiles.length > 1 ? `Uploading 0/${mediaFiles.length}...` : "Uploading...")
+        let uploadedCount = 0
+        const authHeaders = { Authorization: `Bearer ${authToken}`, ...getAuthHeader() }
+        const uploadResults = await Promise.all(
+          mediaFiles.map(async (file) => {
+            const prepared = await applyCropToImage(file)
+            const uploaded = await uploadMediaFile(prepared, {
+              type: prepared.type.startsWith("video")
+                ? "video"
+                : prepared.type.startsWith("audio")
+                  ? "audio"
+                  : prepared.type.startsWith("image")
+                    ? "image"
+                    : "file",
+              folder: "loops",
+              authHeaders,
+            })
+            uploadedCount += 1
+            setUploadStatus(mediaFiles.length > 1 ? `Uploading ${uploadedCount}/${mediaFiles.length}...` : "Uploading...")
+            return uploaded
+          }),
+        )
+        setUploadStatus("Publishing...")
+
+        const firstFile = mediaFiles[0]
+        const resolvedMediaType = firstFile.type.startsWith("video")
+          ? "video"
+          : firstFile.type.startsWith("audio")
+            ? "audio"
+            : firstFile.type.startsWith("image")
+              ? "image"
+              : mediaType
+
         res = await fetch("/api/loops", {
           method: "POST",
-          headers: { Authorization: `Bearer ${authToken}`, ...getAuthHeader() },
-          body: formData,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+            ...getAuthHeader(),
+          },
+          body: JSON.stringify({
+            content_text: content,
+            content_title: content.slice(0, 80) || "",
+            content_type: resolvedMediaType,
+            hashtags: tags,
+            media_url: uploadResults[0]?.url,
+            media_urls: uploadResults.map((u) => u.url),
+          }),
         })
       } else {
         res = await fetch("/api/loops", {
@@ -344,8 +391,8 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
         })
       }
 
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error || res.statusText)
+      const { data: result } = await parseJsonResponse<any>(res)
+      if (!res.ok) throw new Error(result?.error || res.statusText)
 
       const loopId = result.loop?.id
 
@@ -386,6 +433,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
       toast({ title: "Failed to create loop", description: err.message || "Something went wrong", variant: "destructive" })
     } finally {
       setCreating(false)
+      setUploadStatus(null)
     }
   }
 
@@ -825,7 +873,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                 Cancel
               </Button>
               <Button type="submit" disabled={creating || (!content.trim() && mediaFiles.length === 0)} className="bg-gradient-to-r from-violet-600 to-cyan-500">
-                {creating ? "Publishing..." : "Create Loop"}
+                {creating ? uploadStatus || "Publishing..." : "Create Loop"}
               </Button>
             </div>
           </form>

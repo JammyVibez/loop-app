@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { PRO_PRICING } from "@/lib/pro-features"
+import { uploadMediaFile } from "@/lib/client-media-upload"
 import { ensureServiceWorker, subscribeToPush, subscriptionToJSON, unsubscribeFromPush } from "@/lib/push-client"
 import {
   User,
@@ -232,17 +233,14 @@ export function EnhancedSettings() {
     if (!file || !user) return
     setUploading(true)
     try {
-      const body = new FormData()
-      body.append("file", file)
-      body.append("type", "image")
-      body.append("folder", "avatars")
-      const upload = await fetch("/api/upload", {
-        method: "POST",
-        headers: { ...getAuthHeader() },
-        body,
+      // Phone camera photos routinely exceed Vercel's ~4.5MB request body
+      // limit for the Next.js API proxy; uploadMediaFile automatically
+      // routes anything over that straight to Cloudinary instead.
+      const uploaded = await uploadMediaFile(file, {
+        type: "image",
+        folder: "avatars",
+        authHeaders: getAuthHeader(),
       })
-      const uploaded = await upload.json()
-      if (!upload.ok) throw new Error(uploaded.error || "Upload failed")
 
       const response = await fetch("/api/users/update-profile", {
         method: "POST",
@@ -266,17 +264,11 @@ export function EnhancedSettings() {
     if (!file || !user) return
     setUploadingCover(true)
     try {
-      const body = new FormData()
-      body.append("file", file)
-      body.append("type", "image")
-      body.append("folder", "banners")
-      const upload = await fetch("/api/upload", {
-        method: "POST",
-        headers: { ...getAuthHeader() },
-        body,
+      const uploaded = await uploadMediaFile(file, {
+        type: "image",
+        folder: "banners",
+        authHeaders: getAuthHeader(),
       })
-      const uploaded = await upload.json()
-      if (!upload.ok) throw new Error(uploaded.error || "Upload failed")
 
       const response = await fetch("/api/users/update-profile", {
         method: "POST",
