@@ -1,11 +1,13 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Star, GitBranch, Eye, Download, Copy, Code } from "lucide-react";
+import { Star, GitBranch, Eye, Download, Copy, Code, Loader2, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { useLoginGate } from "@/hooks/use-login-gate";
 
 interface CodeLoopCardProps {
   project: {
@@ -28,15 +30,80 @@ interface CodeLoopCardProps {
 }
 
 export function CodeLoopCard({ project }: CodeLoopCardProps) {
+  const { getAuthHeader } = useAuth()
+  const { requireAuth, LoginGateDialog } = useLoginGate()
   const [isStarred, setIsStarred] = useState(false)
+  const [starCount, setStarCount] = useState(project.stats.stars)
+  const [forkCount, setForkCount] = useState(project.stats.forks)
+  const [isForked, setIsForked] = useState(false)
+  const [starring, setStarring] = useState(false)
+  const [forking, setForking] = useState(false)
   const [showFullCode, setShowFullCode] = useState(false)
   const { toast } = useToast()
 
-  const handleStar = () => {
-    setIsStarred(!isStarred)
-    toast({
-      description: isStarred ? "Removed from stars" : "Added to stars",
-    })
+  useEffect(() => {
+    fetch(`/api/developers/projects/${project.id}/interactions`, { headers: { ...getAuthHeader() } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return
+        setIsStarred(Boolean(data.is_starred))
+        setIsForked(Boolean(data.is_forked))
+        if (typeof data.stars === "number") setStarCount(data.stars)
+        if (typeof data.forks === "number") setForkCount(data.forks)
+      })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.id])
+
+  const handleStar = async () => {
+    if (!requireAuth("like")) return
+    setStarring(true)
+    const nextStarred = !isStarred
+    setIsStarred(nextStarred)
+    setStarCount((prev) => Math.max(0, prev + (nextStarred ? 1 : -1)))
+    try {
+      const res = await fetch(`/api/developers/projects/${project.id}/interactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ type: nextStarred ? "star" : "unstar" }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to star project")
+      if (typeof data.stars === "number") setStarCount(data.stars)
+    } catch (error: any) {
+      // Roll back optimistic update on failure
+      setIsStarred(!nextStarred)
+      setStarCount((prev) => Math.max(0, prev + (nextStarred ? -1 : 1)))
+      toast({ title: "Couldn't update star", description: error.message, variant: "destructive" })
+    } finally {
+      setStarring(false)
+    }
+  }
+
+  const handleFork = async () => {
+    if (!requireAuth("branch")) return
+    if (isForked) {
+      toast({ description: "You already forked this project — check your gallery." })
+      return
+    }
+    setForking(true)
+    try {
+      const res = await fetch(`/api/developers/projects/${project.id}/interactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ type: "fork" }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to fork project")
+      setIsForked(true)
+      if (typeof data.forks === "number") setForkCount(data.forks)
+      else setForkCount((prev) => prev + 1)
+      toast({ title: "Forked! 🍴", description: "A copy of this project was added to your gallery." })
+    } catch (error: any) {
+      toast({ title: "Fork failed", description: error.message, variant: "destructive" })
+    } finally {
+      setForking(false)
+    }
   }
 
   const handleCopyCode = () => {
@@ -44,6 +111,25 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
     toast({
       description: "Code copied to clipboard!",
     })
+  }
+
+  const handleDownload = () => {
+    const ext: Record<string, string> = {
+      javascript: "js", typescript: "ts", python: "py", go: "go", rust: "rs",
+      java: "java", "c++": "cpp", php: "php", ruby: "rb",
+    }
+    const extension = ext[project.language?.toLowerCase()] || "txt"
+    const fileName = `${project.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "snippet"}.${extension}`
+    const blob = new Blob([project.code_snippet], { type: "text/plain" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+    toast({ description: `Downloaded ${fileName}` })
   }
 
   const formatNumber = (num: number) => {
@@ -78,7 +164,9 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
   }
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
+    <>
+      {LoginGateDialog}
+      <Card className="hover:shadow-lg transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-3">
@@ -156,15 +244,16 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
               variant="ghost"
               size="sm"
               onClick={handleStar}
+              disabled={starring}
               className={`flex items-center space-x-2 ${isStarred ? "text-yellow-500" : "text-gray-500"}`}
             >
-              <Star className={`w-4 h-4 ${isStarred ? "fill-current" : ""}`} />
-              <span>{formatNumber(project.stats.stars + (isStarred ? 1 : 0))}</span>
+              {starring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Star className={`w-4 h-4 ${isStarred ? "fill-current" : ""}`} />}
+              <span>{formatNumber(starCount)}</span>
             </Button>
 
             <div className="flex items-center space-x-2 text-gray-500">
               <GitBranch className="w-4 h-4" />
-              <span>{formatNumber(project.stats.forks)}</span>
+              <span>{formatNumber(forkCount)}</span>
             </div>
 
             <div className="flex items-center space-x-2 text-gray-500">
@@ -174,17 +263,24 @@ export function CodeLoopCard({ project }: CodeLoopCardProps) {
           </div>
 
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm">
-              <GitBranch className="w-4 h-4 mr-2" />
-              Fork
+            <Button variant="outline" size="sm" onClick={handleFork} disabled={forking || isForked}>
+              {forking ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : isForked ? (
+                <Check className="w-4 h-4 mr-2 text-emerald-500" />
+              ) : (
+                <GitBranch className="w-4 h-4 mr-2" />
+              )}
+              {isForked ? "Forked" : "Fork"}
             </Button>
-            <Button size="sm" className="bg-gradient-to-r from-purple-500 to-blue-500">
+            <Button size="sm" onClick={handleDownload} className="bg-gradient-to-r from-purple-500 to-blue-500">
               <Download className="w-4 h-4 mr-2" />
-              Clone
+              Download
             </Button>
           </div>
         </div>
       </CardContent>
     </Card>
+    </>
   )
 }

@@ -89,7 +89,20 @@ export async function POST(request: NextRequest) {
     const estimatedUsd = (coins_amount * 0.01).toFixed(2)
     const requestId = `wdr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
 
-    // Insert withdrawal request record
+    // Reserve the coins immediately so they can't be spent/gifted while the
+    // payout is under review. Rejecting a request refunds them (see
+    // /api/admin/withdrawals PATCH).
+    const { error: reserveError } = await supabase
+      .from("profiles")
+      .update({ loop_coins: currentCoins - coins_amount, updated_at: new Date().toISOString() })
+      .eq("id", user.id)
+
+    if (reserveError) {
+      return NextResponse.json({ error: "Failed to reserve coins for payout" }, { status: 500 })
+    }
+
+    // Insert withdrawal request record — this is a real request, reviewed
+    // manually by an admin (see /api/admin/withdrawals), not a placeholder.
     const { data: withdrawal, error: insertError } = await supabase
       .from("withdrawal_requests")
       .insert({
@@ -100,7 +113,7 @@ export async function POST(request: NextRequest) {
         estimated_usd: Number(estimatedUsd),
         payout_method,
         payout_details,
-        status: "coming_soon_queued",
+        status: "pending_review",
         created_at: new Date().toISOString()
       })
       .select()
@@ -108,12 +121,17 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error("Error creating withdrawal request:", insertError)
+      // Refund the reservation if we couldn't record the request
+      await supabase
+        .from("profiles")
+        .update({ loop_coins: currentCoins, updated_at: new Date().toISOString() })
+        .eq("id", user.id)
       return NextResponse.json({ error: insertError.message }, { status: 500 })
     }
 
     return NextResponse.json({
       success: true,
-      message: "Withdrawal pre-request queued! Payout processing is launching soon for verified creators.",
+      message: "Payout request submitted. Our team manually reviews cashout requests within a few business days.",
       request: withdrawal
     })
   } catch (error: any) {

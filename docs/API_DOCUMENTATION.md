@@ -191,15 +191,20 @@ Get user's following list (same format as followers).
 
 ## Loop (Content) Endpoints
 
-### GET /api/loops/feed
-Get personalized feed for authenticated user.
+### GET /api/loops
+Get the loop feed. Works for guests (public loops only); pass a Bearer
+token to also get `user_interactions` (liked/saved) for the requesting user.
 
-**Headers:** `Authorization: Bearer <token>`
+**Headers:** `Authorization: Bearer <token>` (optional)
 
 **Query Parameters:**
-- `page` (optional): Page number (default: 1)
 - `limit` (optional): Items per page (default: 20)
-- `type` (optional): Feed type ('following', 'trending', 'all')
+- `offset` (optional): Pagination offset (default: 0)
+- `user_id` (optional): Only loops by this author
+- `category` (optional): Filter by category
+
+For ranked/trending discovery instead of chronological, use
+`GET /api/explore/trending?type=loops&sort=creative|deepest|recent`.
 
 **Response:**
 \`\`\`json
@@ -555,16 +560,15 @@ Create a new circle.
 \`\`\`
 
 ### POST /api/circles/[id]/join
-Join or leave a circle.
+Join a circle (no request body). Private circles create a `pending`
+membership instead of `active`.
 
 **Headers:** `Authorization: Bearer <token>`
 
-**Request Body:**
-\`\`\`json
-{
-  "action": "join" // or "leave"
-}
-\`\`\`
+### DELETE /api/circles/[id]/join
+Leave a circle you're a member of (no request body).
+
+**Headers:** `Authorization: Bearer <token>`
 
 ## Shop & Inventory Endpoints
 
@@ -710,77 +714,82 @@ Weekly coin distribution (cron job).
 
 **Headers:** `Authorization: Bearer <cron-secret>`
 
-## Error Codes
+## Gifting Endpoints
 
-- `AUTH_REQUIRED`: Authentication required
-- `AUTH_INVALID`: Invalid authentication token
-- `USER_NOT_FOUND`: User not found
-- `LOOP_NOT_FOUND`: Loop not found
-- `INSUFFICIENT_COINS`: Not enough Loop Coins
-- `VALIDATION_ERROR`: Request validation failed
-- `RATE_LIMIT_EXCEEDED`: Too many requests
-- `SERVER_ERROR`: Internal server error
+### POST /api/gifts/send
+Send a shop-catalog gift item (coins, theme, premium, badge, effect) to
+another user, optionally attached to a loop/reel/comment/stream. This is
+the source of truth for gifts — it atomically deducts the sender's coins,
+delivers the gift, and (for non-coin gifts) credits the recipient's
+withdrawable creator earnings.
 
-## Rate Limiting
+**Headers:** `Authorization: Bearer <token>`
 
-API endpoints are rate limited:
-- Authentication: 5 requests per minute
-- General endpoints: 100 requests per minute
-- Upload endpoints: 10 requests per minute
-
-Rate limit headers are included in responses:
-\`\`\`
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1640995200
+**Request Body:**
+\`\`\`json
+{
+  "recipient_id": "uuid",
+  "gift_item_id": "uuid",
+  "message": "optional message",
+  "is_anonymous": false,
+  "context": { "type": "post", "id": "loop-uuid" }
+}
 \`\`\`
 
-## Webhooks
+## Live Streaming Endpoints
 
-### Stripe Webhook
-**POST /api/payments/webhook**
+Live is real **browser WebRTC** (camera + screen share) signaled over
+Supabase Realtime — there is no RTMP/HLS ingest today, so don't expect an
+OBS-style workflow. It's a peer-to-peer mesh, so it's best suited to
+roughly ~25 concurrent viewers before quality degrades; large audiences
+need a dedicated SFU (LiveKit/Agora/IVS), which is not wired up yet.
 
-Handles Stripe payment events for Loop Coin purchases.
+### GET /api/streams
+List streams. Query params: `status` (`live`|`popular`|`recent`), `category`, `page`, `limit`.
 
-## Real-time Events (Socket.io)
+### POST /api/streams
+Create a stream (status starts `preparing`).
 
-Connect to `/socket.io` for real-time updates:
+**Headers:** `Authorization: Bearer <token>`
 
-### Events to Listen For:
-- `loop:created` - New loop posted
-- `loop:liked` - Loop received a like
-- `message:received` - New message received
-- `notification:new` - New notification
-- `user:typing` - User is typing in chat
-
-### Events to Emit:
-- `join:room` - Join a specific room (user ID, circle ID)
-- `leave:room` - Leave a room
-- `typing:start` - Start typing indicator
-- `typing:stop` - Stop typing indicator
-
-## SDK Examples
-
-### JavaScript/TypeScript
-\`\`\`typescript
-// Initialize client
-const client = new LoopClient({
-  baseUrl: 'https://your-domain.com/api',
-  token: 'your-jwt-token'
-});
-
-// Get user feed
-const feed = await client.loops.getFeed({ page: 1, limit: 20 });
-
-// Create a loop
-const newLoop = await client.loops.create({
-  content_type: 'text',
-  content_text: 'Hello Loop!',
-  hashtags: ['#hello']
-});
-
-// Like a loop
-await client.loops.interact(loopId, { type: 'like', action: 'add' });
+**Request Body:**
+\`\`\`json
+{ "title": "My stream", "description": "...", "category": "gaming", "tags": ["chill"] }
 \`\`\`
 
-This documentation covers all major API endpoints and provides examples for common use cases. For additional support or questions, please refer to the GitHub repository or contact the development team.
+### PUT /api/streams/[id]
+Update a stream you own, including transitioning `status` to `live` or
+`ended`. Going live notifies your followers via web push.
+
+## Error Handling
+
+Endpoints do **not** use a fixed error-code enum. Failures return an HTTP
+error status (401/403/404/400/500) with a body shaped like:
+
+\`\`\`json
+{ "error": "Human-readable message" }
+\`\`\`
+
+Always check the HTTP status and read `error` for the message — don't
+match on a code string.
+
+## Real-time Updates
+
+There is no Socket.io server in this app. Real-time updates (new
+messages, live viewer presence, circle chat, wallet/gift notifications)
+use **Supabase Realtime** (Postgres change feeds and broadcast channels)
+directly from the client via `@supabase/supabase-js`, plus browser Web
+Push for notifications when the tab isn't focused. See
+`hooks/use-auth.tsx`, `providers/realtime-provider.tsx`, and
+`lib/web-push.ts` for the actual client-side wiring.
+
+## No Official SDK / Public Developer Platform
+
+There is currently no published client SDK and no public third-party
+OAuth developer platform — call the REST endpoints above directly with a
+Supabase-issued Bearer token. (A public developer/OAuth platform is
+intentionally not part of the current roadmap.)
+
+This documentation is generated against the routes under `app/api/**` —
+if you find a documented endpoint that no longer matches the code, treat
+the code as the source of truth and update this file in the same PR.

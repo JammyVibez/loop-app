@@ -289,20 +289,21 @@ export default function WalletPage() {
       const data = await res.json()
       if (res.ok && data.success) {
         toast({
-          title: "Pre-Order Cashout Queued! 💵",
+          title: "Payout Requested 💵",
           description: data.message,
         })
         setWithdrawOpen(false)
         fetchWithdrawalRequests()
+        fetchWalletData()
       } else {
         toast({
-          title: "Withdrawal Status",
-          description: data.error || "Withdrawals are coming soon for verified creators.",
+          title: "Couldn't submit request",
+          description: data.error || "Please try again in a moment.",
           variant: "destructive",
         })
       }
     } catch (err) {
-      toast({ title: "Error", description: "Failed to queue withdrawal request", variant: "destructive" })
+      toast({ title: "Error", description: "Failed to submit payout request", variant: "destructive" })
     } finally {
       setWithdrawing(false)
     }
@@ -539,7 +540,7 @@ export default function WalletPage() {
                 <DollarSign className="w-4 h-4" />
                 Withdraw Cash
                 <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0 font-bold">
-                  Coming Soon
+                  Verified Creators
                 </Badge>
               </Button>
             </div>
@@ -590,13 +591,13 @@ export default function WalletPage() {
                 {activeTab === "transactions" && "Recent Transactions"}
                 {activeTab === "gifts" && "Received & Sent Gifts"}
                 {activeTab === "inventory" && "Vault Inventory & Cosmetics"}
-                {activeTab === "withdrawals" && "Creator Cashouts & Payouts (Coming Soon)"}
+                {activeTab === "withdrawals" && "Creator Cashouts & Payouts"}
               </CardTitle>
               <CardDescription className="text-xs">
                 {activeTab === "transactions" && "Audit log of all deposits, gifts, purchases, and rewards."}
                 {activeTab === "gifts" && "Gifts received from community members and sent transfers."}
                 {activeTab === "inventory" && "Equip custom profile themes, badges, and redeemed perks."}
-                {activeTab === "withdrawals" && "Cashout pre-orders and payout method configuration for verified creators."}
+                {activeTab === "withdrawals" && "Requests are reviewed manually by our team — coins are reserved once you submit a request."}
               </CardDescription>
             </div>
 
@@ -730,22 +731,24 @@ export default function WalletPage() {
               </div>
             </TabsContent>
 
-            {/* Tab 4: Withdrawals (Coming Soon) */}
+            {/* Tab 4: Withdrawals */}
             <TabsContent value="withdrawals" className="m-0 space-y-4">
               <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-950/30 via-background to-teal-950/20 border border-emerald-500/30 space-y-4 shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2">
                       <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40 text-xs px-2.5 py-0.5">
-                        ⚡ Verified Creator Creator Cashouts
+                        ⚡ Verified Creator Cashouts
                       </Badge>
-                      <Badge variant="outline" className="border-amber-500/40 text-amber-500 text-[10px] px-2 py-0">
-                        Coming Soon
+                      <Badge variant="outline" className="border-sky-500/40 text-sky-400 text-[10px] px-2 py-0">
+                        Manually Reviewed
                       </Badge>
                     </div>
                     <h3 className="text-lg font-bold text-foreground mt-2">Withdraw Earnings & Payouts</h3>
                     <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-                      Convert your earned Loop Coins directly into real currency (USD) deposited to your bank account, PayPal, or Stripe. Guaranteed 0% fees for verified creator accounts!
+                      Request a real cashout of your Loop Coins to your bank account, PayPal, or Stripe. Coins are
+                      reserved as soon as you submit, and our team reviews and pays out requests manually within a
+                      few business days. No platform fee right now.
                     </p>
                   </div>
 
@@ -754,7 +757,7 @@ export default function WalletPage() {
                     className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs shrink-0 px-4 py-2"
                   >
                     <DollarSign className="w-4 h-4 mr-1.5" />
-                    Request Cashout Pre-Order
+                    Request Payout
                   </Button>
                 </div>
 
@@ -765,7 +768,7 @@ export default function WalletPage() {
                   </div>
                   <div className="p-3 rounded-xl bg-card/60 border border-border/50 text-xs space-y-1">
                     <p className="text-muted-foreground font-semibold">Creator Platform Fee</p>
-                    <p className="text-base font-bold text-emerald-500">0% (Verified Accounts)</p>
+                    <p className="text-base font-bold text-emerald-500">0% (for now)</p>
                   </div>
                   <div className="p-3 rounded-xl bg-card/60 border border-border/50 text-xs space-y-1">
                     <p className="text-muted-foreground font-semibold">Estimated Cash Value</p>
@@ -777,12 +780,12 @@ export default function WalletPage() {
               <div className="space-y-3">
                 <h4 className="text-xs uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-1.5">
                   <History className="w-3.5 h-3.5 text-emerald-500" />
-                  Your Cashout Pre-Orders
+                  Your Payout Requests
                 </h4>
 
                 {withdrawalRequests.length === 0 ? (
                   <div className="py-8 text-center text-xs text-muted-foreground bg-muted/20 rounded-xl">
-                    No cashout requests placed yet. Queue your first payout pre-order above!
+                    No payout requests yet. Submit your first request above!
                   </div>
                 ) : (
                   <div className="divide-y divide-border/40 border border-border/50 rounded-xl overflow-hidden bg-card/50">
@@ -964,16 +967,16 @@ export default function WalletPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Withdrawal (Coming Soon) Modal */}
+      {/* Withdrawal / Payout Request Modal */}
       <Dialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
         <DialogContent className="sm:max-w-md rounded-2xl p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-emerald-500" />
-              Creator Cashout (Coming Soon)
+              Request Payout
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Pre-register your creator coin balance payout. Withdrawals launch soon for verified accounts with 0% fees.
+              Submit a real cashout request. Coins are reserved immediately and our team reviews requests manually.
             </DialogDescription>
           </DialogHeader>
 
@@ -1041,7 +1044,7 @@ export default function WalletPage() {
               disabled={withdrawing}
               className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold"
             >
-              {withdrawing ? "Queueing..." : `Queue $${(withdrawCoins * 0.01).toFixed(2)} Cashout`}
+              {withdrawing ? "Submitting..." : `Request $${(withdrawCoins * 0.01).toFixed(2)} Payout`}
             </Button>
           </DialogFooter>
         </DialogContent>

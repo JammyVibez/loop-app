@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { notifyUsers } from "@/lib/notifications"
 
 export async function GET(
   request: NextRequest,
@@ -81,9 +82,10 @@ export async function PUT(
     const updates: any = {}
     if (title !== undefined) updates.title = title
     if (description !== undefined) updates.description = description
+    const isGoingLive = status === 'live' && !stream.started_at
     if (status !== undefined) {
       updates.status = status
-      if (status === 'live' && !stream.started_at) {
+      if (isGoingLive) {
         updates.started_at = new Date().toISOString()
       } else if (status === 'ended') {
         updates.ended_at = new Date().toISOString()
@@ -112,6 +114,33 @@ export async function PUT(
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    // Notify followers that this creator just went live (best-effort, never
+    // blocks the response).
+    if (isGoingLive) {
+      void (async () => {
+        try {
+          const { data: followers } = await supabase
+            .from('follows')
+            .select('follower_id')
+            .eq('following_id', user.id)
+          const followerIds = (followers || []).map((f: any) => f.follower_id).filter(Boolean)
+          if (followerIds.length) {
+            const streamerName = updatedStream?.streamer?.display_name || updatedStream?.streamer?.username || 'Someone you follow'
+            await notifyUsers(supabase, followerIds, {
+              type: 'creator_live',
+              title: `${streamerName} is live!`,
+              message: updatedStream?.title || 'Tap to join the stream now.',
+              actionUrl: `/streams/${streamId}`,
+              pushCategory: 'liveStreams',
+              data: { stream_id: streamId },
+            })
+          }
+        } catch (notifyErr) {
+          console.error('Follower live notification failed:', notifyErr)
+        }
+      })()
     }
 
     return NextResponse.json({

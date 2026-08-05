@@ -136,6 +136,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (body.visibility === "public" || body.visibility === "private") {
       updates.visibility = body.visibility
     }
+    if (typeof body.is_pinned === "boolean") {
+      if (body.is_pinned) {
+        const { count } = await supabase
+          .from("loops")
+          .select("id", { count: "exact", head: true })
+          .eq("author_id", user.id)
+          .eq("is_pinned", true)
+        if ((count || 0) >= 3) {
+          return NextResponse.json({ error: "You can pin up to 3 loops. Unpin one first." }, { status: 400 })
+        }
+      }
+      updates.is_pinned = body.is_pinned
+    }
 
     const { data: loop, error } = await supabase
       .from("loops")

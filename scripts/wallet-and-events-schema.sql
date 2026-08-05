@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS public.user_inventory (
 
 CREATE INDEX IF NOT EXISTS idx_inventory_user ON public.user_inventory(user_id);
 
--- 7. Withdrawal Requests Table (Coming Soon for Verified Users)
+-- 7. Withdrawal Requests Table (real, manually admin-reviewed payout requests)
 CREATE TABLE IF NOT EXISTS public.withdrawal_requests (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -120,9 +120,25 @@ CREATE TABLE IF NOT EXISTS public.withdrawal_requests (
     estimated_usd NUMERIC(10, 2) NOT NULL,
     payout_method TEXT DEFAULT 'bank',
     payout_details TEXT,
-    status TEXT DEFAULT 'coming_soon_queued',
+    status TEXT DEFAULT 'pending_review',
+    admin_note TEXT,
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    reviewed_by TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='withdrawal_requests' AND column_name='admin_note') THEN
+        ALTER TABLE public.withdrawal_requests ADD COLUMN admin_note TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='withdrawal_requests' AND column_name='reviewed_at') THEN
+        ALTER TABLE public.withdrawal_requests ADD COLUMN reviewed_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='withdrawal_requests' AND column_name='reviewed_by') THEN
+        ALTER TABLE public.withdrawal_requests ADD COLUMN reviewed_by TEXT;
+    END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_wdr_user ON public.withdrawal_requests(user_id);
 
