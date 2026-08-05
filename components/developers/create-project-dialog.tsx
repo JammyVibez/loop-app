@@ -9,16 +9,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Code, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { useLoginGate } from "@/hooks/use-login-gate";
 
 interface CreateProjectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onProjectCreated?: (project: any) => void
 }
 
 const languages = ["JavaScript", "TypeScript", "Python", "Go", "Rust", "Java", "C++", "PHP", "Ruby"]
 const frameworks = ["React", "Vue", "Angular", "Node.js", "Django", "Flask", "Express", "Spring", "Rails"]
 
-export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogProps) {
+export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: CreateProjectDialogProps) {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -30,6 +33,8 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+  const { getAuthHeader } = useAuth()
+  const { requireAuth, LoginGateDialog } = useLoginGate()
 
   const handleAddTag = () => {
     if (formData.newTag.trim() && !formData.tags.includes(formData.newTag.trim())) {
@@ -49,10 +54,12 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
   }
 
   const handleSubmit = async () => {
-    if (!formData.title.trim() || !formData.description.trim() || !formData.code.trim()) {
+    if (!requireAuth("post")) return
+
+    if (!formData.title.trim() || !formData.description.trim() || !formData.code.trim() || !formData.language) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields.",
+        description: "Please fill in title, description, language, and code.",
         variant: "destructive",
       })
       return
@@ -60,14 +67,27 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 
     setIsSubmitting(true)
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const response = await fetch("/api/developers/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({
+          title: formData.title.trim(),
+          description: formData.description.trim(),
+          language: formData.language,
+          framework: formData.framework || "None",
+          tags: formData.tags,
+          codeSnippet: formData.code,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to share project")
 
       toast({
         title: "Project Shared!",
         description: "Your project has been shared with the developer community.",
       })
 
+      onProjectCreated?.(data.project)
       onOpenChange(false)
       setFormData({
         title: "",
@@ -78,10 +98,10 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
         tags: [],
         newTag: "",
       })
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to share project. Please try again.",
+        description: error.message || "Failed to share project. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -90,7 +110,9 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      {LoginGateDialog}
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
@@ -218,6 +240,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
           </div>
         </div>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+    </>
   )
 }

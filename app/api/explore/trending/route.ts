@@ -30,12 +30,13 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get("type") || "hashtags"
     const sort = searchParams.get("sort") || "recent"
     const limit = Math.min(Number.parseInt(searchParams.get("limit") || "20", 10) || 20, 50)
+    const daysBack = Math.min(Math.max(Number.parseInt(searchParams.get("days") || "7", 10) || 7, 1), 30)
     const user = await getUserFromRequest(request)
 
     switch (type) {
       case "hashtags": {
         const { data: hashtags, error: hashtagError } = await supabase.rpc("get_trending_hashtags", {
-          days_back: 7,
+          days_back: daysBack,
           result_limit: limit,
         })
 
@@ -76,7 +77,10 @@ export async function GET(request: NextRequest) {
       case "users": {
         const { data: users, error: usersError } = await supabase
           .from("profiles")
-          .select("id, username, display_name, avatar_url, is_verified, is_premium, bio, created_at")
+          .select(
+            "id, username, display_name, avatar_url, is_verified, is_premium, bio, followers_count, loops_count, created_at",
+          )
+          .order("followers_count", { ascending: false, nullsFirst: false })
           .order("created_at", { ascending: false })
           .limit(limit)
 

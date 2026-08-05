@@ -18,6 +18,9 @@ const files = [
   "scripts/circles-schema-alignment.sql",
   "scripts/enhanced-database-schema-part2.sql",
   "scripts/enhanced-database-schema-part3.sql",
+  // developer_projects and related tables backing the real Developers gallery
+  // (see /api/developers/projects and components/developers/developers-content.tsx).
+  "scripts/developer-features.sql",
   "scripts/rls-policies.sql",
   "scripts/realtime-functions.sql",
 ]
@@ -30,7 +33,7 @@ const ignorable = [
   /policy .* already exists/i,
   /relation .* does not exist/i,
   /column .* does not exist/i,
-  /is already a member of publication/i,
+  /is already a? ?member of publication/i,
   /type .* already exists/i,
   /constraint .* already exists/i,
   /trigger .* already exists/i,

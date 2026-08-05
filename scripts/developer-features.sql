@@ -369,56 +369,6 @@ CREATE TRIGGER update_project_fork_count
     AFTER INSERT ON project_forks 
     FOR EACH ROW EXECUTE FUNCTION update_project_stats();
 
--- =============================================
--- SAMPLE DATA
--- =============================================
-
--- Insert sample developer projects
-INSERT INTO developer_projects (
-    author_id, 
-    title, 
-    description, 
-    language, 
-    framework, 
-    tags, 
-    code_snippet,
-    repository_url,
-    demo_url
-) VALUES (
-    (SELECT id FROM profiles WHERE username = 'admin' LIMIT 1),
-    'React Loop Tree Component',
-    'A reusable React component for rendering interactive loop trees with animations',
-    'JavaScript',
-    'React',
-    ARRAY['react', 'components', 'trees', 'animation'],
-    'import React, { useState } from ''react'';
-
-export const LoopTree = ({ data, onBranch }) => {
-  const [expanded, setExpanded] = useState(new Set());
-  
-  const toggleNode = (nodeId) => {
-    setExpanded(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(nodeId)) {
-        newSet.delete(nodeId);
-      } else {
-        newSet.add(nodeId);
-      }
-      return newSet;
-    });
-  };
-
-  return (
-    <div className="loop-tree">
-      <TreeNode 
-        node={data} 
-        expanded={expanded}
-        onToggle={toggleNode}
-        onBranch={onBranch}
-      />
-    </div>
-  );
-};',
-    'https://github.com/example/react-loop-tree',
-    'https://react-loop-tree-demo.vercel.app'
-) ON CONFLICT DO NOTHING;
+-- Intentionally no sample/demo rows here — the developers gallery must only
+-- ever show real developer_projects created by real users, or an empty state.
+-- See components/developers/developers-content.tsx.
