@@ -56,10 +56,9 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
 
   const [event, setEvent] = useState<EventItem | null>(null)
   const [participants, setParticipants] = useState<Participant[]>([])
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { id: "c1", sender: "Loop Bot", avatar: "/placeholder.svg", text: "Welcome to the Event Stage! Keep conversations respectful.", timestamp: "Just now" }
-  ])
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [inputText, setInputText] = useState("")
+  const [sendingMessage, setSendingMessage] = useState(false)
   const [loading, setLoading] = useState(true)
   const [joinedStage, setJoinedStage] = useState(false)
   const [micMuted, setMicMuted] = useState(true)
@@ -130,6 +129,7 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
 
   useEffect(() => {
     fetchEventDetails(true)
+    loadMessages()
 
     // Supabase Real-Time Subscriptions for Event Room
     const channel = supabase
@@ -148,12 +148,42 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
           setEvent(payload.new as EventItem)
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "event_messages", filter: `event_id=eq.${id}` },
+        () => {
+          loadMessages()
+        }
+      )
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
   }, [id, user])
+
+  const mapEventMessage = (row: any): ChatMessage => {
+    const author = Array.isArray(row.author) ? row.author[0] : row.author
+    return {
+      id: row.id,
+      sender: author?.display_name || author?.username || "Member",
+      avatar: author?.avatar_url || "/placeholder.svg",
+      text: row.content,
+      timestamp: new Date(row.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    }
+  }
+
+  const loadMessages = async () => {
+    try {
+      const res = await fetch(`/api/events/${id}/messages`)
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setChatMessages((data.messages || []).map(mapEventMessage))
+      }
+    } catch (err) {
+      console.error("Error loading event chat:", err)
+    }
+  }
 
   const fetchEventDetails = async (showLoading = false) => {
     if (showLoading) setLoading(true)
@@ -258,20 +288,54 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
     }
   }
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!inputText.trim()) return
+    const text = inputText.trim()
+    if (!text || sendingMessage) return
 
-    const newMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      sender: user?.display_name || user?.user_metadata?.display_name || "Guest",
-      avatar: user?.avatar_url || user?.user_metadata?.avatar_url || "/placeholder.svg",
-      text: inputText.trim(),
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    if (!user) {
+      toast({ title: "Sign in to chat", variant: "destructive" })
+      return
     }
 
-    setChatMessages((prev) => [...prev, newMsg])
+    setSendingMessage(true)
     setInputText("")
+
+    // Optimistic bubble, replaced by the real one once the Realtime INSERT
+    // event round-trips (same pattern as circle room chat).
+    const optimisticId = `pending-${Date.now()}`
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: optimisticId,
+        sender: user.display_name || user.user_metadata?.display_name || "You",
+        avatar: user.avatar_url || user.user_metadata?.avatar_url || "/placeholder.svg",
+        text,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      },
+    ])
+
+    try {
+      const token = user.access_token
+      const res = await fetch(`/api/events/${id}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ content: text }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to send message")
+      }
+      await loadMessages()
+    } catch (err: any) {
+      setChatMessages((prev) => prev.filter((m) => m.id !== optimisticId))
+      toast({ title: "Message not sent", description: err.message, variant: "destructive" })
+    } finally {
+      setSendingMessage(false)
+    }
   }
 
   if (loading) {
@@ -541,6 +605,11 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
 
           {/* Messages Scroll Area */}
           <CardContent className="flex-1 overflow-y-auto p-4 space-y-3.5 scrollbar-thin">
+            {chatMessages.length === 0 && (
+              <p className="text-center text-xs text-muted-foreground py-6">
+                No messages yet. Say hello to the stage.
+              </p>
+            )}
             {chatMessages.map((msg) => (
               <div key={msg.id} className="flex items-start gap-2 text-xs">
                 <Avatar className="w-6 h-6 shrink-0 mt-0.5">
@@ -561,12 +630,18 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
           {/* Chat Input */}
           <form onSubmit={handleSendMessage} className="p-3 border-t border-border/50 flex items-center gap-2">
             <Input
-              placeholder="Type a message..."
+              placeholder={user ? "Type a message..." : "Sign in to chat"}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
+              disabled={!user || sendingMessage}
               className="rounded-xl text-xs h-9"
             />
-            <Button type="submit" size="icon" className="h-9 w-9 rounded-xl shrink-0 bg-primary">
+            <Button
+              type="submit"
+              size="icon"
+              disabled={!user || sendingMessage || !inputText.trim()}
+              className="h-9 w-9 rounded-xl shrink-0 bg-primary"
+            >
               <Send className="w-4 h-4" />
             </Button>
           </form>
