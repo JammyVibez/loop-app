@@ -60,6 +60,10 @@ export async function GET(request: NextRequest) {
         .is("parent_loop_id", null)
         .order("created_at", { ascending: false })
         .limit(20),
+      // Loops where this profile is listed as a co-author (JSONB containment —
+      // scoped directly to this profile, not just "the 30 most recent
+      // co-loops platform-wide", which could miss older ones entirely once
+      // co-loops are common).
       supabase
         .from("loops")
         .select(`
@@ -68,7 +72,7 @@ export async function GET(request: NextRequest) {
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .is("parent_loop_id", null)
-        .or(`is_co_loop.eq.true,content_metadata->>is_co_loop.eq.true`)
+        .filter("content_metadata->co_authors", "cs", JSON.stringify([{ id: profile.id }]))
         .order("created_at", { ascending: false })
         .limit(30),
       supabase
