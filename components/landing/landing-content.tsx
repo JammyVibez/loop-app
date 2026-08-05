@@ -3,84 +3,104 @@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-  Compass,
   Users,
   MessageCircle,
-  Zap,
-  Crown,
   ArrowRight,
   Check,
   Layers,
-  Shield,
   Radio,
-  Bot,
-  Blocks,
-  Palette,
+  GitBranch,
+  Code2,
+  Coins,
+  Sparkles,
+  Rocket,
+  Smartphone,
+  BarChart3,
+  ShieldCheck,
 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 
 const features = [
   {
-    title: "Spatial 3D chrome",
+    title: "Co-Loop: write together, live",
     description:
-      "Depth-aware surfaces, glass highlights, and motion that feels tactile—not gimmicky.",
-    icon: Compass,
+      "Invite a friend into a real-time studio and co-author a post together — live cursors, live chat, one shared publish. Nobody else on a social app lets two people write the same post at once.",
+    icon: Sparkles,
     className: "md:col-span-2",
-    accent: "from-indigo-500/30 to-cyan-500/20",
+    accent: "from-cyan-500/30 to-indigo-500/20",
   },
   {
-    title: "Tree conversations",
-    description: "Branch replies stay readable at scale. Context stays attached to the root.",
-    icon: MessageCircle,
+    title: "Branchable Loops",
+    description: "Reply by branching into a new Loop. Context stays attached to the root, so a conversation reads like a tree, not a scroll.",
+    icon: GitBranch,
     className: "",
-    accent: "from-cyan-500/25 to-blue-500/15",
+    accent: "from-violet-500/25 to-purple-500/15",
   },
   {
-    title: "Circles & roles",
-    description: "Communities with clear moderation, events, and voice-ready rooms.",
+    title: "Circles",
+    description: "Public or private communities with real-time chat, events, and roles — private Circles require the owner's approval before you can post.",
     icon: Users,
     className: "",
     accent: "from-emerald-500/25 to-teal-500/15",
   },
   {
-    title: "Loop economy",
-    description: "Earn, gift, and unlock premium flourishes that match your identity.",
-    icon: Zap,
-    className: "md:col-span-2",
-    accent: "from-amber-500/25 to-orange-500/15",
-  },
-  {
-    title: "Premium polish",
-    description: "Themes, motion packs, and profile depth for creators who care about craft.",
-    icon: Crown,
-    className: "",
-    accent: "from-rose-500/25 to-purple-500/15",
-  },
-  {
-    title: "Realtime fabric",
-    description: "Notifications and feeds tuned for low-latency social moments.",
+    title: "Browser live streaming",
+    description: "Go live straight from your browser with camera or screen share, live chat, and gifts — no software to install.",
     icon: Radio,
-    className: "",
-    accent: "from-indigo-500/25 to-violet-500/15",
+    className: "md:col-span-2",
+    accent: "from-rose-500/25 to-orange-500/15",
   },
   {
-    title: "Custom community studio",
-    description:
-      "Redesign your header, sidebar, chat space, and post forum. Add your own tools, use AI bots, and install premium community design packs from the marketplace.",
-    icon: Blocks,
-    className: "md:col-span-2",
-    accent: "from-pink-500/25 to-purple-500/15",
+    title: "Developer Hub",
+    description: "Share code snippets with real syntax highlighting, attach files, and let other developers fork and star your work.",
+    icon: Code2,
+    className: "",
+    accent: "from-blue-500/25 to-cyan-500/15",
+  },
+  {
+    title: "Loop Coins economy",
+    description: "Buy coin packs through real Stripe checkout, gift creators for their content, and cash out real earnings — no fake balances.",
+    icon: Coins,
+    className: "",
+    accent: "from-amber-500/25 to-yellow-500/15",
   },
 ]
 
 const checklist = [
-  "Supabase-backed auth & profiles",
-  "Circles, loops, reels, streams",
-  "Gamified rewards & shop",
-  "Moderation & safety primitives",
-  "Custom community builder + bot support",
-  "Massive scale architecture",
+  "Loops, Reels, Circles & live streams",
+  "Real-time Co-Loop collaboration",
+  "Developer Hub for sharing & forking code",
+  "Stripe-backed Loop Coins & creator payouts",
+  "Creator Studio with real earnings & analytics",
+  "Light & dark mode that syncs everywhere",
+]
+
+const roadmap = [
+  {
+    title: "Public developer API",
+    description: "OAuth apps and API keys so developers can build tools on top of Loop, not just share code inside it.",
+    icon: Code2,
+    status: "Planned",
+  },
+  {
+    title: "Native mobile apps",
+    description: "Loop already installs as a PWA today — dedicated iOS and Android apps are next.",
+    icon: Smartphone,
+    status: "Planned",
+  },
+  {
+    title: "Bigger live rooms",
+    description: "Browser live streaming works great today for smaller audiences; we're evaluating dedicated streaming infrastructure to scale rooms up.",
+    icon: Radio,
+    status: "Exploring",
+  },
+  {
+    title: "Deeper creator analytics",
+    description: "More detail in Creator Studio — audience breakdowns, retention, and per-post earnings history.",
+    icon: BarChart3,
+    status: "In progress",
+  },
 ]
 
 export function LandingContent() {
@@ -105,14 +125,6 @@ export function LandingContent() {
         aria-hidden
       />
 
-      {/* Orbit accents */}
-      <div
-        className="pointer-events-none absolute left-1/2 top-[38%] hidden h-px w-px -translate-x-1/2 lg:block"
-        aria-hidden
-      >
-        <div className="landing-orbit-dot absolute left-1/2 top-1/2 h-2 w-2 rounded-full bg-cyan-400/80 shadow-[0_0_24px_rgba(34,211,238,0.9)]" />
-      </div>
-
       <header className="relative z-20 border-b border-white/[0.06] bg-[#030712]/70 backdrop-blur-xl">
         <div className="container mx-auto flex items-center justify-between px-4 py-4 sm:px-6">
           <Link href="/" className="group flex items-center gap-3">
@@ -124,11 +136,16 @@ export function LandingContent() {
             <div className="flex flex-col leading-tight">
               <span className="text-lg font-semibold tracking-tight text-white">Loop</span>
               <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-slate-500">
-                Social OS
+                Creators &amp; Developers
               </span>
             </div>
           </Link>
-          <nav className="flex items-center gap-2 sm:gap-3">
+          <nav className="hidden items-center gap-6 text-sm text-slate-300 md:flex">
+            <a href="#features" className="hover:text-white transition-colors">Features</a>
+            <a href="#roadmap" className="hover:text-white transition-colors">What&apos;s coming</a>
+            <a href="#creators" className="hover:text-white transition-colors">For creators</a>
+          </nav>
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/login">
               <Button
                 variant="ghost"
@@ -143,7 +160,7 @@ export function LandingContent() {
                 <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 opacity-0 transition-opacity hover:opacity-100" />
               </Button>
             </Link>
-          </nav>
+          </div>
         </div>
       </header>
 
@@ -157,20 +174,21 @@ export function LandingContent() {
                 className="mb-6 border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-cyan-200/90 backdrop-blur"
               >
                 <Layers className="mr-1.5 h-3.5 w-3.5" />
-                Next-gen platform · cinematic 3D UI
+                Early access · building in public
               </Badge>
 
               <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-[3.55rem] lg:leading-[1.05]">
-                Build a stunning
+                Where creators perform
                 <span className="mt-1 block landing-shimmer-text font-semibold">
-                  3D community universe.
+                  and developers build.
                 </span>
               </h1>
 
               <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
-                Loop gives creators and brands a professional, immersive social experience with
-                modern 3D visuals, fluid animation, and a modular community system that can be
-                reshaped however they want.
+                Loop is a social platform for people who make things — Loops, Reels, and live streams
+                for creators, real-time Co-Loop collaboration for anyone, and a Developer Hub for
+                sharing and forking code. Real Loop Coins economy, real Stripe payments, no fake
+                numbers.
               </p>
 
               <ul className="mt-8 space-y-2.5 text-sm text-slate-300">
@@ -207,21 +225,21 @@ export function LandingContent() {
 
               <div className="mt-12 flex flex-wrap gap-x-10 gap-y-4 border-t border-white/[0.06] pt-8 text-sm text-slate-500">
                 <div>
-                  <p className="text-2xl font-semibold tracking-tight text-white">3D-first</p>
-                  <p className="text-xs uppercase tracking-wider text-slate-500">Experience</p>
+                  <p className="text-2xl font-semibold tracking-tight text-white">Co-Loop</p>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">Write together, live</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-semibold tracking-tight text-white">No-code style</p>
-                  <p className="text-xs uppercase tracking-wider text-slate-500">Community customizer</p>
+                  <p className="text-2xl font-semibold tracking-tight text-white">Real payouts</p>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">Stripe-backed coins</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-semibold tracking-tight text-white">Massive scale</p>
-                  <p className="text-xs uppercase tracking-wider text-slate-500">Millions of users</p>
+                  <p className="text-2xl font-semibold tracking-tight text-white">Open source vibe</p>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">Developer Hub built in</p>
                 </div>
               </div>
             </div>
 
-            {/* 3D showcase */}
+            {/* Live preview showcase */}
             <div className="relative mx-auto w-full max-w-lg lg:mx-0 lg:max-w-none">
               <div className="relative aspect-square max-h-[min(520px,78vw)] sm:aspect-[5/4] lg:max-h-[560px]">
                 <div
@@ -237,18 +255,24 @@ export function LandingContent() {
                           <div className="h-2.5 w-2.5 rounded-full bg-amber-400/90" />
                           <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/90" />
                         </div>
-                        <Badge className="border-0 bg-white/10 text-[10px] uppercase tracking-widest text-slate-300">
-                          Live preview
+                        <Badge className="border-0 bg-cyan-500/20 text-[10px] uppercase tracking-widest text-cyan-200 flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" /> Co-Loop live
                         </Badge>
                       </div>
 
                       <div className="mt-8 flex flex-1 flex-col justify-center gap-4">
                         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-4 shadow-inner backdrop-blur">
-                          <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
-                            For you
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <div className="flex -space-x-2">
+                              <div className="h-6 w-6 rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 ring-2 ring-[#070d18]" />
+                              <div className="h-6 w-6 rounded-full bg-gradient-to-br from-amber-400 to-rose-500 ring-2 ring-[#070d18]" />
+                            </div>
+                            <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+                              Two authors, one post
+                            </p>
+                          </div>
                           <p className="mt-2 text-lg font-medium text-white sm:text-xl">
-                            Loops that feel spatial—not flat.
+                            &ldquo;Let's write this together...&rdquo;
                           </p>
                           <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/5">
                             <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-violet-500 to-cyan-400 shadow-[0_0_20px_rgba(139,92,246,0.6)]" />
@@ -260,25 +284,25 @@ export function LandingContent() {
                             <p className="text-[10px] uppercase tracking-wider text-slate-500">
                               Circles
                             </p>
-                            <p className="mt-1 text-2xl font-semibold text-white">128</p>
-                            <p className="text-[11px] text-emerald-400/90">+12 this week</p>
+                            <p className="mt-1 text-2xl font-semibold text-white">Live chat</p>
+                            <p className="text-[11px] text-emerald-400/90">+ events, roles</p>
                           </div>
                           <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
                             <p className="text-[10px] uppercase tracking-wider text-slate-500">
-                              Streak
+                              Developer Hub
                             </p>
-                            <p className="mt-1 text-2xl font-semibold text-white">14d</p>
-                            <p className="text-[11px] text-cyan-400/90">Keep it glowing</p>
+                            <p className="mt-1 text-2xl font-semibold text-white">Fork &amp; star</p>
+                            <p className="text-[11px] text-cyan-400/90">Real code preview</p>
                           </div>
                         </div>
                       </div>
 
                       <div className="mt-auto flex items-center justify-between rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-xs text-slate-400">
                         <span className="flex items-center gap-2">
-                          <Shield className="h-3.5 w-3.5 text-violet-300" />
-                          Encrypted session
+                          <ShieldCheck className="h-3.5 w-3.5 text-violet-300" />
+                          Real Stripe-backed coins
                         </span>
-                        <span className="text-slate-500">v0.1 · Loop</span>
+                        <span className="text-slate-500">Loop · early access</span>
                       </div>
                     </div>
                   </div>
@@ -290,11 +314,11 @@ export function LandingContent() {
                   style={{ transform: "perspective(900px) rotateY(12deg) translateZ(40px)" }}
                 >
                   <p className="flex items-center gap-2 font-medium text-white">
-                    <Palette className="h-3.5 w-3.5 text-fuchsia-200" />
-                    Theme marketplace
+                    <Coins className="h-3.5 w-3.5 text-amber-300" />
+                    Loop Coins
                   </p>
                   <p className="mt-1 text-[11px] leading-snug text-slate-400">
-                    Install premium community skins and redesign every layout zone.
+                    Buy through Stripe, gift creators, cash out real earnings.
                   </p>
                 </div>
                 <div
@@ -302,11 +326,11 @@ export function LandingContent() {
                   style={{ transform: "perspective(900px) rotateY(-10deg) translateZ(30px)" }}
                 >
                   <p className="flex items-center gap-2 font-semibold text-cyan-50">
-                    <Bot className="h-3.5 w-3.5" />
-                    AI bots enabled
+                    <Radio className="h-3.5 w-3.5" />
+                    Go live from your browser
                   </p>
                   <p className="mt-1 text-[11px] text-cyan-200/80">
-                    Add moderation, support, and engagement bots to any community.
+                    Camera, screen share, chat, and gifts — no install needed.
                   </p>
                 </div>
               </div>
@@ -319,15 +343,15 @@ export function LandingContent() {
           <div className="container mx-auto px-4 sm:px-6">
             <div className="mx-auto max-w-2xl text-center">
               <Badge className="border border-white/10 bg-white/5 text-slate-300">
-                Product surface
+                What you can actually do
               </Badge>
               <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                Not just social UI.
-                <span className="text-slate-400"> A fully customizable community engine.</span>
+                Built for making things,
+                <span className="text-slate-400"> together or solo.</span>
               </h2>
               <p className="mt-4 text-slate-400">
-                From default templates to premium marketplace designs, every community can customize
-                structure, style, and tooling while staying fast, secure, and deeply immersive.
+                Every feature below is live in the product today — no mockups, no &ldquo;coming soon&rdquo;
+                badges hiding empty screens.
               </p>
             </div>
 
@@ -359,20 +383,19 @@ export function LandingContent() {
           </div>
         </section>
 
-        {/* Premium section */}
-        <section className="border-t border-white/[0.06] bg-[#030715]/95 py-16 sm:py-20">
+        {/* Creator Studio section */}
+        <section id="creators" className="scroll-mt-24 border-t border-white/[0.06] bg-[#030715]/95 py-16 sm:py-20">
           <div className="container mx-auto px-4 sm:px-6">
             <div className="mx-auto max-w-3xl text-center">
               <Badge className="border border-amber-400/40 bg-amber-500/10 text-amber-100">
-                Premium creators
+                Creator Studio
               </Badge>
               <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                Go beyond default with Loop Premium.
+                See your performance and money in one place.
               </h2>
               <p className="mt-4 text-slate-400">
-                Unlock advanced analytics, exclusive 3D motion packs, premium community layouts, and
-                higher limits for events, storage, and automation—while keeping the core experience
-                free for your members.
+                Coin balance, gifts received, top-performing Loops and Reels, live stream peaks, and
+                boost spend — all pulled from what actually happened, updated in real time.
               </p>
             </div>
 
@@ -382,47 +405,40 @@ export function LandingContent() {
                 <div className="relative flex items-center justify-between gap-4">
                   <div className="text-left">
                     <p className="text-xs font-medium uppercase tracking-[0.22em] text-amber-200/90">
-                      Loop Premium
+                      Real earnings, not vanity numbers
                     </p>
                     <p className="mt-2 text-3xl font-semibold tracking-tight text-white">
-                      Pro-grade depth for serious communities.
+                      Gift, earn, and request a real payout.
                     </p>
-                  </div>
-                  <div className="hidden rounded-2xl border border-white/15 bg-black/30 px-4 py-3 text-right text-sm text-slate-200 sm:block">
-                    <p className="text-xs uppercase tracking-wide text-amber-200/80">
-                      Early access
-                    </p>
-                    <p className="mt-1 text-lg font-semibold text-white">Founders pricing</p>
-                    <p className="text-[11px] text-amber-100/70">Limited seats available.</p>
                   </div>
                 </div>
                 <div className="relative mt-6 grid gap-3 text-sm text-slate-200 sm:grid-cols-2">
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2">
                       <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                      Advanced engagement & retention analytics
+                      Fans gift you through real Stripe-purchased Loop Coins
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                      Premium 3D motion + transition packs
+                      Every gift flows straight into your earnings ledger
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                      Exclusive marketplace layouts and components
+                      Withdrawal requests are manually reviewed, not a fake queue
                     </li>
                   </ul>
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2">
                       <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                      Higher limits for members, events, and media
+                      Boost your best Loops into more feeds
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                      Automation, workflows, and advanced roles
+                      Pin your best work to the top of your profile
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                      Priority support from the Loop team
+                      Referral dashboard shows exactly who you brought in
                     </li>
                   </ul>
                 </div>
@@ -430,121 +446,100 @@ export function LandingContent() {
 
               <div className="flex flex-col justify-center gap-4 rounded-2xl border border-white/[0.08] bg-[#050818]/90 p-6 text-sm text-slate-300 shadow-xl sm:p-7">
                 <p className="text-xs font-medium uppercase tracking-[0.25em] text-slate-500">
-                  For early builders
+                  Built with early creators
                 </p>
                 <p className="text-base leading-relaxed">
-                  We&apos;re actively partnering with early communities, creators, DAOs, and brands
-                  to shape the Premium roadmap. If you&apos;re building something ambitious, Loop
-                  Premium gives you the polish and headroom to grow.
+                  We&apos;re shaping Loop directly with the first wave of creators and developers who
+                  join. If something feels missing or broken, tell us — this is genuinely still early,
+                  and your feedback shapes what ships next.
                 </p>
-                <p className="text-sm text-slate-400">
-                  Tell us what you need and we&apos;ll help you design a space that feels like
-                  it&apos;s from the future—while your members still feel right at home.
-                </p>
+                <Link href="/earnings" className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-300 hover:underline">
+                  See Creator Studio <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Auto theme / light & dark */}
-        <section className="border-t border-white/[0.06] bg-[#020617] py-16 sm:py-20">
+        {/* What's coming / roadmap */}
+        <section id="roadmap" className="scroll-mt-24 border-t border-white/[0.06] bg-[#020617] py-16 sm:py-20">
           <div className="container mx-auto px-4 sm:px-6">
-            <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-              <div>
-                <Badge className="border border-white/10 bg-white/5 text-slate-200">
-                  Auto theme · Light & Dark
-                </Badge>
-                <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                  Automatically beautiful in light or dark.
-                </h2>
-                <p className="mt-4 text-slate-400">
-                  Loop respects system preferences out of the box, switching between clean white
-                  surfaces and cinematic dark mode without extra setup. Your components, layouts,
-                  and marketplace themes adapt instantly.
-                </p>
-                <ul className="mt-6 space-y-2 text-sm text-slate-300">
-                  <li className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
-                    Auto-detects system light/dark preference for every member.
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
-                    Theme-aware components that stay legible and on-brand.
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
-                    One-click overrides for creators who want a fixed look.
-                  </li>
-                </ul>
-              </div>
-
-              <div className="landing-card-3d relative mx-auto flex w-full max-w-lg flex-col gap-4 rounded-2xl border border-white/[0.10] bg-[#020617] p-4 shadow-2xl shadow-black/50 sm:p-5">
-                <div className="grid grid-cols-2 gap-3 text-xs sm:text-sm">
-                  <div className="rounded-xl border border-white/[0.08] bg-gradient-to-br from-slate-50 to-slate-100 p-3 text-slate-900">
-                    <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500">
-                      Light preview
-                    </p>
-                    <p className="mt-2 text-sm font-semibold">Clean white UI</p>
-                    <p className="mt-1 text-xs text-slate-600">
-                      Ideal for productivity-focused communities and teams.
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-white/[0.12] bg-gradient-to-br from-slate-900 via-slate-950 to-black p-3 text-slate-100">
-                    <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-slate-400">
-                      Dark preview
-                    </p>
-                    <p className="mt-2 text-sm font-semibold">Cinematic dark UI</p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Perfect for creators, gaming, and late-night sessions.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between rounded-full border border-white/[0.12] bg-white/5 px-2 py-1 text-xs text-slate-200">
-                  <span className="ml-2 text-[11px] uppercase tracking-[0.2em] text-slate-300">
-                    Auto theme
-                  </span>
-                  <div className="flex items-center gap-1 rounded-full bg-black/50 p-1">
-                    <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-slate-900">
-                      System
-                    </span>
-                    <span className="px-2 py-0.5 text-[11px] text-slate-300">Light</span>
-                    <span className="px-2 py-0.5 text-[11px] text-slate-300">Dark</span>
-                  </div>
-                </div>
-              </div>
+            <div className="mx-auto max-w-2xl text-center">
+              <Badge className="border border-white/10 bg-white/5 text-slate-200">
+                <Rocket className="mr-1.5 h-3.5 w-3.5" />
+                What&apos;s coming
+              </Badge>
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                Loop is early. Here&apos;s what we&apos;re building next.
+              </h2>
+              <p className="mt-4 text-slate-400">
+                No fake dates, no marketing promises — just an honest look at where we&apos;re headed.
+              </p>
             </div>
+
+            <div className="mx-auto mt-12 grid max-w-4xl grid-cols-1 gap-4 sm:grid-cols-2">
+              {roadmap.map(({ title, description, icon: Icon, status }) => (
+                <div
+                  key={title}
+                  className="landing-card-3d relative rounded-2xl border border-white/[0.08] bg-[#0a1020]/90 p-5 shadow-lg shadow-black/20"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 ring-1 ring-cyan-500/20">
+                      <Icon className="h-5 w-5 text-cyan-300" />
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[10px] uppercase tracking-wider",
+                        status === "In progress"
+                          ? "border-emerald-400/40 text-emerald-300"
+                          : status === "Planned"
+                            ? "border-violet-400/40 text-violet-300"
+                            : "border-slate-400/40 text-slate-300",
+                      )}
+                    >
+                      {status}
+                    </Badge>
+                  </div>
+                  <h3 className="mt-4 text-base font-semibold text-white">{title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-slate-400">{description}</p>
+                </div>
+              ))}
+            </div>
+
+            <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-slate-500">
+              Have a feature you want to see? Tell us once you&apos;re in — early users shape this
+              roadmap directly.
+            </p>
           </div>
         </section>
 
-        {/* Early users giveaway */}
+        {/* Early users */}
         <section className="border-t border-emerald-500/20 bg-gradient-to-r from-emerald-600/15 via-[#030712] to-cyan-600/15 py-10 sm:py-12">
           <div className="container mx-auto px-4 sm:px-6">
             <div className="mx-auto flex max-w-4xl flex-col items-start gap-4 rounded-2xl border border-emerald-400/30 bg-black/40 p-5 text-sm text-emerald-50 shadow-xl sm:flex-row sm:items-center sm:justify-between sm:p-6">
               <div>
                 <div className="flex items-center gap-2">
                   <Badge className="border border-emerald-400/60 bg-emerald-500/15 text-[11px] uppercase tracking-[0.18em] text-emerald-100">
-                    Early users giveaway
+                    Early access
                   </Badge>
-                  <span className="text-[11px] uppercase tracking-[0.2em] text-emerald-200/80">
-                    Limited slots
-                  </span>
                 </div>
                 <p className="mt-3 text-base font-semibold text-white sm:text-lg">
-                  Be one of the first communities on Loop and unlock founder-only rewards.
+                  Be one of the first creators and developers on Loop.
                 </p>
                 <p className="mt-1 text-sm text-emerald-100/80">
-                  Early users get access to exclusive 3D themes, bonus credits, and surprise drops
-                  for their members as we roll out new features.
+                  Every new signup starts with Loop Coins to try gifting, boosting, and the shop —
+                  invite a friend into a Co-Loop and you both earn more.
                 </p>
               </div>
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
                 <Link href="/signup">
                   <Button className="w-full rounded-full bg-emerald-400 px-5 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/40 hover:bg-emerald-300 sm:w-auto">
-                    Join early & claim perks
+                    Join Loop free
                   </Button>
                 </Link>
                 <p className="text-[11px] text-emerald-200/80">
-                  No credit card required · giveaways reserved for early spaces
+                  No credit card required to sign up
                 </p>
               </div>
             </div>
@@ -560,8 +555,8 @@ export function LandingContent() {
                 Ready to step inside the Loop?
               </h2>
               <p className="relative mx-auto mt-4 max-w-xl text-slate-400">
-                Create your space, invite your circle, and run a customizable, bot-powered
-                community built to support millions of members without platform fees.
+                Post a Loop, invite someone into a Co-Loop, or drop your first project in the
+                Developer Hub — see what sticks.
               </p>
               <div className="relative mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Link href="/signup">
@@ -569,7 +564,7 @@ export function LandingContent() {
                     size="lg"
                     className="h-12 min-w-[200px] rounded-full bg-white px-8 text-base font-semibold text-slate-900 hover:bg-slate-100"
                   >
-                    Launch your community
+                    Get started free
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
@@ -590,8 +585,8 @@ export function LandingContent() {
 
       <footer className="relative z-10 border-t border-white/[0.06] bg-[#030712]/90 py-10 text-center text-sm text-slate-500 backdrop-blur">
         <div className="container mx-auto px-4 sm:px-6">
-          <p className="font-medium text-slate-400">Loop Social Platform</p>
-          <p className="mt-2">&copy; {new Date().getFullYear()} Loop. Crafted for creators.</p>
+          <p className="font-medium text-slate-400">Loop</p>
+          <p className="mt-2">&copy; {new Date().getFullYear()} Loop. Built for creators and developers.</p>
         </div>
       </footer>
     </div>
