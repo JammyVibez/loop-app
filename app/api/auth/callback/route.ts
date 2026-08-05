@@ -68,13 +68,30 @@ async function ensureProfile(user: SupabaseUser) {
   return createdProfile
 }
 
+function authErrorRedirect(request: NextRequest, code: string, reason?: string | null) {
+  const url = new URL("/login", request.url)
+  url.searchParams.set("error", code)
+  if (reason) url.searchParams.set("reason", reason.slice(0, 300))
+  return NextResponse.redirect(url)
+}
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get("code")
   const nextPath = safeNextPath(requestUrl.searchParams.get("next"))
 
+  // Supabase/Google redirect back with these when the OAuth provider itself
+  // rejects the request (e.g. provider not enabled, redirect URI mismatch,
+  // user denied consent). Surface the real reason instead of a generic error.
+  const oauthError = requestUrl.searchParams.get("error")
+  const oauthErrorDescription = requestUrl.searchParams.get("error_description")
+  if (oauthError) {
+    console.error("OAuth provider error on callback:", oauthError, oauthErrorDescription)
+    return authErrorRedirect(request, "oauth_error", oauthErrorDescription || oauthError)
+  }
+
   if (!code) {
-    return NextResponse.redirect(new URL("/login?error=auth_error", request.url))
+    return authErrorRedirect(request, "auth_error", "No authorization code was returned by the provider.")
   }
 
   const pendingCookies: Array<{ name: string; value: string; options: CookieOptions }> = []
@@ -98,7 +115,7 @@ export async function GET(request: NextRequest) {
 
     if (error || !data.user) {
       console.error("Auth callback exchange error:", error)
-      return NextResponse.redirect(new URL("/login?error=auth_error", request.url))
+      return authErrorRedirect(request, "auth_error", error?.message)
     }
 
     const profile = await ensureProfile(data.user)
@@ -112,6 +129,6 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error) {
     console.error("OAuth callback error:", error)
-    return NextResponse.redirect(new URL("/login?error=server_error", request.url))
+    return authErrorRedirect(request, "server_error", error instanceof Error ? error.message : undefined)
   }
 }

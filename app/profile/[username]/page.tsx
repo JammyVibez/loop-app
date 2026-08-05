@@ -22,11 +22,13 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
   let title = `@${username} on Loop`
   let description = `Check out @${username}'s profile, loops, and activity on Loop Social OS.`
   let avatarUrl = ""
+  let isVerified = false
+  let followersCount = 0
 
   try {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("display_name, bio, avatar_url")
+      .select("display_name, bio, avatar_url, is_verified, followers_count")
       .eq("username", username)
       .single()
 
@@ -35,12 +37,21 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
       title = `${name} (@${username}) — Profile`
       if (profile.bio) description = profile.bio.slice(0, 160)
       avatarUrl = profile.avatar_url || ""
+      isVerified = Boolean(profile.is_verified)
+      followersCount = Number(profile.followers_count || 0)
     }
   } catch (err) {
     console.error("Error generating profile metadata:", err)
   }
 
-  const ogImageUrl = `${baseUrl}/api/og?type=profile&title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}&username=${encodeURIComponent(username)}&avatar=${encodeURIComponent(avatarUrl)}`
+  const ogParams = new URLSearchParams({ type: "profile", title, description, username })
+  if (avatarUrl) ogParams.set("avatar", avatarUrl)
+  if (isVerified) ogParams.set("verified", "true")
+  if (followersCount > 0) {
+    ogParams.set("stat", followersCount.toLocaleString())
+    ogParams.set("stat_label", followersCount === 1 ? "follower" : "followers")
+  }
+  const ogImageUrl = `${baseUrl}/api/og?${ogParams.toString()}`
 
   return {
     title,

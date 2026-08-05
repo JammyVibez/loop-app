@@ -45,6 +45,9 @@ import {
   X,
   Loader2,
   Image as ImageIcon,
+  Edit,
+  Trash2,
+  Link2,
 } from "lucide-react"
 import { RealtimeCircleChat } from "@/components/circles/realtime-circle-chat"
 import { CircleEvents } from "@/components/circles/circle-events"
@@ -52,7 +55,8 @@ import { CommunityAdvancedPanel } from "@/components/circles/community-advanced-
 import { GiftModal } from "@/components/gifting/gift-modal"
 import { CirclePostPollWidget } from "@/components/circles/circle-post-poll-widget"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { useTheme3D } from "@/providers/theme-3d-provider"
@@ -217,6 +221,11 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   const [commentText, setCommentText] = useState("")
   const [commentsLoading, setCommentsLoading] = useState(false)
   const [commentSending, setCommentSending] = useState(false)
+  const [editingPost, setEditingPost] = useState<CirclePost | null>(null)
+  const [editPostContent, setEditPostContent] = useState("")
+  const [savingPostEdit, setSavingPostEdit] = useState(false)
+  const [deletePostId, setDeletePostId] = useState<string | null>(null)
+  const [deletingPost, setDeletingPost] = useState(false)
   const [newRoom, setNewRoom] = useState({
     name: "",
     description: "",
@@ -507,6 +516,81 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
       }
     } catch (error) {
       console.error('Failed to like post:', error)
+    }
+  }
+
+  const canModeratePost = () => userRole === "owner" || userRole === "admin" || userRole === "moderator"
+
+  const handleEditPost = (post: CirclePost) => {
+    setEditingPost(post)
+    setEditPostContent(post.content)
+  }
+
+  const saveEditPost = async () => {
+    if (!editingPost || !editPostContent.trim()) return
+    setSavingPostEdit(true)
+    try {
+      const response = await fetch(`/api/circles/${circleId}/posts`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ postId: editingPost.id, content: editPostContent.trim() }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "Failed to update post")
+      setPosts((prev) =>
+        prev.map((post) => (post.id === editingPost.id ? { ...post, content: editPostContent.trim() } : post)),
+      )
+      setEditingPost(null)
+      toast({ description: "Post updated" })
+    } catch (error: any) {
+      toast({ title: "Couldn't update post", description: error.message, variant: "destructive" })
+    } finally {
+      setSavingPostEdit(false)
+    }
+  }
+
+  const confirmDeletePost = async () => {
+    if (!deletePostId) return
+    setDeletingPost(true)
+    try {
+      const response = await fetch(`/api/circles/${circleId}/posts?postId=${deletePostId}`, {
+        method: "DELETE",
+        headers: getAuthHeader(),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "Failed to delete post")
+      setPosts((prev) => prev.filter((post) => post.id !== deletePostId))
+      toast({ description: "Post deleted" })
+    } catch (error: any) {
+      toast({ title: "Couldn't delete post", description: error.message, variant: "destructive" })
+    } finally {
+      setDeletingPost(false)
+      setDeletePostId(null)
+    }
+  }
+
+  const handleSharePost = async (post: CirclePost) => {
+    const url = `${window.location.origin}/circles/${circleId}?post=${post.id}`
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `${post.author.display_name} in a circle on Loop`,
+          text: post.content.slice(0, 120) || "Check out this post",
+          url,
+        })
+        return
+      }
+    } catch (error: any) {
+      if (error?.name === "AbortError") return
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      toast({ title: "Link copied", description: "Post link is on your clipboard." })
+      setPosts((prev) =>
+        prev.map((p) => (p.id === post.id ? { ...p, shares: Number(p.shares || 0) + 1 } : p)),
+      )
+    } catch {
+      toast({ title: "Couldn't copy link", variant: "destructive" })
     }
   }
 
@@ -802,6 +886,48 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
         </CardContent>
       </Card>
 
+      {/* Private circles hide posts, rooms, events, and the member list from
+          anyone who isn't an approved member — visitors only see enough to
+          decide whether to request access, and requesters land here until a
+          moderator approves them. */}
+      {circle.is_private && !isJoined ? (
+        <Card className="border-border bg-card text-card-foreground">
+          <CardContent className="flex flex-col items-center gap-4 px-6 py-12 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+              <Lock className="h-7 w-7 text-muted-foreground" />
+            </div>
+            {membershipPending ? (
+              <>
+                <h3 className="text-lg font-semibold">Your request is pending approval</h3>
+                <p className="max-w-sm text-sm text-muted-foreground">
+                  This is a private circle. An admin needs to approve your request before you can see posts,
+                  rooms, events, or members. We'll notify you once you're in.
+                </p>
+                <Button variant="outline" size="sm" className="rounded-full" onClick={handleJoinLeave}>
+                  Cancel request
+                </Button>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold">This circle is private</h3>
+                <p className="max-w-sm text-sm text-muted-foreground">
+                  Posts, rooms, events, and the member list are only visible to approved members. Request to
+                  join and an admin will review it.
+                </p>
+                <Button
+                  onClick={handleJoinLeave}
+                  size="sm"
+                  className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white"
+                >
+                  <UserPlus className="mr-1.5 h-4 w-4" />
+                  Request to join
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+      <>
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="-mx-1 overflow-x-auto pb-1">
@@ -1034,7 +1160,12 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                               <span>{post.comments}</span>
                             </Button>
 
-                            <Button variant="ghost" size="sm" className="hidden px-2 xs:inline-flex sm:inline-flex">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="hidden px-2 xs:inline-flex sm:inline-flex"
+                              onClick={() => handleSharePost(post)}
+                            >
                               <Share className="mr-1 h-4 w-4" />
                               <span className="hidden sm:inline">{post.shares}</span>
                             </Button>
@@ -1056,10 +1187,36 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem>
-                                  <Gift className="mr-2 h-4 w-4" />
-                                  Gift Author
+                                {post.author?.id === user?.id && (
+                                  <DropdownMenuItem onClick={() => handleEditPost(post)}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Edit Post
+                                  </DropdownMenuItem>
+                                )}
+                                {(post.author?.id === user?.id || canModeratePost()) && (
+                                  <DropdownMenuItem
+                                    onClick={() => setDeletePostId(post.id)}
+                                    className="text-red-500 focus:text-red-500"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete Post
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem onClick={() => handleSharePost(post)}>
+                                  <Link2 className="mr-2 h-4 w-4" />
+                                  Copy Link
                                 </DropdownMenuItem>
+                                {post.author?.id !== user?.id && (
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setGiftRecipient(post.author)
+                                      setShowGiftModal(true)
+                                    }}
+                                  >
+                                    <Gift className="mr-2 h-4 w-4" />
+                                    Gift Author
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -1290,6 +1447,8 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
             />
           </TabsContent>
         </Tabs>
+      </>
+      )}
 
         {/* Create Room Dialog */}
         <Dialog open={showCreateRoom} onOpenChange={setShowCreateRoom}>
@@ -1462,6 +1621,37 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
             </div>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={Boolean(editingPost)} onOpenChange={(open) => !open && setEditingPost(null)}>
+          <DialogContent className="border-border bg-popover text-foreground">
+            <DialogHeader>
+              <DialogTitle>Edit post</DialogTitle>
+            </DialogHeader>
+            <Textarea
+              value={editPostContent}
+              onChange={(e) => setEditPostContent(e.target.value)}
+              className="min-h-[140px] border-border bg-muted"
+            />
+            <DialogFooter>
+              <Button variant="outline" className="border-border" onClick={() => setEditingPost(null)}>
+                Cancel
+              </Button>
+              <Button onClick={saveEditPost} disabled={savingPostEdit || !editPostContent.trim()}>
+                {savingPostEdit ? "Saving..." : "Save changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <ConfirmDialog
+          open={Boolean(deletePostId)}
+          onOpenChange={(open) => !open && setDeletePostId(null)}
+          title="Delete this post?"
+          description="This cannot be undone."
+          confirmLabel={deletingPost ? "Deleting..." : "Delete"}
+          destructive
+          onConfirm={confirmDeletePost}
+        />
     </div>
   )
 }

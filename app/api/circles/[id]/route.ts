@@ -70,6 +70,41 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
     }
 
+    const memberCount = Array.isArray(circle.member_count) ? circle.member_count[0]?.count || 0 : Number(circle.member_count || 0)
+
+    // Private circles must not leak posts/events/rooms/discussion content to
+    // non-approved visitors — they should only see enough to decide whether
+    // to request access, and land on a waiting screen once requested.
+    const canViewContent = !circle.is_private || isMember
+
+    if (!canViewContent) {
+      return NextResponse.json({
+        success: true,
+        locked: true,
+        circle: {
+          id: circle.id,
+          name: circle.name,
+          description: circle.description,
+          category: circle.category,
+          avatar_url: circle.avatar_url,
+          banner_url: circle.banner_url,
+          is_private: circle.is_private,
+          owner: circle.owner || circle.creator,
+          member_count: memberCount,
+          is_member: isMember,
+          user_role: userRole,
+          membership_status: membershipStatus,
+          created_at: circle.created_at,
+        },
+        is_member: isMember,
+        user_role: userRole,
+        membership_status: membershipStatus,
+        posts: [],
+        events: [],
+        rooms: [],
+      })
+    }
+
     // Get recent posts
     const { data: posts } = await supabase
       .from("circle_posts")
@@ -97,8 +132,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .eq("circle_id", circleId)
       .order("created_at", { ascending: false })
 
-    const memberCount = Array.isArray(circle.member_count) ? circle.member_count[0]?.count || 0 : Number(circle.member_count || 0)
-
     // Real stats — computed the same way here for both the main community
     // page (which reads circle.stats.* directly) and the admin dashboard
     // (which remaps post_count/comment_count with fallbacks). Previously
@@ -123,6 +156,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     return NextResponse.json({
       success: true,
+      locked: false,
       circle: {
         ...circle,
         owner: circle.owner || circle.creator,
