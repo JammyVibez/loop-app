@@ -72,7 +72,9 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
     setRedirecting(false)
   }, [user, loading, pathname, router, isPublicRoute])
 
-  if (loading && !forceReady) {
+  // Public routes must render immediately so crawlers/SSR see real content
+  // (title/h1) instead of an auth loading shell.
+  if (loading && !forceReady && !isPublicRoute) {
     return <PageLoading message="Loading your profile..." />
   }
 
