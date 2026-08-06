@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Users, Settings, Crown, Shield, MessageCircle, Calendar, UserPlus, UserMinus, Lock, Globe, Plus, Video, Mic, Share, Pin, Search, Filter, Edit, Trash2, Eye, Check, X, AlertTriangle, UserCheck, Ban, TrendingUp, Upload, Power, Loader2 } from "lucide-react";
+import { Users, Settings, Crown, Shield, MessageCircle, Calendar, UserPlus, UserMinus, Lock, Globe, Plus, Video, Mic, Share, Pin, Search, Filter, Edit, Trash2, Eye, Check, X, AlertTriangle, UserCheck, Ban, TrendingUp, Upload, Power, Loader2, ArrowLeft } from "lucide-react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -1023,8 +1023,46 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
     )
   }
 
+  const handleBack = () => {
+    if (typeof window !== "undefined") {
+      const ref = document.referrer
+      if (ref && ref.startsWith(window.location.origin) && ref.includes(`/circles/${circleId}`)) {
+        router.push(`/circles/${circleId}`)
+        return
+      }
+      if (ref && ref.startsWith(window.location.origin) && !ref.includes(`/circles/${circleId}/admin`)) {
+        router.back()
+        return
+      }
+    }
+    router.push(`/circles/${circleId}`)
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
+      <div className="sticky top-16 z-30 -mx-3 flex items-center gap-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-4 sm:px-4">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="rounded-full p-2 text-foreground hover:bg-muted"
+          aria-label="Back to circle"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold leading-tight sm:text-base">
+            {circle.name} · Admin
+          </p>
+          <button
+            type="button"
+            onClick={handleBack}
+            className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+          >
+            Back to community
+          </button>
+        </div>
+      </div>
+
       {/* Circle Header */}
       <div className="relative">
         {/* Banner */}

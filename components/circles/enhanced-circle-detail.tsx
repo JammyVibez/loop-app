@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -48,6 +50,7 @@ import {
   Edit,
   Trash2,
   Link2,
+  ArrowLeft,
 } from "lucide-react"
 import { RealtimeCircleChat } from "@/components/circles/realtime-circle-chat"
 import { CircleEvents } from "@/components/circles/circle-events"
@@ -192,7 +195,19 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   const { user, loading: authLoading, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const { currentTheme } = useTheme3D()
-  
+  const router = useRouter()
+
+  const handleBack = () => {
+    if (typeof window !== "undefined") {
+      const ref = document.referrer
+      if (ref && ref.startsWith(window.location.origin) && !ref.includes(`/circles/${circleId}`)) {
+        router.back()
+        return
+      }
+    }
+    router.push("/circles")
+  }
+
   // State management
   const [circle, setCircle] = useState<any>(null)
   const [posts, setPosts] = useState<CirclePost[]>([])
@@ -756,12 +771,36 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
     }
   }
 
+  const backBar = (title?: string) => (
+    <div className="sticky top-16 z-30 -mx-3 mb-2 flex items-center gap-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-4 sm:px-4">
+      <button
+        type="button"
+        onClick={handleBack}
+        className="rounded-full p-2 text-foreground hover:bg-muted"
+        aria-label="Back to circles"
+      >
+        <ArrowLeft className="h-5 w-5" />
+      </button>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold leading-tight sm:text-base">
+          {title || "Community"}
+        </p>
+        <Link href="/circles" className="text-xs text-muted-foreground hover:text-foreground hover:underline">
+          Circles
+        </Link>
+      </div>
+    </div>
+  )
+
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p>Loading circle...</p>
+      <div className="w-full">
+        {backBar("Loading…")}
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="text-center">
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
+            <p className="text-muted-foreground">Loading circle...</p>
+          </div>
         </div>
       </div>
     )
@@ -769,11 +808,16 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <h2 className="text-2xl font-bold mb-2">Sign in to view this circle</h2>
-          <p className="text-gray-600">Community pages require an account.</p>
-          <a href="/login" className="inline-flex rounded-full bg-violet-600 px-4 py-2 text-sm text-white">Log in</a>
+      <div className="w-full">
+        {backBar("Sign in")}
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="space-y-3 text-center">
+            <h2 className="mb-2 text-2xl font-bold">Sign in to view this circle</h2>
+            <p className="text-muted-foreground">Community pages require an account.</p>
+            <a href="/login" className="inline-flex rounded-full bg-primary px-4 py-2 text-sm text-primary-foreground">
+              Log in
+            </a>
+          </div>
         </div>
       </div>
     )
@@ -781,10 +825,17 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
 
   if (!circle) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Circle not found</h2>
-          <p className="text-gray-600">This circle doesn't exist or you don't have access to it.</p>
+      <div className="w-full">
+        {backBar("Not found")}
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="space-y-3 text-center">
+            <h2 className="mb-2 text-2xl font-bold">Circle not found</h2>
+            <p className="text-muted-foreground">This circle doesn't exist or you don't have access to it.</p>
+            <Button variant="outline" className="rounded-full" onClick={handleBack}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Circles
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -802,6 +853,8 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
         } as React.CSSProperties
       }
     >
+      {backBar(circle.name || "Community")}
+
       {/* Circle Header */}
       <Card
         className={`overflow-hidden border-border bg-card text-card-foreground ${
