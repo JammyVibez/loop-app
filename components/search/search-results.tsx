@@ -12,6 +12,7 @@ import { LoopCard } from "@/components/loop-card"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { normalizeLoops } from "@/lib/normalize-loop"
+import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
 
 interface SearchResultsProps {
   query: string
@@ -286,7 +287,11 @@ function PersonRow({
               {person.is_verified ? <Badge variant="secondary">Verified</Badge> : null}
             </div>
             <p className="truncate text-sm text-muted-foreground">@{person.username}</p>
-            {person.bio ? <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">{person.bio}</p> : null}
+            {person.bio ? (
+              <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
+                {stripCircleBioTokens(person.bio)}
+              </p>
+            ) : null}
             <p className="mt-1 text-xs text-muted-foreground">
               {formatNumber(person.followers_count || 0)} followers
             </p>

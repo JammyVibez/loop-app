@@ -44,6 +44,8 @@ import { isShopThemePayload } from "@/lib/theme-css"
 import { xpForNextLevel } from "@/lib/xp"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { UserBadges } from "@/components/user-badge"
+import { RichContent } from "@/components/content/rich-content"
+import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
 
 interface Achievement {
   id: string
@@ -418,7 +420,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                   <ProfileShareCard
                     username={profile.username}
                     displayName={displayName}
-                    bio={profile.bio}
+                    bio={stripCircleBioTokens(profile.bio)}
                     avatarUrl={profile.avatar_url}
                     triggerClassName="w-full rounded-full border px-3 sm:w-auto"
                   />
@@ -480,9 +482,13 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             <p className="text-muted-foreground">@{profile.username}</p>
           </div>
 
-          <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
-            {profile.bio || "Building thoughtful communities with depth, style, and signal."}
-          </p>
+          {profile.bio ? (
+            <RichContent text={profile.bio} className="text-[15px] leading-relaxed" showPreviewCard={false} />
+          ) : (
+            <p className="text-[15px] leading-relaxed text-muted-foreground">
+              Building thoughtful communities with depth, style, and signal.
+            </p>
+          )}
 
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {profile.location && (
