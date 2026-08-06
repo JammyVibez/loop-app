@@ -30,8 +30,8 @@ export const generateViewport = (): Viewport => ({
   maximumScale: 1,
 })
 
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://loop-app.com"
-const defaultOgImage = `${siteUrl.replace(/\/$/, "")}/api/og?type=home&title=${encodeURIComponent("Loop - Next-Gen Collaborative Social OS")}&description=${encodeURIComponent("Connect, create, and collaborate in the Loop ecosystem with live streams, real-time co-loops, and interactive circles.")}`
+const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://loop-app.com").replace(/\/$/, "")
+const defaultOgImage = `${siteUrl}/api/og?type=home&title=${encodeURIComponent("Loop - Next-Gen Collaborative Social OS")}&description=${encodeURIComponent("Connect, create, and collaborate in the Loop ecosystem with live streams, real-time co-loops, and interactive circles.")}`
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -47,6 +47,27 @@ export const metadata: Metadata = {
   authors: [{ name: "Loop Team", url: siteUrl }],
   creator: "Loop Team",
   publisher: "Loop Platform",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Loop",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: [
+      { url: "/icons/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: [
+      { url: "/icons/touch-icon-iphone.png" },
+      { url: "/icons/touch-icon-ipad.png", sizes: "152x152" },
+      { url: "/icons/touch-icon-iphone-retina.png", sizes: "180x180" },
+      { url: "/icons/touch-icon-ipad-retina.png", sizes: "167x167" },
+    ],
+  },
   alternates: {
     canonical: "/",
   },
@@ -92,6 +113,11 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  other: {
+    "msapplication-TileColor": "#6366f1",
+    "msapplication-config": "/icons/browserconfig.xml",
+    "mobile-web-app-capable": "yes",
+  },
 }
 
 export default function RootLayout({
@@ -111,28 +137,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* PWA Meta Tags */}
-        <meta name="application-name" content="Loop" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Loop" />
-        <meta name="format-detection" content="telephone=no" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="msapplication-config" content="/icons/browserconfig.xml" />
-        <meta name="msapplication-TileColor" content="#6366f1" />
-        <meta name="msapplication-tap-highlight" content="no" />
-
-        {/* Apple Touch Icons */}
-        <link rel="apple-touch-icon" href="/icons/touch-icon-iphone.png" />
-        <link rel="apple-touch-icon" sizes="152x152" href="/icons/touch-icon-ipad.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/icons/touch-icon-iphone-retina.png" />
-        <link rel="apple-touch-icon" sizes="167x167" href="/icons/touch-icon-ipad-retina.png" />
-
-        {/* Favicon */}
-        <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
-        <link rel="shortcut icon" href="/favicon.ico" />
-
         {/* Performance optimizations */}
         <link rel="dns-prefetch" href="//fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
