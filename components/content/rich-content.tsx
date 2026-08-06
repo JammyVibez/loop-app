@@ -10,7 +10,8 @@ const HASHTAG_RE = /#([a-zA-Z0-9_]{1,50})\b/g
 const URL_RE = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/g
 const MARKDOWN_IMG_RE = /^!\[([^\]]*)\]\((https?:\/\/[^\s<]+|\/[^\s<]+)\)$/i
 const CIRCLE_TOKEN_RE = /^\[\[c:([0-9a-f-]{36})\|([^\]]{1,80})\]\]$/i
-const COMBINED_RE = /(\[\[[cC]:[0-9a-f-]{36}\|[^\]]{1,80}\]\]|!\[[^\]]*\]\((?:https?:\/\/[^\s<]+|\/[^\s<]+)\)|@[a-zA-Z0-9_]{3,30}\b|#[a-zA-Z0-9_]{1,50}\b|https?:\/\/[^\s<]+|www\.[^\s<]+)/g
+const COMBINED_RE =
+  /(\[\[[cC]:[0-9a-f-]{36}\|[^\]]{1,80}\]\]|!\[[^\]]*\]\((?:https?:\/\/[^\s<]+|\/[^\s<]+)\)|@[a-zA-Z0-9_]{3,30}\b|#[a-zA-Z0-9_]{1,50}\b|https?:\/\/[^\s<]+|www\.[^\s<]+)/g
 
 type Props = {
   text: string
@@ -38,8 +39,8 @@ function isStickerOrGif(url: string, alt: string = ""): boolean {
 }
 
 /**
- * Renders post/comment text with inline stickers, GIFs, clickable @mentions, #hashtags,
- * and auto-expanding URL detail preview cards.
+ * Renders post/comment/bio text with community tags, stickers, GIFs,
+ * clickable @mentions, #hashtags, and auto-expanding URL preview cards.
  */
 export function RichContent({
   text,

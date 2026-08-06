@@ -46,6 +46,7 @@ import { uploadMediaFile } from "@/lib/client-media-upload"
 import { UserBadges } from "@/components/user-badge"
 import { RichContent } from "@/components/content/rich-content"
 import { BioCommunityTags } from "@/components/profile/bio-community-tags"
+import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
 
 interface Achievement {
   id: string
@@ -422,7 +423,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                   <ProfileShareCard
                     username={profile.username}
                     displayName={displayName}
-                    bio={profile.bio}
+                    bio={stripCircleBioTokens(profile.bio)}
                     avatarUrl={profile.avatar_url}
                     triggerClassName="w-full rounded-full border px-3 sm:w-auto"
                   />
@@ -487,7 +488,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           {profile.bio ? (
             <RichContent text={profile.bio} className="text-[15px] leading-relaxed" showPreviewCard={false} />
           ) : (
-            <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-muted-foreground">
+            <p className="text-[15px] leading-relaxed text-muted-foreground">
               Building thoughtful communities with depth, style, and signal.
             </p>
           )}

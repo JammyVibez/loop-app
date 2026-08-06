@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { TrendingUp, Hash, Users, GitBranch, RefreshCw } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
 import { useAuth } from "@/hooks/use-auth"
+import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
 
 interface TrendingHashtag {
   tag: string
@@ -249,7 +250,9 @@ export function TrendingContent() {
 
                       {user.bio && (
                         <div className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-3">
-                          <p className="text-sm text-purple-700 dark:text-purple-300 font-medium line-clamp-2">{user.bio}</p>
+                          <p className="text-sm text-purple-700 dark:text-purple-300 font-medium line-clamp-2">
+                            {stripCircleBioTokens(user.bio)}
+                          </p>
                         </div>
                       )}
                     </CardContent>

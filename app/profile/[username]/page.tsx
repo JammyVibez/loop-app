@@ -3,6 +3,7 @@ import { Enhanced3DProfile } from "@/components/profile/enhanced-3d-profile"
 import { Header } from "@/components/header"
 import { createClient } from "@supabase/supabase-js"
 import { getAbsoluteAppUrl } from "@/lib/app-url"
+import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
 
 export const dynamic = "force-dynamic"
 
@@ -35,7 +36,7 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
     if (profile) {
       const name = profile.display_name || username
       title = `${name} (@${username}) — Profile`
-      if (profile.bio) description = profile.bio.slice(0, 160)
+      if (profile.bio) description = stripCircleBioTokens(profile.bio).slice(0, 160)
       avatarUrl = profile.avatar_url || ""
       isVerified = Boolean(profile.is_verified)
       followersCount = Number(profile.followers_count || 0)
