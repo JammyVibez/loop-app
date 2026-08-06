@@ -10,6 +10,7 @@ import { CodeLoopCard } from "@/components/developers/code-loop-card"
 function normalizeProject(row: any) {
   return {
     id: row.id,
+    author_id: row.author_id || row.author?.id,
     title: row.title,
     description: row.description,
     author: row.author || { username: "unknown", display_name: "Unknown", avatar_url: null },
@@ -99,7 +100,7 @@ export function DevelopersContent() {
         <div className="flex flex-wrap justify-center items-center gap-3">
           <Button
             onClick={() => setShowCreateDialog(true)}
-            className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-full font-semibold"
+            className="rounded-full font-semibold"
           >
             <Plus className="w-4 h-4 mr-2" />
             Share Project
@@ -185,7 +186,12 @@ export function DevelopersContent() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {sortedProjects.map((project) => (
-              <CodeLoopCard key={project.id} project={project} />
+              <CodeLoopCard
+                key={project.id}
+                project={project}
+                onUpdated={() => fetchProjects()}
+                onDeleted={(id) => setProjects((prev) => prev.filter((p) => p.id !== id))}
+              />
             ))}
           </div>
         )}
@@ -194,13 +200,13 @@ export function DevelopersContent() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <Code className="w-5 h-5 text-purple-600" />
+              <Code className="w-5 h-5 text-primary" />
               <span>Featured Developer Resources</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30 rounded-lg p-4">
+              <div className="rounded-lg border border-border bg-muted/40 p-4">
                 <h3 className="font-semibold mb-2">Loop API Documentation</h3>
                 <p className="text-sm text-muted-foreground mb-3">Real Bearer-token API reference for building on Loop</p>
                 <Button asChild variant="outline" size="sm">
@@ -208,7 +214,7 @@ export function DevelopersContent() {
                 </Button>
               </div>
 
-              <div className="bg-gradient-to-br from-cyan-50 to-teal-50 dark:from-cyan-950/30 dark:to-teal-950/30 rounded-lg p-4">
+              <div className="rounded-lg border border-border bg-muted/40 p-4">
                 <h3 className="font-semibold mb-2">Community Layout Packs</h3>
                 <p className="text-sm text-muted-foreground mb-3">Build marketplace packs that restyle Circles</p>
                 <Button asChild variant="outline" size="sm">

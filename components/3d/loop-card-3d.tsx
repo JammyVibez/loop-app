@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
 import { useTheme3D, useThemeColors } from "@/providers/theme-3d-provider";
+import { absoluteAppUrl, shareContent } from "@/lib/share";
 
 interface ThemeColors {
   primary?: string
@@ -98,6 +99,14 @@ export function LoopCard3D({ loop, onLike, onBookmark, className = '', variant =
   const handleMouseLeave = () => {
     setIsHovered(false)
     setMousePosition({ x: 0, y: 0 })
+  }
+
+  const handleShare = async () => {
+    await shareContent({
+      url: absoluteAppUrl(`/loop/${loop.id}`),
+      title: `@${user.username} on Loop`,
+      text: content.slice(0, 120) || "Check out this loop",
+    })
   }
 
   const loopCardTheme = (currentTheme as any)?.components?.loopCard
@@ -329,7 +338,13 @@ export function LoopCard3D({ loop, onLike, onBookmark, className = '', variant =
                 <Bookmark className={`h-4 w-4 transition-transform duration-300 ${loop.is_bookmarked ? "fill-current scale-110" : "hover:scale-110"}`} />
               </Button>
 
-              <Button variant="ghost" size="sm" className="btn-3d hover:scale-105 transition-all duration-300">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="btn-3d hover:scale-105 transition-all duration-300"
+                onClick={handleShare}
+                aria-label="Share loop"
+              >
                 <Share className="h-4 w-4" />
               </Button>
             </div>

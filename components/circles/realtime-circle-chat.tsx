@@ -302,11 +302,11 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
   const typingLabel = Object.values(typingUsers).slice(0, 2).join(", ")
 
   return (
-    <Card className="flex h-full min-h-[28rem] flex-col border-white/10 bg-[#0a1020]/90 text-slate-100">
-      <CardHeader className="border-b border-white/10 pb-3">
+    <Card className="flex h-full min-h-[28rem] flex-col border-border bg-card text-card-foreground">
+      <CardHeader className="border-b border-border pb-3">
         <CardTitle className="flex items-center justify-between text-base">
           <span># {roomName}</span>
-          <span className="flex items-center gap-1 text-xs font-normal text-slate-400">
+          <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
             {isConnected ? <Wifi className="h-3.5 w-3.5 text-emerald-300" /> : <WifiOff className="h-3.5 w-3.5 text-amber-300" />}
             {isConnected ? "Realtime" : "Syncing"}
           </span>
@@ -317,7 +317,7 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-4">
             {messages.length === 0 && (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-400">
+              <div className="rounded-2xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
                 No messages yet. Start the room conversation.
               </div>
             )}
@@ -335,13 +335,13 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
                   </Avatar>
                   <div className={cn("min-w-0 max-w-[85%] flex-1", isMine && "flex flex-col items-end")}>
                     <div className={cn("mb-1 flex items-center gap-2", isMine && "flex-row-reverse")}>
-                      <span className="text-sm font-semibold text-white">{message.author.display_name}</span>
-                      <span className="text-xs text-slate-500">
+                      <span className="text-sm font-semibold text-foreground">{message.author.display_name}</span>
+                      <span className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(message.timestamp), { addSuffix: true })}
                       </span>
                     </div>
                     {parent && (
-                      <div className="mb-1 max-w-full truncate rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] text-slate-400">
+                      <div className="mb-1 max-w-full truncate rounded-lg border border-border bg-muted/50 px-2 py-1 text-[11px] text-muted-foreground">
                         Replying to {parent.author.display_name}: {parent.content}
                       </div>
                     )}
@@ -349,8 +349,8 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
                       className={cn(
                         "rounded-2xl border px-3 py-2 text-sm",
                         isMine
-                          ? "border-cyan-400/20 bg-gradient-to-br from-violet-600/40 to-cyan-500/30 text-white"
-                          : "border-white/10 bg-white/[0.04] text-slate-200",
+                          ? "border-primary/30 bg-primary/15 text-foreground"
+                          : "border-border bg-muted/50 text-foreground",
                       )}
                     >
                       {message.media_url && (message.media_type === "audio" || /\.(webm|mp3|ogg|m4a|wav)(\?|$)/i.test(message.media_url)) && (
@@ -376,8 +376,8 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
                             className={cn(
                               "rounded-full border px-2 py-0.5 text-xs transition",
                               (message.my_reactions || []).includes(emoji)
-                                ? "border-cyan-400/40 bg-cyan-500/20"
-                                : "border-white/10 bg-white/[0.03] hover:bg-white/[0.08]",
+                                ? "border-primary/40 bg-primary/15"
+                                : "border-border bg-muted/40 hover:bg-muted",
                             )}
                           >
                             {emoji} {count}
@@ -389,18 +389,18 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
                           type="button"
                           size="sm"
                           variant="ghost"
-                          className="h-7 px-2 text-slate-400 hover:text-white"
+                          className="h-7 px-2 text-muted-foreground hover:text-foreground"
                           onClick={() => setOpenReactionFor((id) => (id === message.id ? null : message.id))}
                         >
                           <Smile className="h-3.5 w-3.5" />
                         </Button>
                         {openReactionFor === message.id && (
-                          <div className="absolute bottom-8 left-0 z-20 flex gap-1 rounded-full border border-white/10 bg-[#0b1220] p-1 shadow-xl">
+                          <div className="absolute bottom-8 left-0 z-20 flex gap-1 rounded-full border border-border bg-popover p-1 shadow-xl">
                             {QUICK_REACTIONS.map((emoji) => (
                               <button
                                 key={emoji}
                                 type="button"
-                                className="rounded-full px-1.5 py-0.5 text-sm hover:bg-white/10"
+                                className="rounded-full px-1.5 py-0.5 text-sm hover:bg-muted"
                                 onClick={() => handleReact(message.id, emoji)}
                               >
                                 {emoji}
@@ -413,7 +413,7 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
                         type="button"
                         size="sm"
                         variant="ghost"
-                        className="h-7 px-2 text-slate-400 opacity-0 transition hover:text-white group-hover:opacity-100"
+                        className="h-7 px-2 text-muted-foreground opacity-0 transition hover:text-foreground group-hover:opacity-100"
                         onClick={() => setReplyTo(message)}
                       >
                         <Reply className="mr-1 h-3.5 w-3.5" />
@@ -425,19 +425,19 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
               )
             })}
             {typingLabel && (
-              <p className="text-xs text-slate-400 animate-pulse">{typingLabel} typing…</p>
+              <p className="text-xs text-muted-foreground animate-pulse">{typingLabel} typing…</p>
             )}
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
 
-        <div className="border-t border-white/10 p-4">
+        <div className="border-t border-border p-4">
           {replyTo && (
-            <div className="mb-2 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-slate-300">
+            <div className="mb-2 flex items-center justify-between rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
               <span className="truncate">
                 Replying to <strong>{replyTo.author.display_name}</strong>: {replyTo.content}
               </span>
-              <button type="button" className="ml-2 text-slate-400 hover:text-white" onClick={() => setReplyTo(null)}>
+              <button type="button" className="ml-2 text-muted-foreground hover:text-foreground" onClick={() => setReplyTo(null)}>
                 ✕
               </button>
             </div>
@@ -464,7 +464,7 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
               type="button"
               size="icon"
               variant="ghost"
-              className="shrink-0 text-slate-400 hover:text-white"
+              className="shrink-0 text-muted-foreground hover:text-foreground"
               disabled={uploadingAudio || isSending}
               onClick={() => fileInputRef.current?.click()}
             >
@@ -474,7 +474,7 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
               type="button"
               size="icon"
               variant="ghost"
-              className={cn("shrink-0", recording ? "text-rose-400" : "text-slate-400 hover:text-white")}
+              className={cn("shrink-0", recording ? "text-destructive" : "text-muted-foreground hover:text-foreground")}
               disabled={uploadingAudio || isSending}
               onClick={toggleRecording}
             >
@@ -494,12 +494,12 @@ export function RealtimeCircleChat({ circleId, roomId, roomName }: RealtimeCircl
                 }
               }}
               rows={2}
-              className="min-h-[44px] max-h-32 resize-none border-white/10 bg-white/[0.04] text-slate-100"
+              className="min-h-[44px] max-h-32 resize-none border-border bg-background text-foreground"
             />
             <Button
               onClick={() => void handleSendMessage()}
               disabled={!newMessage.trim() || isSending || uploadingAudio}
-              className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white"
+              className="rounded-full"
             >
               <Send className="h-4 w-4" />
             </Button>

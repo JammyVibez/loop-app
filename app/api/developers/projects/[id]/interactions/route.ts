@@ -111,22 +111,35 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
 
       // Create a real, independent copy owned by the forking user — not just a counter bump.
-      const { data: forkedProject, error: forkInsertError } = await supabase
+      const forkPayload: Record<string, unknown> = {
+        author_id: user.id,
+        title: project.title,
+        description: project.description,
+        language: project.language,
+        framework: project.framework,
+        tags: project.tags,
+        code_snippet: project.code_snippet,
+        repository_url: project.repository_url,
+        demo_url: project.demo_url,
+        is_public: true,
+        files: Array.isArray(project.files) ? project.files : [],
+      }
+
+      let { data: forkedProject, error: forkInsertError } = await supabase
         .from("developer_projects")
-        .insert({
-          author_id: user.id,
-          title: project.title,
-          description: project.description,
-          language: project.language,
-          framework: project.framework,
-          tags: project.tags,
-          code_snippet: project.code_snippet,
-          repository_url: project.repository_url,
-          demo_url: project.demo_url,
-          is_public: true,
-        })
+        .insert(forkPayload)
         .select("*")
         .single()
+
+      // Retry without files if column missing on older schema
+      if (forkInsertError?.code === "PGRST204" && /files/i.test(forkInsertError.message || "")) {
+        const { files: _files, ...withoutFiles } = forkPayload
+        ;({ data: forkedProject, error: forkInsertError } = await supabase
+          .from("developer_projects")
+          .insert(withoutFiles)
+          .select("*")
+          .single())
+      }
 
       if (forkInsertError || !forkedProject) {
         return NextResponse.json({ error: forkInsertError?.message || "Failed to fork project" }, { status: 500 })

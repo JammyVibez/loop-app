@@ -63,6 +63,7 @@ import { useTheme3D } from "@/providers/theme-3d-provider"
 import { formatDistanceToNow } from "date-fns"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { supabase } from "@/lib/supabase"
+import { absoluteAppUrl, shareContent } from "@/lib/share"
 
 interface EnhancedCircleDetailProps {
   circleId: string
@@ -629,27 +630,35 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   }
 
   const handleSharePost = async (post: CirclePost) => {
-    const url = `${window.location.origin}/circles/${circleId}?post=${post.id}`
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: `${post.author.display_name} in a circle on Loop`,
-          text: post.content.slice(0, 120) || "Check out this post",
-          url,
-        })
-        return
-      }
-    } catch (error: any) {
-      if (error?.name === "AbortError") return
+    const result = await shareContent({
+      url: absoluteAppUrl(`/circles/${circleId}?post=${post.id}`),
+      title: `${post.author.display_name} in a circle on Loop`,
+      text: post.content.slice(0, 120) || "Check out this post",
+    })
+    if (result === "aborted") return
+    if (result === "failed") {
+      toast({ title: "Couldn't share", variant: "destructive" })
+      return
     }
-    try {
-      await navigator.clipboard.writeText(url)
+    if (result === "copied") {
       toast({ title: "Link copied", description: "Post link is on your clipboard." })
-      setPosts((prev) =>
-        prev.map((p) => (p.id === post.id ? { ...p, shares: Number(p.shares || 0) + 1 } : p)),
-      )
-    } catch {
-      toast({ title: "Couldn't copy link", variant: "destructive" })
+    }
+    setPosts((prev) =>
+      prev.map((p) => (p.id === post.id ? { ...p, shares: Number(p.shares || 0) + 1 } : p)),
+    )
+  }
+
+  const handleShareCircle = async () => {
+    if (!circle) return
+    const result = await shareContent({
+      url: absoluteAppUrl(`/circles/${circleId}`),
+      title: circle.name || "Circle on Loop",
+      text: circle.description?.slice(0, 140) || `Join ${circle.name} on Loop`,
+    })
+    if (result === "copied") {
+      toast({ title: "Link copied", description: "Circle link is on your clipboard." })
+    } else if (result === "failed") {
+      toast({ title: "Couldn't share", variant: "destructive" })
     }
   }
 
@@ -760,7 +769,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p>Loading circle...</p>
         </div>
       </div>
@@ -772,7 +781,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-3">
           <h2 className="text-2xl font-bold mb-2">Sign in to view this circle</h2>
-          <p className="text-gray-600">Community pages require an account.</p>
+          <p className="text-muted-foreground">Community pages require an account.</p>
           <a href="/login" className="inline-flex rounded-full bg-violet-600 px-4 py-2 text-sm text-white">Log in</a>
         </div>
       </div>
@@ -784,7 +793,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-2">Circle not found</h2>
-          <p className="text-gray-600">This circle doesn't exist or you don't have access to it.</p>
+          <p className="text-muted-foreground">This circle doesn't exist or you don't have access to it.</p>
         </div>
       </div>
     )
@@ -886,13 +895,19 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                 )}
 
                 <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleShareCircle}
+                  className="rounded-full"
+                  aria-label="Share circle"
+                >
+                  <Share className="h-4 w-4" />
+                </Button>
+
+                <Button
                   onClick={handleJoinLeave}
                   size="sm"
-                  className={
-                    isJoined || membershipPending
-                      ? "rounded-full"
-                      : "rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white"
-                  }
+                  className="rounded-full"
                   variant={isJoined || membershipPending ? "outline" : "default"}
                   title={membershipPending ? "Click to cancel your join request" : undefined}
                 >
@@ -976,7 +991,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                 <Button
                   onClick={handleJoinLeave}
                   size="sm"
-                  className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white"
+                  className="rounded-full"
                 >
                   <UserPlus className="mr-1.5 h-4 w-4" />
                   Request to join
@@ -1127,7 +1142,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                           postingCircle ||
                           (!newPost.trim() && newPostMedia.length === 0 && !(showPollBuilder && pollQuestion.trim()))
                         }
-                        className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white"
+                        className="rounded-full"
                       >
                         {postingCircle ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
                         Share
@@ -1295,7 +1310,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
               {(userRole === 'owner' || userRole === 'admin' || userRole === 'moderator') && (
                 <Button
                   onClick={() => setShowCreateRoom(true)}
-                  className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white"
+                  className="rounded-full"
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Create Room
@@ -1416,10 +1431,10 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                     .map((member, index) => (
                       <div key={member.id} className="flex items-center space-x-3">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                          index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                          index === 1 ? 'bg-gray-100 text-gray-700' :
-                          index === 2 ? 'bg-orange-100 text-orange-700' :
-                          'bg-blue-100 text-blue-700'
+                          index === 0 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-300' :
+                          index === 1 ? 'bg-muted text-foreground' :
+                          index === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300' :
+                          'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300'
                         }`}>
                           {index + 1}
                         </div>
@@ -1432,13 +1447,13 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                             <span className="font-medium truncate">{member.display_name || member.username}</span>
                             {member.is_premium && <Crown className="w-4 h-4 text-yellow-500" />}
                           </div>
-                          <p className="text-sm text-gray-500">{member.contribution_score} points</p>
+                          <p className="text-sm text-muted-foreground">{member.contribution_score} points</p>
                         </div>
                         
 {index < 3 && (
                           <Trophy className={`w-5 h-5 ${
                             index === 0 ? 'text-yellow-500' :
-                            index === 1 ? 'text-gray-500' :
+                            index === 1 ? 'text-muted-foreground' :
                             'text-orange-500'
                           }`} />
                         )}
@@ -1459,14 +1474,14 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                   {Array.isArray(circle.rules) && circle.rules.length > 0 ? (
                     circle.rules.map((rule: string, index: number) => (
                     <div key={index} className="flex items-start space-x-3">
-                      <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                         <span className="text-white text-sm font-bold">{index + 1}</span>
                       </div>
-                      <p className="text-gray-700 dark:text-gray-300">{String(rule)}</p>
+                      <p className="text-foreground/90">{String(rule)}</p>
                     </div>
                     ))
                   ) : (
-                    <p className="text-gray-500">No rules have been set for this circle.</p>
+                    <p className="text-muted-foreground">No rules have been set for this circle.</p>
                   )}
                 </div>
               </CardContent>
@@ -1480,19 +1495,19 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-purple-600">{circle.stats?.total_posts || 0}</div>
-                    <div className="text-sm text-gray-500">Total Posts</div>
+                    <div className="text-sm text-muted-foreground">Total Posts</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-blue-600">{circle.stats?.total_comments || 0}</div>
-                    <div className="text-sm text-gray-500">Total Comments</div>
+                    <div className="text-sm text-muted-foreground">Total Comments</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">{circle.stats?.active_members || 0}</div>
-                    <div className="text-sm text-gray-500">Active Members</div>
+                    <div className="text-sm text-muted-foreground">Active Members</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-yellow-600">+{circle.stats?.weekly_growth || 0}%</div>
-                    <div className="text-sm text-gray-500">Weekly Growth</div>
+                    <div className="text-sm text-muted-foreground">Weekly Growth</div>
                   </div>
                 </div>
               </CardContent>
@@ -1603,7 +1618,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                 <Button variant="outline" onClick={() => setShowCreateRoom(false)} className="flex-1">
                   Cancel
                 </Button>
-                <Button onClick={handleCreateRoom} className="flex-1 bg-gradient-to-r from-purple-500 to-blue-500">
+                <Button onClick={handleCreateRoom} className="flex-1">
                   Create Room
                 </Button>
               </div>
