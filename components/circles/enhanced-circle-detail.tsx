@@ -83,6 +83,7 @@ interface CirclePost {
   media_urls?: string[]
   media_type?: 'image' | 'video' | 'audio'
   timestamp: string
+  updated_at?: string
   likes: number
   comments: number
   shares: number
@@ -148,6 +149,7 @@ function mapCirclePost(post: any): CirclePost {
     media_urls: Array.isArray(post?.media_urls) && post.media_urls.length ? post.media_urls : post?.media_url ? [post.media_url] : [],
     media_type: post?.media_type || undefined,
     timestamp: post?.timestamp || post?.created_at || new Date().toISOString(),
+    updated_at: post?.updated_at || undefined,
     likes: Number(post?.likes ?? post?.like_count ?? 0),
     comments: Number(post?.comments ?? post?.comment_count ?? 0),
     shares: Number(post?.shares ?? post?.share_count ?? 0),
@@ -166,6 +168,19 @@ function mapCirclePost(post: any): CirclePost {
         }
       : undefined,
   }
+}
+
+function isOwnCirclePost(post: CirclePost, userId?: string | null) {
+  if (!userId) return false
+  return String(post.author?.id || "") === String(userId)
+}
+
+function wasCirclePostEdited(post: CirclePost) {
+  if (!post.updated_at || !post.timestamp) return false
+  const created = new Date(post.timestamp).getTime()
+  const updated = new Date(post.updated_at).getTime()
+  if (!Number.isFinite(created) || !Number.isFinite(updated)) return false
+  return updated - created > 2000
 }
 
 function mapCircleMember(member: any): CircleMember {
@@ -596,8 +611,14 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || "Failed to update post")
+      const nextContent = data.post?.content ?? editPostContent.trim()
+      const nextUpdated = data.post?.updated_at || new Date().toISOString()
       setPosts((prev) =>
-        prev.map((post) => (post.id === editingPost.id ? { ...post, content: editPostContent.trim() } : post)),
+        prev.map((post) =>
+          post.id === editingPost.id
+            ? { ...post, content: nextContent, updated_at: nextUpdated }
+            : post,
+        ),
       )
       setEditingPost(null)
       toast({ description: "Post updated" })
@@ -605,6 +626,47 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
       toast({ title: "Couldn't update post", description: error.message, variant: "destructive" })
     } finally {
       setSavingPostEdit(false)
+    }
+  }
+
+  const postingEnabled = circle?.settings?.allow_posts !== false
+  const canBypassPostFreeze = userRole === "owner" || userRole === "admin" || userRole === "moderator"
+  const canUseComposer = isJoined && (postingEnabled || canBypassPostFreeze)
+
+  const toggleAllowPosts = async (enabled: boolean) => {
+    if (!canBypassPostFreeze) return
+    const previous = circle
+    setCircle((prev: any) =>
+      prev
+        ? {
+            ...prev,
+            settings: { ...(prev.settings || {}), allow_posts: enabled },
+          }
+        : prev,
+    )
+    try {
+      const response = await fetch(`/api/circles/${circleId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ allow_posts: enabled }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "Failed to update posting setting")
+      if (data.circle) {
+        setCircle((prev: any) => ({
+          ...(prev || {}),
+          ...data.circle,
+          settings: data.circle.settings || { ...(prev?.settings || {}), allow_posts: enabled },
+        }))
+      }
+      toast({
+        description: enabled
+          ? "Members can create posts again."
+          : "Post creation is off for members until you turn it back on.",
+      })
+    } catch (error: any) {
+      setCircle(previous)
+      toast({ title: "Couldn't update posting", description: error.message, variant: "destructive" })
     }
   }
 
@@ -1013,10 +1075,46 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
         </div>
 
         <TabsContent value="posts" className="mt-4 space-y-4 sm:mt-6 sm:space-y-6">
+          {canBypassPostFreeze && (
+            <Card className="border-border">
+              <CardContent className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">Member post creation</p>
+                  <p className="text-xs text-muted-foreground">
+                    Turn this off to hide the create-post box for regular members. Admins can still post.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="allow-posts-toggle" className="text-xs text-muted-foreground">
+                    {postingEnabled ? "On" : "Off"}
+                  </Label>
+                  <Switch
+                    id="allow-posts-toggle"
+                    checked={postingEnabled}
+                    onCheckedChange={(checked) => void toggleAllowPosts(checked)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {isJoined && !postingEnabled && !canBypassPostFreeze && (
+            <Card className="border-amber-500/30 bg-amber-500/5">
+              <CardContent className="p-4 text-sm text-muted-foreground">
+                Posting is temporarily turned off by community admins. You can still read and interact with existing posts.
+              </CardContent>
+            </Card>
+          )}
+
           {/* Create Post */}
-          {isJoined && (
+          {canUseComposer && (
             <Card>
               <CardContent className="p-3 sm:p-4">
+                {!postingEnabled && canBypassPostFreeze && (
+                  <p className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                    Member posting is off — only admins/moderators can create posts right now.
+                  </p>
+                )}
                 <div className="flex items-start gap-3">
                   <Avatar className="h-9 w-9 sm:h-10 sm:w-10">
                     <AvatarImage src={user?.avatar_url} />
@@ -1174,6 +1272,9 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                           )}
                           {post.author?.is_premium && <Crown className="h-4 w-4 text-yellow-500" />}
                           <span className="text-xs text-muted-foreground">{stamped}</span>
+                          {wasCirclePostEdited(post) && (
+                            <span className="text-xs text-muted-foreground">(edited)</span>
+                          )}
                           {post.is_pinned && <Pin className="h-4 w-4 text-violet-500" />}
                         </div>
 
@@ -1231,6 +1332,18 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                           </div>
 
                           <div className="flex items-center gap-1">
+                            {isOwnCirclePost(post, user?.id) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="px-2"
+                                onClick={() => handleEditPost(post)}
+                                aria-label="Edit post"
+                              >
+                                <Edit className="mr-1 h-4 w-4" />
+                                <span className="hidden sm:inline">Edit</span>
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1246,13 +1359,13 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                {post.author?.id === user?.id && (
+                                {isOwnCirclePost(post, user?.id) && (
                                   <DropdownMenuItem onClick={() => handleEditPost(post)}>
                                     <Edit className="mr-2 h-4 w-4" />
                                     Edit Post
                                   </DropdownMenuItem>
                                 )}
-                                {(post.author?.id === user?.id || canModeratePost()) && (
+                                {(isOwnCirclePost(post, user?.id) || canModeratePost()) && (
                                   <DropdownMenuItem
                                     onClick={() => setDeletePostId(post.id)}
                                     className="text-red-500 focus:text-red-500"
@@ -1265,7 +1378,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                                   <Link2 className="mr-2 h-4 w-4" />
                                   Copy Link
                                 </DropdownMenuItem>
-                                {post.author?.id !== user?.id && (
+                                {!isOwnCirclePost(post, user?.id) && (
                                   <DropdownMenuItem
                                     onClick={() => {
                                       setGiftRecipient(post.author)
@@ -1682,14 +1795,16 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
         </Dialog>
 
         <Dialog open={Boolean(editingPost)} onOpenChange={(open) => !open && setEditingPost(null)}>
-          <DialogContent className="border-border bg-popover text-foreground">
+          <DialogContent className="border-border bg-popover text-foreground sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>Edit post</DialogTitle>
+              <DialogTitle>Edit your post</DialogTitle>
             </DialogHeader>
-            <Textarea
+            <MentionTextarea
               value={editPostContent}
-              onChange={(e) => setEditPostContent(e.target.value)}
-              className="min-h-[140px] border-border bg-muted"
+              onChange={setEditPostContent}
+              className="min-h-[140px] resize-none border-border bg-muted"
+              rows={5}
+              placeholder="Update your post…"
             />
             <DialogFooter>
               <Button variant="outline" className="border-border" onClick={() => setEditingPost(null)}>
