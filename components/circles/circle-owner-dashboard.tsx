@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,17 +8,19 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Users, Settings, Crown, Shield, MessageCircle, Calendar, UserPlus, UserMinus, Lock, Globe, Plus, Video, Mic, Share, Pin, Search, Filter, Edit, Trash2, Eye, Check, X, AlertTriangle, UserCheck, Ban, TrendingUp } from "lucide-react";
+import { Users, Settings, Crown, Shield, MessageCircle, Calendar, UserPlus, UserMinus, Lock, Globe, Plus, Video, Mic, Share, Pin, Search, Filter, Edit, Trash2, Eye, Check, X, AlertTriangle, UserCheck, Ban, TrendingUp, Upload, Power, Loader2, ArrowLeft } from "lucide-react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { InviteModal } from "@/components/invitations/invite-modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDistanceToNow } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { uploadMediaFile } from "@/lib/client-media-upload";
 
 interface Circle {
   id: string
@@ -27,6 +30,7 @@ interface Circle {
   banner_url: string
   member_count: number
   is_private: boolean
+  is_active: boolean
   is_member: boolean
   is_admin: boolean
   is_moderator: boolean
@@ -120,6 +124,9 @@ interface CircleRoom {
 export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
   const { user, loading: authLoading, getAuthHeader } = useAuth()
   const { toast } = useToast()
+  const router = useRouter()
+  const avatarInputRef = useRef<HTMLInputElement>(null)
+  const bannerInputRef = useRef<HTMLInputElement>(null)
   
   // State management
   const [circle, setCircle] = useState<Circle | null>(null)
@@ -147,6 +154,11 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
   const [customTitleInput, setCustomTitleInput] = useState("")
   const [permissionsInput, setPermissionsInput] = useState<Record<string, boolean>>({})
   const [savingPermissions, setSavingPermissions] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [lifecycleBusy, setLifecycleBusy] = useState(false)
   
   // Form states
   const [editCircleForm, setEditCircleForm] = useState({
@@ -271,6 +283,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
       banner_url: raw.banner_url || "",
       member_count: Number(raw.member_count ?? stats.member_count ?? 0),
       is_private: Boolean(raw.is_private),
+      is_active: raw.is_active !== false,
       is_member: Boolean(raw.is_member),
       is_admin: Boolean(raw.is_admin || role === "admin" || role === "owner"),
       is_moderator: Boolean(raw.is_moderator || role === "moderator"),
@@ -584,6 +597,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
             ...(data.circle || {}),
             user_role: prev?.is_owner ? "owner" : prev?.is_admin ? "admin" : "member",
             is_member: true,
+            is_active: prev?.is_active,
             stats: prev?.stats,
           }),
         )
@@ -597,6 +611,82 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         description: "Failed to update circle",
         variant: "destructive"
       })
+    }
+  }
+
+  const handleUploadCircleMedia = async (file: File, kind: "avatar" | "banner") => {
+    if (!user) return
+    const setBusy = kind === "avatar" ? setUploadingAvatar : setUploadingBanner
+    setBusy(true)
+    try {
+      const result = await uploadMediaFile(file, {
+        type: "image",
+        folder: "circles",
+        authHeaders: authHeaders(),
+      })
+      setEditCircleForm((prev) => ({
+        ...prev,
+        [kind === "avatar" ? "avatar_url" : "banner_url"]: result.url,
+      }))
+      toast({ description: `${kind === "avatar" ? "Avatar" : "Banner"} uploaded — save to apply.` })
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error?.message || "Could not upload image",
+        variant: "destructive",
+      })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleToggleActive = async () => {
+    if (!circle) return
+    setLifecycleBusy(true)
+    try {
+      const action = circle.is_active ? "deactivate" : "activate"
+      const res = await fetch(`/api/circles/${circleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to update community status")
+      setCircle((prev) => (prev ? { ...prev, is_active: action === "activate" } : prev))
+      setShowDeactivateConfirm(false)
+      toast({
+        title: action === "activate" ? "Community reactivated" : "Community deactivated",
+        description:
+          action === "activate"
+            ? "Members can find and join this community again."
+            : "The community is hidden from discovery. You can reactivate anytime.",
+      })
+    } catch (error: any) {
+      toast({ title: "Couldn't update status", description: error.message, variant: "destructive" })
+    } finally {
+      setLifecycleBusy(false)
+    }
+  }
+
+  const handleDeleteCircle = async () => {
+    setLifecycleBusy(true)
+    try {
+      const res = await fetch(`/api/circles/${circleId}`, {
+        method: "DELETE",
+        headers: { ...authHeaders() },
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to delete community")
+      toast({
+        title: "Community deleted",
+        description: "All posts, rooms, events, and members were removed.",
+      })
+      setShowDeleteConfirm(false)
+      router.push("/circles")
+    } catch (error: any) {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" })
+    } finally {
+      setLifecycleBusy(false)
     }
   }
 
@@ -933,8 +1023,46 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
     )
   }
 
+  const handleBack = () => {
+    if (typeof window !== "undefined") {
+      const ref = document.referrer
+      if (ref && ref.startsWith(window.location.origin) && ref.includes(`/circles/${circleId}`)) {
+        router.push(`/circles/${circleId}`)
+        return
+      }
+      if (ref && ref.startsWith(window.location.origin) && !ref.includes(`/circles/${circleId}/admin`)) {
+        router.back()
+        return
+      }
+    }
+    router.push(`/circles/${circleId}`)
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
+      <div className="sticky top-16 z-30 -mx-3 flex items-center gap-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-4 sm:px-4">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="rounded-full p-2 text-foreground hover:bg-muted"
+          aria-label="Back to circle"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold leading-tight sm:text-base">
+            {circle.name} · Admin
+          </p>
+          <button
+            type="button"
+            onClick={handleBack}
+            className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+          >
+            Back to community
+          </button>
+        </div>
+      </div>
+
       {/* Circle Header */}
       <div className="relative">
         {/* Banner */}
@@ -988,13 +1116,20 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                   </div>
                 </div>
 
-                <Button
-                  onClick={() => setShowEditCircle(true)}
-                  className="w-full sm:w-auto shrink-0 bg-sky-600 hover:bg-sky-500"
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  Edit Circle
-                </Button>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                  {!circle.is_active && (
+                    <Badge variant="destructive" className="justify-center">
+                      Deactivated
+                    </Badge>
+                  )}
+                  <Button
+                    onClick={() => setShowEditCircle(true)}
+                    className="w-full sm:w-auto shrink-0"
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Edit Circle
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -1526,23 +1661,87 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
               />
             </div>
             
-            <div>
-              <Label htmlFor="avatar-url">Avatar URL</Label>
-              <Input
-                id="avatar-url"
-                value={editCircleForm.avatar_url}
-                onChange={(e) => setEditCircleForm(prev => ({ ...prev, avatar_url: e.target.value }))}
-                placeholder="Enter avatar URL..."
-              />
+            <div className="space-y-2">
+              <Label>Avatar</Label>
+              <div className="flex items-center gap-3">
+                <Avatar className="h-14 w-14 border border-border">
+                  <AvatarImage src={editCircleForm.avatar_url || "/placeholder.svg"} alt="" />
+                  <AvatarFallback>{editCircleForm.name?.charAt(0) || "C"}</AvatarFallback>
+                </Avatar>
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ""
+                      if (file) void handleUploadCircleMedia(file, "avatar")
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-fit"
+                    disabled={uploadingAvatar}
+                    onClick={() => avatarInputRef.current?.click()}
+                  >
+                    {uploadingAvatar ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                    {uploadingAvatar ? "Uploading…" : "Upload from device"}
+                  </Button>
+                  <Input
+                    id="avatar-url"
+                    value={editCircleForm.avatar_url}
+                    onChange={(e) => setEditCircleForm((prev) => ({ ...prev, avatar_url: e.target.value }))}
+                    placeholder="Or paste an avatar URL…"
+                  />
+                </div>
+              </div>
             </div>
-            
-            <div>
-              <Label htmlFor="banner-url">Banner URL</Label>
+
+            <div className="space-y-2">
+              <Label>Banner</Label>
+              {editCircleForm.banner_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={editCircleForm.banner_url}
+                  alt=""
+                  className="h-24 w-full rounded-lg border border-border object-cover"
+                />
+              ) : (
+                <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-border bg-muted/40 text-xs text-muted-foreground">
+                  No banner yet
+                </div>
+              )}
+              <input
+                ref={bannerInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ""
+                  if (file) void handleUploadCircleMedia(file, "banner")
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                disabled={uploadingBanner}
+                onClick={() => bannerInputRef.current?.click()}
+              >
+                {uploadingBanner ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                {uploadingBanner ? "Uploading…" : "Upload from device"}
+              </Button>
               <Input
                 id="banner-url"
                 value={editCircleForm.banner_url}
-                onChange={(e) => setEditCircleForm(prev => ({ ...prev, banner_url: e.target.value }))}
-                placeholder="Enter banner URL..."
+                onChange={(e) => setEditCircleForm((prev) => ({ ...prev, banner_url: e.target.value }))}
+                placeholder="Or paste a banner URL…"
               />
             </div>
             
@@ -1580,13 +1779,70 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
               <Button variant="outline" onClick={() => setShowEditCircle(false)} className="flex-1">
                 Cancel
               </Button>
-              <Button onClick={handleEditCircle} className="flex-1 bg-gradient-to-r from-purple-500 to-blue-500">
+              <Button onClick={handleEditCircle} className="flex-1">
                 Save Changes
               </Button>
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Danger zone</p>
+                  <p className="text-xs text-muted-foreground">
+                    Deactivate hides the community from discovery. Delete permanently removes posts, rooms, events, and members.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  disabled={lifecycleBusy}
+                  onClick={() => {
+                    if (circle?.is_active) setShowDeactivateConfirm(true)
+                    else void handleToggleActive()
+                  }}
+                >
+                  <Power className="mr-2 h-4 w-4" />
+                  {circle?.is_active ? "Deactivate community" : "Reactivate community"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="flex-1"
+                  disabled={lifecycleBusy}
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete community
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={showDeactivateConfirm}
+        onOpenChange={setShowDeactivateConfirm}
+        title="Deactivate this community?"
+        description="It will be hidden from discovery and locked for non-admins. You can reactivate it later."
+        confirmLabel={lifecycleBusy ? "Working…" : "Deactivate"}
+        destructive
+        onConfirm={handleToggleActive}
+      />
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete this community forever?"
+        description="This permanently deletes the community and all posts, rooms, events, and memberships. This cannot be undone."
+        confirmLabel={lifecycleBusy ? "Deleting…" : "Delete forever"}
+        destructive
+        onConfirm={handleDeleteCircle}
+      />
 
       {/* Create Event Dialog */}
       <Dialog open={showCreateEvent} onOpenChange={setShowCreateEvent}>

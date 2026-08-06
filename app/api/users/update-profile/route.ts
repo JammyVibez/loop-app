@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { ECONOMY_DEFAULTS } from "@/lib/economy"
+import { sanitizeTaggedCircles } from "@/lib/circle-limits"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -41,7 +42,49 @@ export async function POST(request: NextRequest) {
       phone,
       privacy_settings,
       notification_settings,
+      tagged_circles,
     } = body
+
+    let sanitizedTags: ReturnType<typeof sanitizeTaggedCircles> | undefined
+    if (tagged_circles !== undefined) {
+      sanitizedTags = sanitizeTaggedCircles(tagged_circles)
+      // Only allow tagging communities the user belongs to (or owns)
+      if (sanitizedTags.length > 0) {
+        const ids = sanitizedTags.map((t) => t.id)
+        const { data: memberships } = await supabase
+          .from("circle_members")
+          .select("circle_id, status")
+          .eq("user_id", user.id)
+          .in("circle_id", ids)
+        const allowed = new Set(
+          (memberships || [])
+            .filter((m) => ["active", "approved"].includes(String(m.status || "active").toLowerCase()) || !m.status)
+            .map((m) => m.circle_id),
+        )
+        // Also allow if they own the circle without a membership row
+        const { data: owned } = await supabase
+          .from("circles")
+          .select("id, name, avatar_url")
+          .or(`owner_id.eq.${user.id},creator_id.eq.${user.id}`)
+          .in("id", ids)
+        ;(owned || []).forEach((c) => allowed.add(c.id))
+
+        const { data: circleRows } = await supabase
+          .from("circles")
+          .select("id, name, avatar_url, is_active")
+          .in("id", ids)
+          .eq("is_active", true)
+
+        const byId = new Map((circleRows || []).map((c) => [c.id, c]))
+        sanitizedTags = sanitizedTags
+          .filter((t) => allowed.has(t.id) && byId.has(t.id))
+          .map((t) => ({
+            id: t.id,
+            name: byId.get(t.id)?.name || t.name,
+            avatar_url: byId.get(t.id)?.avatar_url || t.avatar_url || null,
+          }))
+      }
+    }
 
     // Preserve shop theme_preferences — appearance mode lives on theme_data
     let themeDataUpdate: Record<string, unknown> | undefined
@@ -67,6 +110,7 @@ export async function POST(request: NextRequest) {
       phone: phone === undefined ? undefined : phone || null,
       privacy_settings,
       notification_settings,
+      tagged_circles: sanitizedTags,
       onboarding_completed: typeof onboarding_completed === "boolean" ? onboarding_completed : undefined,
       updated_at: new Date().toISOString(),
       // Only write theme_preferences when explicitly sending a shop theme payload (has colors)
@@ -83,7 +127,7 @@ export async function POST(request: NextRequest) {
       .select("*")
       .maybeSingle()
 
-    for (const optionalColumn of ["theme_preferences", "theme_data", "interests", "phone", "privacy_settings", "notification_settings", "banner_url"]) {
+    for (const optionalColumn of ["theme_preferences", "theme_data", "interests", "phone", "privacy_settings", "notification_settings", "banner_url", "tagged_circles"]) {
       if (profileError?.code === "PGRST204" && optionalColumn in payload) {
         delete payload[optionalColumn]
         ;({ data: profile, error: profileError } = await supabase

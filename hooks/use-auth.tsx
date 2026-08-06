@@ -13,6 +13,7 @@ interface User {
   avatar_url?: string
   banner_url?: string
   bio?: string
+  tagged_circles?: Array<{ id: string; name: string; avatar_url?: string | null }>
   loop_coins: number
   is_premium: boolean
   premium_expires_at?: string
@@ -88,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       avatar_url: metadata.avatar_url,
       banner_url: undefined,
       bio: undefined,
+      tagged_circles: previous?.tagged_circles ?? [],
       loop_coins: 0,
       is_premium: false,
       premium_expires_at: undefined,
@@ -124,6 +126,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       avatar_url: profileData.avatar_url ?? previous?.avatar_url,
       banner_url: profileData.banner_url ?? previous?.banner_url,
       bio: profileData.bio ?? previous?.bio,
+      tagged_circles: Array.isArray(profileData.tagged_circles)
+        ? profileData.tagged_circles
+        : previous?.tagged_circles ?? [],
       loop_coins: profileData.loop_coins ?? previous?.loop_coins ?? 0,
       is_premium: profileData.is_premium ?? previous?.is_premium ?? false,
       premium_expires_at: profileData.premium_expires_at ?? previous?.premium_expires_at,
@@ -437,6 +442,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nextAvatar = (profile.avatar_url as string | undefined) ?? prev.avatar_url
       const nextBanner = (profile.banner_url as string | undefined) ?? prev.banner_url
       const nextBio = (profile.bio as string | undefined) ?? prev.bio
+      const nextTagged =
+        profile.tagged_circles !== undefined
+          ? (Array.isArray(profile.tagged_circles) ? profile.tagged_circles : [])
+          : prev.tagged_circles
       const nextCoins =
         typeof profile.loop_coins === "number" ? profile.loop_coins : prev.loop_coins
       const nextPremium = Boolean(profile.is_premium ?? prev.is_premium)
@@ -456,6 +465,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         nextAvatar === prev.avatar_url &&
         nextBanner === prev.banner_url &&
         nextBio === prev.bio &&
+        nextTagged === prev.tagged_circles &&
         nextCoins === prev.loop_coins &&
         nextPremium === prev.is_premium &&
         nextVerified === prev.is_verified &&
@@ -474,6 +484,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         avatar_url: nextAvatar,
         banner_url: nextBanner,
         bio: nextBio,
+        tagged_circles: nextTagged,
         loop_coins: nextCoins,
         is_premium: nextPremium,
         is_verified: nextVerified,
