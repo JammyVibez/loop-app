@@ -166,6 +166,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
     description: '',
     category: '',
     is_private: false,
+    allow_posts: true,
     avatar_url: '',
     banner_url: '',
     rules: [] as string[]
@@ -415,11 +416,13 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
             stats: circleData.circle?.stats || circleData.stats,
           })
           setCircle(mapped)
+          const rawCircle = circleData.circle || circleData
           setEditCircleForm({
             name: mapped.name,
             description: mapped.description,
             category: mapped.category,
             is_private: mapped.is_private,
+            allow_posts: rawCircle?.settings?.allow_posts !== false,
             avatar_url: mapped.avatar_url,
             banner_url: mapped.banner_url,
             rules: mapped.rules || []
@@ -1653,11 +1656,24 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Private Circle</Label>
-                <p className="text-sm text-gray-500">Require approval to join</p>
+                <p className="text-sm text-muted-foreground">Require approval to join</p>
               </div>
               <Switch
                 checked={editCircleForm.is_private}
                 onCheckedChange={(checked) => setEditCircleForm(prev => ({ ...prev, is_private: checked }))}
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-3 py-3">
+              <div>
+                <Label>Allow members to create posts</Label>
+                <p className="text-sm text-muted-foreground">
+                  Turn off to hide the post composer for regular members until you turn it back on
+                </p>
+              </div>
+              <Switch
+                checked={editCircleForm.allow_posts}
+                onCheckedChange={(checked) => setEditCircleForm((prev) => ({ ...prev, allow_posts: checked }))}
               />
             </div>
             

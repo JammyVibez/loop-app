@@ -143,6 +143,27 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "You must be a member to post" }, { status: 403 })
     }
 
+    // Community admins can turn off member posting via settings.allow_posts.
+    // Owners/admins/moderators can still post so they can announce the freeze.
+    const isCircleStaff = ["owner", "admin", "moderator"].includes(member.role)
+    if (!isCircleStaff) {
+      const { data: circleRow } = await supabase
+        .from("circles")
+        .select("settings")
+        .eq("id", circleId)
+        .maybeSingle()
+      const allowPosts = circleRow?.settings?.allow_posts
+      if (allowPosts === false) {
+        return NextResponse.json(
+          {
+            error: "Posting is temporarily turned off by community admins.",
+            allow_posts: false,
+          },
+          { status: 403 },
+        )
+      }
+    }
+
     // Announcement rooms are read-for-everyone, post-for-admins-only (or a
     // member explicitly granted can_post_announcements).
     if (room_id) {
@@ -351,6 +372,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "You can only edit your own posts" }, { status: 403 })
     }
 
+    if (typeof content === "string" && !content.trim()) {
+      return NextResponse.json({ error: "Post content cannot be empty" }, { status: 400 })
+    }
+
     // Only touch fields that were actually sent — omitting media_url/
     // hashtags previously wiped them out on every plain text edit.
     const updatePayload: Record<string, any> = { updated_at: new Date().toISOString() }
@@ -358,6 +383,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (media_url !== undefined) updatePayload.media_url = media_url
     if (media_type !== undefined) updatePayload.media_type = media_type
     if (Array.isArray(hashtags)) updatePayload.hashtags = hashtags
+
+    if (Object.keys(updatePayload).length <= 1) {
+      return NextResponse.json({ error: "No updates provided" }, { status: 400 })
+    }
 
     // Update post content
     const { data: updatedPost, error: updateError } = await supabase

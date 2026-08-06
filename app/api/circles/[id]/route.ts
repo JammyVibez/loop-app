@@ -267,6 +267,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
     }
 
+    const body = await request.json()
     const { 
       name, 
       description, 
@@ -275,29 +276,68 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       avatar_url, 
       banner_url,
       rules,
-      tags
-    } = await request.json()
+      tags,
+      settings: settingsPatch,
+      allow_posts,
+    } = body
+
+    // Merge settings (used for allow_posts and other community toggles)
+    let nextSettings: Record<string, unknown> | undefined
+    if (settingsPatch !== undefined || typeof allow_posts === "boolean") {
+      const { data: current } = await supabase
+        .from("circles")
+        .select("settings")
+        .eq("id", circleId)
+        .maybeSingle()
+      const existing =
+        current?.settings && typeof current.settings === "object" ? (current.settings as Record<string, unknown>) : {}
+      const patch =
+        settingsPatch && typeof settingsPatch === "object" ? (settingsPatch as Record<string, unknown>) : {}
+      nextSettings = {
+        ...existing,
+        ...patch,
+        ...(typeof allow_posts === "boolean" ? { allow_posts } : {}),
+        ...(typeof patch.allow_posts === "boolean" ? { allow_posts: patch.allow_posts } : {}),
+      }
+    }
+
+    const updatePayload: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    }
+    if (typeof name === "string") updatePayload.name = name.trim()
+    if (typeof description === "string") updatePayload.description = description.trim()
+    if (category !== undefined) updatePayload.category = category
+    if (typeof is_private === "boolean") updatePayload.is_private = is_private
+    if (avatar_url !== undefined) updatePayload.avatar_url = avatar_url
+    if (banner_url !== undefined) updatePayload.banner_url = banner_url
+    if (rules !== undefined) updatePayload.rules = rules
+    if (tags !== undefined) updatePayload.tags = tags
+    if (nextSettings !== undefined) updatePayload.settings = nextSettings
 
     // Update circle
-    const { data: updatedCircle, error: updateError } = await supabase
+    let { data: updatedCircle, error: updateError } = await supabase
       .from("circles")
-      .update({
-        name: name?.trim(),
-        description: description?.trim(),
-        category,
-        is_private,
-        avatar_url,
-        banner_url,
-        rules,
-        tags,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq("id", circleId)
       .select(`
         *,
         owner:profiles!owner_id(id, username, display_name, avatar_url)
       `)
       .single()
+
+    // Compat if settings column missing
+    if (updateError?.code === "PGRST204" && "settings" in updatePayload) {
+      delete updatePayload.settings
+      ;({ data: updatedCircle, error: updateError } = await supabase
+        .from("circles")
+        .update(updatePayload)
+        .eq("id", circleId)
+        .select(`
+          *,
+          owner:profiles!owner_id(id, username, display_name, avatar_url)
+        `)
+        .single())
+    }
 
     if (updateError) {
       console.error("Database update error:", updateError)
