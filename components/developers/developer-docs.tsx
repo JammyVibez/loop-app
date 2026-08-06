@@ -146,22 +146,22 @@ export function DeveloperDocs() {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/70 via-slate-900 to-violet-950/70 p-6 sm:p-8">
+      <div className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-r from-primary/10 via-card to-accent/10 p-6 sm:p-8">
         <div className="relative z-10 max-w-3xl space-y-3">
-          <Badge className="border-cyan-400/30 bg-cyan-400/10 text-cyan-300 font-semibold px-3 py-1 text-xs">
-            <BookOpen className="mr-1.5 h-3.5 w-3.5 text-cyan-400" /> Loop Developer Specification (v1.0)
+          <Badge className="border-primary/30 bg-primary/10 text-primary font-semibold px-3 py-1 text-xs">
+            <BookOpen className="mr-1.5 h-3.5 w-3.5 text-primary" /> Loop Developer Specification (v1.0)
           </Badge>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight sm:text-4xl">
+          <h1 className="text-3xl font-extrabold text-foreground tracking-tight sm:text-4xl">
             Community Layout & Theme Developer Docs
           </h1>
-          <p className="text-sm sm:text-base text-slate-300">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Build custom community layouts (Telegram, Discord, Reddit, Dev.to, Cyberpunk) for Circle Owners. Ensure zero schema mismatch by following our official manifest specification.
           </p>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-[#030712]/60 p-1 border border-white/10 rounded-2xl">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-muted p-1 border border-border rounded-2xl">
           <TabsTrigger value="overview">Layout Specs</TabsTrigger>
           <TabsTrigger value="schema">Supabase Schema</TabsTrigger>
           <TabsTrigger value="tokens">CSS Tokens</TabsTrigger>
@@ -171,38 +171,38 @@ export function DeveloperDocs() {
         {/* Tab 1: Layout Specs */}
         <TabsContent value="overview" className="space-y-6 mt-6">
           <div className="grid gap-4 md:grid-cols-3">
-            <Card className="border-white/10 bg-white/[0.03]">
+            <Card className="border-border bg-card">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2 text-cyan-400">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2 text-primary">
                   <Layers className="h-4 w-4" /> Telegram Layout
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs text-slate-300 space-y-2">
-                <p>Identifier: <code className="text-cyan-300 bg-black/40 px-1 py-0.5 rounded">telegram</code></p>
+              <CardContent className="text-xs text-muted-foreground space-y-2">
+                <p>Identifier: <code className="text-primary bg-muted px-1 py-0.5 rounded">telegram</code></p>
                 <p>Renders a channel sidebar on left, central message thread with reply bars, and right-side channel details & pinned info.</p>
               </CardContent>
             </Card>
 
-            <Card className="border-white/10 bg-white/[0.03]">
+            <Card className="border-border bg-card">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2 text-violet-400">
                   <Terminal className="h-4 w-4" /> Discord Layout
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs text-slate-300 space-y-2">
-                <p>Identifier: <code className="text-violet-300 bg-black/40 px-1 py-0.5 rounded">discord</code></p>
+              <CardContent className="text-xs text-muted-foreground space-y-2">
+                <p>Identifier: <code className="text-violet-300 bg-muted px-1 py-0.5 rounded">discord</code></p>
                 <p>Features dark server navigation bar, text/voice categories (`# general`, `🔊 voice`), colored user role tags, and online member roster.</p>
               </CardContent>
             </Card>
 
-            <Card className="border-white/10 bg-white/[0.03]">
+            <Card className="border-border bg-card">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2 text-orange-400">
                   <Sparkles className="h-4 w-4" /> Reddit Layout
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs text-slate-300 space-y-2">
-                <p>Identifier: <code className="text-orange-300 bg-black/40 px-1 py-0.5 rounded">reddit</code></p>
+              <CardContent className="text-xs text-muted-foreground space-y-2">
+                <p>Identifier: <code className="text-orange-300 bg-muted px-1 py-0.5 rounded">reddit</code></p>
                 <p>Subreddit header banner with Karma points, Upvote/Downvote buttons, Hot/Top post sorting, and Subreddit Rules wiki card.</p>
               </CardContent>
             </Card>
@@ -210,15 +210,15 @@ export function DeveloperDocs() {
 
           <Card className="border-white/10 bg-white/[0.04]">
             <CardHeader>
-              <CardTitle className="text-lg text-white flex items-center gap-2">
-                <Code className="h-5 w-5 text-cyan-400" /> Standard Community Layout Manifest Format
+              <CardTitle className="text-lg text-foreground flex items-center gap-2">
+                <Code className="h-5 w-5 text-primary" /> Standard Community Layout Manifest Format
               </CardTitle>
               <CardDescription className="text-xs text-slate-400">
                 Developers must use this JSON structure when uploading custom layout packs to avoid property mismatches.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="relative rounded-2xl bg-black/80 border border-white/10 p-4 font-mono text-xs text-emerald-400 overflow-x-auto">
+              <div className="relative rounded-2xl bg-muted border border-white/10 p-4 font-mono text-xs text-emerald-600 dark:text-emerald-400 overflow-x-auto">
                 <Button
                   size="sm"
                   variant="outline"
@@ -237,16 +237,16 @@ export function DeveloperDocs() {
         <TabsContent value="schema" className="space-y-6 mt-6">
           <Card className="border-white/10 bg-white/[0.04]">
             <CardHeader>
-              <CardTitle className="text-lg text-white flex items-center gap-2">
-                <Database className="h-5 w-5 text-emerald-400" /> Supabase Database Schema Guidelines
+              <CardTitle className="text-lg text-foreground flex items-center gap-2">
+                <Database className="h-5 w-5 text-emerald-600 dark:text-emerald-400" /> Supabase Database Schema Guidelines
               </CardTitle>
               <CardDescription className="text-xs text-slate-400">
                 Required database columns and automated fallbacks when storing community layouts.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 text-xs text-slate-300">
-              <div className="space-y-2 rounded-xl bg-black/40 p-4 border border-white/10">
-                <h4 className="font-semibold text-white text-sm">Table: <code className="text-cyan-300">circles</code></h4>
+            <CardContent className="space-y-4 text-xs text-muted-foreground">
+              <div className="space-y-2 rounded-xl bg-muted p-4 border border-white/10">
+                <h4 className="font-semibold text-foreground text-sm">Table: <code className="text-cyan-300">circles</code></h4>
                 <p>Column <code className="text-emerald-300">settings (JSONB)</code> stores per-community studio and marketplace design configurations:</p>
                 <div className="font-mono text-[11px] text-slate-400 pl-4 space-y-1">
                   <p>• settings.community_studio.layout → "telegram" | "discord" | "reddit" | "devto" | "forum" | "cyberpunk"</p>
@@ -255,8 +255,8 @@ export function DeveloperDocs() {
                 </div>
               </div>
 
-              <div className="space-y-2 rounded-xl bg-black/40 p-4 border border-white/10">
-                <h4 className="font-semibold text-white text-sm">Table: <code className="text-cyan-300">community_marketplace_listings</code></h4>
+              <div className="space-y-2 rounded-xl bg-muted p-4 border border-white/10">
+                <h4 className="font-semibold text-foreground text-sm">Table: <code className="text-cyan-300">community_marketplace_listings</code></h4>
                 <p>Stores developer layout uploads and pricing in Loop Coins.</p>
               </div>
             </CardContent>
@@ -267,7 +267,7 @@ export function DeveloperDocs() {
         <TabsContent value="tokens" className="space-y-6 mt-6">
           <Card className="border-white/10 bg-white/[0.04]">
             <CardHeader>
-              <CardTitle className="text-lg text-white flex items-center gap-2">
+              <CardTitle className="text-lg text-foreground flex items-center gap-2">
                 <Palette className="h-5 w-5 text-pink-400" /> CSS Variables & Design Tokens
               </CardTitle>
             </CardHeader>
@@ -279,7 +279,7 @@ export function DeveloperDocs() {
                 { var: "--circle-radius", desc: "Border-radius token for cards and control pills (e.g. 1rem)" },
                 { var: "--circle-font", desc: "Font family override for community headers (e.g. Space Grotesk)" },
               ].map((token) => (
-                <div key={token.var} className="p-3 rounded-xl border border-white/10 bg-black/40">
+                <div key={token.var} className="p-3 rounded-xl border border-white/10 bg-muted">
                   <code className="text-cyan-300 font-bold text-xs">{token.var}</code>
                   <p className="text-xs text-slate-400 mt-1">{token.desc}</p>
                 </div>
@@ -292,7 +292,7 @@ export function DeveloperDocs() {
         <TabsContent value="tester" className="space-y-6 mt-6">
           <Card className="border-white/10 bg-white/[0.04]">
             <CardHeader>
-              <CardTitle className="text-lg text-white flex items-center gap-2">
+              <CardTitle className="text-lg text-foreground flex items-center gap-2">
                 <Rocket className="h-5 w-5 text-amber-400" /> Developer Manifest Builder & Publisher
               </CardTitle>
               <CardDescription className="text-xs text-slate-400">
@@ -323,7 +323,7 @@ export function DeveloperDocs() {
                 value={manifestCode}
                 onChange={(e) => setManifestCode(e.target.value)}
                 rows={16}
-                className="font-mono text-xs bg-black/80 border-white/10 text-cyan-300"
+                className="font-mono text-xs bg-muted border-white/10 text-cyan-300"
               />
 
               {validationResult && (
@@ -342,15 +342,15 @@ export function DeveloperDocs() {
                 <Button
                   onClick={validateManifest}
                   variant="outline"
-                  className="rounded-full border-white/20 text-white"
+                  className="rounded-full border-white/20 text-foreground"
                 >
-                  <CheckCircle className="mr-2 h-4 w-4 text-emerald-400" /> Validate Syntax
+                  <CheckCircle className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Validate Syntax
                 </Button>
 
                 <Button
                   onClick={publishToMarketplace}
                   disabled={publishing}
-                  className="rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 font-bold text-white shadow-lg"
+                  className="rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 font-bold text-foreground shadow-lg"
                 >
                   {publishing ? "Publishing..." : "Publish to Marketplace 🚀"}
                 </Button>

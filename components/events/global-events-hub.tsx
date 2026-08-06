@@ -195,10 +195,10 @@ export function GlobalEventsHub() {
           <Badge className="border-cyan-400/30 bg-cyan-400/10 text-cyan-300 font-semibold px-3 py-1 text-xs">
             <Flame className="mr-1.5 h-3.5 w-3.5 text-orange-400" /> Platform-Wide Events
           </Badge>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight sm:text-4xl">
+          <h1 className="text-3xl font-extrabold text-foreground tracking-tight sm:text-4xl">
             Loop App Global Events Hub
           </h1>
-          <p className="text-sm sm:text-base text-slate-300">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Join official developer hackathons, content creator zone spotlights, 3D design showdowns, and live circle stages. Earn exclusive badges and Loop Coins!
           </p>
           {user?.is_admin && (
@@ -225,8 +225,8 @@ export function GlobalEventsHub() {
               onClick={() => setSelectedCategory(cat.id)}
               className={`rounded-full text-xs transition ${
                 selectedCategory === cat.id
-                  ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold"
-                  : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
+                  ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-foreground font-semibold"
+                  : "border-border bg-muted text-muted-foreground hover:bg-white/10"
               }`}
             >
               {cat.name}
@@ -235,24 +235,24 @@ export function GlobalEventsHub() {
         </div>
 
         <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search events..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="rounded-full border-white/10 bg-black/40 pl-9 text-xs text-white"
+            className="rounded-full border-white/10 bg-black/40 pl-9 text-xs text-foreground"
           />
         </div>
       </div>
 
       {/* Grid of Events */}
       {loading ? (
-        <div className="py-12 text-center text-slate-400">Loading platform events...</div>
+        <div className="py-12 text-center text-muted-foreground">Loading platform events...</div>
       ) : filteredEvents.length === 0 ? (
         <Card className="border-white/10 bg-white/[0.02] p-8 text-center">
           <Calendar className="mx-auto h-12 w-12 text-slate-500" />
-          <h3 className="mt-2 text-base font-semibold text-white">No events found</h3>
-          <p className="text-xs text-slate-400">Try adjusting your category filter or search query.</p>
+          <h3 className="mt-2 text-base font-semibold text-foreground">No events found</h3>
+          <p className="text-xs text-muted-foreground">Try adjusting your category filter or search query.</p>
         </Card>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -265,7 +265,7 @@ export function GlobalEventsHub() {
             return (
               <Card
                 key={event.id}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#030712]/70 transition-all hover:border-cyan-500/40 hover:shadow-xl hover:shadow-cyan-500/5"
+                className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-card/90 transition-all hover:border-cyan-500/40 hover:shadow-xl hover:shadow-cyan-500/5"
               >
                 {/* Banner Image */}
                 <div className="relative h-44 w-full overflow-hidden bg-slate-900">
@@ -292,14 +292,14 @@ export function GlobalEventsHub() {
                 {/* Content */}
                 <CardContent className="flex flex-1 flex-col justify-between p-5">
                   <div className="space-y-2">
-                    <h3 className="text-lg font-bold text-white group-hover:text-cyan-300 transition line-clamp-1">
+                    <h3 className="text-lg font-bold text-foreground group-hover:text-cyan-300 transition line-clamp-1">
                       {event.title}
                     </h3>
-                    <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed">{event.description}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">{event.description}</p>
                   </div>
 
                   <div className="mt-4 space-y-3 pt-3 border-t border-white/10">
-                    <div className="flex items-center justify-between text-xs text-slate-300">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span className="flex items-center gap-1.5 text-cyan-300">
                         <Video className="h-4 w-4" /> {event.location_type || "Virtual Stage"}
                       </span>
@@ -308,11 +308,11 @@ export function GlobalEventsHub() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-slate-400">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Users className="h-3.5 w-3.5 text-blue-400" /> {event.rsvp_count || 0} Attending
                       </span>
-                      <span className="flex items-center gap-1 text-slate-400 font-medium">
+                      <span className="flex items-center gap-1 text-muted-foreground font-medium">
                         <Clock className="h-3.5 w-3.5 text-cyan-400" /> {formattedTime}
                       </span>
                     </div>
@@ -324,7 +324,7 @@ export function GlobalEventsHub() {
                           setActiveStageEvent(event)
                           setRewardClaimed(false)
                         }}
-                        className="rounded-full text-xs font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:opacity-90 shadow-md shadow-cyan-500/20"
+                        className="rounded-full text-xs font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 text-foreground hover:opacity-90 shadow-md shadow-cyan-500/20"
                       >
                         <Play className="mr-1.5 h-3.5 w-3.5 fill-white" />
                         Enter Stage
@@ -334,7 +334,7 @@ export function GlobalEventsHub() {
                         variant="outline"
                         size="sm"
                         asChild
-                        className="rounded-full border-white/10 bg-white/5 text-xs text-slate-300 hover:bg-white/10"
+                        className="rounded-full border-white/10 bg-white/5 text-xs text-muted-foreground hover:bg-white/10"
                       >
                         <Link href={`/events/${event.id}`}>
                           Details & Hub
@@ -352,7 +352,7 @@ export function GlobalEventsHub() {
       {/* Interactive Live Event Stage Modal */}
       {activeStageEvent && (
         <Dialog open={Boolean(activeStageEvent)} onOpenChange={() => setActiveStageEvent(null)}>
-          <DialogContent className="border-white/15 bg-[#080d1a] text-white max-w-4xl p-0 overflow-hidden">
+          <DialogContent className="border-white/15 bg-card text-foreground max-w-4xl p-0 overflow-hidden">
             <div className="relative flex flex-col lg:flex-row h-[85vh] max-h-[700px]">
 
               {/* Left Column: Live Video/Audio Stage Canvas */}
@@ -361,8 +361,8 @@ export function GlobalEventsHub() {
                 <div className="z-10 flex items-center justify-between bg-black/60 backdrop-blur-md p-3 rounded-2xl border border-white/10">
                   <div className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-red-500 animate-ping" />
-                    <Badge className="bg-red-500 text-white font-bold text-xs">LIVE BROADCAST</Badge>
-                    <span className="text-xs font-semibold text-white truncate max-w-[200px] sm:max-w-none">
+                    <Badge className="bg-red-500 text-foreground font-bold text-xs">LIVE BROADCAST</Badge>
+                    <span className="text-xs font-semibold text-foreground truncate max-w-[200px] sm:max-w-none">
                       {activeStageEvent.title}
                     </span>
                   </div>
@@ -408,8 +408,8 @@ export function GlobalEventsHub() {
                   )}
 
                   <div className="space-y-1">
-                    <h2 className="text-xl font-bold text-white">{activeStageEvent.title}</h2>
-                    <p className="text-xs text-slate-400 max-w-md mx-auto">{activeStageEvent.description}</p>
+                    <h2 className="text-xl font-bold text-foreground">{activeStageEvent.title}</h2>
+                    <p className="text-xs text-muted-foreground max-w-md mx-auto">{activeStageEvent.description}</p>
                   </div>
                 </div>
 
@@ -442,9 +442,9 @@ export function GlobalEventsHub() {
               </div>
 
               {/* Right Column: Live Audience Chat */}
-              <div className="w-full lg:w-80 bg-[#060a14] flex flex-col justify-between p-4 border-t lg:border-t-0 border-white/10">
+              <div className="w-full lg:w-80 bg-background flex flex-col justify-between p-4 border-t lg:border-t-0 border-white/10">
                 <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                  <h4 className="font-bold text-white text-sm flex items-center gap-2">
+                  <h4 className="font-bold text-foreground text-sm flex items-center gap-2">
                     <MessageSquare className="h-4 w-4 text-cyan-400" /> Live Stage Chat
                   </h4>
                   <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px]">
@@ -472,7 +472,7 @@ export function GlobalEventsHub() {
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSendStageMessage()}
-                    className="rounded-full border-white/10 bg-black/60 text-xs text-white"
+                    className="rounded-full border-white/10 bg-black/60 text-xs text-foreground"
                   />
                   <Button
                     size="icon"
@@ -492,7 +492,7 @@ export function GlobalEventsHub() {
       {/* Detail Dialog */}
       {detailEvent && (
         <Dialog open={Boolean(detailEvent)} onOpenChange={() => setDetailEvent(null)}>
-          <DialogContent className="border-white/15 bg-[#090d16] text-white max-w-xl">
+          <DialogContent className="border-white/15 bg-card text-foreground max-w-xl">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold text-cyan-300 flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-amber-400" /> {detailEvent.title}
@@ -505,13 +505,13 @@ export function GlobalEventsHub() {
               </div>
             )}
 
-            <div className="space-y-4 text-sm text-slate-300">
+            <div className="space-y-4 text-sm text-muted-foreground">
               <p className="leading-relaxed">{detailEvent.description}</p>
 
               <div className="grid grid-cols-2 gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs">
                 <div>
                   <span className="text-slate-500 block">Category & Location</span>
-                  <span className="font-medium text-white">{detailEvent.category} • {detailEvent.location_type}</span>
+                  <span className="font-medium text-foreground">{detailEvent.category} • {detailEvent.location_type}</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Rewards</span>

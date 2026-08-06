@@ -252,14 +252,34 @@ export function LoopFeed({
 
   const handleInteraction = async (loopId: string, type: "like" | "save") => {
     if (!authToken) {
-      // Parent LoopCard / login gate handles guest CTA when onInteraction is used from card;
-      // keep a soft toast here for feed-level handlers.
       toast({
         title: "Sign in required",
         description: "Log in to like and save loops.",
       })
       return
     }
+
+    // Optimistic UI — update immediately, reconcile with server
+    let snapshot: typeof loops | null = null
+    setLoops((prev) => {
+      snapshot = prev
+      return prev.map((loop) => {
+        if (loop.id !== loopId) return loop
+        const next = {
+          ...loop,
+          user_interactions: { ...loop.user_interactions },
+          stats: { ...loop.stats },
+        }
+        if (type === "like") {
+          const wasLiked = Boolean(loop.user_interactions?.is_liked)
+          next.user_interactions.is_liked = !wasLiked
+          next.stats.likes_count = Math.max(0, Number(loop.stats?.likes_count || 0) + (wasLiked ? -1 : 1))
+        } else {
+          next.user_interactions.is_saved = !Boolean(loop.user_interactions?.is_saved)
+        }
+        return next
+      })
+    })
 
     setInteracting(`${loopId}-${type}`)
 
@@ -273,37 +293,41 @@ export function LoopFeed({
         body: JSON.stringify({ interaction_type: type }),
       })
 
-      const data = await response.json()
+      const data = await response.json().catch(() => ({}))
 
-      if (data.success) {
-        setLoops((prev) =>
-          prev.map((loop) => {
-            if (loop.id !== loopId) return loop
-            const updatedLoop = { ...loop }
-            if (type === "like") {
-              updatedLoop.user_interactions = {
-                ...updatedLoop.user_interactions,
-                is_liked: data.is_active,
-              }
-              updatedLoop.stats = data.stats || updatedLoop.stats
-            } else if (type === "save") {
-              updatedLoop.user_interactions = {
-                ...updatedLoop.user_interactions,
-                is_saved: data.is_active,
-              }
-            }
-            return updatedLoop
-          }),
-        )
-      } else {
+      if (!response.ok || data.success === false) {
+        if (snapshot) setLoops(snapshot)
         toast({
           title: "Error",
           description: data.error || "Failed to update interaction",
           variant: "destructive",
         })
+        return
       }
+
+      setLoops((prev) =>
+        prev.map((loop) => {
+          if (loop.id !== loopId) return loop
+          const updatedLoop = { ...loop, user_interactions: { ...loop.user_interactions }, stats: { ...loop.stats } }
+          if (type === "like") {
+            const liked = Boolean(data.is_liked ?? data.is_active)
+            updatedLoop.user_interactions.is_liked = liked
+            if (data.stats) updatedLoop.stats = { ...updatedLoop.stats, ...data.stats }
+            else updatedLoop.stats.likes_count = Number(data.stats?.likes_count ?? updatedLoop.stats.likes_count)
+          } else if (type === "save") {
+            const saved = Boolean(data.is_saved ?? data.is_active)
+            updatedLoop.user_interactions.is_saved = saved
+            toast({
+              title: saved ? "Saved to Bookmarks" : "Removed from Bookmarks",
+              description: saved ? "Find it anytime in Bookmarks." : undefined,
+            })
+          }
+          return updatedLoop
+        }),
+      )
     } catch (err) {
       console.error("Error updating interaction:", err)
+      if (snapshot) setLoops(snapshot)
       toast({
         title: "Error",
         description: "Failed to update interaction",
@@ -384,30 +408,28 @@ export function LoopFeed({
         </div>
       )}
 
-      <div className="sticky top-14 z-20 -mx-1 flex items-center justify-between gap-2 px-1 sm:top-16">
+      <div className="flex items-center justify-end gap-2 px-1">
         {pendingNew.length > 0 ? (
           <button
             type="button"
             onClick={showPending}
-            className="mx-auto inline-flex items-center gap-1.5 rounded-full bg-sky-600 px-4 py-1.5 text-sm font-semibold text-white shadow-lg shadow-sky-900/30 transition hover:bg-sky-500"
+            className="mx-auto inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-lg transition hover:opacity-90"
           >
             <ArrowUp className="h-3.5 w-3.5" />
             {pendingNew.length} new {pendingNew.length === 1 ? "loop" : "loops"}
           </button>
         ) : (
-          <div className="ml-auto">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="rounded-full text-muted-foreground"
-              disabled={refreshing}
-              onClick={() => void hardRefresh()}
-              title="Refresh feed"
-            >
-              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
-              <span className="ml-1.5 hidden sm:inline">Refresh</span>
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="rounded-full text-muted-foreground"
+            disabled={refreshing}
+            onClick={() => void hardRefresh()}
+            title="Refresh feed"
+          >
+            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+            <span className="ml-1.5 hidden sm:inline">Refresh</span>
+          </Button>
         )}
       </div>
 

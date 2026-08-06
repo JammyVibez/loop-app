@@ -31,6 +31,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@supabase/supabase-js"
+import { absoluteAppUrl, shareContent } from "@/lib/share"
 
 type CoAuthor = {
   id: string
@@ -103,6 +104,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
   const [chainOpen, setChainOpen] = useState(false)
   const [rosterOpen, setRosterOpen] = useState(false)
   const [reactions, setReactions] = useState<{ [emoji: string]: number }>({})
+  const [activeReaction, setActiveReaction] = useState<string | null>(null)
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
 
@@ -155,6 +157,21 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
         isCoLoop: Boolean(loopData.is_co_loop),
         coAuthors: Array.isArray(loopData.co_authors) ? loopData.co_authors : [],
       })
+
+      // Load persisted Quick React counts + current user's reaction
+      try {
+        const reactRes = await fetch(`/api/loops/${loopId}/reactions`, {
+          headers: user ? { Authorization: `Bearer ${user.access_token || user.token || ""}` } : undefined,
+          cache: "no-store",
+        })
+        if (reactRes.ok) {
+          const reactData = await reactRes.json()
+          setReactions(reactData.reactions || {})
+          setActiveReaction(reactData.my_reaction || null)
+        }
+      } catch {
+        /* soft-fail if reactions table missing */
+      }
     } catch (error) {
       console.error("Failed to load loop:", error)
       setLoop(null)
@@ -222,88 +239,162 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
   const handleLike = async () => {
     if (!loop || !user) return
 
-    try {
-      const newIsLiked = !loop.isLiked
-      const newLikeCount = newIsLiked ? loop.stats.likes + 1 : Math.max(0, loop.stats.likes - 1)
+    const previous = { isLiked: loop.isLiked, likes: loop.stats.likes }
+    const newIsLiked = !loop.isLiked
+    const newLikeCount = newIsLiked ? loop.stats.likes + 1 : Math.max(0, loop.stats.likes - 1)
 
+    setLoop((prev) =>
+      prev
+        ? {
+            ...prev,
+            isLiked: newIsLiked,
+            stats: { ...prev.stats, likes: newLikeCount },
+          }
+        : null,
+    )
+
+    try {
+      const res = await fetch(`/api/loops/${loopId}/interactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ interaction_type: "like" }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || data.success === false) {
+        throw new Error(data.error || "Like failed")
+      }
+      const liked = Boolean(data.is_liked ?? data.is_active)
       setLoop((prev) =>
         prev
           ? {
               ...prev,
-              isLiked: newIsLiked,
-              stats: { ...prev.stats, likes: newLikeCount },
+              isLiked: liked,
+              stats: {
+                ...prev.stats,
+                likes: Number(data.stats?.likes_count ?? prev.stats.likes),
+              },
             }
-          : null
+          : null,
       )
-
-      await fetch(`/api/loops/${loopId}/like`, {
-        method: "POST",
-        headers: { ...getAuthHeader() },
-      })
     } catch (error) {
       console.error("Failed to toggle like:", error)
+      setLoop((prev) =>
+        prev
+          ? {
+              ...prev,
+              isLiked: previous.isLiked,
+              stats: { ...prev.stats, likes: previous.likes },
+            }
+          : null,
+      )
+      toast({ title: "Couldn't update like", description: "Try again", variant: "destructive" })
     }
   }
 
-  const [activeReaction, setActiveReaction] = useState<string | null>(null)
-
   const handleReaction = async (emoji: string) => {
-    let nextEmoji: string | null = emoji
+    if (!user) {
+      toast({ title: "Sign in required", description: "Log in to react to loops." })
+      return
+    }
+
+    const prevReactions = { ...reactions }
+    const prevActive = activeReaction
+
     setReactions((prev) => {
       const copy = { ...prev }
       if (activeReaction === emoji) {
-        // Toggle off
         copy[emoji] = Math.max(0, (copy[emoji] || 0) - 1)
-        nextEmoji = null
+        if (copy[emoji] === 0) delete copy[emoji]
       } else {
-        // Replace previous active reaction if any
         if (activeReaction && copy[activeReaction]) {
-          copy[activeReaction] = Math.max(0, copy[activeReaction] - 1)
+          copy[activeReaction] = Math.max(0, (copy[activeReaction] || 0) - 1)
+          if (copy[activeReaction] === 0) delete copy[activeReaction]
         }
         copy[emoji] = (copy[emoji] || 0) + 1
       }
       return copy
     })
+    setActiveReaction(activeReaction === emoji ? null : emoji)
 
-    setActiveReaction(nextEmoji)
-
-    const channel = supabase.channel(`loop_page:${loopId}`)
-    await channel.send({
-      type: "broadcast",
-      event: "reaction",
-      payload: { emoji: nextEmoji, loopId, user_id: user?.id },
-    })
+    try {
+      const res = await fetch(`/api/loops/${loopId}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ emoji }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || data.success === false) throw new Error(data.error || "Reaction failed")
+      setReactions(data.reactions || {})
+      setActiveReaction(data.my_reaction || null)
+    } catch (error: any) {
+      setReactions(prevReactions)
+      setActiveReaction(prevActive)
+      toast({
+        title: "Couldn't save reaction",
+        description: error?.message || "Try again",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleBookmark = async () => {
     if (!loop || !user) return
 
-    try {
-      const newIsBookmarked = !loop.isBookmarked
-      setLoop((prev) => (prev ? { ...prev, isBookmarked: newIsBookmarked } : null))
+    const previous = loop.isBookmarked
+    const next = !previous
+    setLoop((prev) => (prev ? { ...prev, isBookmarked: next } : null))
 
-      await fetch(`/api/loops/${loopId}/save`, {
+    try {
+      const res = await fetch(`/api/loops/${loopId}/interactions`, {
         method: "POST",
-        headers: { ...getAuthHeader() },
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ interaction_type: "save" }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || data.success === false) throw new Error(data.error || "Bookmark failed")
+      const saved = Boolean(data.is_saved ?? data.is_active)
+      setLoop((prev) => (prev ? { ...prev, isBookmarked: saved } : null))
+      toast({
+        title: saved ? "Saved to Bookmarks" : "Removed from Bookmarks",
+        description: saved ? "Find it anytime in Bookmarks." : undefined,
       })
     } catch (error) {
       console.error("Failed to toggle bookmark:", error)
+      setLoop((prev) => (prev ? { ...prev, isBookmarked: previous } : null))
+      toast({ title: "Couldn't update bookmark", variant: "destructive" })
+    }
+  }
+
+  const handleCopyLink = async () => {
+    const url = absoluteAppUrl(`/loop/${loopId}`)
+    try {
+      await navigator.clipboard.writeText(url)
+      toast({ title: "Link copied", description: "Loop URL copied to clipboard" })
+    } catch {
+      toast({ title: "Couldn't copy link", variant: "destructive" })
     }
   }
 
   const handleShare = async () => {
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: loop?.title,
-          url: window.location.href,
+    const url = absoluteAppUrl(`/loop/${loopId}`)
+    const result = await shareContent({
+      title: loop?.title || "Loop",
+      text: loop?.content?.slice(0, 120) || "Check out this loop",
+      url,
+    })
+    if (result === "copied") {
+      toast({ title: "Link copied", description: "Loop URL copied to clipboard" })
+    }
+    if (user && (result === "shared" || result === "copied")) {
+      try {
+        await fetch(`/api/loops/${loopId}/interactions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ interaction_type: "share" }),
         })
-      } else {
-        await navigator.clipboard.writeText(window.location.href)
-        toast({ title: "Link copied", description: "Loop URL copied to clipboard" })
+      } catch {
+        /* non-blocking */
       }
-    } catch (error) {
-      console.error("Failed to share:", error)
     }
   }
 
@@ -383,33 +474,43 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                   )}
                 </div>
               ) : (
-                <Avatar className="h-12 w-12 border-2 border-cyan-500/40">
-                  <AvatarImage src={loop.author.avatar} />
-                  <AvatarFallback>{loop.author.displayName.charAt(0)}</AvatarFallback>
-                </Avatar>
+                <Link href={`/profile/${loop.author.username}`} className="shrink-0">
+                  <Avatar className="h-12 w-12 border-2 border-cyan-500/40">
+                    <AvatarImage src={loop.author.avatar} />
+                    <AvatarFallback>{loop.author.displayName.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                </Link>
               )}
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-lg text-foreground">
+                  <Link href={`/profile/${loop.author.username}`} className="font-bold text-lg text-foreground hover:underline">
                     {loop.author.displayName}
-                    {loop.isCoLoop && loop.coAuthors.length > 0 && (
-                      <span className="text-muted-foreground font-normal">
-                        {" "}
-                        × {loop.coAuthors.map((ca) => `@${ca.username}`).join(" × ")}
-                      </span>
-                    )}
-                  </span>
+                  </Link>
+                  {loop.isCoLoop && loop.coAuthors.length > 0 && (
+                    <span className="text-muted-foreground font-normal text-sm">
+                      {" "}
+                      ×{" "}
+                      {loop.coAuthors.map((ca, i) => (
+                        <span key={ca.id || ca.username}>
+                          {i > 0 ? " × " : null}
+                          <Link href={`/profile/${ca.username}`} className="hover:underline text-primary">
+                            @{ca.username}
+                          </Link>
+                        </span>
+                      ))}
+                    </span>
+                  )}
                   {loop.author.verified && (
-                    <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-300 text-[10px]">
+                    <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 text-[10px]">
                       Verified
                     </Badge>
                   )}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>@{loop.author.username}</span>
+                  <Link href={`/profile/${loop.author.username}`} className="hover:underline">@{loop.author.username}</Link>
                   <span>•</span>
                   <FreshnessTimestamp date={loop.createdAt} showIcon />
-                  <span className="inline-flex items-center gap-1 text-cyan-400 text-[10px]">
+                  <span className="inline-flex items-center gap-1 text-cyan-600 dark:text-cyan-400 text-[10px]">
                     <Sparkles className="h-3 w-3" /> Real-time active
                   </span>
                 </div>
@@ -423,9 +524,6 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-popover border-border text-foreground">
-                <DropdownMenuItem onClick={handleShare}>
-                  <Copy className="h-4 w-4 mr-2" /> Copy link
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleBookmark}>
                   <Bookmark className="h-4 w-4 mr-2" /> {loop.isBookmarked ? "Remove Bookmark" : "Save Bookmark"}
                 </DropdownMenuItem>
@@ -469,11 +567,15 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                 key={emoji}
                 type="button"
                 onClick={() => handleReaction(emoji)}
-                className="flex items-center gap-1 rounded-full bg-muted border border-border px-2.5 py-1 text-xs hover:bg-cyan-500/20 hover:border-cyan-400 transition-all"
+                className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-all ${
+                  activeReaction === emoji
+                    ? "bg-primary/15 border-primary/40 text-foreground"
+                    : "bg-muted border-border hover:bg-primary/10 hover:border-primary/30"
+                }`}
               >
                 <span>{emoji}</span>
                 {reactions[emoji] ? (
-                  <span className="text-[10px] font-bold text-cyan-300">{reactions[emoji]}</span>
+                  <span className="text-[10px] font-bold text-primary">{reactions[emoji]}</span>
                 ) : null}
               </button>
             ))}
@@ -481,12 +583,12 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
 
           {/* Stats & Actions */}
           <div className="flex items-center justify-between pt-4 border-t border-border">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleLike}
-                className={`gap-2 ${loop.isLiked ? "text-rose-400 bg-rose-500/10" : "text-muted-foreground hover:text-foreground"}`}
+                className={`gap-2 ${loop.isLiked ? "text-rose-500 bg-rose-500/10" : "text-muted-foreground hover:text-foreground"}`}
               >
                 <Heart className={`h-4 w-4 ${loop.isLiked ? "fill-rose-500" : ""}`} />
                 <span className="font-semibold">{loop.stats.likes}</span>
@@ -500,6 +602,16 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
               <Button variant="ghost" size="sm" onClick={handleShare} className="gap-2 text-muted-foreground hover:text-foreground">
                 <Share2 className="h-4 w-4" />
                 <span>{loop.stats.shares}</span>
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBookmark}
+                className={`gap-2 ${loop.isBookmarked ? "text-sky-600 dark:text-sky-400" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <Bookmark className={`h-4 w-4 ${loop.isBookmarked ? "fill-current" : ""}`} />
+                <span className="hidden sm:inline">{loop.isBookmarked ? "Saved" : "Save"}</span>
               </Button>
             </div>
 

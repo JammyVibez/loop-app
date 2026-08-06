@@ -191,16 +191,28 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
 
   const handleDelete = async () => {
     if (!deleteId || !token) return
-    const response = await fetch(`/api/loops/${loopId}/comments/${deleteId}`, {
+    const removingId = deleteId
+    const removeFromTree = (items: Comment[]): Comment[] =>
+      items
+        .filter((c) => c.id !== removingId)
+        .map((c) => ({
+          ...c,
+          replies: c.replies ? removeFromTree(c.replies) : c.replies,
+        }))
+
+    // Optimistic remove (top-level + nested replies)
+    setCommentsData((prev) => removeFromTree(prev))
+    setDeleteId(null)
+
+    const response = await fetch(`/api/loops/${loopId}/comments/${removingId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!response.ok) {
       toast({ title: "Error", description: "Failed to delete comment", variant: "destructive" })
+      void loadComments()
       return
     }
-    setCommentsData((prev) => prev.filter((c) => c.id !== deleteId))
-    setDeleteId(null)
   }
 
   const renderComment = (comment: Comment, depth = 0) => {
@@ -212,15 +224,27 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
     return (
       <div key={comment.id} className={`space-y-3 ${isReply ? "ml-4 sm:ml-6 border-l-2 border-cyan-500/20 pl-3 sm:pl-4" : ""}`}>
         <div className="flex gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={comment.author?.avatar_url || "/placeholder.svg"} />
-            <AvatarFallback>{comment.author?.display_name?.charAt(0) || "?"}</AvatarFallback>
-          </Avatar>
+          <Link href={`/profile/${comment.author?.username || ""}`} className="shrink-0">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={comment.author?.avatar_url || "/placeholder.svg"} />
+              <AvatarFallback>{comment.author?.display_name?.charAt(0) || "?"}</AvatarFallback>
+            </Avatar>
+          </Link>
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="font-semibold text-foreground">{comment.author?.display_name}</span>
-                <span className="text-muted-foreground text-xs">@{comment.author?.username}</span>
+                <Link
+                  href={`/profile/${comment.author?.username || ""}`}
+                  className="font-semibold text-foreground hover:underline"
+                >
+                  {comment.author?.display_name}
+                </Link>
+                <Link
+                  href={`/profile/${comment.author?.username || ""}`}
+                  className="text-muted-foreground text-xs hover:underline"
+                >
+                  @{comment.author?.username}
+                </Link>
                 <FreshnessTimestamp date={comment.created_at} showIcon />
                 {comment.is_edited && <span className="text-xs text-muted-foreground">(edited)</span>}
               </div>

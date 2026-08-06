@@ -258,6 +258,29 @@ export function LoopCard({
 
     if (!requireAuth(type === "like" ? "like" : "save")) return
 
+    const snapshot = {
+      is_liked: Boolean(loop.user_interactions.is_liked),
+      is_saved: Boolean(loop.user_interactions.is_saved),
+      likes_count: Number(loop.stats.likes_count || 0),
+    }
+
+    // Optimistic
+    setLoop((prev) => {
+      const next = {
+        ...prev,
+        user_interactions: { ...prev.user_interactions },
+        stats: { ...prev.stats },
+      }
+      if (type === "like") {
+        const liked = !snapshot.is_liked
+        next.user_interactions.is_liked = liked
+        next.stats.likes_count = Math.max(0, snapshot.likes_count + (liked ? 1 : -1))
+      } else {
+        next.user_interactions.is_saved = !snapshot.is_saved
+      }
+      return next
+    })
+
     setLocalInteracting(`${loop.id}-${type}`)
     try {
       const response = await fetch(`/api/loops/${loop.id}/interactions`, {
@@ -282,14 +305,28 @@ export function LoopCard({
         if (type === "like") {
           const liked = Boolean(data.is_liked ?? data.is_active)
           next.user_interactions.is_liked = liked
-          next.stats.likes_count = Number(data.stats?.likes_count ?? Math.max(0, prev.stats.likes_count + (liked ? 1 : -1)))
+          next.stats.likes_count = Number(data.stats?.likes_count ?? Math.max(0, prev.stats.likes_count))
         }
         if (type === "save") {
-          next.user_interactions.is_saved = Boolean(data.is_saved ?? data.is_active)
+          const saved = Boolean(data.is_saved ?? data.is_active)
+          next.user_interactions.is_saved = saved
+          toast({
+            title: saved ? "Saved to Bookmarks" : "Removed from Bookmarks",
+            description: saved ? "Find it anytime in Bookmarks." : undefined,
+          })
         }
         return next
       })
     } catch (error: any) {
+      setLoop((prev) => ({
+        ...prev,
+        user_interactions: {
+          ...prev.user_interactions,
+          is_liked: snapshot.is_liked,
+          is_saved: snapshot.is_saved,
+        },
+        stats: { ...prev.stats, likes_count: snapshot.likes_count },
+      }))
       toast({
         title: "Could not update",
         description: error?.message || "Try again",
@@ -304,14 +341,13 @@ export function LoopCard({
   const handleShare = async () => {
     const url = `${window.location.origin}/loop/${loop.id}`
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: `@${loop.author?.username || "loop"} on Loop`,
-          text: content.slice(0, 120) || "Check out this loop",
-          url,
-        })
-      } else {
-        await navigator.clipboard.writeText(url)
+      const { shareContent } = await import("@/lib/share")
+      const result = await shareContent({
+        title: `@${loop.author?.username || "loop"} on Loop`,
+        text: content.slice(0, 120) || "Check out this loop",
+        url,
+      })
+      if (result === "copied") {
         toast({
           title: "Link copied",
           description: "Loop link is on your clipboard.",
@@ -340,6 +376,16 @@ export function LoopCard({
       } catch {
         /* non-blocking */
       }
+    }
+  }
+
+  const handleCopyLink = async () => {
+    const url = `${window.location.origin}/loop/${loop.id}`
+    try {
+      await navigator.clipboard.writeText(url)
+      toast({ title: "Link copied", description: "Loop link is on your clipboard." })
+    } catch {
+      toast({ title: "Couldn't copy link", variant: "destructive" })
     }
   }
 
@@ -844,14 +890,10 @@ export function LoopCard({
                     is_verified={loop.author.is_verified}
                     is_team_member={loop.author.is_team_member}
                     is_sponsor={loop.author.is_sponsor}
+                    is_premium={loop.author.is_premium}
                     username={loop.author.username}
                     size="sm"
                   />
-                  {loop.author.is_premium && (
-                    <Badge className="h-3 w-3 sm:h-4 sm:w-4 p-0 bg-amber-500 flex-shrink-0">
-                      <Crown className="h-1.5 w-1.5 sm:h-2 sm:w-2 text-white" />
-                    </Badge>
-                  )}
                   {loop.author.level && loop.author.level > 1 && (
                     <Badge
                       variant="outline"
@@ -948,9 +990,6 @@ export function LoopCard({
                   Send Gift
                 </DropdownMenuItem>
                 <ReportContentButton contentType="loop" contentId={loop.id} label="Report Loop" />
-                <DropdownMenuItem onClick={handleShare}>
-                  Copy Link
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -1057,10 +1096,10 @@ export function LoopCard({
             {boostCoinsCurrent > 0 && (
               <div
                 onClick={() => setBoostDialogOpen(true)}
-                className="mt-3 p-2.5 rounded-xl bg-cyan-950/30 border border-cyan-500/20 hover:border-cyan-400/40 cursor-pointer transition-all space-y-1.5"
+                className="mt-3 p-2.5 rounded-xl bg-cyan-50 dark:bg-cyan-950/30 border border-cyan-500/20 hover:border-cyan-400/40 cursor-pointer transition-all space-y-1.5"
               >
                 <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-1 text-[10px] sm:text-[11px] font-bold">
-                  <span className="flex items-center gap-1.5 text-cyan-300 tracking-tight">
+                  <span className="flex items-center gap-1.5 text-cyan-700 dark:text-cyan-300 tracking-tight">
                     <Rocket className="h-3.5 w-3.5 text-cyan-400 animate-pulse shrink-0" />
                     {isBoosted ? "⚡ BOOSTED IN FEED" : "BOOST PROGRESS"}
                   </span>
@@ -1068,7 +1107,7 @@ export function LoopCard({
                     <Coins className="h-3 w-3 shrink-0" /> {boostCoinsCurrent} / {rawLoop?.boost_coins_target || 1000} Coins
                   </span>
                 </div>
-                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-cyan-400 via-indigo-500 to-amber-400 rounded-full transition-all duration-300 shadow-[0_0_8px_#22d3ee]"
                     style={{ width: `${Math.min(100, Math.round((boostCoinsCurrent / (rawLoop?.boost_coins_target || 1000)) * 100))}%` }}
@@ -1131,10 +1170,10 @@ export function LoopCard({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="bg-popover border-border text-foreground">
-                    <DropdownMenuItem onClick={handleBranch} className="cursor-pointer hover:bg-slate-800">
+                    <DropdownMenuItem onClick={handleBranch} className="cursor-pointer hover:bg-muted">
                       <GitBranch className="h-4 w-4 mr-2 text-green-400" /> Branch this Loop
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setChainDialogOpen(true)} className="cursor-pointer hover:bg-slate-800">
+                    <DropdownMenuItem onClick={() => setChainDialogOpen(true)} className="cursor-pointer hover:bg-muted">
                       <Sparkles className="h-4 w-4 mr-2 text-cyan-400" /> View Loop Chain Map
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -1172,27 +1211,6 @@ export function LoopCard({
               </div>
 
               <div className="flex items-center space-x-1 sm:space-x-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`hover:scale-105 transition-all duration-200 p-1 sm:p-2 ${
-                    loop.user_interactions.is_saved
-                      ? "text-blue-500" :"hover:text-blue-500"
-                  }`}
-                  onClick={() => void runInteraction("save")}
-                  disabled={activeInteracting === `${loop.id}-save`}
-                >
-                  {activeInteracting === `${loop.id}-save` ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Bookmark
-                      className={`h-3 w-3 sm:h-4 sm:w-4 ${
-                        loop.user_interactions.is_saved ? "fill-current" : ""
-                      }`}
-                    />
-                  )}
-                </Button>
-
                 {/* Restore gift modal handler */}
                 <Button
                   variant="ghost"
@@ -1206,14 +1224,37 @@ export function LoopCard({
                   <Gift className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
 
-                {/* Restore share button handler */}
                 <Button
                   variant="ghost"
                   size="sm"
                   className="hover:text-blue-500 hover:scale-105 transition-all duration-200 p-1 sm:p-2"
                   onClick={handleShare}
+                  title="Share"
                 >
                   <Share className="h-3 w-3 sm:h-4 sm:w-4" />
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`hover:scale-105 transition-all duration-200 p-1 sm:p-2 ${
+                    loop.user_interactions.is_saved
+                      ? "text-blue-500"
+                      : "hover:text-blue-500"
+                  }`}
+                  onClick={() => void runInteraction("save")}
+                  disabled={activeInteracting === `${loop.id}-save`}
+                  title="Bookmark"
+                >
+                  {activeInteracting === `${loop.id}-save` ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Bookmark
+                      className={`h-3 w-3 sm:h-4 sm:w-4 ${
+                        loop.user_interactions.is_saved ? "fill-current" : ""
+                      }`}
+                    />
+                  )}
                 </Button>
               </div>
             </div>

@@ -112,9 +112,9 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-gray-900 border-gray-700 max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl bg-card border-border text-foreground max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-white flex items-center space-x-2">
+          <DialogTitle className="text-foreground flex items-center space-x-2">
             <GitBranch className="w-5 h-5 text-green-500" />
             <span>Quote / Branch this Loop</span>
           </DialogTitle>
@@ -122,12 +122,12 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
 
         <div className="space-y-6">
           {/* Parent Loop Preview */}
-          <div className="bg-gray-800 rounded-lg p-4 border-l-4 border-purple-500">
+          <div className="bg-muted rounded-lg p-4 border-l-4 border-primary">
             <div className="flex items-center space-x-2 mb-2">
-              <span className="text-sm text-gray-400">Quoting:</span>
-              <Badge className="bg-purple-600 text-white">{parentAuthorName}</Badge>
+              <span className="text-sm text-muted-foreground">Quoting:</span>
+              <Badge className="bg-primary text-primary-foreground">{parentAuthorName}</Badge>
             </div>
-            <p className="text-gray-300 text-sm">
+            <p className="text-foreground text-sm">
               {parentPreview.slice(0, 100)}
               {parentPreview.length > 100 ? "..." : ""}
             </p>
@@ -135,24 +135,24 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
 
           {/* Content Type Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-5 bg-gray-800">
-              <TabsTrigger value="text" className="text-white data-[state=active]:bg-green-600">
+            <TabsList className="grid w-full grid-cols-5 bg-muted">
+              <TabsTrigger value="text" className="text-foreground data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
                 <Type className="w-4 h-4" />
                 <span className="ml-2 hidden sm:inline">Text</span>
               </TabsTrigger>
-              <TabsTrigger value="image" className="text-white data-[state=active]:bg-green-600">
+              <TabsTrigger value="image" className="text-foreground data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
                 <ImageIcon className="w-4 h-4" />
                 <span className="ml-2 hidden sm:inline">Image</span>
               </TabsTrigger>
-              <TabsTrigger value="video" className="text-white data-[state=active]:bg-green-600">
+              <TabsTrigger value="video" className="text-foreground data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
                 <Video className="w-4 h-4" />
                 <span className="ml-2 hidden sm:inline">Video</span>
               </TabsTrigger>
-              <TabsTrigger value="audio" className="text-white data-[state=active]:bg-green-600">
+              <TabsTrigger value="audio" className="text-foreground data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
                 <Music className="w-4 h-4" />
                 <span className="ml-2 hidden sm:inline">Audio</span>
               </TabsTrigger>
-              <TabsTrigger value="file" className="text-white data-[state=active]:bg-green-600">
+              <TabsTrigger value="file" className="text-foreground data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
                 <FileText className="w-4 h-4" />
                 <span className="ml-2 hidden sm:inline">File</span>
               </TabsTrigger>
@@ -160,31 +160,31 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
 
             {/* Title Input */}
             <div className="space-y-2">
-              <Label className="text-white">Branch Title (Optional)</Label>
+              <Label className="text-foreground">Branch Title (Optional)</Label>
               <Input
                 placeholder="Give your branch a title..."
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-400"
+                className="bg-background border-border text-foreground placeholder:text-muted-foreground"
               />
             </div>
 
             <TabsContent value="text" className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-white">Your Addition</Label>
+                <Label className="text-foreground">Your Addition</Label>
                 <Textarea
                   placeholder="Continue the story, add your perspective, or take it in a new direction..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[120px] bg-gray-800 border-gray-600 text-white placeholder:text-gray-400 resize-none"
+                  className="min-h-[120px] bg-background border-border text-foreground placeholder:text-muted-foreground resize-none"
                 />
               </div>
             </TabsContent>
 
             <TabsContent value="image" className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-white">Upload Image</Label>
-                <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-green-500 transition-colors">
+                <Label className="text-foreground">Upload Image</Label>
+                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-emerald-500 transition-colors">
                   <input
                     type="file"
                     accept="image/*"
@@ -193,9 +193,9 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
                     id="branch-image-upload"
                   />
                   <label htmlFor="branch-image-upload" className="cursor-pointer">
-                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-400">Click to upload an image</p>
-                    <p className="text-xs text-gray-500 mt-1">PNG, JPG, GIF up to 10MB</p>
+                    <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-muted-foreground">Click to upload an image</p>
+                    <p className="text-xs text-muted-foreground mt-1">PNG, JPG, GIF up to 10MB</p>
                   </label>
                 </div>
                 {selectedFile && (
@@ -205,12 +205,12 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-white">Caption</Label>
+                <Label className="text-foreground">Caption</Label>
                 <Textarea
                   placeholder="Add context to your image branch..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-400"
+                  className="bg-background border-border text-foreground placeholder:text-muted-foreground"
                   rows={3}
                 />
               </div>
@@ -218,8 +218,8 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
 
             <TabsContent value="video" className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-white">Upload Video</Label>
-                <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-green-500 transition-colors">
+                <Label className="text-foreground">Upload Video</Label>
+                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-emerald-500 transition-colors">
                   <input
                     type="file"
                     accept="video/*"
@@ -228,9 +228,9 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
                     id="branch-video-upload"
                   />
                   <label htmlFor="branch-video-upload" className="cursor-pointer">
-                    <Video className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-400">Click to upload a video</p>
-                    <p className="text-xs text-gray-500 mt-1">MP4, MOV, AVI up to 50MB</p>
+                    <Video className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-muted-foreground">Click to upload a video</p>
+                    <p className="text-xs text-muted-foreground mt-1">MP4, MOV, AVI up to 50MB</p>
                   </label>
                 </div>
                 {selectedFile && (
@@ -240,12 +240,12 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-white">Description</Label>
+                <Label className="text-foreground">Description</Label>
                 <Textarea
                   placeholder="Describe your video response..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-400"
+                  className="bg-background border-border text-foreground placeholder:text-muted-foreground"
                   rows={3}
                 />
               </div>
@@ -253,8 +253,8 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
 
             <TabsContent value="audio" className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-white">Upload Audio</Label>
-                <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-green-500 transition-colors">
+                <Label className="text-foreground">Upload Audio</Label>
+                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-emerald-500 transition-colors">
                   <input
                     type="file"
                     accept="audio/*"
@@ -263,9 +263,9 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
                     id="branch-audio-upload"
                   />
                   <label htmlFor="branch-audio-upload" className="cursor-pointer">
-                    <Music className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-400">Click to upload audio</p>
-                    <p className="text-xs text-gray-500 mt-1">MP3, WAV, OGG up to 25MB</p>
+                    <Music className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-muted-foreground">Click to upload audio</p>
+                    <p className="text-xs text-muted-foreground mt-1">MP3, WAV, OGG up to 25MB</p>
                   </label>
                 </div>
                 {selectedFile && (
@@ -275,12 +275,12 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-white">Track Info</Label>
+                <Label className="text-foreground">Track Info</Label>
                 <Textarea
                   placeholder="Tell us about your audio response..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-400"
+                  className="bg-background border-border text-foreground placeholder:text-muted-foreground"
                   rows={3}
                 />
               </div>
@@ -288,8 +288,8 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
 
             <TabsContent value="file" className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-white">Upload File</Label>
-                <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-green-500 transition-colors">
+                <Label className="text-foreground">Upload File</Label>
+                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-emerald-500 transition-colors">
                   <input
                     type="file"
                     accept=".zip,.pdf,.docx,.txt,.md,.json,.js,.ts,.py,.java,.cpp,.c,.html,.css"
@@ -298,9 +298,9 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
                     id="branch-file-upload"
                   />
                   <label htmlFor="branch-file-upload" className="cursor-pointer">
-                    <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-400">Click to upload a file</p>
-                    <p className="text-xs text-gray-500 mt-1">ZIP, PDF, DOCX, code files up to 50MB</p>
+                    <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-muted-foreground">Click to upload a file</p>
+                    <p className="text-xs text-muted-foreground mt-1">ZIP, PDF, DOCX, code files up to 50MB</p>
                   </label>
                 </div>
                 {selectedFile && (
@@ -310,12 +310,12 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-white">Description</Label>
+                <Label className="text-foreground">Description</Label>
                 <Textarea
                   placeholder="Describe what you're adding to the loop..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-400"
+                  className="bg-background border-border text-foreground placeholder:text-muted-foreground"
                   rows={3}
                 />
               </div>
@@ -323,12 +323,12 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
           </Tabs>
 
           {/* Branch Info */}
-          <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
             <div className="flex items-center space-x-2 mb-2">
               <GitBranch className="w-4 h-4 text-green-500" />
-              <span className="text-sm font-medium text-green-400">Branching Rules</span>
+              <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Branching Rules</span>
             </div>
-            <ul className="text-xs text-gray-400 space-y-1">
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• Your branch will be connected to the original loop</li>
               <li>• Others can branch from your branch (up to 10 levels deep)</li>
               <li>• You'll get credit when others interact with your branch</li>
@@ -341,7 +341,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-800"
+              className="flex-1 border-border text-foreground hover:bg-muted"
             >
               Cancel
             </Button>

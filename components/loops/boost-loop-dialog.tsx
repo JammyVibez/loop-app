@@ -94,8 +94,8 @@ export function BoostLoopDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md bg-card border-cyan-500/30 text-foreground rounded-3xl p-6 shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="text-xl font-extrabold flex items-center gap-2 text-cyan-300">
-            <Rocket className="h-6 w-6 text-cyan-400 animate-bounce" /> Crowd-Fund Feed Boost
+          <DialogTitle className="text-xl font-extrabold flex items-center gap-2 text-cyan-700 dark:text-cyan-300">
+            <Rocket className="h-6 w-6 text-cyan-600 dark:text-cyan-400 animate-bounce" /> Crowd-Fund Feed Boost
           </DialogTitle>
           <p className="text-xs text-muted-foreground">
             Pool coins to push &ldquo;{loopTitle || "this Loop"}&rdquo; to the top of everyone&apos;s feed!
@@ -108,13 +108,13 @@ export function BoostLoopDialog({
 
         <div className="space-y-5 py-3">
           {/* Progress Goal Widget */}
-          <div className="p-4 rounded-2xl bg-cyan-950/30 border border-cyan-500/20 space-y-2">
+          <div className="p-4 rounded-2xl bg-cyan-50 dark:bg-cyan-950/30 border border-cyan-500/20 space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-foreground">
-              <span className="flex items-center gap-1 text-cyan-300">
+              <span className="flex items-center gap-1 text-cyan-700 dark:text-cyan-300">
                 <Coins className="h-4 w-4 text-amber-400" />
                 {currentCoins + amountToContribute} / {targetCoins} Coins
               </span>
-              <span className="text-cyan-400">{percent}% Funded</span>
+              <span className="text-cyan-600 dark:text-cyan-400">{percent}% Funded</span>
             </div>
 
             <div className="h-3 w-full bg-muted rounded-full overflow-hidden p-0.5 border border-border">
@@ -139,7 +139,7 @@ export function BoostLoopDialog({
                   }}
                   className={`flex items-center justify-center gap-1 p-2.5 rounded-xl border text-xs font-bold transition-all ${
                     selectedAmount === amt && !customAmount
-                      ? "bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-lg"
+                      ? "bg-cyan-500/15 dark:bg-cyan-500/20 border-cyan-400 text-cyan-700 dark:text-cyan-300 shadow-lg"
                       : "bg-muted border-border text-muted-foreground hover:border-cyan-500/30"
                   }`}
                 >

@@ -66,57 +66,57 @@ export function GlobalEventBanner() {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-cyan-500/30 bg-gradient-to-r from-[#07132b] via-[#091b36] to-[#0d0726] p-5 sm:p-6 shadow-xl shadow-cyan-950/20 my-4">
+    <div className="relative my-4 overflow-hidden rounded-3xl border border-border bg-gradient-to-r from-primary/10 via-card to-accent/10 p-5 shadow-sm sm:p-6">
       {/* Background Glow */}
-      <div className="absolute top-0 right-0 -mr-16 -mt-16 h-60 w-60 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+      <div className="pointer-events-none absolute -right-16 -top-16 h-60 w-60 rounded-full bg-primary/10 blur-3xl" />
 
       <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-2 max-w-xl">
+        <div className="max-w-xl space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className={`${badgeConfig.className} text-xs px-2.5 py-0.5 flex items-center gap-1 shadow-md font-bold`}>
-              {badgeConfig.dot && <span className="w-2 h-2 rounded-full bg-white animate-ping" />}
+            <Badge className={`${badgeConfig.className} flex items-center gap-1 px-2.5 py-0.5 text-xs font-bold shadow-md`}>
+              {badgeConfig.dot && <span className="h-2 w-2 animate-ping rounded-full bg-white" />}
               {badgeConfig.label}
             </Badge>
-            <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-black font-extrabold text-xs px-2.5 py-0.5 shadow-md flex items-center gap-1">
+            <Badge className="flex items-center gap-1 bg-gradient-to-r from-amber-400 to-orange-500 px-2.5 py-0.5 text-xs font-extrabold text-black shadow-md">
               <Star className="h-3 w-3 fill-black" /> FEATURED EVENT
             </Badge>
-            <Badge variant="outline" className="border-cyan-400/40 bg-cyan-500/10 text-cyan-300 text-xs">
+            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-xs text-primary">
               {featuredEvent.category}
             </Badge>
           </div>
 
-          <h3 className="text-xl font-extrabold text-white sm:text-2xl tracking-tight">
+          <h3 className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
             {featuredEvent.title}
           </h3>
 
-          <p className="text-xs sm:text-sm text-slate-300 line-clamp-2 leading-relaxed">
+          <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
             {featuredEvent.description}
           </p>
 
-          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300 pt-1">
-            <span className="flex items-center gap-1.5 text-cyan-300 font-medium">
+          <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5 font-medium text-primary">
               <Video className="h-3.5 w-3.5" /> {featuredEvent.location_type}
             </span>
-            <span className="flex items-center gap-1.5 text-amber-300 font-bold">
+            <span className="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-300">
               <Trophy className="h-3.5 w-3.5" /> {featuredEvent.reward_coins} Loop Coins Reward
             </span>
-            <span className="flex items-center gap-1.5 text-slate-400">
-              <Users className="h-3.5 w-3.5 text-blue-400" /> {featuredEvent.rsvp_count || 120}+ Attending
+            <span className="flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-sky-500" /> {featuredEvent.rsvp_count || 120}+ Attending
             </span>
-            <span className="flex items-center gap-1.5 text-cyan-400 font-medium">
-              <Clock className="h-3.5 w-3.5 text-cyan-400" /> {formattedTime}
+            <span className="flex items-center gap-1.5 font-medium text-primary">
+              <Clock className="h-3.5 w-3.5" /> {formattedTime}
             </span>
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2.5 sm:items-center">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
           <Button
             onClick={handleRsvp}
             disabled={joined}
-            className={`rounded-full px-6 text-xs font-bold transition shadow-lg ${
+            className={`rounded-full px-6 text-xs font-bold shadow-lg transition ${
               joined
-                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-                : "bg-gradient-to-r from-cyan-400 to-blue-500 text-black hover:from-cyan-300 hover:to-blue-400 shadow-cyan-500/20"
+                ? "border border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                : "bg-primary text-primary-foreground hover:opacity-90"
             }`}
           >
             {joined ? "✓ Registered" : "Join Event Now"}
@@ -125,7 +125,7 @@ export function GlobalEventBanner() {
           <Button
             asChild
             variant="outline"
-            className="rounded-full border-white/15 bg-white/5 text-xs text-slate-200 hover:bg-white/10"
+            className="rounded-full border-border bg-background/60 text-xs text-foreground hover:bg-muted"
           >
             <a href="/explore">
               Events Hub <ArrowRight className="ml-1.5 h-3.5 w-3.5" />

@@ -156,7 +156,7 @@ export default function EventsPage() {
   }
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="container mx-auto max-w-7xl space-y-6 px-4 py-6 pb-24 lg:pb-8">
       {/* Header Banner */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>

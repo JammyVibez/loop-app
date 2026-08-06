@@ -321,7 +321,7 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="min-w-0 space-y-4 overflow-hidden">
         <div>
           <Link href={`/developers/${project.id}`} className="hover:underline">
             <h3 className="font-bold text-lg mb-2">{project.title}</h3>
@@ -329,9 +329,9 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
           <p className="text-muted-foreground text-sm">{project.description}</p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex min-w-0 flex-wrap gap-2">
           {project.tags.map((tag) => (
-            <Badge key={tag} variant="secondary" className="text-xs">
+            <Badge key={tag} variant="secondary" className="max-w-[10rem] truncate text-xs">
               #{tag}
             </Badge>
           ))}
@@ -396,8 +396,8 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
           </div>
         )}
 
-        <div className="flex flex-col gap-3 pt-2 border-t border-border sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4 sm:gap-6">
+        <div className="flex min-w-0 flex-col gap-3 border-t border-border pt-2">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
             <Button
               variant="ghost"
               size="sm"
@@ -420,24 +420,24 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleShare} className="flex-1 sm:flex-initial">
-              <Share2 className="w-4 h-4 mr-2" />
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleShare} className="min-w-0">
+              <Share2 className="mr-2 h-4 w-4 shrink-0" />
               Share
             </Button>
-            <Button variant="outline" size="sm" onClick={handleFork} disabled={forking || isForked || isOwner} className="flex-1 sm:flex-initial">
+            <Button variant="outline" size="sm" onClick={handleFork} disabled={forking || isForked || isOwner} className="min-w-0">
               {forking ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : isForked ? (
-                <Check className="w-4 h-4 mr-2 text-emerald-500" />
+                <Check className="mr-2 h-4 w-4 text-emerald-500" />
               ) : (
-                <GitBranch className="w-4 h-4 mr-2" />
+                <GitBranch className="mr-2 h-4 w-4" />
               )}
               {isForked ? "Forked" : "Fork"}
             </Button>
             {project.code_snippet.trim().length > 0 && (
-              <Button size="sm" onClick={handleDownload} className="flex-1 sm:flex-initial">
-                <Download className="w-4 h-4 mr-2" />
+              <Button size="sm" onClick={handleDownload} className="min-w-0">
+                <Download className="mr-2 h-4 w-4 shrink-0" />
                 Download
               </Button>
             )}
