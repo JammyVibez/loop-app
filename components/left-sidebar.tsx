@@ -28,6 +28,7 @@ import {
   DollarSign,
   Code2,
   UserPlus,
+  Lock,
 } from "lucide-react"
 import { UserBadges } from "@/components/user-badge"
 
@@ -105,7 +106,11 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
     },
   ]
 
-  const isAdmin = user.is_admin || (user as any).role === "admin" || user.email === "useehamza0@gmail.com"
+  if (user.is_premium) {
+    discoveryNav.push({ href: "/lounge", label: "Pro Lounge", icon: Lock, badge: "PRO" } as any)
+  }
+
+  const isAdmin = user.is_admin || user.email === "useehamza0@gmail.com"
 
   return (
     <div className="flex h-full flex-col justify-between overflow-hidden">

@@ -165,6 +165,8 @@ export function NotificationDropdown() {
         return "📢"
       case "gift":
         return "🎁"
+      case "message":
+        return "💬"
       case "system":
         return "🔔"
       default:
@@ -175,6 +177,9 @@ export function NotificationDropdown() {
   const notificationHref = (n: Notification) => {
     const data = n.data || {}
     if (data.href) return data.href
+    if (data.action_url) return data.action_url
+    if (data.url) return data.url
+    if (data.conversation_id) return `/messages?c=${data.conversation_id}`
     if (data.loop_id) return `/loop/${data.loop_id}`
     if (data.circle_id) return `/circles/${data.circle_id}`
     if (data.reel_id) return `/reels?id=${data.reel_id}`

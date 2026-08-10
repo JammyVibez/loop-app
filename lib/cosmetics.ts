@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react"
+
 export type CosmeticItem = {
   id?: string
   item_id?: string
@@ -19,6 +21,10 @@ export type ActiveCosmetics = {
   frame?: CosmeticItem | null
   aura?: CosmeticItem | null
   effect?: CosmeticItem | null
+  /** Custom display-name font, admin-managed via the cosmetics catalog. */
+  font?: CosmeticItem | null
+  /** Post/loop card border-and-glow effect, admin-managed via the cosmetics catalog. */
+  cardEffect?: CosmeticItem | null
 }
 
 function shopFromRow(row: any) {
@@ -48,9 +54,26 @@ function classify(item: CosmeticItem): keyof ActiveCosmetics | null {
   const type = `${item.item_type || ""} ${item.category || ""}`.toLowerCase()
   if (type.includes("badge")) return "badge"
   if (type.includes("frame") || type.includes("avatar_frame")) return "frame"
+  if (type.includes("font")) return "font"
+  if (type.includes("card_effect") || type.includes("post_card") || type.includes("post_effect")) return "cardEffect"
   if (type.includes("aura")) return "aura"
   if (type.includes("effect") || type.includes("animation") || type.includes("particle")) return "effect"
   return null
+}
+
+/** Inline style for a display name equipped with a Pro font cosmetic. */
+export function fontStyle(font?: CosmeticItem | null): CSSProperties | undefined {
+  const family = font?.item_data?.font_family
+  return family ? { fontFamily: family } : undefined
+}
+
+/** Inline style for a loop card equipped with a Pro card-effect cosmetic. */
+export function cardEffectStyle(effect?: CosmeticItem | null): CSSProperties | undefined {
+  if (!effect) return undefined
+  const color = effect.color || "var(--theme-primary, #8b5cf6)"
+  return effect.glow
+    ? { boxShadow: `0 0 0 1px ${color}55, 0 0 24px ${color}33`, borderColor: `${color}55` }
+    : { borderColor: `${color}55` }
 }
 
 /** Build cosmetics snapshot from active inventory rows */

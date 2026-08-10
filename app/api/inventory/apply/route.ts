@@ -58,7 +58,10 @@ function isCosmeticItem(shopItem: any, itemType: string) {
     hay.includes("aura") ||
     hay.includes("effect") ||
     hay.includes("animation") ||
-    hay.includes("avatar")
+    hay.includes("avatar") ||
+    hay.includes("font") ||
+    hay.includes("card_effect") ||
+    hay.includes("post_card")
   )
 }
 

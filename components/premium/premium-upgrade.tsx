@@ -13,10 +13,13 @@ import {
   Flame,
   Gift,
   Lock,
+  MessageSquare,
+  Pin,
   ShieldCheck,
   Sparkles,
   Swords,
   TrendingUp,
+  Type,
   Upload,
   Users,
   Video,
@@ -43,6 +46,9 @@ const iconMap = {
   users: Users,
   shield: ShieldCheck,
   flame: Flame,
+  type: Type,
+  pin: Pin,
+  discord: MessageSquare,
 } as const
 
 export function PremiumUpgrade() {
@@ -103,9 +109,16 @@ export function PremiumUpgrade() {
             ))}
           </CardContent>
         </Card>
-        <Button asChild variant="outline" className="rounded-full">
-          <Link href="/">Back to feed</Link>
-        </Button>
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+          <Button asChild className="rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-400 hover:to-purple-500">
+            <Link href="/lounge">
+              <Lock className="mr-2 h-4 w-4" /> Enter the Pro Lounge
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="rounded-full">
+            <Link href="/">Back to feed</Link>
+          </Button>
+        </div>
       </div>
     )
   }

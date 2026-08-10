@@ -34,6 +34,7 @@ import { WithdrawalsControl } from "@/components/admin/withdrawals-control"
 import { SettingsTabContent } from "@/components/admin/settings-tab-content"
 import { EventManagement } from "@/components/admin/event-management"
 import { MaintenanceModeControl } from "@/components/admin/maintenance-mode-control"
+import { ProLoungeSettings } from "@/components/admin/pro-lounge-settings"
 import { UserBadges } from "@/components/user-badge"
 
 interface AdminUser {
@@ -389,8 +390,9 @@ export function AdminDashboard() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="maintenance" className="mt-6">
+        <TabsContent value="maintenance" className="mt-6 space-y-6">
           <MaintenanceModeControl />
+          <ProLoungeSettings />
         </TabsContent>
 
         <TabsContent value="events" className="mt-6">

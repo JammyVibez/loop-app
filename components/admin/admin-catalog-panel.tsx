@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Switch } from "@/components/ui/switch"
 
 interface CatalogItem {
   id: string
@@ -33,6 +34,23 @@ const PRESETS = [
   { id: "midnight", label: "Midnight" },
 ]
 
+const FONT_PRESETS = [
+  { id: "inter", label: "Inter (default)" },
+  { id: "poppins", label: "Poppins" },
+  { id: "playfair", label: "Playfair Display" },
+  { id: "space_grotesk", label: "Space Grotesk" },
+  { id: "jetbrains_mono", label: "JetBrains Mono" },
+  { id: "pacifico", label: "Pacifico (script)" },
+]
+
+const CATEGORY_LABELS: Record<string, string> = {
+  theme: "Theme",
+  effect: "Effect",
+  animation: "Animation",
+  font: "Font",
+  card_effect: "Card Effect",
+}
+
 export function AdminCatalogPanel() {
   const { getAuthHeader } = useAuth()
   const { toast } = useToast()
@@ -46,6 +64,8 @@ export function AdminCatalogPanel() {
     rarity: "common",
     price_coins: "100",
     preset: "aurora",
+    font_preset: "inter",
+    premium_only: false,
   })
 
   const loadItems = useCallback(async () => {
@@ -83,6 +103,8 @@ export function AdminCatalogPanel() {
           rarity: form.rarity,
           price_coins: Number(form.price_coins) || 0,
           preset: form.preset,
+          font_preset: form.font_preset,
+          premium_only: form.premium_only,
         }),
       })
       const data = await response.json()
@@ -119,10 +141,12 @@ export function AdminCatalogPanel() {
         </CardHeader>
         <CardContent className="space-y-4">
           <Tabs value={form.category} onValueChange={(v) => setForm((p) => ({ ...p, category: v }))}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="theme">Theme</TabsTrigger>
               <TabsTrigger value="effect">Effect</TabsTrigger>
               <TabsTrigger value="animation">Animation</TabsTrigger>
+              <TabsTrigger value="font">Font</TabsTrigger>
+              <TabsTrigger value="card_effect">Card Effect</TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -160,20 +184,51 @@ export function AdminCatalogPanel() {
                 <option value="legendary">Legendary</option>
               </select>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="cat-preset">Color preset</Label>
-              <select
-                id="cat-preset"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                value={form.preset}
-                onChange={(e) => setForm((p) => ({ ...p, preset: e.target.value }))}
-              >
-                {PRESETS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
+            {form.category === "font" ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="cat-font">Font family</Label>
+                <select
+                  id="cat-font"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={form.font_preset}
+                  onChange={(e) => setForm((p) => ({ ...p, font_preset: e.target.value }))}
+                >
+                  {FONT_PRESETS.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label htmlFor="cat-preset">Color preset</Label>
+                <select
+                  id="cat-preset"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={form.preset}
+                  onChange={(e) => setForm((p) => ({ ...p, preset: e.target.value }))}
+                >
+                  {PRESETS.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="flex items-center justify-between rounded-md border border-input px-3 sm:col-span-2">
+              <div>
+                <Label htmlFor="cat-premium" className="cursor-pointer">
+                  Pro-only cosmetic
+                </Label>
+                <p className="text-xs text-muted-foreground">Only Loop Pro members can equip this item.</p>
+              </div>
+              <Switch
+                id="cat-premium"
+                checked={form.premium_only}
+                onCheckedChange={(checked) => setForm((p) => ({ ...p, premium_only: checked }))}
+              />
             </div>
           </div>
 

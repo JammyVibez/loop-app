@@ -1,17 +1,26 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth"
 
-async function requireAdmin(token: string | null) {
-  if (!token) return { error: NextResponse.json({ error: "Authentication required" }, { status: 401 }) }
+async function requireAdmin(request: NextRequest) {
+  const user = await getUserFromRequest(request)
+  if (!user) return { error: NextResponse.json({ error: "Authentication required" }, { status: 401 }) }
   const supabase = createServerClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser(token)
-  if (authError || !user) return { error: NextResponse.json({ error: "Invalid authentication" }, { status: 401 }) }
-  const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle()
-  if (!profile?.is_admin) return { error: NextResponse.json({ error: "Admin access required" }, { status: 403 }) }
+  const { data: profile } = await supabase.from("profiles").select("is_admin, role").eq("id", user.id).maybeSingle()
+  if (!profile?.is_admin && profile?.role !== "admin") {
+    return { error: NextResponse.json({ error: "Admin access required" }, { status: 403 }) }
+  }
   return { user }
+}
+
+/** Curated, no-signup-required Google Fonts for the "font" cosmetic category. */
+const FONT_PRESETS: Record<string, string> = {
+  inter: "'Inter', sans-serif",
+  poppins: "'Poppins', sans-serif",
+  playfair: "'Playfair Display', serif",
+  space_grotesk: "'Space Grotesk', sans-serif",
+  jetbrains_mono: "'JetBrains Mono', monospace",
+  pacifico: "'Pacifico', cursive",
 }
 
 const THEME_PRESETS: Record<string, any> = {
@@ -33,16 +42,18 @@ const THEME_PRESETS: Record<string, any> = {
   },
 }
 
+const CATALOG_CATEGORIES = ["theme", "effect", "animation", "font", "card_effect"] as const
+type CatalogCategory = (typeof CATALOG_CATEGORIES)[number]
+
 export async function GET(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
-  const auth = await requireAdmin(token)
+  const auth = await requireAdmin(request)
   if (auth.error) return auth.error
 
   const supabase = createServerClient()
   const { data: items, error } = await supabase
     .from("shop_items")
     .select("*")
-    .in("category", ["theme", "effect", "animation", "avatar", "badge"])
+    .in("category", ["theme", "effect", "animation", "font", "card_effect", "avatar", "badge"])
     .order("created_at", { ascending: false })
     .limit(100)
 
@@ -52,14 +63,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
-    const auth = await requireAdmin(token)
+    const auth = await requireAdmin(request)
     if (auth.error) return auth.error
 
     const supabase = createServerClient()
     const body = await request.json()
     const name = String(body.name || "").trim()
-    const category = body.category === "effect" || body.category === "animation" ? body.category : "theme"
+    const category: CatalogCategory = CATALOG_CATEGORIES.includes(body.category) ? body.category : "theme"
     const rarity = ["common", "rare", "epic", "legendary"].includes(body.rarity) ? body.rarity : "common"
     const priceCoins = Number(body.price_coins || 0)
     const presetKey = body.preset || "aurora"
@@ -68,16 +78,29 @@ export async function POST(request: NextRequest) {
     if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 })
 
     const itemType =
-      category === "theme" ? "profile_theme" : category === "animation" ? "avatar_effect" : "aura_effect"
+      category === "theme"
+        ? "profile_theme"
+        : category === "animation"
+          ? "avatar_effect"
+          : category === "font"
+            ? "display_font"
+            : category === "card_effect"
+              ? "post_card_effect"
+              : "aura_effect"
+
+    const fontFamily =
+      category === "font" ? FONT_PRESETS[body.font_preset as string] || body.font_family || FONT_PRESETS.inter : undefined
 
     const itemData =
       body.item_data ||
       (category === "theme"
         ? preset
-        : {
-            colors: preset.colors,
-            effects: { ...(preset.effects || {}), kind: category, intensity: body.intensity || "medium" },
-          })
+        : category === "font"
+          ? { font_family: fontFamily, font_preset: body.font_preset || "inter" }
+          : {
+              colors: preset.colors,
+              effects: { ...(preset.effects || {}), kind: category, intensity: body.intensity || "medium" },
+            })
 
     const { data: item, error } = await supabase
       .from("shop_items")

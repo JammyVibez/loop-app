@@ -39,7 +39,7 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
-import { cosmeticsFromInventory, type ActiveCosmetics } from "@/lib/cosmetics"
+import { cosmeticsFromInventory, fontStyle, type ActiveCosmetics } from "@/lib/cosmetics"
 import { isShopThemePayload } from "@/lib/theme-css"
 import { xpForNextLevel } from "@/lib/xp"
 import { uploadMediaFile } from "@/lib/client-media-upload"
@@ -469,7 +469,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         <div className="mt-3 space-y-3">
           <div>
             <div className="flex flex-wrap items-center gap-1.5">
-              <h2 className="text-xl font-extrabold tracking-tight">{displayName}</h2>
+              <h2 className="text-xl font-extrabold tracking-tight" style={fontStyle(cosmetics.font)}>
+                {displayName}
+              </h2>
               <UserBadges
                 is_verified={profile.is_verified}
                 is_team_member={profile.is_team_member}
@@ -570,7 +572,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 style={{ width: `${xpProgress}%` }}
               />
             </div>
-            {(cosmetics.badge || cosmetics.frame || cosmetics.aura || cosmetics.effect) && (
+            {(cosmetics.badge || cosmetics.frame || cosmetics.aura || cosmetics.effect || cosmetics.font || cosmetics.cardEffect) && (
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {cosmetics.badge && (
                   <Badge variant="secondary" className="gap-1 text-xs">
@@ -587,6 +589,17 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                   <Badge variant="outline" className="gap-1 text-xs">
                     <Sparkles className="h-3 w-3" />
                     {(cosmetics.aura || cosmetics.effect)?.name || "Effect"}
+                  </Badge>
+                )}
+                {cosmetics.font && (
+                  <Badge variant="outline" className="text-xs">
+                    {cosmetics.font.name || "Font"}
+                  </Badge>
+                )}
+                {cosmetics.cardEffect && (
+                  <Badge variant="outline" className="gap-1 text-xs">
+                    <Sparkles className="h-3 w-3" />
+                    {cosmetics.cardEffect.name || "Card Effect"}
                   </Badge>
                 )}
               </div>

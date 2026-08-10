@@ -76,9 +76,9 @@ export function ShopContent() {
           const category = item.category
           if (category === "theme") categorizedItems.themes.push(item)
           else if (category === "animation") categorizedItems.animations.push(item)
-          else if (category === "effect") categorizedItems.effects.push(item)
+          else if (category === "effect" || category === "card_effect") categorizedItems.effects.push(item)
           else if (category === "coins") categorizedItems.coins.push(item)
-          else if (category === "avatar" || category === "badge" || category === "premium") {
+          else if (category === "avatar" || category === "badge" || category === "premium" || category === "font") {
             categorizedItems.effects.push(item)
           }
         })

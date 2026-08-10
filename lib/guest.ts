@@ -26,6 +26,7 @@ export const AUTH_REQUIRED_PREFIXES = [
   "/messages",
   "/circles",
   "/shop",
+  "/lounge",
   "/settings",
   "/notifications",
   "/create",

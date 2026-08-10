@@ -1,4 +1,12 @@
-/** Loop Pro — launch pricing + feature catalog */
+/**
+ * Loop Pro — launch pricing + feature catalog.
+ *
+ * This file is the single source of truth for every Pro-only perk shown to
+ * users (rendered on the Get Pro page and Pro settings). `enforced` +
+ * `enforcedAt` document, for engineering, where each perk is actually gated
+ * server/client-side today — keep both in sync whenever a perk's
+ * implementation changes so this list never drifts from reality.
+ */
 
 export const PRO_PRICING = {
   monthly: {
@@ -29,12 +37,22 @@ export type ProPlanId = keyof typeof PRO_PRICING
 
 export const PRO_FEATURES = [
   {
+    id: "extended_posts",
+    title: "Extended Post Length",
+    description: "Write longer loops without hitting the free word cap",
+    free: "Up to 500 words",
+    pro: "Up to 1,800 words",
+    icon: "type",
+    enforced: true,
+  },
+  {
     id: "multi_upload",
     title: "Multi-Video & Image Carousel",
     description: "Post up to 10 HD images and video clips in a single loop",
     free: "1 file",
     pro: "Up to 10 videos/images",
     icon: "upload",
+    enforced: true,
   },
   {
     id: "pro_coins",
@@ -43,6 +61,7 @@ export const PRO_FEATURES = [
     free: "40 daily coins",
     pro: "5,000 - 60,000 Coins",
     icon: "coins",
+    enforced: true,
   },
   {
     id: "xp_boost",
@@ -51,14 +70,43 @@ export const PRO_FEATURES = [
     free: "1× Standard XP",
     pro: "3× Multiplier",
     icon: "zap",
+    enforced: false,
   },
   {
     id: "daily_bonus",
     title: "Bigger Daily Coin Claim",
-    description: "Claim 500 extra Loop Coins every day you log in",
+    description: "Claim extra Loop Coins every day you log in",
     free: "+40 coins",
-    pro: "+500 coins daily",
+    pro: "Bigger daily claim",
     icon: "coins",
+    enforced: true,
+  },
+  {
+    id: "profile_decorations",
+    title: "Profile Decorations & Avatar Frames",
+    description: "Equip animated avatar frames, auras, and badges from the cosmetics catalog",
+    free: "Default avatar",
+    pro: "Frames, auras & badges",
+    icon: "sparkles",
+    enforced: true,
+  },
+  {
+    id: "post_card_effects",
+    title: "Post Card Effects",
+    description: "Give your loop cards a glow, border, or animated accent from the cosmetics catalog",
+    free: "Standard card",
+    pro: "Custom card effects",
+    icon: "sparkles",
+    enforced: true,
+  },
+  {
+    id: "custom_font_theme",
+    title: "Custom Display Name Font & Theme",
+    description: "Style your display name with a custom font and color theme from the cosmetics catalog",
+    free: "Default font",
+    pro: "Custom fonts & themes",
+    icon: "type",
+    enforced: true,
   },
   {
     id: "gif_avatar",
@@ -67,6 +115,7 @@ export const PRO_FEATURES = [
     free: "Static images",
     pro: "Animated GIFs",
     icon: "sparkles",
+    enforced: false,
   },
   {
     id: "co_loop_pro",
@@ -75,6 +124,7 @@ export const PRO_FEATURES = [
     free: "3 snapshots",
     pro: "Unlimited history",
     icon: "crown",
+    enforced: false,
   },
   {
     id: "pro_badge",
@@ -83,6 +133,16 @@ export const PRO_FEATURES = [
     free: "Standard badge",
     pro: "Gold Pro Crown",
     icon: "crown",
+    enforced: true,
+  },
+  {
+    id: "pin_to_profile",
+    title: "Pin Loops to Your Profile",
+    description: "Pin your best loops to the top of your profile from the post's \"...\" menu",
+    free: "No pinning",
+    pro: "Pin up to 3 loops",
+    icon: "pin",
+    enforced: true,
   },
   {
     id: "stream",
@@ -91,14 +151,25 @@ export const PRO_FEATURES = [
     free: "Approval required",
     pro: "Instant 4K Live",
     icon: "video",
+    enforced: false,
   },
   {
-    id: "secret_community",
-    title: "Secret Pro Lounge & VIP Circles",
-    description: "Exclusive access to the secret #LoopPro Circle with founder Q&As and priority feature voting",
-    free: "Public circles only",
-    pro: "Secret Pro Circle Access",
+    id: "pro_lounge_access",
+    title: "Secret Pro Lounge",
+    description: "Exclusive access to the Pro Lounge — founder Q&As, priority feature voting, and a private space for Pro members and the dev team",
+    free: "No access",
+    pro: "Full Lounge Access",
     icon: "lock",
+    enforced: true,
+  },
+  {
+    id: "discord_invite",
+    title: "Private Discord Access",
+    description: "Join the invite-only Loop Pro Discord server to chat directly with the dev team and other Pro members",
+    free: "No access",
+    pro: "Discord Invite Access",
+    icon: "discord",
+    enforced: true,
   },
   {
     id: "express_cashout",
@@ -107,14 +178,7 @@ export const PRO_FEATURES = [
     free: "10% fee & standard queue",
     pro: "0% Fee & 24h Express Cashout",
     icon: "dollar",
-  },
-  {
-    id: "neon_customizer",
-    title: "Neon Glow & Custom Audio Profile",
-    description: "Light up your profile with glowing neon borders, custom theme presets, and ambient audio intros",
-    free: "Default theme",
-    pro: "Neon Glow & Audio Customizer",
-    icon: "sparkles",
+    enforced: false,
   },
   {
     id: "secret_shop",
@@ -123,6 +187,7 @@ export const PRO_FEATURES = [
     free: "Standard shop items",
     pro: "Secret Shop + Free Drops",
     icon: "gift",
+    enforced: false,
   },
   {
     id: "algo_boost",
@@ -131,6 +196,7 @@ export const PRO_FEATURES = [
     free: "Standard reach",
     pro: "+50% Feed Reach Boost",
     icon: "trending",
+    enforced: false,
   },
   {
     id: "vip_duels",
@@ -139,6 +205,7 @@ export const PRO_FEATURES = [
     free: "Standard Duels",
     pro: "VIP Duels & Leaderboard Spotlight",
     icon: "swords",
+    enforced: false,
   },
   {
     id: "communities",
@@ -147,6 +214,7 @@ export const PRO_FEATURES = [
     free: "Up to 2 communities",
     pro: "Up to 15 communities",
     icon: "users",
+    enforced: true,
   },
 ] as const
 

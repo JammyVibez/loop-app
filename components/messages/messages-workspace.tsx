@@ -101,6 +101,8 @@ export function MessagesWorkspace() {
   const [coLoopDraft, setCoLoopDraft] = useState("")
   const [coLoopPeerDraft, setCoLoopPeerDraft] = useState("")
   const [publishingCoLoop, setPublishingCoLoop] = useState(false)
+  const [peerReadAt, setPeerReadAt] = useState<string | null>(null)
+  const [freshMessageIds, setFreshMessageIds] = useState<Set<string>>(new Set())
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -196,6 +198,8 @@ export function MessagesWorkspace() {
     setMessages([])
     setTypingPeer(false)
     setPeerOnline(false)
+    setPeerReadAt(null)
+    setFreshMessageIds(new Set())
     setReplyTo(null)
     void loadMessages(selectedId)
 
@@ -209,6 +213,7 @@ export function MessagesWorkspace() {
       .on("broadcast", { event: "new_message" }, ({ payload }: { payload: any }) => {
         if (!payload?.id || selectedIdRef.current !== selectedId) return
         setMessages((prev) => (prev.some((m) => m.id === payload.id) ? prev : [...prev, payload]))
+        markFresh(payload.id)
         setConversations((prev) =>
           prev
             .map((c) =>
@@ -218,6 +223,18 @@ export function MessagesWorkspace() {
             )
             .sort((a, b) => (b.last_message?.created_at || "").localeCompare(a.last_message?.created_at || "")),
         )
+        // The peer's window is open and receiving this live, so it's
+        // effectively seen — mark it read and let them know.
+        void fetch("/api/messages/unread-count", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ conversation_id: selectedId }),
+        }).catch(() => {})
+        void channelRef.current?.send({
+          type: "broadcast",
+          event: "read",
+          payload: { user_id: user.id, read_at: new Date().toISOString() },
+        })
       })
       .on("broadcast", { event: "typing" }, ({ payload }: { payload: any }) => {
         if (payload?.user_id && payload.user_id !== user.id) {
@@ -229,6 +246,11 @@ export function MessagesWorkspace() {
       .on("broadcast", { event: "presence" }, ({ payload }: { payload: any }) => {
         if (payload?.user_id && payload.user_id !== user.id) {
           setPeerOnline(Boolean(payload.online))
+        }
+      })
+      .on("broadcast", { event: "read" }, ({ payload }: { payload: any }) => {
+        if (payload?.user_id && payload.user_id !== user.id && payload?.read_at) {
+          setPeerReadAt(payload.read_at)
         }
       })
       .on("broadcast", { event: "reaction" }, () => {
@@ -252,6 +274,18 @@ export function MessagesWorkspace() {
             type: "broadcast",
             event: "presence",
             payload: { user_id: user.id, online: true },
+          })
+          // Opening this conversation reads everything the peer has sent so
+          // far — mark it read server-side and tell them live.
+          void fetch("/api/messages/unread-count", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...getAuthHeader() },
+            body: JSON.stringify({ conversation_id: selectedId }),
+          }).catch(() => {})
+          void channel.send({
+            type: "broadcast",
+            event: "read",
+            payload: { user_id: user.id, read_at: new Date().toISOString() },
           })
         }
       })
@@ -280,6 +314,18 @@ export function MessagesWorkspace() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages.length, typingPeer])
+
+  const markFresh = (id: string) => {
+    setFreshMessageIds((prev) => new Set(prev).add(id))
+    window.setTimeout(() => {
+      setFreshMessageIds((prev) => {
+        if (!prev.has(id)) return prev
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    }, 1200)
+  }
 
   const broadcastTyping = () => {
     if (!user) return
@@ -339,6 +385,7 @@ export function MessagesWorkspace() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to send")
       setMessages((prev) => (prev.some((m) => m.id === data.message.id) ? prev : [...prev, data.message]))
+      markFresh(data.message.id)
       // Peer delivery via postgres_changes; also nudge broadcast channel for same-tab peers
       void channelRef.current?.send({
         type: "broadcast",
@@ -620,26 +667,37 @@ export function MessagesWorkspace() {
 
   const chatPane = selected ? (
     <section className="relative flex h-full min-h-0 flex-col bg-background bg-[url('data:image/svg+xml,%3Csvg width%3D%2260%27 height%3D%2260%27 viewBox%3D%220 0 60 60%27 xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%3E%3Cg fill%3D%22none%22 fill-rule%3D%22evenodd%22%3E%3Cg fill%3D%22%23888888%22 fill-opacity%3D%220.05%22%3E%3Cpath d%3D%22M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]">
-      <div className="flex items-center gap-2 border-b border-border bg-muted px-2 py-2.5 sm:px-4">
+      <div className="flex items-center gap-2 border-b border-border bg-background/95 px-2 py-2.5 shadow-sm backdrop-blur-sm sm:px-4">
         <Button variant="ghost" size="icon" className="text-foreground lg:hidden" onClick={backToInbox}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <Avatar className="h-10 w-10">
-          <AvatarImage src={selected.other_user?.avatar_url} />
-          <AvatarFallback>{(selected.other_user?.display_name || "U").charAt(0)}</AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={selected.other_user?.avatar_url} />
+            <AvatarFallback>{(selected.other_user?.display_name || "U").charAt(0)}</AvatarFallback>
+          </Avatar>
+          {peerOnline && (
+            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500" />
+          )}
+        </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-foreground">
+          <p className="truncate text-sm font-semibold text-foreground">
             {selected.other_user?.display_name || selected.name || "Conversation"}
           </p>
-          <p className="truncate text-xs text-emerald-600 dark:text-emerald-400">
-            {typingPeer ? "typing…" : peerOnline ? "online" : `@${selected.other_user?.username || "group"}`}
+          <p className="truncate text-xs text-muted-foreground">
+            {typingPeer ? (
+              <span className="text-emerald-600 dark:text-emerald-400">typing…</span>
+            ) : peerOnline ? (
+              <span className="text-emerald-600 dark:text-emerald-400">online</span>
+            ) : (
+              `@${selected.other_user?.username || "group"}`
+            )}
           </p>
         </div>
         <Button
           variant="ghost"
           size="icon"
-          className="text-foreground"
+          className="text-muted-foreground hover:text-foreground"
           title="Search in chat"
           onClick={() => setShowChatSearch((v) => !v)}
         >
@@ -648,14 +706,14 @@ export function MessagesWorkspace() {
         <Button
           variant="ghost"
           size="icon"
-          className="text-amber-300"
+          className="text-amber-500 dark:text-amber-300"
           title="Co-Loop — write a public loop together (unique to Loop)"
           onClick={() => setShowCoLoop((v) => !v)}
         >
           <GitBranch className="h-4 w-4" />
         </Button>
         {selected.other_user?.id && (
-          <Button variant="ghost" size="icon" className="text-pink-300" onClick={() => setShowGift(true)}>
+          <Button variant="ghost" size="icon" className="text-pink-500 dark:text-pink-300" onClick={() => setShowGift(true)}>
             <Gift className="h-4 w-4" />
           </Button>
         )}
@@ -722,13 +780,20 @@ export function MessagesWorkspace() {
         ) : null}
         {filteredMessages.map((message) => {
           const mine = (message.sender_id || message.author_id) === user.id
+          const isFresh = freshMessageIds.has(message.id)
+          const seen = mine && Boolean(peerReadAt) && new Date(peerReadAt!) >= new Date(message.created_at)
           return (
-            <div key={message.id} className={cn("group flex", mine ? "justify-end" : "justify-start")}>
+            <div
+              key={message.id}
+              className={cn("group flex", mine ? "justify-end" : "justify-start", isFresh && "message-appear")}
+            >
               <div className={cn("max-w-[85%] sm:max-w-[70%]", mine ? "items-end" : "items-start")}>
                 <div
                   className={cn(
-                    "relative rounded-2xl px-3 py-2 text-sm shadow-sm",
-                    mine ? "rounded-br-md bg-emerald-600 dark:bg-emerald-700 text-white" : "rounded-bl-md bg-muted text-foreground",
+                    "chat-bubble relative rounded-2xl px-3 py-2 text-sm shadow-sm",
+                    mine
+                      ? "chat-bubble-mine rounded-br-md bg-emerald-600 text-white dark:bg-emerald-700"
+                      : "chat-bubble-peer rounded-bl-md bg-muted text-foreground",
                   )}
                 >
                   {message.reply_to && (
@@ -754,10 +819,10 @@ export function MessagesWorkspace() {
                       {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </span>
                     {mine &&
-                      (peerOnline ? (
-                        <CheckCheck className="h-3 w-3 text-sky-300" />
+                      (seen ? (
+                        <CheckCheck className="h-3.5 w-3.5 text-sky-300" />
                       ) : (
-                        <Check className="h-3 w-3 text-muted-foreground" />
+                        <Check className="h-3.5 w-3.5 text-white/70" />
                       ))}
                   </div>
                 </div>
@@ -807,8 +872,12 @@ export function MessagesWorkspace() {
           )
         })}
         {typingPeer && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-md bg-muted px-3 py-2 text-xs text-muted-foreground">typing…</div>
+          <div className="message-appear flex justify-start">
+            <div className="chat-bubble chat-bubble-peer flex items-center gap-1 rounded-2xl rounded-bl-md bg-muted px-3.5 py-2.5">
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+            </div>
           </div>
         )}
         <div ref={bottomRef} />

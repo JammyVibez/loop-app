@@ -177,6 +177,38 @@ export async function POST(request: NextRequest) {
       })
     } catch {}
 
+    // Notify other participants (in-app + real Web Push) so a new DM is
+    // never silent, matching the same pattern used for mentions/gifts.
+    try {
+      const { data: participants } = await supabase
+        .from("conversation_participants")
+        .select("user_id")
+        .eq("conversation_id", conversationId)
+        .is("left_at", null)
+
+      const preview = String(content || (mediaUrl ? "Sent an attachment" : "New message")).slice(0, 120)
+      const { notifyUser } = await import("@/lib/notifications")
+      await Promise.all(
+        (participants || [])
+          .map((p: any) => p.user_id)
+          .filter((id: string) => id && id !== user.id)
+          .map((recipientId: string) =>
+            notifyUser(supabase, {
+              userId: recipientId,
+              type: "message",
+              title: enriched.sender?.display_name || enriched.sender?.username || "New message",
+              message: preview,
+              actorId: user.id,
+              actionUrl: `/messages?c=${conversationId}`,
+              data: { conversation_id: conversationId, message_id: message.id },
+              pushCategory: "directMessages",
+            }),
+          ),
+      )
+    } catch (notifyErr) {
+      console.warn("Message push notify failed:", notifyErr)
+    }
+
     if (content) {
       try {
         const { processMentions, extractMentions } = await import("@/lib/mentions")

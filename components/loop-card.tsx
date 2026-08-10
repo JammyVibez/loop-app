@@ -24,13 +24,15 @@ import {
   Sparkles,
   Rocket,
   Coins,
+  Pin,
+  PinOff,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar";
-import type { ActiveCosmetics } from "@/lib/cosmetics";
+import { cardEffectStyle, fontStyle, type ActiveCosmetics } from "@/lib/cosmetics";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -104,6 +106,7 @@ interface Loop {
     is_saved: boolean;
   };
   is_featured?: boolean;
+  is_pinned?: boolean;
   engagement_score?: number;
   gifts_received?: number;
   total_gift_value?: number;
@@ -499,6 +502,40 @@ export function LoopCard({
     setDeleteOpen(true);
   };
 
+  const [togglingPin, setTogglingPin] = useState(false);
+  const handleTogglePin = async () => {
+    if (!currentUser?.token || currentUser.id !== loop.author_id || togglingPin) return;
+    setTogglingPin(true);
+    const nextPinned = !loop.is_pinned;
+    try {
+      const response = await fetch(`/api/loops/${loop.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentUser.access_token || currentUser.token}`,
+        },
+        body: JSON.stringify({ is_pinned: nextPinned }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "Could not update pin")
+      }
+      onEdited?.(data.loop);
+      toast({
+        title: nextPinned ? "Pinned to profile" : "Unpinned from profile",
+        description: nextPinned ? "Shows at the top of your profile." : undefined,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Couldn't update pin",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setTogglingPin(false);
+    }
+  };
+
   const confirmDelete = async () => {
     if (!currentUser?.token || currentUser.id !== loop.author_id) return;
 
@@ -762,6 +799,7 @@ export function LoopCard({
       <Card
         ref={cardRef}
         className={getCardStyle()}
+        style={cardEffectStyle((loop.author.cosmetics || loop.author.active_cosmetics)?.cardEffect)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -881,7 +919,10 @@ export function LoopCard({
                       href={`/profile/${loop.author.username}`}
                       className="min-w-0"
                     >
-                      <span className="font-semibold hover:underline text-sm sm:text-base truncate block max-w-[120px] sm:max-w-none">
+                      <span
+                        className="font-semibold hover:underline text-sm sm:text-base truncate block max-w-[120px] sm:max-w-none"
+                        style={fontStyle((loop.author.cosmetics || loop.author.active_cosmetics)?.font)}
+                      >
                         {loop.author.display_name}
                       </span>
                     </Link>
@@ -973,6 +1014,14 @@ export function LoopCard({
                     <DropdownMenuItem onClick={handleEdit}>
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Loop
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => void handleTogglePin()} disabled={togglingPin}>
+                      {loop.is_pinned ? (
+                        <PinOff className="h-4 w-4 mr-2" />
+                      ) : (
+                        <Pin className="h-4 w-4 mr-2" />
+                      )}
+                      {loop.is_pinned ? "Unpin from Profile" : "Pin to Profile"}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleDelete} className="text-red-500 focus:text-red-500">
                       <Trash2 className="h-4 w-4 mr-2" />
