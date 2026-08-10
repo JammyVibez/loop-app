@@ -44,7 +44,7 @@ export function CoLoopInviteCard({
 
     const channel = supabase
       .channel(`co-loop-invite:${sessionId}`)
-      .on("broadcast", { event: "invite_status" }, (payload) => {
+      .on("broadcast", { event: "invite_status" }, (payload: { payload?: { sessionId?: string; status?: "pending" | "accepted" | "declined" } }) => {
         if (payload.payload?.sessionId === sessionId && payload.payload?.status) {
           setStatus(payload.payload.status)
         }

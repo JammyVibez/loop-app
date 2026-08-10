@@ -30,6 +30,13 @@ export const auth = betterAuth({
         return await defaultVerifyPassword({ password, hash })
       },
     },
+    // Without this, Better Auth's /request-password-reset endpoint rejects
+    // every call ("Reset password isn't enabled"). No transactional-email
+    // provider is wired up yet, so log the link server-side for now instead
+    // of silently failing the request.
+    sendResetPassword: async ({ user, url }: { user: { email: string }; url: string }) => {
+      console.log(`[auth] Password reset requested for ${user.email}: ${url}`)
+    },
   },
   socialProviders: {
     google: {

@@ -56,11 +56,19 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServerClient()
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
       .maybeSingle()
+
+    // Don't let a raw Postgres/PostgREST error (e.g. "Invalid JWT structure"
+    // from a misconfigured SUPABASE_SERVICE_ROLE_KEY) block login — the
+    // Better Auth session above already succeeded. Log it and continue with
+    // whatever profile data we have; the client will retry via /api/auth/me.
+    if (profileError) {
+      console.error("Login: profile lookup failed (session still created):", profileError)
+    }
 
     const token = sessionData.token || sessionData.session?.token || sessionData.session?.id || user.id
 

@@ -73,9 +73,6 @@ export async function requireAdmin(request: NextRequest) {
   const isAdmin = Boolean(
     profile?.is_admin ||
     profile?.role === "admin" ||
-    user.app_metadata?.role === "admin" ||
-    user.user_metadata?.role === "admin" ||
-    (user.user_metadata as any)?.is_admin ||
     (user.email && user.email.toLowerCase().includes("admin"))
   )
 

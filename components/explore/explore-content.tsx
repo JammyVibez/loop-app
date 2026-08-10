@@ -87,7 +87,7 @@ export function ExploreContent() {
     const loopsChannel = supabase
       .channel("explore:loops")
       .on("postgres_changes", { event: "*", schema: "public", table: "loops" }, refresh)
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         if (status === "SUBSCRIBED") setLive(true)
       })
 

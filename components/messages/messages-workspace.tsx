@@ -206,7 +206,7 @@ export function MessagesWorkspace() {
     channelRef.current = channel
 
     channel
-      .on("broadcast", { event: "new_message" }, ({ payload }) => {
+      .on("broadcast", { event: "new_message" }, ({ payload }: { payload: any }) => {
         if (!payload?.id || selectedIdRef.current !== selectedId) return
         setMessages((prev) => (prev.some((m) => m.id === payload.id) ? prev : [...prev, payload]))
         setConversations((prev) =>
@@ -219,14 +219,14 @@ export function MessagesWorkspace() {
             .sort((a, b) => (b.last_message?.created_at || "").localeCompare(a.last_message?.created_at || "")),
         )
       })
-      .on("broadcast", { event: "typing" }, ({ payload }) => {
+      .on("broadcast", { event: "typing" }, ({ payload }: { payload: any }) => {
         if (payload?.user_id && payload.user_id !== user.id) {
           setTypingPeer(true)
           if (peerTypingClear.current) clearTimeout(peerTypingClear.current)
           peerTypingClear.current = setTimeout(() => setTypingPeer(false), 2500)
         }
       })
-      .on("broadcast", { event: "presence" }, ({ payload }) => {
+      .on("broadcast", { event: "presence" }, ({ payload }: { payload: any }) => {
         if (payload?.user_id && payload.user_id !== user.id) {
           setPeerOnline(Boolean(payload.online))
         }
@@ -234,7 +234,7 @@ export function MessagesWorkspace() {
       .on("broadcast", { event: "reaction" }, () => {
         if (selectedIdRef.current === selectedId) void loadMessages(selectedId)
       })
-      .on("broadcast", { event: "coloop" }, ({ payload }) => {
+      .on("broadcast", { event: "coloop" }, ({ payload }: { payload: any }) => {
         if (!payload || payload.user_id === user.id) return
         setCoLoopPeerDraft(String(payload.content || ""))
         setShowCoLoop(true)
@@ -246,7 +246,7 @@ export function MessagesWorkspace() {
           if (selectedIdRef.current === selectedId) void loadMessages(selectedId)
         },
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         if (status === "SUBSCRIBED") {
           void channel.send({
             type: "broadcast",

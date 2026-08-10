@@ -85,7 +85,14 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     }
 
-    await supabase.from("profiles").upsert(profilePayload)
+    const { error: profileUpsertError } = await supabase.from("profiles").upsert(profilePayload)
+    if (profileUpsertError) {
+      // Don't fail the signup — the Better Auth account already exists and
+      // the user can still sign in. Surface this loudly server-side though,
+      // since a missing profile row breaks most of the app for this user
+      // until it's backfilled (e.g. via a misconfigured service role key).
+      console.error("Signup: failed to create profile row for", createdUser.id, profileUpsertError)
+    }
 
     const token = signUpData.token || signUpData.session?.token || signUpData.session?.id || createdUser.id
 

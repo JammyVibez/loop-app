@@ -32,7 +32,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (!profile) {
-      return NextResponse.json({ error: lastError?.message || "Profile not found" }, { status: 404 })
+      // Never forward raw Postgres/PostgREST error text (e.g. "Invalid JWT
+      // structure" from a misconfigured SUPABASE_SERVICE_ROLE_KEY) to the
+      // client — log it server-side and return a safe generic message.
+      if (lastError) console.error("auth/me profile lookup failed:", lastError)
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 })
     }
 
     return NextResponse.json({ success: true, profile })

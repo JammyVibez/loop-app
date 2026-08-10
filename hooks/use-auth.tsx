@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userRef.current = user
   }, [user])
 
-  const buildFallbackProfile = (sessionUser: { id: string; email?: string; name?: string; image?: string }) => {
+  const buildFallbackProfile = (sessionUser: { id: string; email?: string; name?: string; image?: string | null }) => {
     const emailUsername = sessionUser.email?.split("@")[0] || "user"
     const previous = userRef.current?.id === sessionUser.id ? userRef.current : null
 
@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const mapSessionUser = (
-    sessionData: { user: { id: string; email?: string; name?: string; image?: string }; session?: { id?: string; token?: string } },
+    sessionData: { user: { id: string; email?: string; name?: string; image?: string | null }; session?: { id?: string; token?: string } },
     profileData: Record<string, any>,
   ): User => {
     const previous = userRef.current?.id === sessionData.user.id ? userRef.current : null

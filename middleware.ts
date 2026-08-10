@@ -15,10 +15,20 @@ const alwaysPublic = new Set([
   "/api/auth/callback",
 ])
 
-function hasSupabaseSessionCookie(request: NextRequest) {
+// Better Auth's session cookie. Name varies slightly by config (dev vs
+// secure/prod prefix), so match by suffix rather than an exact string.
+function hasBetterAuthSessionCookie(request: NextRequest) {
   return request.cookies
     .getAll()
-    .some((cookie) => cookie.name.includes("supabase") || cookie.name.startsWith("sb-"))
+    .some(
+      (cookie) =>
+        cookie.name.endsWith("better-auth.session_token") ||
+        cookie.name.includes("better-auth") ||
+        // Legacy Supabase cookies, kept during the migration window in case
+        // any stale sessions are still around.
+        cookie.name.includes("supabase") ||
+        cookie.name.startsWith("sb-"),
+    )
 }
 
 export function middleware(request: NextRequest) {
@@ -43,7 +53,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  if (!hasSupabaseSessionCookie(request)) {
+  if (!hasBetterAuthSessionCookie(request)) {
     const loginUrl = new URL("/login", request.url)
     loginUrl.searchParams.set("redirect", pathname)
     return NextResponse.redirect(loginUrl)

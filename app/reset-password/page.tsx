@@ -10,16 +10,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CheckCircle, XCircle, Lock, ArrowLeft, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
-
-const supabase = getSupabaseBrowserClient()
+import { authClient } from "@/lib/auth-client"
 
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams()
-  const code = searchParams.get("code")
-  const ready = searchParams.get("ready") === "1"
+  // Better Auth's reset link appends `?token=...` to the redirect URL.
+  const token = searchParams.get("token")
 
-  const [step, setStep] = useState<"request" | "reset" | "success" | "error" | "exchanging">(code ? "exchanging" : ready ? "reset" : "request")
+  const [step, setStep] = useState<"request" | "reset" | "success" | "error" | "exchanging">(token ? "reset" : "request")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -27,23 +25,6 @@ export default function ResetPasswordPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
-
-  useEffect(() => {
-    if (!code) return
-
-    const exchangeRecoveryCode = async () => {
-      try {
-        const { error } = await supabase.auth.exchangeCodeForSession(code)
-        if (error) throw error
-        setStep("reset")
-      } catch (error: any) {
-        setErrors({ general: error?.message || "This reset link is invalid or expired." })
-        setStep("error")
-      }
-    }
-
-    exchangeRecoveryCode()
-  }, [code])
 
   const validatePassword = (password: string) => {
     const errors: string[] = []
@@ -61,8 +42,9 @@ export default function ResetPasswordPage() {
     setErrors({})
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/api/auth/callback?next=/reset-password`,
+      const { error } = await authClient.requestPasswordReset({
+        email,
+        redirectTo: `${window.location.origin}/reset-password`,
       })
 
       if (error) {
@@ -96,9 +78,17 @@ export default function ResetPasswordPage() {
       return
     }
 
+    if (!token) {
+      setErrors({ general: "This reset link is invalid or expired." })
+      setStep("error")
+      setLoading(false)
+      return
+    }
+
     try {
-      const { error } = await supabase.auth.updateUser({
-        password,
+      const { error } = await authClient.resetPassword({
+        newPassword: password,
+        token,
       })
 
       if (error) {

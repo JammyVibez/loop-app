@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-undefined
+import { createClient } from "@/lib/supabase"
+import type { RealtimeChannel } from "@supabase/supabase-js"
 import {
   ArrowLeft,
   Eye,
@@ -167,8 +168,8 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
     if (!streamId || loading || !stream) return
 
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+      process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder",
     )
     supabaseRef.current = supabase
 
@@ -238,7 +239,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
           }
         }
       })
-      .subscribe(async (status) => {
+      .subscribe(async (status: string) => {
         if (status !== "SUBSCRIBED") return
         await channel.track({
           user_id: user?.id || peerIdRef.current,
