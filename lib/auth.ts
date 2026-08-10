@@ -1,0 +1,58 @@
+import { betterAuth } from "better-auth"
+import { stripe } from "@better-auth/stripe"
+import { hashPassword, verifyPassword as defaultVerifyPassword } from "better-auth/crypto"
+import bcrypt from "bcryptjs"
+import { Pool } from "pg"
+import Stripe from "stripe"
+
+export const authDbPool = new Pool({
+  connectionString: process.env.DATABASE_URL || "postgresql://postgres:G2DbfnoknKWSvyq8@db.cgtjjowhlyyrfljarfgd.supabase.co:5432/postgres",
+  ssl: { rejectUnauthorized: false },
+})
+
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+
+export const auth = betterAuth({
+  database: authDbPool,
+  secret: process.env.BETTER_AUTH_SECRET || "loop-better-auth-secret-key-32-chars-long",
+  baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ais-dev-o3lwgmmrisjysqnqikbyt2-413485355424.europe-west2.run.app",
+  emailAndPassword: {
+    enabled: true,
+    password: {
+      hash: async (password: string) => {
+        return await hashPassword(password)
+      },
+      verify: async ({ password, hash }: { password: string; hash: string }) => {
+        if (hash && (hash.startsWith("$2a$") || hash.startsWith("$2b$") || hash.startsWith("$2y$"))) {
+          return await bcrypt.compare(password, hash)
+        }
+        return await defaultVerifyPassword({ password, hash })
+      },
+    },
+  },
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      enabled: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    },
+  },
+  plugins: [
+    stripe({
+      stripeClient: stripeSecretKey ? new Stripe(stripeSecretKey) : new Stripe("sk_test_placeholder"),
+      stripeWebhookSecret: stripeWebhookSecret || "whsec_placeholder",
+      createCustomerOnSignUp: true,
+      subscription: {
+        enabled: true,
+        plans: [
+          {
+            name: "pro",
+            planId: "pro",
+            priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || "price_pro",
+          },
+        ],
+      },
+    }),
+  ],
+})

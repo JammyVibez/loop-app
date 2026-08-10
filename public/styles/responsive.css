@@ -1,0 +1,330 @@
+/* Enhanced Responsive Design for Loop Social Platform */
+
+/* Mobile-first approach with progressive enhancement */
+
+/* Extra small devices (phones, 475px and down) */
+@media (max-width: 475px) {
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  /* Mobile card optimizations */
+  .loop-card-mobile {
+    margin-bottom: 0.75rem;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+  }
+  
+  /* Mobile navigation spacing */
+  .mobile-nav-spacing {
+    padding-bottom: 4rem;
+  }
+  
+  /* Compact buttons for mobile */
+  .btn-mobile {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    min-height: 44px; /* Touch-friendly */
+  }
+  
+  /* Mobile typography */
+  .text-mobile {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  
+  /* Hide non-essential elements on very small screens */
+  .hide-xs {
+    display: none !important;
+  }
+}
+
+/* Small devices (landscape phones, 640px and down) */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Hide secondary elements on small screens */
+  .hide-sm {
+    display: none !important;
+  }
+  
+  /* Compact spacing for mobile */
+  .mobile-compact {
+    padding: 0.5rem;
+    margin: 0.25rem 0;
+  }
+  
+  /* Mobile grid adjustments */
+  .grid-mobile {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  /* Mobile flex adjustments */
+  .flex-mobile {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  /* Mobile avatar sizes */
+  .avatar-mobile {
+    width: 2rem;
+    height: 2rem;
+  }
+  
+  /* Mobile icon sizes */
+  .icon-mobile {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+/* Medium devices (tablets, 768px and down) */
+@media (max-width: 768px) {
+  /* Tablet grid adjustments */
+  .tablet-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  /* Responsive text sizing */
+  .responsive-text {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  
+  /* Hide tablet-specific elements */
+  .hide-md {
+    display: none !important;
+  }
+  
+  /* Tablet spacing */
+  .tablet-spacing {
+    padding: 1rem;
+    margin: 0.75rem 0;
+  }
+}
+
+/* Large devices (desktops, 1024px and up) */
+@media (min-width: 1024px) {
+  /* Desktop grid enhancements */
+  .desktop-grid {
+    grid-template-columns: 1fr 300px;
+    gap: 1.5rem;
+  }
+  
+  .desktop-spacing {
+    padding: 1.5rem;
+    margin: 1rem 0;
+  }
+  
+  /* Show desktop-only elements */
+  .show-lg {
+    display: block !important;
+  }
+  
+  /* Desktop sidebar */
+  .desktop-sidebar {
+    position: sticky;
+    top: 5rem;
+    height: fit-content;
+  }
+}
+
+/* Extra large devices (large desktops, 1280px and up) */
+@media (min-width: 1280px) {
+  .desktop-xl-grid {
+    grid-template-columns: 250px 1fr 300px;
+    gap: 2rem;
+  }
+  
+  .container-xl {
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+}
+
+/* Touch-friendly interactive elements */
+@media (hover: none) and (pointer: coarse) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.75rem;
+  }
+  
+  .touch-button {
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border-radius: 0.5rem;
+  }
+  
+  /* Larger tap targets for mobile */
+  .mobile-tap-target {
+    min-height: 48px;
+    min-width: 48px;
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .reduce-motion,
+  .reduce-motion * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .high-contrast {
+    border: 2px solid currentColor;
+    background: Canvas;
+    color: CanvasText;
+  }
+  
+  .high-contrast-button {
+    border: 2px solid ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+  }
+}
+
+/* Dark mode specific responsive adjustments */
+@media (prefers-color-scheme: dark) {
+  .dark-responsive {
+    background-color: rgb(17 24 39);
+    color: rgb(243 244 246);
+  }
+  
+  .dark-card {
+    background-color: rgb(31 41 55);
+    border-color: rgb(55 65 81);
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-friendly {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border: 1px solid black !important;
+  }
+  
+  /* Optimize for print */
+  .print-optimize {
+    page-break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (orientation: landscape) and (max-height: 500px) {
+  .landscape-compact {
+    padding: 0.5rem;
+    margin: 0.25rem 0;
+  }
+  
+  /* Reduce header height in landscape */
+  .landscape-header {
+    height: 3rem;
+  }
+}
+
+/* Utility classes for responsive design */
+.responsive-container {
+  width: 100%;
+  max-width: 100%;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (min-width: 640px) {
+  .responsive-container {
+    max-width: 640px;
+  }
+}
+
+@media (min-width: 768px) {
+  .responsive-container {
+    max-width: 768px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-container {
+    max-width: 1024px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .responsive-container {
+    max-width: 1280px;
+  }
+}
+
+/* Responsive image utilities */
+.responsive-image {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  object-fit: cover;
+}
+
+.responsive-video {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}
+
+/* Responsive spacing utilities */
+.responsive-spacing {
+  padding: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .responsive-spacing {
+    padding: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-spacing {
+    padding: 1.5rem;
+  }
+}
+
+/* Focus management for accessibility */
+.focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Skip to content link for accessibility */
+.skip-to-content {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #3b82f6;
+  color: white;
+  padding: 8px;
+  text-decoration: none;
+  border-radius: 4px;
+  z-index: 1000;
+}
+
+.skip-to-content:focus {
+  top: 6px;
+}
