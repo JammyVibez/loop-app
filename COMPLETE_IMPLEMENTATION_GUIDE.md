@@ -737,4 +737,4 @@ mkdir -p public/sounds/{dragon,forest}
 npm run dev
 \`\`\`
 
-## 🆘 Troubl
+## 🆘 Trouble
