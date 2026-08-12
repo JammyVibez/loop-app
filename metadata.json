@@ -1,0 +1,6 @@
+{
+  "name": "Loop",
+  "description": "Build together. Not just post into the void — co-write in real time, settle debates with Duels, and grow communities with Circles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
