@@ -13,9 +13,10 @@ import { MessageSquare, Loader2 } from "lucide-react"
 interface ProLoungeSetting {
   discord_invite_url: string
   enabled: boolean
+  announcement: string
 }
 
-const DEFAULT_SETTING: ProLoungeSetting = { discord_invite_url: "", enabled: false }
+const DEFAULT_SETTING: ProLoungeSetting = { discord_invite_url: "", enabled: false, announcement: "" }
 
 export function ProLoungeSettings() {
   const { toast } = useToast()
@@ -111,6 +112,25 @@ export function ProLoungeSettings() {
           </div>
           <p className="text-xs text-muted-foreground">
             Use a permanent (non-expiring) Discord invite link so it keeps working for new Pro members.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="lounge-announcement">Announcement banner</Label>
+          <div className="flex gap-2">
+            <Input
+              id="lounge-announcement"
+              value={setting.announcement}
+              onChange={(e) => setSetting((prev) => ({ ...prev, announcement: e.target.value }))}
+              placeholder="e.g. Join our next Founder Q&A this Friday at 5pm!"
+              disabled={saving}
+            />
+            <Button variant="outline" onClick={() => void save(setting)} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Shown at the top of the Lounge for every Pro member. Leave empty to hide.
           </p>
         </div>
       </CardContent>

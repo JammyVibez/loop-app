@@ -19,6 +19,14 @@ export const GUEST_PUBLIC_PREFIXES = [
   "/marketplace",
   "/invite",
   "/offline",
+  // Public browse & showcase pages
+  "/developers",
+  "/events",
+  "/games",
+  "/help",
+  "/verification",
+  "/recommendations",
+  "/co-loop/join",
 ] as const
 
 /** Interactive / account routes that always require auth */
@@ -36,6 +44,11 @@ export const AUTH_REQUIRED_PREFIXES = [
   "/premium",
   "/streams",
   "/inventory",
+  // Account / wallet routes
+  "/wallet",
+  "/earnings",
+  "/support",
+  "/co-loop/studio",
 ] as const
 
 export function isGuestPublicPath(pathname: string) {

@@ -1,17 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 
-async function getUser(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "") || null
-  if (!token) return null
-  const supabase = createServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser(token)
-  return user || null
-}
+const getUser = getUserFromRequest
 
 async function assertMember(supabase: ReturnType<typeof createServerClient>, conversationId: string, userId: string) {
   const { data } = await supabase
@@ -158,14 +151,20 @@ export async function POST(request: NextRequest) {
       .update({ updated_at: new Date().toISOString() })
       .eq("id", conversationId)
 
+    const { data: senderProfile } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url")
+      .eq("id", user.id)
+      .maybeSingle()
+
     const enriched = {
       ...message,
       reply_to: replyPreview,
       sender: {
         id: user.id,
-        username: user.user_metadata?.username,
-        display_name: user.user_metadata?.display_name || user.user_metadata?.username,
-        avatar_url: user.user_metadata?.avatar_url,
+        username: senderProfile?.username || user.user_metadata?.username,
+        display_name: senderProfile?.display_name || user.user_metadata?.display_name || user.user_metadata?.username,
+        avatar_url: senderProfile?.avatar_url || user.user_metadata?.avatar_url,
       },
     }
 

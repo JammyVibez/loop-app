@@ -1,17 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 
-async function getUser(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "") || null
-  if (!token) return null
-  const supabase = createServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser(token)
-  return user || null
-}
+const getUser = getUserFromRequest
 
 async function canMessage(supabase: ReturnType<typeof createServerClient>, fromId: string, toId: string) {
   // Allow if either user follows the other (or mutual). Anyone can open chat if at least one follow exists.
@@ -40,7 +33,7 @@ export async function GET(request: NextRequest) {
     const supabase = createServerClient()
     const { data: memberships, error: membershipError } = await supabase
       .from("conversation_participants")
-      .select("conversation_id, role, joined_at")
+      .select("conversation_id, role, joined_at, last_read_at")
       .eq("user_id", user.id)
       .is("left_at", null)
 
@@ -88,6 +81,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Unread counts per conversation — WhatsApp-style badges in the inbox.
+    const unreadCounts = new Map<string, number>()
+    const { data: unreadRows, error: unreadError } = await supabase
+      .from("messages")
+      .select("conversation_id")
+      .in("conversation_id", ids)
+      .neq("author_id", user.id)
+      .neq("sender_id", user.id)
+      .eq("is_read", false)
+    if (!unreadError && unreadRows) {
+      for (const row of unreadRows) {
+        unreadCounts.set(row.conversation_id, (unreadCounts.get(row.conversation_id) || 0) + 1)
+      }
+    }
+
     const enriched = (conversations || []).map((conversation) => {
       const people = (participants || []).filter((p) => p.conversation_id === conversation.id)
       const other = people.find((p) => p.user_id !== user.id)?.user || null
@@ -96,6 +104,7 @@ export async function GET(request: NextRequest) {
         participants: people,
         other_user: other,
         last_message: lastByConversation.get(conversation.id) || null,
+        unread_count: unreadCounts.get(conversation.id) || 0,
       }
     })
 

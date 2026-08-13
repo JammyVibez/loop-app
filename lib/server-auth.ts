@@ -9,38 +9,24 @@ export function getBearerToken(request: NextRequest) {
 }
 
 export async function getUserFromRequest(request: NextRequest) {
+  let base: { id: string; email?: string; name?: string; image?: string | null } | null = null
+
   try {
     const session = await auth.api.getSession({
       headers: request.headers,
     })
     if (session?.user) {
-      return {
-        id: session.user.id,
-        email: session.user.email,
-        name: session.user.name,
-        user_metadata: {
-          display_name: session.user.name,
-          avatar_url: session.user.image,
-        },
-      }
-    }
-
-    const token = getBearerToken(request)
-    if (token) {
-      const res = await authDbPool.query(
-        'SELECT s."userId", u.email, u.name, u.image FROM "session" s JOIN "user" u ON s."userId" = u.id WHERE s.token = $1 AND s."expiresAt" > NOW();',
-        [token]
-      )
-      if (res.rows.length > 0) {
-        const u = res.rows[0]
-        return {
-          id: u.userId,
-          email: u.email,
-          name: u.name,
-          user_metadata: {
-            display_name: u.name,
-            avatar_url: u.image,
-          },
+      base = session.user
+    } else {
+      const token = getBearerToken(request)
+      if (token) {
+        const res = await authDbPool.query(
+          'SELECT s."userId", u.email, u.name, u.image FROM "session" s JOIN "user" u ON s."userId" = u.id WHERE s.token = $1 AND s."expiresAt" > NOW();',
+          [token]
+        )
+        if (res.rows.length > 0) {
+          const u = res.rows[0]
+          base = { id: u.userId, email: u.email, name: u.name, image: u.image }
         }
       }
     }
@@ -48,7 +34,33 @@ export async function getUserFromRequest(request: NextRequest) {
     console.error("Error in getUserFromRequest:", error)
   }
 
-  return null
+  if (!base) return null
+
+  // Canonical app profile (username + display name) lives in the profiles
+  // table keyed by the same id as the Better Auth user.
+  let username: string | undefined
+  try {
+    const supabase = createServerClient()
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", base.id)
+      .maybeSingle()
+    username = profile?.username || undefined
+  } catch {
+    /* non-blocking — fall back to name */
+  }
+
+  return {
+    id: base.id,
+    email: base.email,
+    name: base.name,
+    user_metadata: {
+      username,
+      display_name: base.name || username,
+      avatar_url: base.image,
+    },
+  }
 }
 
 export async function requireUser(request: NextRequest) {

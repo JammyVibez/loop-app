@@ -15,6 +15,17 @@ const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
 export const auth = betterAuth({
   database: authDbPool,
+  // The app's tables (profiles, messages, circle_members, ...) use uuid
+  // columns, but Better Auth's default ID generator emits random alphanumeric
+  // strings. That mismatch silently breaks new signups (no profile row, and
+  // every conversation/membership insert fails). Force UUID ids so new users
+  // are compatible with the rest of the schema — matching the ids the
+  // pre-migration Supabase users already have.
+  advanced: {
+    database: {
+      generateId: "uuid",
+    },
+  },
   secret: process.env.BETTER_AUTH_SECRET || "loop-better-auth-secret-key-32-chars-long",
   baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ais-dev-o3lwgmmrisjysqnqikbyt2-413485355424.europe-west2.run.app",
   emailAndPassword: {
@@ -49,7 +60,10 @@ export const auth = betterAuth({
     stripe({
       stripeClient: stripeSecretKey ? new Stripe(stripeSecretKey) : new Stripe("sk_test_placeholder"),
       stripeWebhookSecret: stripeWebhookSecret || "whsec_placeholder",
-      createCustomerOnSignUp: true,
+      // Only touch Stripe during signup when a real key is configured — with
+      // the placeholder key every signup fired a 401 to Stripe (and added
+      // ~1.5s of latency) for no benefit.
+      createCustomerOnSignUp: Boolean(stripeSecretKey),
       subscription: {
         enabled: true,
         plans: [

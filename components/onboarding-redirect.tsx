@@ -61,8 +61,9 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
         router.replace("/")
         return
       }
-    } else if (isAuthRequiredPath(pathname || "/") || (!isPublicRoute && pathname !== "/onboarding")) {
-      // Guests may browse public paths; interactive routes go to login
+    } else if (isAuthRequiredPath(pathname || "/")) {
+      // Guests may browse public paths (and unknown routes render their own
+      // 404); only interactive/account routes send guests to login
       setRedirecting(true)
       const redirect = encodeURIComponent(pathname || "/")
       router.replace(`/login?redirect=${redirect}`)

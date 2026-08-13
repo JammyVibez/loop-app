@@ -59,6 +59,7 @@ import { normalizeLoop } from "@/lib/normalize-loop";
 import { supabase } from "@/lib/supabase";
 import { CodeBlock } from "@/components/loops/code-block";
 import { ShareToDmModal } from "@/components/messages/share-to-dm-modal";
+import { ShareToCircleModal } from "@/components/messages/share-to-circle-modal";
 import { isCodeLoop } from "@/lib/pro-features";
 import { RichContent } from "@/components/content/rich-content";
 import { useLoginGate } from "@/hooks/use-login-gate";
@@ -159,6 +160,7 @@ export function LoopCard({
   const [chainDialogOpen, setChainDialogOpen] = useState(false);
   const [boostDialogOpen, setBoostDialogOpen] = useState(false);
   const [shareDmOpen, setShareDmOpen] = useState(false);
+  const [shareCircleOpen, setShareCircleOpen] = useState(false);
   const [boostCoinsCurrent, setBoostCoinsCurrent] = useState<number>(rawLoop?.boost_coins_current || 0);
   const [isBoosted, setIsBoosted] = useState<boolean>(rawLoop?.is_boosted || false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -1298,6 +1300,16 @@ export function LoopCard({
                       <span>Send in Direct Message</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
+                      onClick={() => {
+                        if (!requireAuth("message")) return
+                        setShareCircleOpen(true)
+                      }}
+                      className="cursor-pointer font-medium flex items-center gap-2 py-2 text-xs"
+                    >
+                      <Users className="h-4 w-4 text-emerald-500" />
+                      <span>Share in a Circle</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
                       onClick={handleShare}
                       className="cursor-pointer flex items-center gap-2 py-2 text-xs"
                     >
@@ -1529,7 +1541,21 @@ export function LoopCard({
           title: content.slice(0, 60),
           text: content,
           authorName: loop.author?.display_name || loop.author?.username,
-          mediaUrl: mediaUrls[0] || undefined,
+          mediaUrl: loop.media_urls?.[0] || loop.media_url || undefined,
+        }}
+      />
+
+      {/* Share to Circle Community Feed Modal */}
+      <ShareToCircleModal
+        open={shareCircleOpen}
+        onOpenChange={setShareCircleOpen}
+        item={{
+          id: loop.id,
+          type: "loop",
+          title: content.slice(0, 60),
+          text: content,
+          authorName: loop.author?.display_name || loop.author?.username,
+          mediaUrl: loop.media_urls?.[0] || loop.media_url || undefined,
         }}
       />
     </>

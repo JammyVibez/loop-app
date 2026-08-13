@@ -236,9 +236,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
+    // Generous ceiling: the very first get-session call on a cold server can
+    // take ~10s (module compile). A shorter timer would flip loading=false
+    // with user=null mid-check and bounce signed-in users to /login.
     const safety = setTimeout(() => {
       if (!cancelled) setLoading(false)
-    }, 6000)
+    }, 12000)
 
     const checkSession = async () => {
       try {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -17,12 +17,17 @@ import { cn } from "@/lib/utils"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import {
   ArrowLeft,
+  Bell,
+  BellOff,
   Check,
   CheckCheck,
+  Copy,
+  ExternalLink,
   GitBranch,
   Gift,
   ImageIcon,
   Loader2,
+  Lock,
   Mic,
   MicOff,
   Paperclip,
@@ -33,7 +38,11 @@ import {
   Sparkles,
   X,
 } from "lucide-react"
-import { formatDistanceToNow } from "date-fns"
+import {
+  subscribeToPush,
+  subscriptionToJSON,
+  unsubscribeFromPush,
+} from "@/lib/push-client"
 
 interface Conversation {
   id: string
@@ -48,7 +57,11 @@ interface Conversation {
   last_message?: {
     content?: string
     created_at?: string
+    message_type?: string
+    sender_id?: string
+    author_id?: string
   } | null
+  unread_count?: number
 }
 
 interface ChatMessage {
@@ -61,7 +74,13 @@ interface ChatMessage {
   media_type?: string | null
   message_type?: string
   reply_to_id?: string | null
-  reply_to?: { id: string; content?: string; sender_id?: string; author_id?: string } | null
+  reply_to?: {
+    id: string
+    content?: string
+    sender_id?: string
+    author_id?: string
+    sender?: { display_name?: string; username?: string } | null
+  } | null
   reactions?: Array<{ emoji: string; count: number; users?: string[] }>
   sender?: {
     id?: string
@@ -72,6 +91,56 @@ interface ChatMessage {
 }
 
 const QUICK_REACTIONS = ["❤️", "😂", "👍", "🔥", "😮", "👏"]
+
+const EMOJI_GRID = [
+  "😀", "😁", "😂", "🤣", "😊", "😍", "😘", "😎", "🤩", "🥳",
+  "😢", "😭", "😤", "😡", "🥺", "😳", "🤔", "🙄", "😴", "🤯",
+  "👍", "👎", "👏", "🙏", "🤝", "💪", "👌", "✌️", "🤞", "👋",
+  "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💔", "💯", "🔥",
+  "✨", "🎉", "🎊", "🎁", "🏆", "⭐", "🌟", "🌈", "☀️", "🌙",
+  "🐶", "🐱", "🦊", "🐼", "🐸", "🦋", "🌸", "🌹", "🍕", "🍔",
+  "⚽", "🏀", "🎮", "🎵", "📸", "💡", "💰", "💎", "🚀", "✈️",
+] as const
+
+const AVATAR_COLORS = [
+  "bg-emerald-600", "bg-sky-600", "bg-violet-600", "bg-rose-600",
+  "bg-amber-600", "bg-teal-600", "bg-indigo-600", "bg-pink-600",
+]
+
+function avatarColor(name: string): string {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
+  return AVATAR_COLORS[h % AVATAR_COLORS.length]
+}
+
+function convoTime(iso: string): string {
+  const d = new Date(iso)
+  const now = new Date()
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  }
+  const diffDays = Math.round(
+    (new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() -
+      new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) /
+      86400000,
+  )
+  if (diffDays === 1) return "Yesterday"
+  if (diffDays < 7) return d.toLocaleDateString(undefined, { weekday: "short" })
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+}
+
+function dayLabel(iso: string): string {
+  const d = new Date(iso)
+  const now = new Date()
+  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  const diffDays = Math.round((startOfDay(now) - startOfDay(d)) / 86400000)
+  if (diffDays === 0) return "Today"
+  if (diffDays === 1) return "Yesterday"
+  if (diffDays < 7) {
+    return d.toLocaleDateString(undefined, { weekday: "long" })
+  }
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined })
+}
 
 export function MessagesWorkspace() {
   const { user, getAuthHeader } = useAuth()
@@ -103,6 +172,11 @@ export function MessagesWorkspace() {
   const [publishingCoLoop, setPublishingCoLoop] = useState(false)
   const [peerReadAt, setPeerReadAt] = useState<string | null>(null)
   const [freshMessageIds, setFreshMessageIds] = useState<Set<string>>(new Set())
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [pushEnabled, setPushEnabled] = useState<boolean | null>(null)
+  const [pushToggling, setPushToggling] = useState(false)
+  const [pushBanner, setPushBanner] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -134,6 +208,9 @@ export function MessagesWorkspace() {
       if (!response.ok) throw new Error(data.error || "Failed to load conversations")
       const list: Conversation[] = data.conversations || []
       setConversations(list)
+      const counts: Record<string, number> = {}
+      for (const c of list) if (c.unread_count) counts[c.id] = c.unread_count
+      setUnreadCounts(counts)
       if (
         !selectedIdRef.current &&
         list[0]?.id &&
@@ -230,6 +307,7 @@ export function MessagesWorkspace() {
           headers: { "Content-Type": "application/json", ...getAuthHeader() },
           body: JSON.stringify({ conversation_id: selectedId }),
         }).catch(() => {})
+        clearUnread(selectedId)
         void channelRef.current?.send({
           type: "broadcast",
           event: "read",
@@ -282,6 +360,7 @@ export function MessagesWorkspace() {
             headers: { "Content-Type": "application/json", ...getAuthHeader() },
             body: JSON.stringify({ conversation_id: selectedId }),
           }).catch(() => {})
+          clearUnread(selectedId)
           void channel.send({
             type: "broadcast",
             event: "read",
@@ -327,6 +406,15 @@ export function MessagesWorkspace() {
     }, 1200)
   }
 
+  const clearUnread = (id: string) => {
+    setUnreadCounts((prev) => {
+      if (!prev[id]) return prev
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+  }
+
   const broadcastTyping = () => {
     if (!user) return
     void channelRef.current?.send({
@@ -349,6 +437,7 @@ export function MessagesWorkspace() {
     setShowCoLoop(false)
     setCoLoopDraft("")
     setCoLoopPeerDraft("")
+    clearUnread(id)
     router.replace(`/messages?c=${id}`, { scroll: false })
   }
 
@@ -496,6 +585,87 @@ export function MessagesWorkspace() {
     setRecording(false)
   }
 
+  const insertEmoji = (emoji: string) => {
+    setDraft((prev) => `${prev}${emoji}`)
+    setShowEmojiPicker(false)
+    typingTimer.current && clearTimeout(typingTimer.current)
+    typingTimer.current = setTimeout(broadcastTyping, 250)
+  }
+
+  const copyMessage = async (message: ChatMessage) => {
+    const text = message.content || ""
+    try {
+      await navigator.clipboard.writeText(text)
+      toast({ title: "Copied to clipboard" })
+    } catch {
+      toast({ title: "Couldn’t copy", variant: "destructive" })
+    }
+  }
+
+  const refreshPushState = async () => {
+    if (typeof window === "undefined") return
+    try {
+      if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+        setPushEnabled(false)
+        return
+      }
+      const reg = await navigator.serviceWorker.ready.catch(() => null)
+      const sub = await reg?.pushManager.getSubscription()
+      const enabled = Boolean(sub) && Notification.permission === "granted"
+      setPushEnabled(enabled)
+      if (!enabled && Notification.permission === "default") {
+        setPushBanner(true)
+      }
+    } catch {
+      setPushEnabled(false)
+    }
+  }
+
+  const togglePush = async () => {
+    if (!user || pushToggling) return
+    setPushToggling(true)
+    try {
+      if (pushEnabled) {
+        const endpoint = await unsubscribeFromPush()
+        await fetch("/api/push/subscribe", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify(endpoint ? { endpoint } : {}),
+        })
+        setPushEnabled(false)
+        setPushBanner(false)
+        toast({ title: "Notifications off for this device" })
+      } else {
+        const subscription = await subscribeToPush()
+        if (!subscription) throw new Error("Browser did not return a push subscription")
+        const res = await fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify(subscriptionToJSON(subscription)),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || "Failed to save subscription")
+        setPushEnabled(true)
+        setPushBanner(false)
+        toast({ title: "Notifications on", description: "You’ll get chat alerts even when Loop is in the background." })
+      }
+    } catch (err: any) {
+      if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+        setPushEnabled(false)
+        toast({ title: "Notifications blocked", description: "Enable them in your browser’s site settings.", variant: "destructive" })
+      } else {
+        toast({ title: "Couldn’t toggle notifications", description: err.message, variant: "destructive" })
+      }
+    } finally {
+      setPushToggling(false)
+    }
+  }
+
+  useEffect(() => {
+    void refreshPushState()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
+
   const startChat = async () => {
     if (!user || !search.trim()) return
     setStarting(true)
@@ -599,8 +769,41 @@ export function MessagesWorkspace() {
       <div className="space-y-3 border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold">Chats</h1>
-          <span className="text-xs text-emerald-600 dark:text-emerald-400">{conversations.length} active</span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground"
+              title={pushEnabled ? "Notifications on for this device — tap to mute" : "Turn on notifications for chats"}
+              onClick={() => void togglePush()}
+              disabled={pushToggling}
+            >
+              {pushToggling ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : pushEnabled ? (
+                <Bell className="h-4 w-4 text-emerald-500" />
+              ) : (
+                <BellOff className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
+        {pushBanner && pushEnabled === false && (
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+            <p className="flex items-center gap-1.5 text-xs text-foreground">
+              <Bell className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+              Get notified about new messages
+            </p>
+            <Button
+              size="sm"
+              className="h-7 rounded-full bg-emerald-600 px-3 text-xs hover:bg-emerald-500"
+              onClick={() => void togglePush()}
+              disabled={pushToggling}
+            >
+              Enable
+            </Button>
+          </div>
+        )}
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -608,12 +811,18 @@ export function MessagesWorkspace() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search or start new chat"
-              className="border-border bg-muted pl-9 text-foreground placeholder:text-muted-foreground"
+              className="rounded-full border-border bg-muted pl-9 text-foreground placeholder:text-muted-foreground"
               onKeyDown={(e) => e.key === "Enter" && void startChat()}
             />
           </div>
-          <Button onClick={() => void startChat()} disabled={starting} className="bg-emerald-600 hover:bg-emerald-500">
-            {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Go"}
+          <Button
+            onClick={() => void startChat()}
+            disabled={starting || !search.trim()}
+            className="rounded-full bg-emerald-600 px-3 hover:bg-emerald-500"
+            size="icon"
+            title="Start new chat"
+          >
+            {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           </Button>
         </div>
       </div>
@@ -623,43 +832,72 @@ export function MessagesWorkspace() {
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
           </div>
         ) : conversations.length === 0 ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">
-            No chats yet. Search a username to message someone.
+          <div className="flex flex-col items-center gap-2 p-8 text-center text-sm text-muted-foreground">
+            <span className="text-4xl">💬</span>
+            <p>No chats yet. Search a username to message someone.</p>
           </div>
         ) : (
-          conversations.map((conversation) => (
-            <button
-              key={conversation.id}
-              type="button"
-              onClick={() => openConversation(conversation.id)}
-              className={cn(
-                "flex w-full items-center gap-3 border-b border-border/60 px-4 py-3 text-left hover:bg-muted/50",
-                selectedId === conversation.id && "bg-muted",
-              )}
-            >
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={conversation.other_user?.avatar_url} />
-                <AvatarFallback className="bg-emerald-700">
-                  {(conversation.other_user?.display_name || conversation.name || "C").charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate font-medium">
-                    {conversation.is_group
-                      ? conversation.name || "Group"
-                      : conversation.other_user?.display_name || `@${conversation.other_user?.username || "user"}`}
-                  </p>
-                  {conversation.last_message?.created_at && (
-                    <span className="shrink-0 text-[11px] text-muted-foreground">
-                      {formatDistanceToNow(new Date(conversation.last_message.created_at), { addSuffix: false })}
-                    </span>
-                  )}
+          conversations.map((conversation) => {
+            const displayName = conversation.is_group
+              ? conversation.name || "Group"
+              : conversation.other_user?.display_name || `@${conversation.other_user?.username || "user"}`
+            const last = conversation.last_message
+            const unread = unreadCounts[conversation.id] || 0
+            const lastMine = last?.sender_id === user.id || last?.author_id === user.id
+            const preview = last
+              ? last.message_type === "image"
+                ? "📷 Photo"
+                : last.message_type === "video"
+                  ? "🎬 Video"
+                  : last.message_type === "audio"
+                    ? "🎤 Voice message"
+                    : last.content || "Message"
+              : "Say hello 👋"
+            return (
+              <button
+                key={conversation.id}
+                type="button"
+                onClick={() => openConversation(conversation.id)}
+                className={cn(
+                  "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50",
+                  selectedId === conversation.id && "bg-muted/70",
+                )}
+              >
+                <div className="relative shrink-0">
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={conversation.other_user?.avatar_url} />
+                    <AvatarFallback className={cn("text-base font-semibold text-white", avatarColor(displayName))}>
+                      {displayName.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                 </div>
-                <p className="truncate text-sm text-muted-foreground">{conversation.last_message?.content || "Say hello 👋"}</p>
-              </div>
-            </button>
-          ))
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-[15px] font-medium text-foreground">{displayName}</p>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                      {last?.created_at ? convoTime(last.created_at) : ""}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <p
+                      className={cn(
+                        "truncate text-[13px]",
+                        unread ? "font-medium text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {lastMine && <span className="text-sky-500">You: </span>}
+                      {preview}
+                    </p>
+                    {unread > 0 && (
+                      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-[11px] font-semibold text-white">
+                        {unread > 99 ? "99+" : unread}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            )
+          })
         )}
       </div>
     </aside>
@@ -671,10 +909,12 @@ export function MessagesWorkspace() {
         <Button variant="ghost" size="icon" className="text-foreground lg:hidden" onClick={backToInbox}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="relative">
+        <div className="relative shrink-0">
           <Avatar className="h-10 w-10">
             <AvatarImage src={selected.other_user?.avatar_url} />
-            <AvatarFallback>{(selected.other_user?.display_name || "U").charAt(0)}</AvatarFallback>
+            <AvatarFallback className={cn("text-sm font-semibold text-white", avatarColor(selected.other_user?.display_name || selected.name || "U"))}>
+              {(selected.other_user?.display_name || selected.name || "U").charAt(0).toUpperCase()}
+            </AvatarFallback>
           </Avatar>
           {peerOnline && (
             <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500" />
@@ -684,16 +924,31 @@ export function MessagesWorkspace() {
           <p className="truncate text-sm font-semibold text-foreground">
             {selected.other_user?.display_name || selected.name || "Conversation"}
           </p>
-          <p className="truncate text-xs text-muted-foreground">
+          <p className="truncate text-[11px]">
             {typingPeer ? (
               <span className="text-emerald-600 dark:text-emerald-400">typing…</span>
             ) : peerOnline ? (
               <span className="text-emerald-600 dark:text-emerald-400">online</span>
+            ) : selected.other_user?.username ? (
+              <span className="text-muted-foreground">last seen recently</span>
             ) : (
-              `@${selected.other_user?.username || "group"}`
+              <span className="text-muted-foreground">group chat</span>
+            )}
+            {!typingPeer && !selected.is_group && selected.other_user?.display_name && (
+              <span className="ml-1.5 text-muted-foreground/70">· 🔒 Only you and {selected.other_user.display_name} can see this conversation</span>
             )}
           </p>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={pushEnabled ? "text-emerald-500" : "text-muted-foreground hover:text-foreground"}
+          title={pushEnabled ? "Notifications on — tap to mute this device" : "Turn on notifications for this chat"}
+          onClick={() => void togglePush()}
+          disabled={pushToggling}
+        >
+          {pushToggling ? <Loader2 className="h-4 w-4 animate-spin" /> : pushEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+        </Button>
         <Button
           variant="ghost"
           size="icon"
@@ -703,6 +958,13 @@ export function MessagesWorkspace() {
         >
           <Search className="h-4 w-4" />
         </Button>
+        {selected.other_user?.username && (
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" title="View profile" asChild>
+            <Link href={`/profile/${selected.other_user.username}`}>
+              <ExternalLink className="h-4 w-4" />
+            </Link>
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -778,15 +1040,23 @@ export function MessagesWorkspace() {
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>
         ) : null}
-        {filteredMessages.map((message) => {
+        {filteredMessages.map((message, index) => {
           const mine = (message.sender_id || message.author_id) === user.id
           const isFresh = freshMessageIds.has(message.id)
           const seen = mine && Boolean(peerReadAt) && new Date(peerReadAt!) >= new Date(message.created_at)
+          const prev = filteredMessages[index - 1]
+          const showDate = !prev || dayLabel(prev.created_at) !== dayLabel(message.created_at)
           return (
-            <div
-              key={message.id}
-              className={cn("group flex", mine ? "justify-end" : "justify-start", isFresh && "message-appear")}
-            >
+            <Fragment key={message.id}>
+              {showDate && (
+                <div className="flex justify-center py-2">
+                  <span className="rounded-full bg-background/85 px-3 py-1 text-[11px] font-medium text-foreground shadow-sm ring-1 ring-border">
+                    {dayLabel(message.created_at)}
+                  </span>
+                </div>
+              )}
+              <div className={cn("group flex", mine ? "justify-end" : "justify-start", isFresh && "message-appear")}>
+
               <div className={cn("max-w-[85%] sm:max-w-[70%]", mine ? "items-end" : "items-start")}>
                 <div
                   className={cn(
@@ -797,9 +1067,14 @@ export function MessagesWorkspace() {
                   )}
                 >
                   {message.reply_to && (
-                    <div className="mb-1.5 rounded-lg border-l-2 border-emerald-400/70 bg-black/20 px-2 py-1 text-[11px] opacity-90">
-                      <p className="font-medium">Reply</p>
-                      <p className="truncate">{message.reply_to.content || "Media"}</p>
+                    <div className="mb-1.5 rounded-lg border-l-2 border-emerald-400/70 bg-black/20 px-2 py-1 text-[11px]">
+                      <p className="truncate font-semibold text-emerald-300">
+                        {message.reply_to.sender?.display_name ||
+                          (message.reply_to.author_id === user.id
+                            ? "You"
+                            : selected.other_user?.display_name || "Reply")}
+                      </p>
+                      <p className="truncate text-white/80">{message.reply_to.content || "Media"}</p>
                     </div>
                   )}
                   {message.media_url && (message.media_type === "image" || message.message_type === "image") && (
@@ -856,6 +1131,14 @@ export function MessagesWorkspace() {
                   >
                     <Reply className="mr-1 h-3.5 w-3.5" /> Reply
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-muted-foreground"
+                    onClick={() => void copyMessage(message)}
+                  >
+                    <Copy className="mr-1 h-3.5 w-3.5" /> Copy
+                  </Button>
                   {QUICK_REACTIONS.slice(0, 3).map((emoji) => (
                     <button
                       key={emoji}
@@ -869,6 +1152,7 @@ export function MessagesWorkspace() {
                 </div>
               </div>
             </div>
+            </Fragment>
           )
         })}
         {typingPeer && (
@@ -895,61 +1179,106 @@ export function MessagesWorkspace() {
         </div>
       )}
 
-      <div className="flex items-end gap-2 border-t border-border bg-muted p-2 sm:p-3">
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*,video/*,audio/*"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (!file) return
-            const type = file.type.startsWith("video") ? "video" : file.type.startsWith("audio") ? "audio" : "image"
-            void uploadAndSend(file, type)
-            e.target.value = ""
-          }}
-        />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground"
-          disabled={uploading}
-          onClick={() => fileRef.current?.click()}
-        >
-          {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn("text-muted-foreground", recording && "text-red-400")}
-          onClick={() => (recording ? stopVoice() : void startVoice())}
-        >
-          {recording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-        </Button>
-        <div className="relative flex-1">
-          <MentionTextarea
-            value={draft}
-            onChange={onDraftChange}
-            rows={1}
-            placeholder="Message… @ to tag"
-            className="min-h-[40px] resize-none border-border bg-muted pr-10 text-foreground placeholder:text-muted-foreground"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault()
-                if (!sending) void sendMessage()
-              }
+      <div className="relative border-t border-border bg-muted p-2 sm:p-3">
+        {showEmojiPicker && (
+          <>
+            <button
+              type="button"
+              className="fixed inset-0 z-30 cursor-default"
+              aria-label="Close emoji picker"
+              onClick={() => setShowEmojiPicker(false)}
+            />
+            <div className="absolute bottom-full left-2 z-40 mb-2 grid w-[320px] max-w-[calc(100%-1rem)] grid-cols-8 gap-0.5 overflow-y-auto rounded-2xl border border-border bg-card p-2 shadow-xl">
+              {EMOJI_GRID.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-xl transition hover:bg-muted"
+                  onClick={() => insertEmoji(emoji)}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        <div className="flex items-end gap-2">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*,video/*,audio/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              const type = file.type.startsWith("video") ? "video" : file.type.startsWith("audio") ? "audio" : "image"
+              void uploadAndSend(file, type)
+              e.target.value = ""
             }}
           />
-          <Smile className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground"
+            disabled={uploading}
+            onClick={() => fileRef.current?.click()}
+          >
+            {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("text-muted-foreground", showEmojiPicker && "bg-muted text-emerald-600")}
+            onClick={() => setShowEmojiPicker((v) => !v)}
+            title="Emoji"
+          >
+            <Smile className="h-5 w-5" />
+          </Button>
+          <div className="relative flex-1">
+            <MentionTextarea
+              value={draft}
+              onChange={onDraftChange}
+              rows={1}
+              placeholder="Message"
+              className="min-h-[40px] resize-none rounded-full border-border bg-background px-4 text-foreground placeholder:text-muted-foreground"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault()
+                  if (!sending) void sendMessage()
+                }
+              }}
+            />
+          </div>
+          {recording ? (
+            <Button
+              size="icon"
+              className="rounded-full bg-red-500 hover:bg-red-600"
+              onClick={stopVoice}
+              title="Stop recording"
+            >
+              <MicOff className="h-4 w-4" />
+            </Button>
+          ) : draft.trim() || uploading ? (
+            <Button
+              onClick={() => void sendMessage()}
+              disabled={sending}
+              className="rounded-full bg-emerald-600 hover:bg-emerald-500"
+              size="icon"
+              title="Send"
+            >
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          ) : (
+            <Button
+              size="icon"
+              className="rounded-full bg-emerald-600 hover:bg-emerald-500"
+              onClick={() => void startVoice()}
+              title="Voice message"
+            >
+              <Mic className="h-4 w-4" />
+            </Button>
+          )}
         </div>
-        <Button
-          onClick={() => void sendMessage()}
-          disabled={sending || (!draft.trim() && !uploading)}
-          className="rounded-full bg-emerald-600 hover:bg-emerald-500"
-          size="icon"
-        >
-          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-        </Button>
       </div>
 
       {selected.other_user && (

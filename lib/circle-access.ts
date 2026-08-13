@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase"
+import { authDbPool } from "@/lib/auth"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -6,10 +7,21 @@ const supabase = createClient(
 )
 
 async function getUserIdFromToken(token: string): Promise<string | null> {
+  // Auth is Better Auth, so the bearer token is a session token (not a
+  // Supabase JWT). Try the Supabase path first for legacy compat, then fall
+  // back to the Better Auth session table.
   try {
     const { data, error } = await supabase.auth.getUser(token)
-    if (error || !data.user) return null
-    return data.user.id
+    if (!error && data.user) return data.user.id
+  } catch {
+    /* fall through */
+  }
+  try {
+    const res = await authDbPool.query(
+      'SELECT "userId" FROM "session" WHERE token = $1 AND "expiresAt" > NOW();',
+      [token],
+    )
+    return res.rows[0]?.userId || null
   } catch {
     return null
   }

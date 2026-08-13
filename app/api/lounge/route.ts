@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       .eq("setting_key", "pro_lounge")
       .maybeSingle()
 
-    const value = (setting?.setting_value as { discord_invite_url?: string; enabled?: boolean }) || {}
+    const value = (setting?.setting_value as { discord_invite_url?: string; enabled?: boolean; announcement?: string }) || {}
 
     return NextResponse.json({
       success: true,
@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
         enabled: Boolean(value.enabled && value.discord_invite_url),
         invite_url: value.discord_invite_url || null,
       },
+      announcement: typeof value.announcement === "string" && value.announcement.trim() ? value.announcement.trim() : null,
     })
   } catch (error) {
     console.error("Error fetching lounge settings:", error)

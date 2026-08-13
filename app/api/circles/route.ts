@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { circleCreateLimitMessage, getCircleCreateLimit } from "@/lib/circle-limits"
+import { getUserFromRequest } from "@/lib/server-auth"
 
 function createServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -9,17 +10,6 @@ function createServerClient() {
   return createClient(supabaseUrl, supabaseKey, { auth: { autoRefreshToken: false, persistSession: false } })
 }
 
-async function getUserFromToken(token: string | null) {
-  if (!token) return null
-  try {
-    const supabase = createServerClient()
-    const { data: { user }, error } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
 
 function normalizeCircle(circle: any, membershipMap = new Map<string, any>()) {
   const memberCount = Array.isArray(circle.member_count) ? circle.member_count[0]?.count : circle.member_count
@@ -52,8 +42,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search")
     const mine = searchParams.get("mine") === "true"
     const joined = searchParams.get("joined") === "true"
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
     const supabase = createServerClient()
 
     if (mine || joined) {
@@ -180,8 +169,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { name, description, category, is_private, avatar_url, banner_url, rules, tags } = await request.json()

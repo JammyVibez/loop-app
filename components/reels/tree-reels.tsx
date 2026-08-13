@@ -332,8 +332,8 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
       type: "reel",
       title: reel.title,
       text: reel.description || reel.title,
-      authorName: reel.author_username || reel.author?.display_name || reel.author?.username,
-      mediaUrl: reel.video_url,
+      authorName: reel.author?.display_name || reel.author?.username,
+      mediaUrl: reel.content_url,
     })
     setDmShareOpen(true)
   }
