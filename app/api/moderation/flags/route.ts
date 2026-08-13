@@ -95,12 +95,13 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
 
     // Fetch content flags
+    // Note: content_id points at arbitrary content (loops, reels, profiles),
+    // so we only join the reporter profile here — there is no FK for content.
     let query = supabase
       .from("content_flags")
       .select(`
         *,
-        reporter:profiles!reporter_id(username, display_name, avatar_url),
-        content:profiles!content_id(username, display_name, avatar_url)
+        reporter:profiles!reporter_id(username, display_name, avatar_url)
       `)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);

@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { requireAdmin } from "@/lib/server-auth"
 
-const supabase = createServerClient()
+export const dynamic = "force-dynamic"
 
 export async function POST(
   request: NextRequest,
@@ -9,29 +10,10 @@ export async function POST(
 ) {
   try {
     const { questId } = await params
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "") ?? null
+    const { response } = await requireAdmin(request)
+    if (response) return response
 
-    if (!token) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
-    }
-
-    // Verify admin user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token)
-    if (authError || !user) {
-      return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
-    }
-
-    // Check if user is admin
-    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).single()
-
-    if (!profile?.is_admin) {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 })
-    }
-
+    const supabase = createServerClient()
     const { is_active } = await request.json()
 
     // Toggle quest status
@@ -55,7 +37,7 @@ export async function POST(
       message: `Quest ${is_active ? "activated" : "deactivated"} successfully`,
     })
   } catch (error) {
-    console.error("Error in quest toggle:", error)
+    console.error("Error in quest toggle POST:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

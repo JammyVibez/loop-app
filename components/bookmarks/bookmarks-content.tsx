@@ -13,14 +13,14 @@ import { useAuth } from "@/hooks/use-auth"
 // Bookmark interface
 interface Bookmark {
   id: string
-  type: "loop" | "tree"
+  type: "loop" | "tree" | "reel"
   saved_at: Date
   category: string
   loop: any // Using any for now, but should be properly typed
   branch_count?: number
 }
 
-const categories = ["All", "Philosophy", "Music", "Art", "Technology", "Stories", "Tutorials"]
+const categories = ["All", "Reels", "Philosophy", "Music", "Art", "Technology", "Stories", "Tutorials"]
 
 export function BookmarksContent() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
@@ -69,7 +69,8 @@ export function BookmarksContent() {
     const matchesSearch =
       bookmark.loop.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       bookmark.loop.content_title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      bookmark.loop.author.display_name.toLowerCase().includes(searchQuery.toLowerCase())
+      (bookmark.loop.author?.display_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (bookmark.loop.author?.username || "").toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesCategory = selectedCategory === "All" || bookmark.category === selectedCategory
 
@@ -93,13 +94,23 @@ export function BookmarksContent() {
     const bookmark = bookmarks.find((item) => item.id === bookmarkId)
     if (!bookmark || !user) return
 
-    const response = await fetch(`/api/loops/${bookmark.loop.id}/interactions`, {
+    // Reels unsave via the reel interactions endpoint; loops via loop interactions.
+    const endpoint =
+      bookmark.type === "reel"
+        ? `/api/reels/${bookmark.loop.id}/interactions`
+        : `/api/loops/${bookmark.loop.id}/interactions`
+    const body =
+      bookmark.type === "reel"
+        ? JSON.stringify({ type: "save", action: "remove" })
+        : JSON.stringify({ interaction_type: "save" })
+
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...getAuthHeader(),
       },
-      body: JSON.stringify({ interaction_type: "save" }),
+      body,
     })
 
     if (!response.ok) {
@@ -112,7 +123,11 @@ export function BookmarksContent() {
   }
 
   const handleShare = (bookmark: any) => {
-    navigator.clipboard.writeText(`${window.location.origin}/loop/${bookmark.loop.id}`)
+    const url =
+      bookmark.type === "reel"
+        ? `${window.location.origin}/reels?focus=${bookmark.loop.id}`
+        : `${window.location.origin}/loop/${bookmark.loop.id}`
+    navigator.clipboard.writeText(url)
     toast({
       description: "Link copied to clipboard!",
     })
@@ -243,6 +258,14 @@ export function BookmarksContent() {
                 <div className="flex items-center space-x-2">
                   <Bookmark className="w-4 h-4 text-purple-600 fill-current" />
                   <Badge variant="outline">{bookmark.category}</Badge>
+                  {bookmark.type === "reel" && (
+                    <Badge
+                      variant="secondary"
+                      className="bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300"
+                    >
+                      Reel
+                    </Badge>
+                  )}
                   {bookmark.type === "tree" && (
                     <Badge
                       variant="secondary"

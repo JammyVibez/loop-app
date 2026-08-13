@@ -1,28 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { requireAdmin } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 
-async function requireAdmin(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "") || null
-  if (!token) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
-  const supabase = createServerClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(token)
-  if (error || !user) return { error: NextResponse.json({ error: "Invalid token" }, { status: 401 }) }
-
-  const { data: profile } = await supabase.from("profiles").select("id, is_admin, username").eq("id", user.id).maybeSingle()
-  if (!profile?.is_admin) return { error: NextResponse.json({ error: "Admin access required" }, { status: 403 }) }
-  return { user, profile, supabase }
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requireAdmin(request)
-    if (auth.error) return auth.error
-    const { supabase } = auth
+    const { response } = await requireAdmin(request)
+    if (response) return response
+    const supabase = createServerClient()
     const { searchParams } = new URL(request.url)
     const q = (searchParams.get("q") || "").trim()
     const filter = searchParams.get("filter") || "all"
@@ -78,9 +64,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAdmin(request)
-    if (auth.error) return auth.error
-    const { supabase, user: adminUser, profile: adminProfile } = auth
+    const { user: adminUser, response } = await requireAdmin(request)
+    if (response) return response
+    const supabase = createServerClient()
 
     const body = await request.json()
     const userId = body.user_id as string
@@ -170,12 +156,13 @@ export async function POST(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+    const adminUsername = adminUser.name || adminUser.email || "admin"
     await supabase.from("notifications").insert({
       user_id: userId,
       type: "admin_action",
       title: "Account updated",
       message: `An admin updated your account (${action.replace(/_/g, " ")}).`,
-      data: { action, admin_id: adminUser.id, admin_username: adminProfile.username },
+      data: { action, admin_id: adminUser.id, admin_username: adminUsername },
       actor_id: adminUser.id,
     })
 

@@ -38,8 +38,10 @@ import {
   Monitor,
   X,
   Building2,
+  Gift,
 } from "lucide-react"
 import { OrganizationSettings } from "@/components/settings/organization-settings"
+import { ReferralsSettings } from "@/components/settings/referrals-settings"
 import { cn } from "@/lib/utils"
 
 const themeOptions = [
@@ -380,7 +382,7 @@ export function EnhancedSettings() {
   return (
     <div className="space-y-6">
       <Tabs value={tab} onValueChange={setTab} className="space-y-6">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:grid-cols-5">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:grid-cols-6">
           <TabsTrigger value="profile" className="rounded-xl data-[state=active]:bg-background">
             <User className="mr-2 h-4 w-4" /> Profile
           </TabsTrigger>
@@ -395,6 +397,9 @@ export function EnhancedSettings() {
           </TabsTrigger>
           <TabsTrigger value="organization" className="rounded-xl data-[state=active]:bg-background">
             <Building2 className="mr-2 h-4 w-4" /> Organization
+          </TabsTrigger>
+          <TabsTrigger value="referrals" className="rounded-xl data-[state=active]:bg-background">
+            <Gift className="mr-2 h-4 w-4" /> Referrals
           </TabsTrigger>
         </TabsList>
 
@@ -724,6 +729,10 @@ export function EnhancedSettings() {
 
         <TabsContent value="organization" className="space-y-4">
           <OrganizationSettings />
+        </TabsContent>
+
+        <TabsContent value="referrals" className="space-y-4">
+          <ReferralsSettings />
         </TabsContent>
 
         <TabsContent value="privacy" className="space-y-4">

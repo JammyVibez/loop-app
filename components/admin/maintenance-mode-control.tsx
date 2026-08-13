@@ -86,12 +86,12 @@ export function MaintenanceModeControl() {
   };
 
   const toggleMaintenanceMode = async () => {
-    if (!settings) return;
+    if (!settings?.maintenance_mode) return;
     
     const newSettings = {
       maintenance_mode: {
         enabled: !settings.maintenance_mode.enabled,
-        message: settings.maintenance_mode.message
+        message: settings.maintenance_mode.message || ""
       }
     };
     
@@ -99,7 +99,7 @@ export function MaintenanceModeControl() {
   };
 
   const updateMaintenanceMessage = async (message: string) => {
-    if (!settings) return;
+    if (!settings?.maintenance_mode) return;
     
     const newSettings = {
       maintenance_mode: {
@@ -112,12 +112,12 @@ export function MaintenanceModeControl() {
   };
 
   const toggleUserRegistration = async () => {
-    if (!settings) return;
+    if (!settings?.user_registration) return;
     
     const newSettings = {
       user_registration: {
         enabled: !settings.user_registration.enabled,
-        require_email_verification: settings.user_registration.require_email_verification
+        require_email_verification: Boolean(settings.user_registration.require_email_verification)
       }
     };
     
@@ -150,13 +150,13 @@ export function MaintenanceModeControl() {
               </p>
             </div>
             <Switch
-              checked={settings?.maintenance_mode.enabled || false}
+              checked={settings?.maintenance_mode?.enabled || false}
               onCheckedChange={toggleMaintenanceMode}
               disabled={updating}
             />
           </div>
           
-          {settings?.maintenance_mode.enabled && (
+          {settings?.maintenance_mode?.enabled && (
             <div className="space-y-2">
               <Label htmlFor="maintenance-message">Maintenance Message</Label>
               <div className="flex gap-2">
@@ -196,7 +196,7 @@ export function MaintenanceModeControl() {
               </p>
             </div>
             <Switch
-              checked={settings?.user_registration.enabled || false}
+              checked={settings?.user_registration?.enabled || false}
               onCheckedChange={toggleUserRegistration}
               disabled={updating}
             />
@@ -210,9 +210,9 @@ export function MaintenanceModeControl() {
               </p>
             </div>
             <Switch
-              checked={settings?.user_registration.require_email_verification || false}
+              checked={settings?.user_registration?.require_email_verification || false}
               onCheckedChange={(checked) => {
-                if (settings) {
+                if (settings?.user_registration) {
                   const newSettings = {
                     user_registration: {
                       enabled: settings.user_registration.enabled,

@@ -66,21 +66,22 @@ const rarityColors: Record<string, string> = {
 }
 
 function giftIcon(type: string) {
+  const base = "flex h-11 w-11 items-center justify-center rounded-2xl border shadow-sm"
   switch (type) {
     case "coins":
-      return <Coins className="h-6 w-6 text-yellow-500" />
+      return <span className={`${base} border-yellow-500/30 bg-gradient-to-br from-yellow-500/20 to-amber-600/20 text-yellow-500`}><Coins className="h-5 w-5" /></span>
     case "premium":
-      return <Crown className="h-6 w-6 text-violet-500" />
+      return <span className={`${base} border-violet-500/30 bg-gradient-to-br from-violet-500/20 to-fuchsia-600/20 text-violet-500`}><Crown className="h-5 w-5" /></span>
     case "theme":
-      return <Palette className="h-6 w-6 text-cyan-500" />
+      return <span className={`${base} border-cyan-500/30 bg-gradient-to-br from-cyan-500/20 to-sky-600/20 text-cyan-500`}><Palette className="h-5 w-5" /></span>
     case "badge":
-      return <Star className="h-6 w-6 text-amber-500" />
+      return <span className={`${base} border-amber-500/30 bg-gradient-to-br from-amber-500/20 to-orange-600/20 text-amber-500`}><Star className="h-5 w-5" /></span>
     case "animation":
-      return <Zap className="h-6 w-6 text-pink-500" />
+      return <span className={`${base} border-pink-500/30 bg-gradient-to-br from-pink-500/20 to-rose-600/20 text-pink-500`}><Zap className="h-5 w-5" /></span>
     case "effect":
-      return <Sparkles className="h-6 w-6 text-fuchsia-500" />
+      return <span className={`${base} border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-500/20 to-purple-600/20 text-fuchsia-500`}><Sparkles className="h-5 w-5" /></span>
     default:
-      return <Heart className="h-6 w-6 text-rose-500" />
+      return <span className={`${base} border-rose-500/30 bg-gradient-to-br from-rose-500/20 to-red-600/20 text-rose-500`}><Heart className="h-5 w-5" /></span>
   }
 }
 
@@ -297,34 +298,40 @@ export function GiftModal({ open, onOpenChange, recipient, context, onGiftSent }
                     {typeGifts.map((gift) => {
                       const unaffordable = userBalance < gift.cost
                       const selected = selectedGift?.id === gift.id
+                      const rarity = gift.rarity || "common"
                       return (
                         <button
                           key={gift.id}
                           type="button"
                           disabled={unaffordable}
                           onClick={() => setSelectedGift(gift)}
-                          className={`rounded-xl border p-4 text-left transition ${
+                          className={`gift-card-3d gift-card-${rarity} relative overflow-hidden rounded-xl border p-4 text-left transition ${
                             selected
-                              ? "border-violet-500 bg-violet-500/10 shadow"
+                              ? "border-violet-500 bg-violet-500/10 shadow-lg"
                               : "border-border hover:border-violet-300"
                           } ${unaffordable ? "cursor-not-allowed opacity-50" : ""}`}
                         >
-                          <div className="mb-2 flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              {giftIcon(gift.type)}
-                              <h3 className="text-sm font-medium">{gift.name}</h3>
+                          <div className={`gift-glow-${rarity} pointer-events-none absolute inset-0 opacity-60`} />
+                          <div className="relative">
+                            <div className="mb-2 flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className={`gift-icon-float inline-flex ${selected ? "scale-110" : ""}`}>
+                                  {giftIcon(gift.type)}
+                                </span>
+                                <h3 className="text-sm font-medium">{gift.name.replace(/^Gift:\s*/, "")}</h3>
+                              </div>
+                              <Badge className={`text-[10px] ${rarityColors[rarity] || rarityColors.common}`}>
+                                {rarity}
+                              </Badge>
                             </div>
-                            <Badge className={`text-[10px] ${rarityColors[gift.rarity] || rarityColors.common}`}>
-                              {gift.rarity}
-                            </Badge>
-                          </div>
-                          <p className="mb-3 text-xs text-muted-foreground">{gift.description}</p>
-                          {gift.duration && (
-                            <p className="mb-2 text-xs text-cyan-600 dark:text-cyan-400">Duration: {gift.duration}</p>
-                          )}
-                          <div className="flex items-center gap-1 text-sm font-semibold">
-                            <Coins className="h-3.5 w-3.5 text-yellow-500" />
-                            {gift.cost.toLocaleString()}
+                            <p className="mb-3 text-xs text-muted-foreground">{gift.description}</p>
+                            {gift.duration && (
+                              <p className="mb-2 text-xs text-cyan-600 dark:text-cyan-400">Duration: {gift.duration}</p>
+                            )}
+                            <div className="flex items-center gap-1 text-sm font-semibold">
+                              <Coins className="h-3.5 w-3.5 text-yellow-500" />
+                              {gift.cost.toLocaleString()}
+                            </div>
                           </div>
                         </button>
                       )

@@ -1,25 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { normalizeLoops } from "@/lib/normalize-loop"
-
-async function requireAdmin(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "") || null
-  if (!token) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
-  const supabase = createServerClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(token)
-  if (error || !user) return { error: NextResponse.json({ error: "Invalid token" }, { status: 401 }) }
-  const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle()
-  if (!profile?.is_admin) return { error: NextResponse.json({ error: "Admin access required" }, { status: 403 }) }
-  return { supabase, user }
-}
+import { requireAdmin } from "@/lib/server-auth"
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAdmin(request)
-  if (auth.error) return auth.error
-  const { supabase } = auth
+  const { response } = await requireAdmin(request)
+  if (response) return response
+  const supabase = createServerClient()
 
   const { data: loops, error } = await supabase
     .from("loops")
@@ -53,9 +40,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAdmin(request)
-  if (auth.error) return auth.error
-  const { supabase } = auth
+  const { response } = await requireAdmin(request)
+  if (response) return response
+  const supabase = createServerClient()
   const body = await request.json().catch(() => ({}))
   const loopId = body.loop_id
   const featured = body.featured !== false && body.action !== "unfeature"

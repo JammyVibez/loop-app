@@ -1,34 +1,13 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { requireAdmin } from "@/lib/server-auth";
 
 export async function GET(request: NextRequest) {
   try {
+    const { response } = await requireAdmin(request)
+    if (response) return response
     const supabase = createServerClient()
-    
-    // Get user from auth header
-    const authHeader = request.headers.get('authorization')
-    const token = authHeader?.replace('Bearer ', '') ?? null
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-    }
-
-    // Check if user is admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile?.is_admin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-    }
 
     // Fetch comprehensive statistics
     const today = new Date().toISOString().split('T')[0]

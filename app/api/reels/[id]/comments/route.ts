@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest, requireUser } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 
@@ -7,6 +8,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id: reelId } = await params
     const supabase = createServerClient()
+    const user = await getUserFromRequest(request)
     const { searchParams } = new URL(request.url)
     const page = Number.parseInt(searchParams.get("page") || "1")
     const limit = Number.parseInt(searchParams.get("limit") || "50")
@@ -26,15 +28,35 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+    // Which of these comments did the viewer like?
+    const likedIds = new Set<string>()
+    if (user && comments?.length) {
+      const { data: likes } = await supabase
+        .from("reel_comment_likes")
+        .select("comment_id")
+        .eq("user_id", user.id)
+        .in(
+          "comment_id",
+          comments.map((c: any) => c.id),
+        )
+      for (const like of likes || []) likedIds.add(like.comment_id)
+    }
+
+    const withLikes = (comment: any) => ({
+      ...comment,
+      like_count: Number(comment.like_count || 0),
+      is_liked: likedIds.has(comment.id),
+    })
+
     const roots: any[] = []
     const byParent = new Map<string, any[]>()
     for (const comment of comments || []) {
       if (comment.parent_comment_id) {
         const list = byParent.get(comment.parent_comment_id) || []
-        list.push(comment)
+        list.push(withLikes(comment))
         byParent.set(comment.parent_comment_id, list)
       } else {
-        roots.push(comment)
+        roots.push(withLikes(comment))
       }
     }
 
@@ -58,15 +80,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     const { id: reelId } = await params
     const supabase = createServerClient()
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) return NextResponse.json({ error: "Authentication required" }, { status: 401 })
-
-    const token = authHeader.replace("Bearer ", "")
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token)
-    if (authError || !user) return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
+    const { user, response } = await requireUser(request)
+    if (!user) return response
 
     const body = await request.json()
     const content = String(body.content || "").trim()

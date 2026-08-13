@@ -14,7 +14,7 @@ async function getUserFromToken(token: string) {
 }
 
 // PUT /api/moderation/flags/[id] - Update a content flag (admin/moderator only)
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function updateFlag(request: NextRequest, params: Promise<{ id: string }>) {
   try {
     const { id } = await params;
     const { user, response } = await requireModerator(request);
@@ -77,6 +77,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     console.error("Error updating content flag:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+}
+
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  return updateFlag(request, params);
+}
+
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  return updateFlag(request, params);
 }
 
 // GET /api/moderation/flags/[id] - Get a specific content flag (admin/moderator only)

@@ -15,6 +15,10 @@ import {
   GitBranch,
   Gauge,
   MoreHorizontal,
+  Pencil,
+  Trash2,
+  Clock3,
+  Send,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -40,6 +44,16 @@ import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { parseJsonResponse } from "@/lib/parse-json-response"
+
+function timeAgo(iso?: string) {
+  if (!iso) return ""
+  const ms = Date.now() - new Date(iso).getTime()
+  if (ms < 60_000) return "just now"
+  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m`
+  if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)}h`
+  if (ms < 86_400_000 * 7) return `${Math.floor(ms / 86_400_000)}d`
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+}
 
 interface ReelAuthor {
   id: string
@@ -97,7 +111,14 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
   const [duetReel, setDuetReel] = useState<Reel | null>(null)
   const [dueting, setDueting] = useState(false)
   const [dmShareOpen, setDmShareOpen] = useState(false)
-  const [dmShareItem, setDmShareItem] = useState<{ id: string; type: "reel" | "loop"; title?: string; text?: string; authorName?: string; mediaUrl?: string } | null>(null)
+  const [dmShareItem, setDmShareItem] = useState<{ id: string; type: "reel" | "loop"; title?: string; text?: string; authorName?: string; mediaUrl?: string; mediaType?: string } | null>(null)
+  const [editReel, setEditReel] = useState<Reel | null>(null)
+  const [editTitle, setEditTitle] = useState("")
+  const [editDescription, setEditDescription] = useState("")
+  const [editHashtags, setEditHashtags] = useState("")
+  const [editEffect, setEditEffect] = useState("none")
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   const viewed = useRef<Set<string>>(new Set())
@@ -341,8 +362,69 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
       text: reel.description || reel.title,
       authorName: reel.author?.display_name || reel.author?.username,
       mediaUrl: reel.content_url,
+      mediaType: reel.content_type || reel.type,
     })
     setDmShareOpen(true)
+  }
+
+  const openEdit = (reel: Reel) => {
+    setEditReel(reel)
+    setEditTitle(reel.title || "")
+    setEditDescription(reel.description || "")
+    setEditHashtags((reel.hashtags || []).join(" "))
+    setEditEffect(reel.effects?.filter || "none")
+  }
+
+  const saveEdit = async () => {
+    if (!editReel) return
+    setSavingEdit(true)
+    try {
+      const response = await fetch(`/api/reels/${editReel.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          description: editDescription.trim(),
+          hashtags: editHashtags
+            .split(/[\s,#]+/)
+            .map((t) => t.trim().toLowerCase())
+            .filter(Boolean),
+          effects: editEffect !== "none" ? { filter: editEffect } : null,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to edit reel")
+      const updated = data.data?.reel
+      if (updated) {
+        setReels((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated, type: updated.content_type } : r)))
+      }
+      toast({ title: "Reel updated" })
+      setEditReel(null)
+    } catch (error: any) {
+      toast({ title: "Edit failed", description: error.message, variant: "destructive" })
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  const deleteReel = async (reel: Reel) => {
+    if (!window.confirm("Delete this reel? This can't be undone.")) return
+    setDeleting(true)
+    try {
+      const response = await fetch(`/api/reels/${reel.id}`, {
+        method: "DELETE",
+        headers: getAuthHeader(),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to delete reel")
+      setReels((prev) => prev.filter((r) => r.id !== reel.id))
+      setActiveIndex((i) => Math.min(i, reels.length - 2))
+      toast({ title: "Reel deleted" })
+    } catch (error: any) {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" })
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const openComments = async (reel: Reel) => {
@@ -391,6 +473,52 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
       prev.map((r) => (r.id === commentOpen.id ? { ...r, comment_count: nextCount } : r)),
     )
     setCommentOpen((prev) => (prev ? { ...prev, comment_count: nextCount } : prev))
+  }
+
+  const toggleCommentLike = async (comment: any) => {
+    if (!user) {
+      toast({ title: "Sign in to like comments" })
+      return
+    }
+    if (!commentOpen) return
+
+    const liked = !comment.is_liked
+    const nextCount = Math.max(0, Number(comment.like_count || 0) + (liked ? 1 : -1))
+    // Optimistic update
+    const updateComment = (c: any): any =>
+      c.id === comment.id ? { ...c, is_liked: liked, like_count: nextCount } : c
+    setComments((prev) =>
+      prev.map((c) =>
+        c.id === comment.id
+          ? updateComment(c)
+          : { ...c, replies: (c.replies || []).map(updateComment) },
+      ),
+    )
+
+    try {
+      const res = await fetch(`/api/reels/${commentOpen.id}/comments/${comment.id}/like`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+      })
+      const data = await res.json()
+      if (!res.ok || data.success === false) {
+        throw new Error(data.error || "Failed to update like")
+      }
+      // Sync authoritative counts
+      const sync = (c: any): any =>
+        c.id === comment.id ? { ...c, is_liked: data.liked, like_count: Number(data.like_count) } : c
+      setComments((prev) =>
+        prev.map((c) => (c.id === comment.id ? sync(c) : { ...c, replies: (c.replies || []).map(sync) })),
+      )
+    } catch (err: any) {
+      // Roll back
+      const rollback = (c: any): any =>
+        c.id === comment.id ? { ...c, is_liked: !liked, like_count: Number(comment.like_count || 0) } : c
+      setComments((prev) =>
+        prev.map((c) => (c.id === comment.id ? rollback(c) : { ...c, replies: (c.replies || []).map(rollback) })),
+      )
+      toast({ title: "Couldn't like comment", description: err.message, variant: "destructive" })
+    }
   }
 
   const createReel = async () => {
@@ -633,6 +761,22 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                         Duet this reel
                       </DropdownMenuItem>
                     )}
+                    {user && reel.author?.id === user.id && reel.source !== "loop" && (
+                      <>
+                        <DropdownMenuItem onClick={() => openEdit(reel)}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit reel
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-rose-400"
+                          onClick={() => void deleteReel(reel)}
+                          disabled={deleting}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete reel
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -652,60 +796,172 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
           }
         }}
       >
-        <DialogContent className="max-h-[80vh] overflow-hidden bg-background sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Comments</DialogTitle>
-          </DialogHeader>
-          <div className="max-h-72 space-y-3 overflow-y-auto">
-            {comments.length === 0 && <p className="text-sm text-muted-foreground">No comments yet.</p>}
-            {comments.map((comment: any) => (
-              <div key={comment.id || comment.created_at} className="space-y-2 rounded-xl border p-3 text-sm">
-                <p className="font-medium">@{comment.author?.username || comment.user?.username || "user"}</p>
-                <RichContent text={comment.content} className="text-muted-foreground" as="p" />
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-sky-500"
-                  onClick={() =>
-                    setReplyTo({
-                      id: comment.id,
-                      username: comment.author?.username || comment.user?.username,
-                    })
-                  }
-                >
-                  Reply
-                </button>
-                {(comment.replies || []).map((reply: any) => (
-                  <div key={reply.id} className="ml-4 rounded-lg border border-border/60 bg-muted/30 p-2">
-                    <p className="font-medium">@{reply.author?.username || "user"}</p>
-                    <RichContent text={reply.content} className="text-muted-foreground" as="p" />
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-          {replyTo && (
-            <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-xs">
-              <span>Replying to @{replyTo.username || "user"}</span>
-              <button type="button" onClick={() => setReplyTo(null)} className="font-semibold">
-                Cancel
-              </button>
+        <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden bg-background p-0 sm:max-w-md">
+          {/* Header with reel preview */}
+          <div className="flex items-center gap-3 border-b px-4 py-3">
+            <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded-lg bg-black">
+              {commentOpen?.content_url && (
+                <video src={commentOpen.content_url} className="h-full w-full object-cover" muted playsInline />
+              )}
+              <div className="absolute inset-0 bg-black/10" />
             </div>
-          )}
-          <div className="flex gap-2">
-            <MentionTextarea
-              value={commentText}
-              onChange={setCommentText}
-              rows={2}
-              className="min-h-[40px] flex-1"
-              placeholder={replyTo ? `Reply to @${replyTo.username || "user"}...` : "Add a comment… @ to tag"}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault()
-                  void sendComment()
-                }
-              }}
-            />
-            <Button onClick={sendComment}>Send</Button>
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="text-base">
+                {comments.length} comment{comments.length === 1 ? "" : "s"}
+              </DialogTitle>
+              <p className="truncate text-xs text-muted-foreground">@{commentOpen?.author?.username || "creator"} · {commentOpen?.title}</p>
+            </div>
+          </div>
+
+          {/* Comment list */}
+          <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+            {comments.length === 0 && (
+              <div className="flex flex-col items-center gap-2 py-10 text-center">
+                <MessageCircle className="h-8 w-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">No comments yet. Start the conversation!</p>
+              </div>
+            )}
+            {comments.map((comment: any) => {
+              const author = comment.author || comment.user || {}
+              return (
+                <div key={comment.id || comment.created_at}>
+                  <div className="flex gap-3">
+                    <Avatar className="h-9 w-9 shrink-0">
+                      <AvatarImage src={author.avatar_url} />
+                      <AvatarFallback>{(author.username || "U").charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        <span className="text-sm font-semibold">
+                          {author.display_name || author.username || "user"}
+                        </span>
+                        <span className="text-xs text-muted-foreground">@{author.username || "user"}</span>
+                        <span className="text-xs text-muted-foreground/70">· {timeAgo(comment.created_at)}</span>
+                      </div>
+                      <div className="mt-0.5 text-sm leading-relaxed">
+                        <RichContent text={comment.content} as="p" />
+                      </div>
+                      <div className="mt-1 flex items-center gap-3">
+                        <button
+                          type="button"
+                          className="text-xs font-semibold text-violet-500 transition hover:text-violet-400"
+                          onClick={() =>
+                            setReplyTo({
+                              id: comment.id,
+                              username: author.username,
+                            })
+                          }
+                        >
+                          Reply
+                        </button>
+                        <button
+                          type="button"
+                          className={cn(
+                            "flex items-center gap-1 text-xs font-medium transition",
+                            comment.is_liked ? "text-rose-500" : "text-muted-foreground hover:text-rose-400",
+                          )}
+                          onClick={() => void toggleCommentLike(comment)}
+                          title={comment.is_liked ? "Unlike comment" : "Like comment"}
+                        >
+                          <Heart className={cn("h-3.5 w-3.5", comment.is_liked && "fill-current")} />
+                          {Number(comment.like_count || 0) > 0 && comment.like_count}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Nested replies */}
+                  {(comment.replies || []).length > 0 && (
+                    <div className="mt-3 space-y-3 border-l-2 border-border/60 pl-4 ml-[18px]">
+                      {(comment.replies || []).map((reply: any) => {
+                        const rAuthor = reply.author || reply.user || {}
+                        return (
+                          <div key={reply.id} className="flex gap-3">
+                            <Avatar className="h-7 w-7 shrink-0">
+                              <AvatarImage src={rAuthor.avatar_url} />
+                              <AvatarFallback>{(rAuthor.username || "U").charAt(0).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                <span className="text-sm font-semibold">
+                                  {rAuthor.display_name || rAuthor.username || "user"}
+                                </span>
+                                <span className="text-xs text-muted-foreground">@{rAuthor.username || "user"}</span>
+                                <span className="text-xs text-muted-foreground/70">· {timeAgo(reply.created_at)}</span>
+                              </div>
+                              <div className="mt-0.5 text-sm leading-relaxed">
+                                <RichContent text={reply.content} as="p" />
+                              </div>
+                              <div className="mt-1 flex items-center gap-3">
+                                <button
+                                  type="button"
+                                  className="text-xs font-semibold text-violet-500 transition hover:text-violet-400"
+                                  onClick={() =>
+                                    setReplyTo({
+                                      id: reply.id,
+                                      username: rAuthor.username,
+                                    })
+                                  }
+                                >
+                                  Reply
+                                </button>
+                                <button
+                                  type="button"
+                                  className={cn(
+                                    "flex items-center gap-1 text-xs font-medium transition",
+                                    reply.is_liked ? "text-rose-500" : "text-muted-foreground hover:text-rose-400",
+                                  )}
+                                  onClick={() => void toggleCommentLike(reply)}
+                                  title={reply.is_liked ? "Unlike comment" : "Like comment"}
+                                >
+                                  <Heart className={cn("h-3.5 w-3.5", reply.is_liked && "fill-current")} />
+                                  {Number(reply.like_count || 0) > 0 && reply.like_count}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Composer */}
+          <div className="border-t bg-muted/20 px-4 py-3">
+            {replyTo && (
+              <div className="mb-2 flex items-center justify-between rounded-lg bg-violet-500/10 px-3 py-1.5 text-xs">
+                <span className="text-violet-400">Replying to @{replyTo.username || "user"}</span>
+                <button type="button" onClick={() => setReplyTo(null)} className="font-semibold text-muted-foreground hover:text-foreground">
+                  Cancel
+                </button>
+              </div>
+            )}
+            <div className="flex items-end gap-2">
+              <MentionTextarea
+                value={commentText}
+                onChange={setCommentText}
+                rows={1}
+                className="min-h-[42px] flex-1 rounded-2xl border-border/60 bg-background"
+                placeholder={replyTo ? `Reply to @${replyTo.username || "user"}...` : "Add a comment…"}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    void sendComment()
+                  }
+                }}
+              />
+              <Button
+                size="icon"
+                className="h-[42px] w-[42px] shrink-0 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-lg shadow-violet-500/25 hover:from-violet-500 hover:to-fuchsia-400"
+                onClick={sendComment}
+                disabled={!commentText.trim()}
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

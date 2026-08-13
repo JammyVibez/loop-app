@@ -1,16 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 
 async function getUser(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "") || null
-  if (!token) return null
-  const supabase = createServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser(token)
-  return user || null
+  return getUserFromRequest(request)
 }
 
 export async function GET(request: NextRequest) {
@@ -58,6 +53,13 @@ export async function GET(request: NextRequest) {
         }
         query = query.order("created_at", { ascending: false })
         break
+      case "mine":
+        if (!user) {
+          return NextResponse.json({ error: "Sign in to view your reels" }, { status: 401 })
+        }
+        query = query.eq("author_id", user.id)
+        query = query.order("created_at", { ascending: false })
+        break
       case "recent":
       default:
         query = query.order("created_at", { ascending: false })
@@ -97,7 +99,8 @@ export async function GET(request: NextRequest) {
     }))
 
     // Fallback: surface video loops so the feed is never empty
-    if (!processed.length && page === 1) {
+    // (skipped for personal views like "mine" so we never show strangers' clips)
+    if (!processed.length && page === 1 && category !== "mine") {
       const { data: videoLoops } = await supabase
         .from("loops")
         .select(`

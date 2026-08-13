@@ -260,7 +260,7 @@ export function OrgManagementPanel() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 rounded-3xl border border-white/10 bg-[#0b1220] p-4 sm:p-6">
       {/* Header & Threshold Configuration */}
       <div className="bg-slate-900/80 border border-emerald-500/30 rounded-2xl p-6 backdrop-blur-md shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

@@ -291,9 +291,11 @@ export class ThemeEngine {
   private generateCSSVariables(theme: Theme3DConfig) {
     this.cssVariables.clear()
     
-    // Colors
+    // Colors — write both the namespaced `--theme-color-*` form and the
+    // short `--theme-*` aliases components actually consume (e.g. var(--theme-primary))
     Object.entries(theme.colors).forEach(([key, value]) => {
       this.cssVariables.set(`--theme-color-${key}`, value)
+      this.cssVariables.set(`--theme-${key}`, value)
     })
     
     // 3D Effects

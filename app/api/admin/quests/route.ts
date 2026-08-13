@@ -1,32 +1,15 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { type NextRequest, NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase"
+import { requireAdmin } from "@/lib/server-auth"
 
-const supabase = createServerClient();
+export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "") ?? null
+    const { user, response } = await requireAdmin(request)
+    if (response) return response
 
-    if (!token) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
-    }
-
-    // Verify admin user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token)
-    if (authError || !user) {
-      return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
-    }
-
-    // Check if user is admin
-    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).single()
-
-    if (!profile?.is_admin) {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 })
-    }
+    const supabase = createServerClient()
 
     // Fetch all quests with completion statistics
     const { data: quests, error } = await supabase
@@ -38,12 +21,14 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
 
     if (error) {
-      console.error("Error fetching quests:", error)
-      return NextResponse.json({ error: "Failed to fetch quests" }, { status: 500 })
+      // The quests tables may not be provisioned yet — degrade to an empty
+      // catalog instead of a hard 500 so the admin section stays usable.
+      console.warn("Error fetching quests (returning empty catalog):", error.message)
+      return NextResponse.json({ quests: [] })
     }
 
     // Process completion counts
-    const questsWithStats = quests.map((quest) => ({
+    const questsWithStats = (quests || []).map((quest: any) => ({
       ...quest,
       completion_count: quest.quest_completions?.[0]?.count || 0,
     }))
@@ -57,29 +42,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "") ?? null
+    const { user, response } = await requireAdmin(request)
+    if (response) return response
 
-    if (!token) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
-    }
-
-    // Verify admin user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token)
-    if (authError || !user) {
-      return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
-    }
-
-    // Check if user is admin
-    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).single()
-
-    if (!profile?.is_admin) {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 })
-    }
-
+    const supabase = createServerClient()
     const { title, description, type, reward_amount, requirements, is_active } = await request.json()
 
     // Create new quest

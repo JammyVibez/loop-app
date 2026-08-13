@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, RefreshCw, ArrowUp, Sparkles, Cpu, Zap } from "lucide-react"
+import { Loader2, RefreshCw, ArrowUp } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { LoopCard } from "@/components/loop-card"
@@ -42,11 +42,30 @@ export function LoopFeed({
   const [hasMore, setHasMore] = useState(true)
   const [interacting, setInteracting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [mlMetadata, setMlMetadata] = useState<{
-    total_candidates?: number
-    user_top_interests?: string[]
-  } | null>(null)
   const { user, getAuthHeader } = useAuth()
+
+  /**
+   * For You pool: machine-ranked candidates + the standard personalized feed,
+   * interleaved and deduped so the tab feels mixed and "just works" — no ML
+   * chrome shown to the user.
+   */
+  const forYouPoolRef = useRef<NormalizedLoop[]>([])
+
+  const interleavePools = (a: NormalizedLoop[], b: NormalizedLoop[]): NormalizedLoop[] => {
+    const seen = new Set<string>()
+    const out: NormalizedLoop[] = []
+    const pushUnique = (item: NormalizedLoop) => {
+      if (!item?.id || seen.has(item.id)) return
+      seen.add(item.id)
+      out.push(item)
+    }
+    const max = Math.max(a.length, b.length)
+    for (let i = 0; i < max; i++) {
+      if (i < a.length) pushUnique(a[i])
+      if (i < b.length) pushUnique(b[i])
+    }
+    return out
+  }
   const { toast } = useToast()
   const pullStartY = useRef<number | null>(null)
   const [pullDistance, setPullDistance] = useState(0)
@@ -90,32 +109,35 @@ export function LoopFeed({
         let hasMore = false
 
         if (feedType === "personalized" && authToken) {
-          // For You tab = database ML recommendation engine (scored + ranked).
-          // The engine returns up to ML_FETCH_LIMIT ranked candidates; paginate
-          // those client-side, and fall back to the standard personalized feed
-          // if the engine errors out.
-          const response = await fetch(`/api/ml/recommendations?limit=${ML_FETCH_LIMIT}`, {
-            headers,
-            cache: "no-store",
-          })
-          const data = await response.json().catch(() => ({}))
-
-          if (!response.ok || data.success === false) {
-            throw new Error(data.error || "Failed to load recommendations")
+          // For You = a mixed pool: the ML-ranked candidate set interleaved
+          // with the regular personalized feed, so it never looks like a pure
+          // algorithm tab. Rebuild the pool on reset; extend it as the user
+          // scrolls past the first page.
+          let pool = forYouPoolRef.current
+          if (pool.length === 0 || offset === 0) {
+            const [mlRes, feedRes] = await Promise.all([
+              fetch(`/api/ml/recommendations?limit=${ML_FETCH_LIMIT}`, { headers, cache: "no-store" }),
+              fetch(`/api/loops/feed?type=personalized&limit=${PAGE_SIZE * 3}&offset=0`, { headers, cache: "no-store" }),
+            ])
+            const mlData = await mlRes.json().catch(() => ({}))
+            const feedData = await feedRes.json().catch(() => ({}))
+            if (!mlRes.ok && !feedRes.ok) {
+              throw new Error(mlData.error || feedData.error || "Failed to load loops")
+            }
+            pool = interleavePools(normalizeLoops(mlData.loops || []), normalizeLoops(feedData.loops || []))
+            forYouPoolRef.current = pool
           }
-
-          const rawLoops: any[] = data.loops || []
-          const normalized = normalizeLoops(rawLoops)
-          fetchedLoops = normalized
-            .map((loop, i) => ({
-              ...loop,
-              recommendation_reason: rawLoops[i]?.recommendation_reason,
-              match_percentage: rawLoops[i]?.match_percentage,
-              ml_score: rawLoops[i]?.ml_score,
-            }))
-            .slice(offset, offset + PAGE_SIZE)
-          hasMore = offset + PAGE_SIZE < normalized.length
-          setMlMetadata(data.ml_metadata || null)
+          if (offset >= pool.length) {
+            const feedRes = await fetch(
+              `/api/loops/feed?type=personalized&limit=${PAGE_SIZE * 2}&offset=${pool.length}`,
+              { headers, cache: "no-store" },
+            )
+            const feedData = await feedRes.json().catch(() => ({}))
+            pool = interleavePools(pool, normalizeLoops(feedData.loops || []))
+            forYouPoolRef.current = pool
+          }
+          fetchedLoops = pool.slice(offset, offset + PAGE_SIZE)
+          hasMore = offset + PAGE_SIZE < pool.length
         } else {
           const response = await fetch(`/api/loops/feed?type=${feedType}&limit=${PAGE_SIZE}&offset=${offset}`, {
             headers,
@@ -478,27 +500,6 @@ export function LoopFeed({
         )}
       </div>
 
-      {feedType === "personalized" && mlMetadata?.user_top_interests?.length ? (
-        <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-violet-500/20 bg-violet-500/5 px-3 py-2">
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-500 dark:text-violet-400">
-            <Cpu className="h-3 w-3" /> Learned interests:
-          </span>
-          {mlMetadata.user_top_interests.map((tag: string) => (
-            <Badge
-              key={tag}
-              variant="outline"
-              className="border-violet-500/30 bg-violet-500/10 px-2 py-0 text-[10px] font-semibold text-violet-600 dark:text-violet-300"
-            >
-              {tag}
-            </Badge>
-          ))}
-          <span className="ml-auto hidden items-center gap-1 text-[10px] text-muted-foreground sm:inline-flex">
-            <Sparkles className="h-3 w-3" />
-            Scored by the database ML engine
-          </span>
-        </div>
-      ) : null}
-
       <div
         className={cn(
           viewMode === "cards" && "grid gap-4 sm:grid-cols-2",
@@ -508,19 +509,6 @@ export function LoopFeed({
       >
         {filteredLoops.map((loop) => (
           <div key={loop.id} className="space-y-1.5">
-            {feedType === "personalized" && loop.recommendation_reason && (
-              <div className="flex items-center justify-between gap-2 px-1.5">
-                <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-violet-500 dark:text-violet-400">
-                  <Zap className="h-3 w-3 shrink-0 text-amber-500" />
-                  <span className="truncate">{loop.recommendation_reason}</span>
-                </span>
-                {typeof loop.match_percentage === "number" && (
-                  <Badge className="shrink-0 border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                    {loop.match_percentage}% Match
-                  </Badge>
-                )}
-              </div>
-            )}
             <LoopCard
               loop={loop}
               interacting={interacting}

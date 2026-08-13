@@ -1,28 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { notifyUser } from "@/lib/notifications"
+import { requireAdmin } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
-
-async function requireAdmin(token: string | null) {
-  if (!token) return { error: NextResponse.json({ error: "Authentication required" }, { status: 401 }) }
-  const supabase = createServerClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser(token)
-  if (authError || !user) return { error: NextResponse.json({ error: "Invalid authentication" }, { status: 401 }) }
-  const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle()
-  if (!profile?.is_admin) return { error: NextResponse.json({ error: "Admin access required" }, { status: 403 }) }
-  return { user }
-}
 
 const VALID_STATUSES = ["pending_review", "approved", "paid", "rejected"]
 
 export async function GET(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
-  const auth = await requireAdmin(token)
-  if (auth.error) return auth.error
+  const { response } = await requireAdmin(request)
+  if (response) return response
 
   const supabase = createServerClient()
   const { searchParams } = new URL(request.url)
@@ -45,9 +32,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
-  const auth = await requireAdmin(token)
-  if (auth.error) return auth.error
+  const { user, response } = await requireAdmin(request)
+  if (response) return response
 
   const supabase = createServerClient()
   const body = await request.json().catch(() => ({}))
@@ -93,7 +79,7 @@ export async function PATCH(request: NextRequest) {
       status,
       admin_note: admin_note || null,
       reviewed_at: new Date().toISOString(),
-      reviewed_by: auth.user!.id,
+      reviewed_by: user.id,
     })
     .eq("id", id)
     .select()

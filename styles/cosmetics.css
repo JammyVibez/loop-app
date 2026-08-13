@@ -88,6 +88,31 @@
   will-change: transform;
 }
 
+/* ---- Gift cards: 3D hover tilt + rarity glow + floating icon ---- */
+@keyframes gift-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+.gift-icon-float {
+  animation: gift-float 2.4s ease-in-out infinite;
+}
+.gift-card-3d {
+  transform-style: preserve-3d;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  will-change: transform;
+}
+.gift-card-3d:hover {
+  transform: perspective(600px) rotateX(4deg) rotateY(-4deg) translateY(-3px) scale(1.02);
+}
+.gift-card-common:hover { box-shadow: 0 10px 30px -10px rgba(148, 163, 184, 0.35); }
+.gift-card-rare:hover { box-shadow: 0 10px 36px -10px rgba(59, 130, 246, 0.45); }
+.gift-card-epic:hover { box-shadow: 0 12px 42px -10px rgba(139, 92, 246, 0.5); }
+.gift-card-legendary:hover { box-shadow: 0 12px 48px -8px rgba(245, 158, 11, 0.55); }
+.gift-glow-common { background: radial-gradient(circle at 50% 0%, rgba(148,163,184,0.16), transparent 70%); }
+.gift-glow-rare { background: radial-gradient(circle at 50% 0%, rgba(59,130,246,0.18), transparent 70%); }
+.gift-glow-epic { background: radial-gradient(circle at 50% 0%, rgba(139,92,246,0.2), transparent 70%); }
+.gift-glow-legendary { background: radial-gradient(circle at 50% 0%, rgba(245,158,11,0.22), transparent 70%); }
+
 /* ---- Pause everything when the element leaves the viewport ---- */
 .cosmetic-paused *,
 .cosmetic-paused {

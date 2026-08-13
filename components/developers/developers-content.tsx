@@ -1,9 +1,11 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Code, Plus, Loader2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Code, Plus, Loader2, Search, BookOpen, LayoutTemplate, GitFork, Star, Boxes, RefreshCw, Sparkles } from "lucide-react"
 import { CreateProjectDialog } from "@/components/developers/create-project-dialog"
 import { CodeLoopCard } from "@/components/developers/code-loop-card"
 
@@ -37,6 +39,7 @@ export function DevelopersContent() {
   const [selectedLanguage, setSelectedLanguage] = useState("All")
   const [selectedFramework, setSelectedFramework] = useState("All")
   const [sortBy, setSortBy] = useState("recent")
+  const [searchQuery, setSearchQuery] = useState("")
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -72,7 +75,13 @@ export function DevelopersContent() {
   const filteredProjects = projects.filter((project) => {
     const matchesLanguage = selectedLanguage === "All" || project.language === selectedLanguage
     const matchesFramework = selectedFramework === "All" || project.framework === selectedFramework
-    return matchesLanguage && matchesFramework
+    const q = searchQuery.trim().toLowerCase()
+    const matchesSearch =
+      !q ||
+      project.title.toLowerCase().includes(q) ||
+      (project.description || "").toLowerCase().includes(q) ||
+      project.tags.some((t: string) => t.toLowerCase().includes(q))
+    return matchesLanguage && matchesFramework && matchesSearch
   })
 
   const sortedProjects = [...filteredProjects].sort((a, b) => {
@@ -93,36 +102,90 @@ export function DevelopersContent() {
     return num.toString()
   }
 
+  const stats = useMemo(() => {
+    const languages = new Set(projects.map((p) => p.language).filter(Boolean))
+    return {
+      projects: projects.length,
+      languages: languages.size,
+      stars: projects.reduce((acc, p) => acc + Number(p.stats.stars || 0), 0),
+      forks: projects.reduce((acc, p) => acc + Number(p.stats.forks || 0), 0),
+    }
+  }, [projects])
+
   return (
     <>
       <div className="space-y-6">
-        {/* Create Project & Developer Docs Navigation Buttons */}
-        <div className="flex flex-wrap justify-center items-center gap-3">
-          <Button
-            onClick={() => setShowCreateDialog(true)}
-            className="rounded-full font-semibold"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Share Project
-          </Button>
-
-          <Button
-            asChild
-            variant="outline"
-            className="rounded-full border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 font-semibold whitespace-normal text-center"
-          >
-            <a href="/developers/docs">
-              <Code className="w-4 h-4 mr-2 text-cyan-600 dark:text-cyan-400 shrink-0" />
-              Developer Docs
-            </a>
-          </Button>
+        {/* Hero / actions */}
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 via-card to-indigo-600/10 p-6 sm:flex-row sm:justify-between">
+          <div className="flex items-center gap-4">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-indigo-600 text-white shadow-lg shadow-cyan-500/20">
+              <Code className="h-7 w-7" />
+            </span>
+            <div>
+              <h2 className="text-xl font-bold tracking-tight">Build on Loop</h2>
+              <p className="text-sm text-muted-foreground">
+                Share code projects, fork branches, and grow them with the community.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button
+              onClick={() => setShowCreateDialog(true)}
+              className="rounded-full font-semibold bg-gradient-to-r from-cyan-500 to-indigo-600 text-white hover:from-cyan-400 hover:to-indigo-500"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Share Project
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="rounded-full border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 font-semibold"
+            >
+              <a href="/developers/docs">
+                <BookOpen className="w-4 h-4 mr-2 shrink-0" />
+                Developer Docs
+              </a>
+            </Button>
+          </div>
         </div>
 
-        {/* Filters */}
+        {/* Stats strip */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { icon: Boxes, label: "Projects", value: stats.projects },
+            { icon: Code, label: "Languages", value: stats.languages },
+            { icon: Star, label: "Total stars", value: stats.stars },
+            { icon: GitFork, label: "Forks", value: stats.forks },
+          ].map((stat) => (
+            <Card key={stat.label} className="border-border/60">
+              <CardContent className="flex items-center gap-3 p-4">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
+                  <stat.icon className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-xl font-bold leading-none">{loading ? "—" : formatNumber(stat.value)}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{stat.label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Filters + search */}
         <Card>
           <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <select
+            <div className="flex flex-col gap-3 md:flex-row">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search projects, tags…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
                 className="px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground"
@@ -155,6 +218,10 @@ export function DevelopersContent() {
                 <option value="popular">Most Stars</option>
                 <option value="most_forked">Most Forked</option>
               </select>
+              <Button variant="outline" size="sm" className="rounded-full" onClick={fetchProjects} title="Refresh projects">
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
             </div>
           </CardContent>
         </Card>
@@ -174,14 +241,34 @@ export function DevelopersContent() {
         ) : sortedProjects.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border p-12 text-center">
             <Code className="h-8 w-8 text-muted-foreground" />
-            <p className="font-medium">No developer projects yet</p>
-            <p className="text-sm text-muted-foreground">
-              Be the first to share your code with the community.
+            <p className="font-medium">
+              {searchQuery || selectedLanguage !== "All" || selectedFramework !== "All"
+                ? "No projects match your filters"
+                : "No developer projects yet"}
             </p>
-            <Button onClick={() => setShowCreateDialog(true)} className="mt-2 rounded-full">
-              <Plus className="w-4 h-4 mr-2" />
-              Share Project
-            </Button>
+            <p className="text-sm text-muted-foreground">
+              {searchQuery || selectedLanguage !== "All" || selectedFramework !== "All"
+                ? "Try a different search or clear the filters."
+                : "Be the first to share your code with the community."}
+            </p>
+            {searchQuery || selectedLanguage !== "All" || selectedFramework !== "All" ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("")
+                  setSelectedLanguage("All")
+                  setSelectedFramework("All")
+                }}
+              >
+                Clear filters
+              </Button>
+            ) : (
+              <Button onClick={() => setShowCreateDialog(true)} className="mt-2 rounded-full">
+                <Plus className="w-4 h-4 mr-2" />
+                Share Project
+              </Button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -200,25 +287,53 @@ export function DevelopersContent() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <Code className="w-5 h-5 text-primary" />
+              <Sparkles className="w-5 h-5 text-cyan-500" />
               <span>Featured Developer Resources</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="rounded-lg border border-border bg-muted/40 p-4">
-                <h3 className="font-semibold mb-2">Loop API Documentation</h3>
-                <p className="text-sm text-muted-foreground mb-3">Real Bearer-token API reference for building on Loop</p>
-                <Button asChild variant="outline" size="sm">
-                  <a href="/developers/docs">View Docs</a>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="group rounded-2xl border border-border bg-gradient-to-br from-cyan-500/5 to-transparent p-5 transition hover:-translate-y-0.5 hover:border-cyan-500/40 hover:shadow-lg">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-500">
+                    <BookOpen className="h-4 w-4" />
+                  </span>
+                  <h3 className="font-semibold">Loop API Documentation</h3>
+                </div>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Bearer-token API reference for building on Loop — loops, circles, reels, and webhooks.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {["REST", "Webhooks", "Auth"].map((tag) => (
+                    <Badge key={tag} variant="outline" className="rounded-full text-[10px]">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+                <Button asChild variant="outline" size="sm" className="mt-4 rounded-full">
+                  <a href="/developers/docs">Read the docs</a>
                 </Button>
               </div>
 
-              <div className="rounded-lg border border-border bg-muted/40 p-4">
-                <h3 className="font-semibold mb-2">Community Layout Packs</h3>
-                <p className="text-sm text-muted-foreground mb-3">Build marketplace packs that restyle Circles</p>
-                <Button asChild variant="outline" size="sm">
-                  <a href="/developers/community-layouts">View Spec</a>
+              <div className="group rounded-2xl border border-border bg-gradient-to-br from-indigo-500/5 to-transparent p-5 transition hover:-translate-y-0.5 hover:border-indigo-500/40 hover:shadow-lg">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-500">
+                    <LayoutTemplate className="h-4 w-4" />
+                  </span>
+                  <h3 className="font-semibold">Community Layout Packs</h3>
+                </div>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Build marketplace packs that restyle Circles — earn coins when communities adopt them.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {["Marketplace", "Themes", "Coins"].map((tag) => (
+                    <Badge key={tag} variant="outline" className="rounded-full text-[10px]">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+                <Button asChild variant="outline" size="sm" className="mt-4 rounded-full">
+                  <a href="/developers/community-layouts">View the spec</a>
                 </Button>
               </div>
             </div>

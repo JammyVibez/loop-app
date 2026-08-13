@@ -196,15 +196,15 @@ export function EventManagement() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 rounded-3xl border border-white/10 bg-[#0b1220] p-4 sm:p-6">
       {/* Header & Quick Action */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <h2 className="flex items-center gap-2 text-xl font-bold text-foreground">
             <Calendar className="h-6 w-6 text-cyan-400" />
             Global Events & Hub Management
           </h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-muted-foreground">
             Create and host platform-wide events like Developers Den, Content Creator Zone, and 3D Art Spotlights.
           </p>
         </div>

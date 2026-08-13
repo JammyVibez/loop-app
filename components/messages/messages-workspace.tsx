@@ -959,7 +959,7 @@ export function MessagesWorkspace() {
         <Button
           variant="ghost"
           size="icon"
-          className="text-muted-foreground hover:text-foreground"
+          className="hidden text-muted-foreground hover:text-foreground sm:inline-flex"
           title="Search in chat"
           onClick={() => setShowChatSearch((v) => !v)}
         >
@@ -995,6 +995,10 @@ export function MessagesWorkspace() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => setShowChatSearch((v) => !v)}>
+              <Search className="h-4 w-4 mr-2" />
+              Search in chat
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => void togglePush()} disabled={pushToggling}>
               {pushEnabled ? <Bell className="h-4 w-4 mr-2 text-emerald-500" /> : <BellOff className="h-4 w-4 mr-2" />}
               {pushEnabled ? "Notifications on" : "Turn on notifications"}

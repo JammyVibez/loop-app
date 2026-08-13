@@ -1,32 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getEconomySettings, normalizeEconomySettings, saveEconomySettings } from "@/lib/economy"
+import { requireAdmin } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 
-async function requireAdmin(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || null
-  if (!token) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
-
-  const supabase = createServerClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(token)
-  if (error || !user) return { error: NextResponse.json({ error: "Invalid token" }, { status: 401 }) }
-
-  const { data: profile } = await supabase.from("profiles").select("id, is_admin").eq("id", user.id).maybeSingle()
-  if (!profile?.is_admin) {
-    return { error: NextResponse.json({ error: "Admin access required" }, { status: 403 }) }
-  }
-  return { user, supabase }
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requireAdmin(request)
-    if (auth.error) return auth.error
-    const economy = await getEconomySettings(auth.supabase)
+    const { response } = await requireAdmin(request)
+    if (response) return response
+    const supabase = createServerClient()
+    const economy = await getEconomySettings(supabase)
     return NextResponse.json({ success: true, economy })
   } catch (error: any) {
     console.error("admin economy GET:", error)
@@ -36,15 +20,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAdmin(request)
-    if (auth.error) return auth.error
+    const { user, response } = await requireAdmin(request)
+    if (response) return response
+    const supabase = createServerClient()
 
     const body = await request.json().catch(() => ({}))
     const patch = body.economy || body.settings || body
     const economy = await saveEconomySettings(
-      auth.supabase,
-      normalizeEconomySettings({ ...(await getEconomySettings(auth.supabase)), ...patch }),
-      auth.user.id,
+      supabase,
+      normalizeEconomySettings({ ...(await getEconomySettings(supabase)), ...patch }),
+      user.id,
     )
 
     return NextResponse.json({

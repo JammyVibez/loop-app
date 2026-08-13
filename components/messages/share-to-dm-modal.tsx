@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Send, Check, MessageSquare, Loader2, Share2, Film, Sparkles } from "lucide-react"
+import { Search, Send, Check, MessageSquare, Loader2, Share2, Film, Sparkles, Link2, ExternalLink } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,8 @@ export interface ShareToDmModalProps {
     text?: string
     authorName?: string
     mediaUrl?: string
+    /** content type of the media: "video" | "image" | undefined (text share) */
+    mediaType?: string
   } | null
 }
 
@@ -159,6 +161,10 @@ export function ShareToDmModal({ open, onOpenChange, item }: ShareToDmModalProps
         ? `${customNote.trim()}\n\n📌 Shared ${item.type === "reel" ? "Reel" : "Loop"}: ${item.title || "Check this out!"}\n${shareUrl}`
         : `📌 Shared ${item.type === "reel" ? "Reel" : "Loop"}: ${item.title || "Check this out!"}\n${shareUrl}`
 
+      // Reels with media are sent as real video/image messages so the
+      // recipient sees the inline player — not just a text link.
+      const mediaKind = item.mediaType === "video" || item.mediaType === "image" ? item.mediaType : null
+
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: {
@@ -168,7 +174,7 @@ export function ShareToDmModal({ open, onOpenChange, item }: ShareToDmModalProps
         body: JSON.stringify({
           conversation_id: targetConversationId,
           content: shareText,
-          message_type: "text",
+          message_type: mediaKind || "text",
           media_url: item.mediaUrl || null,
         }),
       })
@@ -195,6 +201,40 @@ export function ShareToDmModal({ open, onOpenChange, item }: ShareToDmModalProps
       })
     } finally {
       setSending(false)
+    }
+  }
+
+  const buildShareUrl = () => {
+    if (!item) return ""
+    return typeof window !== "undefined"
+      ? `${window.location.origin}/${item.type === "reel" ? "reels?focus=" + item.id : "loop/" + item.id}`
+      : `/${item.type === "reel" ? "reels?focus=" + item.id : "loop/" + item.id}`
+  }
+
+  const copyLink = async () => {
+    const url = buildShareUrl()
+    try {
+      await navigator.clipboard.writeText(url)
+      toast({ title: "Link copied!", description: "Paste it anywhere to share this content." })
+    } catch {
+      toast({ title: "Couldn't copy link", variant: "destructive" })
+    }
+  }
+
+  const shareToApps = async () => {
+    const url = buildShareUrl()
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
+          title: item?.title || "Check this out on Loop",
+          text: item?.title ? `${item.title} — on Loop` : "Check this out on Loop",
+          url,
+        })
+      } catch {
+        /* user cancelled the share sheet */
+      }
+    } else {
+      await copyLink()
     }
   }
 
@@ -250,6 +290,28 @@ export function ShareToDmModal({ open, onOpenChange, item }: ShareToDmModalProps
             </div>
           </div>
         )}
+
+        {/* Share to other apps / copy link */}
+        <div className="flex gap-2 my-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 rounded-xl text-xs"
+            onClick={() => void shareToApps()}
+          >
+            <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+            Share to apps
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 rounded-xl text-xs"
+            onClick={() => void copyLink()}
+          >
+            <Link2 className="mr-1.5 h-3.5 w-3.5" />
+            Copy link
+          </Button>
+        </div>
 
         {/* Note input */}
         <div className="space-y-1">
