@@ -78,13 +78,12 @@ export async function requireAdmin(request: NextRequest) {
   const supabase = createServerClient()
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, is_admin, is_moderator, role")
+    .select("id, is_admin, is_moderator")
     .eq("id", user.id)
     .maybeSingle()
 
   const isAdmin = Boolean(
     profile?.is_admin ||
-    profile?.role === "admin" ||
     (user.email && user.email.toLowerCase().includes("admin"))
   )
 

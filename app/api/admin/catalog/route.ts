@@ -6,8 +6,8 @@ async function requireAdmin(request: NextRequest) {
   const user = await getUserFromRequest(request)
   if (!user) return { error: NextResponse.json({ error: "Authentication required" }, { status: 401 }) }
   const supabase = createServerClient()
-  const { data: profile } = await supabase.from("profiles").select("is_admin, role").eq("id", user.id).maybeSingle()
-  if (!profile?.is_admin && profile?.role !== "admin") {
+  const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle()
+  if (!profile?.is_admin) {
     return { error: NextResponse.json({ error: "Admin access required" }, { status: 403 }) }
   }
   return { user }
@@ -91,6 +91,25 @@ export async function POST(request: NextRequest) {
     const fontFamily =
       category === "font" ? FONT_PRESETS[body.font_preset as string] || body.font_family || FONT_PRESETS.inter : undefined
 
+    // Animated variant hints (pure data — the render layer resolves these
+    // from item_data, so new variants work without a redeploy):
+    //   animation/effect -> frame_variant (avatar), pfp_interaction (tap/hover)
+    //   card_effect       -> card_variant (post card edge)
+    const variantHints: Record<string, string> = {}
+    if (["animation", "effect"].includes(category)) {
+      if (["ring_rotate", "orbit_particles", "pulse_glow", "tilt_3d"].includes(body.frame_variant)) {
+        variantHints.frame_variant = body.frame_variant
+      }
+      if (["burst", "bounce", "pulse"].includes(body.pfp_interaction)) {
+        variantHints.pfp_interaction = body.pfp_interaction
+      }
+    }
+    if (category === "card_effect") {
+      if (["gradient_border", "shimmer", "pulse_edge"].includes(body.card_variant)) {
+        variantHints.card_variant = body.card_variant
+      }
+    }
+
     const itemData =
       body.item_data ||
       (category === "theme"
@@ -100,6 +119,7 @@ export async function POST(request: NextRequest) {
           : {
               colors: preset.colors,
               effects: { ...(preset.effects || {}), kind: category, intensity: body.intensity || "medium" },
+              ...variantHints,
             })
 
     const { data: item, error } = await supabase

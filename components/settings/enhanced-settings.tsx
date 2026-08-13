@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,7 +37,9 @@ import {
   Users,
   Monitor,
   X,
+  Building2,
 } from "lucide-react"
+import { OrganizationSettings } from "@/components/settings/organization-settings"
 import { cn } from "@/lib/utils"
 
 const themeOptions = [
@@ -49,6 +52,9 @@ export function EnhancedSettings() {
   const { user, getAuthHeader, applyServerProfile, refreshUser } = useAuth()
   const { theme, setTheme, resolvedTheme } = useTheme()
   const { toast } = useToast()
+  const searchParams = useSearchParams()
+  const requestedTab = searchParams?.get("tab") || "profile"
+  const [tab, setTab] = useState(requestedTab)
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -373,8 +379,8 @@ export function EnhancedSettings() {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:grid-cols-4">
+      <Tabs value={tab} onValueChange={setTab} className="space-y-6">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:grid-cols-5">
           <TabsTrigger value="profile" className="rounded-xl data-[state=active]:bg-background">
             <User className="mr-2 h-4 w-4" /> Profile
           </TabsTrigger>
@@ -386,6 +392,9 @@ export function EnhancedSettings() {
           </TabsTrigger>
           <TabsTrigger value="privacy" className="rounded-xl data-[state=active]:bg-background">
             <Shield className="mr-2 h-4 w-4" /> Privacy
+          </TabsTrigger>
+          <TabsTrigger value="organization" className="rounded-xl data-[state=active]:bg-background">
+            <Building2 className="mr-2 h-4 w-4" /> Organization
           </TabsTrigger>
         </TabsList>
 
@@ -711,6 +720,10 @@ export function EnhancedSettings() {
               ))}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="organization" className="space-y-4">
+          <OrganizationSettings />
         </TabsContent>
 
         <TabsContent value="privacy" className="space-y-4">

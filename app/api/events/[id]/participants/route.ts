@@ -93,22 +93,45 @@ export async function POST(
       return NextResponse.json({ success: true, message: "Participant removed from stage" })
     }
 
+    // Determine event type: community events live in `events`, official
+    // platform-wide events live in `global_events`. Keep RSVPs synchronized
+    // for both so the hub count and the stage roster agree.
+    const { data: communityEvent } = await supabase
+      .from("events")
+      .select("id, participants_count")
+      .eq("id", eventId)
+      .maybeSingle()
+
+    const { data: globalEvent } = communityEvent
+      ? { data: null }
+      : await supabase
+          .from("global_events")
+          .select("id, rsvp_count")
+          .eq("id", eventId)
+          .maybeSingle()
+
+    const isGlobalEvent = Boolean(!communityEvent && globalEvent)
+
     if (action === "leave") {
-      await supabase
-        .from("event_participants")
-        .delete()
-        .eq("event_id", eventId)
-        .eq("user_id", user.id)
+      if (isGlobalEvent) {
+        await supabase
+          .from("event_rsvps")
+          .delete()
+          .eq("event_id", eventId)
+          .eq("user_id", user.id)
 
-      // Decrement participants count
-      const { data: currentEvent } = await supabase
-        .from("events")
-        .select("participants_count")
-        .eq("id", eventId)
-        .single()
+        const newCount = Math.max(0, (globalEvent?.rsvp_count || 1) - 1)
+        await supabase.from("global_events").update({ rsvp_count: newCount }).eq("id", eventId)
+      } else {
+        await supabase
+          .from("event_participants")
+          .delete()
+          .eq("event_id", eventId)
+          .eq("user_id", user.id)
 
-      const newCount = Math.max(0, (currentEvent?.participants_count || 1) - 1)
-      await supabase.from("events").update({ participants_count: newCount }).eq("id", eventId)
+        const newCount = Math.max(0, (communityEvent?.participants_count || 1) - 1)
+        await supabase.from("events").update({ participants_count: newCount }).eq("id", eventId)
+      }
 
       return NextResponse.json({
         success: true,
@@ -129,6 +152,21 @@ export async function POST(
     const uAvatar = userProfile?.avatar_url || "/placeholder.svg"
 
     // Default action is JOIN
+    if (isGlobalEvent) {
+      await supabase.from("event_rsvps").upsert(
+        { event_id: eventId, user_id: user.id },
+        { onConflict: "event_id,user_id" },
+      )
+      const newCount = (globalEvent?.rsvp_count || 0) + 1
+      await supabase.from("global_events").update({ rsvp_count: newCount }).eq("id", eventId)
+
+      return NextResponse.json({
+        success: true,
+        action: "joined",
+        message: "You've RSVP'd to this official event!"
+      })
+    }
+
     const participantPayload = {
       id: `p-${user.id}-${eventId}`,
       event_id: eventId,
@@ -144,13 +182,7 @@ export async function POST(
     await supabase.from("event_participants").upsert(participantPayload)
 
     // Increment participants count
-    const { data: currentEvent } = await supabase
-      .from("events")
-      .select("participants_count")
-      .eq("id", eventId)
-      .single()
-
-    const newCount = (currentEvent?.participants_count || 0) + 1
+    const newCount = (communityEvent?.participants_count || 0) + 1
     await supabase.from("events").update({ participants_count: newCount }).eq("id", eventId)
 
     return NextResponse.json({

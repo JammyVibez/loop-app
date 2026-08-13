@@ -29,6 +29,7 @@ import {
   Code2,
   UserPlus,
   Lock,
+  Building2,
 } from "lucide-react"
 import { UserBadges } from "@/components/user-badge"
 
@@ -87,7 +88,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   if (!user) return null
 
   const discoveryNav = [
-    { href: "/recommendations", label: "For You (ML Feed)", icon: Sparkles, badge: "AI" },
+    { href: "/", label: "Home Feed", icon: Sparkles },
     { href: "/messages", label: "Messages & Chat", icon: MessageCircle, count: unreadMessages > 0 ? unreadMessages : null },
     { href: "/explore", label: "Explore & Search", icon: Compass },
     { href: "/developers", label: "Developer Hub", icon: Code2 },
@@ -109,6 +110,10 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
 
   if (user.is_premium) {
     discoveryNav.push({ href: "/lounge", label: "Pro Lounge", icon: Lock, badge: "PRO" } as any)
+  }
+
+  if (user.is_organization) {
+    discoveryNav.push({ href: "/organization", label: "Organization", icon: Building2, badge: "ORG" } as any)
   }
 
   const isAdmin = user.is_admin || user.email === "useehamza0@gmail.com"

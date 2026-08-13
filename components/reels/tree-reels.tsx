@@ -14,6 +14,7 @@ import {
   Bookmark,
   GitBranch,
   Gauge,
+  MoreHorizontal,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -24,6 +25,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
@@ -574,50 +581,60 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                 )}
               </div>
 
-              <div className="absolute bottom-28 right-3 z-20 flex flex-col items-center gap-4 sm:right-5">
+              <div className="absolute bottom-28 right-3 z-20 flex flex-col items-center gap-3 sm:right-5">
                 <button className="pointer-events-auto flex flex-col items-center gap-1" onClick={() => interact(reel, "like")}>
-                  <span className={cn("rounded-full bg-black/35 p-3 backdrop-blur", reel.is_liked && "text-rose-400")}>
+                  <span className={cn("rounded-full bg-black/35 p-2.5 backdrop-blur", reel.is_liked && "text-rose-400")}>
                     <Heart className={cn("h-6 w-6", reel.is_liked && "fill-current")} />
                   </span>
                   <span className="text-xs">{reel.like_count || 0}</span>
                 </button>
                 <button className="pointer-events-auto flex flex-col items-center gap-1" onClick={() => openComments(reel)}>
-                  <span className="rounded-full bg-black/35 p-3 backdrop-blur">
+                  <span className="rounded-full bg-black/35 p-2.5 backdrop-blur">
                     <MessageCircle className="h-6 w-6" />
                   </span>
                   <span className="text-xs">{reel.comment_count || 0}</span>
                 </button>
-                <button className="pointer-events-auto flex flex-col items-center gap-1" onClick={() => interact(reel, "save")}>
-                  <span className={cn("rounded-full bg-black/35 p-3 backdrop-blur", reel.is_saved && "text-amber-300")}>
-                    <Bookmark className={cn("h-6 w-6", reel.is_saved && "fill-current")} />
-                  </span>
-                  <span className="text-xs">Save</span>
-                </button>
                 <button className="pointer-events-auto flex flex-col items-center gap-1" onClick={() => share(reel)}>
-                  <span className="rounded-full bg-black/35 p-3 backdrop-blur">
+                  <span className="rounded-full bg-black/35 p-2.5 backdrop-blur">
                     <Share2 className="h-6 w-6" />
                   </span>
                   <span className="text-xs">Share</span>
                 </button>
-                {reel.source !== "loop" && (
-                  <button
-                    className="pointer-events-auto flex flex-col items-center gap-1"
-                    onClick={() => {
-                      if (!user) {
-                        toast({ title: "Sign in to duet" })
-                        return
-                      }
-                      setDuetReel(reel)
-                      setCreateTitle("")
-                      setUploadFile(null)
-                    }}
-                  >
-                    <span className="rounded-full bg-black/35 p-3 backdrop-blur">
-                      <GitBranch className="h-6 w-6" />
-                    </span>
-                    <span className="text-xs">Duet</span>
-                  </button>
-                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="pointer-events-auto flex flex-col items-center gap-1" title="More">
+                      <span className="rounded-full bg-black/35 p-2.5 backdrop-blur">
+                        <MoreHorizontal className="h-6 w-6" />
+                      </span>
+                      <span className="text-xs">More</span>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" side="left" className="w-44 bg-black/85 backdrop-blur">
+                    <DropdownMenuItem
+                      onClick={() => interact(reel, "save")}
+                      className={cn(reel.is_saved && "text-amber-300")}
+                    >
+                      <Bookmark className={cn("h-4 w-4 mr-2", reel.is_saved && "fill-current")} />
+                      {reel.is_saved ? "Saved" : "Save reel"}
+                    </DropdownMenuItem>
+                    {reel.source !== "loop" && (
+                      <DropdownMenuItem
+                        onClick={() => {
+                          if (!user) {
+                            toast({ title: "Sign in to duet" })
+                            return
+                          }
+                          setDuetReel(reel)
+                          setCreateTitle("")
+                          setUploadFile(null)
+                        }}
+                      >
+                        <GitBranch className="h-4 w-4 mr-2" />
+                        Duet this reel
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {!active && <div className="absolute inset-0 bg-black/20" />}

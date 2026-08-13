@@ -1,5 +1,6 @@
 "use client"
 
+import { Suspense } from "react"
 import { Header } from "@/components/header"
 import { EnhancedSettings } from "@/components/settings/enhanced-settings"
 
@@ -12,7 +13,9 @@ export default function SettingsPage() {
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Settings</h1>
           <p className="text-muted-foreground">Manage your profile, theme, notifications, and privacy.</p>
         </div>
-        <EnhancedSettings />
+        <Suspense fallback={<div className="py-16 text-center text-sm text-muted-foreground">Loading settings…</div>}>
+          <EnhancedSettings />
+        </Suspense>
       </main>
     </div>
   )

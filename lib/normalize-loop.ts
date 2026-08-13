@@ -56,6 +56,10 @@ export type NormalizedLoop = {
     role?: string
   }>
   content_metadata?: Record<string, any> | null
+  /** ML recommendation engine extras (For You tab) */
+  recommendation_reason?: string
+  match_percentage?: number
+  ml_score?: number
 }
 
 const defaultStats = {

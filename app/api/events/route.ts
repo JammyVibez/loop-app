@@ -25,9 +25,52 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
     const status = searchParams.get("status")
-    const limit = Number(searchParams.get("limit") || "20")
+    const limit = Number(searchParams.get("limit") || "50")
 
     const supabase = createServerClient()
+
+    // Platform-wide (admin) events live in global_events; community-hosted
+    // stages live in events. Merge both so the Events Stage hub is a single
+    // synchronized view, with official events pinned first.
+    let globalQuery = supabase
+      .from("global_events")
+      .select("*")
+      .eq("is_active", true)
+      .order("starts_at", { ascending: true })
+      .limit(limit)
+
+    if (searchParams.get("featured") === "true") {
+      globalQuery = globalQuery.eq("is_featured", true)
+    }
+
+    const { data: globalEvents, error: globalError } = await globalQuery
+    if (globalError) {
+      console.warn("Fetch global events warning:", globalError.message)
+    }
+
+    const officialEvents = (globalEvents || []).map((e: any) => ({
+      id: e.id,
+      title: e.title,
+      description: e.description || "",
+      host_id: null,
+      host_name: "Loop Official",
+      host_avatar: "",
+      category: e.category || "Community",
+      status: e.status || undefined,
+      start_time: e.starts_at || e.start_time,
+      starts_at: e.starts_at,
+      ends_at: e.ends_at,
+      cover_image: e.banner_url || undefined,
+      participants_count: e.rsvp_count || 0,
+      is_live: Boolean(e.is_live),
+      is_active: e.is_active !== false,
+      is_featured: Boolean(e.is_featured),
+      location_type: e.location_type,
+      external_link: e.external_link,
+      reward_coins: e.reward_coins,
+      badge_reward: e.badge_reward,
+      tags: e.tags,
+    }))
 
     let query = supabase
       .from("events")
@@ -49,9 +92,18 @@ export async function GET(request: NextRequest) {
       console.warn("Fetch events warning:", error.message)
     }
 
+    // Merge, dedupe by id, official events first
+    const merged = [...officialEvents, ...(events || [])]
+    const seen = new Set<string>()
+    const deduped = merged.filter((e: any) => {
+      if (seen.has(e.id)) return false
+      seen.add(e.id)
+      return true
+    })
+
     return NextResponse.json({
       success: true,
-      events: events || []
+      events: deduped.slice(0, limit),
     })
   } catch (error: any) {
     console.error("GET /api/events error:", error)

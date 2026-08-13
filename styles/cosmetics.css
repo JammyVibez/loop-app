@@ -1,0 +1,113 @@
+/* ============================================================
+   Animated Cosmetics — avatar frames, post-card effects, PFP
+   micro-interactions. Pure CSS/SVG (no video, no heavy GIFs).
+   Every animation is gated behind `prefers-reduced-motion`.
+   ============================================================ */
+
+/* ---- Rotating gradient ring (avatar frame) ---- */
+@keyframes cosmetics-ring-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.cosmetic-ring-rotate {
+  animation: cosmetics-ring-spin 3.2s linear infinite;
+  will-change: transform;
+}
+
+/* ---- Orbiting sparkle particles (avatar frame) ---- */
+@keyframes cosmetics-orbit {
+  0% { transform: rotate(0deg) translateX(var(--orbit-r, 0.9em)) rotate(0deg); }
+  100% { transform: rotate(360deg) translateX(var(--orbit-r, 0.9em)) rotate(-360deg); }
+}
+.cosmetic-orbit-particle {
+  animation: cosmetics-orbit var(--orbit-duration, 2.6s) linear infinite;
+  animation-delay: var(--orbit-delay, 0s);
+  will-change: transform;
+}
+
+/* ---- Pulsing glow (avatar frame / card edge) ---- */
+@keyframes cosmetics-glow-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+.cosmetic-glow-pulse {
+  animation: cosmetics-glow-pulse 2.4s ease-in-out infinite;
+}
+
+/* ---- Animated gradient border (post card) ---- */
+@keyframes cosmetics-gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.cosmetic-gradient-border {
+  background-size: 300% 300%;
+  animation: cosmetics-gradient-shift 6s ease infinite;
+  will-change: background-position;
+}
+
+/* ---- Soft shimmer pass (post card) ---- */
+@keyframes cosmetics-shimmer {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  60%, 100% { transform: translateX(220%) skewX(-18deg); }
+}
+.cosmetic-shimmer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 45%;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+  animation: cosmetics-shimmer 4.5s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* ---- PFP micro-interaction burst ---- */
+@keyframes cosmetics-burst {
+  0% { transform: scale(0.2) translateY(0); opacity: 1; }
+  100% { transform: scale(1) translateY(-14px); opacity: 0; }
+}
+.cosmetic-burst-particle {
+  animation: cosmetics-burst 0.7s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes cosmetics-bounce {
+  0%, 100% { transform: scale(1); }
+  40% { transform: scale(1.12); }
+  70% { transform: scale(0.96); }
+}
+.cosmetic-bounce {
+  animation: cosmetics-bounce 0.55s ease-in-out;
+}
+
+/* ---- 3D tilt avatar ---- */
+.cosmetic-tilt-3d {
+  transform-style: preserve-3d;
+  transition: transform 0.25s ease-out;
+  will-change: transform;
+}
+
+/* ---- Pause everything when the element leaves the viewport ---- */
+.cosmetic-paused *,
+.cosmetic-paused {
+  animation-play-state: paused !important;
+}
+
+/* ---- Accessibility: honor OS-level reduced-motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  .cosmetic-ring-rotate,
+  .cosmetic-orbit-particle,
+  .cosmetic-glow-pulse,
+  .cosmetic-gradient-border,
+  .cosmetic-shimmer,
+  .cosmetic-burst-particle,
+  .cosmetic-bounce,
+  .cosmetic-tilt-3d {
+    animation: none !important;
+    transition: none !important;
+  }
+  .cosmetic-tilt-3d {
+    transform: none !important;
+  }
+}

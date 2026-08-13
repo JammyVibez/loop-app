@@ -40,6 +40,7 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
+import { ProfileBanner3D } from "@/components/profile/profile-banner-3d"
 import { cosmeticsFromInventory, fontStyle, type ActiveCosmetics } from "@/lib/cosmetics"
 import { isShopThemePayload } from "@/lib/theme-css"
 import { xpForNextLevel } from "@/lib/xp"
@@ -372,13 +373,12 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         </div>
       </div>
 
-      {/* Banner */}
-      <div className="relative z-0 h-32 bg-gradient-to-r from-slate-700 via-slate-600 to-slate-800 sm:h-48">
-        {profile.banner_url ? (
-          <img src={profile.banner_url} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div className="h-full w-full bg-[radial-gradient(circle_at_20%_30%,rgba(56,189,248,0.35),transparent_45%),radial-gradient(circle_at_80%_10%,rgba(139,92,246,0.35),transparent_40%)]" />
-        )}
+      {/* Banner — 3D parallax/tilt reserved for Pro & sponsor profiles */}
+      <ProfileBanner3D
+        src={profile.banner_url}
+        enabled={Boolean(profile.is_premium || profile.is_sponsor)}
+        className="h-32 sm:h-48"
+      >
         {isOwnProfile && (
           <>
             <input
@@ -405,7 +405,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             </p>
           </>
         )}
-      </div>
+      </ProfileBanner3D>
 
       {/* Avatar + actions — stack on mobile; empty overlap must not block cover button */}
       <div className="relative z-10 px-3 pb-3 sm:px-4">

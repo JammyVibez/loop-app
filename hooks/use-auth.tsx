@@ -22,6 +22,10 @@ interface User {
   is_team_member?: boolean
   is_sponsor?: boolean
   is_admin: boolean
+  is_organization?: boolean
+  organization_name?: string
+  organization_badge_url?: string
+  organization_config?: Record<string, any>
   theme_data?: any
   theme_preferences?: any
   interests?: string[]
@@ -95,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       premium_expires_at: undefined,
       is_verified: false,
       is_admin: false,
+      is_organization: false,
       theme_data: undefined,
       interests: [],
       onboarding_completed: previous?.onboarding_completed ?? false,
@@ -134,6 +139,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       premium_expires_at: profileData.premium_expires_at ?? previous?.premium_expires_at,
       is_verified: profileData.is_verified ?? previous?.is_verified ?? false,
       is_admin: profileData.is_admin ?? previous?.is_admin ?? false,
+      is_organization: Boolean(profileData.is_organization ?? previous?.is_organization ?? false),
+      organization_name: profileData.organization_name ?? previous?.organization_name,
+      organization_badge_url: profileData.organization_badge_url ?? previous?.organization_badge_url,
+      organization_config: profileData.organization_config ?? previous?.organization_config,
       theme_data: profileData.theme_data ?? previous?.theme_data,
       theme_preferences: profileData.theme_preferences ?? previous?.theme_preferences,
       interests: profileData.interests ?? previous?.interests ?? [],
@@ -370,6 +379,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nextPremium = Boolean(profile.is_premium ?? prev.is_premium)
       const nextVerified = Boolean(profile.is_verified ?? prev.is_verified)
       const nextAdmin = Boolean(profile.is_admin ?? prev.is_admin)
+      const nextOrg = Boolean(profile.is_organization ?? prev.is_organization)
       const nextThemePrefs = (profile.theme_preferences as any) ?? prev.theme_preferences
       const nextLocation = (profile.location as string | undefined) ?? prev.location
       const nextWebsite = (profile.website as string | undefined) ?? prev.website
@@ -408,6 +418,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         is_premium: nextPremium,
         is_verified: nextVerified,
         is_admin: nextAdmin,
+        is_organization: nextOrg,
+        organization_name: (profile.organization_name as string | undefined) ?? prev.organization_name,
+        organization_badge_url: (profile.organization_badge_url as string | undefined) ?? prev.organization_badge_url,
         theme_preferences: nextThemePrefs,
         location: nextLocation,
         website: nextWebsite,

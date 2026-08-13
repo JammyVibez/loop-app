@@ -32,6 +32,7 @@ import { Card, CardContent, CardHeader } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar";
+import { AnimatedCardFrame } from "@/components/cosmetics/animated-card-frame";
 import { cardEffectStyle, fontStyle, type ActiveCosmetics } from "@/lib/cosmetics";
 import {
   DropdownMenu,
@@ -800,13 +801,18 @@ export function LoopCard({
   return (
     <>
       {LoginGateDialog}
-      <Card
-        ref={cardRef}
-        className={getCardStyle()}
-        style={cardEffectStyle((loop.author.cosmetics || loop.author.active_cosmetics)?.cardEffect)}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+      <AnimatedCardFrame
+        effect={(loop.author.cosmetics || loop.author.active_cosmetics)?.cardEffect}
+        rounded="rounded-2xl"
+        className="h-full"
       >
+        <Card
+          ref={cardRef}
+          className={getCardStyle()}
+          style={cardEffectStyle((loop.author.cosmetics || loop.author.active_cosmetics)?.cardEffect)}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
         {loop.is_featured && (
           <div className="absolute top-2 right-2 z-10">
             <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white">
@@ -1345,7 +1351,8 @@ export function LoopCard({
             </div>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      </AnimatedCardFrame>
 
       <GiftModal
         open={showGiftModal}

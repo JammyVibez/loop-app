@@ -25,7 +25,6 @@ export const GUEST_PUBLIC_PREFIXES = [
   "/games",
   "/help",
   "/verification",
-  "/recommendations",
   "/co-loop/join",
 ] as const
 
@@ -40,6 +39,7 @@ export const AUTH_REQUIRED_PREFIXES = [
   "/create",
   "/onboarding",
   "/admin",
+  "/organization",
   "/bookmarks",
   "/premium",
   "/streams",

@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     const { count: activeUsersToday } = await supabase
       .from('profiles')
       .select('*', { count: 'exact', head: true })
-      .gte('last_login', today)
+      .gte('last_active', today)
 
     // Premium users
     const { count: premiumUsers } = await supabase

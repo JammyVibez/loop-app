@@ -16,14 +16,33 @@ export async function GET(
     const { id } = await params
     const supabase = createServerClient()
 
-    const { data: event, error } = await supabase
+    let { data: event, error } = await supabase
       .from("events")
       .select("*")
       .eq("id", id)
       .single()
 
     if (error || !event) {
-      return NextResponse.json({ error: "Event not found" }, { status: 404 })
+      // Official platform-wide events live in global_events
+      const { data: globalEvent, error: globalError } = await supabase
+        .from("global_events")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle()
+
+      if (globalError || !globalEvent) {
+        return NextResponse.json({ error: "Event not found" }, { status: 404 })
+      }
+
+      event = {
+        ...globalEvent,
+        host_id: null,
+        host_name: "Loop Official",
+        host_avatar: "",
+        start_time: globalEvent.starts_at || globalEvent.start_time,
+        cover_image: globalEvent.banner_url || globalEvent.cover_image,
+        participants_count: globalEvent.rsvp_count || 0,
+      }
     }
 
     const { data: participants } = await supabase
@@ -31,10 +50,17 @@ export async function GET(
       .select("*")
       .eq("event_id", id)
 
+    const { data: rsvps } = await supabase
+      .from("event_rsvps")
+      .select("user_id")
+      .eq("event_id", id)
+
     return NextResponse.json({
       success: true,
       event,
-      participants: participants || []
+      participants: participants || [],
+      rsvp_count: (rsvps || []).length,
+      rsvps: rsvps || [],
     })
   } catch (error: any) {
     console.error("GET /api/events/[id] error:", error)

@@ -43,6 +43,28 @@ const FONT_PRESETS = [
   { id: "pacifico", label: "Pacifico (script)" },
 ]
 
+const FRAME_VARIANTS = [
+  { id: "none", label: "Static (no animation)" },
+  { id: "ring_rotate", label: "Rotating gradient ring" },
+  { id: "orbit_particles", label: "Orbiting sparkles" },
+  { id: "pulse_glow", label: "Pulsing glow" },
+  { id: "tilt_3d", label: "3D tilt on hover" },
+]
+
+const CARD_VARIANTS = [
+  { id: "none", label: "Static border" },
+  { id: "gradient_border", label: "Animated gradient border" },
+  { id: "shimmer", label: "Periodic shimmer pass" },
+  { id: "pulse_edge", label: "Pulsing glow edge" },
+]
+
+const PFP_INTERACTIONS = [
+  { id: "none", label: "None" },
+  { id: "burst", label: "Particle burst" },
+  { id: "bounce", label: "Bounce pop" },
+  { id: "pulse", label: "Glow pulse" },
+]
+
 const CATEGORY_LABELS: Record<string, string> = {
   theme: "Theme",
   effect: "Effect",
@@ -65,6 +87,9 @@ export function AdminCatalogPanel() {
     price_coins: "100",
     preset: "aurora",
     font_preset: "inter",
+    frame_variant: "none",
+    card_variant: "none",
+    pfp_interaction: "none",
     premium_only: false,
   })
 
@@ -104,6 +129,9 @@ export function AdminCatalogPanel() {
           price_coins: Number(form.price_coins) || 0,
           preset: form.preset,
           font_preset: form.font_preset,
+          frame_variant: form.frame_variant,
+          card_variant: form.card_variant,
+          pfp_interaction: form.pfp_interaction,
           premium_only: form.premium_only,
         }),
       })
@@ -212,6 +240,57 @@ export function AdminCatalogPanel() {
                   {PRESETS.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {["animation", "effect"].includes(form.category) && (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cat-frame">Avatar frame animation</Label>
+                  <select
+                    id="cat-frame"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={form.frame_variant}
+                    onChange={(e) => setForm((p) => ({ ...p, frame_variant: e.target.value }))}
+                  >
+                    {FRAME_VARIANTS.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cat-pfp">PFP tap/hover effect</Label>
+                  <select
+                    id="cat-pfp"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={form.pfp_interaction}
+                    onChange={(e) => setForm((p) => ({ ...p, pfp_interaction: e.target.value }))}
+                  >
+                    {PFP_INTERACTIONS.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+            {form.category === "card_effect" && (
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="cat-card">Post card animation</Label>
+                <select
+                  id="cat-card"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={form.card_variant}
+                  onChange={(e) => setForm((p) => ({ ...p, card_variant: e.target.value }))}
+                >
+                  {CARD_VARIANTS.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.label}
                     </option>
                   ))}
                 </select>

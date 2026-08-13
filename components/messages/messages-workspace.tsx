@@ -30,6 +30,7 @@ import {
   Lock,
   Mic,
   MicOff,
+  MoreHorizontal,
   Paperclip,
   Reply,
   Search,
@@ -38,6 +39,12 @@ import {
   Sparkles,
   X,
 } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   subscribeToPush,
   subscriptionToJSON,
@@ -942,7 +949,7 @@ export function MessagesWorkspace() {
         <Button
           variant="ghost"
           size="icon"
-          className={pushEnabled ? "text-emerald-500" : "text-muted-foreground hover:text-foreground"}
+          className={cn(pushEnabled ? "text-emerald-500" : "text-muted-foreground hover:text-foreground", "hidden sm:inline-flex")}
           title={pushEnabled ? "Notifications on — tap to mute this device" : "Turn on notifications for this chat"}
           onClick={() => void togglePush()}
           disabled={pushToggling}
@@ -959,7 +966,7 @@ export function MessagesWorkspace() {
           <Search className="h-4 w-4" />
         </Button>
         {selected.other_user?.username && (
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" title="View profile" asChild>
+          <Button variant="ghost" size="icon" className="hidden text-muted-foreground hover:text-foreground sm:inline-flex" title="View profile" asChild>
             <Link href={`/profile/${selected.other_user.username}`}>
               <ExternalLink className="h-4 w-4" />
             </Link>
@@ -975,10 +982,39 @@ export function MessagesWorkspace() {
           <GitBranch className="h-4 w-4" />
         </Button>
         {selected.other_user?.id && (
-          <Button variant="ghost" size="icon" className="text-pink-500 dark:text-pink-300" onClick={() => setShowGift(true)}>
+          <Button variant="ghost" size="icon" className="hidden text-pink-500 dark:text-pink-300 sm:inline-flex" onClick={() => setShowGift(true)}>
             <Gift className="h-4 w-4" />
           </Button>
         )}
+
+        {/* Mobile-only overflow menu so the header never overflows on phones */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground sm:hidden" title="More options">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => void togglePush()} disabled={pushToggling}>
+              {pushEnabled ? <Bell className="h-4 w-4 mr-2 text-emerald-500" /> : <BellOff className="h-4 w-4 mr-2" />}
+              {pushEnabled ? "Notifications on" : "Turn on notifications"}
+            </DropdownMenuItem>
+            {selected.other_user?.username && (
+              <DropdownMenuItem asChild>
+                <Link href={`/profile/${selected.other_user.username}`}>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  View profile
+                </Link>
+              </DropdownMenuItem>
+            )}
+            {selected.other_user?.id && (
+              <DropdownMenuItem onClick={() => setShowGift(true)}>
+                <Gift className="h-4 w-4 mr-2 text-pink-500" />
+                Send gift
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {showChatSearch && (

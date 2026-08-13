@@ -27,6 +27,60 @@ export type ActiveCosmetics = {
   cardEffect?: CosmeticItem | null
 }
 
+export type AvatarFrameVariant = "none" | "ring_rotate" | "orbit_particles" | "pulse_glow" | "tilt_3d"
+export type CardEffectVariant = "none" | "gradient_border" | "shimmer" | "pulse_edge"
+export type PfpInteractionVariant = "none" | "burst" | "bounce" | "pulse"
+
+export type CosmeticVariants = {
+  frame?: AvatarFrameVariant
+  card?: CardEffectVariant
+  pfp?: PfpInteractionVariant
+}
+
+/**
+ * Resolve the animated variant a cosmetic declares in its item_data.
+ * Admin-created catalog items just set e.g. `frame_variant: "ring_rotate"`
+ * in item_data — no redeploy needed for new variants.
+ */
+export function cosmeticVariants(item?: CosmeticItem | null): CosmeticVariants {
+  const data = item?.item_data || {}
+  const frame: AvatarFrameVariant =
+    data.frame_variant === "ring_rotate" ||
+    data.frame_variant === "orbit_particles" ||
+    data.frame_variant === "pulse_glow" ||
+    data.frame_variant === "tilt_3d"
+      ? data.frame_variant
+      : "none"
+  const card: CardEffectVariant =
+    data.card_variant === "gradient_border" ||
+    data.card_variant === "shimmer" ||
+    data.card_variant === "pulse_edge"
+      ? data.card_variant
+      : "none"
+  const pfp: PfpInteractionVariant =
+    data.pfp_interaction === "burst" ||
+    data.pfp_interaction === "bounce" ||
+    data.pfp_interaction === "pulse"
+      ? data.pfp_interaction
+      : "none"
+  return { frame, card, pfp }
+}
+
+/** Gradient pair derived from a cosmetic's color config. */
+export function cosmeticGradient(item?: CosmeticItem | null, fallback = "#8b5cf6"): string {
+  const data = item?.item_data || {}
+  const c = data.colors || {}
+  const primary = c.primary || item?.color || data.color || data.glow_color || fallback
+  const secondary = c.secondary || data.secondary_color || primary
+  return `linear-gradient(135deg, ${primary}, ${secondary})`
+}
+
+/** True when the OS requests reduced motion. */
+export function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined") return false
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false
+}
+
 function shopFromRow(row: any) {
   return Array.isArray(row?.shop_item) ? row.shop_item[0] : row?.shop_item || row
 }

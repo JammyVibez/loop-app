@@ -8,9 +8,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const supabase = createServerClient()
-    const { data: profile } = await supabase.from("profiles").select("role, is_admin").eq("id", user.id).single()
+    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).single()
 
-    if (profile?.role !== "admin" && !profile?.is_admin) {
+    if (!profile?.is_admin) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 })
     }
 
@@ -44,9 +44,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const supabase = createServerClient()
-    const { data: profile } = await supabase.from("profiles").select("role, is_admin").eq("id", user.id).single()
+    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).single()
 
-    if (profile?.role !== "admin" && !profile?.is_admin) {
+    if (!profile?.is_admin) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 })
     }
 
