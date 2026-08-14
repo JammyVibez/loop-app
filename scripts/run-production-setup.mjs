@@ -37,6 +37,9 @@ const files = [
   // Developer Hub v2 — realtime for projects/comments/snippets, RLS deletes,
   // and project -> Marketplace listing link.
   "scripts/developer-hub-v2.sql",
+  // project_collaborators — RLS policies, realtime, owner backfill + auto-add
+  // trigger (see /api/developers/projects/[id]/collaborators).
+  "scripts/dev-collaborators-schema.sql",
   "scripts/rls-policies.sql",
   "scripts/realtime-functions.sql",
 ]

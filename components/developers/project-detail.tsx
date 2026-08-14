@@ -16,16 +16,22 @@ import { cn } from "@/lib/utils"
 import {
   Bot,
   Coins,
+  Crown,
   Download,
   FileText,
   Loader2,
+  LogOut,
   MessageCircle,
   Palette,
   Rocket,
   Send,
+  Shield,
   ShoppingBag,
   Trash2,
+  UserPlus,
+  Users,
   Wand2,
+  Wrench,
 } from "lucide-react"
 import { CodeLoopCard } from "@/components/developers/code-loop-card"
 
@@ -156,6 +162,152 @@ export function ProjectDetail({ project }: { project: any }) {
 
   const canDeleteComment = (comment: ProjectComment) =>
     Boolean(user) && (comment.user_id === user?.id || isOwner)
+
+  // ---- Collaborators ----
+  interface Collaborator {
+    id: string
+    user_id: string
+    role: "owner" | "maintainer" | "contributor"
+    joined_at: string
+    user?: {
+      id: string
+      username: string
+      display_name: string
+      avatar_url?: string | null
+      is_verified?: boolean
+    }
+  }
+
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([])
+  const [collaboratorsLoading, setCollaboratorsLoading] = useState(true)
+  const [inviteUsername, setInviteUsername] = useState("")
+  const [inviteRole, setInviteRole] = useState<"maintainer" | "contributor">("contributor")
+  const [inviting, setInviting] = useState(false)
+  const [collabBusyId, setCollabBusyId] = useState<string | null>(null)
+
+  const fetchCollaborators = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/developers/projects/${projectId}/collaborators`, { cache: "no-store" })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to load collaborators")
+      setCollaborators(data.collaborators || [])
+    } catch (err: any) {
+      console.error("Load collaborators failed:", err)
+    } finally {
+      setCollaboratorsLoading(false)
+    }
+  }, [projectId])
+
+  useEffect(() => {
+    void fetchCollaborators()
+  }, [fetchCollaborators])
+
+  // Realtime collaborator updates
+  useEffect(() => {
+    const channel = supabase.channel(`dev-project-collaborators:${projectId}`)
+    channel
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "project_collaborators",
+          filter: `project_id=eq.${projectId}`,
+        },
+        () => void fetchCollaborators(),
+      )
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [projectId, fetchCollaborators])
+
+  const currentCollab = collaborators.find((c) => c.user_id === user?.id)
+  const canManageCollabs = isOwner || Boolean(currentCollab && currentCollab.role !== "contributor")
+
+  const inviteCollaborator = async () => {
+    if (!requireAuth("post")) return
+    const username = inviteUsername.trim()
+    if (!username) return
+    setInviting(true)
+    try {
+      const res = await fetch(`/api/developers/projects/${projectId}/collaborators`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ username, role: inviteRole }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to add collaborator")
+      setInviteUsername("")
+      toast({ title: `@${data.collaborator?.user?.username || username} added as ${inviteRole}` })
+      await fetchCollaborators()
+    } catch (err: any) {
+      toast({ title: "Couldn't add collaborator", description: err.message, variant: "destructive" })
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  const changeRole = async (collab: Collaborator, role: Collaborator["role"]) => {
+    setCollabBusyId(collab.user_id)
+    try {
+      const res = await fetch(`/api/developers/projects/${projectId}/collaborators/${collab.user_id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ role }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to update role")
+      setCollaborators((prev) =>
+        prev.map((c) => (c.user_id === collab.user_id ? { ...c, role: data.collaborator.role } : c)),
+      )
+      toast({ title: `Role updated to ${role}` })
+    } catch (err: any) {
+      toast({ title: "Role update failed", description: err.message, variant: "destructive" })
+    } finally {
+      setCollabBusyId(null)
+    }
+  }
+
+  const removeCollaborator = async (collab: Collaborator) => {
+    const leavingSelf = collab.user_id === user?.id
+    if (
+      !window.confirm(
+        leavingSelf ? "Leave this project?" : `Remove @${collab.user?.username || "this user"} from the project?`,
+      )
+    ) {
+      return
+    }
+    setCollabBusyId(collab.user_id)
+    try {
+      const res = await fetch(`/api/developers/projects/${projectId}/collaborators/${collab.user_id}`, {
+        method: "DELETE",
+        headers: getAuthHeader(),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to remove collaborator")
+      setCollaborators((prev) => prev.filter((c) => c.user_id !== collab.user_id))
+      toast({ title: leavingSelf ? "You left the project" : `Removed @${collab.user?.username || "user"}` })
+    } catch (err: any) {
+      toast({ title: "Remove failed", description: err.message, variant: "destructive" })
+    } finally {
+      setCollabBusyId(null)
+    }
+  }
+
+  const ROLE_META = {
+    owner: { label: "Owner", icon: Crown, classes: "text-amber-500 bg-amber-500/10 border-amber-500/30" },
+    maintainer: {
+      label: "Maintainer",
+      icon: Shield,
+      classes: "text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/30",
+    },
+    contributor: {
+      label: "Contributor",
+      icon: Wrench,
+      classes: "text-indigo-500 bg-indigo-500/10 border-indigo-500/30",
+    },
+  } as const
 
   // ---- Marketplace publish ----
   const [publishOpen, setPublishOpen] = useState(false)
@@ -338,6 +490,156 @@ export function ProjectDetail({ project }: { project: any }) {
               <p className="text-sm text-muted-foreground">
                 Only the project author can publish this. Star or fork it to show some love.
               </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Collaborators */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Users className="h-5 w-5 text-emerald-500" />
+              Collaborators
+              <span className="text-sm font-normal text-muted-foreground">
+                {collaboratorsLoading ? "" : `· ${collaborators.length}`}
+              </span>
+            </CardTitle>
+            <CardDescription>
+              Everyone building on this project. Maintainers can invite people and manage roles.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {collaboratorsLoading ? (
+              <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading collaborators…
+              </div>
+            ) : collaborators.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                No collaborators yet — invite your first teammate.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {collaborators.map((collab) => {
+                  const member = collab.user || { id: "", username: "user", display_name: "User", avatar_url: null }
+                  const roleMeta = ROLE_META[collab.role] || ROLE_META.contributor
+                  const RoleIcon = roleMeta.icon
+                  const isSelf = collab.user_id === user?.id
+                  const isOwnerRow = collab.role === "owner"
+                  return (
+                    <div
+                      key={collab.user_id}
+                      className="flex flex-col gap-2 rounded-xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <Avatar className="h-9 w-9 shrink-0">
+                          <AvatarImage src={member.avatar_url ?? undefined} />
+                          <AvatarFallback>{(member.display_name || member.username || "U").charAt(0).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-sm font-semibold">
+                              {member.display_name || member.username}
+                            </span>
+                            {isSelf && (
+                              <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                you
+                              </span>
+                            )}
+                          </div>
+                          <p className="truncate text-xs text-muted-foreground">@{member.username}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-2">
+                        <Badge className={`rounded-full border ${roleMeta.classes}`}>
+                          <RoleIcon className="mr-1 h-3 w-3" />
+                          {roleMeta.label}
+                        </Badge>
+
+                        {canManageCollabs && !isOwnerRow && (
+                          <>
+                            <select
+                              value={collab.role}
+                              onChange={(e) => void changeRole(collab, e.target.value as Collaborator["role"])}
+                              disabled={collabBusyId === collab.user_id}
+                              className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                              title="Change role"
+                            >
+                              <option value="maintainer">Maintainer</option>
+                              <option value="contributor">Contributor</option>
+                            </select>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => void removeCollaborator(collab)}
+                              disabled={collabBusyId === collab.user_id}
+                              title={`Remove ${member.display_name || member.username}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+
+                        {!canManageCollabs && isSelf && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1.5 rounded-full text-xs"
+                            onClick={() => void removeCollaborator(collab)}
+                            disabled={collabBusyId === collab.user_id}
+                          >
+                            <LogOut className="h-3.5 w-3.5" />
+                            Leave
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {canManageCollabs && (
+              <div className="flex flex-col gap-2 border-t border-border/60 pt-4 sm:flex-row sm:items-end">
+                <div className="flex-1 space-y-1.5">
+                  <Label htmlFor="collab-username" className="text-xs text-muted-foreground">
+                    Invite by username
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="collab-username"
+                      placeholder="@username"
+                      value={inviteUsername}
+                      onChange={(e) => setInviteUsername(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          void inviteCollaborator()
+                        }
+                      }}
+                      className="flex-1 rounded-xl"
+                    />
+                    <select
+                      value={inviteRole}
+                      onChange={(e) => setInviteRole(e.target.value as "maintainer" | "contributor")}
+                      className="h-10 rounded-xl border border-border bg-background px-2 text-xs"
+                      title="Role"
+                    >
+                      <option value="contributor">Contributor</option>
+                      <option value="maintainer">Maintainer</option>
+                    </select>
+                    <Button
+                      onClick={() => void inviteCollaborator()}
+                      disabled={inviting || !inviteUsername.trim()}
+                      className="h-10 shrink-0 gap-1.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500"
+                    >
+                      {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                      <span className="hidden sm:inline">Add</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
