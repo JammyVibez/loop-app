@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coins, Palette, Sparkles, Zap, Crown, Star, Loader2 } from "lucide-react";
+import { Coins, Palette, Sparkles, Zap, Crown, Star, Loader2, Eye } from "lucide-react";
 import { LoopCoinsBalance } from "@/components/shop/loop-coins-balance";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { ShopItemMiniPreview, ShopItemPreviewDialog, type ShopPreviewItem } from "@/components/shop/shop-item-preview";
 
 interface ShopItem {
   id: string
@@ -49,6 +50,7 @@ export function ShopContent() {
   const [purchasedItems, setPurchasedItems] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState<string | null>(null)
+  const [previewItem, setPreviewItem] = useState<ShopPreviewItem | null>(null)
   const { toast } = useToast()
   const { user, getAuthHeader, refreshUser } = useAuth()
 
@@ -115,7 +117,7 @@ export function ShopContent() {
     }
   }
 
-  const handlePurchase = async (item: ShopItem) => {
+  const handlePurchase = async (item: ShopItem | ShopPreviewItem) => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -231,18 +233,18 @@ export function ShopContent() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Preview */}
-        <div
-          className="h-20 rounded-lg flex items-center justify-center text-4xl border"
-          style={{
-            background: item.preview_data?.preview?.startsWith("linear-gradient")
-              ? item.preview_data.preview
-              : "#f3f4f6",
-          }}
-        >
-          {item.preview_data?.preview && !item.preview_data.preview.startsWith("linear-gradient")
-            ? item.preview_data.preview
-            : "🎨"}
+        {/* Live preview — the actual effect running, not a static emoji */}
+        <div className="relative h-24 overflow-hidden rounded-xl border border-border bg-muted/40">
+          <ShopItemMiniPreview item={item} className="h-full" />
+          <button
+            type="button"
+            onClick={() => setPreviewItem(item)}
+            className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/40 via-transparent to-transparent pb-1 text-[10px] font-semibold text-white opacity-0 transition hover:opacity-100"
+          >
+            <span className="flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 backdrop-blur-sm">
+              <Eye className="h-3 w-3" /> Preview
+            </span>
+          </button>
         </div>
 
         <p className="text-sm text-gray-600 dark:text-gray-400">{item.description}</p>
@@ -263,6 +265,15 @@ export function ShopContent() {
             )}
           </div>
 
+          <Button
+            variant="outline"
+            onClick={() => setPreviewItem(item)}
+            className="mr-2 rounded-full"
+            title="See a live preview before buying"
+          >
+            <Eye className="mr-1.5 h-4 w-4" />
+            Preview
+          </Button>
           <Button
             onClick={() => handlePurchase(item)}
             disabled={purchasedItems.has(item.id) || purchasing === item.id}
@@ -309,6 +320,13 @@ export function ShopContent() {
 
   return (
     <div className="space-y-6">
+      <ShopItemPreviewDialog
+        item={previewItem}
+        open={Boolean(previewItem)}
+        onOpenChange={(open) => { if (!open) setPreviewItem(null) }}
+        owned={previewItem ? purchasedItems.has(previewItem.id) : false}
+        onPurchase={(item) => { setPreviewItem(null); void handlePurchase(item) }}
+      />
       {/* Coins Balance */}
       <div className="flex justify-center">
         <LoopCoinsBalance showDetails={true} />

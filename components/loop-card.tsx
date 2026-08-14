@@ -831,6 +831,25 @@ export function LoopCard({
         )}
 
         <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6">
+          {loop.parent_loop_id && loop.parent_loop && (
+            <Link
+              href={`/loop/${loop.parent_loop.id}`}
+              className="mb-2 flex items-center gap-2 rounded-lg border border-border/80 bg-muted/40 px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-foreground"
+              title={`View the original loop this was branched from`}
+            >
+              <GitBranch className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+              <span className="truncate">
+                Branch from{" "}
+                <span className="font-semibold text-foreground">
+                  @{loop.parent_loop.author?.username || loop.parent_loop.author?.display_name || "original"}
+                </span>
+                {loop.parent_loop.content ? (
+                  <span className="text-muted-foreground">: “{loop.parent_loop.content.slice(0, 64)}{loop.parent_loop.content.length > 64 ? "…" : ""}”</span>
+                ) : null}
+              </span>
+              <span className="ml-auto shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 font-semibold text-emerald-500">View original</span>
+            </Link>
+          )}
           {isCoLoop && (
             <div className="mb-2 flex items-center justify-between">
               <Badge className="bg-gradient-to-r from-cyan-500 via-teal-500 to-indigo-600 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-md shadow-cyan-500/20 border border-cyan-400/40 flex items-center gap-1">

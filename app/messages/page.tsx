@@ -12,9 +12,9 @@ function MessagesShell() {
 
   return (
     <div
-      className={`flex h-app-dvh flex-col overflow-hidden bg-background text-foreground ${
+      className={`fixed inset-0 z-40 flex h-app-dvh flex-col overflow-hidden overscroll-none bg-background text-foreground ${
         inChat ? "pb-0" : "pb-[calc(4.25rem+env(safe-area-inset-bottom))]"
-      } lg:pb-0`}
+      } lg:static lg:inset-auto lg:pb-0`}
     >
       <div className={inChat ? "hidden" : "hidden lg:block"}>
         <Header />

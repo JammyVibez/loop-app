@@ -10,6 +10,17 @@ export type NormalizedLoop = {
   created_at: string
   updated_at?: string
   parent_loop_id?: string | null
+  /** The loop this post was branched from (joined by the feed APIs). */
+  parent_loop?: {
+    id: string
+    content?: string | null
+    author?: {
+      id?: string
+      username?: string
+      display_name?: string
+      avatar_url?: string
+    } | null
+  } | null
   author: {
     id: string
     username: string
@@ -101,6 +112,21 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
     created_at: row?.created_at || new Date().toISOString(),
     updated_at: row?.updated_at || row?.created_at,
     parent_loop_id: row?.parent_loop_id ?? null,
+    parent_loop: (() => {
+      const parent = first(row?.parent_loop) || first(row?.parent) || null
+      if (!parent || typeof parent !== "object") return null
+      const parentAuthor = first(parent.author) || first(parent.profiles) || {}
+      return {
+        id: parent?.id || row?.parent_loop_id || "",
+        content: parent?.content_text ?? parent?.content ?? parent?.text ?? null,
+        author: {
+          id: parentAuthor?.id || parent?.author_id || "",
+          username: parentAuthor?.username || "unknown",
+          display_name: parentAuthor?.display_name || parentAuthor?.username || "someone",
+          avatar_url: parentAuthor?.avatar_url || undefined,
+        },
+      }
+    })(),
     author: {
       id: author?.id || row?.author_id || "",
       username: author?.username || "unknown",

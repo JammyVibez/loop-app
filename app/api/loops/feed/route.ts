@@ -180,9 +180,9 @@ export async function GET(request: NextRequest) {
         .select(`
           *,
           author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, level),
+          parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url)),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
-        .is("parent_loop_id", null)
         .or("visibility.eq.public,visibility.is.null")
         .gt("created_at", sinceDate.toISOString())
         .order("created_at", { ascending: false })
@@ -210,9 +210,9 @@ export async function GET(request: NextRequest) {
           .select(`
             *,
             author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+            parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url)),
             loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
           `)
-          .is("parent_loop_id", null)
           .eq("visibility", "public")
           .gt("created_at", sinceDate.toISOString())
           .order("created_at", { ascending: false })
@@ -296,9 +296,9 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, is_organization, organization_badge_url, organization_name, level),
+        parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url)),
         loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
-      .is("parent_loop_id", null)
       .eq("visibility", "public")
       .order("created_at", { ascending: false })
       .range(0, fetchLimit - 1)
@@ -315,9 +315,9 @@ export async function GET(request: NextRequest) {
         .select(`
           *,
           author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+          parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url)),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
-        .is("parent_loop_id", null)
         .eq("visibility", "public")
         .order("created_at", { ascending: false })
         .range(0, fetchLimit - 1)
@@ -345,10 +345,10 @@ export async function GET(request: NextRequest) {
         .select(`
           *,
           author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, level),
+          parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url)),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .eq("author_id", user.id)
-        .is("parent_loop_id", null)
         .order("created_at", { ascending: false })
         .limit(12)
 

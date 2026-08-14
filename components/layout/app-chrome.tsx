@@ -19,7 +19,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   return (
     <>
       <div className={`flex-1 min-w-0 ${isMessagesPage ? "pb-0" : "pb-20 lg:pb-0"}`}>
-        <AppUpdateBanner />
+        {!isMessagesPage && <AppUpdateBanner />}
         {children}
       </div>
       {!isMessagesPage && <MobileBottomNav />}

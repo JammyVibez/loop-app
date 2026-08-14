@@ -29,6 +29,9 @@ export const generateViewport = (): Viewport => ({
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  // Shrink the layout viewport when the mobile keyboard opens so the chat
+  // composer stays visible above the keyboard instead of being clipped.
+  interactiveWidget: "resizes-content",
 })
 
 const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://loop-app.com").replace(/\/$/, "")
