@@ -219,7 +219,10 @@ export async function POST(request: NextRequest) {
         content_type,
         content_url,
         thumbnail_url,
-        duration: duration || null,
+        // duration is an integer column — Cloudinary reports seconds as a
+        // float (e.g. 12.446145), which Postgres rejects as "invalid input
+        // syntax for type integer". Round to whole seconds.
+        duration: duration != null && Number.isFinite(Number(duration)) ? Math.round(Number(duration)) : null,
         hashtags: hashtags || [],
         music_id: music_id || null,
         effects: effects || null,

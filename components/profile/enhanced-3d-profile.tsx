@@ -349,7 +349,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const xpProgress = Math.min(100, Math.round(((xp - prevXp) / Math.max(1, nextXp - prevXp)) * 100))
 
   return (
-    <div className="mx-auto w-full max-w-2xl border-border/70 bg-background min-h-screen sm:border-x">
+    <div className="mx-auto w-full max-w-6xl bg-background min-h-screen">
       {/* Sticky top bar — sit below site Header (h-16) so content doesn't bleed through */}
       <div className="sticky top-16 z-30 flex items-center gap-3 border-b border-border bg-background px-3 py-2 sm:gap-4">
         <Link href="/" className="rounded-full p-2 hover:bg-muted">
@@ -373,11 +373,12 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         </div>
       </div>
 
+      <div className="lg:px-4 lg:pt-4">
       {/* Banner — 3D parallax/tilt reserved for Pro & sponsor profiles */}
       <ProfileBanner3D
         src={profile.banner_url}
         enabled={Boolean(profile.is_premium || profile.is_sponsor)}
-        className="h-32 sm:h-48"
+        className="h-36 sm:h-56 lg:h-64 lg:rounded-2xl"
       >
         {isOwnProfile && (
           <>
@@ -407,8 +408,11 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         )}
       </ProfileBanner3D>
 
+      {/* Desktop: two-column layout — sticky info sidebar + content column. Mobile stays stacked. */}
+      <div className="lg:grid lg:grid-cols-[360px_minmax(0,1fr)] lg:gap-8">
       {/* Avatar + actions — stack on mobile; empty overlap must not block cover button */}
-      <div className="relative z-10 px-3 pb-3 sm:px-4">
+      <div className="relative z-10 px-3 pb-3 sm:px-4 lg:px-0 lg:pb-0">
+        <div className="lg:sticky lg:top-28 lg:pb-8">
         <div className="-mt-10 flex flex-col gap-3 pointer-events-none sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
           <CosmeticAvatar
             src={profile.avatar_url}
@@ -685,9 +689,10 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             </div>
           )}
         </div>
+        </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full lg:pt-4">
         <TabsList className="flex h-auto w-full justify-stretch overflow-x-auto rounded-none border-b border-border/70 bg-transparent p-0">
           {[
             { id: "loops", label: "Loops" },
@@ -821,6 +826,8 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           )}
         </TabsContent>
       </Tabs>
+      </div>
+      </div>
 
       {!isOwnProfile && (
         <GiftModal
