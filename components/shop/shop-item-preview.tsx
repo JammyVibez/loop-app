@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
 import { AnimatedCardFrame } from "@/components/cosmetics/animated-card-frame"
-import { type CosmeticItem, type ActiveCosmetics } from "@/lib/cosmetics"
+import { type CosmeticItem, type ActiveCosmetics, resolveEffectData } from "@/lib/cosmetics"
 import { useTheme3D } from "@/providers/theme-3d-provider"
 import { Coins, Crown, Eye, Palette, Sparkles, Wand2 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -117,7 +117,7 @@ export function buildCosmeticFromItem(item: ShopPreviewItem): CosmeticItem | nul
   const colors = legacy.colors || previewData.colors || itemData.colors || {}
   const primary = itemData.color || colors.primary || previewData.color || "#8b5cf6"
 
-  return {
+  const cosmetic: CosmeticItem = {
     id: item.id,
     item_id: item.id,
     item_type: item.item_type || item.category,
@@ -134,6 +134,10 @@ export function buildCosmeticFromItem(item: ShopPreviewItem): CosmeticItem | nul
       colors: { ...(legacy.colors || {}), ...(previewData.colors || {}), ...(itemData.colors || {}) },
     },
   }
+  // Legacy effect keys (fire_wings, rainbow_trail, …) → real render variants
+  cosmetic.item_data = resolveEffectData(cosmetic)
+  cosmetic.color = cosmetic.item_data?.colors?.primary || primary
+  return cosmetic
 }
 
 export function buildThemePayload(item: ShopPreviewItem) {

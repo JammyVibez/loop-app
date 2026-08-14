@@ -9,6 +9,8 @@ import {
   cosmeticVariants,
   cosmeticGradient,
   prefersReducedMotion,
+  accessoryFromItem,
+  badgeGlyph,
 } from "@/lib/cosmetics"
 
 type Props = {
@@ -40,6 +42,7 @@ export function CosmeticAvatar({
   const frame = cosmetics?.frame
   const aura = cosmetics?.aura || cosmetics?.effect
   const badge = cosmetics?.badge
+  const accessory = accessoryFromItem(aura || frame || null)
   const variants = cosmeticVariants(frame || aura || null)
 
   const glowColor = aura?.color || frame?.color || "var(--theme-primary, #8b5cf6)"
@@ -212,6 +215,22 @@ export function CosmeticAvatar({
         </Avatar>
       </div>
 
+      {/* Accessory overlay — crown / wizard hat / sunglasses sit on the avatar */}
+      {accessory && (
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute left-1/2 z-[2] -translate-x-1/2 select-none drop-shadow",
+            accessory === "crown" && "-top-[0.35em] text-[1.15em]",
+            accessory === "hat" && "-top-[0.55em] text-[1.25em]",
+            accessory === "glasses" && "top-1/2 -translate-y-1/2 text-[1em]",
+            size === "lg" || size === "xl" ? (accessory === "crown" ? "text-3xl" : accessory === "hat" ? "text-4xl" : "text-2xl") : "",
+          )}
+        >
+          {accessory === "crown" ? "👑" : accessory === "hat" ? "🧙" : "🕶️"}
+        </span>
+      )}
+
       {/* Badge */}
       {badge && (
         <span
@@ -230,7 +249,7 @@ export function CosmeticAvatar({
               className="h-full w-full object-cover"
             />
           ) : (
-            <span>{(badge.name || "★").charAt(0)}</span>
+            <span className="leading-none">{badgeGlyph(badge)}</span>
           )}
         </span>
       )}

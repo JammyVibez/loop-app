@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -65,6 +65,8 @@ interface Conversation {
     username?: string
     display_name?: string
     avatar_url?: string
+    active_cosmetics?: any
+    cosmetics?: any
   } | null
   last_message?: {
     content?: string
@@ -1067,12 +1069,13 @@ export function MessagesWorkspace() {
                 )}
               >
                 <div className="relative shrink-0">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={conversation.other_user?.avatar_url} />
-                    <AvatarFallback className={cn("text-base font-semibold text-white", avatarColor(displayName))}>
-                      {displayName.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <CosmeticAvatar
+                    src={conversation.other_user?.avatar_url}
+                    alt={displayName}
+                    fallback={displayName}
+                    size="md"
+                    cosmetics={conversation.other_user?.active_cosmetics || conversation.other_user?.cosmetics || null}
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
@@ -1113,12 +1116,13 @@ export function MessagesWorkspace() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="relative shrink-0">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={selected.other_user?.avatar_url} />
-            <AvatarFallback className={cn("text-sm font-semibold text-white", avatarColor(selected.other_user?.display_name || selected.name || "U"))}>
-              {(selected.other_user?.display_name || selected.name || "U").charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <CosmeticAvatar
+            src={selected.other_user?.avatar_url}
+            alt={selected.other_user?.display_name || selected.name || "U"}
+            fallback={selected.other_user?.display_name || selected.name || "U"}
+            size="md"
+            cosmetics={selected.other_user?.active_cosmetics || selected.other_user?.cosmetics || null}
+          />
           {peerOnline && (
             <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500" />
           )}

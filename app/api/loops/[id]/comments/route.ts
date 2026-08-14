@@ -37,7 +37,9 @@ export async function GET(
           display_name,
           avatar_url,
           is_verified,
-          is_premium
+          is_premium,
+          active_cosmetics,
+          cosmetics
         )
       `)
       .eq('loop_id', loopId)
@@ -128,7 +130,9 @@ export async function POST(
           display_name,
           avatar_url,
           is_verified,
-          is_premium
+          is_premium,
+          active_cosmetics,
+          cosmetics
         )
       `)
       .single()

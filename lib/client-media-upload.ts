@@ -16,6 +16,8 @@ export type UploadMediaOptions = {
   authHeaders: Record<string, string>
   /** Optional override for the per-type size cap (used for large ZIP uploads). */
   maxSizeBytes?: number
+  /** Skip the serverless proxy and upload straight to Cloudinary (signed). */
+  forceDirect?: boolean
 }
 
 export type UploadMediaResult = {
@@ -52,7 +54,7 @@ export async function uploadMediaFile(
     throw new Error(`File is too large. Maximum size is ${Math.round(maxSize / 1024 / 1024)}MB.`)
   }
 
-  const mustDirect = type === "video" || type === "audio" || file.size > PROXY_SAFE_BYTES
+  const mustDirect = options.forceDirect || type === "video" || type === "audio" || file.size > PROXY_SAFE_BYTES
 
   if (!mustDirect) {
     const formData = new FormData()

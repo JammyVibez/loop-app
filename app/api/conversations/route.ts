@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
         user_id,
         role,
         user:profiles!conversation_participants_user_id_fkey(
-          id, username, display_name, avatar_url, is_verified
+          id, username, display_name, avatar_url, is_verified, active_cosmetics, cosmetics
         )
       `)
       .in("conversation_id", ids)

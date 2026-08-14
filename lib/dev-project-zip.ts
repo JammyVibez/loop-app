@@ -350,8 +350,76 @@ async function uploadEntry(
     folder: "developer-projects",
     authHeaders,
     maxSizeBytes: REPO_FILE_LIMITS.maxFileBytes,
+    forceDirect: true,
   })
   return result.url
+}
+
+interface DirectUploadSign {
+  signature: string
+  apiKey: string
+  timestamp: string
+  cloudName: string
+  folder: string
+  resourceType: string
+}
+
+/**
+ * Signs one Cloudinary upload session that can be reused for the whole batch
+ * of extracted source files. A single signature is valid for any number of
+ * uploads with identical params (same folder + timestamp), so we avoid the
+ * per-file serverless proxy round-trip that made small zips feel slow.
+ */
+async function signDirectUpload(
+  authHeaders: Record<string, string>,
+): Promise<DirectUploadSign | null> {
+  try {
+    const signRes = await fetch("/api/upload/sign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify({ type: "file", folder: "developer-projects" }),
+    })
+    const { data: sign } = await signRes.json().catch(() => ({}))
+    if (!signRes.ok || !sign?.signature || !sign?.cloudName) return null
+    return {
+      signature: String(sign.signature),
+      apiKey: String(sign.apiKey),
+      timestamp: String(sign.timestamp),
+      cloudName: String(sign.cloudName),
+      folder: String(sign.folder),
+      resourceType: String(sign.resourceType || "auto"),
+    }
+  } catch {
+    return null
+  }
+}
+
+async function uploadEntryDirect(
+  entry: RepoFileEntry,
+  sign: DirectUploadSign,
+): Promise<string> {
+  const form = new FormData()
+  form.append("file", makeFile(entry.bytes, entry.name, "text/plain;charset=utf-8"))
+  form.append("api_key", sign.apiKey)
+  form.append("timestamp", sign.timestamp)
+  form.append("signature", sign.signature)
+  form.append("folder", sign.folder)
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${sign.cloudName}/${sign.resourceType}/upload`,
+    { method: "POST", body: form },
+  )
+  const raw = await res.text()
+  let json: any = {}
+  try {
+    json = raw ? JSON.parse(raw) : {}
+  } catch {
+    // ignore parse error
+  }
+  if (!res.ok || !json?.secure_url) {
+    throw new Error(json?.error?.message || `Upload failed (HTTP ${res.status})`)
+  }
+  return json.secure_url as string
 }
 
 async function runWithConcurrency<T>(
@@ -383,9 +451,24 @@ export async function uploadRepoFiles(
   const files: UploadedRepoFile[] = []
   const failed: string[] = []
 
-  await runWithConcurrency(entries, 6, async (entry) => {
+  // Sign ONCE up front, then push every extracted source file straight to
+  // Cloudinary in parallel. Source files are small text blobs, so a single
+  // signed session is enough — no per-file proxy hop through the API route.
+  const sign = await signDirectUpload(authHeaders)
+
+  await runWithConcurrency(entries, 10, async (entry) => {
     try {
-      const url = await uploadEntry(entry, authHeaders)
+      let url: string | null = null
+      if (sign) {
+        try {
+          url = await uploadEntryDirect(entry, sign)
+        } catch {
+          url = null
+        }
+      }
+      if (!url) {
+        url = await uploadEntry(entry, authHeaders)
+      }
       files.push({ path: entry.path, name: entry.name, url, size: entry.size, language: entry.language })
     } catch {
       failed.push(entry.path)

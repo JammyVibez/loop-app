@@ -22,6 +22,8 @@ import { RichContent } from "@/components/content/rich-content"
 import { MediaEmojiPicker } from "@/components/content/media-emoji-picker"
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp"
 import { createClient } from "@/lib/supabase"
+import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
+import type { ActiveCosmetics } from "@/lib/cosmetics"
 
 interface CommentAuthor {
   id: string
@@ -29,6 +31,8 @@ interface CommentAuthor {
   display_name: string
   avatar_url?: string
   is_verified?: boolean
+  active_cosmetics?: ActiveCosmetics | null
+  cosmetics?: ActiveCosmetics | null
 }
 
 interface Comment {
@@ -225,10 +229,13 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
       <div key={comment.id} className={`space-y-3 ${isReply ? "ml-4 sm:ml-6 border-l-2 border-cyan-500/20 pl-3 sm:pl-4" : ""}`}>
         <div className="flex gap-3">
           <Link href={`/profile/${comment.author?.username || ""}`} className="shrink-0">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={comment.author?.avatar_url || "/placeholder.svg"} />
-              <AvatarFallback>{comment.author?.display_name?.charAt(0) || "?"}</AvatarFallback>
-            </Avatar>
+            <CosmeticAvatar
+              src={comment.author?.avatar_url}
+              alt={comment.author?.display_name || ""}
+              fallback={comment.author?.display_name || "?"}
+              size="sm"
+              cosmetics={comment.author?.active_cosmetics || comment.author?.cosmetics || null}
+            />
           </Link>
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-center justify-between gap-2">
