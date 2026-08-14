@@ -26,6 +26,7 @@ type GateReason =
   | "message"
   | "claim"
   | "join"
+  | "submit"
   | "default"
 
 const REASON_COPY: Record<GateReason, { title: string; body: string }> = {
@@ -39,6 +40,7 @@ const REASON_COPY: Record<GateReason, { title: string; body: string }> = {
   message: { title: "Sign in to message", body: "DMs are for members — log in to start chatting." },
   claim: { title: "Sign in to claim", body: "Daily coins and rewards need an account." },
   join: { title: "Sign in to join", body: "Communities and circles are ready after you log in." },
+  submit: { title: "Sign in to submit", body: "Dev Quest entries are tied to your account so bounties land in your wallet." },
   default: { title: "Sign in to continue", body: "Browse freely as a guest — interact after you join." },
 }
 

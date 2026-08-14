@@ -5,9 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Code, Plus, Loader2, Search, BookOpen, LayoutTemplate, GitFork, Star, Boxes, RefreshCw, Sparkles } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Code, Plus, Loader2, Search, BookOpen, LayoutTemplate, GitFork, Star, Boxes, RefreshCw, Sparkles, Terminal, UserRound, Target, Trophy } from "lucide-react"
 import { CreateProjectDialog } from "@/components/developers/create-project-dialog"
 import { CodeLoopCard } from "@/components/developers/code-loop-card"
+import { DeveloperSnippets } from "@/components/developers/developer-snippets"
+import { DeveloperProfilePanel } from "@/components/developers/developer-profile-panel"
+import { DeveloperQuests } from "@/components/developers/developer-quests"
+import { DeveloperLeaderboard } from "@/components/developers/developer-leaderboard"
 
 function normalizeProject(row: any) {
   return {
@@ -43,6 +48,7 @@ export function DevelopersContent() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [tab, setTab] = useState("projects")
 
   // Fetch real projects from the database — never fall back to fake/mock data.
   const fetchProjects = async () => {
@@ -124,17 +130,20 @@ export function DevelopersContent() {
             <div>
               <h2 className="text-xl font-bold tracking-tight">Build on Loop</h2>
               <p className="text-sm text-muted-foreground">
-                Share code projects, fork branches, and grow them with the community.
+                Share code projects, snippets, and skills — then ship your work to the Marketplace.
               </p>
             </div>
           </div>
           <div className="flex flex-wrap justify-center gap-2">
             <Button
-              onClick={() => setShowCreateDialog(true)}
+              onClick={() => {
+                if (tab === "projects") setShowCreateDialog(true)
+                else setTab("projects")
+              }}
               className="rounded-full font-semibold bg-gradient-to-r from-cyan-500 to-indigo-600 text-white hover:from-cyan-400 hover:to-indigo-500"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Share Project
+              {tab === "projects" ? "Share Project" : "Go to Projects"}
             </Button>
             <Button
               asChild
@@ -171,174 +180,218 @@ export function DevelopersContent() {
           ))}
         </div>
 
-        {/* Filters + search */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-3 md:flex-row">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search projects, tags…"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
+        {/* Tabs */}
+        <Tabs value={tab} onValueChange={setTab} className="space-y-6">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:grid-cols-5">
+            <TabsTrigger value="projects" className="rounded-xl data-[state=active]:bg-background">
+              <Boxes className="mr-2 h-4 w-4" /> Projects
+            </TabsTrigger>
+            <TabsTrigger value="snippets" className="rounded-xl data-[state=active]:bg-background">
+              <Terminal className="mr-2 h-4 w-4" /> Snippets
+            </TabsTrigger>
+            <TabsTrigger value="quests" className="rounded-xl data-[state=active]:bg-background">
+              <Target className="mr-2 h-4 w-4" /> Quests
+            </TabsTrigger>
+            <TabsTrigger value="leaderboard" className="rounded-xl data-[state=active]:bg-background">
+              <Trophy className="mr-2 h-4 w-4" /> Leaderboard
+            </TabsTrigger>
+            <TabsTrigger value="profile" className="rounded-xl data-[state=active]:bg-background">
+              <UserRound className="mr-2 h-4 w-4" /> Dev Profile
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Projects tab */}
+          <TabsContent value="projects" className="space-y-6 mt-0">
+            {/* Filters + search */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex flex-col gap-3 md:flex-row">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search projects, tags…"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <select
+                      value={selectedLanguage}
+                      onChange={(e) => setSelectedLanguage(e.target.value)}
+                      className="px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground"
+                    >
+                      {languages.map((lang) => (
+                        <option key={lang} value={lang}>
+                          {lang}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={selectedFramework}
+                      onChange={(e) => setSelectedFramework(e.target.value)}
+                      className="px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground"
+                    >
+                      {frameworks.map((framework) => (
+                        <option key={framework} value={framework}>
+                          {framework}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground"
+                    >
+                      <option value="recent">Most Recent</option>
+                      <option value="popular">Most Stars</option>
+                      <option value="most_forked">Most Forked</option>
+                    </select>
+                    <Button variant="outline" size="sm" className="rounded-full" onClick={fetchProjects} title="Refresh projects">
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Projects Grid */}
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading developer projects…
               </div>
-              <div className="flex flex-wrap gap-3">
-                <select
-                value={selectedLanguage}
-                onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground"
-              >
-                {languages.map((lang) => (
-                  <option key={lang} value={lang}>
-                    {lang}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={selectedFramework}
-                onChange={(e) => setSelectedFramework(e.target.value)}
-                className="px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground"
-              >
-                {frameworks.map((framework) => (
-                  <option key={framework} value={framework}>
-                    {framework}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground"
-              >
-                <option value="recent">Most Recent</option>
-                <option value="popular">Most Stars</option>
-                <option value="most_forked">Most Forked</option>
-              </select>
-              <Button variant="outline" size="sm" className="rounded-full" onClick={fetchProjects} title="Refresh projects">
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-            </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Projects Grid */}
-        {loading ? (
-          <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading developer projects…
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center text-sm text-muted-foreground">
-            <p>{error}</p>
-            <Button size="sm" variant="outline" onClick={fetchProjects}>
-              Retry
-            </Button>
-          </div>
-        ) : sortedProjects.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border p-12 text-center">
-            <Code className="h-8 w-8 text-muted-foreground" />
-            <p className="font-medium">
-              {searchQuery || selectedLanguage !== "All" || selectedFramework !== "All"
-                ? "No projects match your filters"
-                : "No developer projects yet"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {searchQuery || selectedLanguage !== "All" || selectedFramework !== "All"
-                ? "Try a different search or clear the filters."
-                : "Be the first to share your code with the community."}
-            </p>
-            {searchQuery || selectedLanguage !== "All" || selectedFramework !== "All" ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSearchQuery("")
-                  setSelectedLanguage("All")
-                  setSelectedFramework("All")
-                }}
-              >
-                Clear filters
-              </Button>
+            ) : error ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center text-sm text-muted-foreground">
+                <p>{error}</p>
+                <Button size="sm" variant="outline" onClick={fetchProjects}>
+                  Retry
+                </Button>
+              </div>
+            ) : sortedProjects.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border p-12 text-center">
+                <Code className="h-8 w-8 text-muted-foreground" />
+                <p className="font-medium">
+                  {searchQuery || selectedLanguage !== "All" || selectedFramework !== "All"
+                    ? "No projects match your filters"
+                    : "No developer projects yet"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {searchQuery || selectedLanguage !== "All" || selectedFramework !== "All"
+                    ? "Try a different search or clear the filters."
+                    : "Be the first to share your code with the community."}
+                </p>
+                {searchQuery || selectedLanguage !== "All" || selectedFramework !== "All" ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery("")
+                      setSelectedLanguage("All")
+                      setSelectedFramework("All")
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                ) : (
+                  <Button onClick={() => setShowCreateDialog(true)} className="mt-2 rounded-full">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Share Project
+                  </Button>
+                )}
+              </div>
             ) : (
-              <Button onClick={() => setShowCreateDialog(true)} className="mt-2 rounded-full">
-                <Plus className="w-4 h-4 mr-2" />
-                Share Project
-              </Button>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {sortedProjects.map((project) => (
+                  <CodeLoopCard
+                    key={project.id}
+                    project={project}
+                    onUpdated={() => fetchProjects()}
+                    onDeleted={(id) => setProjects((prev) => prev.filter((p) => p.id !== id))}
+                  />
+                ))}
+              </div>
             )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {sortedProjects.map((project) => (
-              <CodeLoopCard
-                key={project.id}
-                project={project}
-                onUpdated={() => fetchProjects()}
-                onDeleted={(id) => setProjects((prev) => prev.filter((p) => p.id !== id))}
-              />
-            ))}
-          </div>
-        )}
 
-        {/* Featured Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Sparkles className="w-5 h-5 text-cyan-500" />
-              <span>Featured Developer Resources</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="group rounded-2xl border border-border bg-gradient-to-br from-cyan-500/5 to-transparent p-5 transition hover:-translate-y-0.5 hover:border-cyan-500/40 hover:shadow-lg">
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-500">
-                    <BookOpen className="h-4 w-4" />
-                  </span>
-                  <h3 className="font-semibold">Loop API Documentation</h3>
-                </div>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Bearer-token API reference for building on Loop — loops, circles, reels, and webhooks.
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {["REST", "Webhooks", "Auth"].map((tag) => (
-                    <Badge key={tag} variant="outline" className="rounded-full text-[10px]">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-                <Button asChild variant="outline" size="sm" className="mt-4 rounded-full">
-                  <a href="/developers/docs">Read the docs</a>
-                </Button>
-              </div>
+            {/* Featured Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Sparkles className="w-5 h-5 text-cyan-500" />
+                  <span>Featured Developer Resources</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="group rounded-2xl border border-border bg-gradient-to-br from-cyan-500/5 to-transparent p-5 transition hover:-translate-y-0.5 hover:border-cyan-500/40 hover:shadow-lg">
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-500">
+                        <BookOpen className="h-4 w-4" />
+                      </span>
+                      <h3 className="font-semibold">Loop API Documentation</h3>
+                    </div>
+                    <p className="mb-4 text-sm text-muted-foreground">
+                      Bearer-token API reference for building on Loop — loops, circles, reels, and webhooks.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {["REST", "Webhooks", "Auth"].map((tag) => (
+                        <Badge key={tag} variant="outline" className="rounded-full text-[10px]">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                    <Button asChild variant="outline" size="sm" className="mt-4 rounded-full">
+                      <a href="/developers/docs">Read the docs</a>
+                    </Button>
+                  </div>
 
-              <div className="group rounded-2xl border border-border bg-gradient-to-br from-indigo-500/5 to-transparent p-5 transition hover:-translate-y-0.5 hover:border-indigo-500/40 hover:shadow-lg">
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-500">
-                    <LayoutTemplate className="h-4 w-4" />
-                  </span>
-                  <h3 className="font-semibold">Community Layout Packs</h3>
+                  <div className="group rounded-2xl border border-border bg-gradient-to-br from-indigo-500/5 to-transparent p-5 transition hover:-translate-y-0.5 hover:border-indigo-500/40 hover:shadow-lg">
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-500">
+                        <LayoutTemplate className="h-4 w-4" />
+                      </span>
+                      <h3 className="font-semibold">Community Layout Packs</h3>
+                    </div>
+                    <p className="mb-4 text-sm text-muted-foreground">
+                      Build marketplace packs that restyle Circles — earn coins when communities adopt them.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {["Marketplace", "Themes", "Coins"].map((tag) => (
+                        <Badge key={tag} variant="outline" className="rounded-full text-[10px]">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                    <Button asChild variant="outline" size="sm" className="mt-4 rounded-full">
+                      <a href="/developers/community-layouts">View the spec</a>
+                    </Button>
+                  </div>
                 </div>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Build marketplace packs that restyle Circles — earn coins when communities adopt them.
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {["Marketplace", "Themes", "Coins"].map((tag) => (
-                    <Badge key={tag} variant="outline" className="rounded-full text-[10px]">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-                <Button asChild variant="outline" size="sm" className="mt-4 rounded-full">
-                  <a href="/developers/community-layouts">View the spec</a>
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Snippets tab */}
+          <TabsContent value="snippets" className="space-y-4 mt-0">
+            <DeveloperSnippets />
+          </TabsContent>
+
+          {/* Quests tab */}
+          <TabsContent value="quests" className="space-y-4 mt-0">
+            <DeveloperQuests />
+          </TabsContent>
+
+          {/* Leaderboard tab */}
+          <TabsContent value="leaderboard" className="space-y-4 mt-0">
+            <DeveloperLeaderboard />
+          </TabsContent>
+
+          {/* Dev Profile tab */}
+          <TabsContent value="profile" className="mt-0">
+            <DeveloperProfilePanel />
+          </TabsContent>
+        </Tabs>
       </div>
 
       <CreateProjectDialog

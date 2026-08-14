@@ -192,50 +192,95 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
     }
   }, [user?.id])
 
-  // Snap scroll + autoplay active reel
+  // Snap scroll + autoplay active reel.
+  //
+  // The active slide is decided by an IntersectionObserver rooted at the scroll
+  // container: whichever slide is most visible wins. Deriving the index from
+  // scrollTop alone was unreliable mid-scroll — on fast momentum swipes the
+  // scroll event can lag or land between snap points, which left the previous
+  // reel "active" (and playing with audio) underneath the new one. The observer
+  // fires on every visibility change and hands playback to the next slide the
+  // moment it takes over the majority of the viewport, so scrolled-away videos
+  // are paused + muted immediately instead of bleeding into the background.
   useEffect(() => {
     const root = containerRef.current
     if (!root) return
 
     const observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          const index = Number((entry.target as HTMLElement).dataset.index)
-          if (entry.isIntersecting && entry.intersectionRatio > 0.65) {
-            setActiveIndex(index)
-          }
-        })
+        let best: IntersectionObserverEntry | null = null
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          if (!best || entry.intersectionRatio > best.intersectionRatio) best = entry
+        }
+        if (!best) return
+        const index = Number((best.target as HTMLElement).dataset.index)
+        if (Number.isFinite(index) && index >= 0) {
+          setActiveIndex((prev) => (prev === index ? prev : index))
+        }
       },
-      { root, threshold: [0.65] },
+      { root, threshold: [0, 0.25, 0.5, 0.75, 1] },
     )
 
     root.querySelectorAll("[data-reel-slide]").forEach((el) => observer.observe(el))
+
     return () => observer.disconnect()
   }, [reels.length])
 
+  // Pause playback whenever a dialog covers the feed (comments, create, duet,
+  // share-to-DM, edit) or the tab is hidden, and keep exactly one video
+  // playing at a time: hard-mute + pause everything first, then start only
+  // the in-view reel. Order matters — some browsers keep feeding audio for a
+  // frame or two after pause() during a fast scroll, so muting the outgoing
+  // element first guarantees scrolled-away reels never bleed sound over the
+  // one you're actually watching.
+  const overlayOpen = Boolean(commentOpen || createOpen || duetReel || dmShareOpen || editReel)
+
   useEffect(() => {
-    const active = reels[activeIndex]
-    videoRefs.current.forEach((video, id) => {
-      if (active && id === active.id) {
+    const safeIndex = Math.min(activeIndex, Math.max(0, reels.length - 1))
+    const active = reels[safeIndex]
+    const suppressPlay = overlayOpen || (typeof document !== "undefined" && document.hidden)
+
+    // 1) Every video off first — this is what stops the "old video still
+    //    playing in the background" bug on every scroll settle.
+    videoRefs.current.forEach((video) => {
+      video.muted = true
+      video.pause()
+    })
+
+    // 2) Only the in-view reel may play.
+    if (!suppressPlay && active) {
+      const video = videoRefs.current.get(active.id)
+      if (video) {
         video.muted = muted
         video.playbackRate = playbackRate
         void video.play().catch(() => null)
-        if (!viewed.current.has(id) && active.source !== "loop") {
-          viewed.current.add(id)
-          void fetch(`/api/reels/${id}/interactions`, {
+        if (!viewed.current.has(active.id) && active.source !== "loop") {
+          viewed.current.add(active.id)
+          void fetch(`/api/reels/${active.id}/interactions`, {
             method: "POST",
             headers: { "Content-Type": "application/json", ...(user ? getAuthHeader() : {}) },
             body: JSON.stringify({ type: "view", action: "add" }),
           }).catch(() => null)
         }
-      } else {
-        video.pause()
-        try {
-          video.currentTime = 0
-        } catch {}
       }
-    })
-  }, [activeIndex, muted, playbackRate, reels, user, getAuthHeader])
+    }
+  }, [activeIndex, muted, playbackRate, reels, user, getAuthHeader, overlayOpen])
+
+  // Pause when the tab is hidden (mobile browsers keep decoding video in the
+  // background, which drains battery and can keep audio briefly alive).
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) {
+        videoRefs.current.forEach((video) => {
+          video.muted = true
+          video.pause()
+        })
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibility)
+    return () => document.removeEventListener("visibilitychange", onVisibility)
+  }, [])
 
   useEffect(() => {
     const active = reels[activeIndex]
@@ -669,7 +714,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                   }
                   playsInline
                   loop
-                  muted={muted}
+                  muted={active ? muted : true}
                   preload={Math.abs(index - activeIndex) <= 1 ? "auto" : "metadata"}
                   onClick={() => doubleTapLike(reel)}
                 />

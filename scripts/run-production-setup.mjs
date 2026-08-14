@@ -31,6 +31,12 @@ const files = [
   "scripts/message-reactions-schema-fix.sql",
   // Circle multi-media posts, polls, and per-member custom roles/permissions.
   "scripts/circles-enhancements-schema.sql",
+  // Dev Quests & bounties — coin-reward challenges in the Developer Hub
+  // (see /api/developers/quests and components/developers/developer-quests.tsx).
+  "scripts/dev-quests-schema.sql",
+  // Developer Hub v2 — realtime for projects/comments/snippets, RLS deletes,
+  // and project -> Marketplace listing link.
+  "scripts/developer-hub-v2.sql",
   "scripts/rls-policies.sql",
   "scripts/realtime-functions.sql",
 ]

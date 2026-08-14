@@ -20,6 +20,13 @@ const AUTHOR_SELECT = `
     avatar_url,
     is_verified,
     verification_level
+  ),
+  published_listing:community_marketplace_listings!developer_projects_published_listing_id_fkey(
+    id,
+    listing_type,
+    title,
+    price_coins,
+    is_published
   )
 `
 

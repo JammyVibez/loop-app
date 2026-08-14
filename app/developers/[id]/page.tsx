@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { Header } from "@/components/header"
-import { CodeLoopCard } from "@/components/developers/code-loop-card"
+import { ProjectDetail } from "@/components/developers/project-detail"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Loader2 } from "lucide-react"
 
@@ -26,6 +26,7 @@ function normalizeProject(row: any) {
     },
     code_snippet: row.code_snippet || "",
     files: Array.isArray(row.files) ? row.files : [],
+    published_listing: row.published_listing || null,
     created_at: row.created_at ? new Date(row.created_at) : new Date(),
   }
 }
@@ -33,7 +34,7 @@ function normalizeProject(row: any) {
 export default function DeveloperProjectPage() {
   const params = useParams()
   const id = typeof params?.id === "string" ? params.id : ""
-  const [project, setProject] = useState<ReturnType<typeof normalizeProject> | null>(null)
+  const [project, setProject] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,7 +48,7 @@ export default function DeveloperProjectPage() {
         const res = await fetch(`/api/developers/projects/${id}`)
         const data = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(data.error || "Project not found")
-        if (!cancelled) setProject(normalizeProject(data.project))
+        if (!cancelled) setProject({ ...normalizeProject(data.project), published_listing: data.project?.published_listing || null })
       } catch (err: any) {
         if (!cancelled) {
           setError(err.message || "Couldn't load project")
@@ -86,12 +87,7 @@ export default function DeveloperProjectPage() {
             </Button>
           </div>
         ) : (
-          <CodeLoopCard
-            project={project}
-            onDeleted={() => {
-              window.location.href = "/developers"
-            }}
-          />
+          <ProjectDetail project={project} />
         )}
       </main>
     </div>

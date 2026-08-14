@@ -32,6 +32,20 @@ export async function GET(request: NextRequest) {
       query = query.eq('framework', framework)
     }
 
+    // mine=true returns only the signed-in user's projects (used by the
+    // Dev Quest submission picker).
+    if (searchParams.get('mine') === 'true') {
+      const token = request.headers.get('authorization')?.replace('Bearer ', '') ?? null
+      if (!token) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+      if (authError || !user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      query = query.eq('author_id', user.id)
+    }
+
     // Apply sorting
     switch (sortBy) {
       case 'popular':
