@@ -27,6 +27,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AdminCatalogPanel } from "@/components/admin/admin-catalog-panel"
+import { AdminSupportPanel } from "@/components/admin/admin-support-panel"
+import { AdminGifsPanel } from "@/components/admin/admin-gifs-panel"
 import { AdminFeaturedPanel } from "@/components/admin/admin-featured-panel"
 import { ContentModerationControl } from "@/components/admin/content-moderation-control"
 import { EconomyControl } from "@/components/admin/economy-control"
@@ -186,6 +188,8 @@ export function AdminDashboard() {
           <TabsTrigger value="payouts">Payouts</TabsTrigger>
           <TabsTrigger value="catalog">Themes & Effects</TabsTrigger>
           <TabsTrigger value="featured">Featured</TabsTrigger>
+          <TabsTrigger value="support">Support</TabsTrigger>
+          <TabsTrigger value="gifs">GIFs</TabsTrigger>
           <TabsTrigger value="moderation">Moderation</TabsTrigger>
         </TabsList>
 
@@ -427,6 +431,14 @@ export function AdminDashboard() {
             <Flag className="h-4 w-4" /> Review reported content and take action.
           </div>
           <ContentModerationControl />
+        </TabsContent>
+
+        <TabsContent value="support" className="mt-6">
+          <AdminSupportPanel />
+        </TabsContent>
+
+        <TabsContent value="gifs" className="mt-6">
+          <AdminGifsPanel />
         </TabsContent>
       </Tabs>
     </div>

@@ -245,12 +245,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
+    let done = false
+
+    const finish = () => {
+      if (cancelled || done) return
+      done = true
+      clearTimeout(safety)
+      setLoading(false)
+    }
+
     // Generous ceiling: the very first get-session call on a cold server can
-    // take ~10s (module compile). A shorter timer would flip loading=false
-    // with user=null mid-check and bounce signed-in users to /login.
+    // take ~14s (auth-route module compile + DB roundtrip). A shorter timer
+    // would flip loading=false with user=null mid-check and bounce signed-in
+    // users to /login. If we still have no session by the ceiling, retry once
+    // — the route is warm by then, so the retry resolves in milliseconds —
+    // before giving up and letting the page treat us as a guest.
     const safety = setTimeout(() => {
-      if (!cancelled) setLoading(false)
-    }, 12000)
+      if (cancelled) return
+      if (!userRef.current) {
+        hydrateSessionUser().then(finish).catch(finish)
+      } else {
+        finish()
+      }
+    }, 15000)
 
     const checkSession = async () => {
       try {
@@ -258,8 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error("Error checking session:", error)
       } finally {
-        if (!cancelled) setLoading(false)
-        clearTimeout(safety)
+        finish()
       }
     }
 

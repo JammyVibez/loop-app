@@ -1,7 +1,8 @@
 "use client";
 import type React from "react";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useAuth } from "@/hooks/use-auth";
+import { formatDistanceToNow } from "date-fns";
 import {
   Search,
   MessageCircle,
@@ -21,6 +24,9 @@ import {
   Video,
   Users,
   Zap,
+  Loader2,
+  MessagesSquare,
+  ArrowRight,
 } from "lucide-react";
 
 interface FAQ {
@@ -34,13 +40,15 @@ interface FAQ {
 interface SupportTicket {
   id: string
   subject: string
-  status: "open" | "in-progress" | "resolved"
-  priority: "low" | "medium" | "high"
-  createdAt: string
-  lastUpdate: string
+  status: string
+  priority: string
+  created_at: string
+  updated_at?: string
+  last_message?: { message: string; created_at: string } | null
 }
 
 export default function HelpPage() {
+  const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [supportForm, setSupportForm] = useState({
     subject: "",
@@ -48,24 +56,9 @@ export default function HelpPage() {
     message: "",
     priority: "medium",
   })
-  const [tickets] = useState<SupportTicket[]>([
-    {
-      id: "T001",
-      subject: "Unable to create new loop",
-      status: "resolved",
-      priority: "medium",
-      createdAt: "2024-01-10",
-      lastUpdate: "2024-01-12",
-    },
-    {
-      id: "T002",
-      subject: "Premium subscription billing issue",
-      status: "in-progress",
-      priority: "high",
-      createdAt: "2024-01-15",
-      lastUpdate: "2024-01-16",
-    },
-  ])
+  const [tickets, setTickets] = useState<SupportTicket[]>([])
+  const [ticketsLoading, setTicketsLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   const faqs: FAQ[] = [
     {
@@ -124,9 +117,38 @@ export default function HelpPage() {
       faq.answer.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
+  const fetchTickets = useCallback(async () => {
+    if (!user) return
+    setTicketsLoading(true)
+    try {
+      const response = await fetch('/api/support/tickets')
+      if (response.ok) {
+        const data = await response.json()
+        setTickets(data.tickets || [])
+      }
+    } catch (error) {
+      console.error('Error fetching tickets:', error)
+    } finally {
+      setTicketsLoading(false)
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (user) fetchTickets()
+  }, [user, fetchTickets])
+
+  // Live refresh while the user is on the page so new support replies appear
+  // without a manual reload.
+  useEffect(() => {
+    if (!user) return
+    const interval = setInterval(fetchTickets, 15000)
+    return () => clearInterval(interval)
+  }, [user, fetchTickets])
+
   const handleSupportSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+    if (submitting) return
+    setSubmitting(true)
     try {
       const response = await fetch('/api/support/tickets', {
         method: 'POST',
@@ -147,10 +169,8 @@ export default function HelpPage() {
         throw new Error(data.error || 'Failed to submit support ticket')
       }
 
-      // Show success message
-      alert('Support ticket submitted successfully! You will receive a response within 24 hours.')
-      
-      // Reset form
+      // Refresh the live ticket list and reset the form
+      setTickets((prev) => [data.ticket, ...prev])
       setSupportForm({
         subject: "",
         category: "",
@@ -159,19 +179,23 @@ export default function HelpPage() {
       })
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to submit support ticket')
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "open":
-        return "bg-blue-100 text-blue-800"
-      case "in-progress":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
+      case "in_progress":
+        return "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
       case "resolved":
-        return "bg-green-100 text-green-800"
+        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+      case "closed":
+        return "bg-muted text-muted-foreground"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-muted text-muted-foreground"
     }
   }
 
@@ -351,7 +375,8 @@ export default function HelpPage() {
                         required
                       />
                     </div>
-                    <Button type="submit" className="w-full">
+                    <Button type="submit" className="w-full" disabled={submitting}>
+                      {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                       Submit Ticket
                     </Button>
                   </form>
@@ -380,16 +405,14 @@ export default function HelpPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-3 border rounded-lg">
-                    <Clock className="h-5 w-5 text-primary" />
+                    <MessagesSquare className="h-5 w-5 text-primary" />
                     <div>
-                      <p className="font-medium">Live Chat</p>
-                      <p className="text-sm text-muted-foreground">Available 24/7</p>
-                      <Button
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => window.open('/support/chat', '_blank', 'width=400,height=600')}
-                      >
-                        Start Chat
+                      <p className="font-medium">Live Support Chat</p>
+                      <p className="text-sm text-muted-foreground">Real-time replies from our team — ticket or live conversation</p>
+                      <Button asChild size="sm" className="mt-2 rounded-full">
+                        <Link href="/support/chat">
+                          Start Chat <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                        </Link>
                       </Button>
                     </div>
                   </div>
@@ -405,27 +428,62 @@ export default function HelpPage() {
                 <CardTitle>Your Support Tickets</CardTitle>
               </CardHeader>
               <CardContent>
-                {tickets.length === 0 ? (
-                  <div className="text-center py-8">
-                    <CheckCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No support tickets</h3>
-                    <p className="text-muted-foreground">You haven't submitted any support tickets yet.</p>
+                {!user ? (
+                  <div className="py-10 text-center">
+                    <CheckCircle className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                    <h3 className="mb-2 text-lg font-semibold">Sign in to see your tickets</h3>
+                    <p className="mb-4 text-sm text-muted-foreground">Your support tickets and live replies live under your account.</p>
+                    <Button asChild className="rounded-full">
+                      <Link href="/login?redirect=/support/chat">Sign in</Link>
+                    </Button>
+                  </div>
+                ) : ticketsLoading && tickets.length === 0 ? (
+                  <div className="flex items-center justify-center py-10 text-muted-foreground">
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading tickets…
+                  </div>
+                ) : tickets.length === 0 ? (
+                  <div className="py-10 text-center">
+                    <CheckCircle className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                    <h3 className="mb-2 text-lg font-semibold">No support tickets yet</h3>
+                    <p className="mx-auto mb-4 max-w-sm text-sm text-muted-foreground">
+                      Found a bug or have a question? Open a ticket above or jump straight into the live chat.
+                    </p>
+                    <Button asChild variant="outline" className="rounded-full">
+                      <Link href="/support/chat">Open live chat</Link>
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {tickets.map((ticket) => (
-                      <div key={ticket.id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
+                      <div key={ticket.id} className="rounded-xl border p-4 transition-colors hover:border-primary/40">
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                           <h3 className="font-semibold">{ticket.subject}</h3>
                           <div className="flex items-center gap-2">
-                            <Badge className={getStatusColor(ticket.status)}>{ticket.status}</Badge>
+                            <Badge className={getStatusColor(ticket.status)}>{ticket.status.replace(/_/g, " ")}</Badge>
                             <Badge className={getPriorityColor(ticket.priority)}>{ticket.priority}</Badge>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>Ticket #{ticket.id}</span>
-                          <span>Created: {new Date(ticket.createdAt).toLocaleDateString()}</span>
-                          <span>Last update: {new Date(ticket.lastUpdate).toLocaleDateString()}</span>
+                        {ticket.last_message?.message && (
+                          <p className="mb-2 truncate text-sm text-muted-foreground">
+                            Last reply: {ticket.last_message.message}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-4">
+                            <span className="text-xs">
+                              {ticket.created_at
+                                ? `Created ${formatDistanceToNow(new Date(ticket.created_at))} ago`
+                                : ""}
+                            </span>
+                            {ticket.updated_at && ticket.updated_at !== ticket.created_at && (
+                              <span className="text-xs">Updated {formatDistanceToNow(new Date(ticket.updated_at))} ago</span>
+                            )}
+                          </div>
+                          <Button asChild size="sm" variant="outline" className="rounded-full text-xs">
+                            <Link href={`/support/chat?ticket=${ticket.id}`}>
+                              Open conversation <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                            </Link>
+                          </Button>
                         </div>
                       </div>
                     ))}

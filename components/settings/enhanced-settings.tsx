@@ -42,6 +42,7 @@ import {
 } from "lucide-react"
 import { OrganizationSettings } from "@/components/settings/organization-settings"
 import { ReferralsSettings } from "@/components/settings/referrals-settings"
+import { SecuritySettings } from "@/components/settings/security-settings"
 import { cn } from "@/lib/utils"
 
 const themeOptions = [
@@ -228,6 +229,29 @@ export function EnhancedSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
 
+  // Real-time save for switches (Alerts + Privacy tabs): toggling a switch
+  // applies immediately instead of waiting for the Save button.
+  const quickSave = async (patch: Record<string, unknown>) => {
+    if (!user) return
+    try {
+      const response = await fetch("/api/users/update-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify(patch),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to save")
+      if (data.profile) applyServerProfile(data.profile)
+      return true
+    } catch (error: any) {
+      toast({ title: "Could not save", description: error.message, variant: "destructive" })
+      return false
+    }
+  }
+
   const saveSettings = async () => {
     if (!user) return
     setLoading(true)
@@ -400,6 +424,9 @@ export function EnhancedSettings() {
           </TabsTrigger>
           <TabsTrigger value="referrals" className="rounded-xl data-[state=active]:bg-background">
             <Gift className="mr-2 h-4 w-4" /> Referrals
+          </TabsTrigger>
+          <TabsTrigger value="security" className="rounded-xl data-[state=active]:bg-background">
+            <Shield className="mr-2 h-4 w-4" /> Security
           </TabsTrigger>
         </TabsList>
 
@@ -714,12 +741,11 @@ export function EnhancedSettings() {
                   <Switch
                     id={key}
                     checked={formData.notifications[key]}
-                    onCheckedChange={(checked) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        notifications: { ...prev.notifications, [key]: checked },
-                      }))
-                    }
+                    onCheckedChange={(checked) => {
+                      const next = { ...formData.notifications, [key]: checked }
+                      setFormData((prev) => ({ ...prev, notifications: next }))
+                      void quickSave({ notification_settings: next })
+                    }}
                   />
                 </div>
               ))}
@@ -733,6 +759,10 @@ export function EnhancedSettings() {
 
         <TabsContent value="referrals" className="space-y-4">
           <ReferralsSettings />
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-4">
+          <SecuritySettings />
         </TabsContent>
 
         <TabsContent value="privacy" className="space-y-4">
@@ -750,12 +780,19 @@ export function EnhancedSettings() {
                       key={value}
                       type="button"
                       variant={formData.privacy.profile_visibility === value ? "default" : "outline"}
-                      onClick={() =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          privacy: { ...prev.privacy, profile_visibility: value },
-                        }))
-                      }
+                      onClick={() => {
+                        const next = { ...formData.privacy, profile_visibility: value }
+                        setFormData((prev) => ({ ...prev, privacy: next }))
+                        void quickSave({
+                          privacy_settings: {
+                            profile_visibility: value,
+                            show_email: next.show_email,
+                            message_privacy: next.allow_messages ? "everyone" : "none",
+                            allow_messages: next.allow_messages,
+                            allow_friend_requests: next.allow_friend_requests,
+                          },
+                        })
+                      }}
                     >
                       {value}
                     </Button>
@@ -774,12 +811,19 @@ export function EnhancedSettings() {
                   <Switch
                     id={key}
                     checked={formData.privacy[key]}
-                    onCheckedChange={(checked) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        privacy: { ...prev.privacy, [key]: checked },
-                      }))
-                    }
+                    onCheckedChange={(checked) => {
+                      const next = { ...formData.privacy, [key]: checked }
+                      setFormData((prev) => ({ ...prev, privacy: next }))
+                      void quickSave({
+                        privacy_settings: {
+                          profile_visibility: next.profile_visibility,
+                          show_email: next.show_email,
+                          message_privacy: next.allow_messages ? "everyone" : "none",
+                          allow_messages: next.allow_messages,
+                          allow_friend_requests: next.allow_friend_requests,
+                        },
+                      })
+                    }}
                   />
                 </div>
               ))}

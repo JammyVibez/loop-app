@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth"
 import { stripe } from "@better-auth/stripe"
+import { sendPasswordResetEmail } from "@/lib/resend"
 import { hashPassword, verifyPassword as defaultVerifyPassword } from "better-auth/crypto"
 import bcrypt from "bcryptjs"
 import { Pool } from "pg"
@@ -27,7 +28,26 @@ export const auth = betterAuth({
     },
   },
   secret: process.env.BETTER_AUTH_SECRET || "loop-better-auth-secret-key-32-chars-long",
-  baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "https://ais-dev-o3lwgmmrisjysqnqikbyt2-413485355424.europe-west2.run.app",
+  // Dynamic base URL: resolves from each request's host so OAuth redirects,
+  // cookies, and trusted-origin checks work on every environment (local dev,
+  // preview proxies, production custom domain) instead of pointing at a stale
+  // hardcoded URL that breaks Google sign-in on deploy.
+  baseURL: {
+    allowedHosts: [
+      "localhost",
+      "127.0.0.1",
+      "*.daytonaproxy01.net",
+      "*.daytonaproxy02.net",
+      "*.run.app",
+      "*.vercel.app",
+      "loop-app.com",
+      "*.loop-app.com",
+      ...(process.env.BETTER_AUTH_ALLOWED_HOSTS
+        ? process.env.BETTER_AUTH_ALLOWED_HOSTS.split(",").map((h) => h.trim()).filter(Boolean)
+        : []),
+    ],
+    fallback: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "https://loop-app.com",
+  },
   emailAndPassword: {
     enabled: true,
     password: {
@@ -42,11 +62,12 @@ export const auth = betterAuth({
       },
     },
     // Without this, Better Auth's /request-password-reset endpoint rejects
-    // every call ("Reset password isn't enabled"). No transactional-email
-    // provider is wired up yet, so log the link server-side for now instead
-    // of silently failing the request.
+    // every call ("Reset password isn't enabled"). sendPasswordResetEmail
+    // sends the real reset link through Resend when RESEND_API_KEY is set,
+    // and logs the link server-side as a dev fallback so the flow never
+    // silently dies.
     sendResetPassword: async ({ user, url }: { user: { email: string }; url: string }) => {
-      console.log(`[auth] Password reset requested for ${user.email}: ${url}`)
+      await sendPasswordResetEmail({ to: user.email, resetUrl: url })
     },
   },
   socialProviders: {
@@ -77,3 +98,33 @@ export const auth = betterAuth({
     }),
   ],
 })
+
+/**
+ * Verify a user's current credential password against the account row stored
+ * by Better Auth. Handles both the legacy bcrypt hashes (pre-migration) and
+ * Better Auth's argon2id hashes.
+ */
+export async function verifyCredentialPassword(userId: string, password: string) {
+  const accRes = await authDbPool.query(
+    'SELECT password FROM "account" WHERE "userId" = $1 AND "providerId" = \'credential\' LIMIT 1;',
+    [userId]
+  )
+  const storedHash = accRes.rows[0]?.password
+  if (!storedHash) return false
+  if (storedHash.startsWith("$2a$") || storedHash.startsWith("$2b$") || storedHash.startsWith("$2y$")) {
+    return await bcrypt.compare(password, storedHash)
+  }
+  return await defaultVerifyPassword({ password, hash: storedHash })
+}
+
+/**
+ * Set a user's credential password, always stored as an argon2id hash.
+ * Old bcrypt hashes are replaced (migrated) on the next password change.
+ */
+export async function setCredentialPassword(userId: string, newPassword: string) {
+  const newHash = await hashPassword(newPassword)
+  await authDbPool.query(
+    'UPDATE "account" SET password = $1, "updatedAt" = NOW() WHERE "userId" = $2 AND "providerId" = \'credential\';',
+    [newHash, userId]
+  )
+}

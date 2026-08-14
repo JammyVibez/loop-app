@@ -37,6 +37,7 @@ import {
   Send,
   Smile,
   Sparkles,
+  Film,
   X,
 } from "lucide-react"
 import {
@@ -181,6 +182,11 @@ export function MessagesWorkspace() {
   const [freshMessageIds, setFreshMessageIds] = useState<Set<string>>(new Set())
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [showGifPicker, setShowGifPicker] = useState(false)
+  const [gifResults, setGifResults] = useState<any[]>([])
+  const [gifSearch, setGifSearch] = useState("")
+  const [gifsLoading, setGifsLoading] = useState(false)
+  const gifTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [pushEnabled, setPushEnabled] = useState<boolean | null>(null)
   const [pushToggling, setPushToggling] = useState(false)
   const [pushBanner, setPushBanner] = useState(false)
@@ -592,6 +598,25 @@ export function MessagesWorkspace() {
     setRecording(false)
   }
 
+  const loadGifs = async (query: string) => {
+    setGifsLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (query.trim()) params.set("q", query.trim())
+      params.set("limit", "18")
+      const res = await fetch(`/api/gifs?${params.toString()}`, { cache: "no-store" })
+      if (!res.ok) throw new Error("GIF fetch failed")
+      const data = await res.json()
+      if (data?.success && Array.isArray(data.results)) {
+        setGifResults(data.results)
+      }
+    } catch (error) {
+      console.error("GIF fetch error:", error)
+    } finally {
+      setGifsLoading(false)
+    }
+  }
+
   const insertEmoji = (emoji: string) => {
     setDraft((prev) => `${prev}${emoji}`)
     setShowEmojiPicker(false)
@@ -854,11 +879,13 @@ export function MessagesWorkspace() {
             const preview = last
               ? last.message_type === "image"
                 ? "📷 Photo"
-                : last.message_type === "video"
-                  ? "🎬 Video"
-                  : last.message_type === "audio"
-                    ? "🎤 Voice message"
-                    : last.content || "Message"
+                : last.message_type === "gif"
+                  ? "🎞️ GIF"
+                  : last.message_type === "video"
+                    ? "🎬 Video"
+                    : last.message_type === "audio"
+                      ? "🎤 Voice message"
+                      : last.content || "Message"
               : "Say hello 👋"
             return (
               <button
@@ -1117,9 +1144,18 @@ export function MessagesWorkspace() {
                       <p className="truncate text-white/80">{message.reply_to.content || "Media"}</p>
                     </div>
                   )}
-                  {message.media_url && (message.media_type === "image" || message.message_type === "image") && (
-                    <img src={message.media_url} alt="" className="mb-1 max-h-64 w-full rounded-lg object-cover" />
-                  )}
+                  {message.media_url &&
+                    (message.media_type === "image" ||
+                      message.message_type === "image" ||
+                      message.message_type === "gif") && (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={message.media_url}
+                        alt=""
+                        className="mb-1 max-h-64 w-full rounded-lg object-cover"
+                        loading="lazy"
+                      />
+                    )}
                   {message.media_url && (message.media_type === "audio" || message.message_type === "audio") && (
                     <audio controls src={message.media_url} className="mb-1 w-full max-w-[240px]" />
                   )}
@@ -1127,7 +1163,15 @@ export function MessagesWorkspace() {
                     <video controls src={message.media_url} className="mb-1 max-h-64 w-full rounded-lg" />
                   )}
                   {message.content && !(message.message_type === "audio" && message.content === "Voice note") && (
-                    <RichContent text={message.content} className="whitespace-pre-wrap break-words" as="p" />
+                    <RichContent
+                      text={message.content}
+                      className="whitespace-pre-wrap break-words"
+                      as="p"
+                      // Skip the auto link-preview card when the message already
+                      // carries media — the video/image IS the content. This keeps
+                      // shared reels from rendering a duplicate preview card.
+                      showPreviewCard={!message.media_url}
+                    />
                   )}
                   <div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70">
                     <span>
@@ -1242,6 +1286,68 @@ export function MessagesWorkspace() {
             </div>
           </>
         )}
+
+        {showGifPicker && (
+          <>
+            <button
+              type="button"
+              className="fixed inset-0 z-30 cursor-default"
+              aria-label="Close GIF picker"
+              onClick={() => setShowGifPicker(false)}
+            />
+            <div className="absolute bottom-full left-2 z-40 mb-2 w-[340px] max-w-[calc(100%-1rem)] overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+              <div className="flex items-center gap-2 border-b border-border p-2">
+                <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <input
+                  value={gifSearch}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setGifSearch(v)
+                    const t = setTimeout(() => void loadGifs(v), 350)
+                    gifTimerRef.current = t
+                  }}
+                  placeholder="Search GIFs…"
+                  className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                />
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowGifPicker(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="grid max-h-64 grid-cols-3 gap-1 overflow-y-auto p-2">
+                {gifsLoading ? (
+                  <div className="col-span-3 flex items-center justify-center py-8 text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  </div>
+                ) : gifResults.length === 0 ? (
+                  <p className="col-span-3 py-8 text-center text-xs text-muted-foreground">
+                    No GIFs yet — an admin can add some from the admin panel.
+                  </p>
+                ) : (
+                  gifResults.map((gif) => (
+                    <button
+                      key={gif.id}
+                      type="button"
+                      className="group relative aspect-video overflow-hidden rounded-lg bg-muted"
+                      onClick={() => {
+                        void sendMessage({ content: "", media_url: gif.gif_url || gif.url, message_type: "gif" })
+                        setShowGifPicker(false)
+                        setGifSearch("")
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={gif.preview_url || gif.gif_url || gif.url}
+                        alt={gif.title || "GIF"}
+                        className="h-full w-full object-cover transition group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          </>
+        )}
         <div className="flex items-end gap-2">
           <input
             ref={fileRef}
@@ -1273,6 +1379,21 @@ export function MessagesWorkspace() {
             title="Emoji"
           >
             <Smile className="h-5 w-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("text-muted-foreground", showGifPicker && "bg-muted text-emerald-600")}
+            onClick={() => {
+              setShowGifPicker((v) => {
+                if (!v) void loadGifs("")
+                return !v
+              })
+              setShowEmojiPicker(false)
+            }}
+            title="GIF"
+          >
+            <Film className="h-5 w-5" />
           </Button>
           <div className="relative flex-1">
             <MentionTextarea

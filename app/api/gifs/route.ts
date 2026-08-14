@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase"
 
-// Merged GIF search endpoint — queries Tenor and Giphy (when API keys are available)
+// Merged GIF search endpoint — queries Tenor and Giphy (when API keys are
+// available) plus the admin-curated library stored in Supabase. Curated GIFs
+// are read from the DB on every request, so admins' additions appear in the
+// app's GIF pickers in real time.
 // Returns a normalized list of GIFs: { id, title, preview_url, gif_url, width?, height?, source }
 
 export async function GET(req: NextRequest) {
@@ -8,13 +12,6 @@ export async function GET(req: NextRequest) {
     const q = req.nextUrl.searchParams.get("q") || ""
     const limit = Math.min(Number(req.nextUrl.searchParams.get("limit") || 24), 48)
     const source = (req.nextUrl.searchParams.get("source") || "all").toLowerCase()
-
-    if (!q) {
-      return NextResponse.json({ success: true, results: [] })
-    }
-
-    const TENOR_KEY = process.env.TENOR_API_KEY || null
-    const GIPHY_KEY = process.env.GIPHY_API_KEY || null
 
     const results: any[] = []
 
@@ -26,6 +23,42 @@ export async function GET(req: NextRequest) {
       seen.add(item.gif_url)
       results.push(item)
     }
+
+    // Admin-curated GIFs first (always fresh from the DB)
+    try {
+      const supabase = createServerClient()
+      const { data: curated, error } = await supabase
+        .from("curated_gifs")
+        .select("id, title, url, preview_url, tags, source")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(40)
+
+      if (!error && Array.isArray(curated)) {
+        for (const g of curated) {
+          const haystack = `${g.title} ${(g.tags || []).join(" ")}`.toLowerCase()
+          if (q && !haystack.includes(q.toLowerCase())) continue
+          pushIfNew({
+            id: g.id,
+            title: g.title,
+            preview_url: g.preview_url || g.url,
+            gif_url: g.url,
+            width: null,
+            height: null,
+            source: "curated",
+          })
+        }
+      }
+    } catch (err) {
+      console.error("Curated GIF fetch error:", err)
+    }
+
+    if (!q) {
+      return NextResponse.json({ success: true, results: results.slice(0, limit) })
+    }
+
+    const TENOR_KEY = process.env.TENOR_API_KEY || null
+    const GIPHY_KEY = process.env.GIPHY_API_KEY || null
 
     // Query Tenor if allowed
     if ((source === "all" || source === "tenor") && TENOR_KEY) {
@@ -81,16 +114,24 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // If no keys were provided or results are empty, fallback to a small set of sample GIFs
+    // If no results at all, fall back to the curated library so the picker is
+    // never empty (it's already seeded on first deploy).
     if (!results.length) {
-      const sample = [
-        { title: "Mind Blown", url: "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif" },
-        { title: "Celebration", url: "https://media.giphy.com/media/l0AM41lC46985qEww/giphy.gif" },
-        { title: "Applause", url: "https://media.giphy.com/media/3o7qDEq2bMbcbPRQ2c/giphy.gif" },
-        { title: "Cat Vibe", url: "https://media.giphy.com/media/GeimqsH0TLDt4tScGw/giphy.gif" },
-      ]
-      for (const s of sample) {
-        pushIfNew({ id: s.url, title: s.title, preview_url: s.url, gif_url: s.url, source: "sample" })
+      try {
+        const supabase = createServerClient()
+        const { data: curated, error } = await supabase
+          .from("curated_gifs")
+          .select("id, title, url, preview_url")
+          .eq("is_active", true)
+          .order("created_at", { ascending: false })
+          .limit(12)
+        if (!error && Array.isArray(curated)) {
+          for (const g of curated) {
+            pushIfNew({ id: g.id, title: g.title, preview_url: g.preview_url || g.url, gif_url: g.url, source: "curated" })
+          }
+        }
+      } catch (err) {
+        console.error("Curated fallback error:", err)
       }
     }
 

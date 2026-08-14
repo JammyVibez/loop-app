@@ -1,17 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { PageLoading } from "@/components/loading-states"
 import { isAuthRequiredPath, isGuestPublicPath } from "@/lib/guest"
 
 export function OnboardingRedirect({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user, loading, refreshUser } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const [redirecting, setRedirecting] = useState(false)
   const [forceReady, setForceReady] = useState(false)
+  const recheckedRef = useRef(false)
 
   const isPublicRoute = isGuestPublicPath(pathname || "/")
 
@@ -63,7 +64,22 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
       }
     } else if (isAuthRequiredPath(pathname || "/")) {
       // Guests may browse public paths (and unknown routes render their own
-      // 404); only interactive/account routes send guests to login
+      // 404); only interactive/account routes send guests to login.
+      //
+      // Safety net: if a session cookie exists but hydration didn't restore
+      // the user (cold server / slow first getSession), re-check once instead
+      // of bouncing a signed-in user to /login. Real guests have no cookie and
+      // redirect immediately.
+      const hasSessionCookie =
+        typeof document !== "undefined" &&
+        (document.cookie.includes("better-auth") ||
+          document.cookie.includes("supabase") ||
+          document.cookie.includes("sb-"))
+      if (hasSessionCookie && !recheckedRef.current) {
+        recheckedRef.current = true
+        void refreshUser()
+        return // the effect re-runs once refreshUser resolves the user
+      }
       setRedirecting(true)
       const redirect = encodeURIComponent(pathname || "/")
       router.replace(`/login?redirect=${redirect}`)

@@ -959,8 +959,8 @@ export function CoLoopStudio() {
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({
           session_id: sessionId,
-          amount,
-          co_author_ids: coAuthors.map((c) => c.id),
+          gift_amount: amount,
+          recipients: coAuthors.map((c) => c.id),
         }),
       })
 

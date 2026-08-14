@@ -12,9 +12,8 @@ import { Theme3DProvider } from "../providers/theme-3d-provider"
 import { RealtimeProvider } from "@/providers/realtime-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { OnboardingRedirect } from "@/components/onboarding-redirect"
-import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav"
+import { AppChrome } from "@/components/layout/app-chrome"
 import { LeftSidebar } from "@/components/left-sidebar"
-import { AppUpdateBanner } from "@/components/app-update-banner"
 import { GiftNotificationSystem } from "@/components/gifting/gift-notification"
 import { GlobalFab } from "@/components/global-fab"
 import { PushAutoSubscribe } from "@/components/pwa/push-auto-subscribe"
@@ -200,12 +199,8 @@ export default function RootLayout({
                     <div id="theme-environment" className="fixed inset-0 pointer-events-none z-[-1]" />
                     <div className="relative z-10 flex min-h-screen">
                       <LeftSidebar />
-                      <div className="flex-1 min-w-0 pb-20 lg:pb-0">
-                        <AppUpdateBanner />
-                        {children}
-                      </div>
+                      <AppChrome>{children}</AppChrome>
                     </div>
-                    <MobileBottomNav />
                     <GlobalFab />
                     <GiftNotificationSystem />
                     <PushAutoSubscribe />

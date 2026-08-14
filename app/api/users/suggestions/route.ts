@@ -36,9 +36,11 @@ export async function GET(request: NextRequest) {
     // Prefer users with overlapping interests when available
     let { data: candidates, error } = await supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url, is_verified, is_premium, bio, interests, created_at")
+      .select(
+        "id, username, display_name, avatar_url, is_verified, is_premium, is_admin, bio, interests, created_at",
+      )
       .order("created_at", { ascending: false })
-      .limit(60)
+      .limit(80)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
@@ -53,16 +55,21 @@ export async function GET(request: NextRequest) {
         ).length
         const premiumBoost = profile.is_premium ? 2 : 0
         const verifiedBoost = profile.is_verified ? 1 : 0
+        // Official accounts (admins) always rank first so new users follow
+        // the platform's team during onboarding.
+        const adminBoost = profile.is_admin ? 1000 : 0
         return {
           ...profile,
           shared_interests: overlap,
-          score: overlap * 5 + premiumBoost + verifiedBoost,
+          score: adminBoost + overlap * 5 + premiumBoost + verifiedBoost,
           reason:
-            overlap > 0
-              ? `Shares ${overlap} interest${overlap > 1 ? "s" : ""} with you`
-              : profile.is_premium
-                ? "Active premium creator"
-                : "New on Loop",
+            profile.is_admin
+              ? "Official Loop account"
+              : overlap > 0
+                ? `Shares ${overlap} interest${overlap > 1 ? "s" : ""} with you`
+                : profile.is_premium
+                  ? "Active premium creator"
+                  : "New on Loop",
         }
       })
       .sort((a, b) => b.score - a.score || b.created_at.localeCompare(a.created_at))

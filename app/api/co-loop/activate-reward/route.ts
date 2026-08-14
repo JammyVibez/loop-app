@@ -1,24 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") || null
-    if (!token) {
+    const currentUser = await getUserFromRequest(request)
+    if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const supabase = createServerClient()
-    const {
-      data: { user: currentUser },
-      error: authError,
-    } = await supabase.auth.getUser(token)
-
-    if (authError || !currentUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
     const { session_id, inviter_username, inviter_id: reqInviterId, invitee_id: reqInviteeId } = await request.json()
 

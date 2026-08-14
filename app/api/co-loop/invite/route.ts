@@ -1,20 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth"
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") || null
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const inviter = await getUserFromRequest(request)
+    if (!inviter) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const supabase = createServerClient()
-    const {
-      data: { user: inviter },
-      error: authError,
-    } = await supabase.auth.getUser(token)
-
-    if (authError || !inviter) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
     const { invitee_id, session_id, session_title } = await request.json()
 
@@ -33,7 +26,7 @@ export async function POST(request: NextRequest) {
     const titleText = session_title ? `"${session_title}"` : "a new Co-Loop"
 
     const inviterUsername = inviterProfile?.username || ""
-    const joinUrl = `/co-loop/join/${session_id}?invitedBy=${encodeURIComponent(inviterUsername)}`
+    const joinUrl = `/co-loop/join?session=${encodeURIComponent(session_id)}&invitedBy=${encodeURIComponent(inviterUsername)}&invited=true`
 
     // 1. Create System Notification + real push for invitee
     try {

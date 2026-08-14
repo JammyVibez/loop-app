@@ -80,9 +80,34 @@ export function MediaEmojiPicker({
   const [gifSource, setGifSource] = useState<"all" | "tenor" | "giphy">("all")
   const [limit, setLimit] = useState(24)
 
+  // Load the admin-curated GIF library on mount + whenever the picker opens,
+  // so new GIFs added from the admin panel show up without a page reload.
   useEffect(() => {
-    // On mount keep sample gifs; when gifSearch changes we call the server endpoint
-  }, [])
+    if (!open) return
+    let cancelled = false
+    setLoadingGifs(true)
+    fetch(`/api/gifs?limit=24`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return
+        if (data?.success && Array.isArray(data.results) && data.results.length) {
+          setGifsList(
+            data.results.map((r: any) => ({
+              title: r.title || "GIF",
+              url: r.gif_url || r.url || null,
+              preview: r.preview_url || r.gif_url || r.url || null,
+            })),
+          )
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoadingGifs(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open])
 
   const proxied = (src?: string | null): string | undefined => {
     if (!src) return undefined

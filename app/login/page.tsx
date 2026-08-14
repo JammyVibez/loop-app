@@ -24,6 +24,20 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams?.get("redirect")
+  const [googleEnabled, setGoogleEnabled] = useState(true)
+  const [authStatusChecked, setAuthStatusChecked] = useState(false)
+
+  useEffect(() => {
+    fetch("/api/auth/status", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.auth && typeof data.auth.google === "boolean") {
+          setGoogleEnabled(data.auth.google)
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => setAuthStatusChecked(true))
+  }, [])
 
   useEffect(() => {
     const errorCode = searchParams?.get("error")
@@ -66,7 +80,11 @@ export default function LoginPage() {
     try {
       await loginWithGoogle()
     } catch (err: any) {
-      setError(err.message || "Failed to sign in with Google")
+      setError(
+        googleEnabled === false
+          ? "Google sign-in is being set up — use email & password for now."
+          : err.message || "Failed to sign in with Google",
+      )
       setLoading(false)
     }
   }
@@ -163,12 +181,17 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {googleEnabled === false && authStatusChecked && (
+              <p className="text-center text-[11px] text-amber-600 dark:text-amber-400">
+                Google sign-in is being set up — use email & password for now.
+              </p>
+            )}
             <Button
               type="button"
               variant="outline"
               className="w-full rounded-full border-slate-300 bg-slate-50 text-slate-800 hover:bg-slate-100 dark:border-white/15 dark:bg-white/[0.03] dark:text-slate-100 dark:hover:bg-white/10 font-semibold"
               onClick={handleGoogleLogin}
-              disabled={loading}
+              disabled={loading || (googleEnabled === false && authStatusChecked)}
             >
               <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
                 <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -189,6 +212,11 @@ export default function LoginPage() {
                   Sign up
                 </Link>
               </div>
+            </div>
+            <div className="flex items-center justify-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+              <Link href="/terms" className="underline-offset-2 hover:underline">Terms of Service</Link>
+              <span aria-hidden>·</span>
+              <Link href="/privacy" className="underline-offset-2 hover:underline">Privacy Policy</Link>
             </div>
           </CardFooter>
         </form>

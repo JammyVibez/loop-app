@@ -1,147 +1,151 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase';
+import { type NextRequest, NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth"
+
+export const dynamic = "force-dynamic"
+
+const VALID_STATUSES = ["open", "in_progress", "resolved", "closed"]
+
+async function isStaffUser(supabase: ReturnType<typeof createServerClient>, userId: string) {
+  const { data } = await supabase
+    .from("profiles")
+    .select("is_admin, is_moderator")
+    .eq("id", userId)
+    .maybeSingle()
+  return Boolean(data?.is_admin || data?.is_moderator)
+}
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
     const supabase = createServerClient()
     const { searchParams } = new URL(request.url)
-    const ticketId = searchParams.get('ticketId')
-    
+    const ticketId = searchParams.get("ticketId")
+
     if (!ticketId) {
-      return NextResponse.json({ error: 'Ticket ID is required' }, { status: 400 })
+      return NextResponse.json({ error: "Ticket ID is required" }, { status: 400 })
     }
 
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Verify user has access to this ticket
     const { data: ticket } = await supabase
-      .from('support_tickets')
-      .select('user_id')
-      .eq('id', ticketId)
-      .single()
+      .from("support_tickets")
+      .select("user_id, status")
+      .eq("id", ticketId)
+      .maybeSingle()
 
-    if (!ticket || ticket.user_id !== user.id) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    if (!ticket) {
+      return NextResponse.json({ error: "Ticket not found" }, { status: 404 })
     }
 
-    // Get messages for the ticket
+    const staff = await isStaffUser(supabase, user.id)
+    if (!staff && ticket.user_id !== user.id) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 })
+    }
+
     const { data: messages, error } = await supabase
-      .from('support_messages')
+      .from("support_messages")
       .select(`
         *,
-        user:profiles!support_messages_user_id_fkey(
-          id,
-          username,
-          display_name,
-          avatar_url
-        )
+        sender:profiles!sender_id(id, username, display_name, avatar_url, is_admin, is_moderator)
       `)
-      .eq('ticket_id', ticketId)
-      .order('created_at', { ascending: true })
+      .eq("ticket_id", ticketId)
+      .order("created_at", { ascending: true })
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    return NextResponse.json({ messages })
+    return NextResponse.json({ messages: messages || [], ticket })
   } catch (error) {
-    console.error('Error fetching support messages:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error("Support messages GET error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
     const supabase = createServerClient()
-    const { ticketId, message } = await request.json()
-    
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const body = await request.json().catch(() => ({}))
+    const ticketId = body.ticketId
+    const message = String(body.message || "").trim()
+
+    if (!ticketId || !message) {
+      return NextResponse.json({ error: "ticketId and message are required" }, { status: 400 })
     }
 
-    // Verify user has access to this ticket
     const { data: ticket } = await supabase
-      .from('support_tickets')
-      .select('user_id, status')
-      .eq('id', ticketId)
-      .single()
+      .from("support_tickets")
+      .select("user_id, status")
+      .eq("id", ticketId)
+      .maybeSingle()
 
-    if (!ticket || ticket.user_id !== user.id) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    if (!ticket) {
+      return NextResponse.json({ error: "Ticket not found" }, { status: 404 })
     }
 
-    if (ticket.status === 'closed') {
-      return NextResponse.json({ error: 'Cannot send messages to closed tickets' }, { status: 400 })
+    const staff = await isStaffUser(supabase, user.id)
+    if (!staff && ticket.user_id !== user.id) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 })
     }
 
-    // Create message
-    const { data: newMessage, error: messageError } = await supabase
-      .from('support_messages')
+    const { data: supportMsg, error } = await supabase
+      .from("support_messages")
       .insert({
         ticket_id: ticketId,
-        user_id: user.id,
-        message: message,
-        is_from_support: false
+        sender_id: user.id,
+        message,
+        is_from_support: staff,
       })
       .select(`
         *,
-        user:profiles!support_messages_user_id_fkey(
-          id,
-          username,
-          display_name,
-          avatar_url
-        )
+        sender:profiles!sender_id(id, username, display_name, avatar_url, is_admin, is_moderator)
       `)
       .single()
 
-    if (messageError) {
-      return NextResponse.json({ error: messageError.message }, { status: 500 })
-    }
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    // Update ticket status to indicate user activity
-    await supabase
-      .from('support_tickets')
-      .update({ 
-        status: 'open',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', ticketId)
+    // Bump the ticket so it surfaces at the top of both sides' lists
+    await supabase.from("support_tickets").update({ updated_at: new Date().toISOString() }).eq("id", ticketId)
 
-    // Notify support team
-    const { data: supportUsers } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('is_support', true)
-
-    if (supportUsers && supportUsers.length > 0) {
-      const supportNotifications = supportUsers.map(support => ({
-        user_id: support.id,
-        type: 'support_message',
-        title: 'New Support Message',
-        message: `User replied to ticket #${ticketId}`,
-        data: { 
-          ticket_id: ticketId,
-          message_id: newMessage.id
-        }
-      }))
-
-      await supabase
-        .from('notifications')
-        .insert(supportNotifications)
-    }
-
-    return NextResponse.json({ 
-      success: true, 
-      message: newMessage 
-    })
+    return NextResponse.json({ success: true, message: supportMsg })
   } catch (error) {
-    console.error('Error sending support message:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error("Support message POST error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const supabase = createServerClient()
+    const staff = await isStaffUser(supabase, user.id)
+    if (!staff) {
+      return NextResponse.json({ error: "Staff access required" }, { status: 403 })
+    }
+
+    const body = await request.json().catch(() => ({}))
+    const { ticketId, status } = body
+
+    if (!ticketId || !VALID_STATUSES.includes(status)) {
+      return NextResponse.json({ error: "ticketId and a valid status are required" }, { status: 400 })
+    }
+
+    const { data: ticket, error } = await supabase
+      .from("support_tickets")
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq("id", ticketId)
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({ success: true, ticket })
+  } catch (error) {
+    console.error("Support ticket PATCH error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

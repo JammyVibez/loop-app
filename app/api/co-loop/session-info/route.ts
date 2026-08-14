@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 
@@ -29,18 +30,12 @@ function mergeCoAuthors(existing: any[], addition: CoAuthorEntry) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "") || null
-    if (!token) {
+    const callingUser = await getUserFromRequest(request)
+    if (!callingUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const supabase = createServerClient()
-    const { data: { user: callingUser }, error: authErr } = await supabase.auth.getUser(token)
-
-    if (authErr || !callingUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
     const body = await request.json()
     const session_id = body.session_id || body.sessionId
@@ -126,17 +121,12 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "") || null
-    if (!token) {
+    const callingUser = await getUserFromRequest(request)
+    if (!callingUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const supabase = createServerClient()
-    const { data: { user: callingUser }, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !callingUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
     const body = await request.json()
     const session_id = body.session_id || body.sessionId
@@ -176,14 +166,8 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerClient()
 
-    // Extract calling user token if present
-    const authHeader = request.headers.get("authorization")
-    let callingUser: any = null
-    if (authHeader) {
-      const token = authHeader.replace("Bearer ", "")
-      const { data: { user } } = await supabase.auth.getUser(token)
-      callingUser = user
-    }
+    // Extract calling user if present (best-effort — this GET is guest-safe)
+    const callingUser = await getUserFromRequest(request).catch(() => null)
 
     let inviterProfile: any = null
     let coAuthors: any[] = []
