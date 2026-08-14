@@ -42,6 +42,13 @@ export interface ZipParseResult {
   truncated: boolean
 }
 
+/**
+ * Progress callback fired during ZIP parsing. `phase` is "read" while the
+ * archive bytes are being pushed into the decompressor and "extract" while
+ * each kept source file is being finalized.
+ */
+export type ZipParseProgress = (phase: "read" | "extract", percent: number, label: string) => void
+
 export const REPO_FILE_LIMITS = {
   maxEntries: 300,
   maxFileBytes: 1024 * 1024, // 1MB per source file
@@ -195,12 +202,25 @@ export function languageFromPath(path: string): string {
 /* ZIP parsing (streaming — junk never gets decompressed)              */
 /* ------------------------------------------------------------------ */
 
-export async function parseProjectZip(file: File): Promise<ZipParseResult> {
+export async function parseProjectZip(
+  file: File,
+  onProgress?: ZipParseProgress,
+): Promise<ZipParseResult> {
   const buffer = new Uint8Array(await file.arrayBuffer())
   const entries: RepoFileEntry[] = []
   const removedReasons = new Map<string, number>()
   let totalBytes = 0
   let truncated = false
+
+  /**
+   * Push the archive in ~8MB slices, yielding to the event loop between
+   * slices. Decompression itself is synchronous, but slicing keeps the UI
+   * thread breathing and lets us show real extraction progress instead of a
+   * frozen spinner — which is what made big (or even medium) archives feel
+   * like they were "taking forever".
+   */
+  const PUSH_CHUNK = 8 * 1024 * 1024
+  const tick = () => new Promise<void>((r) => setTimeout(r, 0))
 
   await new Promise<void>((resolve, reject) => {
     const unzip = new Unzip()
@@ -279,16 +299,27 @@ export async function parseProjectZip(file: File): Promise<ZipParseResult> {
       }
     }
 
-    try {
-      unzip.push(buffer, true)
-      finalPushed = true
-      maybeResolve()
-    } catch (err) {
-      reject(err as Error)
+    const run = async () => {
+      try {
+        for (let offset = 0; offset < buffer.length; offset += PUSH_CHUNK) {
+          const slice = buffer.subarray(offset, Math.min(buffer.length, offset + PUSH_CHUNK))
+          unzip.push(slice, offset + slice.length >= buffer.length)
+          const pct = Math.min(100, Math.round(((offset + slice.length) / buffer.length) * 100))
+          onProgress?.("read", pct, `Reading archive… ${pct}%`)
+          // Yield so the dialog can paint progress and the tab stays responsive.
+          await tick()
+        }
+        finalPushed = true
+        maybeResolve()
+      } catch (err) {
+        reject(err as Error)
+      }
     }
+    void run()
   })
 
   entries.sort((a, b) => a.path.localeCompare(b.path))
+  onProgress?.("extract", 100, `Extracted ${entries.length} file${entries.length === 1 ? "" : "s"}`)
 
   return {
     entries,
@@ -352,7 +383,7 @@ export async function uploadRepoFiles(
   const files: UploadedRepoFile[] = []
   const failed: string[] = []
 
-  await runWithConcurrency(entries, 4, async (entry) => {
+  await runWithConcurrency(entries, 6, async (entry) => {
     try {
       const url = await uploadEntry(entry, authHeaders)
       files.push({ path: entry.path, name: entry.name, url, size: entry.size, language: entry.language })

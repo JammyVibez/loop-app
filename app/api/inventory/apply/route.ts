@@ -51,7 +51,11 @@ function isThemeItem(shopItem: any, itemType: string) {
 }
 
 function isCosmeticItem(shopItem: any, itemType: string) {
-  const hay = `${shopItem?.category || ""} ${itemType || ""}`.toLowerCase()
+  const hay = `${shopItem?.category || ""} ${itemType || ""} ${shopItem?.name || ""}`.toLowerCase()
+  // Everything that isn't a theme or a coin pack is an equipable cosmetic:
+  // badges, frames, auras, fonts, post/card effects, tree skins, sounds,
+  // profile styling, etc. The client cosmetics engine maps each one to a
+  // visible slot (see lib/cosmetics.ts classify()).
   return (
     hay.includes("badge") ||
     hay.includes("frame") ||
@@ -61,7 +65,22 @@ function isCosmeticItem(shopItem: any, itemType: string) {
     hay.includes("avatar") ||
     hay.includes("font") ||
     hay.includes("card_effect") ||
-    hay.includes("post_card")
+    hay.includes("post_card") ||
+    hay.includes("post") ||
+    hay.includes("tree") ||
+    hay.includes("branch") ||
+    hay.includes("sound") ||
+    hay.includes("chime") ||
+    hay.includes("bell") ||
+    hay.includes("notification") ||
+    hay.includes("profile") ||
+    hay.includes("design") ||
+    hay.includes("styling") ||
+    hay.includes("sticker") ||
+    hay.includes("banner") ||
+    hay.includes("ring") ||
+    hay.includes("sparkle") ||
+    hay.includes("glow")
   )
 }
 

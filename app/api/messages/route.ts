@@ -51,6 +51,10 @@ export async function GET(request: NextRequest) {
         reactions,
         created_at,
         is_edited,
+        edited_at,
+        is_deleted,
+        forwarded_from,
+        forwarded_message_id,
         sender:profiles!messages_author_id_fkey(
           id, username, display_name, avatar_url
         )
@@ -101,8 +105,10 @@ export async function POST(request: NextRequest) {
     const messageType = body.message_type || "text"
     const mediaUrl = body.media_url || body.file_url || null
     const replyToId = body.reply_to_id || body.replyToId || null
+    const forwardedFrom = body.forwarded_from || body.forwardedFrom || null
+    const forwardedMessageId = body.forwarded_message_id || body.forwardedMessageId || null
 
-    if (!conversationId || (!content && !mediaUrl)) {
+    if (!conversationId || (!content && !mediaUrl && !forwardedMessageId)) {
       return NextResponse.json({ error: "Conversation ID and content are required" }, { status: 400 })
     }
 
@@ -122,11 +128,25 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
     }
 
+    // Forwards carry a human-readable origin label + the original message id.
+    if (forwardedFrom) basePayload.forwarded_from = String(forwardedFrom).slice(0, 80)
+    if (forwardedMessageId) basePayload.forwarded_message_id = String(forwardedMessageId)
+
     let message: any = null
     let messageError: any = null
 
     const withReply = replyToId ? { ...basePayload, reply_to_id: replyToId } : basePayload
     ;({ data: message, error: messageError } = await supabase.from("messages").insert(withReply).select("*").single())
+
+    // Older DBs without the forward columns: retry without them (the core
+    // message still sends, the forward label is just dropped).
+    if (messageError && /forwarded_from|forwarded_message_id|PGRST204|column/i.test(messageError.message || "")) {
+      const slim: Record<string, any> = { ...basePayload }
+      delete slim.forwarded_from
+      delete slim.forwarded_message_id
+      const slimWithReply = replyToId ? { ...slim, reply_to_id: replyToId } : slim
+      ;({ data: message, error: messageError } = await supabase.from("messages").insert(slimWithReply).select("*").single())
+    }
 
     if (messageError && replyToId && /reply_to|PGRST204|column/i.test(messageError.message || "")) {
       ;({ data: message, error: messageError } = await supabase.from("messages").insert(basePayload).select("*").single())

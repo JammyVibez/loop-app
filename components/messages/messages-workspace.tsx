@@ -13,6 +13,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { GiftModal } from "@/components/gifting/gift-modal"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
+import { ForwardDialog } from "@/components/messages/forward-dialog"
 import { cn } from "@/lib/utils"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import {
@@ -22,6 +23,7 @@ import {
   Check,
   CheckCheck,
   Copy,
+  CornerUpRight,
   ExternalLink,
   GitBranch,
   Gift,
@@ -32,12 +34,14 @@ import {
   MicOff,
   MoreHorizontal,
   Paperclip,
+  Pencil,
   Reply,
   Search,
   Send,
   Smile,
   Sparkles,
   Film,
+  Trash2,
   X,
 } from "lucide-react"
 import {
@@ -78,6 +82,8 @@ interface ChatMessage {
   sender_id?: string
   author_id?: string
   created_at: string
+  edited_at?: string | null
+  is_deleted?: boolean
   media_url?: string | null
   media_type?: string | null
   message_type?: string
@@ -96,6 +102,9 @@ interface ChatMessage {
     display_name?: string
     avatar_url?: string
   } | null
+  /** When this message was forwarded from another chat. */
+  forwarded_from?: string | null
+  forwarded_message_id?: string | null
 }
 
 const QUICK_REACTIONS = ["❤️", "😂", "👍", "🔥", "😮", "👏"]
@@ -169,6 +178,12 @@ export function MessagesWorkspace() {
   const [sending, setSending] = useState(false)
   const [starting, setStarting] = useState(false)
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null)
+  const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null)
+  const [editDraft, setEditDraft] = useState("")
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [deletingMessage, setDeletingMessage] = useState<ChatMessage | null>(null)
+  const [forwardTarget, setForwardTarget] = useState<ChatMessage | null>(null)
+  const [forwardingTo, setForwardingTo] = useState<string | null>(null)
   const [typingPeer, setTypingPeer] = useState(false)
   const [peerOnline, setPeerOnline] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -343,6 +358,24 @@ export function MessagesWorkspace() {
         if (payload?.user_id && payload.user_id !== user.id && payload?.read_at) {
           setPeerReadAt(payload.read_at)
         }
+      })
+      .on("broadcast", { event: "message_edited" }, ({ payload }: { payload: any }) => {
+        if (!payload?.id || selectedIdRef.current !== selectedId) return
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === payload.id
+              ? { ...m, content: String(payload.content ?? m.content), edited_at: payload.edited_at || m.edited_at }
+              : m,
+          ),
+        )
+      })
+      .on("broadcast", { event: "message_deleted" }, ({ payload }: { payload: any }) => {
+        if (!payload?.id || selectedIdRef.current !== selectedId) return
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === payload.id ? { ...m, is_deleted: true, content: "", media_url: null } : m,
+          ),
+        )
       })
       .on("broadcast", { event: "reaction" }, () => {
         if (selectedIdRef.current === selectedId) void loadMessages(selectedId)
@@ -631,6 +664,142 @@ export function MessagesWorkspace() {
       toast({ title: "Copied to clipboard" })
     } catch {
       toast({ title: "Couldn’t copy", variant: "destructive" })
+    }
+  }
+
+  const startEdit = (message: ChatMessage) => {
+    setEditDraft(message.content || "")
+    setEditingMessage(message)
+    setReplyTo(null)
+    setDeletingMessage(null)
+    setForwardTarget(null)
+  }
+
+  const cancelEdit = () => {
+    setEditingMessage(null)
+    setEditDraft("")
+  }
+
+  const saveEdit = async () => {
+    if (!editingMessage || !user || savingEdit) return
+    const content = editDraft.trim()
+    if (!content) {
+      toast({ title: "Message can’t be empty", variant: "destructive" })
+      return
+    }
+    const target = editingMessage
+    setSavingEdit(true)
+    try {
+      const response = await fetch(`/api/messages/${target.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ content }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Edit failed")
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === data.message.id ? { ...m, content: data.message.content, edited_at: data.message.edited_at } : m,
+        ),
+      )
+      toast({ title: "Message updated" })
+    } catch (error: any) {
+      toast({ title: "Couldn’t edit message", description: error.message, variant: "destructive" })
+    } finally {
+      setSavingEdit(false)
+      cancelEdit()
+    }
+  }
+
+  const requestDelete = (message: ChatMessage) => {
+    setDeletingMessage(message)
+    setEditingMessage(null)
+    setForwardTarget(null)
+  }
+
+  const confirmDelete = async () => {
+    if (!deletingMessage || !user) return
+    const target = deletingMessage
+    setDeletingMessage(null)
+    try {
+      const response = await fetch(`/api/messages/${target.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Delete failed")
+      setMessages((prev) =>
+        prev.map((m) => (m.id === target.id ? { ...m, is_deleted: true, content: "", media_url: null } : m)),
+      )
+      toast({ title: "Message deleted" })
+    } catch (error: any) {
+      toast({ title: "Couldn’t delete message", description: error.message, variant: "destructive" })
+    }
+  }
+
+  const forwardMessage = (message: ChatMessage) => {
+    setForwardTarget(message)
+    setEditingMessage(null)
+    setDeletingMessage(null)
+  }
+
+  const forwardDisplayName = (message: ChatMessage) => {
+    if (message.sender?.display_name || message.sender?.username) {
+      return message.sender.display_name || message.sender.username || "Someone"
+    }
+    if ((message.sender_id || message.author_id) === user?.id) return "You"
+    return selected?.other_user?.display_name || selected?.other_user?.username || "Someone"
+  }
+
+  const confirmForward = async (conversationId: string) => {
+    if (!forwardTarget || !user || forwardingTo) return
+    const target = forwardTarget
+    setForwardingTo(conversationId)
+    try {
+      const response = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          content: target.content || "",
+          media_url: target.media_url || null,
+          message_type: target.message_type || (target.media_url ? "image" : "text"),
+          forwarded_from: forwardDisplayName(target),
+          forwarded_message_id: target.id,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Forward failed")
+      toast({ title: "Message forwarded", description: "The recipient can open it right in their chat." })
+      setForwardTarget(null)
+    } catch (error: any) {
+      toast({ title: "Couldn’t forward", description: error.message, variant: "destructive" })
+    } finally {
+      setForwardingTo(null)
+    }
+  }
+
+  /** Create (or reuse) a 1:1 chat with a username and forward the message there. */
+  const forwardToNewUser = async (username: string) => {
+    if (!forwardTarget || !user || forwardingTo) return
+    try {
+      const lookup = await fetch(`/api/users?q=${encodeURIComponent(username.replace(/^@/, ""))}&limit=8`, {
+        headers: getAuthHeader(),
+      })
+      const data = await lookup.json()
+      const target = (data.users || data.data || []).find((u: any) => u.id !== user.id)
+      if (!target?.id) throw new Error("User not found — check the username")
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ participant_ids: [target.id] }),
+      })
+      const conv = await res.json()
+      if (!res.ok) throw new Error(conv.error || "Could not start chat")
+      await confirmForward(conv.conversation.id)
+      await loadConversations()
+    } catch (error: any) {
+      toast({ title: "Couldn’t forward", description: error.message, variant: "destructive" })
     }
   }
 
@@ -1131,59 +1300,79 @@ export function MessagesWorkspace() {
                     mine
                       ? "chat-bubble-mine rounded-br-md bg-emerald-600 text-white dark:bg-emerald-700"
                       : "chat-bubble-peer rounded-bl-md bg-muted text-foreground",
+                    message.is_deleted &&
+                      "chat-bubble-peer rounded-bl-md bg-muted/70 italic text-muted-foreground",
                   )}
                 >
-                  {message.reply_to && (
-                    <div className="mb-1.5 rounded-lg border-l-2 border-emerald-400/70 bg-black/20 px-2 py-1 text-[11px]">
-                      <p className="truncate font-semibold text-emerald-300">
-                        {message.reply_to.sender?.display_name ||
-                          (message.reply_to.author_id === user.id
-                            ? "You"
-                            : selected.other_user?.display_name || "Reply")}
-                      </p>
-                      <p className="truncate text-white/80">{message.reply_to.content || "Media"}</p>
-                    </div>
+                  {message.is_deleted ? (
+                    <p className="py-0.5 text-[13px] not-italic">🚫 Message deleted</p>
+                  ) : (
+                    <>
+                      {message.forwarded_from && (
+                        <p
+                          className={cn(
+                            "mb-0.5 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide",
+                            mine ? "text-emerald-200/90" : "text-muted-foreground",
+                          )}
+                        >
+                          <CornerUpRight className="h-3 w-3" />
+                          Forwarded from {message.forwarded_from}
+                        </p>
+                      )}
+                      {message.reply_to && (
+                        <div className="mb-1.5 rounded-lg border-l-2 border-emerald-400/70 bg-black/20 px-2 py-1 text-[11px]">
+                          <p className="truncate font-semibold text-emerald-300">
+                            {message.reply_to.sender?.display_name ||
+                              (message.reply_to.author_id === user.id
+                                ? "You"
+                                : selected.other_user?.display_name || "Reply")}
+                          </p>
+                          <p className="truncate text-white/80">{message.reply_to.content || "Media"}</p>
+                        </div>
+                      )}
+                      {message.media_url &&
+                        (message.media_type === "image" ||
+                          message.message_type === "image" ||
+                          message.message_type === "gif") && (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={message.media_url}
+                            alt=""
+                            className="mb-1 max-h-64 w-full rounded-lg object-cover"
+                            loading="lazy"
+                          />
+                        )}
+                      {message.media_url && (message.media_type === "audio" || message.message_type === "audio") && (
+                        <audio controls src={message.media_url} className="mb-1 w-full max-w-[240px]" />
+                      )}
+                      {message.media_url && (message.media_type === "video" || message.message_type === "video") && (
+                        <video controls src={message.media_url} className="mb-1 max-h-64 w-full rounded-lg" />
+                      )}
+                      {message.content && !(message.message_type === "audio" && message.content === "Voice note") && (
+                        <RichContent
+                          text={message.content}
+                          className="whitespace-pre-wrap break-words"
+                          as="p"
+                          // Skip the auto link-preview card when the message already
+                          // carries media — the video/image IS the content. This keeps
+                          // shared reels from rendering a duplicate preview card.
+                          showPreviewCard={!message.media_url}
+                        />
+                      )}
+                      <div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70">
+                        <span>
+                          {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        {message.edited_at && <span className="italic">Edited</span>}
+                        {mine &&
+                          (seen ? (
+                            <CheckCheck className="h-3.5 w-3.5 text-sky-300" />
+                          ) : (
+                            <Check className="h-3.5 w-3.5 text-white/70" />
+                          ))}
+                      </div>
+                    </>
                   )}
-                  {message.media_url &&
-                    (message.media_type === "image" ||
-                      message.message_type === "image" ||
-                      message.message_type === "gif") && (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={message.media_url}
-                        alt=""
-                        className="mb-1 max-h-64 w-full rounded-lg object-cover"
-                        loading="lazy"
-                      />
-                    )}
-                  {message.media_url && (message.media_type === "audio" || message.message_type === "audio") && (
-                    <audio controls src={message.media_url} className="mb-1 w-full max-w-[240px]" />
-                  )}
-                  {message.media_url && (message.media_type === "video" || message.message_type === "video") && (
-                    <video controls src={message.media_url} className="mb-1 max-h-64 w-full rounded-lg" />
-                  )}
-                  {message.content && !(message.message_type === "audio" && message.content === "Voice note") && (
-                    <RichContent
-                      text={message.content}
-                      className="whitespace-pre-wrap break-words"
-                      as="p"
-                      // Skip the auto link-preview card when the message already
-                      // carries media — the video/image IS the content. This keeps
-                      // shared reels from rendering a duplicate preview card.
-                      showPreviewCard={!message.media_url}
-                    />
-                  )}
-                  <div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70">
-                    <span>
-                      {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                    {mine &&
-                      (seen ? (
-                        <CheckCheck className="h-3.5 w-3.5 text-sky-300" />
-                      ) : (
-                        <Check className="h-3.5 w-3.5 text-white/70" />
-                      ))}
-                  </div>
                 </div>
 
                 {(message.reactions?.length || 0) > 0 && (
@@ -1203,26 +1392,68 @@ export function MessagesWorkspace() {
 
                 <div
                   className={cn(
-                    "mt-1 flex gap-1 opacity-0 transition group-hover:opacity-100",
+                    "mt-1 flex flex-wrap items-center gap-0.5 sm:gap-1 sm:opacity-0 sm:transition sm:group-hover:opacity-100",
                     mine ? "justify-end" : "justify-start",
                   )}
                 >
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 px-2 text-muted-foreground"
-                    onClick={() => setReplyTo(message)}
-                  >
-                    <Reply className="mr-1 h-3.5 w-3.5" /> Reply
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 px-2 text-muted-foreground"
-                    onClick={() => void copyMessage(message)}
-                  >
-                    <Copy className="mr-1 h-3.5 w-3.5" /> Copy
-                  </Button>
+                  {!message.is_deleted && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-1.5 text-muted-foreground sm:px-2"
+                        onClick={() => setReplyTo(message)}
+                        title="Reply"
+                      >
+                        <Reply className="mr-0 h-3.5 w-3.5 sm:mr-1" />
+                        <span className="hidden sm:inline">Reply</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-1.5 text-muted-foreground sm:px-2"
+                        onClick={() => void copyMessage(message)}
+                        title="Copy"
+                      >
+                        <Copy className="mr-0 h-3.5 w-3.5 sm:mr-1" />
+                        <span className="hidden sm:inline">Copy</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-1.5 text-muted-foreground sm:px-2"
+                        onClick={() => forwardMessage(message)}
+                        title="Forward"
+                      >
+                        <CornerUpRight className="mr-0 h-3.5 w-3.5 sm:mr-1" />
+                        <span className="hidden sm:inline">Forward</span>
+                      </Button>
+                      {mine && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-1.5 text-muted-foreground sm:px-2"
+                            onClick={() => startEdit(message)}
+                            title="Edit"
+                          >
+                            <Pencil className="mr-0 h-3.5 w-3.5 sm:mr-1" />
+                            <span className="hidden sm:inline">Edit</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-1.5 text-muted-foreground hover:text-destructive sm:px-2"
+                            onClick={() => requestDelete(message)}
+                            title="Delete"
+                          >
+                            <Trash2 className="mr-0 h-3.5 w-3.5 sm:mr-1" />
+                            <span className="hidden sm:inline">Delete</span>
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  )}
                   {QUICK_REACTIONS.slice(0, 3).map((emoji) => (
                     <button
                       key={emoji}
@@ -1260,6 +1491,59 @@ export function MessagesWorkspace() {
           <Button variant="ghost" size="icon" onClick={() => setReplyTo(null)}>
             <X className="h-4 w-4" />
           </Button>
+        </div>
+      )}
+
+      {editingMessage && (
+        <div className="border-t border-border bg-card px-3 py-2 text-sm text-foreground">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              <Pencil className="h-3.5 w-3.5" />
+              Editing message
+            </p>
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={cancelEdit}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex items-end gap-2">
+            <Textarea
+              value={editDraft}
+              onChange={(e) => setEditDraft(e.target.value)}
+              rows={2}
+              placeholder="Edit message…"
+              className="min-h-[56px] flex-1 resize-none border-border bg-background px-3 py-2 text-sm text-foreground"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault()
+                  void saveEdit()
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              onClick={() => void saveEdit()}
+              disabled={savingEdit || !editDraft.trim()}
+              className="shrink-0 bg-emerald-600 hover:bg-emerald-500"
+            >
+              {savingEdit ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Check className="mr-1.5 h-3.5 w-3.5" />}
+              Save
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {deletingMessage && (
+        <div className="flex items-center justify-between gap-2 border-t border-border bg-destructive/10 px-3 py-2 text-sm text-foreground">
+          <p className="min-w-0 truncate text-xs font-medium">Delete this message for everyone?</p>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Button size="sm" variant="outline" className="h-8 rounded-full px-3 text-xs" onClick={() => setDeletingMessage(null)}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="destructive" className="h-8 rounded-full px-3 text-xs" onClick={() => void confirmDelete()}>
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+              Delete
+            </Button>
+          </div>
         </div>
       )}
 
@@ -1442,7 +1726,20 @@ export function MessagesWorkspace() {
         </div>
       </div>
 
-      {selected.other_user && (
+      {forwardTarget && (
+        <ForwardDialog
+          open={Boolean(forwardTarget)}
+          onOpenChange={(open) => {
+            if (!open) setForwardTarget(null)
+          }}
+          conversations={conversations}
+          forwardingId={forwardingTo}
+          onForward={(id) => void confirmForward(id)}
+          onForwardNew={forwardToNewUser}
+        />
+      )}
+
+            {selected.other_user && (
         <GiftModal
           open={showGift}
           onOpenChange={setShowGift}

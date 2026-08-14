@@ -25,6 +25,8 @@ export type ActiveCosmetics = {
   font?: CosmeticItem | null
   /** Post/loop card border-and-glow effect, admin-managed via the cosmetics catalog. */
   cardEffect?: CosmeticItem | null
+  /** Equipped sound/notification tone — plays on like / new message etc. */
+  sound?: CosmeticItem | null
 }
 
 export type AvatarFrameVariant = "none" | "ring_rotate" | "orbit_particles" | "pulse_glow" | "tilt_3d"
@@ -107,11 +109,27 @@ function normalizeCosmetic(row: any): CosmeticItem {
 function classify(item: CosmeticItem): keyof ActiveCosmetics | null {
   const type = `${item.item_type || ""} ${item.category || ""}`.toLowerCase()
   if (type.includes("badge")) return "badge"
-  if (type.includes("frame") || type.includes("avatar_frame")) return "frame"
+  if (type.includes("frame") || type.includes("avatar_frame") || type.includes("avatar_effect")) return "frame"
   if (type.includes("font")) return "font"
-  if (type.includes("card_effect") || type.includes("post_card") || type.includes("post_effect")) return "cardEffect"
+  if (type.includes("sound") || type.includes("notification") || type.includes("chime") || type.includes("bell")) return "sound"
+  if (type.includes("card_effect") || type.includes("post_card") || type.includes("post_effect") || type.includes("post")) return "cardEffect"
+  // Tree skins render as a golden/custom card effect on the author's loops.
+  if (type.includes("tree") || type.includes("branch")) return "cardEffect"
   if (type.includes("aura")) return "aura"
-  if (type.includes("effect") || type.includes("animation") || type.includes("particle")) return "effect"
+  // Everything else visible — animations, particles, stickers, profile
+  // styling/design, banners — lands in the "effect" slot, which the avatar
+  // renderer turns into a live glow/frame/interaction.
+  if (
+    type.includes("effect") ||
+    type.includes("animation") ||
+    type.includes("particle") ||
+    type.includes("sticker") ||
+    type.includes("banner") ||
+    type.includes("design") ||
+    type.includes("styling")
+  ) {
+    return "effect"
+  }
   return null
 }
 

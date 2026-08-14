@@ -96,6 +96,7 @@ export function CreateProjectDialog({
   const [zipName, setZipName] = useState("")
   const [zipParsing, setZipParsing] = useState(false)
   const [zipProgress, setZipProgress] = useState<{ done: number; total: number; label: string } | null>(null)
+  const [zipExtract, setZipExtract] = useState<{ phase: string; percent: number; label: string } | null>(null)
   const [repoFiles, setRepoFiles] = useState<UploadedRepoFile[]>([])
   const [repoZipUrl, setRepoZipUrl] = useState<string | null>(null)
   const [repoZipError, setRepoZipError] = useState<string | null>(null)
@@ -193,8 +194,11 @@ export function CreateProjectDialog({
     setRepoZipError(null)
     setRepoRemoved([])
     setRepoTruncated(false)
+    setZipExtract(null)
     try {
-      const parsed = await parseProjectZip(picked)
+      const parsed = await parseProjectZip(picked, (phase, percent, label) => {
+        setZipExtract({ phase, percent, label })
+      })
       setRepoRemoved(parsed.removedReasons)
       setRepoTotalBytes(parsed.totalBytes)
       setRepoTruncated(parsed.truncated)
@@ -453,9 +457,19 @@ export function CreateProjectDialog({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{zipName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {zipProgress
-                      ? `${zipProgress.label} — ${zipProgress.done}/${zipProgress.total}`
-                      : "Extracting & removing unneeded files…"}
+                    {zipExtract
+                      ? zipExtract.label
+                      : zipProgress
+                        ? `${zipProgress.label} — ${zipProgress.done}/${zipProgress.total}`
+                        : "Extracting & removing unneeded files…"}
+                  {zipExtract && zipExtract.percent < 100 && (
+                    <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-cyan-500 transition-all duration-150"
+                        style={{ width: `${Math.max(4, zipExtract.percent)}%` }}
+                      />
+                    </div>
+                  )}
                   </p>
                 </div>
               </div>

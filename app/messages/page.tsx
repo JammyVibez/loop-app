@@ -19,7 +19,7 @@ function MessagesShell() {
       <div className={inChat ? "hidden" : "hidden lg:block"}>
         <Header />
       </div>
-      <main className="mx-auto w-full max-w-6xl min-h-0 flex-1 px-0 lg:px-4 lg:py-4">
+      <main className="mx-auto w-full max-w-6xl min-h-0 flex-1 overflow-hidden px-0 lg:px-4 lg:py-4">
         <MessagesWorkspace />
       </main>
       {!inChat && (

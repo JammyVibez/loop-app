@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, level),
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, level, active_cosmetics, cosmetics),
           parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url)),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
           .from("loops")
           .select(`
             *,
-            author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+            author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, active_cosmetics, cosmetics),
             parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url)),
             loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
           `)
@@ -295,7 +295,7 @@ export async function GET(request: NextRequest) {
       .from("loops")
       .select(`
         *,
-        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, is_organization, organization_badge_url, organization_name, level),
+        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, is_organization, organization_badge_url, organization_name, level, active_cosmetics, cosmetics),
         parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url)),
         loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
@@ -314,7 +314,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, active_cosmetics, cosmetics),
           parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url)),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
@@ -344,7 +344,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, level),
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, level, active_cosmetics, cosmetics),
           parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url)),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
