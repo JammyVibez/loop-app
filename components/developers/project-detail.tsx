@@ -14,26 +14,21 @@ import { useLoginGate } from "@/hooks/use-login-gate"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import {
-  Bot,
-  Coins,
   Crown,
   Download,
   FileText,
   Loader2,
   LogOut,
   MessageCircle,
-  Palette,
-  Rocket,
   Send,
   Shield,
-  ShoppingBag,
   Trash2,
   UserPlus,
   Users,
-  Wand2,
   Wrench,
 } from "lucide-react"
 import { CodeLoopCard } from "@/components/developers/code-loop-card"
+import { ProjectRepoBrowser } from "@/components/developers/project-repo-browser"
 
 interface CommentAuthor {
   id: string
@@ -309,59 +304,16 @@ export function ProjectDetail({ project }: { project: any }) {
     },
   } as const
 
-  // ---- Marketplace publish ----
-  const [publishOpen, setPublishOpen] = useState(false)
-  const [publishing, setPublishing] = useState(false)
-  const [publishedListing, setPublishedListing] = useState<any | null>(project.published_listing || null)
-  const [publishDraft, setPublishDraft] = useState({
-    listing_type: "bot" as "bot" | "design" | "styling",
-    title: project.title || "",
-    description: project.description || "",
-    price_coins: 0,
-  })
-
-  const publishToMarketplace = async () => {
-    if (!requireAuth("post")) return
-    setPublishing(true)
-    try {
-      const res = await fetch(`/api/developers/projects/${projectId}/publish`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({
-          listing_type: publishDraft.listing_type,
-          title: publishDraft.title.trim(),
-          description: publishDraft.description.trim(),
-          price_coins: Math.max(0, Number(publishDraft.price_coins) || 0),
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to publish")
-      if (data.listing) {
-        setPublishedListing(data.listing)
-        toast({
-          title: data.already_published ? "Already published" : "Published to the Marketplace! 🚀",
-          description: `“${data.listing.title}” is now listed.`,
-        })
-      }
-      setPublishOpen(false)
-    } catch (err: any) {
-      toast({ title: "Publish failed", description: err.message, variant: "destructive" })
-    } finally {
-      setPublishing(false)
-    }
-  }
-
-  const TYPE_META = {
-    bot: { label: "Bot", icon: Bot, blurb: "Automation circle owners can install into their community" },
-    design: { label: "Design", icon: Palette, blurb: "Full community look & layout pack" },
-    styling: { label: "Styling", icon: Wand2, blurb: "Tokens, fonts, and UI accents" },
-  } as const
-
   return (
     <>
       {LoginGateDialog}
       <div className="space-y-6">
         <CodeLoopCard project={project} onDeleted={() => (window.location.href = "/developers")} />
+
+        {/* GitHub-style repo browser for ZIP-based projects */}
+        {Array.isArray(project.file_tree) && project.file_tree.length > 0 && (
+          <ProjectRepoBrowser project={project} isOwner={isOwner} />
+        )}
 
         {/* Attached files */}
         {Array.isArray(project.files) && project.files.length > 0 && (
@@ -393,106 +345,6 @@ export function ProjectDetail({ project }: { project: any }) {
             </CardContent>
           </Card>
         )}
-
-        {/* Publish to Marketplace */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ShoppingBag className="h-5 w-5 text-amber-500" /> Ship it to the Marketplace
-            </CardTitle>
-            <CardDescription>
-              Turn this project into a sellable listing — circle owners can buy & install it, and you earn Loop Coins.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {publishedListing ? (
-              <div className="flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-medium">
-                    <Badge className="mr-2 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                      <Coins className="mr-1 h-3 w-3" /> {Number(publishedListing.price_coins) || 0}
-                    </Badge>
-                    {publishedListing.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Published as a {publishedListing.listing_type} listing
-                    {publishedListing.is_published === false ? " (draft)" : " — live in the Marketplace"}.
-                  </p>
-                </div>
-                <Button asChild variant="outline" size="sm" className="rounded-full">
-                  <a href="/marketplace" target="_blank" rel="noreferrer">
-                    View in Marketplace
-                  </a>
-                </Button>
-              </div>
-            ) : isOwner ? (
-              <div className="flex flex-col gap-3">
-                <p className="text-sm text-muted-foreground">
-                  Pick what kind of listing this becomes. Bots are the most popular — circle owners install them into
-                  their community with one click.
-                </p>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  {(Object.keys(TYPE_META) as Array<keyof typeof TYPE_META>).map((type) => {
-                    const meta = TYPE_META[type]
-                    const Icon = meta.icon
-                    return (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => setPublishDraft((d) => ({ ...d, listing_type: type }))}
-                        className={cn(
-                          "rounded-2xl border p-3 text-left transition",
-                          publishDraft.listing_type === type
-                            ? "border-amber-500/50 bg-amber-500/10"
-                            : "border-border bg-card hover:bg-muted/50",
-                        )}
-                      >
-                        <Icon className="mb-2 h-5 w-5 text-amber-500" />
-                        <p className="text-sm font-semibold">{meta.label}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">{meta.blurb}</p>
-                      </button>
-                    )
-                  })}
-                </div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor="listing-price">Price (Loop Coins)</Label>
-                    <div className="relative">
-                      <Coins className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-500" />
-                      <Input
-                        id="listing-price"
-                        type="number"
-                        min={0}
-                        value={publishDraft.price_coins}
-                        onChange={(e) =>
-                          setPublishDraft((d) => ({ ...d, price_coins: Number(e.target.value) || 0 }))
-                        }
-                        className="pl-9"
-                        placeholder="0 = free"
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    onClick={() => void publishToMarketplace()}
-                    disabled={publishing}
-                    className="rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white"
-                  >
-                    {publishing ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Rocket className="mr-2 h-4 w-4" />
-                    )}
-                    Publish listing
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Only the project author can publish this. Star or fork it to show some love.
-              </p>
-            )}
-          </CardContent>
-        </Card>
 
         {/* Collaborators */}
         <Card>

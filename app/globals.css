@@ -383,6 +383,15 @@ body.theme-animations .rounded-xl {
 /* DM chat — Telegram/WhatsApp-style bubble tail + message-appear motion  */
 /* ---------------------------------------------------------------------- */
 
+/* ---------------------------------------------------------------------- */
+/* Full-viewport app heights for chat — vh fallback, then dvh so the page  */
+/* shrinks when the mobile keyboard opens instead of clipping the composer */
+/* ---------------------------------------------------------------------- */
+.h-app-dvh {
+  height: 100vh;
+  height: 100dvh;
+}
+
 @keyframes message-appear {
   from {
     opacity: 0;

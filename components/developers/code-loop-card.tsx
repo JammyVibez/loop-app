@@ -20,6 +20,10 @@ import {
   Pencil,
   Trash2,
   MoreHorizontal,
+  Archive,
+  Lock,
+  Globe,
+  TerminalSquare,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -43,6 +47,14 @@ export type ProjectFile = {
   format?: string
 }
 
+export type ProjectRepoFile = {
+  path: string
+  name: string
+  url: string
+  size?: number
+  language?: string
+}
+
 interface CodeLoopCardProps {
   project: {
     id: string
@@ -61,6 +73,10 @@ interface CodeLoopCardProps {
     }
     code_snippet: string
     files?: ProjectFile[]
+    file_tree?: ProjectRepoFile[]
+    repo_zip_url?: string | null
+    forked_from_id?: string | null
+    is_public?: boolean
     created_at: Date
   }
   onUpdated?: (project: any) => void
@@ -257,6 +273,9 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
     tags: project.tags,
     code_snippet: project.code_snippet,
     files: project.files,
+    file_tree: project.file_tree,
+    repo_zip_url: project.repo_zip_url,
+    is_public: project.is_public,
   }
 
   return (
@@ -329,12 +348,33 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
           <p className="text-muted-foreground text-sm">{project.description}</p>
         </div>
 
-        <div className="flex min-w-0 flex-wrap gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           {project.tags.map((tag) => (
             <Badge key={tag} variant="secondary" className="max-w-[10rem] truncate text-xs">
               #{tag}
             </Badge>
           ))}
+          {(project.file_tree?.length || 0) > 0 && (
+            <Badge variant="outline" className="gap-1 rounded-full border-cyan-500/40 text-[10px] text-cyan-600 dark:text-cyan-300">
+              <Archive className="h-3 w-3" />
+              Repo · {project.file_tree!.length} files
+            </Badge>
+          )}
+          {project.forked_from_id && (
+            <Badge variant="outline" className="gap-1 rounded-full border-indigo-500/40 text-[10px] text-indigo-600 dark:text-indigo-300">
+              <TerminalSquare className="h-3 w-3" />
+              Fork · sandbox soon
+            </Badge>
+          )}
+          {project.is_public === false ? (
+            <Badge variant="outline" className="gap-1 rounded-full border-amber-500/40 text-[10px] text-amber-600 dark:text-amber-400">
+              <Lock className="h-3 w-3" /> Private
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="gap-1 rounded-full border-emerald-500/40 text-[10px] text-emerald-600 dark:text-emerald-400">
+              <Globe className="h-3 w-3" /> Public
+            </Badge>
+          )}
         </div>
 
         {project.code_snippet.trim().length > 0 && (

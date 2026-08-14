@@ -40,6 +40,9 @@ const files = [
   // project_collaborators — RLS policies, realtime, owner backfill + auto-add
   // trigger (see /api/developers/projects/[id]/collaborators).
   "scripts/dev-collaborators-schema.sql",
+  // ZIP repo projects — file_tree / repo_zip_url / forked_from_id columns,
+  // fork backfill, realtime + RLS (see lib/dev-project-zip.ts).
+  "scripts/dev-repo-schema.sql",
   "scripts/rls-policies.sql",
   "scripts/realtime-functions.sql",
 ]

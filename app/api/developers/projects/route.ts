@@ -98,6 +98,8 @@ export async function POST(request: NextRequest) {
       repositoryUrl,
       demoUrl,
       files,
+      fileTree,
+      repoZipUrl,
     } = await request.json()
 
     const safeFiles = Array.isArray(files)
@@ -112,6 +114,23 @@ export async function POST(request: NextRequest) {
           }))
       : []
 
+    // GitHub-style repo file tree extracted from a ZIP (see lib/dev-project-zip.ts).
+    const safeFileTree = Array.isArray(fileTree)
+      ? fileTree
+          .filter((f: any) => f && typeof f.url === "string" && typeof f.name === "string")
+          .slice(0, 300)
+          .map((f: any) => ({
+            path: String(f.path || f.name).slice(0, 500),
+            name: String(f.name).slice(0, 200),
+            url: String(f.url),
+            size: Number(f.size) || 0,
+            language: String(f.language || "Text").slice(0, 50),
+          }))
+      : []
+
+    const safeRepoZipUrl =
+      typeof repoZipUrl === "string" && repoZipUrl.trim() ? repoZipUrl.trim().slice(0, 2000) : null
+
     // Code is optional as long as at least one file is attached — someone
     // sharing a design asset, dataset, or doc shouldn't have to paste fake
     // code just to satisfy a form field.
@@ -121,9 +140,9 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       )
     }
-    if (!codeSnippet?.trim() && safeFiles.length === 0) {
+    if (!codeSnippet?.trim() && safeFiles.length === 0 && safeFileTree.length === 0) {
       return NextResponse.json(
-        { error: 'Add a code snippet or attach at least one file' },
+        { error: 'Add a code snippet, attach a file, or upload a project ZIP' },
         { status: 400 },
       )
     }
@@ -140,6 +159,8 @@ export async function POST(request: NextRequest) {
         tags: tags || [],
         code_snippet: codeSnippet?.trim() || "",
         files: safeFiles,
+        file_tree: safeFileTree,
+        repo_zip_url: safeRepoZipUrl,
         repository_url: repositoryUrl,
         demo_url: demoUrl,
         stars: 0,

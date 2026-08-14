@@ -7,11 +7,31 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Code, Eye, FileText, Loader2, Paperclip, X } from "lucide-react";
+import {
+  Archive,
+  CheckCircle2,
+  Code,
+  Eye,
+  FileText,
+  FolderTree,
+  Loader2,
+  Lock,
+  Paperclip,
+  Trash2,
+  UploadCloud,
+  X,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useLoginGate } from "@/hooks/use-login-gate";
 import { uploadMediaFile } from "@/lib/client-media-upload";
+import {
+  formatRepoBytes,
+  parseProjectZip,
+  uploadRepoFiles,
+  zipSizeLimit,
+  type UploadedRepoFile,
+} from "@/lib/dev-project-zip";
 import { SyntaxHighlightedCode } from "@/components/loops/syntax-highlighted-code";
 
 export type EditableProject = {
@@ -23,6 +43,9 @@ export type EditableProject = {
   tags?: string[]
   code_snippet?: string
   files?: AttachedFile[]
+  file_tree?: UploadedRepoFile[]
+  repo_zip_url?: string | null
+  is_public?: boolean
 }
 
 interface CreateProjectDialogProps {
@@ -64,9 +87,24 @@ export function CreateProjectDialog({
   const [files, setFiles] = useState<AttachedFile[]>([])
   const [uploadingFile, setUploadingFile] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const zipInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
-  const { getAuthHeader } = useAuth()
+  const { user, getAuthHeader } = useAuth()
   const { requireAuth, LoginGateDialog } = useLoginGate()
+
+  // ---- ZIP repo state ----
+  const [zipName, setZipName] = useState("")
+  const [zipParsing, setZipParsing] = useState(false)
+  const [zipProgress, setZipProgress] = useState<{ done: number; total: number; label: string } | null>(null)
+  const [repoFiles, setRepoFiles] = useState<UploadedRepoFile[]>([])
+  const [repoZipUrl, setRepoZipUrl] = useState<string | null>(null)
+  const [repoZipError, setRepoZipError] = useState<string | null>(null)
+  const [repoRemoved, setRepoRemoved] = useState<string[]>([])
+  const [repoTotalBytes, setRepoTotalBytes] = useState(0)
+  const [repoTruncated, setRepoTruncated] = useState(false)
+
+  const isPro = Boolean(user?.is_premium)
+  const maxZipBytes = zipSizeLimit(isPro)
 
   useEffect(() => {
     if (!open) return
@@ -81,10 +119,23 @@ export function CreateProjectDialog({
         newTag: "",
       })
       setFiles(Array.isArray(project.files) ? project.files : [])
+      setRepoFiles(Array.isArray(project.file_tree) ? project.file_tree : [])
+      setRepoZipUrl(project.repo_zip_url || null)
+      setRepoZipError(null)
+      setZipName(project.repo_zip_url ? "Existing ZIP archive (kept on edit)" : "")
+      setRepoRemoved([])
+      setRepoTotalBytes((Array.isArray(project.file_tree) ? project.file_tree : []).reduce((acc, f: any) => acc + (Number(f.size) || 0), 0))
       setShowPreview(false)
     } else {
       setFormData(emptyForm)
       setFiles([])
+      setRepoFiles([])
+      setRepoZipUrl(null)
+      setRepoZipError(null)
+      setZipName("")
+      setRepoRemoved([])
+      setRepoTotalBytes(0)
+      setRepoTruncated(false)
       setShowPreview(false)
     }
   }, [open, project])
@@ -110,6 +161,85 @@ export function CreateProjectDialog({
 
   const handleRemoveFile = (url: string) => {
     setFiles((prev) => prev.filter((f) => f.url !== url))
+  }
+
+  const handleZipPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = e.target.files?.[0]
+    e.target.value = ""
+    if (!picked) return
+    await processZipFile(picked)
+  }
+
+  const processZipFile = async (picked: File) => {
+    if (!picked.name.toLowerCase().endsWith(".zip")) {
+      toast({ title: "Not a ZIP file", description: "Upload a .zip archive of your project.", variant: "destructive" })
+      return
+    }
+    if (picked.size > maxZipBytes) {
+      toast({
+        title: "Archive too large",
+        description: isPro
+          ? "Pro members can upload up to 500MB."
+          : "Free accounts can upload up to 100MB. Go Pro for up to 500MB.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setZipParsing(true)
+    setZipName(picked.name)
+    setRepoFiles([])
+    setRepoZipUrl(null)
+    setRepoZipError(null)
+    setRepoRemoved([])
+    setRepoTruncated(false)
+    try {
+      const parsed = await parseProjectZip(picked)
+      setRepoRemoved(parsed.removedReasons)
+      setRepoTotalBytes(parsed.totalBytes)
+      setRepoTruncated(parsed.truncated)
+      if (parsed.entries.length === 0) {
+        toast({
+          title: "Nothing shareable in that ZIP",
+          description: "We only found build/dependency/binary files. Try a ZIP of your source code.",
+          variant: "destructive",
+        })
+        setZipParsing(false)
+        return
+      }
+      const result = await uploadRepoFiles(parsed.entries, picked, getAuthHeader(), (done, total, label) => {
+        setZipProgress({ done, total, label })
+      })
+      setRepoFiles(result.files)
+      setRepoZipUrl(result.zipUrl)
+      setRepoZipError(result.zipError)
+      if (result.files.length === 0) {
+        toast({ title: "Upload failed", description: "None of the extracted files could be uploaded. Try a smaller archive.", variant: "destructive" })
+      } else {
+        toast({
+          title: "Project ready 🎉",
+          description: `${result.files.length} file${result.files.length === 1 ? "" : "s"} extracted and stored — arranged like GitHub.`,
+        })
+        if (result.zipError) {
+          toast({ title: "ZIP archive not stored", description: result.zipError, variant: "destructive" })
+        }
+      }
+    } catch (error: any) {
+      toast({ title: "Couldn't read ZIP", description: error.message || "This archive could not be parsed.", variant: "destructive" })
+    } finally {
+      setZipParsing(false)
+      setZipProgress(null)
+    }
+  }
+
+  const clearZip = () => {
+    setZipName("")
+    setRepoFiles([])
+    setRepoZipUrl(null)
+    setRepoZipError(null)
+    setRepoRemoved([])
+    setRepoTotalBytes(0)
+    setRepoTruncated(false)
   }
 
   const handleAddTag = () => {
@@ -141,10 +271,10 @@ export function CreateProjectDialog({
       return
     }
 
-    if (!formData.code.trim() && files.length === 0) {
+    if (!formData.code.trim() && files.length === 0 && repoFiles.length === 0) {
       toast({
         title: "Nothing to share",
-        description: "Add a code snippet or attach at least one file.",
+        description: "Add a code snippet, attach a file, or upload a project ZIP.",
         variant: "destructive",
       })
       return
@@ -160,6 +290,8 @@ export function CreateProjectDialog({
         tags: formData.tags,
         codeSnippet: formData.code,
         files,
+        fileTree: repoFiles,
+        repoZipUrl,
       }
 
       const response = await fetch(
@@ -186,6 +318,7 @@ export function CreateProjectDialog({
       if (!isEdit) {
         setFormData(emptyForm)
         setFiles([])
+        clearZip()
       }
       setShowPreview(false)
     } catch (error: any) {
@@ -275,9 +408,133 @@ export function CreateProjectDialog({
             </div>
           </div>
 
+          {/* ---- Project ZIP upload (GitHub-style repo) ---- */}
+          <div className="rounded-2xl border border-dashed border-cyan-500/40 bg-cyan-500/5 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="flex items-center gap-2 text-sm font-semibold">
+                <Archive className="h-4 w-4 text-cyan-500" />
+                Upload project (ZIP)
+              </Label>
+              <Badge variant="outline" className="gap-1 rounded-full border-cyan-500/40 text-[10px]">
+                {isPro ? (
+                  <>
+                    <Lock className="h-3 w-3 text-amber-500" /> Pro — up to 500MB
+                  </>
+                ) : (
+                  <>
+                    Up to 100MB <span className="text-muted-foreground">·</span>{" "}
+                    <span className="text-amber-600 dark:text-amber-400">Pro: 500MB</span>
+                  </>
+                )}
+              </Badge>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Loop extracts your archive, removes build/dependency files, and arranges it like GitHub so
+              everyone can read each file.
+            </p>
+
+            {!zipParsing && repoFiles.length === 0 && !zipName && (
+              <button
+                type="button"
+                onClick={() => zipInputRef.current?.click()}
+                className="mt-3 flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-4 py-7 text-center transition hover:border-cyan-500/50 hover:bg-muted/40"
+              >
+                <UploadCloud className="h-7 w-7 text-cyan-500" />
+                <span className="text-sm font-medium">Choose a .zip file</span>
+                <span className="text-[11px] text-muted-foreground">
+                  HTML, React, TypeScript, JavaScript, Python & more
+                </span>
+              </button>
+            )}
+
+            {zipParsing && (
+              <div className="mt-3 flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-4">
+                <Loader2 className="h-5 w-5 shrink-0 animate-spin text-cyan-500" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{zipName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {zipProgress
+                      ? `${zipProgress.label} — ${zipProgress.done}/${zipProgress.total}`
+                      : "Extracting & removing unneeded files…"}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {!zipParsing && (repoFiles.length > 0 || zipName) && (
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">
+                        {zipName || "Project archive"}
+                        {repoZipUrl ? "" : repoFiles.length ? " (files only)" : ""}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {repoFiles.length} file{repoFiles.length === 1 ? "" : "s"} ·{" "}
+                        {formatRepoBytes(repoTotalBytes)} of source
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={clearZip} title="Remove archive">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {repoFiles.length > 0 && (
+                  <div className="rounded-xl border border-border bg-background p-3">
+                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <FolderTree className="h-3.5 w-3.5 text-cyan-500" />
+                      Arranged file tree
+                    </div>
+                    <div className="max-h-40 overflow-y-auto rounded-lg bg-muted/50 p-2 font-mono text-[11px] leading-5">
+                      {repoFiles.slice(0, 40).map((f) => {
+                        const dir = f.path.split("/").slice(0, -1).join("/")
+                        return (
+                          <div key={f.path} className="flex items-center gap-1.5 truncate">
+                            <span className="text-muted-foreground">{dir ? `📁 ${dir}/` : ""}</span>
+                            <span className="text-foreground">{f.name}</span>
+                          </div>
+                        )
+                      })}
+                      {repoFiles.length > 40 && (
+                        <p className="mt-1 text-muted-foreground">+{repoFiles.length - 40} more files…</p>
+                      )}
+                    </div>
+                    {repoTruncated && (
+                      <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400">
+                        Some files were skipped to keep the project readable (max {300} files, 15MB of source).
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {repoZipError && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                    ⚠️ {repoZipError} — source files are saved, but the Download ZIP button won't work.
+                  </p>
+                )}
+                {repoRemoved.length > 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Removed unneeded files: {repoRemoved.join(" · ")}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <input
+              ref={zipInputRef}
+              type="file"
+              accept=".zip,application/zip,application/x-zip-compressed"
+              className="hidden"
+              onChange={handleZipPick}
+            />
+          </div>
+
           <div>
             <div className="flex items-center justify-between">
-              <Label htmlFor="code">Code (optional if you attach a file below)</Label>
+              <Label htmlFor="code">Code (optional if you attach a ZIP or file below)</Label>
               <Button
                 type="button"
                 variant="ghost"
@@ -297,7 +554,7 @@ export function CreateProjectDialog({
             ) : (
               <Textarea
                 id="code"
-                placeholder="Paste your code here..."
+                placeholder="Paste your code here... (or upload a ZIP above)"
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                 className="mt-2 min-h-[200px] font-mono text-sm"
@@ -306,9 +563,9 @@ export function CreateProjectDialog({
           </div>
 
           <div>
-            <Label>Attach files (optional)</Label>
+            <Label>Attach extra files (optional)</Label>
             <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
-              Share assets, docs, or a project zip alongside your code — up to {MAX_FILES} files, 25MB each.
+              Share assets or docs alongside your code — up to {MAX_FILES} files, 25MB each.
             </p>
             <input ref={fileInputRef} type="file" className="hidden" onChange={handleFilePick} />
             <div className="flex flex-wrap items-center gap-2">
@@ -377,7 +634,7 @@ export function CreateProjectDialog({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || zipParsing}
               className="flex-1"
             >
               {isSubmitting

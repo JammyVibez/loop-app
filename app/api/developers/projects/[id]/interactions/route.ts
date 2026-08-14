@@ -123,6 +123,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         demo_url: project.demo_url,
         is_public: true,
         files: Array.isArray(project.files) ? project.files : [],
+        // Repo-aware forks carry the full file tree + original ZIP so the
+        // copy is fully browsable (and sandbox-ready) from day one.
+        file_tree: Array.isArray(project.file_tree) ? project.file_tree : [],
+        repo_zip_url: typeof project.repo_zip_url === "string" ? project.repo_zip_url : null,
+        forked_from_id: projectId,
       }
 
       let { data: forkedProject, error: forkInsertError } = await supabase

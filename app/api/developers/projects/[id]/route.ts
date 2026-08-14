@@ -43,6 +43,20 @@ function sanitizeFiles(files: unknown) {
     }))
 }
 
+function sanitizeFileTree(tree: unknown) {
+  if (!Array.isArray(tree)) return undefined
+  return tree
+    .filter((f: any) => f && typeof f.url === "string" && typeof f.name === "string")
+    .slice(0, 300)
+    .map((f: any) => ({
+      path: String(f.path || f.name).slice(0, 500),
+      name: String(f.name).slice(0, 200),
+      url: String(f.url),
+      size: Number(f.size) || 0,
+      language: String(f.language || "Text").slice(0, 50),
+    }))
+}
+
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
@@ -103,6 +117,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const safeFiles = sanitizeFiles(body.files)
       if (safeFiles) updates.files = safeFiles
     }
+    if (body.fileTree !== undefined) {
+      const safeTree = sanitizeFileTree(body.fileTree)
+      if (safeTree) updates.file_tree = safeTree
+    }
+    if (typeof body.repoZipUrl === "string") {
+      updates.repo_zip_url = body.repoZipUrl.trim() ? body.repoZipUrl.trim().slice(0, 2000) : null
+    }
+    if (typeof body.is_public === "boolean") updates.is_public = body.is_public
 
     if (updates.title === "") {
       return NextResponse.json({ error: "Title is required" }, { status: 400 })
@@ -119,8 +141,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         ? (updates.code_snippet as string).trim().length > 0
         : undefined
     const hasFiles = Array.isArray(updates.files) ? (updates.files as unknown[]).length > 0 : undefined
-    if (hasCode === false && hasFiles === false) {
-      return NextResponse.json({ error: "Add a code snippet or attach at least one file" }, { status: 400 })
+    const hasTree = Array.isArray(updates.file_tree) ? (updates.file_tree as unknown[]).length > 0 : undefined
+    if (hasCode === false && hasFiles === false && hasTree === false) {
+      return NextResponse.json({ error: "Add a code snippet, attach a file, or upload a project ZIP" }, { status: 400 })
     }
 
     if (Object.keys(updates).length === 0) {

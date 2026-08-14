@@ -26,6 +26,10 @@ function normalizeProject(row: any) {
     },
     code_snippet: row.code_snippet || "",
     files: Array.isArray(row.files) ? row.files : [],
+    file_tree: Array.isArray(row.file_tree) ? row.file_tree : [],
+    repo_zip_url: row.repo_zip_url || null,
+    forked_from_id: row.forked_from_id || null,
+    is_public: row.is_public !== false,
     published_listing: row.published_listing || null,
     created_at: row.created_at ? new Date(row.created_at) : new Date(),
   }

@@ -14,6 +14,8 @@ export type UploadMediaOptions = {
   type: "image" | "video" | "audio" | "file"
   folder?: string
   authHeaders: Record<string, string>
+  /** Optional override for the per-type size cap (used for large ZIP uploads). */
+  maxSizeBytes?: number
 }
 
 export type UploadMediaResult = {
@@ -44,7 +46,7 @@ export async function uploadMediaFile(
 ): Promise<UploadMediaResult> {
   const type = mediaTypeFromFile(file, options.type)
   const folder = options.folder || "general"
-  const maxSize = MAX_UPLOAD_BYTES[type] || MAX_UPLOAD_BYTES.file
+  const maxSize = options.maxSizeBytes ?? (MAX_UPLOAD_BYTES[type] || MAX_UPLOAD_BYTES.file)
 
   if (file.size > maxSize) {
     throw new Error(`File is too large. Maximum size is ${Math.round(maxSize / 1024 / 1024)}MB.`)

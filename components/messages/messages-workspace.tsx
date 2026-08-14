@@ -1263,7 +1263,7 @@ export function MessagesWorkspace() {
         </div>
       )}
 
-      <div className="relative border-t border-border bg-muted p-2 sm:p-3">
+      <div className="relative border-t border-border bg-muted p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3">
         {showEmojiPicker && (
           <>
             <button
@@ -1483,8 +1483,7 @@ export function MessagesWorkspace() {
   return (
     <div
       className={cn(
-        "grid overflow-hidden border border-border bg-background lg:grid-cols-[340px_1fr] lg:rounded-2xl",
-        mobileShowChat ? "h-[100dvh] lg:h-[calc(100dvh-4rem)]" : "h-[calc(100dvh-4.25rem)] lg:h-[calc(100dvh-4rem)]",
+        "grid h-full min-h-0 overflow-hidden border border-border bg-background lg:grid-cols-[340px_1fr] lg:rounded-2xl",
       )}
     >
       <div className={cn("min-h-0", mobileShowChat ? "hidden lg:block" : "block")}>{inbox}</div>

@@ -1159,10 +1159,10 @@ export function CoLoopStudio() {
   if (!user) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center p-6 text-center">
-        <Card className="max-w-md p-6 border-cyan-500/30 bg-[#090d1a] text-slate-100 shadow-2xl">
+        <Card className="max-w-md p-6 border-cyan-500/30 bg-card text-card-foreground dark:bg-[#090d1a] dark:text-slate-100 shadow-2xl">
           <Lock className="mx-auto h-12 w-12 text-cyan-400 mb-3 animate-pulse" />
           <h2 className="text-xl font-bold">Studio Authentication Required</h2>
-          <p className="text-sm text-slate-400 mt-2">Log in to collaborate live in the Co-Loop Studio.</p>
+          <p className="text-sm text-muted-foreground mt-2">Log in to collaborate live in the Co-Loop Studio.</p>
         </Card>
       </div>
     )
@@ -1195,7 +1195,7 @@ export function CoLoopStudio() {
   const charCount = postContent.length
 
   return (
-    <div className="relative min-h-[92vh] overflow-hidden rounded-3xl border border-cyan-500/20 bg-[#030712] text-slate-100 p-3 sm:p-6 shadow-2xl">
+    <div className="relative min-h-[92vh] overflow-hidden rounded-3xl border border-cyan-500/20 bg-background text-foreground dark:bg-[#030712] dark:text-slate-100 p-3 sm:p-6 shadow-2xl">
       {/* Dark Ambient Studio Background Lights & Grid */}
       <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-20" />
       <div className="landing-aurora-blob pointer-events-none absolute left-1/2 top-[-10%] h-[75vmin] w-[75vmin] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.25),transparent_65%)] blur-3xl" />
@@ -1510,7 +1510,7 @@ export function CoLoopStudio() {
               {/* Media Attachments Section (All Co-Authors Upload Images/Videos) */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <label className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <ImageIcon className="h-3.5 w-3.5 text-cyan-400" />
                     Media Attachments
                   </label>
@@ -1536,7 +1536,7 @@ export function CoLoopStudio() {
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadingMedia}
                     variant="outline"
-                    className="rounded-xl border-cyan-500/40 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-500/20 text-xs font-bold gap-1.5 h-9"
+                    className="rounded-xl border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 dark:bg-cyan-950/30 hover:bg-cyan-500/20 text-xs font-bold gap-1.5 h-9"
                   >
                     {uploadingMedia ? (
                       <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
@@ -1560,7 +1560,7 @@ export function CoLoopStudio() {
                       }
                     }}
                     placeholder="or paste URL..."
-                    className="rounded-xl border-white/10 bg-slate-950/60 text-xs h-9 flex-1 min-w-[120px]"
+                    className="rounded-xl border-border bg-muted text-foreground placeholder:text-muted-foreground dark:border-white/10 dark:bg-slate-950/60 dark:text-white text-xs h-9 flex-1 min-w-[120px]"
                   />
                 </div>
 
@@ -1570,9 +1570,9 @@ export function CoLoopStudio() {
                     {mediaUrls.map((url, index) => {
                       const isVid = url.match(/\.(mp4|webm|ogg|mov)$/i) || mediaType === "video"
                       return (
-                        <div key={url + index} className="relative group rounded-xl overflow-hidden border border-cyan-500/30 bg-slate-900 h-20">
+                        <div key={url + index} className="relative group rounded-xl overflow-hidden border border-cyan-500/30 bg-muted dark:bg-slate-900 h-20">
                           {isVid ? (
-                            <div className="flex h-full w-full items-center justify-center bg-slate-950 text-cyan-400">
+                            <div className="flex h-full w-full items-center justify-center bg-muted text-cyan-600 dark:bg-slate-950 dark:text-cyan-400">
                               <Film className="h-6 w-6" />
                             </div>
                           ) : (
@@ -1758,10 +1758,10 @@ export function CoLoopStudio() {
         <ScrollArea className="flex-1 min-h-0 py-4 pr-2">
           <div className="space-y-3">
             {chatMessages.length === 0 ? (
-              <div className="text-center py-12 px-4 text-slate-400 space-y-2">
+              <div className="text-center py-12 px-4 text-muted-foreground space-y-2">
                 <MessageSquare className="h-8 w-8 text-cyan-400 mx-auto opacity-70" />
                 <p className="text-xs font-semibold">No thread messages yet.</p>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-muted-foreground/80">
                   Discuss ideas live with your co-authors sitting in the room!
                 </p>
               </div>
@@ -1783,7 +1783,7 @@ export function CoLoopStudio() {
                       className={`rounded-2xl px-3.5 py-2.5 max-w-[82%] shadow-md ${
                         isMe
                           ? "bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-medium"
-                          : "bg-slate-900 border border-white/10 text-slate-100"
+                          : "bg-muted border-border text-foreground dark:bg-slate-900 dark:border-white/10 dark:text-slate-100"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2 mb-0.5">
@@ -1801,12 +1801,12 @@ export function CoLoopStudio() {
         </ScrollArea>
 
         {/* Chat Input Form - Anchored at bottom */}
-        <form onSubmit={handleSendChatMessage} className="pt-2 border-t border-white/10 flex gap-2 shrink-0 pb-2">
+        <form onSubmit={handleSendChatMessage} className="pt-2 border-t border-border flex gap-2 shrink-0 pb-2">
           <Input
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
             placeholder="Type message to room..."
-            className="rounded-xl border-white/10 bg-slate-900 text-white text-xs h-10"
+            className="rounded-xl border-border bg-muted text-foreground placeholder:text-muted-foreground dark:border-white/10 dark:bg-slate-900 dark:text-white text-xs h-10"
           />
           <Button type="submit" className="rounded-xl bg-cyan-500 text-black hover:bg-cyan-400 font-bold h-10 px-4">
             <Send className="h-4 w-4" />
@@ -1816,7 +1816,7 @@ export function CoLoopStudio() {
 
       {/* CEREMONIAL PUBLISH CELEBRATION MODAL */}
       <Dialog open={publishCeremonyOpen} onOpenChange={setPublishCeremonyOpen}>
-        <DialogContent className="sm:max-w-lg border-cyan-500/40 bg-[#080d1e] text-slate-100 p-6 overflow-hidden">
+        <DialogContent className="sm:max-w-lg border-cyan-500/40 dark:bg-[#080d1e] dark:text-slate-100 p-6 overflow-hidden">
           {/* Background Ring Effects */}
           <div className="pointer-events-none absolute -inset-10 rounded-full border border-cyan-500/30 animate-ping opacity-20" />
           <div className="pointer-events-none absolute -inset-20 rounded-full border border-purple-500/20 animate-pulse opacity-20" />
@@ -1828,10 +1828,10 @@ export function CoLoopStudio() {
               </div>
             </div>
 
-            <DialogTitle className="text-2xl font-black text-white tracking-tight">
+            <DialogTitle className="text-2xl font-black text-foreground dark:text-white tracking-tight">
               Co-Loop Broadcasted Live! 🚀
             </DialogTitle>
-            <DialogDescription className="text-slate-300 text-xs sm:text-sm">
+            <DialogDescription className="text-muted-foreground dark:text-slate-300 text-xs sm:text-sm">
               Your collaborative creation is officially published to the community feed with stacked co-author credit!
             </DialogDescription>
           </DialogHeader>
@@ -1849,7 +1849,7 @@ export function CoLoopStudio() {
             </div>
 
             {/* Stacked Co-Authors Credit */}
-            <div className="rounded-2xl border border-cyan-500/30 bg-slate-900/80 p-3.5 space-y-2">
+            <div className="rounded-2xl border border-cyan-500/30 bg-muted/80 dark:bg-slate-900/80 p-3.5 space-y-2">
               <p className="text-xs font-bold uppercase tracking-wider text-cyan-300">Official Co-Authors</p>
               <div className="flex items-center -space-x-3 overflow-hidden py-1">
                 <Avatar className="h-9 w-9 ring-2 ring-cyan-400">
@@ -1884,7 +1884,7 @@ export function CoLoopStudio() {
                   // one rather than reusing this (now-stale) session id.
                   router.push("/co-loop/studio")
                 }}
-                className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 rounded-xl h-10 text-xs"
+                className="w-full border-border text-foreground hover:bg-muted dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 rounded-xl h-10 text-xs"
               >
                 Start Another Co-Loop Session
               </Button>
@@ -1913,12 +1913,12 @@ export function CoLoopStudio() {
 
       {/* Invite Collaborator Dialog */}
       <Dialog open={inviteModalOpen} onOpenChange={setInviteModalOpen}>
-        <DialogContent className="sm:max-w-md border-cyan-500/40 bg-[#080d1e] text-slate-100">
+        <DialogContent className="sm:max-w-md border-cyan-500/40 dark:bg-[#080d1e] dark:text-slate-100">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-cyan-400">
               <UserPlus className="h-5 w-5" /> Invite Collaborator to Co-Loop
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-400">
+            <DialogDescription className="text-xs text-muted-foreground dark:text-slate-400">
               Generate a shareable live session link or search a creator to send an invitation via DM and Notification. (Maximum {MAX_CO_AUTHORS} invited co-authors per Co-Loop).
             </DialogDescription>
           </DialogHeader>
@@ -1932,7 +1932,7 @@ export function CoLoopStudio() {
               <>
                 {/* Shareable Link Box */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground dark:text-slate-400 block">
                     Shareable Asymmetric Session Link
                   </label>
                   <div className="flex items-center gap-2">
@@ -1943,7 +1943,7 @@ export function CoLoopStudio() {
                           ? `${window.location.origin}/co-loop/join/${sessionId}${user?.username ? `?invitedBy=${encodeURIComponent(user.username)}` : ""}`
                           : ""
                       }
-                      className="rounded-xl border-cyan-500/30 bg-slate-900 text-xs font-mono text-cyan-200"
+                      className="rounded-xl border-cyan-500/30 bg-muted text-foreground dark:bg-slate-900 dark:text-cyan-200 text-xs font-mono"
                     />
                     <Button
                       onClick={() => void handleCopyInviteLink()}
@@ -1957,7 +1957,7 @@ export function CoLoopStudio() {
 
                 {/* Direct DM Search */}
                 <div className="space-y-1.5 relative">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground dark:text-slate-400 block">
                     Invite via DM & Notification
                   </label>
                   <Input
@@ -1965,11 +1965,11 @@ export function CoLoopStudio() {
                     onChange={(e) => setInvitedUserInput(e.target.value)}
                     onFocus={() => invitedUserInput.trim() && setShowSuggestions(true)}
                     placeholder="Search @username..."
-                    className="rounded-xl border-white/10 bg-slate-900 text-xs"
+                    className="rounded-xl border-border bg-muted text-foreground placeholder:text-muted-foreground dark:border-white/10 dark:bg-slate-900 dark:text-slate-100 text-xs"
                   />
 
                   {showSuggestions && userSuggestions.length > 0 && (
-                    <div className="rounded-xl border border-cyan-500/30 bg-slate-900 p-2 space-y-1 shadow-xl max-h-48 overflow-y-auto">
+                    <div className="rounded-xl border border-cyan-500/30 bg-card dark:bg-slate-900 p-2 space-y-1 shadow-xl max-h-48 overflow-y-auto">
                       {userSuggestions.map((u) => (
                         <div
                           key={u.id}
@@ -1982,7 +1982,7 @@ export function CoLoopStudio() {
                             </Avatar>
                             <div>
                               <p className="font-bold">{u.display_name || u.username}</p>
-                              <p className="text-[10px] text-slate-400">@{u.username}</p>
+                              <p className="text-[10px] text-muted-foreground dark:text-slate-400">@{u.username}</p>
                             </div>
                           </div>
                           <Button
@@ -2006,12 +2006,12 @@ export function CoLoopStudio() {
 
       {/* Split Gift Dialog */}
       <Dialog open={giftModalOpen} onOpenChange={setGiftModalOpen}>
-        <DialogContent className="sm:max-w-md border-amber-500/40 bg-[#080d1e] text-slate-100">
+        <DialogContent className="sm:max-w-md border-amber-500/40 dark:bg-[#080d1e] dark:text-slate-100">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-400">
               <Coins className="h-5 w-5" /> Co-Loop Split Gift 🎁
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-400">
+            <DialogDescription className="text-xs text-muted-foreground dark:text-slate-400">
               Gift Loop Coins to this Co-Loop! Coins will be split equally among all ({coAuthors.length + 1}) active co-authors sitting in the room.
             </DialogDescription>
           </DialogHeader>
@@ -2025,12 +2025,12 @@ export function CoLoopStudio() {
                     key={amount}
                     disabled={isSendingGift}
                     onClick={() => handleSendSplitGift(amount)}
-                    className="flex flex-col items-center justify-center h-20 rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-950/40 via-slate-900 to-amber-900/20 hover:border-amber-400 text-amber-300 font-bold"
+                    className="flex flex-col items-center justify-center h-20 rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-card to-amber-500/5 dark:from-amber-950/40 dark:via-slate-900 dark:to-amber-900/20 hover:border-amber-400 text-amber-700 dark:text-amber-300 font-bold"
                   >
                     <span className="text-lg font-extrabold flex items-center gap-1">
                       <Coins className="h-4 w-4 text-amber-400" /> {amount} Coins
                     </span>
-                    <span className="text-[10px] text-slate-400 mt-0.5">
+                    <span className="text-[10px] text-muted-foreground dark:text-slate-400 mt-0.5">
                       ({perAuthor} coins each)
                     </span>
                   </Button>
