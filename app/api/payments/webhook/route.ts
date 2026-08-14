@@ -43,6 +43,147 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as any
         const metadata = session.metadata || {}
 
+        if (metadata.kind === "premium" && metadata.user_id) {
+          const userId = String(metadata.user_id)
+          const days = Math.max(1, Number(metadata.plan_days) || 30)
+          const txId = `stripe_${session.id}`
+
+          // Idempotency: never double-grant on webhook retries.
+          const { data: existingTx } = await supabase
+            .from("wallet_transactions")
+            .select("id")
+            .eq("id", txId)
+            .maybeSingle()
+
+          if (existingTx) {
+            console.log(`Premium checkout ${session.id} already granted, skipping`)
+            break
+          }
+
+          if (session.payment_status !== "paid") {
+            console.warn(`Premium checkout ${session.id} completed but payment_status=${session.payment_status}`)
+            break
+          }
+
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("premium_expires_at")
+            .eq("id", userId)
+            .maybeSingle()
+
+          const now = new Date()
+          const currentExpiry =
+            profile?.premium_expires_at && new Date(profile.premium_expires_at) > now
+              ? new Date(profile.premium_expires_at)
+              : now
+          const expiresAt = new Date(currentExpiry.getTime() + days * 24 * 60 * 60 * 1000)
+
+          const { error: grantError } = await supabase
+            .from("profiles")
+            .update({
+              is_premium: true,
+              premium_expires_at: expiresAt.toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", userId)
+
+          if (grantError) {
+            console.error("Failed to grant premium from checkout session:", grantError)
+            break
+          }
+
+          const amountUsd = typeof session.amount_total === "number" ? session.amount_total / 100 : 0
+
+          await supabase.from("wallet_transactions").insert({
+            id: txId,
+            user_id: userId,
+            amount_usd: amountUsd,
+            coins_amount: 0,
+            type: "premium_purchase",
+            description: `Loop Pro (${days} days)`,
+            status: "completed",
+            payment_method: "stripe",
+            payment_intent_id: session.payment_intent || null,
+            created_at: new Date().toISOString(),
+          })
+
+          await notifyUser(supabase, {
+            userId,
+            type: "system",
+            title: "Welcome to Loop Pro! 👑",
+            message: `Your Pro membership is active until ${expiresAt.toLocaleDateString()}.`,
+            data: { plan: metadata.plan, premium_expires_at: expiresAt.toISOString() },
+            actionUrl: "/lounge",
+          })
+          break
+        }
+
+        if (metadata.kind === "shop_item" && metadata.user_id && metadata.item_id) {
+          const userId = String(metadata.user_id)
+          const itemId = String(metadata.item_id)
+          const itemType = String(metadata.item_type || "item")
+          const txId = `stripe_${session.id}`
+
+          if (session.payment_status !== "paid") {
+            console.warn(`Shop checkout ${session.id} completed but payment_status=${session.payment_status}`)
+            break
+          }
+
+          const { data: existingTx } = await supabase
+            .from("wallet_transactions")
+            .select("id")
+            .eq("id", txId)
+            .maybeSingle()
+
+          if (existingTx) {
+            console.log(`Shop checkout ${session.id} already granted, skipping`)
+            break
+          }
+
+          const { error: inventoryError } = await supabase.from("user_inventory").upsert(
+            {
+              user_id: userId,
+              item_id: itemId,
+              item_type: itemType,
+              is_active: false,
+              purchased_at: new Date().toISOString(),
+              payment_method: "stripe",
+            },
+            { onConflict: "user_id,item_id" },
+          )
+
+          if (inventoryError) {
+            console.error("Failed to grant shop item from checkout session:", inventoryError)
+            break
+          }
+
+          const amountUsd = typeof session.amount_total === "number" ? session.amount_total / 100 : 0
+
+          await supabase.from("wallet_transactions").insert({
+            id: txId,
+            user_id: userId,
+            amount_usd: amountUsd,
+            coins_amount: 0,
+            type: "shop_purchase",
+            description: `Purchased ${metadata.item_name || "Shop item"}`,
+            status: "completed",
+            payment_method: "stripe",
+            payment_intent_id: session.payment_intent || null,
+            item_id: metadata.item_id || null,
+            created_at: new Date().toISOString(),
+          })
+
+          await notifyUser(supabase, {
+            userId,
+            type: "system",
+            title: "Purchase complete! 🛍️",
+            message: `“${metadata.item_name || "Your item"}” is now in your inventory.`,
+            data: { item_id: itemId },
+            actionUrl: "/inventory",
+          })
+          break
+        }
+
         if (metadata.kind === "coin_pack" && metadata.user_id && metadata.coins_amount) {
           const userId = String(metadata.user_id)
           const coinsToAdd = Number(metadata.coins_amount) || 0
@@ -94,6 +235,8 @@ export async function POST(request: NextRequest) {
             description: `Purchased ${coinsToAdd.toLocaleString()} Loop Coins`,
             status: "completed",
             payment_method: "stripe",
+            payment_intent_id: session.payment_intent || null,
+            item_id: metadata.item_id || null,
             created_at: new Date().toISOString(),
           })
 

@@ -45,6 +45,9 @@ const files = [
   "scripts/dev-repo-schema.sql",
   "scripts/rls-policies.sql",
   "scripts/realtime-functions.sql",
+  // More coin packs + self-service refund system (refund_requests table,
+  // wallet_transactions.payment_intent_id / item_id, Stripe reversals).
+  "scripts/coin-packs-refunds-schema.sql",
 ]
 
 const ignorable = [

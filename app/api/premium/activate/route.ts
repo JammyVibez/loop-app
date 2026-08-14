@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { PRO_PRICING, type ProPlanId } from "@/lib/pro-features"
+import { getStripeServer } from "@/lib/stripe-server"
+import { getAppUrl } from "@/lib/app-url"
 
 export const dynamic = "force-dynamic"
 
@@ -31,8 +33,57 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json().catch(() => ({}))
     const planId = (body.plan === "annual" ? "annual" : "monthly") as ProPlanId
-    const plan = PRO_PRICING[planId]
-    const method = body.method === "request" ? "request" : "coins"
+    const plan: (typeof PRO_PRICING)[ProPlanId] = PRO_PRICING[planId]
+    const method = body.method === "request" ? "request" : body.method === "stripe" ? "stripe" : "coins"
+
+    // Pay with card — Stripe Checkout. The webhook (kind: "premium")
+    // grants the membership once payment succeeds.
+    if (method === "stripe") {
+      const stripe = await getStripeServer()
+      if (!stripe) {
+        return NextResponse.json(
+          { error: "Card payments are temporarily unavailable. Please try again later." },
+          { status: 503 },
+        )
+      }
+
+      const appUrl = getAppUrl(request)
+      // Capture before any `||` narrowing (as-const literal strings make
+      // `plan.description || …` narrow `plan` to never).
+      const planDays = plan.days
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        customer_email: user.email || undefined,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "usd",
+              unit_amount: Math.round(plan.priceUsd * 100),
+              product_data: {
+                name: `Loop Pro ${plan.name}`,
+                description: plan.description || `${planDays} days of Loop Pro`,
+              },
+            },
+          },
+        ],
+        metadata: {
+          kind: "premium",
+          user_id: user.id,
+          plan: planId,
+          plan_days: String(planDays),
+        },
+        success_url: `${appUrl}/lounge?checkout=success`,
+        cancel_url: `${appUrl}/premium?checkout=cancelled`,
+      })
+
+      if (!session.url) {
+        return NextResponse.json({ error: "Could not start checkout. Please try again." }, { status: 502 })
+      }
+
+      return NextResponse.json({ success: true, method: "stripe", checkout_url: session.url })
+    }
 
     if (method === "request") {
       const { error } = await supabase.from("premium_requests").insert({

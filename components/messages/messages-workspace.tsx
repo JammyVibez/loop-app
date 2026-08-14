@@ -1229,12 +1229,12 @@ export function MessagesWorkspace() {
       )}
 
       {showCoLoop && (
-        <div className="border-b border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-[#111b21] to-emerald-500/10 px-3 py-3">
+        <div className="border-b border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-muted/40 to-emerald-500/10 px-3 py-3">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-200">
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-600 dark:text-amber-300">
               <Sparkles className="h-4 w-4" />
               Co-Loop
-              <span className="rounded-full border border-amber-400/40 px-2 py-0.5 text-[10px] font-normal text-amber-100">
+              <span className="rounded-full border border-amber-400/40 px-2 py-0.5 text-[10px] font-normal text-amber-600 dark:text-amber-100">
                 Only on Loop
               </span>
             </p>
@@ -1320,14 +1320,19 @@ export function MessagesWorkspace() {
                         </p>
                       )}
                       {message.reply_to && (
-                        <div className="mb-1.5 rounded-lg border-l-2 border-emerald-400/70 bg-black/20 px-2 py-1 text-[11px]">
-                          <p className="truncate font-semibold text-emerald-300">
+                        <div
+                          className={cn(
+                            "mb-1.5 rounded-lg border-l-2 border-emerald-400/70 px-2 py-1 text-[11px]",
+                            mine ? "bg-white/10" : "bg-muted/70",
+                          )}
+                        >
+                          <p className="truncate font-semibold text-emerald-600 dark:text-emerald-300">
                             {message.reply_to.sender?.display_name ||
                               (message.reply_to.author_id === user.id
                                 ? "You"
                                 : selected.other_user?.display_name || "Reply")}
                           </p>
-                          <p className="truncate text-white/80">{message.reply_to.content || "Media"}</p>
+                          <p className="truncate text-muted-foreground">{message.reply_to.content || "Media"}</p>
                         </div>
                       )}
                       {message.media_url &&

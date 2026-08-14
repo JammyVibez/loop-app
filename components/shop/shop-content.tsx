@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coins, Palette, Sparkles, Zap, Crown, Star, Loader2, Eye } from "lucide-react";
+import { Coins, Palette, Sparkles, Zap, Crown, Star, Loader2, Eye, CreditCard } from "lucide-react";
 import { LoopCoinsBalance } from "@/components/shop/loop-coins-balance";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -60,6 +60,24 @@ export function ShopContent() {
       fetchUserInventory()
     }
   }, [user?.id])
+
+  // Stripe Checkout success/cancel for card-paid items lands back here.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const status = params.get("checkout")
+    if (!status) return
+    if (status === "success") {
+      toast({ title: "Payment complete 🎉", description: "Your purchase will appear in Inventory in a few seconds." })
+      if (user) {
+        // Grant arrives via the Stripe webhook — poll briefly, then refresh.
+        window.setTimeout(() => void fetchUserInventory(), 2500)
+      }
+    } else if (status === "cancelled") {
+      toast({ title: "Checkout cancelled", description: "No charge was made." })
+    }
+    window.history.replaceState({}, "", window.location.pathname)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const fetchShopItems = async () => {
     try {
@@ -117,7 +135,7 @@ export function ShopContent() {
     }
   }
 
-  const handlePurchase = async (item: ShopItem | ShopPreviewItem) => {
+  const handlePurchase = async (item: ShopItem | ShopPreviewItem, method: "coins" | "stripe" = "coins") => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -149,8 +167,9 @@ export function ShopContent() {
 
     try {
       const isCoinPack = item.category === "coins"
+      const useStripe = isCoinPack || method === "stripe"
 
-      if (!isCoinPack) {
+      if (!useStripe) {
         const itemPrice = Number(item.price_coins ?? item.price ?? 0)
         if ((user?.loop_coins || 0) < itemPrice) {
           toast({
@@ -171,14 +190,14 @@ export function ShopContent() {
         },
         body: JSON.stringify({
           item_id: item.id,
-          payment_method: isCoinPack ? "stripe" : "coins",
+          payment_method: useStripe ? "stripe" : "coins",
         }),
       })
 
       const data = await response.json()
 
-      if (data.success && isCoinPack && data.checkout_url) {
-        // Redirect to Stripe Checkout — coins are credited by the webhook once payment succeeds.
+      if (data.success && useStripe && data.checkout_url) {
+        // Redirect to Stripe Checkout — coins/items are granted by the webhook once payment succeeds.
         window.location.href = data.checkout_url
         return
       }
@@ -296,6 +315,19 @@ export function ShopContent() {
               "Purchase"
             )}
           </Button>
+          {item.category !== "coins" && !purchasedItems.has(item.id) && Number(item.price_usd) > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handlePurchase(item, "stripe")}
+              disabled={purchasing === item.id}
+              className="rounded-full text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 dark:text-emerald-400"
+              title={`Pay $${Number(item.price_usd).toFixed(2)} with card`}
+            >
+              <CreditCard className="mr-1 h-3.5 w-3.5" />
+              ${Number(item.price_usd).toFixed(2)}
+            </Button>
+          )}
         </div>
 
         {item.item_data?.bonus && (

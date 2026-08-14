@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Coins, ArrowDownLeft, ArrowUpRight, Gift, PlusCircle, CreditCard, ShieldCheck, RefreshCw, History, Zap, Sparkles, Check, Package, User, Heart, DollarSign, Building2, Wallet as WalletIcon, AlertCircle } from "lucide-react"
+import { Coins, ArrowDownLeft, ArrowUpRight, Gift, PlusCircle, CreditCard, ShieldCheck, RefreshCw, History, Zap, Sparkles, Check, Package, User, Heart, DollarSign, Building2, Wallet as WalletIcon, AlertCircle, RotateCcw, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
@@ -103,6 +103,11 @@ export default function WalletPage() {
   const [payoutMethod, setPayoutMethod] = useState("bank")
   const [payoutDetails, setPayoutDetails] = useState("")
   const [withdrawing, setWithdrawing] = useState(false)
+  // Refund flow — request a refund for a recent Stripe purchase
+  const [refundRequests, setRefundRequests] = useState<any[]>([])
+  const [refundTx, setRefundTx] = useState<Transaction | null>(null)
+  const [refundReason, setRefundReason] = useState("")
+  const [refunding, setRefunding] = useState(false)
 
   const [activeTab, setActiveTab] = useState("transactions")
 
@@ -118,6 +123,7 @@ export default function WalletPage() {
     fetchWalletData()
     fetchGiftsAndInventory()
     fetchWithdrawalRequests()
+    fetchRefundRequests()
 
     if (!user?.id) return
 
@@ -130,6 +136,14 @@ export default function WalletPage() {
         () => {
           fetchWalletData()
           toast({ title: "Real-time Update ⚡", description: "Your wallet transaction history updated!" })
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "refund_requests", filter: `user_id=eq.${user.id}` },
+        () => {
+          fetchRefundRequests()
+          toast({ title: "Refund update", description: "Your refund request status changed." })
         }
       )
       .on(
@@ -222,6 +236,65 @@ export default function WalletPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchRefundRequests = async () => {
+    try {
+      const token = user?.access_token
+      const res = await fetch("/api/payments/refund", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) setRefundRequests(data.requests || [])
+      }
+    } catch (err) {
+      console.error("Failed to load refund requests:", err)
+    }
+  }
+
+  const handleSubmitRefund = async () => {
+    if (!refundTx) return
+    setRefunding(true)
+    try {
+      const token = user?.access_token
+      const res = await fetch("/api/payments/refund", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ wallet_tx_id: refundTx.id, reason: refundReason }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast({ title: "Refund requested", description: data.message })
+        setRefundTx(null)
+        setRefundReason("")
+        await fetchRefundRequests()
+      } else {
+        toast({ title: "Couldn't request refund", description: data.error || "Please try again.", variant: "destructive" })
+      }
+    } catch (err) {
+      console.error("Refund request error:", err)
+      toast({ title: "Error", description: "Failed to submit refund request", variant: "destructive" })
+    } finally {
+      setRefunding(false)
+    }
+  }
+
+  const refundStatusForTx = (txId: string) => {
+    return refundRequests.find((r) => r.wallet_tx_id === txId) || null
+  }
+
+  const canRequestRefund = (tx: Transaction) => {
+    if (tx.payment_method !== "stripe" || tx.status !== "completed") return false
+    if (!["deposit", "premium_purchase", "shop_purchase"].includes(tx.type)) return false
+    const ageDays = (Date.now() - new Date(tx.created_at).getTime()) / (24 * 60 * 60 * 1000)
+    if (ageDays > 14) return false
+    const req = refundStatusForTx(tx.id)
+    if (req && ["pending", "approved"].includes(req.status)) return false
+    return true
   }
 
   const fetchGiftsAndInventory = async () => {
@@ -674,9 +747,35 @@ export default function WalletPage() {
                           <p className={`font-bold tracking-tight ${isPositive ? "text-emerald-500" : "text-rose-500"}`}>
                             {isPositive ? `+${tx.coins_amount.toLocaleString()}` : `${tx.coins_amount.toLocaleString()}`} Coins
                           </p>
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 uppercase">
-                            {tx.status}
-                          </Badge>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 uppercase">
+                              {tx.status}
+                            </Badge>
+                            {refundStatusForTx(tx.id) && (
+                              <Badge
+                                className={`text-[10px] px-1.5 py-0 uppercase ${
+                                  refundStatusForTx(tx.id).status === "approved"
+                                    ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30"
+                                    : refundStatusForTx(tx.id).status === "rejected"
+                                      ? "bg-rose-500/10 text-rose-500 border border-rose-500/30"
+                                      : "bg-amber-500/15 text-amber-600 border border-amber-500/30"
+                                }`}
+                              >
+                                {refundStatusForTx(tx.id).status}
+                              </Badge>
+                            )}
+                          </div>
+                          {canRequestRefund(tx) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setRefundTx(tx)}
+                              className="mt-1.5 h-7 rounded-full px-2.5 text-[11px] text-amber-600 hover:bg-amber-500/10 hover:text-amber-600 dark:text-amber-400"
+                            >
+                              <RotateCcw className="mr-1 h-3 w-3" />
+                              Request refund
+                            </Button>
+                          )}
                         </div>
                       </div>
                     )
@@ -1045,6 +1144,56 @@ export default function WalletPage() {
               className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold"
             >
               {withdrawing ? "Submitting..." : `Request $${(withdrawCoins * 0.01).toFixed(2)} Payout`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Refund request dialog */}
+      <Dialog open={Boolean(refundTx)} onOpenChange={(open) => { if (!open) { setRefundTx(null); setRefundReason("") } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-amber-500" />
+              Request a refund
+            </DialogTitle>
+            <DialogDescription>
+              {refundTx && (
+                <>
+                  Refund <span className="font-semibold text-foreground">${Number(refundTx.amount_usd || 0).toFixed(2)}</span> for "{refundTx.description}"? Refunds are reviewed within 2–3 business days and returned to your original payment method.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="refund-reason" className="text-xs font-semibold">Reason (optional)</Label>
+              <textarea
+                id="refund-reason"
+                rows={3}
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                placeholder="e.g. accidental purchase, didn't receive coins…"
+                className="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+              <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+              Only purchases made within the last 14 days with a card are eligible. Read our{" "}
+              <Link href="/terms#refund-policy" className="font-medium text-primary underline">refund policy</Link>.
+            </p>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => { setRefundTx(null); setRefundReason("") }} className="rounded-xl">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleSubmitRefund()}
+              disabled={refunding}
+              className="rounded-xl bg-amber-500 text-white hover:bg-amber-400"
+            >
+              {refunding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+              Submit refund request
             </Button>
           </DialogFooter>
         </DialogContent>

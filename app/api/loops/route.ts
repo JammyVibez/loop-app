@@ -45,9 +45,9 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+        parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url)),
         loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
-      .is("parent_loop_id", null)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1)
 

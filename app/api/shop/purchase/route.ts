@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
 
     const itemType = resolveItemType(item)
     const priceCoins = itemPriceCoins(item)
+    const priceUsd = Number(item.price_usd || 0)
 
     const { data: existingItem } = await supabase
       .from("user_inventory")
@@ -66,14 +67,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Item already owned" }, { status: 400 })
     }
 
-    // Themes/effects/badges are always bought with coins; coin packs are always bought
-    // with real money via Stripe Checkout — never mint coins by "spending" coins.
-    if (!isCoinPack) paymentMethod = "coins"
+    // Coin packs are always bought with real money via Stripe Checkout. Other
+    // items default to Loop Coins, but any item that carries a USD price can
+    // also be paid for with a card (Stripe Checkout).
     if (isCoinPack) paymentMethod = "stripe"
+    if (!isCoinPack && paymentMethod !== "stripe") paymentMethod = "coins"
 
     if (isCoinPack && !item.price_usd) {
       return NextResponse.json(
         { success: false, error: "This coin pack isn't configured for purchase yet. Contact support." },
+        { status: 400 },
+      )
+    }
+
+    if (!isCoinPack && paymentMethod === "stripe" && !priceUsd) {
+      return NextResponse.json(
+        { success: false, error: "This item isn't available for card payment yet. Buy it with Loop Coins." },
         { status: 400 },
       )
     }
@@ -168,13 +177,12 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    if (isCoinPack && paymentMethod === "stripe") {
-      const totalCoins = coinPackTotalCoins(item)
-      const priceUsd = Number(item.price_usd || 0)
+    if (paymentMethod === "stripe") {
+      const totalCoins = isCoinPack ? coinPackTotalCoins(item) : 0
 
-      if (totalCoins <= 0 || priceUsd <= 0) {
+      if (priceUsd <= 0) {
         return NextResponse.json(
-          { success: false, error: "This coin pack is not configured for purchase yet." },
+          { success: false, error: "This item is not configured for purchase yet." },
           { status: 400 },
         )
       }
@@ -188,6 +196,11 @@ export async function POST(request: NextRequest) {
       }
 
       const appUrl = getAppUrl(request)
+      const productName = isCoinPack ? item.name || "Loop Coins" : item.name || "Loop item"
+      const productDescription = isCoinPack
+        ? item.description || `${totalCoins.toLocaleString()} Loop Coins`
+        : item.description || "Loop Shop item"
+      const successPath = isCoinPack ? "/wallet" : "/shop"
 
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
@@ -200,20 +213,28 @@ export async function POST(request: NextRequest) {
               currency: "usd",
               unit_amount: Math.round(priceUsd * 100),
               product_data: {
-                name: item.name || "Loop Coins",
-                description: item.description || `${totalCoins.toLocaleString()} Loop Coins`,
+                name: productName,
+                description: productDescription,
               },
             },
           },
         ],
-        metadata: {
-          kind: "coin_pack",
-          user_id: user.id,
-          item_id: item.id,
-          coins_amount: String(totalCoins),
-        },
-        success_url: `${appUrl}/wallet?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${appUrl}/wallet?checkout=cancelled`,
+        metadata: isCoinPack
+          ? {
+              kind: "coin_pack",
+              user_id: user.id,
+              item_id: item.id,
+              coins_amount: String(totalCoins),
+            }
+          : {
+              kind: "shop_item",
+              user_id: user.id,
+              item_id: item.id,
+              item_type: itemType,
+              item_name: item.name,
+            },
+        success_url: `${appUrl}${successPath}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${appUrl}${successPath}?checkout=cancelled`,
       })
 
       if (!session.url) {

@@ -148,8 +148,24 @@ function ProBadgePreview() {
 }
 
 export default function LoungePage() {
-  const { user, loading } = useAuth()
+  const { user, loading, refreshUser } = useAuth()
   const [announcement, setAnnouncement] = useState<string | null>(null)
+  const [checkoutBanner, setCheckoutBanner] = useState<"success" | "cancelled" | null>(null)
+
+  // Stripe Pro checkout redirects back here (?checkout=success|cancelled)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const status = params.get("checkout")
+    if (status === "success" || status === "cancelled") {
+      setCheckoutBanner(status)
+      window.history.replaceState({}, "", window.location.pathname)
+      if (status === "success") {
+        // Pro grant lands via the Stripe webhook — refresh so the badge shows up
+        window.setTimeout(() => void refreshUser?.(), 2000)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!user?.is_premium && !user?.is_admin) return
@@ -173,6 +189,39 @@ export default function LoungePage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (checkoutBanner) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container mx-auto max-w-lg px-4 py-16 text-center">
+          <div
+            className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full ${
+              checkoutBanner === "success" ? "bg-emerald-500/15 text-emerald-500" : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {checkoutBanner === "success" ? <Crown className="h-8 w-8" /> : <Lock className="h-8 w-8" />}
+          </div>
+          <h1 className="text-2xl font-bold">
+            {checkoutBanner === "success" ? "Payment received! 🎉" : "Checkout cancelled"}
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {checkoutBanner === "success"
+              ? "Your Loop Pro membership is being activated — this usually takes a few seconds. Welcome aboard!"
+              : "No charge was made. You can upgrade anytime from the Premium page."}
+          </p>
+          <div className="mt-6 flex justify-center gap-3">
+            <Button asChild className="rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white">
+              <Link href="/lounge">Enter the Lounge</Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-full">
+              <Link href="/premium">Back to Pro</Link>
+            </Button>
+          </div>
+        </div>
       </div>
     )
   }

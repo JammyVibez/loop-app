@@ -59,15 +59,18 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 2. Query candidate loops from Supabase database
+    // 2. Query candidate loops from Supabase database.
+    // Branches (parent_loop_id != null) are included with their parent loop
+    // joined, so the For You tab surfaces branched conversations too.
     const { data: candidateLoops, error } = await supabase
       .from("loops")
       .select(`
         *,
         author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, is_organization, organization_badge_url, organization_name, level, active_cosmetics, cosmetics),
+        parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url)),
         loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
-      .is("parent_loop_id", null)
+      .or("visibility.eq.public,visibility.is.null")
       .order("created_at", { ascending: false })
       .limit(100)
 

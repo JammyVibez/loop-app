@@ -36,19 +36,29 @@ export async function GET(
       return NextResponse.json({ success: true, messages: [] })
     }
 
-    const formattedMessages = (messages || []).map((msg: any) => ({
-      id: msg.id,
-      user_id: msg.user_id,
-      username: msg.user?.username || "user",
-      display_name: msg.user?.display_name || msg.user?.username || "Viewer",
-      avatar_url: msg.user?.avatar_url,
-      message: msg.message,
-      is_verified: Boolean(msg.user?.is_verified),
-      is_premium: Boolean(msg.user?.is_premium),
-      is_tip: msg.message_type === "gift" || (msg.gift_amount && msg.gift_amount > 0),
-      tip_amount: msg.gift_amount || 0,
-      timestamp: new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    }))
+    const formattedMessages = (messages || []).map((msg: any) => {
+      // gift_data is a JSONB column; older rows may have stored a plain
+      // amount number — normalize both shapes so tips always render.
+      let tipAmount = 0
+      const giftData = msg.gift_data
+      if (typeof giftData === "number") tipAmount = giftData
+      else if (giftData && typeof giftData === "object") tipAmount = Number(giftData.amount || giftData.value || 0) || 0
+      else if (msg.gift_amount) tipAmount = Number(msg.gift_amount) || 0
+
+      return {
+        id: msg.id,
+        user_id: msg.user_id,
+        username: msg.user?.username || "user",
+        display_name: msg.user?.display_name || msg.user?.username || "Viewer",
+        avatar_url: msg.user?.avatar_url,
+        message: msg.message,
+        is_verified: Boolean(msg.user?.is_verified),
+        is_premium: Boolean(msg.user?.is_premium),
+        is_tip: msg.message_type === "gift" || tipAmount > 0,
+        tip_amount: tipAmount,
+        timestamp: new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      }
+    })
 
     return NextResponse.json({ success: true, messages: formattedMessages })
   } catch (error: any) {
@@ -93,7 +103,8 @@ export async function POST(
         user_id: user.id,
         message: message || `Sent ${giftAmount} Loop Coins! 🎁`,
         message_type: messageType,
-        gift_amount: giftAmount,
+        // stream_chat stores gift details in the JSONB `gift_data` column.
+        gift_data: giftAmount > 0 ? { amount: giftAmount } : null,
       })
       .select(`
         id,

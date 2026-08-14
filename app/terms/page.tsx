@@ -79,7 +79,7 @@ const sections = [
     body: [
       "Loop Coins are virtual points with no monetary value and cannot be redeemed for cash or any real-world currency (unless a specific, separately published redemption program says otherwise). Coins may be earned through platform activity or acquired through in-app purchases processed by third-party payment providers.",
       "Virtual items purchased with Loop Coins (including gifts, boosts, cosmetics, themes, and catalog effects) are licensed to you for personal, non-commercial use within the Service and may not be transferred, sold, or exchanged outside the Service.",
-      "All purchases are final. Unless required by applicable consumer law or a separately published refund policy, we do not offer refunds for virtual currency, virtual items, or subscription fees already paid.",
+      "All purchases are final. Unless required by applicable consumer law or our Refund Policy (Section 7A), we do not offer refunds for virtual currency, virtual items, or subscription fees already paid.",
       "We may adjust, expire, or revoke Loop Coins or virtual items if we determine they were obtained through fraud, abuse, or violation of these Terms.",
     ],
   },
@@ -92,6 +92,22 @@ const sections = [
       "Subscriptions renew automatically at the end of each billing period until cancelled. You can cancel at any time through your account settings; cancellation takes effect at the end of the current billing period, and you will retain access to paid features until then.",
       "We reserve the right to change subscription pricing for future billing cycles. We will provide reasonable notice of price changes before they take effect.",
       "If you are granted Premium through an admin action, a promotion, or a reward (such as an organization perk), those grants are at our discretion and may be revoked at any time without refund.",
+    ],
+  },
+  {
+    id: "refund-policy",
+    num: "7A",
+    title: "Refund Policy",
+    body: [
+      "This Refund Policy explains how refunds work for paid purchases made through Loop (\"Purchases\"). It applies only to real-money Purchases processed by our payment provider (Stripe) — Loop Coin balances, virtual items, and Pro memberships granted through promotions, admin actions, or rewards are not eligible for cash refunds.",
+    ],
+    list: [
+      "Eligible purchases — Card purchases of Loop Coins (coin packs), one-time Pro memberships, and Shop items paid with a card may be refunded if requested within 14 days of purchase and the purchased goods have not been consumed, transferred, or used in a way that cannot be reversed.",
+      "How to request — Open your Wallet → Recent Transactions, tap \"Request refund\" on the eligible purchase, and submit the reason. You can also contact support from the Help Center. Requests are reviewed within 2–3 business days.",
+      "Processing — Approved refunds are returned to your original payment method through Stripe. Depending on your bank or card issuer, it may take 3–10 business days for the refund to appear. When a coin-pack refund is approved, the credited Loop Coins are deducted from your balance; if a Shop item is refunded, the item is removed from your inventory; if a Pro membership is refunded, the membership ends immediately.",
+      "Coin purchases — Loop Coins spent in-app on gifts, boosts, or withdrawals are final and cannot be refunded or re-credited as cash.",
+      "Abuse — We may decline refund requests where we reasonably suspect fraud, abuse, or repeated refund requests (for example, buying a coin pack, spending the coins, then requesting a refund). Repeated abuse may result in suspension.",
+      "Statutory rights — Nothing in this policy limits any mandatory consumer-protection rights you may have under the law of your country or state. If a mandatory right requires a longer refund window or different treatment, that right prevails.",
     ],
   },
   {

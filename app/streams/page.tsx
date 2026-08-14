@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Eye, Loader2, Radio, Search, Sparkles } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -57,6 +58,7 @@ export default function StreamsPage() {
   const [activeTab, setActiveTab] = useState<"live" | "recent" | "popular">("live")
 
   useEffect(() => {
+    let cancelled = false
     const fetchStreams = async () => {
       try {
         setLoading(true)
@@ -68,18 +70,74 @@ export default function StreamsPage() {
         const response = await fetch(`/api/streams?${params}`, { cache: "no-store" })
         if (response.ok) {
           const data = await response.json()
-          setStreams(data.data?.streams || [])
+          if (!cancelled) setStreams(data.data?.streams || [])
         }
       } catch {
-        toast({ title: "Could not load lives", variant: "destructive" })
+        if (!cancelled) toast({ title: "Could not load lives", variant: "destructive" })
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
     void fetchStreams()
+    // Polling every 20s as a fallback (viewer counts drift, etc.)
     const t = window.setInterval(() => void fetchStreams(), 20000)
-    return () => window.clearInterval(t)
+    return () => {
+      cancelled = true
+      window.clearInterval(t)
+    }
   }, [activeTab, selectedCategory, toast])
+
+  // Realtime: a creator going live / ending shows up instantly without a poll
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient()
+    const channel = supabase
+      .channel(`streams-browse-${activeTab}-${selectedCategory}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "live_streams" },
+        () => {
+          // Debounce: a burst of go-live events shouldn't spam the API
+          window.setTimeout(() => void (async () => {
+            const params = new URLSearchParams({
+              status: activeTab,
+              ...(selectedCategory !== "all" ? { category: selectedCategory } : {}),
+              limit: "30",
+            })
+            const response = await fetch(`/api/streams?${params}`, { cache: "no-store" })
+            if (response.ok) {
+              const data = await response.json()
+              setStreams(data.data?.streams || [])
+            }
+          })(), 400)
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "live_streams" },
+        () => {
+          // Status flips (preparing -> live, live -> ended), viewer count
+          // changes, etc. — debounce a refetch so the tab always reflects
+          // the current state (e.g. ended streams leave the Live tab).
+          window.setTimeout(() => void (async () => {
+            const params = new URLSearchParams({
+              status: activeTab,
+              ...(selectedCategory !== "all" ? { category: selectedCategory } : {}),
+              limit: "30",
+            })
+            const response = await fetch(`/api/streams?${params}`, { cache: "no-store" })
+            if (response.ok) {
+              const data = await response.json()
+              setStreams(data.data?.streams || [])
+            }
+          })(), 400)
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [activeTab, selectedCategory])
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()

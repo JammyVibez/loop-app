@@ -8,6 +8,7 @@ import {
   Check,
   Code2,
   Coins,
+  CreditCard,
   Crown,
   DollarSign,
   Flame,
@@ -57,7 +58,7 @@ export function PremiumUpgrade() {
   const { user, getAuthHeader, refreshUser } = useAuth()
   const { toast } = useToast()
 
-  const activate = async (plan: ProPlanId) => {
+  const activate = async (plan: ProPlanId, method: "coins" | "stripe" = "coins") => {
     if (!user) {
       window.location.href = "/login"
       return
@@ -67,10 +68,14 @@ export function PremiumUpgrade() {
       const res = await fetch("/api/premium/activate", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ plan, method: "coins" }),
+        body: JSON.stringify({ plan, method }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Could not activate Pro")
+      if (method === "stripe" && data.checkout_url) {
+        window.location.href = data.checkout_url
+        return
+      }
       await refreshUser?.()
       toast({ title: "You're Pro!", description: data.message })
     } catch (error: any) {
@@ -210,13 +215,23 @@ export function PremiumUpgrade() {
         <Button
           size="lg"
           disabled={busy || !user}
-          onClick={() => void activate(selectedPlan)}
+          onClick={() => void activate(selectedPlan, "coins")}
           className="w-full rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-400 hover:to-orange-500 sm:w-auto"
         >
           <Coins className="mr-2 h-4 w-4" />
           {busy ? "Unlocking…" : `Unlock ${plan.name} · ${plan.coins} coins`}
         </Button>
-        <Button asChild size="lg" variant="outline" className="w-full rounded-full sm:w-auto">
+        <Button
+          size="lg"
+          variant="outline"
+          disabled={busy || !user}
+          onClick={() => void activate(selectedPlan, "stripe")}
+          className="w-full rounded-full border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 dark:text-emerald-400 sm:w-auto"
+        >
+          <CreditCard className="mr-2 h-4 w-4" />
+          {busy ? "Redirecting…" : `Pay with card · ${plan.priceLabel}`}
+        </Button>
+        <Button asChild size="lg" variant="ghost" className="w-full rounded-full sm:w-auto">
           <Link href="/shop">Buy coins in Shop</Link>
         </Button>
       </div>

@@ -33,6 +33,7 @@ import { AdminFeaturedPanel } from "@/components/admin/admin-featured-panel"
 import { ContentModerationControl } from "@/components/admin/content-moderation-control"
 import { EconomyControl } from "@/components/admin/economy-control"
 import { WithdrawalsControl } from "@/components/admin/withdrawals-control"
+import { RefundsControl } from "@/components/admin/refunds-control"
 import { SettingsTabContent } from "@/components/admin/settings-tab-content"
 import { EventManagement } from "@/components/admin/event-management"
 import { MaintenanceModeControl } from "@/components/admin/maintenance-mode-control"
@@ -416,6 +417,7 @@ export function AdminDashboard() {
 
         <TabsContent value="payouts" className="mt-6">
           <WithdrawalsControl />
+          <RefundsControl />
         </TabsContent>
 
         <TabsContent value="catalog" className="mt-6">
