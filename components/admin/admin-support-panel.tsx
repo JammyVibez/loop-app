@@ -337,7 +337,7 @@ export function AdminSupportPanel() {
                 <Textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  placeholder="Reply as Loop support…"
+                  placeholder="Reply as loopapp.me support…"
                   rows={1}
                   className="min-h-[44px] flex-1 resize-none rounded-2xl border-border bg-background px-4"
                   onKeyDown={(e) => {

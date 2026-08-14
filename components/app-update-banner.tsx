@@ -42,7 +42,7 @@ export function AppUpdateBanner() {
             <Zap className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-sm font-semibold">What's new in Loop {VERSION}</p>
+            <p className="text-sm font-semibold">What's new in loopapp.me {VERSION}</p>
             <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
               {highlights.map((item) => (
                 <li key={item}>• {item}</li>

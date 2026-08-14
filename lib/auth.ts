@@ -40,13 +40,13 @@ export const auth = betterAuth({
       "*.daytonaproxy02.net",
       "*.run.app",
       "*.vercel.app",
-      "loop-app.com",
-      "*.loop-app.com",
+      "loopapp.me",
+      "*.loopapp.me",
       ...(process.env.BETTER_AUTH_ALLOWED_HOSTS
         ? process.env.BETTER_AUTH_ALLOWED_HOSTS.split(",").map((h) => h.trim()).filter(Boolean)
         : []),
     ],
-    fallback: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "https://loop-app.com",
+    fallback: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "https://loopapp.me",
   },
   emailAndPassword: {
     enabled: true,

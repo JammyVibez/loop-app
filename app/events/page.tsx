@@ -275,7 +275,7 @@ export default function EventsPage() {
                       {evt.title}
                     </h3>
                     <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                      {evt.description || "Join this exciting interactive session on Loop Stage."}
+                      {evt.description || "Join this exciting interactive session on loopapp.me Stage."}
                     </p>
 
                     <div className="flex items-center justify-between text-xs pt-2 border-t border-border/40">
@@ -323,7 +323,7 @@ export default function EventsPage() {
               Schedule Event Stage
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Host a live roundtable, workshop, or community broadcast on Loop.
+              Host a live roundtable, workshop, or community broadcast on loopapp.me.
             </DialogDescription>
           </DialogHeader>
 

@@ -78,7 +78,9 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      await loginWithGoogle()
+      await loginWithGoogle(
+        redirect && redirect.startsWith("/") ? `${window.location.origin}${redirect}` : undefined,
+      )
     } catch (err: any) {
       setError(
         googleEnabled === false
@@ -105,7 +107,7 @@ export default function LoginPage() {
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
             Welcome Back
           </CardTitle>
-          <CardDescription className="text-slate-600 dark:text-slate-300 font-medium">Sign in to your Loop account</CardDescription>
+          <CardDescription className="text-slate-600 dark:text-slate-300 font-medium">Sign in to your loopapp.me account</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">

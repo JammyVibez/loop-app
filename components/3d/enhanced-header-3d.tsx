@@ -135,7 +135,7 @@ export function EnhancedHeader3D() {
               <span className="text-white font-bold text-sm">L</span>
             </div>
             <span className="font-bold text-xl bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              Loop
+              loopapp.me
             </span>
           </Link>
 
@@ -176,7 +176,7 @@ export function EnhancedHeader3D() {
             <div className="absolute inset-0 w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full opacity-0 group-hover:opacity-30 blur-md transition-opacity duration-300" />
           </div>
           <span className="font-bold text-xl bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent group-hover:scale-105 transition-transform duration-300">
-            Loop
+            loopapp.me
           </span>
         </Link>
 

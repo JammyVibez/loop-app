@@ -26,7 +26,7 @@ type ReferredUser = {
 export default function InviteFriendsPage() {
   const { user, loading, getAuthHeader } = useAuth()
   const { toast } = useToast()
-  const [message, setMessage] = useState("Come build stories with me on Loop — trees, circles, and creative collabs.")
+  const [message, setMessage] = useState("Come build stories with me on loopapp.me — trees, circles, and creative collabs.")
   const [inviteUrl, setInviteUrl] = useState("")
   const [stats, setStats] = useState<{ total: number; this_week: number; via_coloop: number; via_link: number } | null>(null)
   const [referred, setReferred] = useState<ReferredUser[]>([])
@@ -36,7 +36,7 @@ export default function InviteFriendsPage() {
     if (!user) return
     const url = `${window.location.origin}/signup?ref=${encodeURIComponent(user.username || user.id)}`
     setInviteUrl(url)
-    setMessage(`Join me on Loop as @${user.username}. ${url}`)
+    setMessage(`Join me on loopapp.me as @${user.username}. ${url}`)
   }, [user])
 
   useEffect(() => {
@@ -82,7 +82,7 @@ export default function InviteFriendsPage() {
 
   const share = async () => {
     if (navigator.share) {
-      await navigator.share({ title: "Join me on Loop", text: message, url: inviteUrl })
+      await navigator.share({ title: "Join me on loopapp.me", text: message, url: inviteUrl })
       return
     }
     await copy()
@@ -113,7 +113,7 @@ export default function InviteFriendsPage() {
                 <Share2 className="mr-2 h-4 w-4" /> Share
               </Button>
               <Button asChild variant="outline">
-                <a href={`mailto:?subject=${encodeURIComponent("Join me on Loop")}&body=${encodeURIComponent(message)}`}>
+                <a href={`mailto:?subject=${encodeURIComponent("Join me on loopapp.me")}&body=${encodeURIComponent(message)}`}>
                   <Mail className="mr-2 h-4 w-4" /> Email
                 </a>
               </Button>

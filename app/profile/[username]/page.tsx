@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
   const { username } = await params
   const baseUrl = await getAbsoluteAppUrl()
 
-  let title = `@${username} on Loop`
+  let title = `@${username} on loopapp.me`
   let description = `Check out @${username}'s profile, loops, and activity on Loop Social OS.`
   let avatarUrl = ""
   let isVerified = false

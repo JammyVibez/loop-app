@@ -301,7 +301,7 @@ export default function ResetPasswordPage() {
               <Link href="/">
                 <Button variant="ghost" size="sm" className="text-slate-700 dark:text-slate-200">
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Loop
+                  Back to loopapp.me
                 </Button>
               </Link>
             </div>

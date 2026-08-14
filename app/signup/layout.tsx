@@ -5,13 +5,13 @@ import { getAbsoluteAppUrl } from "@/lib/app-url"
 // app/signup/page.tsx is a client component (uses useSearchParams, local
 // state), so it can't export generateMetadata itself — it silently
 // inherited the generic homepage title/description/OG image instead of
-// anything tailored to "you've been invited to Loop", which is what most
+// anything tailored to "you've been invited to loopapp.me", which is what most
 // people actually see when someone shares a referral link.
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getAbsoluteAppUrl()
-  const title = "Join Loop — Build together. Not just post into the void."
+  const title = "Join loopapp.me — Build together. Not just post into the void."
   const description =
-    "Loop is where communities create in real time — co-write posts live with friends, settle debates in public Duels, and build spaces that are actually yours."
+    "loopapp.me is where communities create in real time — co-write posts live with friends, settle debates in public Duels, and build spaces that are actually yours."
   const ogImageUrl = `${baseUrl}/api/og?type=home&title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`
 
   return {

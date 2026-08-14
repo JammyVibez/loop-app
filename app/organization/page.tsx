@@ -95,7 +95,7 @@ export default function OrganizationDashboardPage() {
             <Building2 className="h-7 w-7 text-emerald-500" /> Organization Dashboard
           </h1>
           <p className="text-sm text-muted-foreground">
-            Run your brand on Loop — perks, growth, and live community events in one place.
+            Run your brand on loopapp.me — perks, growth, and live community events in one place.
           </p>
         </div>
 

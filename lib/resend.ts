@@ -11,7 +11,7 @@ export function isResendConfigured() {
   return Boolean(resend && process.env.RESEND_API_KEY)
 }
 
-export const EMAIL_FROM = process.env.EMAIL_FROM || "Loop <no-reply@loop-app.com>"
+export const EMAIL_FROM = process.env.EMAIL_FROM || "loopapp.me <no-reply@loopapp.me>"
 
 /**
  * Send a password-reset email. Never throws — logs and returns false on

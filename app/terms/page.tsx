@@ -6,7 +6,7 @@ const sections = [
     num: "1",
     title: "Acceptance of These Terms",
     body: [
-      "Welcome to Loop (\"Loop\", \"we\", \"us\", or \"our\"). These Terms of Service (\"Terms\") form a binding legal agreement between you (\"you\" or \"your\") and Loop governing your access to and use of the Loop platform, including our website, mobile applications, and all related services, features, tools, and content (collectively, the \"Service\").",
+      "Welcome to loopapp.me (\"loopapp.me\", \"we\", \"us\", or \"our\"). These Terms of Service (\"Terms\") form a binding legal agreement between you (\"you\" or \"your\") and loopapp.me governing your access to and use of the loopapp.me platform, including our website, mobile applications, and all related services, features, tools, and content (collectively, the \"Service\").",
       "By creating an account, accessing, browsing, or using the Service in any way, you confirm that you have read, understood, and agree to be bound by these Terms and our Privacy Policy. If you do not agree with any part of these Terms, you must not use the Service.",
       "If you are using the Service on behalf of an organization (including as an Organization account under Section 10), you represent and warrant that you have the authority to bind that organization to these Terms.",
     ],
@@ -26,7 +26,7 @@ const sections = [
     num: "3",
     title: "Description of the Service",
     body: [
-      "Loop is a collaborative social platform that lets you create, share, and build on content. The Service includes, without limitation:",
+      "loopapp.me is a collaborative social platform that lets you create, share, and build on content. The Service includes, without limitation:",
     ],
     list: [
       "Loops — original posts (text, image, video, or code) that other users can \"branch\" from to build connected, tree-like structures of content.",
@@ -48,7 +48,7 @@ const sections = [
     num: "4",
     title: "User Content and Your License to Us",
     body: [
-      "You retain full ownership of the content you create, upload, post, or otherwise make available on the Service (\"User Content\"). By posting User Content, you grant Loop a non-exclusive, worldwide, royalty-free, sub-licensable, and transferable license to host, store, reproduce, distribute, display, perform, modify (for formatting and display purposes), and create derivative works of your User Content solely to operate, provide, promote, and improve the Service, and to allow other users to interact with it in accordance with the Service's intended functionality (for example, branching from your loop).",
+      "You retain full ownership of the content you create, upload, post, or otherwise make available on the Service (\"User Content\"). By posting User Content, you grant loopapp.me a non-exclusive, worldwide, royalty-free, sub-licensable, and transferable license to host, store, reproduce, distribute, display, perform, modify (for formatting and display purposes), and create derivative works of your User Content solely to operate, provide, promote, and improve the Service, and to allow other users to interact with it in accordance with the Service's intended functionality (for example, branching from your loop).",
       "You represent and warrant that: (a) you own or have the necessary rights, licenses, and permissions to your User Content; (b) your User Content does not infringe the intellectual property, privacy, publicity, or other rights of any third party; and (c) your User Content complies with these Terms, our Community Guidelines, and all applicable laws.",
       "If you believe that content on the Service infringes your copyright, you may submit a takedown notice to legal@loop.com including a description of the infringing content, your contact information, and a statement of good-faith belief that the use is not authorized.",
     ],
@@ -99,7 +99,7 @@ const sections = [
     num: "7A",
     title: "Refund Policy",
     body: [
-      "This Refund Policy explains how refunds work for paid purchases made through Loop (\"Purchases\"). It applies only to real-money Purchases processed by our payment provider (Stripe) — Loop Coin balances, virtual items, and Pro memberships granted through promotions, admin actions, or rewards are not eligible for cash refunds.",
+      "This Refund Policy explains how refunds work for paid purchases made through loopapp.me (\"Purchases\"). It applies only to real-money Purchases processed by our payment provider (Stripe) — Loop Coin balances, virtual items, and Pro memberships granted through promotions, admin actions, or rewards are not eligible for cash refunds.",
     ],
     list: [
       "Eligible purchases — Card purchases of Loop Coins (coin packs), one-time Pro memberships, and Shop items paid with a card may be refunded if requested within 14 days of purchase and the purchased goods have not been consumed, transferred, or used in a way that cannot be reversed.",
@@ -145,7 +145,7 @@ const sections = [
     num: "11",
     title: "Intellectual Property",
     body: [
-      "The Service, including its software, design, graphics, logos, trademarks, and all non-User Content, is owned by or licensed to Loop and is protected by intellectual property laws. Unless expressly permitted, you may not copy, modify, distribute, sell, lease, or create derivative works of any part of the Service.",
+      "The Service, including its software, design, graphics, logos, trademarks, and all non-User Content, is owned by or licensed to loopapp.me and is protected by intellectual property laws. Unless expressly permitted, you may not copy, modify, distribute, sell, lease, or create derivative works of any part of the Service.",
       "We welcome feedback and suggestions, but by submitting ideas you grant us a perpetual, irrevocable, royalty-free license to use them without any obligation to you.",
     ],
   },
@@ -191,7 +191,7 @@ const sections = [
     num: "16",
     title: "Indemnification",
     body: [
-      "You agree to indemnify, defend, and hold harmless Loop and its affiliates, officers, directors, employees, and agents from and against any and all claims, damages, liabilities, costs, and expenses (including reasonable attorneys' fees) arising out of or related to: (a) your User Content; (b) your use of the Service; (c) your violation of these Terms; or (d) your violation of any rights of a third party.",
+      "You agree to indemnify, defend, and hold harmless loopapp.me and its affiliates, officers, directors, employees, and agents from and against any and all claims, damages, liabilities, costs, and expenses (including reasonable attorneys' fees) arising out of or related to: (a) your User Content; (b) your use of the Service; (c) your violation of these Terms; or (d) your violation of any rights of a third party.",
     ],
   },
   {
@@ -199,7 +199,7 @@ const sections = [
     num: "17",
     title: "Governing Law and Dispute Resolution",
     body: [
-      "These Terms are governed by the laws of the jurisdiction in which Loop's principal place of business is located, without regard to its conflict-of-law provisions, except where mandatory local law applies to you.",
+      "These Terms are governed by the laws of the jurisdiction in which loopapp.me's principal place of business is located, without regard to its conflict-of-law provisions, except where mandatory local law applies to you.",
       "We encourage you to resolve disputes informally first by contacting support@loop.com. If a dispute cannot be resolved informally, you agree that it shall be resolved exclusively in the competent courts of that jurisdiction, and you consent to the personal jurisdiction of those courts.",
       "If any provision of these Terms is held to be invalid or unenforceable, that provision shall be limited or eliminated to the minimum extent necessary, and the remaining provisions shall remain in full force and effect.",
     ],
@@ -233,8 +233,8 @@ export default function TermsOfServicePage() {
             Last updated: {new Date().toLocaleDateString()}
           </p>
           <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
-            Please read these Terms carefully before using Loop. They cover your rights and responsibilities,
-            our content and conduct rules, and the legal limits of our liability. By using Loop, you agree to
+            Please read these Terms carefully before using loopapp.me. They cover your rights and responsibilities,
+            our content and conduct rules, and the legal limits of our liability. By using loopapp.me, you agree to
             these Terms and to our <Link href="/privacy" className="font-medium text-primary underline underline-offset-4">Privacy Policy</Link>.
           </p>
         </div>

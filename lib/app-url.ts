@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server"
 import { headers } from "next/headers"
 
-const PRODUCTION_APP_URL = "https://loop-app-xi.vercel.app"
+const PRODUCTION_APP_URL = "https://loopapp.me"
 
 function stripTrailingSlash(url: string) {
   return url.replace(/\/$/, "")

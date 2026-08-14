@@ -36,7 +36,7 @@ interface GlobalEvent {
 const TEMPLATES = [
   {
     title: "Developers Den Hackathon 2026",
-    description: "Build next-gen 3D web applications & smart Loop extensions. Connect with top creators, share code, and compete for huge coin prizes!",
+    description: "Build next-gen 3D web applications & smart loopapp.me extensions. Connect with top creators, share code, and compete for huge coin prizes!",
     category: "Developer",
     banner_url: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1200&q=80",
     location_type: "Virtual Stage",

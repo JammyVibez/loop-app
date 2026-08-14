@@ -13,7 +13,7 @@ export default function OfflinePage() {
         </div>
         <h1 className="mb-2 text-2xl font-semibold">You're offline</h1>
         <p className="mb-6 text-sm text-slate-400">
-          Loop needs a connection for live feeds, chat, and uploads. Cached pages may still open, but posting and
+          loopapp.me needs a connection for live feeds, chat, and uploads. Cached pages may still open, but posting and
           messaging will wait until you're back online.
         </p>
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">

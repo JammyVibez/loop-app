@@ -18,7 +18,7 @@ export async function generateMetadata({
   const { id } = await params
   const baseUrl = await getAbsoluteAppUrl()
 
-  let title = "Loop Details — Collaborative Social OS"
+  let title = "loopapp.me Details — Collaborative Social OS"
   let description = "View and interact with this loop on Loop Social OS."
   let username = ""
   let avatarUrl = ""

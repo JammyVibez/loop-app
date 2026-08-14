@@ -764,7 +764,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   const handleSharePost = async (post: CirclePost) => {
     const result = await shareContent({
       url: absoluteAppUrl(`/circles/${circleId}?post=${post.id}`),
-      title: `${post.author.display_name} in a circle on Loop`,
+      title: `${post.author.display_name} in a circle on loopapp.me`,
       text: post.content.slice(0, 120) || "Check out this post",
     })
     if (result === "aborted") return
@@ -784,8 +784,8 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
     if (!circle) return
     const result = await shareContent({
       url: absoluteAppUrl(`/circles/${circleId}`),
-      title: circle.name || "Circle on Loop",
-      text: circle.description?.slice(0, 140) || `Join ${circle.name} on Loop`,
+      title: circle.name || "Circle on loopapp.me",
+      text: circle.description?.slice(0, 140) || `Join ${circle.name} on loopapp.me`,
     })
     if (result === "copied") {
       toast({ title: "Link copied", description: "Circle link is on your clipboard." })

@@ -11,7 +11,7 @@ export default function TrendingPage() {
             <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
               Trending
             </h1>
-            <p className="text-gray-600 text-lg">Discover what's popular in the Loop community</p>
+            <p className="text-gray-600 text-lg">Discover what's popular in the loopapp.me community</p>
           </div>
 
           <TrendingContent />

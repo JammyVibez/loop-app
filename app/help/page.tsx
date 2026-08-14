@@ -95,9 +95,9 @@ export default function HelpPage() {
     },
     {
       id: "5",
-      question: "How do Loop Circles work?",
+      question: "How do loopapp.me Circles work?",
       answer:
-        "Loop Circles are communities where users can collaborate on specific topics. You can join circles, participate in discussions, attend events, and collaborate on shared projects.",
+        "loopapp.me Circles are communities where users can collaborate on specific topics. You can join circles, participate in discussions, attend events, and collaborate on shared projects.",
       category: "community",
       helpful: 27,
     },
@@ -501,7 +501,7 @@ export default function HelpPage() {
                   <CardTitle className="text-lg">User Guide</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground mb-4">Complete guide to using all Loop features</p>
+                  <p className="text-muted-foreground mb-4">Complete guide to using all loopapp.me features</p>
                   <Button variant="outline" className="w-full">
                     Read Guide
                   </Button>
@@ -534,7 +534,7 @@ export default function HelpPage() {
                   <CardTitle className="text-lg">Community Forum</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground mb-4">Connect with other Loop users</p>
+                  <p className="text-muted-foreground mb-4">Connect with other loopapp.me users</p>
                   <Button variant="outline" className="w-full">
                     Join Forum
                   </Button>

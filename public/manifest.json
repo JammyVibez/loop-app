@@ -1,7 +1,7 @@
 {
-  "name": "Loop Social Platform",
-  "short_name": "Loop",
-  "description": "Connect, create, and collaborate in Loop's next-gen social storytelling platform",
+  "name": "loopapp.me",
+  "short_name": "loopapp.me",
+  "description": "Connect, create, and collaborate in loopapp.me's next-gen social storytelling platform",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -15,7 +15,7 @@
   "lang": "en",
   "dir": "ltr",
   "scope": "/",
-  "id": "loop-social-platform",
+  "id": "loopapp-me",
   "display_override": [
     "window-controls-overlay",
     "standalone",
@@ -77,7 +77,7 @@
     {
       "name": "Shop",
       "short_name": "Shop",
-      "description": "Browse the Loop shop",
+      "description": "Browse the loopapp.me shop",
       "url": "/shop",
       "icons": [
         {

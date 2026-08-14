@@ -273,7 +273,7 @@ export default function OnboardingPage() {
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <TreePine className="text-white w-8 h-8" />
               </div>
-              <CardTitle className="text-3xl">Welcome to Loop!</CardTitle>
+              <CardTitle className="text-3xl">Welcome to loopapp.me!</CardTitle>
               <CardDescription className="text-lg">
                 Let's set up your profile to help you connect with the right community
               </CardDescription>
@@ -309,7 +309,7 @@ export default function OnboardingPage() {
                 <Label htmlFor="bio">Tell us about yourself</Label>
                 <Textarea
                   id="bio"
-                  placeholder="Share what inspires you, your creative interests, or what you hope to discover on Loop..."
+                  placeholder="Share what inspires you, your creative interests, or what you hope to discover on loopapp.me..."
                   value={profileData.bio}
                   onChange={(e) => setProfileData((prev) => ({ ...prev, bio: e.target.value }))}
                   className="min-h-[100px]"
@@ -406,7 +406,7 @@ export default function OnboardingPage() {
             <CardHeader className="text-center">
               <Sparkles className="w-12 h-12 text-purple-600 mx-auto mb-4" />
               <CardTitle className="text-2xl">Personalize your start</CardTitle>
-              <CardDescription>Tell Loop what you want to do first so we can tune your feed.</CardDescription>
+              <CardDescription>Tell loopapp.me what you want to do first so we can tune your feed.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -545,7 +545,7 @@ export default function OnboardingPage() {
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setStep(4)} className="flex-1">Back</Button>
                 <Button onClick={handleComplete} className="flex-1 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500" disabled={saving}>
-                  {saving ? "Saving..." : "Enter Loop"} <Sparkles className="w-4 h-4 ml-2" />
+                  {saving ? "Saving..." : "Enter loopapp.me"} <Sparkles className="w-4 h-4 ml-2" />
                 </Button>
               </div>
             </CardContent>
@@ -595,7 +595,7 @@ export default function OnboardingPage() {
             onClick={handleSkip}
             disabled={saving}
           >
-            Skip for now — enter Loop
+            Skip for now — enter loopapp.me
           </Button>
         </div>
       </div>

@@ -20,7 +20,7 @@ function getVapidPrivateKey() {
 }
 
 function getVapidSubject() {
-  return process.env.VAPID_SUBJECT?.trim() || "mailto:support@loop-app-xi.vercel.app"
+  return process.env.VAPID_SUBJECT?.trim() || "mailto:support@loopapp.me"
 }
 
 let configured = false

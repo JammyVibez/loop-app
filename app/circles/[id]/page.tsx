@@ -21,8 +21,8 @@ export async function generateMetadata({ params }: CirclePageProps): Promise<Met
   const { id } = await params
   const baseUrl = await getAbsoluteAppUrl()
 
-  let title = "Circle Community — Loop"
-  let description = "Join this Circle community on Loop Social OS to connect and collaborate."
+  let title = "Circle Community — loopapp.me"
+  let description = "Join this Circle community on loopapp.me to connect and collaborate."
   let avatarUrl = ""
   let memberCount = 0
 
@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: CirclePageProps): Promise<Met
     ])
 
     if (circle) {
-      title = `${circle.name} Circle — Loop Community`
+      title = `${circle.name} Circle — loopapp.me Community`
       if (circle.description) description = circle.description.slice(0, 160)
       avatarUrl = circle.avatar_url || ""
     }

@@ -4,7 +4,7 @@ import { getAbsoluteAppUrl } from "@/lib/app-url"
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getAbsoluteAppUrl()
-  const title = "Log in to Loop"
+  const title = "Log in to loopapp.me"
   const description = "Sign back in to Loop — your loops, circles, and Co-Loop sessions are waiting."
   const ogImageUrl = `${baseUrl}/api/og?type=home&title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`
 

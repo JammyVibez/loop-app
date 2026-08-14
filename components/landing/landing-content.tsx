@@ -77,13 +77,13 @@ const checklist = [
 const roadmap = [
   {
     title: "Public developer API",
-    description: "OAuth apps and API keys so developers can build tools on top of Loop, not just share code inside it.",
+    description: "OAuth apps and API keys so developers can build tools on top of loopapp.me, not just share code inside it.",
     icon: Code2,
     status: "Planned",
   },
   {
     title: "Native mobile apps",
-    description: "Loop already installs as a PWA today — dedicated iOS and Android apps are next.",
+    description: "loopapp.me already installs as a PWA today — dedicated iOS and Android apps are next.",
     icon: Smartphone,
     status: "Planned",
   },
@@ -175,7 +175,7 @@ export function LandingContent() {
               </div>
             </div>
             <div className="flex flex-col leading-tight">
-              <span className="text-lg font-semibold tracking-tight text-white">Loop</span>
+              <span className="text-lg font-semibold tracking-tight text-white">loopapp.me</span>
               <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-slate-500">
                 Creators &amp; Developers
               </span>
@@ -227,7 +227,7 @@ export function LandingContent() {
               </h1>
 
               <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
-                Loop is where communities create in real time — co-write posts live with friends,
+                loopapp.me is where communities create in real time — co-write posts live with friends,
                 settle debates in public Duels, and build spaces that are actually yours.
               </p>
 

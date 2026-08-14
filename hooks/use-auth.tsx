@@ -52,8 +52,8 @@ interface AuthContextType {
   user: User | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
-  loginWithGoogle: () => Promise<void>
-  googleSignIn: () => Promise<void>
+  loginWithGoogle: (callbackURL?: string) => Promise<void>
+  googleSignIn: (callbackURL?: string) => Promise<void>
   signup: (
     email: string,
     password: string,
@@ -356,10 +356,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async (callbackURL?: string) => {
     await authClient.signIn.social({
       provider: "google",
-      callbackURL: `${window.location.origin}/onboarding`,
+      callbackURL: callbackURL || `${window.location.origin}/onboarding`,
     })
   }
 

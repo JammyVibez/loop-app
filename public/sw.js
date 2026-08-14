@@ -213,7 +213,7 @@ self.addEventListener("push", (event) => {
   console.log("Push notification received")
 
   let notificationData = {
-    title: "Loop Social",
+    title: "loopapp.me",
     body: "You have a new notification!",
     icon: "/icons/icon-144x144.png",
     badge: "/icons/icon-144x144.png",
@@ -228,7 +228,7 @@ self.addEventListener("push", (event) => {
     actions: [
       {
         action: "open",
-        title: "Open Loop",
+        title: "Open loopapp.me",
         icon: "/icons/icon-144x144.png",
       },
       {

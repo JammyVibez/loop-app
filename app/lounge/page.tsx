@@ -62,7 +62,7 @@ const PERKS: Perk[] = [
     category: "community",
     title: "Founder Q&As",
     description:
-      "Monthly live sessions with the Loop team — ask anything about the roadmap and shape what ships next. Past sessions are archived in the Lounge.",
+      "Monthly live sessions with the loopapp.me team — ask anything about the roadmap and shape what ships next. Past sessions are archived in the Lounge.",
     featured: true,
     tag: "Every month",
   },
@@ -70,7 +70,7 @@ const PERKS: Perk[] = [
     icon: Vote,
     category: "community",
     title: "Priority feature voting",
-    description: "Pro members get weighted votes on the features Loop builds next. Your vote counts double.",
+    description: "Pro members get weighted votes on the features loopapp.me builds next. Your vote counts double.",
   },
   {
     icon: Rocket,
@@ -283,7 +283,7 @@ export default function LoungePage() {
             </h1>
             <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
               A private space for Loop Pro members and the dev team. Get early access, vote on the roadmap, and hang
-              out with the people building Loop.
+              out with the people building loopapp.me.
             </p>
 
             {announcement && (
@@ -309,7 +309,7 @@ export default function LoungePage() {
                   <p className="font-semibold">Your Pro membership is active</p>
                   <p className="text-sm text-muted-foreground">
                     {isLifetime
-                      ? "Lifetime Pro — thank you for supporting Loop! 🎉"
+                      ? "Lifetime Pro — thank you for supporting loopapp.me! 🎉"
                       : isExpired
                         ? "Your membership has expired. Renew to keep your Pro perks."
                         : renewalProgress

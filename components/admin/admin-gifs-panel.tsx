@@ -140,7 +140,7 @@ export function AdminGifsPanel() {
                 <Input
                   value={form.title}
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  placeholder="e.g. Loop Hype Train"
+                  placeholder="e.g. loopapp.me Hype Train"
                   required
                 />
               </div>

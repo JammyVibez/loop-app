@@ -132,7 +132,7 @@ export function DevelopersContent() {
               <Code className="h-7 w-7" />
             </span>
             <div>
-              <h2 className="text-xl font-bold tracking-tight">Build on Loop</h2>
+              <h2 className="text-xl font-bold tracking-tight">Build on loopapp.me</h2>
               <p className="text-sm text-muted-foreground">
                 Share code projects, snippets, and skills — then ship your work to the Marketplace.
               </p>

@@ -6,8 +6,8 @@ const sections = [
     num: "1",
     title: "Overview",
     body: [
-      "This Privacy Policy explains how Loop (\"we\", \"us\", or \"our\") collects, uses, shares, and protects your personal information when you use the Loop platform (the \"Service\"). It applies to all users of the Service, whether you are a guest browsing public content or a registered account holder.",
-      "We collect the minimum personal information needed to run the Service, we do not sell your personal information, and we only share it with the service providers required to operate Loop. By using the Service, you agree to the practices described in this policy.",
+      "This Privacy Policy explains how loopapp.me (\"we\", \"us\", or \"our\") collects, uses, shares, and protects your personal information when you use the loopapp.me platform (the \"Service\"). It applies to all users of the Service, whether you are a guest browsing public content or a registered account holder.",
+      "We collect the minimum personal information needed to run the Service, we do not sell your personal information, and we only share it with the service providers required to operate loopapp.me. By using the Service, you agree to the practices described in this policy.",
     ],
   },
   {
@@ -49,7 +49,7 @@ const sections = [
     list: [
       "With service providers — companies that help us operate the Service, such as cloud hosting and database providers, media/file-storage providers (e.g. Cloudinary), payment processors, push-notification providers, and analytics providers. These providers are contractually bound to use your information only to provide services to us.",
       "With other users — the information you make public (your username, display name, avatar, posts, and interactions) is visible to other users as part of the Service's intended functionality.",
-      "For safety and legal reasons — when we reasonably believe disclosure is required by law, regulation, legal process, or governmental request, or is necessary to protect the rights, property, or safety of Loop, our users, or the public.",
+      "For safety and legal reasons — when we reasonably believe disclosure is required by law, regulation, legal process, or governmental request, or is necessary to protect the rights, property, or safety of loopapp.me, our users, or the public.",
       "In a business transfer — if we are involved in a merger, acquisition, reorganization, or sale of assets, your information may be transferred as part of that transaction, subject to this Privacy Policy.",
       "With your consent — we may share your information for other purposes when you direct us to do so.",
     ],
@@ -59,7 +59,7 @@ const sections = [
     num: "5",
     title: "Public Information and Social Features",
     body: [
-      "Most of the content you create on Loop is public by default, including your profile, loops, reels, comments, duels, and circle posts. Public content may be viewed, searched, branched, and shared by other users and, where the Service allows, by visitors who are not signed in.",
+      "Most of the content you create on loopapp.me is public by default, including your profile, loops, reels, comments, duels, and circle posts. Public content may be viewed, searched, branched, and shared by other users and, where the Service allows, by visitors who are not signed in.",
       "Your profile shows your username, display name, avatar, bio, and information such as follower counts and engagement statistics. Think carefully before posting content you would not want to be public.",
       "Direct messages, gift records, and withdrawal details are private to you and the other party, except where we are required to disclose them by law or to investigate abuse.",
     ],
@@ -153,7 +153,7 @@ export default function PrivacyPolicyPage() {
             Last updated: {new Date().toLocaleDateString()}
           </p>
           <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
-            This policy explains what information Loop collects, why we collect it, how we use and share it,
+            This policy explains what information loopapp.me collects, why we collect it, how we use and share it,
             and the choices you have. It works together with our{" "}
             <Link href="/terms" className="font-medium text-primary underline underline-offset-4">Terms of Service</Link>.
           </p>

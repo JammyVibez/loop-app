@@ -91,7 +91,7 @@ export function VerificationRequest() {
             <Shield className="w-8 h-8 text-blue-600 dark:text-blue-400" />
           </div>
         </div>
-        <h1 className="text-3xl font-bold">Get Verified on Loop</h1>
+        <h1 className="text-3xl font-bold">Get Verified on loopapp.me</h1>
         <p className="text-gray-600 dark:text-gray-400">Join verified creators and build trust with your audience</p>
       </div>
 

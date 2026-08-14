@@ -22,7 +22,7 @@ export function ProfileShareCard({ username, displayName, bio, avatarUrl, trigge
   const { toast } = useToast()
   const cardRef = useRef<HTMLDivElement>(null)
   const profileUrl = useMemo(() => {
-    if (typeof window === "undefined") return `https://loop-app-xi.vercel.app/profile/${username}`
+    if (typeof window === "undefined") return `https://loopapp.me/profile/${username}`
     return `${window.location.origin}/profile/${username}`
   }, [username])
 

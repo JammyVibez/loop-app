@@ -93,7 +93,7 @@ export function Header() {
           <Link href="/" className="group flex items-center gap-2.5">
             <LogoMark />
             <div className="flex flex-col leading-tight">
-              <span className="text-base font-bold tracking-tight text-foreground">Loop</span>
+              <span className="text-base font-bold tracking-tight text-foreground">loopapp.me</span>
               <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Social OS</span>
             </div>
           </Link>
@@ -124,7 +124,7 @@ export function Header() {
           <Link href="/" className="group flex shrink-0 items-center gap-2.5">
             <LogoMark />
             <div className="hidden flex-col leading-tight sm:flex">
-              <span className="text-base font-bold tracking-tight text-foreground">Loop</span>
+              <span className="text-base font-bold tracking-tight text-foreground">loopapp.me</span>
               <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Social OS</span>
             </div>
           </Link>

@@ -1,9 +1,9 @@
 import type { Metadata } from "next"
 import { LandingContent } from "@/components/landing/landing-content"
 
-const title = "Loop — Build together. Not just post into the void."
+const title = "loopapp.me — Build together. Not just post into the void."
 const description =
-  "Loop is where communities create in real time — co-write posts live with friends, settle debates in public Duels, and build spaces that are actually yours."
+  "loopapp.me is where communities create in real time — co-write posts live with friends, settle debates in public Duels, and build spaces that are actually yours."
 
 export const metadata: Metadata = {
   title,
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     title,
     description,
     url: "/landing",
-    siteName: "Loop Social OS",
+    siteName: "loopapp.me",
     type: "website",
   },
   twitter: {

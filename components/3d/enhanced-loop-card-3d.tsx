@@ -79,7 +79,7 @@ export function EnhancedLoopCard3D({
   const handleShare = async () => {
     await shareContent({
       url: absoluteAppUrl(`/loop/${loop.id}`),
-      title: `@${user.username} on Loop`,
+      title: `@${user.username} on loopapp.me`,
       text: content.slice(0, 120) || "Check out this loop",
     })
   }

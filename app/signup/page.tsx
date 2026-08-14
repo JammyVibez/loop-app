@@ -102,7 +102,7 @@ export default function SignupPage() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-            Join Loop
+            Join loopapp.me
           </CardTitle>
           <CardDescription className="text-slate-600 dark:text-slate-300 font-medium">Create your account to start sharing your story</CardDescription>
         </CardHeader>

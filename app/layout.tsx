@@ -34,29 +34,29 @@ export const generateViewport = (): Viewport => ({
   interactiveWidget: "resizes-content",
 })
 
-const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://loop-app.com").replace(/\/$/, "")
-const defaultOgTitle = "Loop — Build together. Not just post into the void."
-const defaultOgDesc = "Loop is where communities create in real time — co-write posts live with friends, settle debates in public Duels, and build spaces that are actually yours."
+const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://loopapp.me").replace(/\/$/, "")
+const defaultOgTitle = "loopapp.me — Build together. Not just post into the void."
+const defaultOgDesc = "loopapp.me is where communities create in real time — co-write posts live with friends, settle debates in public Duels, and build spaces that are actually yours."
 const defaultOgImage = `${siteUrl}/api/og?type=home&title=${encodeURIComponent(defaultOgTitle)}&description=${encodeURIComponent(defaultOgDesc)}`
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Loop — Build together. Not just post into the void.",
-    template: "%s | Loop",
+    default: "loopapp.me — Build together. Not just post into the void.",
+    template: "%s | loopapp.me",
   },
   description: defaultOgDesc,
-  generator: "Loop Social OS",
-  applicationName: "Loop",
+  generator: "loopapp.me",
+  applicationName: "loopapp.me",
   manifest: "/manifest.json",
   keywords: ["social media", "co-loop", "real-time collaboration", "live streams", "circles", "gamification", "loop coins"],
-  authors: [{ name: "Loop Team", url: siteUrl }],
-  creator: "Loop Team",
-  publisher: "Loop Platform",
+  authors: [{ name: "loopapp.me Team", url: siteUrl }],
+  creator: "loopapp.me Team",
+  publisher: "loopapp.me",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Loop",
+    title: "loopapp.me",
   },
   formatDetection: {
     telephone: false,
@@ -78,10 +78,10 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   openGraph: {
-    title: "Loop - Next-Gen Collaborative Social OS",
-    description: "Connect, create, and collaborate in the Loop ecosystem with live streams, real-time co-loops, and interactive circles.",
+    title: "loopapp.me - Next-Gen Collaborative Social OS",
+    description: "Connect, create, and collaborate in the loopapp.me ecosystem with live streams, real-time co-loops, and interactive circles.",
     url: siteUrl,
-    siteName: "Loop Social OS",
+    siteName: "loopapp.me",
     type: "website",
     locale: "en_US",
     images: [
@@ -90,21 +90,21 @@ export const metadata: Metadata = {
         width: 1200,
         height: 630,
         type: "image/png",
-        alt: "Loop - Next-Gen Collaborative Social OS",
+        alt: "loopapp.me - Next-Gen Collaborative Social OS",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Loop - Next-Gen Collaborative Social OS",
-    description: "Connect, create, and collaborate in the Loop ecosystem with live streams, real-time co-loops, and interactive circles.",
-    creator: "@LoopSocial",
+    title: "loopapp.me - Next-Gen Collaborative Social OS",
+    description: "Connect, create, and collaborate in the loopapp.me ecosystem with live streams, real-time co-loops, and interactive circles.",
+    creator: "@loopappme",
     images: [
       {
         url: defaultOgImage,
         width: 1200,
         height: 630,
-        alt: "Loop - Next-Gen Collaborative Social OS",
+        alt: "loopapp.me - Next-Gen Collaborative Social OS",
       },
     ],
   },
@@ -174,10 +174,10 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebSite",
-              name: "Loop",
-              alternateName: "Loop Social OS",
+              name: "loopapp.me",
+              alternateName: "loopapp.me Social OS",
               url: siteUrl,
-              description: "Connect, create, and collaborate in the Loop ecosystem with live streams, real-time co-loops, and gamified reward economies.",
+              description: "Connect, create, and collaborate in the loopapp.me ecosystem with live streams, real-time co-loops, and gamified reward economies.",
               potentialAction: {
                 "@type": "SearchAction",
                 target: `${siteUrl}/search?q={search_term_string}`,

@@ -1,4 +1,4 @@
-# Loop - Social Media REIMAGINED Platform
+# loopapp.me - Social Media REIMAGINED Platform
 
 A full-stack social media platform focused on collaborative storytelling and creative content sharing. Built with Next.js, Supabase, and modern web technologies.
 

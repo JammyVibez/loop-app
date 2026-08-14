@@ -13,7 +13,7 @@ export default function CommunityLayoutDocsPage() {
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-600">Developer docs</p>
           <h1 className="text-4xl font-semibold tracking-tight">Community layout & styling packs</h1>
           <p className="text-muted-foreground">
-            Build marketplace packs that change how a Loop community looks and behaves. Packs are JSON payloads
+            Build marketplace packs that change how a loopapp.me community looks and behaves. Packs are JSON payloads
             installed into <code>circle.settings</code> and applied live by the circle UI.
           </p>
           <div className="flex flex-wrap gap-2">
@@ -102,7 +102,7 @@ export default function CommunityLayoutDocsPage() {
             </p>
             <p>2. Buyers unlock the pack with Loop Coins.</p>
             <p>
-              3. Install to a circle they admin. Loop writes the payload into{" "}
+              3. Install to a circle they admin. loopapp.me writes the payload into{" "}
               <code>settings.marketplace.[type]</code> and syncs <code>settings.community_studio</code>.
             </p>
             <p>

@@ -153,8 +153,8 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
   const handleShareEvent = async (event: any) => {
     const result = await shareContent({
       url: absoluteAppUrl(`/circles/${circleId}?tab=events&event=${event.id}`),
-      title: event.title || "Circle event on Loop",
-      text: event.description?.slice(0, 140) || `Join ${event.title} on Loop`,
+      title: event.title || "Circle event on loopapp.me",
+      text: event.description?.slice(0, 140) || `Join ${event.title} on loopapp.me`,
     })
     if (result === "copied") {
       toast({ title: "Link copied", description: "Event link is on your clipboard." })

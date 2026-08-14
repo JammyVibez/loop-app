@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     const title = searchParams.get("title") || "Build together. Not just post into the void."
     const description =
       searchParams.get("description") ||
-      "Loop is where communities create in real time — co-write posts live with friends, settle debates in public Duels, and build spaces that are actually yours."
+      "loopapp.me is where communities create in real time — co-write posts live with friends, settle debates in public Duels, and build spaces that are actually yours."
     const rawType = searchParams.get("type") || "home"
     const type: OgType = isOgType(rawType) ? rawType : "home"
     const username = searchParams.get("username")
@@ -249,7 +249,7 @@ export async function GET(req: NextRequest) {
               color: "#64748b",
             }}
           >
-            <span>Loop Social OS</span>
+            <span>loopapp.me</span>
             <span style={{ color: theme.accent }}>Live Streams • Co-Loops • Circles • Developer Hub</span>
           </div>
         </div>
