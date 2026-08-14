@@ -48,6 +48,9 @@ const files = [
   // More coin packs + self-service refund system (refund_requests table,
   // wallet_transactions.payment_intent_id / item_id, Stripe reversals).
   "scripts/coin-packs-refunds-schema.sql",
+  // profiles.cosmetics column — fixes "profile_1.cosmetic does not exist"
+  // that broke feed / For You branch queries (branched loops hidden).
+  "scripts/fix-profiles-cosmetics-column.sql",
 ]
 
 const ignorable = [
