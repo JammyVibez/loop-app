@@ -1,6 +1,7 @@
 import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { sendWebPushToUser, sendWebPushToUsers, type PushCategory, type PushPayload } from "@/lib/web-push"
+import { sendFcmToUser } from "@/lib/fcm"
 
 export type NotifyInput = {
   userId: string
@@ -81,6 +82,15 @@ export async function notifyUser(
         category: input.pushCategory || "system",
       })
       pushDelivered = result.delivered
+      // Native Capacitor shells receive the same notification via FCM.
+      // No-op until Firebase env vars are configured (see lib/fcm.ts).
+      await sendFcmToUser(supabase, input.userId, {
+        title: input.title,
+        body: input.message,
+        url: input.actionUrl || "/",
+        icon: payload.icon,
+        data: input.data,
+      })
     }
   } catch (err) {
     console.warn("notifyUser error:", err)

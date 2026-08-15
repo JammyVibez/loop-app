@@ -58,6 +58,8 @@ const files = [
   "scripts/fix-profiles-cosmetics-column.sql",
   // Private profiles: follow_requests table + realtime (see /api/users/follow-requests).
   "scripts/private-profiles-schema.sql",
+  // Native (Capacitor) FCM device tokens — see /api/push/native and lib/fcm.ts.
+  "scripts/native-push-schema.sql",
 ]
 
 const ignorable = [

@@ -17,6 +17,7 @@ import { LeftSidebar } from "@/components/left-sidebar"
 import { GiftNotificationSystem } from "@/components/gifting/gift-notification"
 import { GlobalFab } from "@/components/global-fab"
 import { PushAutoSubscribe } from "@/components/pwa/push-auto-subscribe"
+import { NativeShell } from "@/components/pwa/native-shell"
 import { checkEnvironmentVariables, logEnvironmentStatus, validateEnvironment } from "@/lib/env-check"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -207,6 +208,7 @@ export default function RootLayout({
                     <GlobalFab />
                     <GiftNotificationSystem />
                     <PushAutoSubscribe />
+                    <NativeShell />
                     <Toaster />
                     <div id="performance-monitor" className="hidden" />
                     <div id="accessibility-announcements" className="sr-only" aria-live="polite" aria-atomic="true" />

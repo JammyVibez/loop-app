@@ -48,6 +48,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -1146,74 +1147,42 @@ export function MessagesWorkspace() {
             )}
           </p>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(pushEnabled ? "text-emerald-500" : "text-muted-foreground hover:text-foreground", "hidden sm:inline-flex")}
-          title={pushEnabled ? "Notifications on — tap to mute this device" : "Turn on notifications for this chat"}
-          onClick={() => void togglePush()}
-          disabled={pushToggling}
-        >
-          {pushToggling ? <Loader2 className="h-4 w-4 animate-spin" /> : pushEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="hidden text-muted-foreground hover:text-foreground sm:inline-flex"
-          title="Search in chat"
-          onClick={() => setShowChatSearch((v) => !v)}
-        >
-          <Search className="h-4 w-4" />
-        </Button>
-        {selected.other_user?.username && (
-          <Button variant="ghost" size="icon" className="hidden text-muted-foreground hover:text-foreground sm:inline-flex" title="View profile" asChild>
-            <Link href={`/profile/${selected.other_user.username}`}>
-              <ExternalLink className="h-4 w-4" />
-            </Link>
-          </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-amber-500 dark:text-amber-300"
-          title="Co-Loop — write a public loop together (unique to Loop)"
-          onClick={() => setShowCoLoop((v) => !v)}
-        >
-          <GitBranch className="h-4 w-4" />
-        </Button>
-        {selected.other_user?.id && (
-          <Button variant="ghost" size="icon" className="hidden text-pink-500 dark:text-pink-300 sm:inline-flex" onClick={() => setShowGift(true)}>
-            <Gift className="h-4 w-4" />
-          </Button>
-        )}
-
-        {/* Mobile-only overflow menu so the header never overflows on phones */}
+        {/* All chat actions live in one compact menu so the header stays
+            clean on every screen size and never overflows on phones. */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground sm:hidden" title="More options">
-              <MoreHorizontal className="h-4 w-4" />
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" title="More actions">
+              <MoreHorizontal className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onClick={() => setShowCoLoop((v) => !v)} className="text-amber-600 dark:text-amber-300">
+              <GitBranch className="mr-2 h-4 w-4" />
+              Co-Loop together
+              <span className="ml-auto rounded-full border border-amber-400/40 px-1.5 py-0.5 text-[10px] font-medium">
+                Only on Loop
+              </span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setShowChatSearch((v) => !v)}>
-              <Search className="h-4 w-4 mr-2" />
+              <Search className="mr-2 h-4 w-4" />
               Search in chat
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => void togglePush()} disabled={pushToggling}>
-              {pushEnabled ? <Bell className="h-4 w-4 mr-2 text-emerald-500" /> : <BellOff className="h-4 w-4 mr-2" />}
+              {pushEnabled ? <Bell className="mr-2 h-4 w-4 text-emerald-500" /> : <BellOff className="mr-2 h-4 w-4" />}
               {pushEnabled ? "Notifications on" : "Turn on notifications"}
             </DropdownMenuItem>
             {selected.other_user?.username && (
               <DropdownMenuItem asChild>
                 <Link href={`/profile/${selected.other_user.username}`}>
-                  <ExternalLink className="h-4 w-4 mr-2" />
+                  <ExternalLink className="mr-2 h-4 w-4" />
                   View profile
                 </Link>
               </DropdownMenuItem>
             )}
             {selected.other_user?.id && (
               <DropdownMenuItem onClick={() => setShowGift(true)}>
-                <Gift className="h-4 w-4 mr-2 text-pink-500" />
+                <Gift className="mr-2 h-4 w-4 text-pink-500" />
                 Send gift
               </DropdownMenuItem>
             )}
