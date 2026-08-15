@@ -7,22 +7,41 @@ export const dynamic = "force-dynamic"
 const getUser = getUserFromRequest
 
 async function canMessage(supabase: ReturnType<typeof createServerClient>, fromId: string, toId: string) {
-  // Allow if either user follows the other (or mutual). Anyone can open chat if at least one follow exists.
-  const { data: a } = await supabase
-    .from("follows")
-    .select("id")
-    .eq("follower_id", fromId)
-    .eq("following_id", toId)
+  // Recipient privacy gate first.
+  const { data: recipient } = await supabase
+    .from("profiles")
+    .select("privacy_settings")
+    .eq("id", toId)
     .maybeSingle()
-  if (a) return true
+  const privacy = (recipient as any)?.privacy_settings || {}
+  const messagePrivacy = privacy.message_privacy || "everyone"
 
-  const { data: b } = await supabase
-    .from("follows")
-    .select("id")
-    .eq("follower_id", toId)
-    .eq("following_id", fromId)
-    .maybeSingle()
-  return Boolean(b)
+  if (messagePrivacy === "nobody" || messagePrivacy === "none") {
+    return { allowed: false, reason: "This user has disabled direct messages." }
+  }
+
+  if (messagePrivacy === "followers") {
+    const { data: senderFollows } = await supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", fromId)
+      .eq("following_id", toId)
+      .maybeSingle()
+    const { data: recipientFollows } = await supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", toId)
+      .eq("following_id", fromId)
+      .maybeSingle()
+    if (!senderFollows && !recipientFollows) {
+      return { allowed: false, reason: "This user only accepts messages from people they follow or who follow them." }
+    }
+    return { allowed: true }
+  }
+
+  // "everyone" (default): allow if either user follows the other, otherwise still allow
+  // (matches the pre-existing product behavior).
+  return { allowed: true }
 }
 
 export async function GET(request: NextRequest) {
@@ -135,14 +154,13 @@ export async function POST(request: NextRequest) {
 
     if (!isGroup) {
       const recipientId = participantIds[0]
-      const allowed = await canMessage(supabase, user.id, recipientId)
+      const { allowed, reason } = await canMessage(supabase, user.id, recipientId)
       if (!allowed) {
-        // Soft allow: still permit starting chat with any existing user (per product request),
-        // but prefer follow relationship when present.
-        const { data: recipient } = await supabase.from("profiles").select("id").eq("id", recipientId).maybeSingle()
-        if (!recipient) {
-          return NextResponse.json({ error: "User not found" }, { status: 404 })
-        }
+        return NextResponse.json({ error: reason || "You cannot message this user" }, { status: 403 })
+      }
+      const { data: recipient } = await supabase.from("profiles").select("id").eq("id", recipientId).maybeSingle()
+      if (!recipient) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 })
       }
 
       // Reuse existing direct conversation if both users already share one with exactly 2 people

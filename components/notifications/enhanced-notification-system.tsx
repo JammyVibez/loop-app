@@ -60,8 +60,10 @@ interface Gift {
 export function EnhancedNotificationSystem() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [pendingGifts, setPendingGifts] = useState<Gift[]>([])
+  const [pendingFollowRequests, setPendingFollowRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [processingGift, setProcessingGift] = useState<string | null>(null)
+  const [processingFollowRequest, setProcessingFollowRequest] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const { user } = useAuth()
   const { toast } = useToast()
@@ -70,11 +72,13 @@ export function EnhancedNotificationSystem() {
     if (user?.token) {
       fetchNotifications()
       fetchPendingGifts()
+      fetchFollowRequests()
       
       // Poll for new notifications every 30 seconds
       const interval = setInterval(() => {
         fetchNotifications()
         fetchPendingGifts()
+        fetchFollowRequests()
       }, 30000)
 
       return () => clearInterval(interval)
@@ -116,6 +120,49 @@ export function EnhancedNotificationSystem() {
       }
     } catch (error) {
       console.error("Error fetching pending gifts:", error)
+    }
+  }
+
+  const fetchFollowRequests = async () => {
+    if (!user?.token) return
+    try {
+      const response = await fetch("/api/users/follow-requests", {
+        headers: { Authorization: `Bearer ${user.token}` },
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setPendingFollowRequests(data.incoming || [])
+      }
+    } catch {
+      /* soft-fail */
+    }
+  }
+
+  const handleFollowRequestAction = async (requestId: string, action: "accept" | "decline") => {
+    if (!user?.token) return
+    setProcessingFollowRequest(requestId)
+    try {
+      const response = await fetch("/api/users/follow-requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({ request_id: requestId, action }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to process request")
+      }
+      toast({
+        title: action === "accept" ? "Follow request accepted" : "Follow request declined",
+      })
+      setPendingFollowRequests((prev) => prev.filter((req) => req.id !== requestId))
+      fetchNotifications()
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } finally {
+      setProcessingFollowRequest(null)
     }
   }
 
@@ -193,6 +240,7 @@ export function EnhancedNotificationSystem() {
       case 'comment':
         return <MessageCircle className="w-4 h-4 text-blue-500" />
       case 'follow':
+      case 'follow_request':
         return <UserPlus className="w-4 h-4 text-green-500" />
       case 'gift_received':
         return <Gift className="w-4 h-4 text-purple-500" />
@@ -207,7 +255,7 @@ export function EnhancedNotificationSystem() {
     }
   }
 
-  const unreadCount = notifications.filter(n => !n.is_read).length + pendingGifts.length
+  const unreadCount = notifications.filter(n => !n.is_read).length + pendingGifts.length + pendingFollowRequests.length
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -252,6 +300,67 @@ export function EnhancedNotificationSystem() {
 
         <ScrollArea className="h-96">
           <div className="p-2">
+            {/* Pending Follow Requests Section */}
+            {pendingFollowRequests.length > 0 && (
+              <>
+                <div className="px-2 py-1">
+                  <h4 className="text-sm font-medium text-green-600">Follow Requests</h4>
+                </div>
+                {pendingFollowRequests.map((request) => (
+                  <Card key={request.id} className="mb-2 border-green-200">
+                    <CardContent className="p-3">
+                      <div className="flex items-start space-x-3">
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={request.requester?.avatar_url || "/placeholder.svg"} />
+                          <AvatarFallback>
+                            {(request.requester?.display_name || "?").charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <UserPlus className="w-4 h-4 text-green-500" />
+                            <a
+                              href={`/profile/${request.requester?.username || ""}`}
+                              className="text-sm font-medium hover:underline"
+                            >
+                              {request.requester?.display_name || "Someone"}
+                            </a>
+                          </div>
+                          <p className="text-xs text-gray-600">@{request.requester?.username} wants to follow you</p>
+                          <div className="flex space-x-2 mt-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleFollowRequestAction(request.id, "accept")}
+                              disabled={processingFollowRequest === request.id}
+                              className="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 h-auto"
+                            >
+                              {processingFollowRequest === request.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                              )}
+                              Accept
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleFollowRequestAction(request.id, "decline")}
+                              disabled={processingFollowRequest === request.id}
+                              className="text-xs px-2 py-1 h-auto"
+                            >
+                              <XCircle className="w-3 h-3 mr-1" />
+                              Decline
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {(pendingGifts.length > 0 || notifications.length > 0) && <Separator className="my-2" />}
+              </>
+            )}
+
             {/* Pending Gifts Section */}
             {pendingGifts.length > 0 && (
               <>
@@ -321,7 +430,7 @@ export function EnhancedNotificationSystem() {
             )}
 
             {/* Regular Notifications */}
-            {notifications.length === 0 && pendingGifts.length === 0 ? (
+            {notifications.length === 0 && pendingGifts.length === 0 && pendingFollowRequests.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p>No notifications yet</p>

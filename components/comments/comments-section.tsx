@@ -63,6 +63,8 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
   const [editContent, setEditContent] = useState("")
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [submittingReplyId, setSubmittingReplyId] = useState<string | null>(null)
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const token = user?.access_token || user?.token
@@ -123,35 +125,51 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
   }, [loopId, loadComments])
 
   const handleSubmitComment = async () => {
-    if (!newComment.trim() || !token) return
-    const response = await fetch(`/api/loops/${loopId}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ content: newComment }),
-    })
-    const data = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      toast({ title: "Error", description: data.error || "Failed to add comment", variant: "destructive" })
-      return
+    if (!newComment.trim() || !token || submitting) return
+    const submittedContent = newComment
+    setSubmitting(true)
+    try {
+      const response = await fetch(`/api/loops/${loopId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ content: submittedContent }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        toast({ title: "Error", description: data.error || "Failed to add comment", variant: "destructive" })
+        return
+      }
+      // Dedupe by id — the realtime reload will re-fetch the authoritative list.
+      setCommentsData((prev) =>
+        data.comment?.id && prev.some((c) => c.id === data.comment.id)
+          ? prev
+          : [data.comment, ...prev],
+      )
+      setNewComment("")
+    } finally {
+      setSubmitting(false)
     }
-    setCommentsData((prev) => [data.comment, ...prev])
-    setNewComment("")
   }
 
   const handleSubmitReply = async (parentId: string) => {
-    if (!replyContent.trim() || !token) return
-    const response = await fetch(`/api/loops/${loopId}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ content: replyContent, parent_comment_id: parentId }),
-    })
-    if (!response.ok) {
-      toast({ title: "Error", description: "Failed to reply", variant: "destructive" })
-      return
+    if (!replyContent.trim() || !token || submittingReplyId) return
+    setSubmittingReplyId(parentId)
+    try {
+      const response = await fetch(`/api/loops/${loopId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ content: replyContent, parent_comment_id: parentId }),
+      })
+      if (!response.ok) {
+        toast({ title: "Error", description: "Failed to reply", variant: "destructive" })
+        return
+      }
+      setReplyContent("")
+      setReplyingTo(null)
+      await loadComments()
+    } finally {
+      setSubmittingReplyId(null)
     }
-    setReplyContent("")
-    setReplyingTo(null)
-    await loadComments()
   }
 
   const handleLike = async (commentId: string) => {
@@ -318,8 +336,13 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" className="bg-cyan-500 font-semibold text-slate-950 hover:bg-cyan-400" onClick={() => handleSubmitReply(comment.id)}>
-                    Reply
+                  <Button
+                    size="sm"
+                    className="bg-cyan-500 font-semibold text-slate-950 hover:bg-cyan-400"
+                    onClick={() => handleSubmitReply(comment.id)}
+                    disabled={submittingReplyId === comment.id}
+                  >
+                    {submittingReplyId === comment.id ? "Replying…" : "Reply"}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setReplyingTo(null)}>Cancel</Button>
                 </div>
@@ -353,8 +376,12 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
               <MediaEmojiPicker onSelectEmoji={(emoji) => setNewComment((prev) => prev + emoji)} />
             </div>
           </div>
-          <Button onClick={handleSubmitComment} disabled={!newComment.trim()} className="bg-cyan-500 font-bold text-slate-950 hover:bg-cyan-400 rounded-xl">
-            Post comment
+          <Button
+            onClick={handleSubmitComment}
+            disabled={!newComment.trim() || submitting}
+            className="bg-cyan-500 font-bold text-slate-950 hover:bg-cyan-400 rounded-xl"
+          >
+            {submitting ? "Posting…" : "Post comment"}
           </Button>
         </div>
       ) : (

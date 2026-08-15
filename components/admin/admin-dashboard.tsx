@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AdminCatalogPanel } from "@/components/admin/admin-catalog-panel"
+import { AdminBroadcastPanel } from "@/components/admin/admin-broadcast-panel"
 import { AdminSupportPanel } from "@/components/admin/admin-support-panel"
 import { AdminGifsPanel } from "@/components/admin/admin-gifs-panel"
 import { AdminFeaturedPanel } from "@/components/admin/admin-featured-panel"
@@ -191,6 +192,7 @@ export function AdminDashboard() {
           <TabsTrigger value="featured">Featured</TabsTrigger>
           <TabsTrigger value="support">Support</TabsTrigger>
           <TabsTrigger value="gifs">GIFs</TabsTrigger>
+          <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
           <TabsTrigger value="moderation">Moderation</TabsTrigger>
         </TabsList>
 
@@ -441,6 +443,10 @@ export function AdminDashboard() {
 
         <TabsContent value="gifs" className="mt-6">
           <AdminGifsPanel />
+        </TabsContent>
+
+        <TabsContent value="broadcast" className="mt-6">
+          <AdminBroadcastPanel />
         </TabsContent>
       </Tabs>
     </div>

@@ -485,10 +485,10 @@ export function CoLoopStudio() {
       .on("broadcast", { event: "coloop_published" }, ({ payload }: any) => {
         toast({
           title: "Co-Loop Published! 🚀",
-          description: `${payload?.publishedBy || "A collaborator"} published this Co-Loop. Taking you to the feed…`,
+          description: `${payload?.publishedBy || "A collaborator"} published this Co-Loop. This session has ended — taking you to the community feed…`,
         })
         setTimeout(() => {
-          router.push(payload?.loopId ? `/loop/${payload.loopId}` : "/")
+          router.push("/")
         }, 1500)
       })
       // Handle Studio Version Snapshots

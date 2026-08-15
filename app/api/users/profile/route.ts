@@ -43,7 +43,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 })
     }
 
-    const [{ count: followersCount }, { count: followingCount }, { count: loopsCount }, { count: branchesCount }, { count: commentsCount }, { data: rawRecentLoops }, { data: rawCoLoops }, { data: rawRecentBranches }, { data: rawMediaLoops }, { data: followRecord }, { data: activeItems }] = await Promise.all([
+    const privacySettings = (profile as any)?.privacy_settings || {}
+    const isPrivate = privacySettings.profile_visibility === "private"
+
+    const [{ count: followersCount }, { count: followingCount }, { count: loopsCount }, { count: branchesCount }, { count: commentsCount }, { data: rawRecentLoops }, { data: rawCoLoops }, { data: rawRecentBranches }, { data: rawMediaLoops }, { data: followRecord }, { data: activeItems }, { data: pendingFollowRequest }] = await Promise.all([
       supabase.from("follows").select("id", { count: "exact", head: true }).eq("following_id", profile.id),
       supabase.from("follows").select("id", { count: "exact", head: true }).eq("follower_id", profile.id),
       supabase.from("loops").select("id", { count: "exact", head: true }).eq("author_id", profile.id).is("parent_loop_id", null),
@@ -105,6 +108,15 @@ export async function GET(request: NextRequest) {
             .eq("following_id", profile.id)
             .maybeSingle()
         : Promise.resolve({ data: null } as any),
+      authedUser
+        ? supabase
+            .from("follow_requests")
+            .select("id, status")
+            .eq("requester_id", authedUser.id)
+            .eq("target_id", profile.id)
+            .eq("status", "pending")
+            .maybeSingle()
+        : Promise.resolve({ data: null } as any),
       supabase
         .from("user_inventory")
         .select("id, item_id, item_type, is_active, shop_item:shop_items(id, name, category, item_type, item_data, preview_data)")
@@ -112,6 +124,53 @@ export async function GET(request: NextRequest) {
         .eq("is_active", true)
         .limit(12),
     ])
+
+    const isSelf = Boolean(authedUser && authedUser.id === profile.id)
+    const isFollower = Boolean(followRecord)
+    const hasPendingRequest = Boolean(pendingFollowRequest)
+    const canViewFull = !isPrivate || isSelf || isFollower
+
+    // Private profile & viewer isn't the owner or an approved follower —
+    // only expose pfp, cover, name and bio (plus request status).
+    if (!canViewFull) {
+      const limited = {
+        id: profile.id,
+        username: profile.username,
+        display_name: profile.display_name,
+        avatar_url: profile.avatar_url,
+        banner_url: profile.banner_url,
+        bio: profile.bio,
+        location: profile.location,
+        website: profile.website,
+        is_verified: profile.is_verified,
+        is_premium: profile.is_premium,
+        is_organization: profile.is_organization,
+        organization_name: profile.organization_name,
+        created_at: profile.created_at,
+        is_private: true,
+        privacy: {
+          profile_visibility: privacySettings.profile_visibility || "public",
+          message_privacy: privacySettings.message_privacy || "everyone",
+        },
+        is_following: false,
+        is_follower: false,
+        is_self: false,
+        has_pending_follow_request: hasPendingRequest,
+        can_view_full: false,
+        followers_count: followersCount ?? 0,
+        following_count: 0,
+        loops_count: 0,
+        branches_count: 0,
+        comments_count: 0,
+        likes_received: 0,
+        recent_loops: [],
+        recent_branches: [],
+        media_loops: [],
+        active_cosmetics: null,
+        active_effects: [],
+      }
+      return NextResponse.json({ success: true, profile: limited, private: true })
+    }
 
     // Filter co-authored loops where profile is listed in co_authors or author
     const matchedCoLoops = (rawCoLoops || []).filter((l: any) => {
@@ -163,7 +222,16 @@ export async function GET(request: NextRequest) {
       recent_loops: normalizeLoops(recentLoops || []),
       recent_branches: normalizeLoops(recentBranches || []),
       media_loops: normalizeLoops(mediaLoops || []),
-      is_following: Boolean(followRecord),
+      is_following: isFollower,
+      is_follower: isFollower,
+      is_self: isSelf,
+      is_private: isPrivate,
+      has_pending_follow_request: hasPendingRequest,
+      can_view_full: true,
+      privacy: {
+        profile_visibility: privacySettings.profile_visibility || "public",
+        message_privacy: privacySettings.message_privacy || "everyone",
+      },
     }
 
     return NextResponse.json({

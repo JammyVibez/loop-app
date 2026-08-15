@@ -831,9 +831,9 @@ export function LoopCard({
         )}
 
         <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6">
-          {loop.parent_loop_id && loop.parent_loop && (
+          {loop.parent_loop_id && (
             <Link
-              href={`/loop/${loop.parent_loop.id}`}
+              href={`/loop/${loop.parent_loop?.id || loop.parent_loop_id}`}
               className="mb-2 flex items-center gap-2 rounded-lg border border-border/80 bg-muted/40 px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-foreground"
               title={`View the original loop this was branched from`}
             >
@@ -841,9 +841,11 @@ export function LoopCard({
               <span className="truncate">
                 Branch from{" "}
                 <span className="font-semibold text-foreground">
-                  @{loop.parent_loop.author?.username || loop.parent_loop.author?.display_name || "original"}
+                  {loop.parent_loop?.author?.username || loop.parent_loop?.author?.display_name
+                    ? `@${loop.parent_loop.author.username || loop.parent_loop.author.display_name}`
+                    : "original post"}
                 </span>
-                {loop.parent_loop.content ? (
+                {loop.parent_loop?.content ? (
                   <span className="text-muted-foreground">: “{loop.parent_loop.content.slice(0, 64)}{loop.parent_loop.content.length > 64 ? "…" : ""}”</span>
                 ) : null}
               </span>

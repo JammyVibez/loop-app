@@ -27,10 +27,15 @@ export async function GET(
 
     const supabase = createServerClient()
 
+    const authHeader = request.headers.get("authorization")
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.replace("Bearer ", "") : ""
+    const viewer = token ? await getUserFromToken(token) : null
+
     const { data: allComments, error } = await supabase
       .from('comments')
       .select(`
         *,
+        like_count:comment_likes(count),
         author:profiles!comments_author_id_fkey(
           id,
           username,
@@ -49,11 +54,28 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    // Which comments did the viewer like? (authoritative, not the counter column)
+    const likedIds = new Set<string>()
+    if (viewer && (allComments || []).length > 0) {
+      const { data: myLikes } = await supabase
+        .from("comment_likes")
+        .select("comment_id")
+        .eq("user_id", viewer.id)
+        .in("comment_id", allComments.map((c: any) => c.id))
+      for (const like of myLikes || []) likedIds.add(like.comment_id)
+    }
+
     const commentMap = new Map<string, any>()
     const topLevelComments: any[] = []
 
     for (const c of allComments || []) {
-      commentMap.set(c.id, { ...c, replies: [] })
+      const likeCount = Array.isArray(c.like_count) ? c.like_count[0]?.count : c.like_count
+      commentMap.set(c.id, {
+        ...c,
+        like_count: Number(likeCount ?? c.like_count ?? 0),
+        isLiked: likedIds.has(c.id),
+        replies: [],
+      })
     }
 
     for (const c of allComments || []) {

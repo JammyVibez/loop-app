@@ -64,9 +64,82 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "You cannot follow yourself" }, { status: 400 })
     }
 
-    const { data: target } = await supabase.from("profiles").select("id").eq("id", targetUserId).maybeSingle()
+    const { data: target } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, privacy_settings")
+      .eq("id", targetUserId)
+      .maybeSingle()
     if (!target) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    // Private-profile gating: a non-follower can only *request* to follow.
+    const privacy = (target as any)?.privacy_settings || {}
+    const isPrivate = privacy.profile_visibility === "private"
+
+    if (action === "follow" && isPrivate) {
+      const { data: alreadyFollowing } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", user.id)
+        .eq("following_id", targetUserId)
+        .maybeSingle()
+
+      if (alreadyFollowing) {
+        return NextResponse.json({ success: true, is_following: true, requires_approval: false })
+      }
+
+      const { data: pending } = await supabase
+        .from("follow_requests")
+        .select("id, status")
+        .eq("requester_id", user.id)
+        .eq("target_id", targetUserId)
+        .maybeSingle()
+
+      if (pending) {
+        // Already requested — return the current state (idempotent).
+        if (pending.status === "declined") {
+          // Allow re-requesting after a decline.
+          await supabase
+            .from("follow_requests")
+            .update({ status: "pending", updated_at: new Date().toISOString() })
+            .eq("id", pending.id)
+        }
+        return NextResponse.json({ success: true, requires_approval: true, is_following: false })
+      }
+
+      const { error: reqError } = await supabase.from("follow_requests").insert({
+        requester_id: user.id,
+        target_id: targetUserId,
+        status: "pending",
+      })
+      if (reqError && !/duplicate|unique/i.test(reqError.message || "")) {
+        return NextResponse.json({ error: reqError.message }, { status: 500 })
+      }
+
+      try {
+        const { notifyUser } = await import("@/lib/notifications")
+        const name = user.user_metadata?.display_name || user.user_metadata?.username || user.email || "Someone"
+        await notifyUser(supabase, {
+          userId: targetUserId,
+          type: "follow_request",
+          title: "New follow request",
+          message: `${name} requested to follow you`,
+          actorId: user.id,
+          actionUrl: `/profile/${user.user_metadata?.username || ""}`,
+          data: { requester_id: user.id },
+          pushCategory: "social",
+        })
+      } catch (notifyErr) {
+        console.warn("Follow request notify failed:", notifyErr)
+      }
+
+      return NextResponse.json({
+        success: true,
+        requires_approval: true,
+        is_following: false,
+        message: "Follow request sent — this profile is private.",
+      })
     }
 
     const { data: existing } = await supabase
@@ -79,7 +152,15 @@ export async function POST(request: NextRequest) {
     let isFollowing = Boolean(existing)
 
     if (action === "follow") {
+      // If a pending request exists, fulfill it immediately (e.g. the target
+      // accepted between page loads).
       if (!existing) {
+        await supabase
+          .from("follow_requests")
+          .update({ status: "approved", updated_at: new Date().toISOString() })
+          .eq("requester_id", user.id)
+          .eq("target_id", targetUserId)
+          .eq("status", "pending")
         const { error } = await supabase.from("follows").insert({
           follower_id: user.id,
           following_id: targetUserId,

@@ -117,6 +117,52 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    // Enforce the other participant's message_privacy on 1:1 conversations.
+    const { data: participants } = await supabase
+      .from("conversation_participants")
+      .select("user_id")
+      .eq("conversation_id", conversationId)
+      .is("left_at", null)
+    const others = (participants || []).filter((p) => p.user_id !== user.id)
+    if (others.length === 1) {
+      const recipientId = others[0].user_id
+      const { data: recipientProfile } = await supabase
+        .from("profiles")
+        .select("privacy_settings")
+        .eq("id", recipientId)
+        .maybeSingle()
+      const recipientPrivacy = (recipientProfile as any)?.privacy_settings || {}
+      const messagePrivacy = recipientPrivacy.message_privacy || "everyone"
+      if (messagePrivacy === "nobody" || messagePrivacy === "none") {
+        return NextResponse.json(
+          { error: "This user has disabled direct messages." },
+          { status: 403 },
+        )
+      }
+      if (messagePrivacy === "followers") {
+        const [{ data: senderFollows }, { data: recipientFollows }] = await Promise.all([
+          supabase
+            .from("follows")
+            .select("id")
+            .eq("follower_id", user.id)
+            .eq("following_id", recipientId)
+            .maybeSingle(),
+          supabase
+            .from("follows")
+            .select("id")
+            .eq("follower_id", recipientId)
+            .eq("following_id", user.id)
+            .maybeSingle(),
+        ])
+        if (!senderFollows && !recipientFollows) {
+          return NextResponse.json(
+            { error: "This user only accepts messages from people they follow or who follow them." },
+            { status: 403 },
+          )
+        }
+      }
+    }
+
     const basePayload: Record<string, any> = {
       conversation_id: conversationId,
       sender_id: user.id,

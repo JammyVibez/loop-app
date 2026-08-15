@@ -51,6 +51,8 @@ const files = [
   // profiles.cosmetics column — fixes "profile_1.cosmetic does not exist"
   // that broke feed / For You branch queries (branched loops hidden).
   "scripts/fix-profiles-cosmetics-column.sql",
+  // Private profiles: follow_requests table + realtime (see /api/users/follow-requests).
+  "scripts/private-profiles-schema.sql",
 ]
 
 const ignorable = [

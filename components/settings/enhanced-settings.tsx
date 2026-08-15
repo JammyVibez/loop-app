@@ -76,6 +76,7 @@ export function EnhancedSettings() {
       profile_visibility: "public",
       show_email: false,
       allow_messages: true,
+      message_privacy: "everyone" as "everyone" | "followers" | "nobody",
       allow_friend_requests: true,
     },
     notifications: {
@@ -180,7 +181,13 @@ export function EnhancedSettings() {
       privacy: {
         profile_visibility: privacy.profile_visibility || "public",
         show_email: Boolean(privacy.show_email),
-        allow_messages: privacy.allow_messages !== false && privacy.message_privacy !== "none",
+        allow_messages: privacy.allow_messages !== false && privacy.message_privacy !== "none" && privacy.message_privacy !== "nobody",
+        message_privacy:
+          privacy.message_privacy === "followers" || privacy.message_privacy === "nobody"
+            ? privacy.message_privacy
+            : privacy.message_privacy === "none"
+              ? "nobody"
+              : "everyone",
         allow_friend_requests: privacy.allow_friend_requests !== false,
       },
       notifications: {
@@ -271,8 +278,8 @@ export function EnhancedSettings() {
           privacy_settings: {
             profile_visibility: formData.privacy.profile_visibility,
             show_email: formData.privacy.show_email,
-            message_privacy: formData.privacy.allow_messages ? "everyone" : "none",
-            allow_messages: formData.privacy.allow_messages,
+            message_privacy: formData.privacy.message_privacy,
+            allow_messages: formData.privacy.message_privacy !== "nobody",
             allow_friend_requests: formData.privacy.allow_friend_requests,
           },
           notification_settings: {
@@ -787,8 +794,8 @@ export function EnhancedSettings() {
                           privacy_settings: {
                             profile_visibility: value,
                             show_email: next.show_email,
-                            message_privacy: next.allow_messages ? "everyone" : "none",
-                            allow_messages: next.allow_messages,
+                            message_privacy: next.message_privacy || (next.allow_messages ? "everyone" : "nobody"),
+                            allow_messages: next.message_privacy ? next.message_privacy !== "nobody" : next.allow_messages,
                             allow_friend_requests: next.allow_friend_requests,
                           },
                         })
@@ -799,10 +806,45 @@ export function EnhancedSettings() {
                   ))}
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label>Who can send you direct messages</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      ["everyone", "Everyone"],
+                      ["followers", "Followers"],
+                      ["nobody", "Nobody"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <Button
+                      key={value}
+                      type="button"
+                      variant={formData.privacy.message_privacy === value ? "default" : "outline"}
+                      onClick={() => {
+                        const next = { ...formData.privacy, message_privacy: value, allow_messages: value !== "nobody" }
+                        setFormData((prev) => ({ ...prev, privacy: next }))
+                        void quickSave({
+                          privacy_settings: {
+                            profile_visibility: next.profile_visibility,
+                            show_email: next.show_email,
+                            message_privacy: value,
+                            allow_messages: value !== "nobody",
+                            allow_friend_requests: next.allow_friend_requests,
+                          },
+                        })
+                      }}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  "Followers" allows messages from people who follow you or whom you follow.
+                </p>
+              </div>
               {(
                 [
                   ["show_email", "Show email on profile"],
-                  ["allow_messages", "Allow direct messages"],
                   ["allow_friend_requests", "Allow follow requests / connects"],
                 ] as const
               ).map(([key, label]) => (
@@ -818,8 +860,8 @@ export function EnhancedSettings() {
                         privacy_settings: {
                           profile_visibility: next.profile_visibility,
                           show_email: next.show_email,
-                          message_privacy: next.allow_messages ? "everyone" : "none",
-                          allow_messages: next.allow_messages,
+                          message_privacy: next.message_privacy || (next.allow_messages ? "everyone" : "nobody"),
+                          allow_messages: next.message_privacy ? next.message_privacy !== "nobody" : next.allow_messages,
                           allow_friend_requests: next.allow_friend_requests,
                         },
                       })

@@ -11,6 +11,7 @@ import {
   Gift,
   Heart,
   Link as LinkIcon,
+  Lock,
   MapPin,
   MessageCircle,
   MoreHorizontal,
@@ -117,6 +118,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("loops")
   const [isFollowing, setIsFollowing] = useState(false)
+  const [followRequestPending, setFollowRequestPending] = useState(false)
+  const [isPrivateProfile, setIsPrivateProfile] = useState(false)
+  const [canViewFull, setCanViewFull] = useState(true)
   const [uploadingCover, setUploadingCover] = useState(false)
   const [showGiftModal, setShowGiftModal] = useState(false)
   const coverInputRef = useRef<HTMLInputElement>(null)
@@ -132,6 +136,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         const data = await response.json()
         setProfile(data.profile)
         setIsFollowing(Boolean(data.profile?.is_following))
+        setFollowRequestPending(Boolean(data.profile?.has_pending_follow_request))
+        setIsPrivateProfile(Boolean(data.profile?.is_private))
+        setCanViewFull(data.profile?.can_view_full !== false)
         // Sync only slim auth fields for own profile — never full payload
         if (user && data.profile?.id === user.id) {
           applyServerProfile({
@@ -233,6 +240,26 @@ export function Enhanced3DProfile({ username }: { username: string }) {
     const nextAction = isFollowing ? "unfollow" : "follow"
     const previousFollowing = isFollowing
     const previousCount = profile.followers_count
+    const previousPending = followRequestPending
+
+    // If we already have a pending request, clicking again withdraws it.
+    if (!isFollowing && followRequestPending) {
+      try {
+        const cancelRes = await fetch("/api/users/follow-requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ action: "withdraw", target_user_id: profile.id }),
+        })
+        if (cancelRes.ok) {
+          setFollowRequestPending(false)
+          toast({ title: "Follow request withdrawn" })
+        }
+      } catch {
+        /* keep pending */
+      }
+      return
+    }
+
     // Optimistic UI
     setIsFollowing(!isFollowing)
     setProfile((prev) =>
@@ -261,12 +288,24 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       if (!response.ok) {
         throw new Error(data.error || "Follow failed")
       }
+      if (data.requires_approval) {
+        // Private profile — the follow is now pending approval.
+        setIsFollowing(false)
+        setFollowRequestPending(true)
+        setProfile((prev) => (prev ? { ...prev, followers_count: previousCount } : prev))
+        toast({ title: "Follow request sent", description: "This profile is private — you'll be able to follow once it's approved." })
+        return
+      }
       setIsFollowing(Boolean(data.is_following ?? !previousFollowing))
+      if (data.is_following === false && data.requires_approval === undefined) {
+        setFollowRequestPending(false)
+      }
       if (typeof data.followers_count === "number") {
         setProfile((prev) => (prev ? { ...prev, followers_count: data.followers_count } : prev))
       }
     } catch (error: any) {
       setIsFollowing(previousFollowing)
+      setFollowRequestPending(previousPending)
       setProfile((prev) => (prev ? { ...prev, followers_count: previousCount } : prev))
       toast({
         title: "Could not update follow",
@@ -471,12 +510,18 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                   }}
                   className={cn(
                     "flex-1 rounded-full px-5 font-semibold sm:flex-none",
-                    isFollowing
+                    isFollowing || followRequestPending
                       ? "border border-border bg-transparent text-foreground hover:bg-muted"
                       : "bg-foreground text-background hover:opacity-90",
                   )}
                 >
-                  {isFollowing ? "Following" : "Follow"}
+                  {isFollowing
+                    ? "Following"
+                    : followRequestPending
+                      ? "Requested ✓"
+                      : isPrivateProfile
+                        ? "Request to follow"
+                        : "Follow"}
                 </Button>
               </>
             )}
@@ -692,6 +737,46 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         </div>
       </div>
 
+      {!isOwnProfile && !canViewFull ? (
+        <div className="w-full lg:pt-4">
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/80 bg-muted/40 px-6 py-10 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-background">
+              <Lock className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-foreground">This account is private</h3>
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                {displayName || profile.username} hasn't approved you as a follower yet. Loops, branches,
+                media, and awards are hidden until your follow request is accepted.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => {
+                  if (!user) {
+                    window.location.href = "/login"
+                    return
+                  }
+                  void handleFollow()
+                }}
+                className={cn(
+                  "rounded-full px-5 font-semibold",
+                  followRequestPending
+                    ? "border border-border bg-transparent text-foreground hover:bg-muted"
+                    : "bg-foreground text-background hover:opacity-90",
+                )}
+              >
+                {followRequestPending ? "Requested ✓ — tap to withdraw" : "Request to follow"}
+              </Button>
+              {user && followRequestPending && (
+                <p className="text-xs text-muted-foreground">
+                  You'll see their content once they accept.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full lg:pt-4">
         <TabsList className="flex h-auto w-full justify-stretch overflow-x-auto rounded-none border-b border-border/70 bg-transparent p-0">
           {[
@@ -826,6 +911,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           )}
         </TabsContent>
       </Tabs>
+      )}
       </div>
       </div>
 
