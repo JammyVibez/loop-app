@@ -62,6 +62,8 @@ export async function POST(request: NextRequest) {
     const { conversation_id } = await request.json()
 
     if (conversation_id) {
+      const readAt = new Date().toISOString()
+
       // Mark messages in this conversation as read
       await supabase
         .from("messages")
@@ -72,9 +74,20 @@ export async function POST(request: NextRequest) {
 
       await supabase
         .from("conversation_participants")
-        .update({ last_read_at: new Date().toISOString() })
+        .update({ last_read_at: readAt })
         .eq("conversation_id", conversation_id)
         .eq("user_id", user.id)
+
+      // Tell the sender live that this user just read the conversation — so
+      // double-ticks flip even when the reader isn't inside the chat (e.g.
+      // they opened it from a notification or a second device).
+      try {
+        await supabase.channel(`conversation:${conversation_id}`).send({
+          type: "broadcast",
+          event: "read",
+          payload: { user_id: user.id, read_at: readAt },
+        })
+      } catch {}
     }
 
     return NextResponse.json({ success: true })

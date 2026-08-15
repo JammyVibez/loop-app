@@ -25,6 +25,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { AppDownloadBadges } from "@/components/app-download-badges"
 
 const features = [
   {
@@ -83,9 +84,10 @@ const roadmap = [
   },
   {
     title: "Native mobile apps",
-    description: "loopapp.me already installs as a PWA today — dedicated iOS and Android apps are next.",
+    description:
+      "Loop is being packaged as real iOS and Android apps with Capacitor — full-screen, native push, and installable straight from the App Store and Google Play.",
     icon: Smartphone,
-    status: "Planned",
+    status: "In progress",
   },
   {
     title: "Bigger live rooms",
@@ -261,6 +263,14 @@ export function LandingContent() {
                     Explore as guest
                   </Button>
                 </Link>
+              </div>
+
+              <div className="mt-8 border-t border-white/[0.06] pt-6">
+                <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-slate-500">Get the native app</p>
+                <AppDownloadBadges className="justify-start" />
+                <p className="mt-2 text-xs text-slate-500">
+                  iOS &amp; Android apps are in the works — coming soon to the App Store and Google Play.
+                </p>
               </div>
 
               <div className="mt-12 flex flex-wrap gap-x-10 gap-y-4 border-t border-white/[0.06] pt-8 text-sm text-slate-500">
@@ -758,6 +768,9 @@ export function LandingContent() {
                     Log in
                   </Button>
                 </Link>
+              </div>
+              <div className="relative mt-8">
+                <AppDownloadBadges />
               </div>
             </div>
           </div>

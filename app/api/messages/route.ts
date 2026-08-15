@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
         reply_to_id,
         reactions,
         created_at,
+        is_read,
         is_edited,
         edited_at,
         is_deleted,

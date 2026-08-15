@@ -8,6 +8,7 @@ import { FeedTabs } from "@/components/feed-tabs"
 import { TrendingSidebar } from "@/components/trending-sidebar"
 import { UserSuggestions } from "@/components/users/user-suggestions"
 import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt"
+import { AppDownloadBadges } from "@/components/app-download-badges"
 import { DailyPulse } from "@/components/engagement/daily-pulse"
 import { Button } from "@/components/ui/button"
 import { Compass, Users, Video, Plus, Bookmark, LogIn, Search } from "lucide-react"
@@ -53,6 +54,9 @@ export function HomePageClient() {
                         Log in
                       </Link>
                     </Button>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-3">
+                    <AppDownloadBadges className="justify-start" />
                   </div>
                 </div>
 
