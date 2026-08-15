@@ -29,6 +29,11 @@ const files = [
   "scripts/co-loop-sessions-schema.sql",
   // DM reaction schema fix — see /api/messages/reactions.
   "scripts/message-reactions-schema-fix.sql",
+  // DM read receipts (is_read / last_read_at) — see /api/messages/unread-count.
+  "scripts/dm-read-receipts-compat.sql",
+  // DM edit / delete / forward columns (edited_at, is_deleted, forwarded_*) —
+  // see /api/messages/[messageId] and components/messages/messages-workspace.tsx.
+  "scripts/messages-edit-forward-schema.sql",
   // Circle multi-media posts, polls, and per-member custom roles/permissions.
   "scripts/circles-enhancements-schema.sql",
   // Dev Quests & bounties — coin-reward challenges in the Developer Hub
