@@ -1,7 +1,11 @@
 import pg from "pg"
 const { Pool } = pg
 
-const DATABASE_URL = process.env.DATABASE_URL || "postgresql://postgres:G2DbfnoknKWSvyq8@db.cgtjjowhlyyrfljarfgd.supabase.co:5432/postgres"
+const DATABASE_URL = process.env.DATABASE_URL
+if (!DATABASE_URL) {
+  console.error("Set DATABASE_URL to run this script (a committed fallback connection string was removed).")
+  process.exit(1)
+}
 
 const pool = new Pool({
   connectionString: DATABASE_URL,

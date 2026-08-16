@@ -6,8 +6,17 @@ import bcrypt from "bcryptjs"
 import { Pool } from "pg"
 import Stripe from "stripe"
 
+const connectionString = process.env.DATABASE_URL
+if (!connectionString) {
+  // Fail fast instead of silently connecting with a hardcoded credential —
+  // a committed DB password used to live here (see git history).
+  throw new Error(
+    "DATABASE_URL is required for auth. Set it in your deployment environment (see .env.example).",
+  )
+}
+
 export const authDbPool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://postgres:G2DbfnoknKWSvyq8@db.cgtjjowhlyyrfljarfgd.supabase.co:5432/postgres",
+  connectionString,
   ssl: { rejectUnauthorized: false },
 })
 

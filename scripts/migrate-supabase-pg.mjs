@@ -4,10 +4,13 @@ import { resolve } from 'node:path'
 
 const { Client } = pkg
 
-const connectionString =
-  process.env.SUPABASE_DB_URL ||
-  process.env.DATABASE_URL ||
-  "postgresql://postgres:G2DbfnoknKWSvyq8@db.cgtjjowhlyyrfljarfgd.supabase.co:5432/postgres"
+const connectionString = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL
+if (!connectionString) {
+  console.error(
+    "Set SUPABASE_DB_URL or DATABASE_URL to run this script (a committed fallback connection string was removed).",
+  )
+  process.exit(1)
+}
 
 const files = [
   "scripts/schema-compat-alignment.sql",
