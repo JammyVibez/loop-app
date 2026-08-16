@@ -30,7 +30,7 @@ export async function generateMetadata({
     const { data: loop } = await supabase
       .from("loops")
       .select(
-        "content_title, content, author_id, code_snippet, like_count, profiles(username, display_name, avatar_url, is_verified)",
+        "content_title, content, author_id, content_type, content_metadata, loop_stats(likes_count), profiles(username, display_name, avatar_url, is_verified)",
       )
       .eq("id", id)
       .single()
@@ -40,8 +40,11 @@ export async function generateMetadata({
       username = (loop as any)?.profiles?.username || ""
       avatarUrl = (loop as any)?.profiles?.avatar_url || ""
       isVerified = Boolean((loop as any)?.profiles?.is_verified)
-      likeCount = Number((loop as any)?.like_count || 0)
-      isCodeLoop = Boolean((loop as any)?.code_snippet)
+      likeCount = Number((loop as any)?.loop_stats?.likes_count || 0)
+      isCodeLoop =
+        (loop as any)?.content_type === "code" ||
+        Boolean((loop as any)?.content_metadata?.is_code) ||
+        (loop as any)?.media_type === "code"
       title = `${loop.content_title || loop.content.slice(0, 50)} by @${authorName}`
       description = loop.content.slice(0, 160)
     }

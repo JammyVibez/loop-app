@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 })
     }
 
-    const { name, description, price, category, item_type, rarity, premium_only, preview_data, metadata } =
+    const { name, description, price, price_coins, category, item_type, rarity, premium_only, preview_data, metadata } =
       await request.json()
 
     if (!name?.trim() || !description?.trim() || !category || !item_type) {
@@ -90,13 +90,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create shop item
+    // Create shop item — the live schema stores the coin price in
+    // price_coins (price_usd for USD); accept both `price` (legacy
+    // client payload) and `price_coins` so old/new admins both work.
     const { data: item, error: insertError } = await supabase
       .from("shop_items")
       .insert({
         name: name.trim(),
         description: description.trim(),
-        price: price || 0,
+        price_coins: Number(price_coins ?? price ?? 0),
         category,
         item_type,
         rarity: rarity || "common",

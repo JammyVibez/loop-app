@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       .from("reels")
       .select(
         `
-        id, author_id, media_url, thumbnail_url, created_at,
+        id, author_id, content_url, thumbnail_url, created_at,
         author:profiles!author_id(id, username, display_name, avatar_url, is_verified, badge_id)
       `,
       )
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
     }
 
     for (const reel of reels || []) {
-      const mediaUrl = reel.media_url || reel.thumbnail_url
+      const mediaUrl = reel.content_url || reel.thumbnail_url
       if (!mediaUrl) continue
       const author = Array.isArray(reel.author) ? reel.author[0] : reel.author
       pushItem(author, reel.author_id, {

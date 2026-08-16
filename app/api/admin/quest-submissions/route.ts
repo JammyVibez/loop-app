@@ -121,7 +121,7 @@ export async function PATCH(request: NextRequest) {
           await supabase.from("coin_transactions").insert({
             user_id: submission.user_id,
             amount: bounty,
-            type: "dev_quest_reward",
+            transaction_type: "dev_quest_reward",
             description: `Dev Quest bounty: ${quest?.title || "Quest"}`,
             created_at: new Date().toISOString(),
           })

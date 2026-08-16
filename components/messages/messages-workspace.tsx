@@ -1158,7 +1158,7 @@ export function MessagesWorkspace() {
   )
 
   const chatPane = selected ? (
-    <section className="relative flex h-full min-h-0 flex-col bg-background bg-[url('data:image/svg+xml,%3Csvg width%3D%2260%27 height%3D%2260%27 viewBox%3D%220 0 60 60%27 xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%3E%3Cg fill%3D%22none%22 fill-rule%3D%22evenodd%22%3E%3Cg fill%3D%22%23888888%22 fill-opacity%3D%220.05%22%3E%3Cpath d%3D%22M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]">
+    <section className="relative flex h-full min-h-0 min-w-0 flex-col bg-background bg-[url('data:image/svg+xml,%3Csvg width%3D%2260%27 height%3D%2260%27 viewBox%3D%220 0 60 60%27 xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%3E%3Cg fill%3D%22none%22 fill-rule%3D%22evenodd%22%3E%3Cg fill%3D%22%23888888%22 fill-opacity%3D%220.05%22%3E%3Cpath d%3D%22M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.12),transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(34,211,238,0.08),transparent_55%)]" />
       <div className="flex items-center gap-2 border-b border-border bg-background/95 px-2 py-2.5 shadow-sm backdrop-blur-sm sm:px-4">
@@ -1301,7 +1301,7 @@ export function MessagesWorkspace() {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-4 sm:px-6">
+      <div className="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-6">
         {messagesLoading && messages.length === 0 ? (
           <div className="flex justify-center py-10 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -1325,12 +1325,24 @@ export function MessagesWorkspace() {
                   </span>
                 </div>
               )}
-              <div className={cn("group flex min-w-0 max-w-full", mine ? "justify-end" : "justify-start", isFresh && "message-appear")}>
-
-              <div className={cn("min-w-0 max-w-[85%] sm:max-w-[70%]", mine ? "items-end" : "items-start")}>
+              <div
+                className={cn(
+                  "group flex w-full min-w-0 max-w-full",
+                  mine ? "justify-end" : "justify-start",
+                  isFresh && "message-appear",
+                )}
+              >
                 <div
                   className={cn(
-                    "chat-bubble relative rounded-2xl px-3 py-2 text-sm shadow-sm",
+                    // Bubble width is capped as a % of the chat pane AND of the
+                    // viewport, so long unbroken text / embeds can never push a
+                    // bubble past the screen edge on narrow phones.
+                    "min-w-0 max-w-[min(85%,calc(100vw-3rem))] sm:max-w-[min(70%,calc(100vw-4rem))]",
+                  )}
+                >
+                <div
+                  className={cn(
+                    "chat-bubble min-w-0 max-w-full break-words [overflow-wrap:anywhere] relative rounded-2xl px-3 py-2 text-sm shadow-sm",
                     mine
                       ? "chat-bubble-mine rounded-br-md bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-950/25"
                       : "chat-bubble-peer rounded-bl-md bg-muted text-foreground shadow-sm ring-1 ring-border/40",
@@ -1390,7 +1402,7 @@ export function MessagesWorkspace() {
                       {message.content && !(message.message_type === "audio" && message.content === "Voice note") && (
                         <RichContent
                           text={message.content}
-                          className="whitespace-pre-wrap break-words"
+                          className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
                           as="p"
                           // Skip the auto link-preview card when the message already
                           // carries media — the video/image IS the content. This keeps
@@ -1821,11 +1833,11 @@ export function MessagesWorkspace() {
   return (
     <div
       className={cn(
-        "grid h-full min-h-0 overflow-hidden border border-border bg-background lg:grid-cols-[340px_1fr] lg:rounded-2xl",
+        "grid h-full w-full min-h-0 min-w-0 overflow-hidden border border-border bg-background lg:grid-cols-[340px_minmax(0,1fr)] lg:rounded-2xl",
       )}
     >
-      <div className={cn("min-h-0", mobileShowChat ? "hidden lg:block" : "block")}>{inbox}</div>
-      <div className={cn("min-h-0", mobileShowChat ? "block" : "hidden lg:block")}>{chatPane}</div>
+      <div className={cn("min-h-0 min-w-0", mobileShowChat ? "hidden lg:block" : "block")}>{inbox}</div>
+      <div className={cn("min-h-0 min-w-0", mobileShowChat ? "block" : "hidden lg:block")}>{chatPane}</div>
     </div>
   )
 }

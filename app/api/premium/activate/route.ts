@@ -88,9 +88,9 @@ export async function POST(request: NextRequest) {
     if (method === "request") {
       const { error } = await supabase.from("premium_requests").insert({
         user_id: user.id,
-        plan: planId,
+        plan_type: planId,
         status: "pending",
-        notes: `Launch Pro ${planId} request`,
+        admin_notes: `Launch Pro ${planId} request`,
       })
       if (error && !/duplicate|exists/i.test(error.message)) {
         // Table may not exist — still return success-ish message for UX

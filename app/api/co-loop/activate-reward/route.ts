@@ -174,14 +174,14 @@ export async function POST(request: NextRequest) {
         {
           user_id: inviterId,
           amount: coinsBonus,
-          type: "co_loop_invite_reward",
+          transaction_type: "co_loop_invite_reward",
           description: `Co-Loop activation reward with @${inviteeProfile.username}`,
           created_at: new Date().toISOString(),
         },
         {
           user_id: inviteeId,
           amount: coinsBonus,
-          type: "co_loop_invite_reward",
+          transaction_type: "co_loop_invite_reward",
           description: `Co-Loop activation reward with @${inviterProfile.username}`,
           created_at: new Date().toISOString(),
         },

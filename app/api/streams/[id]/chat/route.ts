@@ -16,7 +16,7 @@ export async function GET(
         user_id,
         message,
         message_type,
-        gift_amount,
+        gift_data,
         created_at,
         user:profiles!user_id (
           id,
@@ -111,7 +111,7 @@ export async function POST(
         user_id,
         message,
         message_type,
-        gift_amount,
+        gift_data,
         created_at,
         user:profiles!user_id (
           id,

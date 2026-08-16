@@ -59,10 +59,11 @@ Generate a short, engaging response under 3 sentences as the circle bot.`
     }
 
     // Insert bot post/reply into circle posts if requested
+    // (circle_posts uses author_id, not user_id)
     if (body.save_as_post) {
       await supabase.from("circle_posts").insert({
         circle_id: circleId,
-        user_id: user.id, // Or bot virtual post
+        author_id: user.id, // Or bot virtual post
         content: `🤖 **${botName}**: ${replyMessage}`,
         created_at: new Date().toISOString()
       })

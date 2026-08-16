@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   if (sort === "newest") {
     query = query.order("created_at", { ascending: false })
   } else if (sort === "popular") {
-    query = query.order("follower_count", { ascending: false })
+    query = query.order("followers_count", { ascending: false })
   }
 
   // Apply limit

@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     await supabase.from("coin_transactions").insert({
       user_id: sender.id,
       amount: -amount,
-      type: "gift_sent",
+      transaction_type: "gift_sent",
       description: `Co-Loop Split Gift (${amount} coins split among ${recipients.length} authors)`,
       created_at: new Date().toISOString(),
     })
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
         await supabase.from("coin_transactions").insert({
           user_id: recipientId,
           amount: splitAmount,
-          type: "gift_received",
+          transaction_type: "gift_received",
           description: `Co-Loop Gift Share from ${senderName} (+${splitAmount} coins)`,
           created_at: new Date().toISOString(),
         })
