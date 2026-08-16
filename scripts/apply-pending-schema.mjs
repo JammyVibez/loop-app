@@ -24,6 +24,10 @@ const files = [
   "scripts/animated-cosmetics-catalog.sql",
   // Full premium shop catalog — every item with unique render config.
   "scripts/premium-shop-catalog.sql",
+  // Account status (suspended / deleted) + ban appeals + bot message columns.
+  "scripts/account-status-appeals-schema.sql",
+  // Official Welcome Bot + Moderation Bot marketplace listings.
+  "scripts/community-bots-seed.sql",
 ]
 
 /** Split a SQL file into top-level statements, honoring quotes + $$ blocks. */

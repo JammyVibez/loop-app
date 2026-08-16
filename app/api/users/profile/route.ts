@@ -4,6 +4,7 @@ import { normalizeLoops } from "@/lib/normalize-loop"
 import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { isProUser } from "@/lib/pro-features"
+import { maskProfile, profileStatus } from "@/lib/user-status"
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,6 +30,37 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 })
     }
 
+    // Deleted / suspended accounts render as placeholders — no real profile
+    // data, no content, no follow actions. Suspended users keep an appeal path.
+    const accountStatus = profileStatus(profile as any)
+    if (accountStatus !== "active") {
+      const masked = maskProfile(profile as any)
+      return NextResponse.json({
+        success: true,
+        profile: {
+          ...masked,
+          is_private: false,
+          can_view_full: false,
+          status: accountStatus,
+          is_suspended: accountStatus === "suspended",
+          is_deleted: accountStatus === "deleted",
+          ban_reason: (profile as any)?.ban_reason || "Violated community guidelines",
+          followers_count: 0,
+          following_count: 0,
+          loops_count: 0,
+          branches_count: 0,
+          comments_count: 0,
+          likes_received: 0,
+          recent_loops: [],
+          recent_branches: [],
+          media_loops: [],
+          active_cosmetics: null,
+          active_effects: [],
+        },
+        [accountStatus]: true,
+      })
+    }
+
     const privacySettings = (profile as any)?.privacy_settings || {}
     const isPrivate = privacySettings.profile_visibility === "private"
 
@@ -42,7 +74,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id),
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .eq("author_id", profile.id)
@@ -57,7 +89,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id),
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .is("parent_loop_id", null)
@@ -68,7 +100,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id),
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .eq("author_id", profile.id)
@@ -79,7 +111,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           id, content, content_text, content_media_url, content_type, media_url, media_urls, media_type, hashtags, created_at,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id),
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .eq("author_id", profile.id)

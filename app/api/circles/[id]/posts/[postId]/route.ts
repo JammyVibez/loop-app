@@ -31,7 +31,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .from("circle_posts")
       .select(`
         *,
-        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id)
+        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id)
       `)
       .eq("id", postId)
       .eq("circle_id", circleId)

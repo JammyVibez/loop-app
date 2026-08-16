@@ -45,6 +45,7 @@ import { AwardsAdminPanel } from "@/components/admin/awards-admin-panel"
 import { ProCirclePanel } from "@/components/admin/pro-circle-panel"
 import { VerificationBadgesAdminPanel } from "@/components/admin/verification-badges-admin-panel"
 import { SystemHealthPanel } from "@/components/admin/system-health-panel"
+import { BanAppealsPanel } from "@/components/admin/ban-appeals-panel"
 import { UserBadges } from "@/components/user-badge"
 
 interface AdminUser {
@@ -203,6 +204,7 @@ export function AdminDashboard() {
           <TabsTrigger value="procircle">Pro Circle</TabsTrigger>
           <TabsTrigger value="checkmarks">Checkmarks</TabsTrigger>
           <TabsTrigger value="moderation">Moderation</TabsTrigger>
+          <TabsTrigger value="appeals">Ban Appeals</TabsTrigger>
           <TabsTrigger value="health">System Health</TabsTrigger>
         </TabsList>
 
@@ -473,6 +475,9 @@ export function AdminDashboard() {
         </TabsContent>
         <TabsContent value="health" className="mt-6">
           <SystemHealthPanel />
+        </TabsContent>
+        <TabsContent value="appeals" className="mt-6">
+          <BanAppealsPanel />
         </TabsContent>
       </Tabs>
     </div>

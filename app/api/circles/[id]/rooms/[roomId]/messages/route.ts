@@ -79,8 +79,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     let query = supabase
       .from("circle_room_messages")
-      .select("*, author:profiles!inner(id, username, display_name, avatar_url, is_verified, is_premium)")
+      .select("*, author:profiles!inner(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium)")
       .eq("room_id", roomId)
+      .neq("moderation_status", "removed") // moderation bot soft-deletes violations
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -223,7 +224,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
-      .select("*, author:profiles!inner(id, username, display_name, avatar_url, is_verified, is_premium)")
+      .select("*, author:profiles!inner(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium)")
       .single()
 
     if (insertError) {
@@ -248,6 +249,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         }
       } catch (err) {
         console.error("circle room mentions:", err)
+      }
+    }
+
+    // Moderation bot — scans every message and removes/flags rule violations.
+    if (text) {
+      try {
+        const { runModerationBot } = await import("@/lib/circle-bots")
+        await runModerationBot(supabase, circleId, roomId, {
+          id: message.id,
+          content: text,
+          author_id: user.id,
+        })
+      } catch (err) {
+        console.error("moderation bot:", err)
       }
     }
 
@@ -306,7 +321,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         updated_at: new Date().toISOString()
       })
       .eq("id", messageId)
-      .select("*, author:profiles!inner(id, username, display_name, avatar_url, is_verified, is_premium)")
+      .select("*, author:profiles!inner(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium)")
       .single()
 
     if (updateError) {

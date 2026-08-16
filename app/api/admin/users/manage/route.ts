@@ -136,10 +136,12 @@ export async function POST(request: NextRequest) {
         }
         updates.is_banned = true
         updates.ban_reason = String(body.reason || "Violated community guidelines")
+        updates.suspended_at = new Date().toISOString()
         break
       case "unban":
         updates.is_banned = false
         updates.ban_reason = null
+        updates.suspended_at = null
         break
       default:
         return NextResponse.json({ error: "Unknown action" }, { status: 400 })

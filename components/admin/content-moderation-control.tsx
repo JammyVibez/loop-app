@@ -94,6 +94,36 @@ export function ContentModerationControl() {
     }
   };
 
+  const deleteReportedContent = async (flag: ContentFlag) => {
+    try {
+      setProcessing(flag.id)
+      const response = await fetch("/api/admin/moderation/delete-content", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ content_type: flag.content_type, content_id: flag.content_id }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to delete content")
+      toast({
+        title: "Content removed",
+        description: "The reported content was deleted and its flags were resolved.",
+      })
+      fetchContentFlags()
+    } catch (error: any) {
+      console.error("Error deleting reported content:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete content",
+        variant: "destructive",
+      })
+    } finally {
+      setProcessing(null)
+    }
+  }
+
   const updateFlagStatus = async (flagId: string, status: string, action: string) => {
     try {
       setProcessing(flagId);
@@ -240,12 +270,12 @@ export function ContentModerationControl() {
                         <>
                           <Button
                             size="sm"
-                            variant="outline"
-                            onClick={() => updateFlagStatus(flag.id, 'resolved', 'content_removed')}
+                            variant="destructive"
+                            onClick={() => deleteReportedContent(flag)}
                             disabled={processing === flag.id}
                           >
                             <CheckCircle className="h-4 w-4 mr-1" />
-                            Remove Content
+                            Delete Post
                           </Button>
                           <Button
                             size="sm"
@@ -268,16 +298,15 @@ export function ContentModerationControl() {
                         </>
                       )}
                       
-                      {flag.status === 'reviewed' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateFlagStatus(flag.id, 'resolved', 'content_removed')}
-                          disabled={processing === flag.id}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Resolve
-                        </Button>
+                      {flag.status === 'reviewed' && (                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => deleteReportedContent(flag)}
+                            disabled={processing === flag.id}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Delete & Resolve
+                          </Button>
                       )}
                     </div>
                   </div>

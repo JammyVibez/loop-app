@@ -116,6 +116,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       })
     }
 
+    // Welcome bot — greets new members the moment they join (public circles).
+    if (status === "active") {
+      try {
+        const { runWelcomeBot } = await import("@/lib/circle-bots")
+        await runWelcomeBot(supabase, circleId, user.id)
+      } catch (err) {
+        console.error("welcome bot:", err)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: circle.is_private ? "Join request sent to moderators" : "Successfully joined circle",

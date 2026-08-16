@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
           .select(
             `
             *,
-            author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id),
+            author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
             loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
           `,
           )
@@ -118,7 +118,7 @@ export async function GET(request: NextRequest) {
           .select(
             `
             *,
-            author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id),
+            author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
             loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
           `,
           )
@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
           .select(
             `
             *,
-            author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id),
+            author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
             loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
           `,
           )

@@ -1,3 +1,5 @@
+import { maskAuthor } from "@/lib/user-status"
+
 export type NormalizedLoop = {
   id: string
   author_id: string
@@ -87,7 +89,10 @@ function first<T>(value: T | T[] | null | undefined): T | undefined {
 }
 
 export function normalizeLoop(row: any, interactionTypes: string[] = []): NormalizedLoop {
-  const author = first(row?.author) || first(row?.profiles) || row?.profile || {}
+  // Deleted / suspended accounts are masked so their content stops rendering
+  // under their identity — feed shows “Deleted User” / “Suspended User”.
+  const rawAuthor = first(row?.author) || first(row?.profiles) || row?.profile || {}
+  const author = maskAuthor(rawAuthor) || {}
   const stats = first(row?.stats) || first(row?.loop_stats) || row?.loop_stats || {}
   const interactions = interactionTypes.length
     ? interactionTypes
@@ -116,7 +121,7 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
     parent_loop: (() => {
       const parent = first(row?.parent_loop) || first(row?.parent) || null
       if (!parent || typeof parent !== "object") return null
-      const parentAuthor = first(parent.author) || first(parent.profiles) || {}
+      const parentAuthor = maskAuthor(first(parent.author) || first(parent.profiles) || {}) || {}
       return {
         id: parent?.id || row?.parent_loop_id || "",
         content: parent?.content_text ?? parent?.content ?? parent?.text ?? null,

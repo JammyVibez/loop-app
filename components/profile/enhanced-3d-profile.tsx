@@ -48,6 +48,7 @@ import { xpForNextLevel } from "@/lib/xp"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { UserBadges } from "@/components/user-badge"
 import { useVerificationBadges } from "@/hooks/use-verification-badges"
+import { AccountStatusScreen } from "@/components/profile/account-status-screen"
 import { RichContent } from "@/components/content/rich-content"
 import { BioCommunityTags } from "@/components/profile/bio-community-tags"
 import { ProfileAwards } from "@/components/profile/profile-awards"
@@ -83,6 +84,10 @@ interface UserProfile {
   is_team_member?: boolean
   is_sponsor?: boolean
   is_premium: boolean
+  status?: string
+  is_deleted?: boolean
+  is_suspended?: boolean
+  ban_reason?: string | null
   badge_id?: string | null
   is_organization?: boolean
   organization_name?: string
@@ -369,6 +374,21 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   }
 
   if (loading) return <ProfileSkeleton />
+
+  // Deleted / suspended accounts render a placeholder — no profile data,
+  // no content, and an appeal path for suspensions.
+  const accountStatus = profile?.status || (profile?.is_deleted ? "deleted" : profile?.is_suspended ? "suspended" : null)
+  if (accountStatus === "deleted" || accountStatus === "suspended") {
+    return (
+      <AccountStatusScreen
+        status={accountStatus}
+        username={profile?.username || username}
+        isSelf={Boolean(user && (user.id === profile?.id || user.username === profile?.username))}
+        banReason={profile?.ban_reason}
+      />
+    )
+  }
+
   if (!profile) {
     return (
       <PageEmptyState

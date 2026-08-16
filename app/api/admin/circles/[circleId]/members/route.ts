@@ -173,7 +173,7 @@ export async function PUT(
       .eq("id", memberId)
       .select(`
         *,
-        user:profiles!inner(id, username, display_name, avatar_url, is_verified, is_premium)
+        user:profiles!inner(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium)
       `)
       .single()
 

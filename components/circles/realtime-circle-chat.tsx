@@ -33,6 +33,8 @@ interface CircleRoomMessage {
   media_type?: string | null
   reactions?: Record<string, number>
   my_reactions?: string[]
+  is_bot?: boolean
+  bot_name?: string | null
 }
 
 interface RealtimeCircleChatProps {
@@ -423,8 +425,14 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
                   <div className={cn("min-w-0 max-w-[85%] flex-1", isMine && "flex flex-col items-end")}>
                     <div className={cn("mb-0.5 flex items-baseline gap-2", isMine && "flex-row-reverse")}>
                       <span className="text-[13px] font-semibold leading-tight text-foreground">
-                        {message.author.display_name}
-                        {message.author.is_verified && <span className="ml-1 text-sky-500">✓</span>}
+                        {message.is_bot ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-2 py-0.5 text-[11px] font-bold text-white">
+                            🤖 {message.bot_name || "Bot"}
+                          </span>
+                        ) : (
+                          message.author.display_name
+                        )}
+                        {!message.is_bot && message.author.is_verified && <span className="ml-1 text-sky-500">✓</span>}
                       </span>
                       <span className="text-[10px] text-muted-foreground">
                         {formatDistanceToNow(new Date(message.timestamp), { addSuffix: true })}
@@ -444,9 +452,11 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
                     <div
                       className={cn(
                         "rounded-2xl border px-3 py-2 text-sm shadow-sm",
-                        isMine
-                          ? "border-primary/25 bg-primary/10 text-foreground"
-                          : "border-border bg-muted/40 text-foreground",
+                        message.is_bot
+                          ? "border-violet-500/30 bg-violet-500/10 text-foreground"
+                          : isMine
+                            ? "border-primary/25 bg-primary/10 text-foreground"
+                            : "border-border bg-muted/40 text-foreground",
                       )}
                     >
                       {message.media_url && (message.media_type === "audio" || /\\.(webm|mp3|ogg|m4a|wav)(\\?|$)/i.test(message.media_url)) && (

@@ -21,7 +21,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       .select(
         `
         *,
-        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id)
+        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id)
       `,
       )
       .eq("post_id", postId)
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .select(
         `
         *,
-        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id)
+        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id)
       `,
       )
       .single()
