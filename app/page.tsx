@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { HomePageClient } from "@/components/home-page-client"
+import { organizationWebAppJsonLd } from "@/lib/seo-jsonld"
 
 export const metadata: Metadata = {
   title: "loopapp.me - Next-Gen Collaborative Social OS",
@@ -11,5 +12,14 @@ export const metadata: Metadata = {
 }
 
 export default function HomePage() {
-  return <HomePageClient />
+  return (
+    <>
+      {/* Schema.org structured data: Organization + WebApplication */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationWebAppJsonLd()) }}
+      />
+      <HomePageClient />
+    </>
+  )
 }

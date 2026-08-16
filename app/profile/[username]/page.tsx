@@ -94,11 +94,62 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
 
 export default async function ProfilePage({ params }: ProfilePageProps) {
   const { username } = await params
+  const baseUrl = await getAbsoluteAppUrl()
+
+  // Load profile details for structured data (ProfilePage/Person schema).
+  let displayName = username
+  let bio = ""
+  let avatarUrl = ""
+  let followersCount = 0
+
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("display_name, bio, avatar_url, followers_count")
+      .eq("username", username)
+      .single()
+
+    if (profile) {
+      displayName = profile.display_name || username
+      bio = profile.bio ? stripCircleBioTokens(profile.bio).slice(0, 160) : ""
+      avatarUrl = profile.avatar_url || ""
+      followersCount = Number(profile.followers_count || 0)
+    }
+  } catch (err) {
+    console.error("Error loading profile for structured data:", err)
+  }
+
+  const person: Record<string, unknown> = {
+    "@type": "Person",
+    name: displayName,
+    alternateName: `@${username}`,
+    url: `${baseUrl}/profile/${username}`,
+  }
+  if (avatarUrl) person.image = avatarUrl
+  if (bio) person.description = bio
+  if (followersCount > 0) {
+    person.interactionStatistic = {
+      "@type": "InteractionCounter",
+      interactionType: "https://schema.org/FollowAction",
+      userInteractionCount: followersCount,
+    }
+  }
+
+  const profileJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    mainEntity: person,
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-500">
       <Header />
       <main className="mx-auto w-full max-w-6xl px-0 sm:px-4 sm:py-6">
+        {/* Schema.org structured data: ProfilePage + Person */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(profileJsonLd) }}
+        />
         <Enhanced3DProfile username={username} />
       </main>
     </div>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { LandingContent } from "@/components/landing/landing-content"
+import { organizationWebAppJsonLd } from "@/lib/seo-jsonld"
 
 const title = "loopapp.me — Build together. Not just post into the void."
 const description =
@@ -26,5 +27,14 @@ export const metadata: Metadata = {
 }
 
 export default function LandingPage() {
-  return <LandingContent />
+  return (
+    <>
+      {/* Schema.org structured data: Organization + WebApplication */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationWebAppJsonLd()) }}
+      />
+      <LandingContent />
+    </>
+  )
 }

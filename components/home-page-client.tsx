@@ -63,19 +63,19 @@ export function HomePageClient() {
                 {/* Feature highlights under the hero (mobile / guest experience) */}
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-lg border border-border/60 bg-card/60 p-3">
-                    <h3 className="text-sm font-semibold">Co-Loop</h3>
+                    <h2 className="text-sm font-semibold">Co-Loop</h2>
                     <p className="mt-1 text-xs text-muted-foreground">Write, edit, and publish live with up to 4 collaborators — perfect for co-authored threads, docs, and quick edits.</p>
                   </div>
                   <div className="rounded-lg border border-border/60 bg-card/60 p-3">
-                    <h3 className="text-sm font-semibold">Duels</h3>
+                    <h2 className="text-sm font-semibold">Duels</h2>
                     <p className="mt-1 text-xs text-muted-foreground">Stake Loop Coins and let the community vote to settle debates — winner takes the pot, and the internet decides.</p>
                   </div>
                   <div className="rounded-lg border border-border/60 bg-card/60 p-3">
-                    <h3 className="text-sm font-semibold">Circles</h3>
+                    <h2 className="text-sm font-semibold">Circles</h2>
                     <p className="mt-1 text-xs text-muted-foreground">Join or build spaces around interests with real-time chat, posts, and moderation tools that make communities feel like home.</p>
                   </div>
                   <div className="rounded-lg border border-border/60 bg-card/60 p-3">
-                    <h3 className="text-sm font-semibold">Loop Coins</h3>
+                    <h2 className="text-sm font-semibold">Loop Coins</h2>
                     <p className="mt-1 text-xs text-muted-foreground">Earn, gift, and boost content — an on-platform economy that rewards meaningful contributions.</p>
                   </div>
                 </div>
@@ -156,7 +156,7 @@ export function HomePageClient() {
             <div className="sticky top-20 space-y-4">
               {isGuest ? (
                 <div className="rounded-2xl border border-border/70 bg-card/50 p-4">
-                  <p className="font-semibold">Why join Loop?</p>
+                  <h2 className="font-semibold">Why join Loop?</h2>
                   <ul className="mt-3 space-y-3 text-sm text-muted-foreground">
                     <li>
                       <strong>Co-Loop</strong> — Co-write, edit, and publish live with up to 4 collaborators.

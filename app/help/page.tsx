@@ -224,6 +224,9 @@ export default function HelpPage() {
         </div>
 
         {/* Quick Actions */}
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Quick actions
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card className="text-center hover:shadow-md transition-shadow cursor-pointer">
             <CardContent className="p-6">
@@ -279,10 +282,10 @@ export default function HelpPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <h2 className="flex items-center gap-2 text-2xl font-semibold leading-none tracking-tight">
                   <HelpCircle className="h-5 w-5" />
                   Frequently Asked Questions
-                </CardTitle>
+                </h2>
               </CardHeader>
               <CardContent>
                 <Accordion type="single" collapsible className="w-full">
@@ -321,10 +324,10 @@ export default function HelpPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <h2 className="flex items-center gap-2 text-2xl font-semibold leading-none tracking-tight">
                     <MessageCircle className="h-5 w-5" />
                     Submit a Support Ticket
-                  </CardTitle>
+                  </h2>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleSupportSubmit} className="space-y-4">
@@ -385,7 +388,7 @@ export default function HelpPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Other Ways to Reach Us</CardTitle>
+                  <h2 className="text-2xl font-semibold leading-none tracking-tight">Other Ways to Reach Us</h2>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-3 p-3 border rounded-lg">
@@ -425,7 +428,7 @@ export default function HelpPage() {
           <TabsContent value="tickets" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Your Support Tickets</CardTitle>
+                <h2 className="text-2xl font-semibold leading-none tracking-tight">Your Support Tickets</h2>
               </CardHeader>
               <CardContent>
                 {!user ? (
@@ -495,6 +498,9 @@ export default function HelpPage() {
 
           {/* Resources Tab */}
           <TabsContent value="resources" className="mt-6">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Resources
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <Card>
                 <CardHeader>

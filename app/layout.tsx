@@ -24,12 +24,13 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const dynamic = "force-dynamic"
 
-// ✅ Moved themeColor + viewport here
+// ✅ Moved themeColor + viewport here.
+// NOTE: no maximumScale / user-scalable restriction — pinching to zoom must
+// stay enabled for accessibility (low-vision users).
 export const generateViewport = (): Viewport => ({
   themeColor: "#6366f1",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   // Shrink the layout viewport when the mobile keyboard opens so the chat
   // composer stays visible above the keyboard instead of being clipped.
   interactiveWidget: "resizes-content",

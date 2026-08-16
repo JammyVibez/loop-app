@@ -227,6 +227,9 @@ export default function EventsPage() {
       </div>
 
       {/* Events Grid */}
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        Upcoming events
+      </h2>
       {loading ? (
         <div className="py-16 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
           <RefreshCw className="w-4 h-4 animate-spin text-primary" />
