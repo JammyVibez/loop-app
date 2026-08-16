@@ -556,13 +556,27 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
       {LoginGateDialog}
     <Card>
       <CardContent className="space-y-4 p-5">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-foreground">Create Loop</h3>
-          <div className="flex gap-2">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-cyan-500 shadow-md shadow-violet-900/30">
+              <FileText className="h-4 w-4 text-white" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-bold text-foreground">Create a Loop</h3>
+              <p className="truncate text-[11px] text-muted-foreground">
+                {mediaType === "code"
+                  ? "Share a forkable snippet"
+                  : mediaType === "poll"
+                    ? "Ask the community"
+                    : "Share a story, idea, or moment"}
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 gap-2">
             <Button type="button" size="sm" variant="outline" onClick={() => setShowPreview((v) => !v)}>
               <Eye className="mr-1 h-4 w-4" /> {showPreview ? "Edit" : "Preview"}
             </Button>
-            <Button type="button" size="icon" variant="ghost" onClick={() => setDiscardOpen(true)}>
+            <Button type="button" size="icon" variant="ghost" onClick={() => setDiscardOpen(true)} title="Close composer">
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -774,24 +788,28 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
 
             <div className="flex flex-wrap gap-2">
               {[
-                { type: "text" as const, icon: FileText },
-                { type: "image" as const, icon: ImageIcon },
-                { type: "video" as const, icon: Video },
-                { type: "audio" as const, icon: Music },
-                { type: "code" as const, icon: Code },
-                { type: "poll" as const, icon: Vote },
-                { type: "moment" as const, icon: Sparkles },
+                { type: "text" as const, icon: FileText, label: "Text" },
+                { type: "image" as const, icon: ImageIcon, label: "Image" },
+                { type: "video" as const, icon: Video, label: "Video" },
+                { type: "audio" as const, icon: Music, label: "Audio" },
+                { type: "code" as const, icon: Code, label: "Code" },
+                { type: "poll" as const, icon: Vote, label: "Poll" },
+                { type: "moment" as const, icon: Sparkles, label: "Moment" },
               ].map((item) => (
                 <Button
                   key={item.type}
                   type="button"
                   size="sm"
                   variant={mediaType === item.type ? "default" : "outline"}
-                  className="border-border"
+                  className={
+                    mediaType === item.type
+                      ? "border-transparent bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-md shadow-violet-900/20"
+                      : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }
                   onClick={() => setMediaType(item.type)}
                 >
                   <item.icon className="mr-1 h-4 w-4" />
-                  {item.type}
+                  {item.label}
                 </Button>
               ))}
 
@@ -934,13 +952,23 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
               )}
             </div>
 
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" className="border-border" onClick={() => setDiscardOpen(true)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={creating || (!content.trim() && mediaFiles.length === 0)} className="bg-gradient-to-r from-violet-600 to-cyan-500">
-                {creating ? uploadStatus || "Publishing..." : "Create Loop"}
-              </Button>
+            <div className="flex flex-col-reverse items-stretch justify-end gap-2 border-t border-border/60 pt-3 sm:flex-row sm:items-center">
+              <span className="hidden flex-1 items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
+                <Sparkles className="h-3 w-3 text-violet-400" />
+                Drafts save automatically — nothing gets lost while you write.
+              </span>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" className="border-border" onClick={() => setDiscardOpen(true)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={creating || (!content.trim() && mediaFiles.length === 0)}
+                  className="bg-gradient-to-r from-violet-600 to-cyan-500 shadow-lg shadow-violet-900/30 hover:from-violet-500 hover:to-cyan-400"
+                >
+                  {creating ? uploadStatus || "Publishing..." : "Create Loop"}
+                </Button>
+              </div>
             </div>
           </form>
         )}

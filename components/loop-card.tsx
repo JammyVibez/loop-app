@@ -6,6 +6,7 @@ import {
   Heart,
   MessageCircle,
   Share,
+  Share2,
   Bookmark,
   MoreHorizontal,
   GitBranch,
@@ -15,6 +16,7 @@ import {
   Crown,
   Star,
   Zap,
+  Eye,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -574,8 +576,8 @@ export function LoopCard({
       ? `shadow-lg shadow-[var(--theme-primary)]/20`
       : "";
     const hoverStyle = isHovered
-      ? "scale-[1.02] shadow-2xl"
-      : "hover:shadow-lg";
+      ? "-translate-y-1 shadow-xl shadow-black/10 ring-1 ring-primary/10"
+      : "hover:shadow-lg hover:-translate-y-0.5";
     const featuredStyle = loop.is_featured
       ? "ring-2 ring-yellow-400/50 bg-gradient-to-br from-yellow-50/50 to-orange-50/50 dark:from-yellow-900/10 dark:to-orange-900/10"
       : "";
@@ -611,7 +613,7 @@ export function LoopCard({
         case "image":
           return (
             <div
-              className={`mt-3 rounded-lg overflow-hidden ${mediaContainerStyle}`}
+              className={`mt-3 overflow-hidden rounded-xl bg-muted ring-1 ring-black/5 ${mediaContainerStyle}`}
             >
               <img
                 src={mediaUrl || "/placeholder.svg"}
@@ -624,7 +626,7 @@ export function LoopCard({
         case "video":
           return (
             <div
-              className={`mt-3 rounded-lg overflow-hidden bg-black relative ${mediaContainerStyle}`}
+              className={`mt-3 overflow-hidden rounded-xl bg-black relative ${mediaContainerStyle}`}
               onClick={() => setViewerOpen(true)}
             >
               <video
@@ -661,7 +663,7 @@ export function LoopCard({
 
     return (
       <div
-        className={`mt-3 rounded-lg overflow-hidden relative ${mediaContainerStyle}`}
+        className={`mt-3 overflow-hidden rounded-xl bg-muted ring-1 ring-black/5 relative ${mediaContainerStyle}`}
       >
         <div className="absolute top-2 right-2 z-10">
           <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs">
@@ -1196,41 +1198,45 @@ export function LoopCard({
               </div>
             )}
 
-            <div className="flex items-center justify-between pt-2 sm:pt-3 border-t">
-              <div className="flex items-center space-x-1 sm:space-x-3 flex-wrap">
+            {/* Richer action bar — glass pill with live counts */}
+            <div className="flex items-center justify-between gap-2 rounded-2xl border border-border/60 bg-muted/20 px-1.5 py-1.5 sm:px-2.5">
+              <div className="flex items-center gap-0.5 sm:gap-1">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={`space-x-1 transition-all duration-300 ${
+                  aria-label={loop.user_interactions.is_liked ? "Unlike this loop" : "Like this loop"}
+                  className={`relative rounded-full px-2 sm:px-2.5 transition-all duration-300 ${
                     loop.user_interactions.is_liked
-                      ? "text-red-500 scale-110" :"hover:text-red-500 hover:scale-105"
+                      ? "text-rose-500 bg-rose-500/10"
+                      : "hover:text-rose-500 hover:bg-rose-500/10"
                   }`}
                   onClick={() => handleLike()}
                   disabled={activeInteracting === `${loop.id}-like`}
                 >
+                  {isAnimating && (
+                    <span className="pointer-events-none absolute inset-0 rounded-full border-2 border-rose-400 animate-ping opacity-60" />
+                  )}
                   {activeInteracting === `${loop.id}-like` ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Heart
                       className={`h-4 w-4 transition-all duration-200 ${
-                        loop.user_interactions.is_liked ? "fill-current" : ""
+                        loop.user_interactions.is_liked ? "fill-current scale-110" : ""
                       }`}
                     />
                   )}
-                  <span className="font-medium">{loop.stats.likes_count}</span>
+                  <span className="font-semibold text-xs">{loop.stats.likes_count}</span>
                 </Button>
 
                 {/* Comment button navigation */}
-                <Link href={`/loop/${loop.id}`}>
+                <Link href={`/loop/${loop.id}`} aria-label="View comments on this loop">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="space-x-1 hover:text-blue-500 hover:scale-105 transition-all duration-200 text-xs sm:text-sm p-1 sm:p-2"
+                    className="rounded-full px-2 sm:px-2.5 transition-all duration-200 hover:text-sky-500 hover:bg-sky-500/10"
                   >
-                    <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="hidden xs:inline">
-                      {loop.stats.comments_count}
-                    </span>
+                    <MessageCircle className="h-4 w-4" />
+                    <span className="font-semibold text-xs">{loop.stats.comments_count}</span>
                   </Button>
                 </Link>
 
@@ -1240,13 +1246,12 @@ export function LoopCard({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="space-x-1 hover:text-green-500 hover:scale-105 transition-all duration-200 text-xs sm:text-sm p-1 sm:p-2"
+                      className="rounded-full px-2 sm:px-2.5 transition-all duration-200 hover:text-emerald-500 hover:bg-emerald-500/10"
                       title="Branch / View Chain"
+                      aria-label="Branch this loop or view the chain"
                     >
-                      <GitBranch className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span className="hidden xs:inline">
-                        {loop.stats.branches_count}
-                      </span>
+                      <GitBranch className="h-4 w-4" />
+                      <span className="font-semibold text-xs">{loop.stats.branches_count}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="bg-popover border-border text-foreground">
@@ -1264,44 +1269,46 @@ export function LoopCard({
                   variant="ghost"
                   size="sm"
                   onClick={() => setBoostDialogOpen(true)}
-                  className="space-x-1 hover:text-cyan-400 hover:scale-105 transition-all duration-200 text-xs sm:text-sm p-1 sm:p-2 text-slate-400"
+                  className="rounded-full px-2 sm:px-2.5 transition-all duration-200 text-cyan-500 hover:text-cyan-400 hover:bg-cyan-500/10"
                   title="Boost Loop with Coins"
+                  aria-label="Boost this loop with coins"
                 >
-                  <Rocket className="h-3.5 w-3.5 text-cyan-400" />
-                  <span className="hidden sm:inline">Boost</span>
+                  <Rocket className="h-4 w-4" />
                 </Button>
+              </div>
 
+              <div className="flex items-center gap-0.5 sm:gap-1">
                 {(isCodeLoop(loop) || isCodeLoop(rawLoop)) && currentUser?.id !== loop.author_id && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="space-x-1 hover:text-violet-500 hover:scale-105 transition-all duration-200 text-xs sm:text-sm p-1 sm:p-2"
+                    className="rounded-full px-2 sm:px-2.5 transition-all duration-200 hover:text-violet-500 hover:bg-violet-500/10"
                     onClick={() => void handleFork()}
                     disabled={forking}
                     title="Fork code"
+                    aria-label="Fork this code"
                   >
                     {forking ? (
-                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <GitFork className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <GitFork className="h-4 w-4" />
                     )}
-                    <span className="hidden sm:inline">Fork</span>
                   </Button>
                 )}
-              </div>
 
-              <div className="flex items-center space-x-1 sm:space-x-2">
-                {/* Restore gift modal handler */}
+                {/* Send a gift */}
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="hover:text-[var(--theme-primary)] hover:scale-105 transition-all duration-200 p-1 sm:p-2"
+                  className="rounded-full px-2 sm:px-2.5 transition-all duration-200 hover:text-[var(--theme-primary)] hover:bg-[var(--theme-primary)]/10"
                   onClick={() => {
                     if (!requireAuth("gift")) return
                     setShowGiftModal(true)
                   }}
+                  title="Send a gift"
+                  aria-label="Send a gift for this loop"
                 >
-                  <Gift className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <Gift className="h-4 w-4" />
                 </Button>
 
                 <DropdownMenu>
@@ -1309,10 +1316,12 @@ export function LoopCard({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="hover:text-blue-500 hover:scale-105 transition-all duration-200 p-1 sm:p-2"
+                      className="rounded-full px-2 sm:px-2.5 transition-all duration-200 hover:text-sky-500 hover:bg-sky-500/10"
                       title="Share options"
+                      aria-label="Share this loop"
                     >
-                      <Share className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <Share className="h-4 w-4" />
+                      <span className="hidden xs:inline font-semibold text-xs">{loop.stats.shares_count}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-52 rounded-xl bg-card border-border shadow-xl">
@@ -1349,26 +1358,45 @@ export function LoopCard({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={`hover:scale-105 transition-all duration-200 p-1 sm:p-2 ${
+                  className={`rounded-full px-2 sm:px-2.5 transition-all duration-200 ${
                     loop.user_interactions.is_saved
-                      ? "text-blue-500"
-                      : "hover:text-blue-500"
+                      ? "text-sky-500 bg-sky-500/10"
+                      : "hover:text-sky-500 hover:bg-sky-500/10"
                   }`}
                   onClick={() => void runInteraction("save")}
                   disabled={activeInteracting === `${loop.id}-save`}
                   title="Bookmark"
+                  aria-label={loop.user_interactions.is_saved ? "Remove bookmark" : "Bookmark this loop"}
                 >
                   {activeInteracting === `${loop.id}-save` ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Bookmark
-                      className={`h-3 w-3 sm:h-4 sm:w-4 ${
+                      className={`h-4 w-4 ${
                         loop.user_interactions.is_saved ? "fill-current" : ""
                       }`}
                     />
                   )}
                 </Button>
               </div>
+            </div>
+
+            {/* Engagement meta strip */}
+            <div className="flex items-center justify-between px-1 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <Eye className="h-3 w-3" />
+                {Number(loop.stats.views_count || 0).toLocaleString()} views
+              </span>
+              <span className="inline-flex items-center gap-3">
+                {Number(loop.gifts_received || 0) > 0 && (
+                  <span className="inline-flex items-center gap-1">
+                    <Gift className="h-3 w-3" /> {loop.gifts_received}
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1">
+                  <Share2 className="h-3 w-3" /> {loop.stats.shares_count}
+                </span>
+              </span>
             </div>
           </div>
         </CardContent>
