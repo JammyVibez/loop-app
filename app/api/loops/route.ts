@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase"
 import { normalizeLoop, normalizeLoops } from "@/lib/normalize-loop"
 import { uploadFileToCloudinary } from "@/lib/cloudinary-upload"
 import { isCloudinaryConfigured } from "@/lib/env-check"
+import { filterPrivateContent, getFollowingIds } from "@/lib/privacy"
 
 async function getUserFromToken(token: string | null) {
   if (!token) return null
@@ -39,6 +40,11 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("user_id")
     const category = searchParams.get("category")
 
+    const authHeader = request.headers.get("authorization")
+    const token = authHeader?.replace("Bearer ", "") ?? null
+    const viewer = token ? await getUserFromToken(token) : null
+    const following = await getFollowingIds(createServerClient(), viewer?.id || null)
+
     const supabase = createServerClient()
     let query = supabase
       .from("loops")
@@ -48,6 +54,7 @@ export async function GET(request: NextRequest) {
         parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url)),
         loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
+      .eq("visibility", "public")
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -61,10 +68,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    // Private/followers-only profiles' loops don't surface in this raw listing
+    // unless the viewer follows the author (or is the author).
+    const visible = await filterPrivateContent(supabase, loops || [], viewer?.id || null, following)
+
     return NextResponse.json({
       success: true,
-      loops: normalizeLoops(loops || []),
-      pagination: { limit, offset, total: loops?.length || 0 },
+      loops: normalizeLoops(visible),
+      pagination: { limit, offset, total: visible.length },
     })
   } catch (error: any) {
     console.error("Get loops error:", error)

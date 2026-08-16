@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { normalizeLoop } from "@/lib/normalize-loop"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { canViewProfile } from "@/lib/privacy"
 
 export const dynamic = "force-dynamic"
 
@@ -91,6 +92,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (error || !loop) {
       return NextResponse.json({ error: "Loop not found" }, { status: 404 })
+    }
+
+    // A loop from a private/followers-only profile is only viewable by the
+    // author and approved followers — anyone else gets the same 404 as a
+    // missing loop so the URL doesn't leak private content.
+    if (loop.author_id) {
+      const supabase = createServerClient()
+      const { allowed } = await canViewProfile(supabase, user?.id || null, loop.author_id)
+      if (!allowed) {
+        return NextResponse.json({ error: "Loop not found" }, { status: 404 })
+      }
     }
 
     return NextResponse.json({ success: true, loop, branches, parentLoop })

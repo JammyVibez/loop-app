@@ -66,10 +66,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Private-profile gating: a non-follower can only *request* to follow.
+    // "followers" visibility is treated the same as "private" — content is
+    // only visible to approved followers, so a request (and approval) is
+    // required either way.
     const privacy = (target as any)?.privacy_settings || {}
-    const isPrivate = privacy.profile_visibility === "private"
+    const isPrivate = ["private", "followers"].includes(privacy.profile_visibility)
 
     if (action === "follow" && isPrivate) {
+      // The owner can switch off follow requests entirely — then nobody can
+      // send a request (existing followers stay untouched).
+      if (privacy.allow_friend_requests === false) {
+        return NextResponse.json(
+          {
+            error: "This user isn't accepting follow requests right now.",
+            requests_disabled: true,
+          },
+          { status: 403 },
+        )
+      }
+
       const { data: alreadyFollowing } = await supabase
         .from("follows")
         .select("id")

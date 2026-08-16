@@ -31,6 +31,25 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
+    // A private profile's following list is only visible to approved followers
+    // (mirrors the followers route so neither list leaks for private users).
+    const privacySettings = (targetUser.privacy_settings || {}) as Record<string, any>
+    const profileVisibility = privacySettings.profile_visibility || "public"
+    if (["private", "followers"].includes(profileVisibility) && targetUserId !== viewerId) {
+      if (!viewerId) {
+        return NextResponse.json({ error: "This profile is private" }, { status: 403 })
+      }
+      const { data: followData } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", viewerId)
+        .eq("following_id", targetUserId)
+        .maybeSingle()
+      if (!followData) {
+        return NextResponse.json({ error: "This profile is private" }, { status: 403 })
+      }
+    }
+
     const { data: following, error: followingError } = await supabase
       .from("follows")
       .select(`

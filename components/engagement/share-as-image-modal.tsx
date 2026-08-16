@@ -24,10 +24,12 @@ interface ShareAsImageModalProps {
 
 const CARD_WIDTH = 1080
 const CARD_HEIGHT = 1080
+const PREVIEW_SCALE = 0.5 // 540×540 — fast to encode for the on-screen preview
+const EXPORT_SCALE = 2 // 2160×2160 — crisp for download/share
 const BRAND = "#6366f1"
 const BRAND_DARK = "#4338ca"
 const DOMAIN = "loopapp.me"
-const IMAGE_LOAD_TIMEOUT_MS = 4000
+const AVATAR_LOAD_TIMEOUT_MS = 1500
 
 function truncate(text: string, max: number): string {
   const clean = text.replace(/\s+/g, " ").trim()
@@ -36,20 +38,52 @@ function truncate(text: string, max: number): string {
 }
 
 /**
- * Load an image with a hard timeout. A slow or hung avatar URL must never
- * block the whole share card — we fall back to the initial-letter avatar
- * and keep the generation snappy.
+ * Load an avatar with a hard, short timeout. The card is fully drawn with a
+ * letter-avatar fallback the moment the modal opens — the real avatar simply
+ * composites on top when (and if) it arrives, so a slow image never blocks
+ * the generation.
  */
-function loadImage(src: string, timeoutMs = IMAGE_LOAD_TIMEOUT_MS): Promise<HTMLImageElement | null> {
+type AvatarSource = HTMLImageElement | HTMLCanvasElement | ImageBitmap
+
+function avatarDimensions(src: AvatarSource): { w: number; h: number } {
+  if (typeof HTMLImageElement !== "undefined" && src instanceof HTMLImageElement) {
+    return { w: src.naturalWidth || src.width, h: src.naturalHeight || src.height }
+  }
+  return { w: src.width, h: src.height }
+}
+
+function loadAvatar(src: string): Promise<AvatarSource | null> {
   return new Promise((resolve) => {
     let settled = false
-    const finish = (value: HTMLImageElement | null) => {
+    const finish = (value: AvatarSource | null) => {
       if (settled) return
       settled = true
       clearTimeout(timer)
       resolve(value)
     }
-    const timer = window.setTimeout(() => finish(null), timeoutMs)
+    const timer = window.setTimeout(() => finish(null), AVATAR_LOAD_TIMEOUT_MS)
+
+    // createImageBitmap decodes off the main thread — noticeably faster than
+    // an <img> element, especially for larger avatar files.
+    if (typeof createImageBitmap === "function") {
+      fetch(src, { mode: "cors", credentials: "include" })
+        .then((res) => {
+          if (!res.ok) throw new Error("fetch failed")
+          return res.blob()
+        })
+        .then((blob) => createImageBitmap(blob))
+        .then((bitmap) => finish(bitmap))
+        .catch(() => {
+          // Fall back to a plain <img> (handles data: URLs, some CDN setups)
+          const img = new Image()
+          img.crossOrigin = "anonymous"
+          img.onload = () => finish(img)
+          img.onerror = () => finish(null)
+          img.src = src
+        })
+      return
+    }
+
     const img = new Image()
     img.crossOrigin = "anonymous"
     img.onload = () => finish(img)
@@ -68,15 +102,25 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath()
 }
 
-/** Draw the full branded card onto the canvas. Resolves once the avatar is drawn (or timed out). */
-async function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"]): Promise<void> {
+function setupCanvas(canvas: HTMLCanvasElement, scale: number) {
   const ctx = canvas.getContext("2d")
-  if (!ctx) return
+  if (!ctx) return null
+  canvas.width = Math.round(CARD_WIDTH * scale)
+  canvas.height = Math.round(CARD_HEIGHT * scale)
+  ctx.setTransform(scale, 0, 0, scale, 0, 0)
+  return ctx
+}
 
-  const scale = 2
-  canvas.width = CARD_WIDTH * scale
-  canvas.height = CARD_HEIGHT * scale
-  ctx.scale(scale, scale)
+/** Draws the full branded card at the given scale. Avatar is drawn from the
+ *  provided source (an image/bitmap or null for the letter fallback). */
+function drawCardBase(
+  canvas: HTMLCanvasElement,
+  post: ShareAsImageModalProps["post"],
+  scale: number,
+  avatarSrc: AvatarSource | null,
+) {
+  const ctx = setupCanvas(canvas, scale)
+  if (!ctx) return
 
   // Background — deep navy with a subtle indigo radial glow (Loop branding).
   const bg = ctx.createLinearGradient(0, 0, CARD_WIDTH, CARD_HEIGHT)
@@ -110,9 +154,8 @@ async function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps[
   const margin = 90
   const maxTextWidth = CARD_WIDTH - margin * 2
 
-  // --- Avatar (loads in parallel with nothing else pending; 4s timeout) ---
+  // --- Avatar ---
   const avatarSize = 170
-  const avatarImg = post.author.avatar_url ? await loadImage(post.author.avatar_url) : null
 
   // Avatar ring
   const ring = ctx.createLinearGradient(margin, 0, margin + avatarSize, avatarSize)
@@ -131,11 +174,12 @@ async function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps[
   ctx.clip()
   ctx.fillStyle = "#334155"
   ctx.fillRect(margin, margin, avatarSize, avatarSize)
-  if (avatarImg) {
-    const size = Math.min(avatarImg.width, avatarImg.height)
-    const sx = (avatarImg.width - size) / 2
-    const sy = (avatarImg.height - size) / 2
-    ctx.drawImage(avatarImg, sx, sy, size, size, margin, margin, avatarSize, avatarSize)
+  if (avatarSrc) {
+    const { w, h } = avatarDimensions(avatarSrc)
+    const size = Math.min(w, h)
+    const sx = (w - size) / 2
+    const sy = (h - size) / 2
+    ctx.drawImage(avatarSrc, sx, sy, size, size, margin, margin, avatarSize, avatarSize)
   } else {
     ctx.font = "bold 80px system-ui, sans-serif"
     ctx.fillStyle = "#e2e8f0"
@@ -254,7 +298,7 @@ async function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps[
   ctx.textAlign = "left"
 }
 
-/** Encode the canvas as a JPEG blob (fast). */
+/** Encode a canvas as a JPEG blob (fast). */
 function canvasToJpegBlob(canvas: HTMLCanvasElement, quality = 0.9): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Canvas empty"))), "image/jpeg", quality)
@@ -263,7 +307,8 @@ function canvasToJpegBlob(canvas: HTMLCanvasElement, quality = 0.9): Promise<Blo
 
 export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModalProps) {
   const { toast } = useToast()
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null)
+  const exportCanvasRef = useRef<HTMLCanvasElement>(null)
   const [rendered, setRendered] = useState(false)
   const [busy, setBusy] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -296,20 +341,35 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
     setBusy(true)
 
     const render = async () => {
-      const canvas = canvasRef.current
-      if (!canvas) return
+      const previewCanvas = previewCanvasRef.current
+      if (!previewCanvas) return
       try {
-        await drawCard(canvas, post)
+        // 1. Draw the base card synchronously (letter-avatar fallback) — the
+        //    preview is on-screen within a single frame, no network awaits.
+        drawCardBase(previewCanvas, post, PREVIEW_SCALE, null)
         if (cancelled) return
-        // JPEG encodes several times faster than PNG at 2160×2160 — this is
-        // what keeps the preview snappy. Download/share use the same fast path.
-        setPreviewUrl(canvas.toDataURL("image/jpeg", 0.85))
+        // 2. Small canvas + modest quality = a few tens of ms to encode.
+        setPreviewUrl(previewCanvas.toDataURL("image/jpeg", 0.82))
         setRendered(true)
+        setBusy(false)
+
+        // 3. Full-res canvas in the background for download/share.
+        const exportCanvas = exportCanvasRef.current
+        if (exportCanvas) drawCardBase(exportCanvas, post, EXPORT_SCALE, null)
+
+        // 4. Avatar arrives asynchronously — composite it on top of both
+        //    canvases the moment it's ready (never blocks step 1).
+        const avatar = post.author.avatar_url ? await loadAvatar(post.author.avatar_url) : null
+        if (cancelled || !avatar) return
+        drawCardBase(previewCanvas, post, PREVIEW_SCALE, avatar)
+        if (!cancelled) setPreviewUrl(previewCanvas.toDataURL("image/jpeg", 0.82))
+        if (exportCanvas) drawCardBase(exportCanvas, post, EXPORT_SCALE, avatar)
       } catch (error) {
         console.error("Share card render error:", error)
-        toast({ title: "Couldn't generate the share card", description: "Please try again.", variant: "destructive" })
-      } finally {
-        if (!cancelled) setBusy(false)
+        if (!cancelled) {
+          setBusy(false)
+          toast({ title: "Couldn't generate the share card", description: "Please try again.", variant: "destructive" })
+        }
       }
     }
     void render()
@@ -320,8 +380,8 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
   }, [open, renderKey])
 
   const download = async () => {
-    const canvas = canvasRef.current
-    if (!canvas || exporting) return
+    const canvas = exportCanvasRef.current
+    if (!canvas || exporting || !rendered) return
     setExporting(true)
     try {
       const blob = await canvasToJpegBlob(canvas, 0.95)
@@ -340,8 +400,8 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
   }
 
   const shareNative = async () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const canvas = exportCanvasRef.current
+    if (!canvas || !rendered) return
     try {
       const blob = await canvasToJpegBlob(canvas, 0.92)
       const file = new File([blob], `loop-${post.id}.jpg`, { type: "image/jpeg" })
@@ -369,7 +429,9 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
           </DialogDescription>
         </DialogHeader>
 
-        <canvas ref={canvasRef} className="hidden" />
+        {/* Preview canvas (small, fast) + hidden export canvas (full-res) */}
+        <canvas ref={previewCanvasRef} className="hidden" />
+        <canvas ref={exportCanvasRef} className="hidden" />
 
         <div className="relative w-full overflow-hidden rounded-xl border border-border">
           {previewUrl ? (

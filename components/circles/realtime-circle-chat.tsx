@@ -247,7 +247,31 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to load messages")
-      setMessages((data.messages || []).map(mapMessage))
+      const mapped = (data.messages || []).map(mapMessage)
+      setMessages(mapped)
+
+      // Seed the poll store from the message payloads so poll cards render
+      // immediately on first load. The messages API attaches each poll (with
+      // the viewer's own vote) to its message row; without this the poll
+      // cards only appeared after a realtime event fired for the first time.
+      const seeded: Record<string, PollData> = {}
+      for (const message of mapped) {
+        if (message.poll) seeded[message.id] = message.poll
+      }
+      if (Object.keys(seeded).length > 0) {
+        setPollsByMessage((prev) => {
+          const next = { ...prev, ...seeded }
+          // Preserve an in-session vote that hasn't been persisted yet
+          // (optimistic vote before the realtime refresh landed).
+          for (const [messageId, poll] of Object.entries(next)) {
+            const incoming = seeded[messageId]
+            if (incoming && prev[messageId]?.id === incoming.id && prev[messageId]?.user_vote) {
+              next[messageId] = { ...incoming, user_vote: prev[messageId]!.user_vote }
+            }
+          }
+          return next
+        })
+      }
     } catch (error) {
       console.error("Failed to load room messages:", error)
     }
@@ -295,6 +319,11 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
 
   useEffect(() => {
     loadMessages()
+    // Polls live on their own table, so also fetch them directly on room
+    // change — this catches polls attached to messages outside the loaded
+    // window and guarantees the store is warm even before any realtime event.
+    void refreshPolls()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [circleId, roomId, user?.id])
 
   // Pull the room's member count so the header can show it without the parent
@@ -711,8 +740,12 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
               {message.content && !(message.media_type === "audio" && message.content === "Voice note") && (
                 <RichContent text={message.content} as="p" />
               )}
-              {pollsByMessage[message.id] && (
-                <PollCard poll={pollsByMessage[message.id]} onVote={votePoll} disabled={!user} />
+              {(pollsByMessage[message.id] || message.poll) && (
+                <PollCard
+                  poll={pollsByMessage[message.id] || (message.poll as PollData)}
+                  onVote={votePoll}
+                  disabled={!user}
+                />
               )}
             </div>
             <div className={cn("mt-1 flex flex-wrap items-center gap-1", isMine && "justify-end")}>
@@ -1038,9 +1071,13 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
               <div className="mt-1.5 pl-8 text-sm leading-relaxed">
                 <RichContent text={threadMessage.content} as="p" />
               </div>
-              {pollsByMessage[threadMessage.id] && (
+              {(pollsByMessage[threadMessage.id] || threadMessage.poll) && (
                 <div className="pl-8">
-                  <PollCard poll={pollsByMessage[threadMessage.id]} onVote={votePoll} disabled={!user} />
+                  <PollCard
+                    poll={pollsByMessage[threadMessage.id] || (threadMessage.poll as PollData)}
+                    onVote={votePoll}
+                    disabled={!user}
+                  />
                 </div>
               )}
             </div>

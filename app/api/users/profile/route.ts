@@ -62,7 +62,9 @@ export async function GET(request: NextRequest) {
     }
 
     const privacySettings = (profile as any)?.privacy_settings || {}
-    const isPrivate = privacySettings.profile_visibility === "private"
+    // "followers" visibility is gated exactly like "private": only approved
+    // followers (and the owner) can see the full profile.
+    const isPrivate = ["private", "followers"].includes(privacySettings.profile_visibility)
 
     const [{ count: followersCount }, { count: followingCount }, { count: loopsCount }, { count: branchesCount }, { count: commentsCount }, { data: rawRecentLoops }, { data: rawCoLoops }, { data: rawRecentBranches }, { data: rawMediaLoops }, { data: followRecord }, { data: activeItems }, { data: pendingFollowRequest }] = await Promise.all([
       supabase.from("follows").select("id", { count: "exact", head: true }).eq("following_id", profile.id),

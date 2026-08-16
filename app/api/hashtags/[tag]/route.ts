@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { normalizeLoops } from "@/lib/normalize-loop"
 import { smartEngagementScore } from "@/lib/feed-ranking"
+import { filterPrivateContent, getFollowingIds } from "@/lib/privacy"
 
 function createServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -72,6 +73,10 @@ export async function GET(
         (loop.hashtags || []).some((t: string) => String(t).toLowerCase().replace(/^#/, "") === tag),
       )
     }
+
+    // Hashtag pages are public — private profiles' loops don't surface here
+    // (the viewer is anonymous on this route, so private content is dropped).
+    rows = await filterPrivateContent(supabase, rows, null, new Set())
 
     const normalized = normalizeLoops(rows).map((loop, i) => ({
       ...loop,

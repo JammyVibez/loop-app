@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { normalizeLoops } from "@/lib/normalize-loop"
 import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
+import { filterPrivateContent, getFollowingIds, getPrivateProfileIds } from "@/lib/privacy"
 
 function engagementScore(loop: any) {
   const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats
@@ -89,7 +90,20 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ error: "Failed to fetch trending users" }, { status: 500 })
         }
 
-        return NextResponse.json({ success: true, data: users || [] })
+        // Private profiles never rank in trending users unless the viewer
+        // already follows them.
+        const following = await getFollowingIds(supabase, user?.id || null)
+        const privateIds = await getPrivateProfileIds(supabase, (users || []).map((u: any) => u.id))
+        let visible = users || []
+        if (privateIds.size) {
+          visible = visible.filter((u: any) => {
+            if (user && u.id === user.id) return true
+            if (following.has(u.id)) return true
+            return !privateIds.has(u.id)
+          })
+        }
+
+        return NextResponse.json({ success: true, data: visible })
       }
 
       case "loops": {
@@ -145,6 +159,8 @@ export async function GET(request: NextRequest) {
           })
         }
 
+        const following = await getFollowingIds(supabase, user?.id || null)
+        rows = await filterPrivateContent(supabase, rows, user?.id || null, following)
         const enriched = await enrichLoopsWithPollsAndDuels(supabase, rows)
         const normalized = normalizeLoops(enriched, interactionMap)
         return NextResponse.json({ success: true, data: normalized, loops: normalized })

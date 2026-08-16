@@ -48,6 +48,42 @@ async function buildHashtagAffinity(supabase: ReturnType<typeof createServerClie
   return affinity
 }
 
+/**
+ * Privacy filter: loops authored by a private (or followers-only) profile
+ * are only visible to the author themself and to users who follow them.
+ * Applied server-side so private content never reaches the client.
+ */
+async function filterPrivateAuthorLoops(
+  supabase: any,
+  loops: any[],
+  viewerId: string | null,
+  followingIds: Set<string> | string[],
+) {
+  if (!loops.length) return loops
+  const authorIds = [...new Set(loops.map((l) => l.author_id).filter(Boolean))] as string[]
+  if (!authorIds.length) return loops
+
+  const { data: authors } = await supabase
+    .from("profiles")
+    .select("id, privacy_settings")
+    .in("id", authorIds)
+  const privateIds = new Set(
+    (authors || [])
+      .filter((a: any) =>
+        ["private", "followers"].includes((a.privacy_settings || {})?.profile_visibility),
+      )
+      .map((a: any) => a.id),
+  )
+  if (!privateIds.size) return loops
+
+  const followed = new Set(Array.from(followingIds))
+  return loops.filter((loop) => {
+    if (viewerId && loop.author_id === viewerId) return true
+    if (followed.has(loop.author_id)) return true
+    return !privateIds.has(loop.author_id)
+  })
+}
+
 /** Interleave own posts (~25–30%) into algorithmically ranked For You feed */
 function mixOwnPostsIntoFeed<T extends { id: string; author_id?: string }>(
   ranked: T[],
@@ -229,6 +265,7 @@ export async function GET(request: NextRequest) {
       }
 
       let loops = data || []
+      loops = await filterPrivateAuthorLoops(supabase, loops, user?.id || null, followingIds)
       loops = await enrichLoopsWithPollsAndDuels(supabase, loops)
       const interactionMap = new Map<string, string[]>()
       if (user && loops.length > 0) {
@@ -333,6 +370,9 @@ export async function GET(request: NextRequest) {
     }
 
     let loops = data || []
+    // Private profiles' loops stay out of public/recommended surfaces unless
+    // the viewer follows the author (or is the author).
+    loops = await filterPrivateAuthorLoops(supabase, loops, user?.id || null, followingIds)
     const affinity =
       type === "personalized" && user
         ? await buildHashtagAffinity(supabase, user.id)

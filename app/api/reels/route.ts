@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { filterPrivateContent, getFollowingIds } from "@/lib/privacy"
 
 export const dynamic = "force-dynamic"
 
@@ -98,6 +99,11 @@ export async function GET(request: NextRequest) {
       is_saved: saved.has(reel.id),
     }))
 
+    // Private/followers-only profiles' reels stay out of public browse
+    // surfaces unless the viewer follows the author (or is the author).
+    const following = await getFollowingIds(supabase, user?.id || null)
+    processed = await filterPrivateContent(supabase, processed, user?.id || null, following)
+
     // Fallback: surface video loops so the feed is never empty
     // (skipped for personal views like "mine" so we never show strangers' clips)
     if (!processed.length && page === 1 && category !== "mine") {
@@ -111,7 +117,7 @@ export async function GET(request: NextRequest) {
         .order("created_at", { ascending: false })
         .limit(limit)
 
-      processed = (videoLoops || [])
+      processed = (await filterPrivateContent(supabase, videoLoops || [], user?.id || null, following))
         .map((loop: any) => {
           const url = loop.media_url || loop.content_media_url
           if (!url) return null

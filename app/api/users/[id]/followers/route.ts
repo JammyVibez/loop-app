@@ -33,7 +33,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const privacySettings = (targetUser.privacy_settings || {}) as Record<string, any>
     const profileVisibility = privacySettings.profile_visibility || "public"
-    if (profileVisibility === "private" && targetUserId !== viewerId) {
+    if (["private", "followers"].includes(profileVisibility) && targetUserId !== viewerId) {
       if (!viewerId) {
         return NextResponse.json({ error: "This profile is private" }, { status: 403 })
       }

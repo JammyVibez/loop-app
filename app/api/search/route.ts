@@ -70,6 +70,42 @@ export async function GET(request: NextRequest) {
     const wantHashtags = (type === "all" || type === "hashtags") && !isUserIntent
     const wantCircles = (type === "all" || type === "circles") && !isUserIntent && !isHashtagIntent
 
+    // Private (and followers-only) profiles never surface in public search for
+    // people who don't follow them — neither their loops nor their profile.
+    const followingIds = new Set<string>()
+    if (user) {
+      const { data: follows } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", user.id)
+      for (const row of follows || []) {
+        if (row.following_id) followingIds.add(row.following_id)
+      }
+    }
+
+    const filterPrivateLoops = async (loops: any[]) => {
+      if (!loops.length) return loops
+      const authorIds = [...new Set(loops.map((l) => l.author_id).filter(Boolean))] as string[]
+      if (!authorIds.length) return loops
+      const { data: authors } = await supabase
+        .from("profiles")
+        .select("id, privacy_settings")
+        .in("id", authorIds)
+      const privateIds = new Set(
+        (authors || [])
+          .filter((a: any) =>
+            ["private", "followers"].includes((a.privacy_settings || {})?.profile_visibility),
+          )
+          .map((a: any) => a.id),
+      )
+      if (!privateIds.size) return loops
+      return loops.filter((loop) => {
+        if (user && loop.author_id === user.id) return true
+        if (followingIds.has(loop.author_id)) return true
+        return !privateIds.has(loop.author_id)
+      })
+    }
+
     if (wantLoops) {
       const pattern = `%${query}%`
       let loops: any[] | null = null
@@ -170,7 +206,7 @@ export async function GET(request: NextRequest) {
         loops = merged.slice(0, limit)
       }
 
-      results.loops = normalizeLoops(loops || [])
+      results.loops = normalizeLoops((await filterPrivateLoops(loops || [])) || [])
     }
 
     if (wantUsers) {
@@ -196,18 +232,38 @@ export async function GET(request: NextRequest) {
         users = fallback.data
       }
 
-      // Mark following status
-      if (user && users?.length) {
+      // Mark following status + hide private profiles the viewer can't see.
+      if (users?.length) {
         const { data: follows } = await supabase
           .from("follows")
           .select("following_id")
-          .eq("follower_id", user.id)
+          .eq("follower_id", user?.id || "__nobody__")
           .in(
             "following_id",
             users.map((u) => u.id),
           )
         const following = new Set((follows || []).map((f) => f.following_id))
-        users = users.map((u) => ({ ...u, is_following: following.has(u.id) }))
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, privacy_settings")
+          .in(
+            "id",
+            users.map((u) => u.id),
+          )
+        const privateIds = new Set(
+          (profiles || [])
+            .filter((p: any) =>
+              ["private", "followers"].includes((p.privacy_settings || {})?.profile_visibility),
+            )
+            .map((p: any) => p.id),
+        )
+        users = users
+          .filter((u: any) => {
+            if (!privateIds.has(u.id)) return true
+            if (user && u.id === user.id) return true
+            return following.has(u.id)
+          })
+          .map((u: any) => ({ ...u, is_following: following.has(u.id) }))
       }
 
       results.users = users || []
