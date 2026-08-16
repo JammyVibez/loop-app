@@ -85,6 +85,25 @@ export async function PATCH(
     const body = await request.json()
     const { action, status, is_live } = body
 
+    // Fetch the event + host/admin check once — every mod action needs it.
+    const { data: eventRow } = await supabase
+      .from("events")
+      .select("id, host_id, status")
+      .eq("id", id)
+      .maybeSingle()
+
+    const { data: adminProfile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .maybeSingle()
+
+    const isHost = Boolean(eventRow && eventRow.host_id === user.id)
+    const isAdmin = Boolean(adminProfile?.is_admin)
+    if (!isHost && !isAdmin) {
+      return NextResponse.json({ error: "Only the host or an admin can manage this event" }, { status: 403 })
+    }
+
     if (action === "end_event" || status === "ended") {
       const { data: updatedEvent, error } = await supabase
         .from("events")
@@ -112,6 +131,35 @@ export async function PATCH(
         message: "Event has been ended.",
         event: updatedEvent
       })
+    }
+
+    if (action === "mute_all") {
+      // Stage-wide mute: everyone on the roster is muted, and a NULL-user
+      // mute row keeps newly joined participants muted until unmuted.
+      await supabase.from("event_mutes").upsert(
+        { event_id: id, user_id: null, muted_by: user.id },
+        { onConflict: "event_id,user_id" },
+      )
+      await supabase
+        .from("event_participants")
+        .update({ is_muted: true, muted_at: new Date().toISOString() })
+        .eq("event_id", id)
+
+      return NextResponse.json({ success: true, message: "Everyone on stage has been muted." })
+    }
+
+    if (action === "unmute_all") {
+      await supabase
+        .from("event_mutes")
+        .delete()
+        .eq("event_id", id)
+        .is("user_id", null)
+      await supabase
+        .from("event_participants")
+        .update({ is_muted: false, muted_at: null })
+        .eq("event_id", id)
+
+      return NextResponse.json({ success: true, message: "Everyone on stage has been unmuted." })
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 })

@@ -41,6 +41,9 @@ import { MaintenanceModeControl } from "@/components/admin/maintenance-mode-cont
 import { ProLoungeSettings } from "@/components/admin/pro-lounge-settings"
 import { OrgManagementPanel } from "@/components/admin/org-management-panel"
 import { AdsAdminPanel } from "@/components/admin/ads-admin-panel"
+import { AwardsAdminPanel } from "@/components/admin/awards-admin-panel"
+import { ProCirclePanel } from "@/components/admin/pro-circle-panel"
+import { VerificationBadgesAdminPanel } from "@/components/admin/verification-badges-admin-panel"
 import { UserBadges } from "@/components/user-badge"
 
 interface AdminUser {
@@ -195,6 +198,9 @@ export function AdminDashboard() {
           <TabsTrigger value="gifs">GIFs</TabsTrigger>
           <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
           <TabsTrigger value="ads">Ads</TabsTrigger>
+          <TabsTrigger value="awards">Awards</TabsTrigger>
+          <TabsTrigger value="procircle">Pro Circle</TabsTrigger>
+          <TabsTrigger value="checkmarks">Checkmarks</TabsTrigger>
           <TabsTrigger value="moderation">Moderation</TabsTrigger>
         </TabsList>
 
@@ -453,6 +459,15 @@ export function AdminDashboard() {
 
         <TabsContent value="ads" className="mt-6">
           <AdsAdminPanel />
+        </TabsContent>
+        <TabsContent value="awards" className="mt-6">
+          <AwardsAdminPanel />
+        </TabsContent>
+        <TabsContent value="procircle" className="mt-6">
+          <ProCirclePanel />
+        </TabsContent>
+        <TabsContent value="checkmarks" className="mt-6">
+          <VerificationBadgesAdminPanel />
         </TabsContent>
       </Tabs>
     </div>

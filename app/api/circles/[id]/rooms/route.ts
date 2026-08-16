@@ -1,20 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
-
-async function getUserFromToken(token: string) {
-  try {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
 
 // Get circle rooms — private rooms are only listed to members an admin
 // explicitly granted access to (circle_room_members), not just any circle
@@ -28,9 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { id: circleId } = await params
 
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
-    const user = token ? await getUserFromToken(token) : null
+    const user = await getUserFromRequest(request)
 
     let role: string | null = null
     if (user) {
@@ -96,16 +82,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 // Create a new room
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { id: circleId } = await params
@@ -196,16 +176,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 // Update a room
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { id: circleId } = await params
@@ -270,16 +244,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 // Delete a room
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { id: circleId } = await params

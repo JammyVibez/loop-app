@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -12,13 +13,9 @@ export async function POST(
 ) {
   try {
     const { id: duelId } = await params
-    const authHeader = req.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-    const { data: authData, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !authData.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const userId = authData.user.id
+    const user = await getUserFromRequest(req)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const userId = user.id
 
     const { correctSide } = await req.json()
     if (correctSide !== "yes" && correctSide !== "no") {
@@ -37,7 +34,7 @@ export async function POST(
     }
 
     // Only the creator (or an admin) may reveal the outcome.
-    const isAdmin = Boolean((authData.user as any)?.is_admin)
+    const isAdmin = Boolean((user as any)?.is_admin)
     if (duel.creator_id !== userId && !isAdmin) {
       return NextResponse.json({ error: "Only the duel creator can reveal the outcome" }, { status: 403 })
     }

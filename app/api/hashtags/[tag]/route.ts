@@ -33,7 +33,7 @@ export async function GET(
         .from("loops")
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .contains("hashtags", [tag])
@@ -60,7 +60,7 @@ export async function GET(
         .from("loops")
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .not("hashtags", "is", null)

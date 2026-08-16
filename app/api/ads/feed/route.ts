@@ -15,6 +15,11 @@ export async function GET(request: NextRequest) {
     const supabase = createServerClient()
     const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
 
+    // Which surface is asking? Defaults to the home feed; the Developer Hub
+    // passes ?surface=developers so ads show there too (unless Pro/Sponsor).
+    const { searchParams } = new URL(request.url)
+    const surface = searchParams.get("surface") || "home"
+
     let eligible = true
     let viewer = null
     if (token) {
@@ -37,11 +42,13 @@ export async function GET(request: NextRequest) {
     const { data: settings } = await supabase.from("ad_settings").select("*").eq("id", "default").maybeSingle()
     const enabled = Boolean(settings?.enabled)
     const surfaces = settings?.surfaces || {}
+    const surfaceOn = surface === "home" ? Boolean(surfaces.home) : Boolean(surfaces[surface])
 
     return NextResponse.json({
       success: true,
-      eligible: enabled && eligible && Boolean(surfaces.home),
+      eligible: enabled && eligible && surfaceOn,
       enabled,
+      surface,
       viewer: viewer ? { id: viewer.id } : null,
     })
   } catch (error: any) {

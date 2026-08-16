@@ -34,6 +34,14 @@ function mediaTypeFromFile(file: File, explicit?: UploadMediaOptions["type"]): U
   if (file.type.startsWith("video/")) return "video"
   if (file.type.startsWith("audio/")) return "audio"
   if (file.type.startsWith("image/")) return "image"
+
+  // Some browsers (Android file pickers, desktop drag-and-drop from certain
+  // apps) report an empty MIME type — fall back to the file extension so those
+  // uploads don't silently fail as unknown "file" types.
+  const name = (file.name || "").toLowerCase()
+  if (/\.(mp4|webm|ogg|ogv|mov|m4v|avi|mkv|3gp)$/i.test(name)) return "video"
+  if (/\.(mp3|wav|ogg|oga|m4a|aac|flac|opus)$/i.test(name)) return "audio"
+  if (/\.(jpe?g|png|gif|webp|svg|heic|heif|avif|bmp)$/i.test(name)) return "image"
   return "file"
 }
 

@@ -30,6 +30,7 @@ export type NormalizedLoop = {
     is_team_member?: boolean
     is_sponsor?: boolean
     is_premium?: boolean
+    badge_id?: string | null
     level?: number
     cosmetics?: Record<string, any> | null
     active_cosmetics?: Record<string, any> | null
@@ -136,6 +137,7 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
       is_team_member: Boolean(author?.is_team_member || author?.email === "useehamza0@gmail.com"),
       is_sponsor: Boolean(author?.is_sponsor),
       is_premium: Boolean(author?.is_premium),
+      badge_id: author?.badge_id || null,
       level: author?.level,
       cosmetics: author?.cosmetics || author?.active_cosmetics || null,
       active_cosmetics: author?.active_cosmetics || author?.cosmetics || null,

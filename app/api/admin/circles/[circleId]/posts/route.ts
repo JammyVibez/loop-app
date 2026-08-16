@@ -69,7 +69,7 @@ export async function GET(
       .from("circle_posts")
       .select(`
         *,
-        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium)
+        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id)
       `)
       .eq("circle_id", circleId)
       .order(sortBy, { ascending: order === "asc" })

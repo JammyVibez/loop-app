@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
       .from("loops")
       .select(`
         *,
-        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, level),
+        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, level, badge_id),
         loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
       .gt("boost_coins_current", 0)

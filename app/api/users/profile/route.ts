@@ -2,28 +2,14 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { normalizeLoops } from "@/lib/normalize-loop"
 import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
-
-async function getUserFromToken(token: string) {
-  try {
-    const supabase = createServerClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
+import { getUserFromRequest } from "@/lib/server-auth"
+import { isProUser } from "@/lib/pro-features"
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = createServerClient()
     const username = request.nextUrl.searchParams.get("username")
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.startsWith("Bearer ") ? authHeader.replace("Bearer ", "") : ""
-    const authedUser = token ? await getUserFromToken(token) : null
+    const authedUser = await getUserFromRequest(request)
 
     // Public profile lookup by username (used by /profile/[username]).
     // If username is omitted, require auth and return the current user's profile.
@@ -56,7 +42,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .eq("author_id", profile.id)
@@ -71,7 +57,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .is("parent_loop_id", null)
@@ -82,7 +68,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .eq("author_id", profile.id)
@@ -93,7 +79,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           id, content, content_text, content_media_url, content_type, media_url, media_urls, media_type, hashtags, created_at,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium),
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .eq("author_id", profile.id)
@@ -246,20 +232,33 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
-
+    const user = await getUserFromRequest(request)
     if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const updates = await request.json()
     const supabase = createServerClient()
+
+    // Animated GIF avatars/covers are Pro-only — enforced server-side.
+    const looksLikeGif = (url?: unknown) =>
+      typeof url === "string" && /\.gif(\?|#|$)/i.test(url.trim())
+    if (looksLikeGif(updates.avatar_url) || looksLikeGif(updates.banner_url)) {
+      const { data: profileRow } = await supabase
+        .from("profiles")
+        .select("is_premium, premium_expires_at")
+        .eq("id", user.id)
+        .maybeSingle()
+      if (!isProUser(profileRow as any)) {
+        return NextResponse.json(
+          {
+            error: "Animated GIF profile pictures and covers are a Pro perk — upgrade to Pro to use them.",
+            pro_required: true,
+          },
+          { status: 403 },
+        )
+      }
+    }
 
     // Validate allowed fields
     const allowedFields = [

@@ -60,7 +60,18 @@ export default function EventsPage() {
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState("Tech")
   const [isLiveNow, setIsLiveNow] = useState(false)
+  const [allowType, setAllowType] = useState("everyone")
   const [creating, setCreating] = useState(false)
+
+  // Hosting tier hint — mirrors the server-side creation rules.
+  const hostingTier = useMemo(() => {
+    if (user?.is_admin) return { label: "Unlimited events (admin)", tone: "text-emerald-600 dark:text-emerald-400" }
+    if (user?.is_verified || user?.is_organization) {
+      return { label: "Unlimited events (verified / organization)", tone: "text-emerald-600 dark:text-emerald-400" }
+    }
+    if (user?.is_premium) return { label: "Up to 5 events per month (Pro)", tone: "text-amber-600 dark:text-amber-400" }
+    return { label: "Free members can host 1 event", tone: "text-muted-foreground" }
+  }, [user])
 
   useEffect(() => {
     fetchEvents(true)
@@ -134,6 +145,7 @@ export default function EventsPage() {
           description: description.trim(),
           category,
           is_live: isLiveNow,
+          allow_type: allowType,
         }),
       })
 
@@ -368,6 +380,24 @@ export default function EventsPage() {
               />
             </div>
 
+            <div>
+              <Label htmlFor="evt-audience" className="text-xs font-semibold">Audience Restriction</Label>
+              <select
+                id="evt-audience"
+                value={allowType}
+                onChange={(e) => setAllowType(e.target.value)}
+                className="w-full mt-1.5 px-3 py-2 bg-background border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="everyone">🌐 Open to everyone</option>
+                <option value="pro">⭐ Pro members only</option>
+                <option value="verified">✔ Verified accounts only</option>
+                <option value="organization">🏢 Organizations only</option>
+              </select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Restrict who can join the stage and chat.
+              </p>
+            </div>
+
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/60">
               <div>
                 <p className="text-xs font-semibold text-foreground">Start Live Immediately</p>
@@ -380,6 +410,12 @@ export default function EventsPage() {
                 className="w-4 h-4 text-primary rounded focus:ring-primary"
               />
             </div>
+
+            {hostingTier && (
+              <p className={`rounded-xl border border-border/60 bg-card px-3 py-2 text-[11px] font-medium ${hostingTier.tone}`}>
+                {hostingTier.label} — verified & organization accounts host unlimited events.
+              </p>
+            )}
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">

@@ -63,6 +63,15 @@ const files = [
   // Clutch Duel columns + clutch_duel_predictions, admin ad system (ads /
   // ad_settings / ad_impressions), circle post tags + threaded comment replies.
   "scripts/clutch-duel-ads-tags-schema.sql",
+  // Awards (awards / user_awards), ephemeral Moments (moments table with
+  // expiry), and the Pro-only circle (circles.is_premium_only + the
+  // auto-membership trigger that adds/removes Pro users).
+  "scripts/awards-pro-circle-moments-schema.sql",
+  // Event stage moderation: ended_at/circle_id/allow_type on events, mutes
+  // (all + per-user), event_rsvps, and soft-delete on event_messages.
+  "scripts/events-moderation-schema.sql",
+  // Admin-created custom checkmarks: verification_badges + profiles.badge_id.
+  "scripts/custom-checkmarks-schema.sql",
 ]
 
 const ignorable = [

@@ -1,8 +1,16 @@
 "use client"
 
-import { ShieldCheck, Check, Sparkles, Crown, Building2 } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { ShieldCheck, Check, Sparkles, Crown, Building2, Star, Shield } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+export interface VerificationBadgeData {
+  id: string
+  name: string
+  label?: string | null
+  icon?: string | null
+  colors: string[]
+  description?: string | null
+}
 
 export interface UserBadgeProps {
   is_verified?: boolean
@@ -14,9 +22,26 @@ export interface UserBadgeProps {
   organization_name?: string
   email?: string
   username?: string
+  /** Admin-created custom checkmark (colors can be solid or gradient). */
+  badge?: VerificationBadgeData | null
   showText?: boolean
   size?: "sm" | "md" | "lg"
   className?: string
+}
+
+function BadgeGlyph({ icon, className }: { icon?: string | null; className: string }) {
+  switch (icon) {
+    case "star":
+      return <Star className={cn(className, "fill-current")} />
+    case "shield":
+      return <Shield className={cn(className, "fill-current")} />
+    case "crown":
+      return <Crown className={cn(className, "fill-current")} />
+    case "sparkle":
+      return <Sparkles className={cn(className, "fill-current")} />
+    default:
+      return <Check className={cn(className, "stroke-[3]")} />
+  }
 }
 
 export function UserBadges({
@@ -29,6 +54,7 @@ export function UserBadges({
   organization_name,
   email,
   username,
+  badge,
   showText = false,
   size = "md",
   className,
@@ -109,8 +135,31 @@ export function UserBadges({
         </span>
       )}
 
+      {/* 3. Admin custom checkmark — colors can be a solid hex or a gradient */}
+      {badge && (
+        <span
+          title={badge.label || `${badge.name} checkmark`}
+          className={cn(
+            "inline-flex items-center justify-center rounded-full text-white font-bold shadow-sm p-0.5",
+            badge.colors.length > 1
+              ? "bg-gradient-to-br"
+              : "bg-sky-500",
+            size === "sm" ? "h-3.5 w-3.5 text-[9px]" : size === "lg" ? "h-4.5 w-4.5 text-xs" : "h-4 w-4 text-[10px]"
+          )}
+          style={
+            badge.colors.length > 1
+              ? {
+                  backgroundImage: `linear-gradient(135deg, ${badge.colors[0]}, ${badge.colors[1]})`,
+                }
+              : { backgroundColor: badge.colors[0] }
+          }
+        >
+          <BadgeGlyph icon={badge.icon} className="h-2.5 w-2.5" />
+        </span>
+      )}
+
       {/* 3. Creator Verification Checkmark (Untouched Blue Checkmark) */}
-      {is_verified && !isTeam && (
+      {is_verified && !isTeam && !badge && (
         <span
           title="Verified Creator"
           className={cn(

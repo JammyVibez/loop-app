@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 
@@ -41,19 +42,10 @@ export async function POST(request: NextRequest) {
     const targetUserId = body.target_user_id || body.user_id || body.targetUserId
     const action = body.action === "unfollow" ? "unfollow" : "follow"
 
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "") ?? null
+    const user = await getUserFromRequest(request)
 
-    if (!token) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token)
-    if (authError || !user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
     if (!targetUserId) {

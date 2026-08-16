@@ -231,3 +231,89 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
+
+/**
+ * DELETE /api/conversations?conversation_id=<id>&mode=delete|clear
+ *
+ * - mode=delete (default): remove the conversation for THIS user (marks the
+ *   participant as left). If a 1:1 where the other side has also left, the
+ *   conversation and its messages are hard-deleted from the database.
+ * - mode=clear: hard-delete every message in the conversation from the
+ *   database (affects both sides — "clear for everyone").
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await getUser(request)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const { searchParams } = new URL(request.url)
+    const conversationId = searchParams.get("conversation_id")
+    const mode = searchParams.get("mode") === "clear" ? "clear" : "delete"
+
+    if (!conversationId) {
+      return NextResponse.json({ error: "conversation_id is required" }, { status: 400 })
+    }
+
+    const supabase = createServerClient()
+
+    // Must be an active participant.
+    const { data: membership } = await supabase
+      .from("conversation_participants")
+      .select("id, user_id")
+      .eq("conversation_id", conversationId)
+      .eq("user_id", user.id)
+      .is("left_at", null)
+      .maybeSingle()
+
+    if (!membership) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    if (mode === "clear") {
+      const { error: clearError } = await supabase.from("messages").delete().eq("conversation_id", conversationId)
+      if (clearError) {
+        return NextResponse.json({ error: clearError.message || "Failed to clear messages" }, { status: 500 })
+      }
+      await supabase
+        .from("conversations")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", conversationId)
+      return NextResponse.json({ success: true, message: "Chat cleared for everyone" })
+    }
+
+    // mode=delete: leave the conversation (delete for me).
+    const { error: leaveError } = await supabase
+      .from("conversation_participants")
+      .update({ left_at: new Date().toISOString(), last_read_at: new Date().toISOString() })
+      .eq("id", membership.id)
+
+    if (leaveError) {
+      return NextResponse.json({ error: leaveError.message || "Failed to delete conversation" }, { status: 500 })
+    }
+
+    // 1:1 where the other side already left → hard-delete conversation + messages.
+    const { data: activeParticipants } = await supabase
+      .from("conversation_participants")
+      .select("id")
+      .eq("conversation_id", conversationId)
+      .is("left_at", null)
+
+    const { data: conversation } = await supabase
+      .from("conversations")
+      .select("is_group")
+      .eq("id", conversationId)
+      .maybeSingle()
+
+    if ((activeParticipants || []).length === 0 && conversation && !conversation.is_group) {
+      await supabase.from("messages").delete().eq("conversation_id", conversationId)
+      await supabase.from("conversation_participants").delete().eq("conversation_id", conversationId)
+      await supabase.from("conversations").delete().eq("id", conversationId)
+      return NextResponse.json({ success: true, message: "Conversation deleted", hard_deleted: true })
+    }
+
+    return NextResponse.json({ success: true, message: "Conversation deleted for you" })
+  } catch (error) {
+    console.error("Error deleting conversation:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}

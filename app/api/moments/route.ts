@@ -1,0 +1,117 @@
+import { type NextRequest, NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth"
+
+export const dynamic = "force-dynamic"
+
+/** Ephemeral posts that auto-delete from the database after expiry (24–48h). */
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const supabase = createServerClient()
+
+    // Active moments from people the viewer follows + their own.
+    const { data: following } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", user.id)
+    const authorIds = Array.from(new Set([user.id, ...((following || []).map((f) => f.following_id).filter(Boolean))]))
+
+    const { data: moments, error } = await supabase
+      .from("moments")
+      .select(
+        `*,
+         author:profiles!user_id(id, username, display_name, avatar_url, is_verified)`,
+      )
+      .in("user_id", authorIds)
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(80)
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    const grouped = new Map<string, any>()
+    for (const moment of moments || []) {
+      const author = Array.isArray(moment.author) ? moment.author[0] : moment.author
+      const key = moment.user_id
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          user: author || { id: moment.user_id },
+          items: [],
+          is_self: moment.user_id === user.id,
+        })
+      }
+      grouped.get(key).items.push({
+        id: moment.id,
+        type: "moment",
+        media_url: moment.media_url,
+        media_type: moment.media_type || "image",
+        content: moment.content,
+        href: `/moments/${moment.id}`,
+        created_at: moment.created_at,
+        expires_at: moment.expires_at,
+      })
+    }
+
+    return NextResponse.json({ success: true, moments: Array.from(grouped.values()) })
+  } catch (error: any) {
+    console.error("Moments GET error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+/** Create a moment. Body: { media_url, media_type?, content?, hours? (24|36|48, default 24) } */
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const body = await request.json().catch(() => ({}))
+    const mediaUrl = String(body.media_url || "").trim()
+    const content = String(body.content || "").trim().slice(0, 500)
+    const mediaType = String(body.media_type || (mediaUrl.match(/\.(mp4|webm|ogg|mov)(\?|$)/i) ? "video" : "image")).trim()
+    let hours = Number(body.hours || 24)
+    if (!Number.isFinite(hours)) hours = 24
+    hours = Math.min(48, Math.max(24, hours))
+
+    if (!mediaUrl && !content) {
+      return NextResponse.json({ error: "A photo, video, or caption is required" }, { status: 400 })
+    }
+
+    const supabase = createServerClient()
+
+    // Pro users can post 48h moments; free users get 24h.
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_premium, premium_expires_at")
+      .eq("id", user.id)
+      .maybeSingle()
+    const isPro =
+      Boolean(profile?.is_premium) &&
+      (!profile?.premium_expires_at || new Date(profile.premium_expires_at) > new Date())
+    if (!isPro && hours > 24) hours = 24
+
+    const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString()
+
+    const { data: moment, error } = await supabase
+      .from("moments")
+      .insert({
+        user_id: user.id,
+        media_url: mediaUrl || null,
+        media_type: mediaType,
+        content: content || null,
+        expires_at: expiresAt,
+      })
+      .select("*")
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({ success: true, moment })
+  } catch (error: any) {
+    console.error("Moments POST error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}

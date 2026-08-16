@@ -1,17 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
-
-async function getUserFromToken(token: string | null) {
-  if (!token) return null
-  const supabase = createServerClient()
-  const { data: { user }, error } = await supabase.auth.getUser(token)
-  if (error || !user) return null
-  return user
-}
+import { getUserFromRequest } from "@/lib/server-auth"
 
 async function getAuthUser(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
-  return getUserFromToken(token)
+  return getUserFromRequest(request)
 }
 
 export async function PATCH(
@@ -63,8 +55,34 @@ export async function DELETE(
     if (!existing) return NextResponse.json({ error: "Comment not found" }, { status: 404 })
     if (existing.author_id !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
+    const { id: loopId } = await params
     const { error } = await supabase.from("comments").delete().eq("id", commentId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // Keep the comment counter accurate after deletes.
+    try {
+      const { data: current } = await supabase
+        .from("loop_stats")
+        .select("comments_count")
+        .eq("loop_id", loopId)
+        .maybeSingle()
+      if (current) {
+        await supabase
+          .from("loop_stats")
+          .update({ comments_count: Math.max(0, Number(current.comments_count || 0) - 1) })
+          .eq("loop_id", loopId)
+      }
+      const { data: loopRow } = await supabase.from("loops").select("comment_count").eq("id", loopId).maybeSingle()
+      if (loopRow) {
+        await supabase
+          .from("loops")
+          .update({ comment_count: Math.max(0, Number((loopRow as any).comment_count || 0) - 1) })
+          .eq("id", loopId)
+      }
+    } catch (statsErr) {
+      console.warn("Comment count decrement failed:", statsErr)
+    }
+
     return NextResponse.json({ success: true })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 })

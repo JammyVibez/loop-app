@@ -480,8 +480,12 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
     try {
       const streamMedia = await broadcasterRef.current.flipCamera()
       if (streamMedia) bindVideo(streamMedia, true)
-    } catch {
-      toast({ title: "Could not flip camera", variant: "destructive" })
+    } catch (error: any) {
+      toast({
+        title: "Could not switch camera",
+        description: error?.message || "Your browser blocked the camera switch. Check camera permissions.",
+        variant: "destructive",
+      })
     }
   }
 

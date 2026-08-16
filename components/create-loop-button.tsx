@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { supabase } from "@/lib/supabase"
 import { CODE_LANGUAGES } from "@/lib/pro-features"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { useLoginGate } from "@/hooks/use-login-gate"
@@ -29,7 +28,6 @@ import {
   Save,
   Square,
   Upload,
-  Users,
   Video,
   X,
   Vote,
@@ -49,11 +47,6 @@ interface CreateLoopButtonProps {
 }
 
 type MediaType = "text" | "image" | "video" | "audio" | "code" | "poll" | "moment"
-
-function makeCollabId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID()
-  return `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-}
 
 export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = false }: CreateLoopButtonProps) {
   const { user, getAuthHeader } = useAuth()
@@ -77,12 +70,6 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [cropScale, setCropScale] = useState(1)
   const [discardOpen, setDiscardOpen] = useState(false)
-  const [collabEnabled, setCollabEnabled] = useState(false)
-  const [collabId, setCollabId] = useState<string | null>(null)
-  const [collabPeers, setCollabPeers] = useState<string[]>([])
-  const [joinCode, setJoinCode] = useState("")
-  const applyingRemote = useRef(false)
-  const collabChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
@@ -98,10 +85,6 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
         setContent(draft.content || "")
         setHashtags(draft.hashtags || "")
         setMediaType(draft.mediaType || "text")
-        if (draft.collabId) {
-          setCollabId(draft.collabId)
-          setCollabEnabled(true)
-        }
         if (!defaultOpen && (draft.content || draft.hashtags)) setIsOpen(true)
         toast({ title: "Draft restored", description: "We restored your unfinished loop." })
       }
@@ -111,90 +94,9 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
   }, [defaultOpen, toast])
 
   useEffect(() => {
-    const payload = { content, hashtags, mediaType, collabId, updatedAt: Date.now() }
+    const payload = { content, hashtags, mediaType, updatedAt: Date.now() }
     localStorage.setItem(DRAFT_KEY, JSON.stringify(payload))
-  }, [content, hashtags, mediaType, collabId])
-
-  // Realtime collaboration room for shared loop drafting
-  useEffect(() => {
-    if (!collabEnabled || !collabId || !user) return
-
-    const channel = supabase.channel(`loop-draft:${collabId}`, {
-      config: {
-        broadcast: { self: false },
-        presence: { key: user.id },
-      },
-    })
-    collabChannelRef.current = channel
-
-    channel
-      .on("broadcast", { event: "draft:update" }, ({ payload }) => {
-        if (!payload || payload.user?.id === user.id) return
-        applyingRemote.current = true
-        if (typeof payload.content === "string") setContent(payload.content)
-        if (typeof payload.hashtags === "string") setHashtags(payload.hashtags)
-        if (payload.mediaType) setMediaType(payload.mediaType)
-        queueMicrotask(() => {
-          applyingRemote.current = false
-        })
-      })
-      .on("presence", { event: "sync" }, () => {
-        const state = channel.presenceState()
-        const names = Object.values(state)
-          .flat()
-          .map((peer: any) => peer.username || peer.display_name || "collaborator")
-        setCollabPeers(Array.from(new Set(names)))
-      })
-      .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          await channel.track({
-            user_id: user.id,
-            username: user.username,
-            display_name: user.display_name,
-          })
-        }
-      })
-
-    return () => {
-      collabChannelRef.current = null
-      void supabase.removeChannel(channel)
-    }
-  }, [collabEnabled, collabId, user?.id])
-
-  useEffect(() => {
-    if (!collabEnabled || !collabId || !user || applyingRemote.current) return
-    const timer = setTimeout(() => {
-      void collabChannelRef.current?.send({
-        type: "broadcast",
-        event: "draft:update",
-        payload: {
-          content,
-          hashtags,
-          mediaType,
-          user: { id: user.id, username: user.username },
-        },
-      })
-    }, 250)
-    return () => clearTimeout(timer)
-  }, [content, hashtags, mediaType, collabEnabled, collabId, user?.id])
-
-  const startCollab = () => {
-    const id = makeCollabId()
-    setCollabId(id)
-    setCollabEnabled(true)
-    toast({
-      title: "Collab room ready",
-      description: `Share code ${id.slice(0, 8)}… with collaborators`,
-    })
-  }
-
-  const joinCollab = () => {
-    const id = joinCode.trim()
-    if (!id) return
-    setCollabId(id)
-    setCollabEnabled(true)
-    toast({ title: "Joined collab room", description: "Edits sync in realtime." })
-  }
+  }, [content, hashtags, mediaType])
 
   useEffect(() => {
     if (!mediaFiles[0]) {
@@ -583,53 +485,6 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
               <X className="h-4 w-4" />
             </Button>
           </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-muted/20 p-3 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Users className="h-4 w-4 text-cyan-500" />
-            <p className="text-sm font-medium">Realtime collab</p>
-            {collabEnabled && collabId && (
-              <Badge variant="secondary" className="font-mono text-[10px]">
-                {collabId.slice(0, 8)}
-              </Badge>
-            )}
-          </div>
-          {!collabEnabled ? (
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button type="button" size="sm" className="rounded-full" onClick={startCollab}>
-                Start collab room
-              </Button>
-              <div className="flex flex-1 gap-2">
-                <Input
-                  value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value)}
-                  placeholder="Paste collab code"
-                  className="h-9"
-                />
-                <Button type="button" size="sm" variant="outline" onClick={joinCollab}>
-                  Join
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Live with {Math.max(collabPeers.length, 1)} collaborator
-              {collabPeers.length === 1 ? "" : "s"}
-              {collabPeers.length ? `: ${collabPeers.join(", ")}` : ""}. Share the full code{" "}
-              <button
-                type="button"
-                className="underline"
-                onClick={() => {
-                  void navigator.clipboard.writeText(collabId || "")
-                  toast({ title: "Collab code copied" })
-                }}
-              >
-                copy code
-              </button>
-              .
-            </p>
-          )}
         </div>
 
         {showPreview ? (

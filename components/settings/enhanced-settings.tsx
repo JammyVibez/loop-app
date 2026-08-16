@@ -316,6 +316,16 @@ export function EnhancedSettings() {
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file || !user) return
+    // Animated GIF avatars are a Pro-only perk — friendly guard before upload.
+    if (file.type === "image/gif" && !user.is_premium) {
+      toast({
+        title: "GIF avatars are Pro-only",
+        description: "Upgrade to Pro to use an animated profile picture. Static images work for everyone.",
+        variant: "destructive",
+      })
+      event.target.value = ""
+      return
+    }
     setUploading(true)
     try {
       // Phone camera photos routinely exceed Vercel's ~4.5MB request body
@@ -347,6 +357,16 @@ export function EnhancedSettings() {
   const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file || !user) return
+    // Animated GIF covers are a Pro-only perk — friendly guard before upload.
+    if (file.type === "image/gif" && !user.is_premium) {
+      toast({
+        title: "GIF covers are Pro-only",
+        description: "Upgrade to Pro to use an animated cover photo. Static images work for everyone.",
+        variant: "destructive",
+      })
+      event.target.value = ""
+      return
+    }
     setUploadingCover(true)
     try {
       const uploaded = await uploadMediaFile(file, {

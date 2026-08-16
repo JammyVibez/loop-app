@@ -40,7 +40,6 @@ import {
   ExternalLink,
   Layers,
   Upload,
-  Film,
   Paperclip,
   Power,
 } from "lucide-react"
@@ -106,6 +105,8 @@ export function CoLoopStudio() {
   const [mediaUrls, setMediaUrls] = useState<string[]>([])
   const [mediaType, setMediaType] = useState<"text" | "image" | "video">("text")
   const [uploadingMedia, setUploadingMedia] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
+  const dragDepthRef = useRef(0)
 
   // Real-time Collaboration & Version History State
   const [collaborators, setCollaborators] = useState<Collaborator[]>([])
@@ -1530,20 +1531,60 @@ export function CoLoopStudio() {
                   className="hidden"
                 />
 
+                {/* Drag & drop zone */}
+                <div
+                  onDragEnter={(e) => {
+                    e.preventDefault()
+                    dragDepthRef.current += 1
+                    setDragActive(true)
+                  }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDragLeave={(e) => {
+                    e.preventDefault()
+                    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
+                    if (dragDepthRef.current === 0) setDragActive(false)
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    dragDepthRef.current = 0
+                    setDragActive(false)
+                    void handleFileUpload(e.dataTransfer.files)
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-3 py-4 text-center transition-colors ${
+                    dragActive
+                      ? "border-cyan-400 bg-cyan-500/15"
+                      : "border-cyan-500/30 bg-cyan-500/5 hover:border-cyan-400/60 hover:bg-cyan-500/10"
+                  }`}
+                >
+                  {uploadingMedia ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-cyan-400" />
+                  ) : dragActive ? (
+                    <Upload className="h-5 w-5 text-cyan-300" />
+                  ) : (
+                    <ImageIcon className="h-5 w-5 text-cyan-400" />
+                  )}
+                  <p className="text-[11px] font-semibold text-cyan-700 dark:text-cyan-300">
+                    {uploadingMedia ? "Uploading..." : dragActive ? "Drop to attach" : "Click or drag image / video here"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {user?.is_premium ? "Pro — up to 4 files" : "Free — 1 file"} · JPEG, PNG, GIF, HEIC, MP4, WebM
+                  </p>
+                </div>
+
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      fileInputRef.current?.click()
+                    }}
                     disabled={uploadingMedia}
                     variant="outline"
                     className="rounded-xl border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 dark:bg-cyan-950/30 hover:bg-cyan-500/20 text-xs font-bold gap-1.5 h-9"
                   >
-                    {uploadingMedia ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
-                    ) : (
-                      <Upload className="h-4 w-4 text-cyan-400" />
-                    )}
-                    {uploadingMedia ? "Uploading..." : "Upload Image or Video"}
+                    <Paperclip className="h-4 w-4 text-cyan-400" />
+                    Browse files
                   </Button>
 
                   {/* URL Fallback */}
@@ -1568,13 +1609,12 @@ export function CoLoopStudio() {
                 {mediaUrls.length > 0 && (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
                     {mediaUrls.map((url, index) => {
-                      const isVid = url.match(/\.(mp4|webm|ogg|mov)$/i) || mediaType === "video"
+                      const isVid = url.match(/\.(mp4|webm|ogg|mov|m4v|avi)(\?|$)/i) || mediaType === "video"
                       return (
                         <div key={url + index} className="relative group rounded-xl overflow-hidden border border-cyan-500/30 bg-muted dark:bg-slate-900 h-20">
                           {isVid ? (
-                            <div className="flex h-full w-full items-center justify-center bg-muted text-cyan-600 dark:bg-slate-950 dark:text-cyan-400">
-                              <Film className="h-6 w-6" />
-                            </div>
+                            // eslint-disable-next-line jsx-a11y/media-has-caption
+                            <video src={url} muted preload="metadata" playsInline className="h-full w-full object-cover" />
                           ) : (
                             <img src={url} alt="Media attachment" className="h-full w-full object-cover" />
                           )}

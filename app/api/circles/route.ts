@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { circleCreateLimitMessage, getCircleCreateLimit } from "@/lib/circle-limits"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { isProUser } from "@/lib/pro-features"
 
 function createServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -10,6 +11,24 @@ function createServerClient() {
   return createClient(supabaseUrl, supabaseKey, { auth: { autoRefreshToken: false, persistSession: false } })
 }
 
+
+async function getViewerProStatus(supabase: ReturnType<typeof createServerClient>, userId: string | null) {
+  if (!userId) return false
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_premium, premium_expires_at")
+    .eq("id", userId)
+    .maybeSingle()
+  return isProUser(profile as any)
+}
+
+// Pro-only circles must be invisible to non-Pro users — filter them out of
+// every browse/joined/mine response so they never leak in listings.
+function filterProCircles(circles: any[] | null | undefined, viewerIsPro: boolean) {
+  if (!circles) return []
+  if (viewerIsPro) return circles
+  return circles.filter((c: any) => !c.is_premium_only)
+}
 
 function normalizeCircle(circle: any, membershipMap = new Map<string, any>()) {
   const memberCount = Array.isArray(circle.member_count) ? circle.member_count[0]?.count : circle.member_count
@@ -103,9 +122,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Failed to fetch circles" }, { status: 500 })
       }
 
+      const viewerIsPro = await getViewerProStatus(supabase, user.id)
       return NextResponse.json({
         success: true,
-        circles: (circles || []).map((circle) => normalizeCircle(circle, membershipMap)),
+        circles: filterProCircles(circles, viewerIsPro).map((circle) => normalizeCircle(circle, membershipMap)),
         hasMore: false,
       })
     }
@@ -156,10 +176,13 @@ export async function GET(request: NextRequest) {
       memberships?.forEach((membership) => membershipMap.set(membership.circle_id, membership))
     }
 
+    const viewerIsPro = await getViewerProStatus(supabase, user?.id || null)
+    const visible = filterProCircles(circles, viewerIsPro)
+
     return NextResponse.json({
       success: true,
-      circles: (circles || []).map((circle) => normalizeCircle(circle, membershipMap)),
-      hasMore: circles?.length === limit,
+      circles: visible.map((circle) => normalizeCircle(circle, membershipMap)),
+      hasMore: visible.length === limit,
     })
   } catch (error) {
     console.error("Error in circles API:", error)
@@ -172,7 +195,20 @@ export async function POST(request: NextRequest) {
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const { name, description, category, is_private, avatar_url, banner_url, rules, tags } = await request.json()
+    const { name, description, category, is_private, avatar_url, banner_url, rules, tags, is_premium_only } = await request.json()
+
+    // Only platform admins may create a Pro-only circle (auto-membership for all Pro users).
+    if (is_premium_only) {
+      const supabaseAdminCheck = createServerClient()
+      const { data: adminProfile } = await supabaseAdminCheck
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .maybeSingle()
+      if (!adminProfile?.is_admin && !/admin/i.test(user.email || "")) {
+        return NextResponse.json({ error: "Only platform admins can create a Pro-only circle" }, { status: 403 })
+      }
+    }
     if (!name || name.trim().length < 3) {
       return NextResponse.json({ error: "Circle name must be at least 3 characters" }, { status: 400 })
     }
@@ -230,6 +266,7 @@ export async function POST(request: NextRequest) {
       max_members: 1000,
       member_count: 1,
       settings: defaultSettings,
+      ...(is_premium_only ? { is_premium_only: true } : {}),
     }
 
     let { data: circle, error: createError } = await supabase

@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect, use, useRef } from "react"
+import { useState, useEffect, use, useRef, useCallback } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, Radio, Users, Send, ArrowLeft, Mic, MicOff, Video, VideoOff, ShieldCheck, Heart, Gift, MessageSquare, RefreshCw, Crown, UserX, Shield, Square } from "lucide-react"
+import { Radio, Users, Send, ArrowLeft, Mic, MicOff, Video, VideoOff, Gift, MessageSquare, RefreshCw, Crown, UserX, Shield, Square, Trash2, Volume2, VolumeX, Lock, ShieldCheck } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
@@ -28,6 +28,7 @@ interface EventItem {
   cover_image?: string
   participants_count: number
   is_live: boolean
+  allow_type?: string
 }
 
 interface Participant {
@@ -38,6 +39,7 @@ interface Participant {
   avatar_url: string
   role: string
   joined_at: string
+  is_muted?: boolean
 }
 
 interface ChatMessage {
@@ -46,6 +48,15 @@ interface ChatMessage {
   avatar: string
   text: string
   timestamp: string
+  user_id?: string
+  is_deleted?: boolean
+}
+
+const ALLOW_TYPE_LABELS: Record<string, { label: string; className: string }> = {
+  everyone: { label: "Open to everyone", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+  pro: { label: "🔒 Pro members only", className: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+  verified: { label: "✔ Verified accounts only", className: "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400" },
+  organization: { label: "🏢 Organizations only", className: "border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400" },
 }
 
 export default function SingleEventPage({ params }: { params: Promise<{ id: string }> }) {
@@ -64,13 +75,18 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
   const [micMuted, setMicMuted] = useState(true)
   const [videoEnabled, setVideoEnabled] = useState(false)
   const [endingEvent, setEndingEvent] = useState(false)
+  const [mutingAll, setMutingAll] = useState(false)
   const [giftModalOpen, setGiftModalOpen] = useState(false)
   const [giftRecipient, setGiftRecipient] = useState<{ id: string; username: string; display_name: string; avatar_url?: string } | null>(null)
-  
+
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
   const isHostOrAdmin = user && (user.id === event?.host_id || user.is_admin)
+  const myParticipant = participants.find((p) => p.user_id === user?.id)
+  const isMod = Boolean(isHostOrAdmin || myParticipant?.role === "moderator")
+  const amMuted = Boolean(myParticipant?.is_muted)
+  const allowCfg = event ? ALLOW_TYPE_LABELS[event.allow_type || "everyone"] : null
 
   useEffect(() => {
     if (joinedStage && videoEnabled) {
@@ -127,6 +143,58 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
     }
   }
 
+  const handleMuteAll = async (mute: boolean) => {
+    if (!isMod) return
+    setMutingAll(true)
+    try {
+      const token = user?.access_token
+      const res = await fetch(`/api/events/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ action: mute ? "mute_all" : "unmute_all" }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast({ title: mute ? "Stage muted" : "Stage unmuted", description: data.message })
+        setParticipants((prev) => prev.map((p) => (mute ? { ...p, is_muted: true } : { ...p, is_muted: false })))
+      } else {
+        toast({ title: "Action failed", description: data.error, variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Error", description: "Moderation command failed", variant: "destructive" })
+    } finally {
+      setMutingAll(false)
+    }
+  }
+
+  const mapEventMessage = useCallback((row: any): ChatMessage => {
+    const author = Array.isArray(row.author) ? row.author[0] : row.author
+    return {
+      id: row.id,
+      sender: author?.display_name || author?.username || "Member",
+      avatar: author?.avatar_url || "/placeholder.svg",
+      text: row.content,
+      timestamp: new Date(row.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      user_id: row.user_id,
+      is_deleted: Boolean(row.is_deleted),
+    }
+  }, [])
+
+  const loadMessages = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/events/${id}/messages`)
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setChatMessages((data.messages || []).map(mapEventMessage))
+      }
+    } catch (err) {
+      console.error("Error loading event chat:", err)
+    }
+  }, [id, mapEventMessage])
+
   useEffect(() => {
     fetchEventDetails(true)
     loadMessages()
@@ -150,9 +218,16 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
       )
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "event_messages", filter: `event_id=eq.${id}` },
+        { event: "*", schema: "public", table: "event_messages", filter: `event_id=eq.${id}` },
         () => {
           loadMessages()
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "event_mutes", filter: `event_id=eq.${id}` },
+        () => {
+          fetchEventDetails(false)
         }
       )
       .subscribe()
@@ -161,29 +236,6 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
       supabase.removeChannel(channel)
     }
   }, [id, user])
-
-  const mapEventMessage = (row: any): ChatMessage => {
-    const author = Array.isArray(row.author) ? row.author[0] : row.author
-    return {
-      id: row.id,
-      sender: author?.display_name || author?.username || "Member",
-      avatar: author?.avatar_url || "/placeholder.svg",
-      text: row.content,
-      timestamp: new Date(row.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    }
-  }
-
-  const loadMessages = async () => {
-    try {
-      const res = await fetch(`/api/events/${id}/messages`)
-      const data = await res.json().catch(() => ({}))
-      if (res.ok) {
-        setChatMessages((data.messages || []).map(mapEventMessage))
-      }
-    } catch (err) {
-      console.error("Error loading event chat:", err)
-    }
-  }
 
   const fetchEventDetails = async (showLoading = false) => {
     if (showLoading) setLoading(true)
@@ -233,6 +285,12 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
         toast({
           title: joinedStage ? "Left Stage" : "Joined Stage! 🎤",
           description: data.message,
+        })
+      } else {
+        toast({
+          title: "Could not join",
+          description: data.error || "Something went wrong",
+          variant: "destructive",
         })
       }
     } catch (err) {
@@ -288,6 +346,52 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
     }
   }
 
+  const handleMuteParticipant = async (targetUserId: string, targetName: string, mute: boolean) => {
+    try {
+      const token = user?.access_token
+      const res = await fetch(`/api/events/${id}/participants`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ action: mute ? "mute" : "unmute", target_user_id: targetUserId }),
+      })
+
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast({ title: mute ? "Muted" : "Unmuted", description: `${targetName} is ${mute ? "muted" : "unmuted"} on stage.` })
+        setParticipants((prev) =>
+          prev.map((p) => (p.user_id === targetUserId ? { ...p, is_muted: mute } : p)),
+        )
+      } else {
+        toast({ title: "Action Failed", description: data.error, variant: "destructive" })
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Mute command failed", variant: "destructive" })
+    }
+  }
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!isMod && messageId !== myParticipant?.id) return
+    try {
+      const token = user?.access_token
+      const res = await fetch(`/api/events/${id}/messages?message_id=${messageId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setChatMessages((prev) => prev.filter((m) => m.id !== messageId))
+        toast({ title: "Message deleted" })
+      } else {
+        toast({ title: "Delete failed", description: data.error, variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Error", description: "Could not delete message", variant: "destructive" })
+    }
+  }
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     const text = inputText.trim()
@@ -295,6 +399,11 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
 
     if (!user) {
       toast({ title: "Sign in to chat", variant: "destructive" })
+      return
+    }
+
+    if (amMuted) {
+      toast({ title: "You're muted", description: "A moderator muted you in this event chat.", variant: "destructive" })
       return
     }
 
@@ -363,10 +472,10 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
   const badgeConfig = getEventStatusBadge(currentStatus)
 
   return (
-    <div className="container max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <div className="container max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
       {/* Top Bar Navigation */}
-      <div className="flex items-center justify-between border-b border-border/60 pb-4">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
           <Button asChild variant="ghost" size="sm" className="rounded-xl h-8 text-xs">
             <Link href="/events"><ArrowLeft className="w-4 h-4 mr-1" /> All Events</Link>
           </Button>
@@ -375,9 +484,15 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
             {badgeConfig.label}
           </Badge>
           <Badge variant="outline" className="text-xs">{event.category}</Badge>
+          {allowCfg && event.allow_type && event.allow_type !== "everyone" && (
+            <Badge className={`${allowCfg.className} text-[10px] px-2 py-0.5`}>
+              <Lock className="w-2.5 h-2.5 mr-1" />
+              {allowCfg.label}
+            </Badge>
+          )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {isHostOrAdmin && event.is_live && (
             <Button
               onClick={handleEndEvent}
@@ -419,11 +534,11 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Main Grid: Live Broadcast Stage + Live Chat Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Left 2-Cols: Video & Speaker Stage */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="min-w-0 lg:col-span-2 space-y-4">
           {/* Main Broadcast Screen */}
-          <Card className="relative overflow-hidden border-border/60 bg-slate-950 aspect-video rounded-2xl flex flex-col justify-between p-4 shadow-xl">
+          <Card className="relative overflow-hidden border-border/60 bg-slate-950 aspect-video rounded-2xl flex flex-col justify-between p-3 sm:p-4 shadow-xl">
             {joinedStage && videoEnabled ? (
               <video
                 ref={videoRef}
@@ -442,49 +557,49 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
 
             {/* Stage Top Header */}
-            <div className="relative z-10 flex items-center justify-between">
-              <div className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-white text-xs">
+            <div className="relative z-10 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-white text-[11px] sm:text-xs">
                 <Radio className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
                 <span>{event.is_live ? "Live Broadcast Room" : "Broadcast Ended"}</span>
               </div>
-              <div className="flex items-center gap-2 text-white/80 text-xs bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+              <div className="flex items-center gap-2 text-white/80 text-[11px] sm:text-xs bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
                 <Users className="w-3.5 h-3.5 text-cyan-400" />
-                <span>{participants.length} Active Participants</span>
+                <span>{participants.length} Active</span>
               </div>
             </div>
 
             {/* Stage Speakers Grid Simulation */}
             {(!joinedStage || !videoEnabled) && (
-              <div className="relative z-10 grid grid-cols-3 gap-3 my-auto max-w-lg mx-auto w-full">
+              <div className="relative z-10 grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 my-auto max-w-lg mx-auto w-full">
                 {participants.slice(0, 3).map((p, idx) => (
                   <div key={p.id || idx} className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-900/90 border border-white/10 text-white text-center shadow-md">
-                    <Avatar className="w-12 h-12 border-2 border-primary/50 shadow-md">
+                    <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-primary/50 shadow-md">
                       <AvatarImage src={p.avatar_url || "/placeholder.svg"} />
                       <AvatarFallback>{p.display_name?.charAt(0) || "S"}</AvatarFallback>
                     </Avatar>
                     <p className="text-xs font-bold mt-2 truncate w-full">{p.display_name}</p>
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 mt-0.5 bg-white/10 text-cyan-300">
-                      {p.role || "Speaker"}
+                      {p.role === "host" ? "Host" : p.role === "moderator" ? "Mod" : p.role || "Speaker"}
                     </Badge>
                   </div>
                 ))}
                 {participants.length === 0 && (
-                  <div className="col-span-3 text-center py-6 text-slate-400 text-xs">
-                    Host is on stage. Click "Join Stage" to get speaking access!
+                  <div className="col-span-full text-center py-6 text-slate-400 text-xs">
+                    Host is on stage. Click &quot;Join Stage&quot; to get speaking access!
                   </div>
                 )}
               </div>
             )}
 
             {/* Stage Controls Footer */}
-            <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-3 text-white">
-              <div className="flex items-center gap-2">
-                <Avatar className="w-8 h-8">
+            <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-white">
+              <div className="flex items-center gap-2 min-w-0">
+                <Avatar className="w-8 h-8 shrink-0">
                   <AvatarImage src={event.host_avatar || "/placeholder.svg"} />
                   <AvatarFallback>{event.host_name?.charAt(0) || "H"}</AvatarFallback>
                 </Avatar>
-                <div>
-                  <p className="text-xs font-bold truncate max-w-[150px]">{event.host_name}</p>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold truncate max-w-[120px] sm:max-w-[150px]">{event.host_name}</p>
                   <p className="text-[10px] text-slate-400">Host</p>
                 </div>
               </div>
@@ -516,23 +631,29 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
 
           {/* Event Details Card */}
           <Card className="border-border/60 bg-card p-5 space-y-3 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold tracking-tight">{event.title}</h2>
-              {isHostOrAdmin && (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight">{event.title}</h2>
+              {isMod && (
                 <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-[10px] px-2 py-0.5 font-bold flex items-center gap-1">
                   <Shield className="w-3 h-3" />
-                  Host / Admin Moderation Enabled
+                  Host / Mod Moderation Enabled
                 </Badge>
               )}
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
               {event.description || "No description provided."}
             </p>
+            {amMuted && (
+              <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+                <VolumeX className="w-4 h-4 shrink-0" />
+                You&apos;re muted on this stage — a moderator muted you. You can still watch and join the stage.
+              </div>
+            )}
           </Card>
 
           {/* Real-time Participant & Moderation Roster */}
-          <Card className="border-border/60 bg-card p-5 space-y-4 shadow-sm">
-            <div className="flex items-center justify-between border-b border-border/40 pb-3">
+          <Card className="border-border/60 bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-3">
               <div>
                 <h3 className="text-sm font-bold flex items-center gap-2">
                   <Users className="w-4 h-4 text-cyan-500" />
@@ -540,6 +661,32 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
                 </h3>
                 <p className="text-xs text-muted-foreground">Real-time attendance powered by Supabase Realtime.</p>
               </div>
+              {isMod && event.is_live && (
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={mutingAll}
+                    onClick={() => handleMuteAll(true)}
+                    className="h-7 text-[10px] rounded-lg px-2 border-amber-500/40 text-amber-600 dark:text-amber-400"
+                    title="Mute everyone's chat"
+                  >
+                    <VolumeX className="w-3 h-3 mr-1" />
+                    Mute All
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={mutingAll}
+                    onClick={() => handleMuteAll(false)}
+                    className="h-7 text-[10px] rounded-lg px-2 border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+                    title="Unmute everyone"
+                  >
+                    <Volume2 className="w-3 h-3 mr-1" />
+                    Unmute All
+                  </Button>
+                </div>
+              )}
             </div>
 
             {participants.length === 0 ? (
@@ -547,7 +694,7 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
             ) : (
               <div className="divide-y divide-border/30">
                 {participants.map((p) => (
-                  <div key={p.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                  <div key={p.id} className="py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Avatar className="w-7 h-7 shrink-0">
                         <AvatarImage src={p.avatar_url || "/placeholder.svg"} />
@@ -556,15 +703,18 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
                       <div className="min-w-0">
                         <p className="font-semibold text-foreground truncate">
                           {p.display_name} <span className="text-muted-foreground font-normal">(@{p.username})</span>
+                          {p.role === "host" && <Crown className="w-3 h-3 inline ml-1 text-amber-400" />}
+                          {p.role === "moderator" && <ShieldCheck className="w-3 h-3 inline ml-1 text-sky-400" />}
+                          {p.is_muted && <VolumeX className="w-3 h-3 inline ml-1 text-rose-400" />}
                         </p>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-0.5">
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-0.5 capitalize">
                           {p.role || "listener"}
                         </Badge>
                       </div>
                     </div>
 
-                    {isHostOrAdmin && p.user_id !== user.id && (
-                      <div className="flex items-center gap-1.5 shrink-0">
+                    {isMod && p.user_id !== user?.id && (
+                      <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                         <Button
                           size="sm"
                           variant="outline"
@@ -572,6 +722,26 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
                           className="h-7 text-[10px] rounded-lg px-2 border-border/60"
                         >
                           {p.role === "speaker" ? "Make Listener" : "Make Speaker"}
+                        </Button>
+                        {p.role !== "moderator" && p.role !== "host" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleAdminUpdateRole(p.user_id, "moderator", p.display_name)}
+                            className="h-7 text-[10px] rounded-lg px-2 border-sky-500/40 text-sky-600 dark:text-sky-400"
+                          >
+                            <ShieldCheck className="w-3 h-3 mr-1" />
+                            Give Mod
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleMuteParticipant(p.user_id, p.display_name, !p.is_muted)}
+                          className="h-7 text-[10px] rounded-lg px-2 border-amber-500/40 text-amber-600 dark:text-amber-400"
+                        >
+                          {p.is_muted ? <Volume2 className="w-3 h-3 mr-1" /> : <VolumeX className="w-3 h-3 mr-1" />}
+                          {p.is_muted ? "Unmute" : "Mute"}
                         </Button>
                         <Button
                           size="sm"
@@ -592,7 +762,7 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
         </div>
 
         {/* Right 1-Col: Live Chat Room */}
-        <Card className="border-border/60 bg-card/80 shadow-sm flex flex-col justify-between h-[520px]">
+        <Card className="min-w-0 border-border/60 bg-card/80 shadow-sm flex flex-col justify-between h-[480px] sm:h-[520px]">
           <CardHeader className="pb-3 border-b border-border/50">
             <CardTitle className="text-base font-bold flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-indigo-500" />
@@ -611,17 +781,31 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
               </p>
             )}
             {chatMessages.map((msg) => (
-              <div key={msg.id} className="flex items-start gap-2 text-xs">
+              <div key={msg.id} className="group flex items-start gap-2 text-xs">
                 <Avatar className="w-6 h-6 shrink-0 mt-0.5">
                   <AvatarImage src={msg.avatar} />
                   <AvatarFallback>{msg.sender?.charAt(0) || "U"}</AvatarFallback>
                 </Avatar>
-                <div className="min-w-0 bg-muted/60 p-2.5 rounded-xl flex-1">
-                  <div className="flex items-center justify-between gap-2 mb-0.5">
-                    <span className="font-semibold text-foreground truncate">{msg.sender}</span>
-                    <span className="text-[10px] text-muted-foreground">{msg.timestamp}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="min-w-0 bg-muted/60 p-2.5 rounded-xl">
+                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                      <span className="font-semibold text-foreground truncate">{msg.sender}</span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">{msg.timestamp}</span>
+                    </div>
+                    <p className="text-muted-foreground leading-relaxed break-words">{msg.text}</p>
                   </div>
-                  <p className="text-muted-foreground leading-relaxed break-words">{msg.text}</p>
+                  {(isMod || msg.user_id === user?.id) && (
+                    <div className="mt-0.5 flex justify-end opacity-0 transition-opacity group-hover:opacity-100">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        {isMod && msg.user_id !== user?.id ? "Remove" : "Delete"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -630,16 +814,16 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
           {/* Chat Input */}
           <form onSubmit={handleSendMessage} className="p-3 border-t border-border/50 flex items-center gap-2">
             <Input
-              placeholder={user ? "Type a message..." : "Sign in to chat"}
+              placeholder={amMuted ? "You're muted in this chat" : user ? "Type a message..." : "Sign in to chat"}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              disabled={!user || sendingMessage}
+              disabled={!user || sendingMessage || amMuted}
               className="rounded-xl text-xs h-9"
             />
             <Button
               type="submit"
               size="icon"
-              disabled={!user || sendingMessage || !inputText.trim()}
+              disabled={!user || sendingMessage || !inputText.trim() || amMuted}
               className="h-9 w-9 rounded-xl shrink-0 bg-primary"
             >
               <Send className="w-4 h-4" />

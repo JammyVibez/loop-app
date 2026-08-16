@@ -86,13 +86,28 @@ export class LiveBroadcaster {
    * (no full peer teardown — viewers update live).
    */
   async startScreenShare() {
-    if (!navigator.mediaDevices?.getDisplayMedia) {
-      throw new Error("Screen sharing is not supported in this browser. Try Chrome or Edge on desktop.")
+    const mediaDevices = navigator.mediaDevices
+    const getDisplayMedia =
+      (mediaDevices && typeof mediaDevices.getDisplayMedia === "function"
+        ? mediaDevices.getDisplayMedia.bind(mediaDevices)
+        : undefined) ||
+      // Older Safari / embedded webviews expose the legacy global API
+      (typeof (navigator as any).getDisplayMedia === "function"
+        ? (navigator as any).getDisplayMedia.bind(navigator)
+        : undefined)
+
+    if (!getDisplayMedia) {
+      if (typeof window !== "undefined" && window.isSecureContext === false) {
+        throw new Error("Screen sharing requires a secure (HTTPS) connection. Open the app in its own tab over HTTPS.")
+      }
+      throw new Error(
+        "This browser doesn't support screen sharing. Use Chrome or Edge on desktop — and if you're viewing an embedded preview, open the live room in its own tab.",
+      )
     }
 
     let display: MediaStream
     try {
-      display = await navigator.mediaDevices.getDisplayMedia({
+      display = await getDisplayMedia({
         video: {
           frameRate: { ideal: 30 },
           width: { ideal: 1920 },
@@ -102,8 +117,11 @@ export class LiveBroadcaster {
         audio: false,
       })
     } catch (err: any) {
-      if (err?.name === "NotAllowedError") {
+      if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError") {
         throw new Error("Screen share permission denied. Allow sharing and try again.")
+      }
+      if (err?.name === "NotFoundError" || err?.name === "NotSupportedError") {
+        throw new Error("No screen source available. This device or browser can't share a screen right now.")
       }
       throw new Error(err?.message || "Could not start screen share")
     }
@@ -165,10 +183,51 @@ export class LiveBroadcaster {
     this.onLocalStream?.(this.cameraStream, "camera")
   }
 
+  /**
+   * Switch between the front and back camera. Only attempts the flip when the
+   * device actually reports more than one video input — otherwise desktops
+   * (one camera) throw a NotFoundError and the button appears broken.
+   */
   async flipCamera() {
     if (this.mediaMode !== "camera") return this.localStream
+
     const current = this.cameraStream?.getVideoTracks()[0]
-    const facing = current?.getSettings().facingMode === "environment" ? "user" : "environment"
+    if (!current) return this.localStream
+
+    const reportedFacing = current.getSettings().facingMode
+    if (reportedFacing) {
+      // Device reports its orientation — flip it directly.
+      const facing = reportedFacing === "environment" ? "user" : "environment"
+      return this.swapCameraTrack(facing)
+    }
+
+    // Desktop / devices that don't report facingMode: only flip when a second
+    // camera actually exists, otherwise surface a friendly error instead of a
+    // silent browser-level failure.
+    let deviceCount = 1
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      deviceCount = devices.filter((d) => d.kind === "videoinput").length
+    } catch {
+      deviceCount = 1
+    }
+    if (deviceCount < 2) {
+      throw new Error("Only one camera detected on this device.")
+    }
+
+    // Try environment first (front camera is already live); fall back to user
+    // if that request fails.
+    try {
+      return await this.swapCameraTrack("environment")
+    } catch (firstErr: any) {
+      if (firstErr?.name === "NotFoundError" || firstErr?.name === "OverconstrainedError") {
+        return this.swapCameraTrack("user")
+      }
+      throw firstErr
+    }
+  }
+
+  private async swapCameraTrack(facing: "user" | "environment") {
     const next = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -176,8 +235,10 @@ export class LiveBroadcaster {
     const newTrack = next.getVideoTracks()[0]
     const oldTrack = this.cameraStream?.getVideoTracks()[0]
     if (this.cameraStream && newTrack) {
-      this.cameraStream.removeTrack(oldTrack!)
-      oldTrack?.stop()
+      if (oldTrack) {
+        this.cameraStream.removeTrack(oldTrack)
+        oldTrack.stop()
+      }
       this.cameraStream.addTrack(newTrack)
       this.localStream = this.cameraStream
       await this.replaceVideoTrack(newTrack)

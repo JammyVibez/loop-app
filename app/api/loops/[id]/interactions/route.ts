@@ -1,19 +1,6 @@
-
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
-
-async function getUserFromToken(token: string | null) {
-  if (!token) return null
-  try {
-    const supabase = createServerClient()
-    const { data: { user }, error } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch (error) {
-    console.error('Auth error:', error)
-    return null
-  }
-}
+import { getUserFromRequest } from "@/lib/server-auth"
 
 export async function POST(
   request: NextRequest,
@@ -21,16 +8,10 @@ export async function POST(
 ) {
   try {
     const { id: loopId } = await params
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const body = await request.json().catch(() => ({}))
@@ -260,9 +241,7 @@ export async function GET(
 ) {
   try {
     const { id: loopId } = await params
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "") ?? null
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     const supabase = createServerClient()
 

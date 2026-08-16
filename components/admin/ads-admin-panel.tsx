@@ -1,7 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import { Megaphone, Plus, Loader2, Save, Trash2, Power, Eye, MousePointerClick, ExternalLink } from "lucide-react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { Megaphone, Plus, Loader2, Save, Trash2, Power, Eye, MousePointerClick, ExternalLink, Upload, X } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -11,12 +11,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
+import { uploadMediaFile } from "@/lib/client-media-upload"
 
 interface AdSettings {
   enabled: boolean
   frequency_min: number
   frequency_max: number
-  surfaces: { home: boolean; circles: boolean; explore: boolean }
+  surfaces: { home: boolean; circles: boolean; explore: boolean; developers: boolean }
 }
 
 interface AdRow {
@@ -50,13 +51,16 @@ export function AdsAdminPanel() {
     enabled: false,
     frequency_min: 50,
     frequency_max: 70,
-    surfaces: { home: true, circles: false, explore: false },
+    surfaces: { home: true, circles: false, explore: false, developers: true },
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [creating, setCreating] = useState(false)
+  const [uploadingMedia, setUploadingMedia] = useState(false)
+  const [mediaPreview, setMediaPreview] = useState<string | null>(null)
+  const adFileRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
     try {
@@ -97,6 +101,31 @@ export function AdsAdminPanel() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const uploadAdMedia = async (file: File) => {
+    setUploadingMedia(true)
+    try {
+      const type = file.type.startsWith("video") ? "video" : "image"
+      const uploaded = await uploadMediaFile(file, {
+        type,
+        folder: "ads",
+        authHeaders: getAuthHeader(),
+      })
+      setForm((f) => ({ ...f, media_url: uploaded.url, media_type: type }))
+      setMediaPreview(uploaded.url)
+      toast({ title: "Media uploaded", description: type === "video" ? "Video attached to this ad." : "Image attached to this ad." })
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message || "Could not upload media", variant: "destructive" })
+    } finally {
+      setUploadingMedia(false)
+      if (adFileRef.current) adFileRef.current.value = ""
+    }
+  }
+
+  const clearAdMedia = () => {
+    setForm((f) => ({ ...f, media_url: "", media_type: "image" }))
+    setMediaPreview(null)
   }
 
   const createAd = async () => {
@@ -234,16 +263,15 @@ export function AdsAdminPanel() {
           </div>
           <p className="text-[11px] text-muted-foreground">
             Each session picks a random gap inside this range (e.g. 50–70 → one ad every 50–70 organic posts).
-          </p>
-
-          <div className="space-y-2">
+          </p>            <div className="space-y-2">
             <Label>Placement — feed surfaces</Label>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {(
                 [
                   ["home", "Home feed"],
                   ["circles", "Circle feeds"],
                   ["explore", "Explore"],
+                  ["developers", "Developer Hub"],
                 ] as const
               ).map(([key, label]) => (
                 <div key={key} className="flex items-center justify-between rounded-xl border p-3">
@@ -286,9 +314,64 @@ export function AdsAdminPanel() {
             <Label>Description</Label>
             <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} placeholder="Short supporting copy…" />
           </div>
-          <div className="space-y-1.5">
-            <Label>Media URL (image or video)</Label>
-            <Input value={form.media_url} onChange={(e) => setForm({ ...form, media_url: e.target.value })} placeholder="https://…" />
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Ad media (upload from device, or paste a URL)</Label>
+            <div className="flex flex-col gap-2">
+              <input
+                ref={adFileRef}
+                type="file"
+                accept="image/*,video/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) void uploadAdMedia(file)
+                }}
+              />
+              {mediaPreview ? (
+                <div className="relative overflow-hidden rounded-xl border border-border">
+                  {form.media_type === "video" || /\\.(mp4|webm|m3u8)(\?|$)/i.test(form.media_url) ? (
+                    // eslint-disable-next-line jsx-a11y/media-has-caption
+                    <video src={mediaPreview} controls playsInline className="max-h-44 w-full object-contain bg-black" />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={mediaPreview} alt="Ad media" className="max-h-44 w-full object-cover" />
+                  )}
+                  <button
+                    type="button"
+                    onClick={clearAdMedia}
+                    className="absolute right-2 top-2 rounded-full bg-black/70 p-1.5 text-white hover:bg-rose-600"
+                    title="Remove media"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex h-24 w-full flex-col gap-1.5 rounded-xl border-dashed"
+                  disabled={uploadingMedia}
+                  onClick={() => adFileRef.current?.click()}
+                >
+                  {uploadingMedia ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Upload className="h-5 w-5 text-violet-400" />
+                  )}
+                  <span className="text-xs text-muted-foreground">
+                    {uploadingMedia ? "Uploading…" : "Upload image or video from device"}
+                  </span>
+                </Button>
+              )}
+              <Input
+                value={form.media_url}
+                onChange={(e) => {
+                  setForm({ ...form, media_url: e.target.value })
+                  if (!e.target.value) setMediaPreview(null)
+                }}
+                placeholder="…or paste a media URL"
+              />
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label>Link URL</Label>

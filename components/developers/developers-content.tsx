@@ -13,6 +13,8 @@ import { DeveloperSnippets } from "@/components/developers/developer-snippets"
 import { DeveloperProfilePanel } from "@/components/developers/developer-profile-panel"
 import { DeveloperQuests } from "@/components/developers/developer-quests"
 import { DeveloperLeaderboard } from "@/components/developers/developer-leaderboard"
+import { AdCard, type AdData } from "@/components/ads/ad-card"
+import { useAuth } from "@/hooks/use-auth"
 
 function normalizeProject(row: any) {
   return {
@@ -44,6 +46,7 @@ const languages = ["All", "JavaScript", "Python", "TypeScript", "Go", "Rust", "J
 const frameworks = ["All", "React", "Vue", "Angular", "Node.js", "Django", "Flask", "Express"]
 
 export function DevelopersContent() {
+  const { user } = useAuth()
   const [projects, setProjects] = useState<ReturnType<typeof normalizeProject>[]>([])
   const [selectedLanguage, setSelectedLanguage] = useState("All")
   const [selectedFramework, setSelectedFramework] = useState("All")
@@ -53,6 +56,49 @@ export function DevelopersContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState("projects")
+
+  // Ads on the Developer Hub — eligibility is decided server-side so Pro
+  // users and Sponsors are always excluded. The client only places the card.
+  const [devAds, setDevAds] = useState<AdData[]>([])
+  const [adsEligible, setAdsEligible] = useState(false)
+  const devAdsSessionId = useMemo(
+    () =>
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `devsess-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    [],
+  )
+
+  React.useEffect(() => {
+    let cancelled = false
+    const token = user?.access_token || user?.token
+    ;(async () => {
+      try {
+        const eligibilityRes = await fetch("/api/ads/feed?surface=developers", {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          cache: "no-store",
+        })
+        const eligibility = await eligibilityRes.json().catch(() => ({ eligible: false }))
+        if (cancelled || !eligibility.eligible) return
+        const adsRes = await fetch("/api/ads/feed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ count: 1 }),
+          cache: "no-store",
+        })
+        const adsData = await adsRes.json().catch(() => ({ ads: [] }))
+        if (cancelled || !adsData.ads?.length) return
+        setDevAds(adsData.ads)
+        setAdsEligible(true)
+      } catch {
+        // Ads are progressive enhancement — never break the hub.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   // Fetch real projects from the database — never fall back to fake/mock data.
   const fetchProjects = async () => {
@@ -307,13 +353,20 @@ export function DevelopersContent() {
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {sortedProjects.map((project) => (
-                  <CodeLoopCard
-                    key={project.id}
-                    project={project}
-                    onUpdated={() => fetchProjects()}
-                    onDeleted={(id) => setProjects((prev) => prev.filter((p) => p.id !== id))}
-                  />
+                {sortedProjects.map((project, idx) => (
+                  <React.Fragment key={project.id}>
+                    {/* One ad slot mid-grid for eligible visitors (server-decided) */}
+                    {adsEligible && devAds.length > 0 && idx === 2 && (
+                      <div className="lg:col-span-2">
+                        <AdCard ad={devAds[0]} sessionId={devAdsSessionId} />
+                      </div>
+                    )}
+                    <CodeLoopCard
+                      project={project}
+                      onUpdated={() => fetchProjects()}
+                      onDeleted={(id) => setProjects((prev) => prev.filter((p) => p.id !== id))}
+                    />
+                  </React.Fragment>
                 ))}
               </div>
             )}

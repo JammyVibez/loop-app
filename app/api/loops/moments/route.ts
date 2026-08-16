@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       .select(
         `
         id, author_id, media_url, media_urls, media_type, content, created_at,
-        author:profiles!author_id(id, username, display_name, avatar_url, is_verified)
+        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, badge_id)
       `,
       )
       .in("author_id", authorIds)
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       .select(
         `
         id, author_id, media_url, thumbnail_url, created_at,
-        author:profiles!author_id(id, username, display_name, avatar_url, is_verified)
+        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, badge_id)
       `,
       )
       .in("author_id", authorIds)
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     type MomentItem = {
       id: string
-      type: "loop" | "reel"
+      type: "loop" | "reel" | "moment"
       media_url: string
       media_type: string
       href: string
@@ -81,7 +81,9 @@ export async function GET(request: NextRequest) {
     >()
 
     const pushItem = (author: any, authorId: string, item: MomentItem) => {
-      if (!authorId || !item.media_url) return
+      // Moments without media (caption-only) still count; loops/reels need media.
+      if (!authorId) return
+      if (!item.media_url && item.type !== "moment") return
       const existing = byAuthor.get(authorId) || {
         user: author || { id: authorId },
         items: [] as MomentItem[],
@@ -118,6 +120,31 @@ export async function GET(request: NextRequest) {
         media_type: "video",
         href: `/reels?id=${reel.id}`,
         created_at: reel.created_at,
+      })
+    }
+
+    // Real ephemeral Moments (24-48h posts from the `moments` table) are
+    // merged into the strip so the two concepts live in one rail.
+    const { data: realMoments } = await supabase
+      .from("moments")
+      .select(
+        `id, user_id, media_url, media_type, content, created_at, expires_at,
+         author:profiles!user_id(id, username, display_name, avatar_url, is_verified)`,
+      )
+      .in("user_id", authorIds)
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(80)
+
+    for (const real of realMoments || []) {
+      const author = Array.isArray(real.author) ? real.author[0] : real.author
+      pushItem(author, real.user_id, {
+        id: real.id,
+        type: "moment" as const,
+        media_url: real.media_url || "",
+        media_type: real.media_type || "image",
+        href: `/moments/${real.id}`,
+        created_at: real.created_at,
       })
     }
 

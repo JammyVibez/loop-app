@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
 import { ECONOMY_DEFAULTS } from "@/lib/economy"
 import { sanitizeTaggedCircles } from "@/lib/circle-limits"
+import { getUserFromRequest } from "@/lib/server-auth"
+import { isProUser } from "@/lib/pro-features"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -16,18 +18,36 @@ function compactPayload(payload: Record<string, unknown>) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
+    const user = await getUserFromRequest(request)
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const token = authHeader.replace("Bearer ", "")
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    const body = await request.json()
+
+    // Animated GIF avatars/covers are a Pro-only perk. Enforce server-side so
+    // non-Pro users can't set (or keep) a GIF by calling the API directly.
+    const { data: profileRow } = await supabase
+      .from("profiles")
+      .select("is_premium, premium_expires_at")
+      .eq("id", user.id)
+      .maybeSingle()
+    const viewerIsPro = isProUser(profileRow as any)
+    const looksLikeGif = (url?: unknown) =>
+      typeof url === "string" && /\.gif(\?|#|$)/i.test(url.trim())
+    const avatarIsGif = looksLikeGif(body.avatar_url)
+    const bannerIsGif = looksLikeGif(body.banner_url)
+    if ((avatarIsGif || bannerIsGif) && !viewerIsPro) {
+      return NextResponse.json(
+        {
+          error: "Animated GIF profile pictures and covers are a Pro perk — upgrade to Pro to use them.",
+          pro_required: true,
+          gif_field: avatarIsGif ? "avatar_url" : "banner_url",
+        },
+        { status: 403 },
+      )
     }
 
-    const body = await request.json()
     const {
       bio,
       interests,
@@ -149,7 +169,7 @@ export async function POST(request: NextRequest) {
         const displayName =
           (typeof display_name === "string" && display_name.trim()) ||
           user.user_metadata?.display_name ||
-          user.user_metadata?.full_name ||
+          user.name ||
           username
 
         ;({ data: profile, error: profileError } = await supabase

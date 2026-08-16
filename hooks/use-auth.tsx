@@ -403,6 +403,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         typeof profile.onboarding_completed === "boolean"
           ? profile.onboarding_completed
           : prev.onboarding_completed
+      const nextPrivacy =
+        profile.privacy_settings !== undefined
+          ? (profile.privacy_settings as Record<string, unknown> | undefined)
+          : prev.privacy_settings
+      const nextNotification =
+        profile.notification_settings !== undefined
+          ? (profile.notification_settings as Record<string, unknown> | undefined)
+          : prev.notification_settings
+      const nextPremiumExpiry =
+        profile.premium_expires_at !== undefined
+          ? (profile.premium_expires_at as string | undefined)
+          : prev.premium_expires_at
 
       const unchanged =
         nextUsername === prev.username &&
@@ -418,7 +430,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         nextLocation === prev.location &&
         nextWebsite === prev.website &&
         nextOnboarding === prev.onboarding_completed &&
-        nextThemePrefs === prev.theme_preferences
+        nextThemePrefs === prev.theme_preferences &&
+        nextPrivacy === prev.privacy_settings &&
+        nextNotification === prev.notification_settings &&
+        nextPremiumExpiry === prev.premium_expires_at
 
       if (unchanged) return prev
 
@@ -432,6 +447,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tagged_circles: nextTagged,
         loop_coins: nextCoins,
         is_premium: nextPremium,
+        premium_expires_at: nextPremiumExpiry,
         is_verified: nextVerified,
         is_admin: nextAdmin,
         is_organization: nextOrg,
@@ -440,6 +456,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         theme_preferences: nextThemePrefs,
         location: nextLocation,
         website: nextWebsite,
+        privacy_settings: nextPrivacy,
+        notification_settings: nextNotification,
         onboarding_completed: nextOnboarding,
         user_metadata: {
           username: nextUsername,

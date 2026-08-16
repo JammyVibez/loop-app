@@ -922,10 +922,10 @@ export default function WalletPage() {
 
       {/* Deposit Modal */}
       <Dialog open={depositOpen} onOpenChange={setDepositOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl p-6">
+        <DialogContent className="sm:max-w-md rounded-2xl p-4 sm:p-6 max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-indigo-500" />
+            <DialogTitle className="text-lg sm:text-xl font-bold flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-indigo-500 shrink-0" />
               Deposit Loop Coins
             </DialogTitle>
             <DialogDescription className="text-xs">
@@ -943,7 +943,7 @@ export default function WalletPage() {
               No coin packs are available right now. Please check back soon.
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-4">
+            <div className="grid grid-cols-1 xs:grid-cols-2 gap-2.5 sm:gap-3 py-4">
               {coinPackages.map((pkg, idx) => {
                 const selected = selectedPkgId === pkg.id
                 const coinsAmount = Number(pkg.item_data?.coins_amount || 0)
@@ -952,7 +952,7 @@ export default function WalletPage() {
                   <div
                     key={pkg.id}
                     onClick={() => setSelectedPkgId(pkg.id)}
-                    className={`cursor-pointer rounded-xl border p-4 transition-all relative ${
+                    className={`cursor-pointer rounded-xl border p-3 sm:p-4 transition-all relative ${
                       selected
                         ? "border-primary bg-primary/10 shadow-sm"
                         : "border-border/60 hover:border-border bg-card"
@@ -978,14 +978,14 @@ export default function WalletPage() {
             </div>
           )}
 
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDepositOpen(false)} className="rounded-xl">
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">
+            <Button variant="outline" onClick={() => setDepositOpen(false)} className="rounded-xl w-full sm:w-auto">
               Cancel
             </Button>
             <Button
               onClick={handleDeposit}
               disabled={depositing || !selectedPkgId}
-              className="rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-semibold"
+              className="rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-semibold w-full sm:w-auto"
             >
               {depositing
                 ? "Redirecting to checkout..."

@@ -20,8 +20,8 @@ const TIPS = [
     body: "Add 2–4 hashtags so your Loop shows up in Explore and hashtag pages.",
   },
   {
-    title: "Collaborate live",
-    body: "Start a collab room and co-write with up to 4 people in real time.",
+    title: "Moment for the fleeting",
+    body: "Moments vanish after 24–48 hours — perfect for quick updates and behind-the-scenes.",
   },
 ]
 

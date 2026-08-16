@@ -121,19 +121,65 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, category, start_time, cover_image, is_live, circle_id } = body
+    const { title, description, category, start_time, cover_image, is_live, circle_id, allow_type } = body
 
     if (!title || title.trim().length < 3) {
       return NextResponse.json({ error: "Title must be at least 3 characters" }, { status: 400 })
     }
 
+    const ALLOW_TYPES = ["everyone", "pro", "verified", "organization"]
+    const audience = ALLOW_TYPES.includes(allow_type) ? allow_type : "everyone"
+
     const supabase = createServerClient()
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("username, display_name, avatar_url, is_organization, organization_name")
+      .select("username, display_name, avatar_url, is_organization, organization_name, is_verified, is_premium, is_admin, premium_expires_at")
       .eq("id", user.id)
       .single()
+
+    const isAdmin = Boolean(profile?.is_admin)
+    const isVerified = Boolean(profile?.is_verified)
+    const isOrg = Boolean(profile?.is_organization || profile?.organization_name)
+    const isPro =
+      Boolean(profile?.is_premium) &&
+      (!profile?.premium_expires_at || new Date(profile.premium_expires_at).getTime() > Date.now())
+
+    // Event creation rules:
+    //   • Admins, verified accounts, and Organizations: unlimited.
+    //   • Pro users: up to 5 events per calendar month.
+    //   • Everyone else (free members): exactly one event ever.
+    if (!isAdmin && !isVerified && !isOrg) {
+      if (isPro) {
+        const startOfMonth = new Date()
+        startOfMonth.setDate(1)
+        startOfMonth.setHours(0, 0, 0, 0)
+        const { count: monthCount, error: countErr } = await supabase
+          .from("events")
+          .select("id", { count: "exact", head: true })
+          .eq("host_id", user.id)
+          .gte("created_at", startOfMonth.toISOString())
+        if (countErr) console.warn("Pro event count warning:", countErr.message)
+        if ((monthCount || 0) >= 5) {
+          return NextResponse.json(
+            { error: "Pro hosts can create up to 5 events per month. Upgrade or wait for the next month." },
+            { status: 403 },
+          )
+        }
+      } else {
+        const { count: totalCount, error: countErr } = await supabase
+          .from("events")
+          .select("id", { count: "exact", head: true })
+          .eq("host_id", user.id)
+        if (countErr) console.warn("Event count warning:", countErr.message)
+        if ((totalCount || 0) >= 1) {
+          return NextResponse.json(
+            { error: "Free members can host one event. Get verified or go Pro to host more." },
+            { status: 403 },
+          )
+        }
+      }
+    }
 
     const hostUsername = profile?.username || user.email?.split("@")[0] || "user"
     const hostDisplayName = profile?.organization_name || profile?.display_name || hostUsername
@@ -155,6 +201,7 @@ export async function POST(request: NextRequest) {
       participants_count: 1,
       is_live: Boolean(is_live),
       circle_id: circle_id || null,
+      allow_type: audience,
       created_at: new Date().toISOString()
     }
 

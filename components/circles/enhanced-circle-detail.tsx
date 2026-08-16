@@ -56,6 +56,7 @@ import {
   Reply,
 } from "lucide-react"
 import { RealtimeCircleChat } from "@/components/circles/realtime-circle-chat"
+import { SlackCircleWorkspace } from "@/components/circles/slack-circle-workspace"
 import { CircleEvents } from "@/components/circles/circle-events"
 import { CommunityAdvancedPanel } from "@/components/circles/community-advanced-panel"
 import { GiftModal } from "@/components/gifting/gift-modal"
@@ -1060,6 +1061,17 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
             </Button>
           </div>
         </div>
+      </div>
+    )
+  }
+
+  // Pro-only communities get the dedicated Slack-style workspace (channel
+  // sidebar + chat + member rail) instead of the tabbed community UI.
+  if ((circle as any).is_premium_only) {
+    return (
+      <div className="w-full">
+        {backBar(circle.name || "Community")}
+        <SlackCircleWorkspace circleId={circle.id} />
       </div>
     )
   }

@@ -47,8 +47,10 @@ import { isShopThemePayload } from "@/lib/theme-css"
 import { xpForNextLevel } from "@/lib/xp"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { UserBadges } from "@/components/user-badge"
+import { useVerificationBadges } from "@/hooks/use-verification-badges"
 import { RichContent } from "@/components/content/rich-content"
 import { BioCommunityTags } from "@/components/profile/bio-community-tags"
+import { ProfileAwards } from "@/components/profile/profile-awards"
 import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
 
 interface Achievement {
@@ -81,6 +83,7 @@ interface UserProfile {
   is_team_member?: boolean
   is_sponsor?: boolean
   is_premium: boolean
+  badge_id?: string | null
   is_organization?: boolean
   organization_name?: string
   organization_badge_url?: string
@@ -115,6 +118,8 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const { user, getAuthHeader, refreshUser, applyServerProfile } = useAuth()
   const { toast } = useToast()
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const verificationBadges = useVerificationBadges()
+  const profileBadge = profile?.badge_id ? (verificationBadges[profile.badge_id] || null) : null
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("loops")
   const [isFollowing, setIsFollowing] = useState(false)
@@ -404,6 +409,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               is_organization={profile.is_organization}
               organization_badge_url={profile.organization_badge_url}
               organization_name={profile.organization_name}
+              badge={profileBadge}
               username={profile.username}
               size="sm"
             />
@@ -541,6 +547,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 is_organization={profile.is_organization}
                 organization_badge_url={profile.organization_badge_url}
                 organization_name={profile.organization_name}
+                badge={profileBadge}
                 username={profile.username}
                 showText={true}
                 size="md"
@@ -623,6 +630,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               <span className="font-bold text-foreground">{formatCount(profile.likes_received)}</span> Likes
             </span>
           </div>
+
+          {/* Admin-granted awards shelf */}
+          {profile.id && <ProfileAwards userId={profile.id} />}
 
           <div className="mt-2 space-y-1.5">
             <div className="flex items-center justify-between text-xs text-muted-foreground">

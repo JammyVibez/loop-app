@@ -11,7 +11,7 @@ async function getLoopWithRelations(loopId: string, userId?: string) {
     .from("loops")
     .select(`
       *,
-      author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, active_cosmetics, cosmetics),
+      author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, active_cosmetics, cosmetics, badge_id),
       parent_loop:loops!parent_loop_id(id, content_text, content_title, author_id, author:profiles!author_id(username, display_name, avatar_url)),
       loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
     `)
@@ -34,7 +34,7 @@ async function getLoopWithRelations(loopId: string, userId?: string) {
     .from("loops")
     .select(`
       id, content_title, content_text, created_at,
-      author:profiles!author_id(id, username, display_name, avatar_url, active_cosmetics, cosmetics)
+      author:profiles!author_id(id, username, display_name, avatar_url, active_cosmetics, cosmetics, badge_id)
     `)
     .eq("parent_loop_id", loopId)
     .order("created_at", { ascending: false })
@@ -151,7 +151,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       .eq("id", id)
       .select(`
         *,
-        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, active_cosmetics, cosmetics),
+        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, active_cosmetics, cosmetics, badge_id),
         loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
       .single()

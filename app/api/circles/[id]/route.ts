@@ -1,27 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
 import { hardDeleteCircle, setCircleActive } from "@/lib/circle-lifecycle";
+import { getUserFromRequest } from "@/lib/server-auth";
+import { isProUser } from "@/lib/pro-features";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
 
-async function getUserFromToken(token: string) {
-  try {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
-
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "") ?? null
-    const currentUser = token ? await getUserFromToken(token) : null
+    const currentUser = await getUserFromRequest(request)
 
     const { id: circleId } = await params
 
@@ -39,6 +26,23 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (circleError || !circle) {
       return NextResponse.json({ error: "Circle not found" }, { status: 404 })
+    }
+
+    // Pro-only circles exist only for Pro users — non-Pro visitors get a 404
+    // so the community never leaks in search, embeds, or shared links.
+    if (circle.is_premium_only) {
+      if (!currentUser) {
+        return NextResponse.json({ error: "Circle not found" }, { status: 404 })
+      }
+      const { data: viewerProfile } = await supabase
+        .from("profiles")
+        .select("is_premium, premium_expires_at, is_admin")
+        .eq("id", currentUser.id)
+        .maybeSingle()
+      const isAdmin = Boolean(viewerProfile?.is_admin) || Boolean((currentUser as any)?.is_admin)
+      if (!isAdmin && !isProUser(viewerProfile as any)) {
+        return NextResponse.json({ error: "Circle not found" }, { status: 404 })
+      }
     }
 
     // Check if current user is a member
@@ -138,7 +142,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .from("circle_posts")
       .select(`
         *,
-        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium)
+        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, badge_id)
       `)
       .eq("circle_id", circleId)
       .order("created_at", { ascending: false })
@@ -240,16 +244,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { id: circleId } = await params
@@ -279,7 +277,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       tags,
       settings: settingsPatch,
       allow_posts,
+      is_premium_only,
     } = body
+
+    // Pro-only circles can only be configured by platform admins.
+    if (typeof is_premium_only === "boolean") {
+      const { data: adminProfile } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .maybeSingle()
+      if (!adminProfile?.is_admin && !/admin/i.test(user.email || "")) {
+        return NextResponse.json({ error: "Only platform admins can configure a Pro-only circle" }, { status: 403 })
+      }
+    }
 
     // Merge settings (used for allow_posts and other community toggles)
     let nextSettings: Record<string, unknown> | undefined
@@ -308,6 +319,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (typeof description === "string") updatePayload.description = description.trim()
     if (category !== undefined) updatePayload.category = category
     if (typeof is_private === "boolean") updatePayload.is_private = is_private
+    if (typeof is_premium_only === "boolean") updatePayload.is_premium_only = is_premium_only
     if (avatar_url !== undefined) updatePayload.avatar_url = avatar_url
     if (banner_url !== undefined) updatePayload.banner_url = banner_url
     if (rules !== undefined) updatePayload.rules = rules
@@ -344,6 +356,38 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Failed to update circle" }, { status: 500 })
     }
 
+    // When a circle becomes Pro-only, backfill every currently-active Pro user
+    // as a member (the DB trigger keeps it in sync from here on).
+    if (is_premium_only === true) {
+      const { data: proUsers } = await supabase
+        .from("profiles")
+        .select("id, is_premium, premium_expires_at")
+        .eq("is_premium", true)
+        .limit(5000)
+      const rows = (proUsers || []).filter(
+        (p: any) => !p.premium_expires_at || new Date(p.premium_expires_at) > new Date(),
+      )
+      if (rows.length) {
+        const { data: existingMembers } = await supabase
+          .from("circle_members")
+          .select("user_id")
+          .eq("circle_id", circleId)
+        const existing = new Set((existingMembers || []).map((m: any) => m.user_id))
+        const inserts = rows
+          .filter((p: any) => !existing.has(p.id))
+          .map((p: any) => ({
+            circle_id: circleId,
+            user_id: p.id,
+            role: "member",
+            status: "active",
+            joined_at: new Date().toISOString(),
+          }))
+        if (inserts.length) {
+          await supabase.from("circle_members").insert(inserts)
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       circle: updatedCircle
@@ -356,14 +400,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
-    if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { id: circleId } = await params
     const body = await request.json().catch(() => ({}))
@@ -422,16 +460,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { id: circleId } = await params

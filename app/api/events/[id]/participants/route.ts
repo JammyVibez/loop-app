@@ -61,22 +61,56 @@ export async function POST(
     }
 
     const body = await request.json().catch(() => ({}))
-    const action = body.action || "join" // join, leave, update_role, kick
+    const action = body.action || "join" // join, leave, update_role, kick, mute, unmute
 
     const supabase = createServerClient()
+
+    // Load the event + acting user's profile once; used for every action.
+    const { data: eventRow } = await supabase
+      .from("events")
+      .select("id, host_id, allow_type, status")
+      .eq("id", eventId)
+      .maybeSingle()
+
+    const { data: actorProfile } = await supabase
+      .from("profiles")
+      .select("is_admin, is_premium, is_verified, is_organization, organization_name, premium_expires_at")
+      .eq("id", user.id)
+      .maybeSingle()
+
+    const { data: actorParticipant } = await supabase
+      .from("event_participants")
+      .select("role")
+      .eq("event_id", eventId)
+      .eq("user_id", user.id)
+      .maybeSingle()
+
+    const actorRole = actorParticipant?.role || "attendee"
+    const isMod = Boolean(
+      eventRow?.host_id === user.id ||
+        actorProfile?.is_admin ||
+        actorRole === "host" ||
+        actorRole === "moderator",
+    )
+
+    if (!isMod && ["update_role", "kick", "mute", "unmute"].includes(action)) {
+      return NextResponse.json({ error: "Only the host or a moderator can do that" }, { status: 403 })
+    }
 
     if (action === "update_role") {
       const { target_user_id, role } = body
       if (!target_user_id || !role) {
         return NextResponse.json({ error: "target_user_id and role required" }, { status: 400 })
       }
+      const ALLOWED_ROLES = ["speaker", "listener", "moderator", "attendee"]
+      const safeRole = ALLOWED_ROLES.includes(role) ? role : "attendee"
       await supabase
         .from("event_participants")
-        .update({ role })
+        .update({ role: safeRole })
         .eq("event_id", eventId)
         .eq("user_id", target_user_id)
 
-      return NextResponse.json({ success: true, message: `Updated participant role to ${role}` })
+      return NextResponse.json({ success: true, message: `Updated participant role to ${safeRole}` })
     }
 
     if (action === "kick") {
@@ -91,6 +125,39 @@ export async function POST(
         .eq("user_id", target_user_id)
 
       return NextResponse.json({ success: true, message: "Participant removed from stage" })
+    }
+
+    if (action === "mute" || action === "unmute") {
+      const { target_user_id } = body
+      if (!target_user_id) {
+        return NextResponse.json({ error: "target_user_id required" }, { status: 400 })
+      }
+      if (action === "mute") {
+        await supabase
+          .from("event_participants")
+          .update({ is_muted: true, muted_at: new Date().toISOString() })
+          .eq("event_id", eventId)
+          .eq("user_id", target_user_id)
+        await supabase.from("event_mutes").upsert(
+          { event_id: eventId, user_id: target_user_id, muted_by: user.id },
+          { onConflict: "event_id,user_id" },
+        )
+      } else {
+        await supabase
+          .from("event_participants")
+          .update({ is_muted: false, muted_at: null })
+          .eq("event_id", eventId)
+          .eq("user_id", target_user_id)
+        await supabase
+          .from("event_mutes")
+          .delete()
+          .eq("event_id", eventId)
+          .eq("user_id", target_user_id)
+      }
+      return NextResponse.json({
+        success: true,
+        message: action === "mute" ? "Participant muted on stage" : "Participant unmuted",
+      })
     }
 
     // Determine event type: community events live in `events`, official
@@ -151,7 +218,31 @@ export async function POST(
     const uDisplayName = userProfile?.display_name || uUsername
     const uAvatar = userProfile?.avatar_url || "/placeholder.svg"
 
-    // Default action is JOIN
+    // Default action is JOIN — enforce the event's audience restriction first.
+    const allowType = eventRow?.allow_type || "everyone"
+    if (allowType !== "everyone") {
+      const actorIsPro =
+        Boolean(actorProfile?.is_premium) &&
+        (!actorProfile?.premium_expires_at || new Date(actorProfile.premium_expires_at).getTime() > Date.now())
+      const actorIsVerified = Boolean(actorProfile?.is_verified)
+      const actorIsOrg = Boolean(actorProfile?.is_organization || actorProfile?.organization_name)
+      const passes =
+        allowType === "pro"
+          ? actorIsPro
+          : allowType === "verified"
+            ? actorIsVerified
+            : allowType === "organization"
+              ? actorIsOrg
+              : true
+      if (!passes) {
+        const label = allowType === "pro" ? "Pro members" : allowType === "verified" ? "verified accounts" : "organizations"
+        return NextResponse.json(
+          { error: `This event is restricted to ${label} only.` },
+          { status: 403 },
+        )
+      }
+    }
+
     if (isGlobalEvent) {
       await supabase.from("event_rsvps").upsert(
         { event_id: eventId, user_id: user.id },
@@ -167,6 +258,14 @@ export async function POST(
       })
     }
 
+    // Stage-wide mute (host mute-all) — mark this join as muted.
+    const { data: allMute } = await supabase
+      .from("event_mutes")
+      .select("event_id")
+      .eq("event_id", eventId)
+      .is("user_id", null)
+      .maybeSingle()
+
     const participantPayload = {
       id: `p-${user.id}-${eventId}`,
       event_id: eventId,
@@ -176,6 +275,7 @@ export async function POST(
       avatar_url: uAvatar,
       role: "attendee",
       status: "joined",
+      is_muted: Boolean(allMute),
       joined_at: new Date().toISOString()
     }
 

@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate file type
-    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
+    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/heic', 'image/heif', 'image/avif', 'image/bmp']
     const allowedVideoTypes = [
       'video/mp4',
       'video/webm',
@@ -218,26 +218,25 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // Save to database (schema-aligned with live media_uploads)
+      // Save to database (schema-aligned with the live media_uploads table:
+      // file_name / file_type / file_size / cloudinary_public_id /
+      // cloudinary_url / media_type / folder / width / height / duration / format).
       const supabase = createServerClient()
       const { data: mediaRecord, error: dbError } = await supabase
         .from('media_uploads')
         .insert({
           user_id: user.id,
-          file_url: uploadResult.secure_url,
+          file_name: file.name || 'upload',
           file_type: file.type || type,
-          bytes: file.size,
-          provider: 'cloudinary',
-          metadata: {
-            public_id: uploadResult.public_id,
-            folder,
-            width: uploadResult.width || null,
-            height: uploadResult.height || null,
-            duration: uploadResult.duration || null,
-            format: uploadResult.format || null,
-            original_name: file.name,
-            media_type: type,
-          },
+          file_size: file.size,
+          cloudinary_public_id: uploadResult.public_id,
+          cloudinary_url: uploadResult.secure_url,
+          media_type: type,
+          folder,
+          width: uploadResult.width || null,
+          height: uploadResult.height || null,
+          duration: uploadResult.duration || null,
+          format: uploadResult.format || null,
         })
         .select()
         .single()

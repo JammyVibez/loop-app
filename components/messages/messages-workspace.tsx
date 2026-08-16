@@ -733,6 +733,37 @@ export function MessagesWorkspace() {
     setForwardTarget(null)
   }
 
+  const deleteConversation = async (mode: "delete" | "clear") => {
+    if (!selected || !user) return
+    const target = selected
+    const label = mode === "clear" ? "Clear this chat for everyone?" : "Delete this conversation?"
+    const description =
+      mode === "clear"
+        ? "Every message in this chat will be permanently removed from the database for both of you."
+        : "This removes the chat from your inbox. If the other person has also deleted it, the whole conversation is removed."
+    if (!window.confirm(`${label}\n\n${description}`)) return
+    try {
+      const res = await fetch(`/api/conversations?conversation_id=${target.id}&mode=${mode}`, {
+        method: "DELETE",
+        headers: { ...getAuthHeader() },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed")
+      toast({
+        title: mode === "clear" ? "Chat cleared" : "Conversation deleted",
+        description: mode === "clear" ? "Messages were removed from the database." : undefined,
+      })
+      if (mode === "clear") {
+        setMessages([])
+      } else {
+        backToInbox()
+      }
+      await loadConversations()
+    } catch (error: any) {
+      toast({ title: "Couldn't do that", description: error.message || "Unknown error", variant: "destructive" })
+    }
+  }
+
   const confirmDelete = async () => {
     if (!deletingMessage || !user) return
     const target = deletingMessage
@@ -1204,6 +1235,15 @@ export function MessagesWorkspace() {
                 Send gift
               </DropdownMenuItem>
             )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => void deleteConversation("clear")} className="text-amber-600 dark:text-amber-400">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Clear chat for everyone
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => void deleteConversation("delete")} className="text-red-500">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete conversation
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -1285,9 +1325,9 @@ export function MessagesWorkspace() {
                   </span>
                 </div>
               )}
-              <div className={cn("group flex", mine ? "justify-end" : "justify-start", isFresh && "message-appear")}>
+              <div className={cn("group flex min-w-0 max-w-full", mine ? "justify-end" : "justify-start", isFresh && "message-appear")}>
 
-              <div className={cn("max-w-[85%] sm:max-w-[70%]", mine ? "items-end" : "items-start")}>
+              <div className={cn("min-w-0 max-w-[85%] sm:max-w-[70%]", mine ? "items-end" : "items-start")}>
                 <div
                   className={cn(
                     "chat-bubble relative rounded-2xl px-3 py-2 text-sm shadow-sm",

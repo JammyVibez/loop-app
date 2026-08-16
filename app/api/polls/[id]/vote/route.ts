@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -12,19 +13,12 @@ export async function POST(
 ) {
   try {
     const { id: pollId } = await params
-    const authHeader = req.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
-
-    if (!token) {
+    const user = await getUserFromRequest(req)
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { data: authData, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !authData.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const userId = authData.user.id
+    const userId = user.id
     const { optionId } = await req.json()
 
     if (!optionId) {

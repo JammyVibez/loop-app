@@ -16,6 +16,92 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createServerClient()
 
+    // Housekeeping: delete expired Moments (they self-destruct after 24-48h)
+    // and prune lapsed Pro members from the Pro-only circle so membership
+    // always matches current subscription state even if a trigger edge case
+    // slipped through.
+    try {
+      const { data: deleted } = await supabase
+        .from("moments")
+        .delete()
+        .lt("expires_at", new Date().toISOString())
+        .select("id")
+      const deletedIds = deleted || []
+      if (deletedIds.length > 0) {
+        console.log(`Moments cleanup: removed ${deletedIds.length} expired moments`)
+      }
+    } catch (momentErr) {
+      console.warn("Moments cleanup skipped:", momentErr)
+    }
+
+    try {
+      const { data: proCircle } = await supabase
+        .from("circles")
+        .select("id")
+        .eq("is_premium_only", true)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle()
+      if (proCircle) {
+        // Remove members whose Pro subscription has lapsed.
+        const { data: lapsed } = await supabase
+          .from("profiles")
+          .select("id, avatar_url, banner_url")
+          .lt("premium_expires_at", new Date().toISOString())
+          .eq("is_premium", true)
+          .limit(500)
+        if ((lapsed || []).length > 0) {
+          await supabase
+            .from("circle_members")
+            .delete()
+            .eq("circle_id", proCircle.id)
+            .in(
+              "user_id",
+              (lapsed || []).map((p: any) => p.id),
+            )
+          // GIF avatars/covers are Pro-only — revert them when Pro lapses.
+          const gifLapsed = (lapsed || []).filter(
+            (p: any) => /\.gif(\?|#|$)/i.test(String(p.avatar_url || "")) || /\.gif(\?|#|$)/i.test(String(p.banner_url || "")),
+          )
+          if (gifLapsed.length > 0) {
+            const ids = gifLapsed.map((p: any) => p.id)
+            const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+            if (gifLapsed.some((p: any) => /\.gif(\?|#|$)/i.test(String(p.avatar_url || "")))) patch.avatar_url = null
+            if (gifLapsed.some((p: any) => /\.gif(\?|#|$)/i.test(String(p.banner_url || "")))) patch.banner_url = null
+            await supabase.from("profiles").update(patch).in("id", ids)
+          }
+        }
+        // Re-add any active Pros missing from the circle (backstop for the trigger).
+        const { data: activePros } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("is_premium", true)
+          .or("premium_expires_at.is.null,premium_expires_at.gt." + new Date().toISOString())
+          .limit(500)
+        if ((activePros || []).length > 0) {
+          const { data: existingMembers } = await supabase
+            .from("circle_members")
+            .select("user_id")
+            .eq("circle_id", proCircle.id)
+          const existing = new Set((existingMembers || []).map((m: any) => m.user_id))
+          const inserts = (activePros || [])
+            .filter((p: any) => !existing.has(p.id))
+            .map((p: any) => ({
+              circle_id: proCircle.id,
+              user_id: p.id,
+              role: "member",
+              status: "active",
+              joined_at: new Date().toISOString(),
+            }))
+          if (inserts.length > 0) {
+            await supabase.from("circle_members").insert(inserts)
+          }
+        }
+      }
+    } catch (proErr) {
+      console.warn("Pro circle sync skipped:", proErr)
+    }
+
     // Pick a random high-engagement loop from the last 7 days.
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const { data: loops } = await supabase

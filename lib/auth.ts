@@ -36,7 +36,18 @@ export const auth = betterAuth({
       generateId: "uuid",
     },
   },
-  secret: process.env.BETTER_AUTH_SECRET || "loop-better-auth-secret-key-32-chars-long",
+  // Secret: must come from BETTER_AUTH_SECRET in production. The dev-only
+  // fallback is intentionally a well-known value so local development works
+  // out of the box, but shipping it would let anyone forge sessions — so we
+  // refuse to boot in production without a real secret.
+  secret: (() => {
+    const fromEnv = process.env.BETTER_AUTH_SECRET
+    if (fromEnv) return fromEnv
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("BETTER_AUTH_SECRET must be set in production — generate one with `openssl rand -base64 48` and add it to your environment/API keys.")
+    }
+    return "loop-better-auth-secret-key-32-chars-long"
+  })(),
   // Dynamic base URL: resolves from each request's host so OAuth redirects,
   // cookies, and trusted-origin checks work on every environment (local dev,
   // preview proxies, production custom domain) instead of pointing at a stale

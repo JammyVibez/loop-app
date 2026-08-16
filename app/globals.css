@@ -413,6 +413,20 @@ body.theme-animations .rounded-xl {
   }
 }
 
+/* Mobile overflow safety: bubbles must never push the chat pane wider than
+   the viewport, no matter how long the text, URL, or embed is. */
+.chat-bubble {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.chat-bubble img,
+.chat-bubble video,
+.chat-bubble audio {
+  max-width: 100%;
+}
+
 /* Small triangular "tail" on the corner nearest the sender, matching the
    rounded-br-md / rounded-bl-md corner already used on the bubble. */
 .chat-bubble::before {

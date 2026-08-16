@@ -239,6 +239,26 @@ export const CODE_LANGUAGES = [
   { id: "other", label: "Other" },
 ] as const
 
+export interface ProStatus {
+  isPro: boolean
+  expiresAt: string | null
+}
+
+/**
+ * A user counts as Pro while `is_premium` is true AND the expiry (when set)
+ * is still in the future. This is the single check used for Pro-gated
+ * features (Pro-only circle membership, GIF avatars/covers, etc.) so the
+ * definition never drifts between routes.
+ */
+export function isProUser(profile: {
+  is_premium?: boolean | null
+  premium_expires_at?: string | null
+}): boolean {
+  if (!profile?.is_premium) return false
+  if (!profile.premium_expires_at) return true
+  return new Date(profile.premium_expires_at).getTime() > Date.now()
+}
+
 export function isCodeLoop(loop: {
   content_type?: string
   media_type?: string

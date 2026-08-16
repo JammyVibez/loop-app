@@ -63,10 +63,12 @@ import { supabase } from "@/lib/supabase";
 import { CodeBlock } from "@/components/loops/code-block";
 import { ShareToDmModal } from "@/components/messages/share-to-dm-modal";
 import { ShareToCircleModal } from "@/components/messages/share-to-circle-modal";
+import { ShareAsImageModal } from "@/components/engagement/share-as-image-modal";
 import { isCodeLoop } from "@/lib/pro-features";
 import { RichContent } from "@/components/content/rich-content";
 import { useLoginGate } from "@/hooks/use-login-gate";
 import { UserBadges } from "@/components/user-badge";
+import { useVerificationBadges } from "@/hooks/use-verification-badges";
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp";
 import { LoopChainDialog } from "@/components/loops/loop-chain-dialog";
 import { BoostLoopDialog } from "@/components/loops/boost-loop-dialog";
@@ -165,6 +167,7 @@ export function LoopCard({
   const [boostDialogOpen, setBoostDialogOpen] = useState(false);
   const [shareDmOpen, setShareDmOpen] = useState(false);
   const [shareCircleOpen, setShareCircleOpen] = useState(false);
+  const [shareImageOpen, setShareImageOpen] = useState(false);
   const [boostCoinsCurrent, setBoostCoinsCurrent] = useState<number>(rawLoop?.boost_coins_current || 0);
   const [isBoosted, setIsBoosted] = useState<boolean>(rawLoop?.is_boosted || false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -174,6 +177,8 @@ export function LoopCard({
   const { toast } = useToast();
   const { requireAuth, LoginGateDialog } = useLoginGate();
   const activeInteracting = interacting ?? localInteracting;
+  const verificationBadges = useVerificationBadges();
+  const authorBadge = loop.author?.badge_id ? (verificationBadges[loop.author.badge_id] || null) : null;
 
   useEffect(() => {
     setLoop(normalizeLoop(rawLoop))
@@ -966,6 +971,7 @@ export function LoopCard({
                     is_team_member={loop.author.is_team_member}
                     is_sponsor={loop.author.is_sponsor}
                     is_premium={loop.author.is_premium}
+                    badge={authorBadge}
                     username={loop.author.username}
                     size="sm"
                   />
@@ -1356,6 +1362,13 @@ export function LoopCard({
                       <Share className="h-4 w-4 text-blue-500" />
                       <span>Copy Link / Share</span>
                     </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setShareImageOpen(true)}
+                      className="cursor-pointer flex items-center gap-2 py-2 text-xs"
+                    >
+                      <Share2 className="h-4 w-4 text-fuchsia-500" />
+                      <span>Share as image</span>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -1616,6 +1629,23 @@ export function LoopCard({
           text: content,
           authorName: loop.author?.display_name || loop.author?.username,
           mediaUrl: loop.media_urls?.[0] || loop.media_url || undefined,
+        }}
+      />
+
+      {/* Share as image card */}
+      <ShareAsImageModal
+        open={shareImageOpen}
+        onOpenChange={setShareImageOpen}
+        post={{
+          id: loop.id,
+          content: content,
+          media_url: loop.media_urls?.[0] || loop.media_url || undefined,
+          author: {
+            username: loop.author?.username || "user",
+            display_name: loop.author?.display_name || loop.author?.username || "User",
+            avatar_url: loop.author?.avatar_url,
+            is_verified: Boolean(loop.author?.is_verified),
+          },
         }}
       />
     </>

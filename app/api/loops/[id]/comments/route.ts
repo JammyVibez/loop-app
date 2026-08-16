@@ -1,19 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
-
-async function getUserFromToken(token: string | null) {
-  if (!token) return null
-  try {
-    const supabase = createServerClient()
-    const { data: { user }, error } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch (error) {
-    console.error('Auth error:', error)
-    return null
-  }
-}
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export async function GET(
   request: NextRequest,
@@ -27,9 +15,7 @@ export async function GET(
 
     const supabase = createServerClient()
 
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.startsWith("Bearer ") ? authHeader.replace("Bearer ", "") : ""
-    const viewer = token ? await getUserFromToken(token) : null
+    const viewer = await getUserFromRequest(request)
 
     const { data: allComments, error } = await supabase
       .from('comments')
@@ -113,16 +99,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { content, parent_comment_id, media_url } = await request.json()
@@ -163,8 +143,40 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Increment comment count
-    await supabase.rpc('increment_loop_comments', { loop_id: loopId })
+    // Increment comment count — prefer the RPC, fall back to a direct
+    // loop_stats update so the count is never stale on older schemas.
+    const { error: countError } = await supabase.rpc('increment_loop_comments', { loop_id: loopId })
+    if (countError) {
+      const { data: current } = await supabase
+        .from("loop_stats")
+        .select("comments_count")
+        .eq("loop_id", loopId)
+        .maybeSingle()
+      if (current) {
+        await supabase
+          .from("loop_stats")
+          .update({ comments_count: Number(current.comments_count || 0) + 1, updated_at: new Date().toISOString() })
+          .eq("loop_id", loopId)
+      } else {
+        await supabase.from("loop_stats").upsert({
+          loop_id: loopId,
+          likes_count: 0,
+          comments_count: 1,
+          shares_count: 0,
+          views_count: 0,
+          branches_count: 0,
+        })
+      }
+    }
+    // Keep the denormalized loops.comment_count in sync when the column exists.
+    {
+      const { data: loopRow } = await supabase.from("loops").select("comment_count").eq("id", loopId).maybeSingle()
+      await supabase
+        .from("loops")
+        .update({ comment_count: Number((loopRow as any)?.comment_count || 0) + 1 })
+        .eq("id", loopId)
+        .maybeSingle()
+    }
 
     // Create notification for loop author
     const { data: loop } = await supabase

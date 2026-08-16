@@ -1,6 +1,7 @@
 // app/api/loop-interactions/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"
 
@@ -9,16 +10,12 @@ export async function GET(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder"
   )
-  const token = req.headers.get("authorization")?.replace("Bearer ", "") ?? null
 
-  if (!token) {
+  // Authenticated user (Better Auth session tokens are not Supabase JWTs —
+  // using the shared helper keeps likes/saves/reposts working everywhere).
+  const user = await getUserFromRequest(req)
+  if (!user) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
-  }
-
-  // Authenticated user
-  const { data: { user }, error: userError } = await supabase.auth.getUser(token)
-  if (userError || !user) {
-    return NextResponse.json({ success: false, error: "Invalid user" }, { status: 401 })
   }
 
   // Parse loop_ids from query string
