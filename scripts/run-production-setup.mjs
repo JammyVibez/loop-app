@@ -60,6 +60,9 @@ const files = [
   "scripts/private-profiles-schema.sql",
   // Native (Capacitor) FCM device tokens — see /api/push/native and lib/fcm.ts.
   "scripts/native-push-schema.sql",
+  // Clutch Duel columns + clutch_duel_predictions, admin ad system (ads /
+  // ad_settings / ad_impressions), circle post tags + threaded comment replies.
+  "scripts/clutch-duel-ads-tags-schema.sql",
 ]
 
 const ignorable = [
