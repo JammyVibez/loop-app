@@ -11,6 +11,7 @@
     "test": "npm run test:critical",
     "db:setup:production": "node scripts/run-production-setup.mjs",
     "db:setup:production:seed": "node scripts/run-production-setup.mjs --with-seed",
+    "db:apply:pending": "node scripts/apply-pending-schema.mjs",
     "native:assets": "node scripts/generate-native-assets.mjs",
     "cap:sync": "npx cap sync",
     "cap:add:android": "npx cap add android",

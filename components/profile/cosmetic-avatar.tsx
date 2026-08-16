@@ -10,6 +10,7 @@ import {
   cosmeticGradient,
   prefersReducedMotion,
   accessoryFromItem,
+  accessoryGlyph,
   badgeGlyph,
 } from "@/lib/cosmetics"
 
@@ -215,19 +216,33 @@ export function CosmeticAvatar({
         </Avatar>
       </div>
 
-      {/* Accessory overlay — crown / wizard hat / sunglasses sit on the avatar */}
+      {/* Accessory overlay — crowns, hats, glasses, wings, halos and more sit on the avatar */}
       {accessory && (
         <span
           aria-hidden
           className={cn(
-            "pointer-events-none absolute left-1/2 z-[2] -translate-x-1/2 select-none drop-shadow",
-            accessory === "crown" && "-top-[0.35em] text-[1.15em]",
-            accessory === "hat" && "-top-[0.55em] text-[1.25em]",
-            accessory === "glasses" && "top-1/2 -translate-y-1/2 text-[1em]",
-            size === "lg" || size === "xl" ? (accessory === "crown" ? "text-3xl" : accessory === "hat" ? "text-4xl" : "text-2xl") : "",
+            "pointer-events-none absolute z-[2] select-none drop-shadow",
+            accessory === "crown" && "left-1/2 -top-[0.35em] -translate-x-1/2 text-[1.15em]",
+            accessory === "hat" && "left-1/2 -top-[0.55em] -translate-x-1/2 text-[1.25em]",
+            accessory === "glasses" && "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[1em]",
+            accessory === "wings" && "-right-[0.15em] top-1/2 -translate-y-1/2 -rotate-12 text-[1.1em]",
+            accessory === "halo" && "left-1/2 -top-[0.7em] -translate-x-1/2 text-[1.05em]",
+            accessory === "cat" && "left-1/2 -top-[0.4em] -translate-x-1/2 text-[1em]",
+            accessory === "heart" && "-right-[0.1em] top-[0.05em] text-[0.95em]",
+            accessory === "trophy" && "-right-[0.1em] -bottom-[0.05em] text-[0.95em]",
+            accessory === "headset" && "left-1/2 -top-[0.45em] -translate-x-1/2 text-[1.1em]",
+            accessory === "ring" && "-right-[0.1em] top-1/2 -translate-y-1/2 text-[0.9em]",
+            (size === "lg" || size === "xl") &&
+              (accessory === "crown" ||
+              accessory === "hat" ||
+              accessory === "wings" ||
+              accessory === "halo" ||
+              accessory === "headset"
+                ? "text-3xl sm:text-4xl"
+                : "text-2xl"),
           )}
         >
-          {accessory === "crown" ? "👑" : accessory === "hat" ? "🧙" : "🕶️"}
+          {accessoryGlyph(aura || frame || null)}
         </span>
       )}
 

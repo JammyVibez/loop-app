@@ -143,8 +143,19 @@ export function resolveEffectData(item?: CosmeticItem | null): Record<string, an
   }
 }
 
-/** Accessory overlays (crown / hat / glasses) render on top of the avatar. */
-export type AvatarAccessory = "crown" | "hat" | "glasses" | null
+/** Accessory overlays (crown / hat / glasses / wings / …) render on top of the avatar. */
+export type AvatarAccessory =
+  | "crown"
+  | "hat"
+  | "glasses"
+  | "wings"
+  | "halo"
+  | "cat"
+  | "heart"
+  | "trophy"
+  | "headset"
+  | "ring"
+  | null
 
 export function accessoryFromItem(item?: CosmeticItem | null): AvatarAccessory {
   const data = item?.item_data || {}
@@ -153,7 +164,45 @@ export function accessoryFromItem(item?: CosmeticItem | null): AvatarAccessory {
   if (type.includes("crown") || /crown/.test(hay)) return "crown"
   if (type.includes("hat") || /hat|wizard/.test(hay)) return "hat"
   if (type.includes("glass") || /sunglass|glasses/.test(hay)) return "glasses"
+  if (type.includes("wing") || /fire_wings|wings/.test(hay)) return "wings"
+  if (type.includes("halo") || /angel|halo/.test(hay)) return "halo"
+  if (type.includes("cat") || /cat ears|neko/.test(hay)) return "cat"
+  if (type.includes("heart") || /heart/.test(hay)) return "heart"
+  if (type.includes("trophy") || /trophy/.test(hay)) return "trophy"
+  if (type.includes("headset") || /headset|headphone/.test(hay)) return "headset"
+  if (type.includes("ring") || /prism ring/.test(hay)) return "ring"
   return null
+}
+
+/** Glyph for an accessory overlay — prefers the item's own glyph, else a default. */
+export function accessoryGlyph(item?: CosmeticItem | null): string {
+  const data = item?.item_data || {}
+  const glyph = data.accessory_glyph || data.icon || data.icon_emoji
+  if (typeof glyph === "string" && glyph.trim()) return glyph.trim()
+  switch (accessoryFromItem(item)) {
+    case "crown":
+      return "👑"
+    case "hat":
+      return "🧙"
+    case "glasses":
+      return "🕶️"
+    case "wings":
+      return "🪽"
+    case "halo":
+      return "😇"
+    case "cat":
+      return "🐱"
+    case "heart":
+      return "💗"
+    case "trophy":
+      return "🏆"
+    case "headset":
+      return "🎧"
+    case "ring":
+      return "💍"
+    default:
+      return ""
+  }
 }
 
 /** Badge glyph: prefers an emoji icon from item_data, else first letter. */
