@@ -1231,13 +1231,32 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
 
           {/* Create Post */}
           {canUseComposer && (
-            <Card>
+            <Card className="overflow-hidden border-border/80 bg-card/80 backdrop-blur-sm">
               <CardContent className="p-3 sm:p-4">
                 {!postingEnabled && canBypassPostFreeze && (
                   <p className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
                     Member posting is off — only admins/moderators can create posts right now.
                   </p>
                 )}
+                {/* Composer identity header */}
+                <div className="mb-3 flex items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={circle.avatar_url || "/placeholder.svg"} alt={circle.name || "Circle"} />
+                    <AvatarFallback className="text-xs">{(circle.name || "C").charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-foreground">
+                      Post to {circle.name || "this circle"}
+                    </p>
+                    <p className="truncate text-[10px] text-muted-foreground">
+                      Visible to every member in the community feed
+                    </p>
+                  </div>
+                  <span className="hidden shrink-0 items-center gap-1 text-[10px] font-medium text-muted-foreground sm:flex">
+                    <Sparkles className="h-3 w-3 text-violet-400" />
+                    Real-time
+                  </span>
+                </div>
                 <div className="flex items-start gap-3">
                   <Avatar className="h-9 w-9 sm:h-10 sm:w-10">
                     <AvatarImage src={user?.avatar_url} />
@@ -1328,15 +1347,21 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                           type="button"
                           disabled={uploadingPostMedia || newPostMedia.length >= getMaxCirclePostFiles()}
                           onClick={() => document.getElementById("circle-post-media-input")?.click()}
+                          className="border-violet-500/40 text-violet-500 hover:bg-violet-500/10"
                         >
                           {uploadingPostMedia ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-1 h-4 w-4" />}
                           Media{getMaxCirclePostFiles() > 1 ? ` (${getMaxCirclePostFiles()})` : ""}
                         </Button>
                         <Button
-                          variant="outline"
+                          variant={showPollBuilder ? "default" : "outline"}
                           size="sm"
                           type="button"
                           onClick={() => setShowPollBuilder((v) => !v)}
+                          className={
+                            showPollBuilder
+                              ? "border-transparent bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-md shadow-violet-900/20"
+                              : "border-cyan-500/40 text-cyan-500 hover:bg-cyan-500/10"
+                          }
                         >
                           <Hash className="mr-1 h-4 w-4" />
                           Poll
@@ -1348,7 +1373,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                           postingCircle ||
                           (!newPost.trim() && newPostMedia.length === 0 && !(showPollBuilder && pollQuestion.trim()))
                         }
-                        className="rounded-full"
+                        className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 shadow-lg shadow-violet-900/30 hover:from-violet-500 hover:to-cyan-400"
                       >
                         {postingCircle ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
                         Share
@@ -1371,6 +1396,15 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
             )}
             {posts.map((post) => {
               const authorName = post.author?.display_name || post.author?.username || "Member"
+              const authorRole = members.find((m) => String(m.id) === String(post.author?.id))?.role
+              const roleBadge =
+                authorRole === "owner"
+                  ? { label: "Owner", cls: "bg-amber-500/15 text-amber-500 border-amber-500/30" }
+                  : authorRole === "admin"
+                    ? { label: "Admin", cls: "bg-rose-500/15 text-rose-500 border-rose-500/30" }
+                    : authorRole === "moderator"
+                      ? { label: "Mod", cls: "bg-sky-500/15 text-sky-500 border-sky-500/30" }
+                      : null
               const stamped = (() => {
                 try {
                   return formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })
@@ -1380,9 +1414,9 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
               })()
               const isDoubleTapped = doubleTapPostId === post.id
               return (
-                <Card key={post.id} className="relative overflow-hidden transition-all duration-200 hover:shadow-lg border-border/80 bg-card/80 backdrop-blur-sm">
+                <Card key={post.id} className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 border-border/80 bg-card/80 backdrop-blur-sm">
                   {post.is_pinned && (
-                    <div className="bg-violet-500/10 border-b border-violet-500/20 px-4 py-1.5 flex items-center justify-between text-xs text-violet-600 dark:text-violet-300 font-medium">
+                    <div className="bg-gradient-to-r from-violet-500/15 via-fuchsia-500/10 to-transparent border-b border-violet-500/20 px-4 py-1.5 flex items-center justify-between text-xs text-violet-600 dark:text-violet-300 font-medium">
                       <span className="flex items-center gap-1.5">
                         <Pin className="h-3.5 w-3.5 fill-current" />
                         Pinned Community Announcement
@@ -1413,6 +1447,11 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                             <Badge variant="secondary" className="h-4 px-1 text-[10px] bg-blue-500/10 text-blue-500 border-blue-500/20">✓</Badge>
                           )}
                           {post.author?.is_premium && <Crown className="h-4 w-4 text-amber-500" />}
+                          {roleBadge && (
+                            <Badge variant="outline" className={`h-4 px-1.5 text-[9px] font-bold uppercase tracking-wide ${roleBadge.cls}`}>
+                              {roleBadge.label}
+                            </Badge>
+                          )}
                           {post.author?.level && (
                             <Badge variant="outline" className="h-4 px-1 text-[9px] font-bold border-emerald-500/30 bg-emerald-500/10 text-emerald-500">
                               LVL {post.author.level}
@@ -1469,13 +1508,14 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                           </div>
                         )}
 
-                        <div className="flex items-center justify-between gap-2 border-t border-border/40 pt-3 mt-1">
-                          <div className="flex items-center gap-1 sm:gap-2">
+                        <div className="mt-3 flex items-center justify-between gap-2 rounded-2xl border border-border/60 bg-muted/20 px-1.5 py-1.5 sm:px-2.5">
+                          <div className="flex items-center gap-0.5 sm:gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className={`px-2 sm:px-3 h-8 rounded-full transition-colors ${
-                                post.is_liked ? "text-red-500 bg-red-500/10 hover:bg-red-500/20" : "hover:text-red-500"
+                              aria-label={post.is_liked ? "Unlike this post" : "Like this post"}
+                              className={`h-8 rounded-full px-2 sm:px-2.5 transition-all duration-300 ${
+                                post.is_liked ? "text-red-500 bg-red-500/10 hover:bg-red-500/20" : "hover:bg-red-500/10 hover:text-red-500"
                               }`}
                               onClick={() => handleLike(post.id)}
                             >
@@ -1486,7 +1526,8 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="px-2 sm:px-3 h-8 rounded-full hover:text-blue-500 hover:bg-blue-500/10"
+                              aria-label="View comments on this post"
+                              className="h-8 rounded-full px-2 sm:px-2.5 transition-all duration-200 hover:bg-sky-500/10 hover:text-sky-500"
                               onClick={() => openComments(post)}
                             >
                               <MessageCircle className="mr-1.5 h-4 w-4" />
@@ -1496,7 +1537,8 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="px-2 sm:px-3 h-8 rounded-full hover:text-emerald-500 hover:bg-emerald-500/10 hidden xs:inline-flex"
+                              aria-label="Share this post"
+                              className="hidden h-8 rounded-full px-2 sm:px-2.5 transition-all duration-200 hover:bg-emerald-500/10 hover:text-emerald-500 xs:inline-flex"
                               onClick={() => handleSharePost(post)}
                             >
                               <Share className="mr-1.5 h-4 w-4" />
@@ -1504,15 +1546,16 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                             </Button>
                           </div>
 
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-0.5 sm:gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className={`px-2 h-8 rounded-full hover:bg-amber-500/10 ${
-                                post.is_bookmarked ? "text-amber-500 bg-amber-500/10" : "hover:text-amber-500"
+                              className={`h-8 rounded-full px-2 transition-all duration-200 ${
+                                post.is_bookmarked ? "bg-amber-500/10 text-amber-500" : "hover:bg-amber-500/10 hover:text-amber-500"
                               }`}
                               onClick={() => handleBookmark(post.id)}
                               title={post.is_bookmarked ? "Bookmarked" : "Bookmark post"}
+                              aria-label={post.is_bookmarked ? "Remove bookmark" : "Bookmark this post"}
                             >
                               <Bookmark className={`h-4 w-4 ${post.is_bookmarked ? "fill-current" : ""}`} />
                             </Button>
@@ -1521,7 +1564,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="px-2 h-8 rounded-full"
+                                className="h-8 rounded-full px-2 transition-all duration-200 hover:bg-muted"
                                 onClick={() => handleEditPost(post)}
                                 aria-label="Edit post"
                               >
@@ -1532,7 +1575,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
 
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full">
+                                <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full p-0" aria-label="More post actions">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
