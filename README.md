@@ -158,7 +158,32 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
 
 # Cron Job Secret (for weekly coin distribution)
 CRON_SECRET=your_random_cron_secret
+
+# Auth secret (REQUIRED in production — generate with: openssl rand -base64 48)
+BETTER_AUTH_SECRET=your_random_auth_secret
 \`\`\`
+
+### Admin System Health monitoring (optional)
+
+The Admin Dashboard → **System Health** tab pulls live usage from external services entirely server-side. Each source is optional and only appears once its keys are configured:
+
+\`\`\`env
+# Supabase Management API personal access token (Settings → Access Tokens).
+# Needs analytics_usage_read permission. Enables DB size, egress, Realtime
+# connections, and edge function invocation monitoring against free-tier limits.
+SUPABASE_ACCESS_TOKEN=your_supabase_pat
+
+# Vercel deployment status (optional) — create a token at vercel.com/account/tokens
+VERCEL_TOKEN=your_vercel_token
+VERCEL_PROJECT_ID=your_vercel_project_id
+VERCEL_TEAM_ID=your_vercel_team_id
+
+# Render deployment status (optional)
+RENDER_API_KEY=your_render_api_key
+RENDER_SERVICE_ID=your_render_service_id
+\`\`\`
+
+Cloudinary usage monitoring reuses the existing `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` keys. The panel is read-only — it never modifies providers. A warning banner appears when any metric reaches 80% of its limit.
 
 ## 🏗 Architecture
 

@@ -44,6 +44,7 @@ import { AdsAdminPanel } from "@/components/admin/ads-admin-panel"
 import { AwardsAdminPanel } from "@/components/admin/awards-admin-panel"
 import { ProCirclePanel } from "@/components/admin/pro-circle-panel"
 import { VerificationBadgesAdminPanel } from "@/components/admin/verification-badges-admin-panel"
+import { SystemHealthPanel } from "@/components/admin/system-health-panel"
 import { UserBadges } from "@/components/user-badge"
 
 interface AdminUser {
@@ -185,7 +186,7 @@ export function AdminDashboard() {
       </div>
 
       <Tabs value={section} onValueChange={setSection}>
-        <TabsList className="grid h-auto w-full max-w-6xl grid-cols-3 gap-1 sm:grid-cols-9">
+        <TabsList className="flex h-auto w-full max-w-6xl flex-wrap gap-1">
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="organizations">Organizations</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
@@ -202,6 +203,7 @@ export function AdminDashboard() {
           <TabsTrigger value="procircle">Pro Circle</TabsTrigger>
           <TabsTrigger value="checkmarks">Checkmarks</TabsTrigger>
           <TabsTrigger value="moderation">Moderation</TabsTrigger>
+          <TabsTrigger value="health">System Health</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="mt-6 space-y-6">
@@ -468,6 +470,9 @@ export function AdminDashboard() {
         </TabsContent>
         <TabsContent value="checkmarks" className="mt-6">
           <VerificationBadgesAdminPanel />
+        </TabsContent>
+        <TabsContent value="health" className="mt-6">
+          <SystemHealthPanel />
         </TabsContent>
       </Tabs>
     </div>
