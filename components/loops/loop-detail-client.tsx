@@ -30,6 +30,7 @@ import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp"
 import { LoopChainDialog } from "@/components/loops/loop-chain-dialog"
 import { PollCardWidget } from "@/components/polls/poll-card-widget"
 import { LoopDuelCard } from "@/components/duels/loop-duel-card"
+import { ClutchDuelCard } from "@/components/duels/clutch-duel-card"
 import { RichContent } from "@/components/content/rich-content"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -636,12 +637,17 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
             </div>
           )}
 
-          {/* Duel Full Widget Rendering */}
-          {(loop.postType === "duel" || loop.duel) && (
-            <div className="pt-2">
-              <LoopDuelCard loopId={loop.id} duel={loop.duel} />
-            </div>
-          )}
+          {/* Duel Full Widget Rendering — Clutch Duels get the themed gaming card */}
+          {(loop.postType === "duel" || loop.duel) &&
+            (loop.duel?.duel_type === "clutch" ? (
+              <div className="pt-2">
+                <ClutchDuelCard loopId={loop.id} duel={loop.duel} />
+              </div>
+            ) : (
+              <div className="pt-2">
+                <LoopDuelCard loopId={loop.id} duel={loop.duel} />
+              </div>
+            ))}
 
           {/* Tags */}
           {loop.tags.length > 0 && (

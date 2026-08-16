@@ -51,6 +51,9 @@ import {
   Trash2,
   Link2,
   ArrowLeft,
+  Tag,
+  Settings2,
+  Reply,
 } from "lucide-react"
 import { RealtimeCircleChat } from "@/components/circles/realtime-circle-chat"
 import { CircleEvents } from "@/components/circles/circle-events"
@@ -99,6 +102,7 @@ interface CirclePost {
   is_bookmarked: boolean
   is_pinned: boolean
   hashtags: string[]
+  tags: string[]
   mentions: string[]
   poll?: {
     question: string
@@ -168,6 +172,7 @@ function mapCirclePost(post: any): CirclePost {
     is_bookmarked: Boolean(post?.is_bookmarked),
     is_pinned: Boolean(post?.is_pinned),
     hashtags: Array.isArray(post?.hashtags) ? post.hashtags : [],
+    tags: Array.isArray(post?.tags) ? post.tags : [],
     mentions: Array.isArray(post?.mentions) ? post.mentions : [],
     poll: post?.poll
       ? {
@@ -260,6 +265,15 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   const [commentText, setCommentText] = useState("")
   const [commentsLoading, setCommentsLoading] = useState(false)
   const [commentSending, setCommentSending] = useState(false)
+  const [replyingTo, setReplyingTo] = useState<string | null>(null)
+  const [replyText, setReplyText] = useState("")
+  const [submittingReply, setSubmittingReply] = useState(false)
+  // Admin-curated post tags
+  const [circleTags, setCircleTags] = useState<any[]>([])
+  const [postTags, setPostTags] = useState<string[]>([])
+  const [showTagManager, setShowTagManager] = useState(false)
+  const [newTagName, setNewTagName] = useState("")
+  const [savingTag, setSavingTag] = useState(false)
   const [editingPost, setEditingPost] = useState<CirclePost | null>(null)
   const [editPostContent, setEditPostContent] = useState("")
   const [savingPostEdit, setSavingPostEdit] = useState(false)
@@ -370,6 +384,13 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
             type: room.type || room.room_type || "text",
             member_count: Number(room.member_count || 0),
           })))
+        }
+
+        // Load the admin-curated tag vocabulary
+        const tagsResponse = await fetch(`/api/circles/${circleId}/tags`)
+        if (tagsResponse.ok) {
+          const tagsData = await tagsResponse.json()
+          setCircleTags(tagsData.tags || [])
         }
 
       } catch (error) {
@@ -542,6 +563,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
           media_urls: newPostMedia,
           media_type: newPostMedia.length ? "image" : null,
           poll: pollPayload,
+          tags: postTags,
         })
       })
 
@@ -553,6 +575,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
         setShowPollBuilder(false)
         setPollQuestion("")
         setPollOptions(["", ""])
+        setPostTags([])
         toast({ description: "Post shared with the circle!" })
       } else {
         toast({ title: "Couldn't post", description: data.error || "Failed to create post", variant: "destructive" })
@@ -566,6 +589,52 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
       })
     } finally {
       setPostingCircle(false)
+    }
+  }
+
+  // --- Circle tag helpers (admin-curated vocabulary) ---
+  const isStaff = ["owner", "admin", "moderator"].includes(userRole)
+  const togglePostTag = (name: string) => {
+    setPostTags((prev) => (prev.includes(name) ? prev.filter((t) => t !== name) : [...prev, name].slice(0, 5)))
+  }
+
+  const handleCreateTag = async () => {
+    const name = newTagName.trim()
+    if (!name || savingTag) return
+    setSavingTag(true)
+    try {
+      const res = await fetch(`/api/circles/${circleId}/tags`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ name }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to create tag")
+      setCircleTags((prev) => [...prev, data.tag])
+      setNewTagName("")
+      toast({ description: `Tag “${data.tag.name}” added — members can now tag posts with it.` })
+    } catch (error: any) {
+      toast({ title: "Couldn't create tag", description: error.message, variant: "destructive" })
+    } finally {
+      setSavingTag(false)
+    }
+  }
+
+  const handleDeleteTag = async (tagId: string, name: string) => {
+    try {
+      const res = await fetch(`/api/circles/${circleId}/tags/${tagId}`, {
+        method: "DELETE",
+        headers: { ...getAuthHeader() },
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to delete tag")
+      }
+      setCircleTags((prev) => prev.filter((t) => t.id !== tagId))
+      setPostTags((prev) => prev.filter((t) => t !== name))
+      toast({ description: `Tag “${name}” removed.` })
+    } catch (error: any) {
+      toast({ title: "Couldn't delete tag", description: error.message, variant: "destructive" })
     }
   }
 
@@ -836,6 +905,34 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
       toast({ title: "Comment failed", description: error.message, variant: "destructive" })
     } finally {
       setCommentSending(false)
+    }
+  }
+
+  const submitReply = async (parentId: string) => {
+    if (!commentsPost || !replyText.trim() || !user) return
+    setSubmittingReply(true)
+    try {
+      const response = await fetch(`/api/circles/${circleId}/posts/${commentsPost.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ content: replyText.trim(), parent_comment_id: parentId }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to reply")
+      setPostComments((prev) => [...prev, data.comment])
+      setReplyText("")
+      setReplyingTo(null)
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === commentsPost.id ? { ...post, comments: Number(post.comments || 0) + 1 } : post,
+        ),
+      )
+      setCommentsPost((prev) => (prev ? { ...prev, comments: Number(prev.comments || 0) + 1 } : prev))
+      toast({ description: "Reply posted" })
+    } catch (error: any) {
+      toast({ title: "Reply failed", description: error.message, variant: "destructive" })
+    } finally {
+      setSubmittingReply(false)
     }
   }
 
@@ -1331,6 +1428,88 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                       </div>
                     )}
 
+                    {(circleTags.length > 0 || isStaff) && (
+                      <div className="rounded-xl border border-border/60 bg-muted/20 p-2.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="mr-1 flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                            <Tag className="h-3 w-3" /> Tag this post:
+                          </span>
+                          {circleTags.length === 0 ? (
+                            <span className="text-[11px] text-muted-foreground/70">
+                              No tags yet{isStaff ? " — create the first one below" : ""}.
+                            </span>
+                          ) : (
+                            circleTags.map((tag) => {
+                              const active = postTags.includes(tag.name)
+                              return (
+                                <button
+                                  key={tag.id}
+                                  type="button"
+                                  onClick={() => togglePostTag(tag.name)}
+                                  className={`rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${
+                                    active
+                                      ? "border-violet-500 bg-violet-500/20 text-violet-300 shadow-sm"
+                                      : "border-border text-muted-foreground hover:border-violet-400/40 hover:text-violet-300"
+                                  }`}
+                                >
+                                  #{tag.name}
+                                </button>
+                              )
+                            })
+                          )}
+                          {isStaff && (
+                            <button
+                              type="button"
+                              onClick={() => setShowTagManager((v) => !v)}
+                              className="ml-auto rounded-full border border-dashed border-violet-400/40 px-2.5 py-1 text-[11px] font-semibold text-violet-400 hover:bg-violet-500/10"
+                            >
+                              <Settings2 className="mr-1 inline h-3 w-3" />
+                              Manage tags
+                            </button>
+                          )}
+                        </div>
+                        {isStaff && showTagManager && (
+                          <div className="mt-2.5 space-y-2 border-t border-border/50 pt-2.5">
+                            <div className="flex gap-2">
+                              <Input
+                                value={newTagName}
+                                onChange={(e) => setNewTagName(e.target.value)}
+                                placeholder="New tag name… e.g. events, clips, memes"
+                                className="h-9 flex-1 text-xs"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault()
+                                    void handleCreateTag()
+                                  }
+                                }}
+                              />
+                              <Button size="sm" variant="outline" onClick={() => void handleCreateTag()} disabled={savingTag || !newTagName.trim()} className="h-9">
+                                {savingTag ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                                Add
+                              </Button>
+                            </div>
+                            {circleTags.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {circleTags.map((tag) => (
+                                  <span key={tag.id} className="inline-flex items-center gap-1 rounded-full border border-border bg-background/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+                                    #{tag.name}
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleDeleteTag(tag.id, tag.name)}
+                                      className="text-muted-foreground/60 hover:text-rose-500"
+                                      aria-label={`Delete tag ${tag.name}`}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex flex-wrap gap-2">
                         <input
@@ -1467,6 +1646,20 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                           text={post.content}
                           className="mb-3 text-sm leading-relaxed sm:text-base"
                         />
+
+                        {post.tags && post.tags.length > 0 && (
+                          <div className="mb-3 flex flex-wrap gap-1.5">
+                            {post.tags.map((tag) => (
+                              <Badge
+                                key={tag}
+                                variant="outline"
+                                className="rounded-full border-violet-500/30 bg-violet-500/5 px-2 py-0.5 text-[11px] font-semibold text-violet-500 dark:text-violet-300"
+                              >
+                                #{tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
 
                         {post.poll && (
                           <CirclePostPollWidget circleId={circleId} postId={post.id} poll={post.poll} />
@@ -1971,27 +2164,107 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                 ) : postComments.length === 0 ? (
                   <p className="py-8 text-center text-sm text-muted-foreground">No comments yet. Be the first.</p>
                 ) : (
-                  postComments.map((comment) => {
-                    const author = Array.isArray(comment.author) ? comment.author[0] : comment.author
-                    const name = author?.display_name || author?.username || "Member"
-                    return (
-                      <div key={comment.id} className="flex gap-3">
-                        <Avatar className="h-8 w-8 shrink-0">
-                          <AvatarImage src={author?.avatar_url} />
-                          <AvatarFallback>{name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1 rounded-2xl bg-muted/50 px-3 py-2">
-                          <div className="mb-0.5 flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-semibold">{name}</span>
-                            <span className="text-[11px] text-muted-foreground">
-                              {formatDistanceToNow(new Date(comment.created_at || Date.now()), { addSuffix: true })}
-                            </span>
+                  (() => {
+                    // Thread comments: flat rows from the API become a reply tree.
+                    const byParent = new Map<string, any[]>()
+                    const roots: any[] = []
+                    for (const c of postComments) {
+                      if (c.parent_comment_id && c.parent_comment_id !== c.id) {
+                        if (!byParent.has(c.parent_comment_id)) byParent.set(c.parent_comment_id, [])
+                        byParent.get(c.parent_comment_id)!.push(c)
+                      } else {
+                        roots.push(c)
+                      }
+                    }
+                    const replyCount = (comment: any): number => {
+                      const kids = byParent.get(comment.id) || []
+                      return kids.reduce((sum, k) => sum + 1 + replyCount(k), 0)
+                    }
+                    const renderComment = (comment: any, depth: number) => {
+                      const author = Array.isArray(comment.author) ? comment.author[0] : comment.author
+                      const name = author?.display_name || author?.username || "Member"
+                      const replies = byParent.get(comment.id) || []
+                      const isReply = depth > 0
+                      return (
+                        <div key={comment.id} className={isReply ? "ml-4 sm:ml-6 space-y-2.5 border-l-2 border-violet-500/20 pl-3 sm:pl-4" : "space-y-2.5"}>
+                          <div className="flex gap-3">
+                            <Avatar className="h-8 w-8 shrink-0">
+                              <AvatarImage src={author?.avatar_url} />
+                              <AvatarFallback>{name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <div className={isReply ? "rounded-2xl border border-violet-500/10 bg-violet-500/5 px-3 py-2" : "rounded-2xl bg-muted/50 px-3 py-2"}>
+                                <div className="mb-0.5 flex flex-wrap items-center gap-2">
+                                  <span className="text-sm font-semibold">{name}</span>
+                                  {author?.is_verified && (
+                                    <Badge variant="secondary" className="h-4 px-1 text-[9px] bg-blue-500/10 text-blue-500 border-blue-500/20">
+                                      ✓
+                                    </Badge>
+                                  )}
+                                  <span className="text-[11px] text-muted-foreground">
+                                    {formatDistanceToNow(new Date(comment.created_at || Date.now()), { addSuffix: true })}
+                                  </span>
+                                </div>
+                                <RichContent text={comment.content} className="text-sm" />
+                                <div className="mt-1.5 flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setReplyingTo(comment.id)
+                                      setReplyText("")
+                                    }}
+                                    className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground transition hover:text-violet-400"
+                                  >
+                                    <Reply className="h-3 w-3" /> Reply
+                                  </button>
+                                  {replyCount(comment) > 0 && (
+                                    <span className="text-[10px] font-semibold text-muted-foreground/70">
+                                      {replyCount(comment)} {replyCount(comment) === 1 ? "reply" : "replies"}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {replyingTo === comment.id && (
+                                <div className="mt-2 flex items-end gap-2">
+                                  <MentionTextarea
+                                    value={replyText}
+                                    onChange={setReplyText}
+                                    placeholder={`Reply to @${author?.username || "comment"}… @ to tag`}
+                                    className="min-h-[40px] max-h-24 resize-none"
+                                    rows={2}
+                                  />
+                                  <div className="flex flex-col gap-1">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => void submitReply(comment.id)}
+                                      disabled={submittingReply || !replyText.trim()}
+                                      className="rounded-full px-3"
+                                      title="Post reply"
+                                    >
+                                      {submittingReply ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Reply className="h-3.5 w-3.5" />}
+                                    </Button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setReplyingTo(null)}
+                                      className="text-[10px] text-muted-foreground hover:text-foreground"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <RichContent text={comment.content} className="text-sm" />
+                          {depth < 3 && replies.length > 0 && (
+                            <div className="space-y-2.5">
+                              {replies.map((r) => renderComment(r, depth + 1))}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )
-                  })
+                      )
+                    }
+                    return <div className="space-y-3">{roots.map((c) => renderComment(c, 0))}</div>
+                  })()
                 )}
               </div>
               <div className="flex items-end gap-2 border-t pt-3">

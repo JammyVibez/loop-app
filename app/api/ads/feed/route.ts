@@ -1,0 +1,77 @@
+import { type NextRequest, NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase"
+
+export const dynamic = "force-dynamic"
+
+/**
+ * Who sees ads is decided HERE, server-side, never by hiding cards in the
+ * client. Pro users and Sponsors are always excluded; everyone else
+ * (free users and Organization accounts) is eligible. Guests are eligible
+ * like any standard visitor — there's no profile to check, so there's no
+ * entitlement to honor either.
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = createServerClient()
+    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
+
+    let eligible = true
+    let viewer = null
+    if (token) {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser(token)
+      if (!error && user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("id, is_premium, is_sponsor")
+          .eq("id", user.id)
+          .maybeSingle()
+        viewer = user
+        if (profile?.is_premium || profile?.is_sponsor) eligible = false
+      }
+    }
+
+    // Master switch — checked before the DB round trip.
+    const { data: settings } = await supabase.from("ad_settings").select("*").eq("id", "default").maybeSingle()
+    const enabled = Boolean(settings?.enabled)
+    const surfaces = settings?.surfaces || {}
+
+    return NextResponse.json({
+      success: true,
+      eligible: enabled && eligible && Boolean(surfaces.home),
+      enabled,
+      viewer: viewer ? { id: viewer.id } : null,
+    })
+  } catch (error: any) {
+    console.error("ads feed GET:", error)
+    return NextResponse.json({ success: true, eligible: false, error: "ad system unavailable" }, { status: 200 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = createServerClient()
+    const body = await request.json().catch(() => ({}))
+
+    // Session-scoped batch of ads the client will place in the feed.
+    const count = Math.min(5, Math.max(1, Number(body.count || 1)))
+    const { data: settings } = await supabase.from("ad_settings").select("*").eq("id", "default").maybeSingle()
+    if (!settings?.enabled) {
+      return NextResponse.json({ success: true, ads: [] })
+    }
+
+    const { data: ads } = await supabase
+      .from("ads")
+      .select("id, sponsor_name, headline, description, media_url, media_type, link_url")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(count)
+
+    return NextResponse.json({ success: true, ads: ads || [] })
+  } catch (error: any) {
+    console.error("ads POST:", error)
+    return NextResponse.json({ success: true, ads: [] })
+  }
+}

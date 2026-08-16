@@ -11,26 +11,24 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const status = searchParams.get("status") || "active"
+    const loopId = searchParams.get("loop_id")
+    const duelId = searchParams.get("id")
 
     let query = supabase
       .from("loop_duels")
       .select(`
-        id,
-        prompt,
-        creator_id,
-        opponent_id,
-        circle_id,
-        stake_coins,
-        duration_hours,
-        expires_at,
-        status,
-        winner_id,
-        created_at,
+        *,
         creator:profiles!creator_id (id, username, display_name, avatar_url),
         opponent:profiles!opponent_id (id, username, display_name, avatar_url),
         entries:loop_duel_entries (id, side, title, content, media_url, votes_count, user_id)
       `)
       .order("created_at", { ascending: false })
+
+    if (loopId) {
+      query = query.eq("loop_id", loopId)
+    } else if (duelId) {
+      query = query.eq("id", duelId)
+    }
 
     if (status !== "all") {
       query = query.eq("status", status)

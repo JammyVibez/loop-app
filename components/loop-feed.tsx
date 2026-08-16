@@ -7,6 +7,7 @@ import { Loader2, RefreshCw, ArrowUp } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { LoopCard } from "@/components/loop-card"
+import { AdCard, type AdData } from "@/components/ads/ad-card"
 import { normalizeLoops, type NormalizedLoop } from "@/lib/normalize-loop"
 import { LoopFeedSkeleton } from "@/components/loading-states"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -43,6 +44,19 @@ export function LoopFeed({
   const [interacting, setInteracting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { user, getAuthHeader } = useAuth()
+
+  // --- Admin-controlled ads: server decides eligibility, the client only
+  // places the cards. Frequency is randomized once per session (default
+  // one ad every 50–70 organic posts).
+  const [feedAds, setFeedAds] = useState<AdData[]>([])
+  const [adsEligible, setAdsEligible] = useState(false)
+  const adInsertIndexRef = useRef<number | null>(null)
+  const adsInitializedRef = useRef(false)
+  const sessionIdRef = useRef<string>(
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `sess-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+  )
 
   /**
    * For You pool: machine-ranked candidates + the standard personalized feed,
@@ -254,6 +268,41 @@ export function LoopFeed({
     fetchLoops(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, authToken, feedType, guestMode])
+
+  // Fetch ad eligibility + creatives once per session (home feed only).
+  useEffect(() => {
+    if (adsInitializedRef.current) return
+    const isHomeFeed = ["personalized", "following", "trending", "recent"].includes(feedType)
+    if (!isHomeFeed) return
+    adsInitializedRef.current = true
+    const token = user?.access_token || user?.token
+    ;(async () => {
+      try {
+        const eligibilityRes = await fetch("/api/ads/feed", {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          cache: "no-store",
+        })
+        const eligibility = await eligibilityRes.json().catch(() => ({ eligible: false }))
+        if (!eligibility.eligible) return
+        const adsRes = await fetch("/api/ads/feed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ count: 2 }),
+          cache: "no-store",
+        })
+        const adsData = await adsRes.json().catch(() => ({ ads: [] }))
+        if (!adsData.ads?.length) return
+        // Randomize the gap within the 50–70 range once per session.
+        const gap = 50 + Math.floor(Math.random() * 21)
+        adInsertIndexRef.current = gap
+        setFeedAds(adsData.ads)
+        setAdsEligible(true)
+      } catch {
+        // Ads are progressive enhancement — never break the feed.
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feedType])
 
   // After composing a loop — soft-refresh newer posts instead of full page reload
   useEffect(() => {
@@ -507,19 +556,28 @@ export function LoopFeed({
           viewMode === "stream" && "space-y-4 sm:space-y-6"
         )}
       >
-        {filteredLoops.map((loop) => (
-          <div key={loop.id} className="space-y-1.5">
-            <LoopCard
-              loop={loop}
-              interacting={interacting}
-              onInteraction={handleInteraction}
-              onDeleted={(loopId) => setLoops((prev) => prev.filter((item) => item.id !== loopId))}
-              onEdited={(updatedLoop) =>
-                setLoops((prev) => prev.map((item) => (item.id === updatedLoop.id ? updatedLoop : item)))
-              }
-            />
-          </div>
-        ))}
+        {filteredLoops.map((loop, idx) => {
+          const showAdHere =
+            adsEligible && feedAds.length > 0 && adInsertIndexRef.current !== null && idx === adInsertIndexRef.current
+          return (
+            <div key={loop.id} className="space-y-1.5">
+              {showAdHere && (
+                <div className="mb-1.5">
+                  <AdCard ad={feedAds[0]} sessionId={sessionIdRef.current} />
+                </div>
+              )}
+              <LoopCard
+                loop={loop}
+                interacting={interacting}
+                onInteraction={handleInteraction}
+                onDeleted={(loopId) => setLoops((prev) => prev.filter((item) => item.id !== loopId))}
+                onEdited={(updatedLoop) =>
+                  setLoops((prev) => prev.map((item) => (item.id === updatedLoop.id ? updatedLoop : item)))
+                }
+              />
+            </div>
+          )
+        })}
       </div>
 
       {hasMore && (

@@ -72,6 +72,7 @@ import { LoopChainDialog } from "@/components/loops/loop-chain-dialog";
 import { BoostLoopDialog } from "@/components/loops/boost-loop-dialog";
 import { PollCardWidget } from "@/components/polls/poll-card-widget";
 import { LoopDuelCard } from "@/components/duels/loop-duel-card";
+import { ClutchDuelCard } from "@/components/duels/clutch-duel-card";
 
 interface LoopAuthor {
   id: string;
@@ -1165,10 +1166,13 @@ export function LoopCard({
               <PollCardWidget poll={loop.poll || rawLoop?.poll} loopId={loop.id} />
             )}
 
-            {/* Render Duel Card if loop is a duel */}
-            {(loop.duel || rawLoop?.duel || loop.post_type === "duel" || rawLoop?.post_type === "duel" || loop.media_type === "duel" || loop.category === "duel") && (
-              <LoopDuelCard duel={loop.duel || rawLoop?.duel} loopId={loop.id} />
-            )}
+            {/* Render Duel Card if loop is a duel — Clutch Duels get the themed card */}
+            {(loop.duel || rawLoop?.duel || loop.post_type === "duel" || rawLoop?.post_type === "duel" || loop.media_type === "duel" || loop.category === "duel") &&
+              (loop.duel?.duel_type === "clutch" || rawLoop?.duel?.duel_type === "clutch" ? (
+                <ClutchDuelCard duel={loop.duel || rawLoop?.duel} loopId={loop.id} />
+              ) : (
+                <LoopDuelCard duel={loop.duel || rawLoop?.duel} loopId={loop.id} />
+              ))}
 
             {renderMedia()}
 

@@ -35,8 +35,10 @@ import {
   Vote,
   Swords,
   Sparkles,
+  Zap,
 } from "lucide-react"
 import { CreateDuelDialog } from "@/components/duels/create-duel-dialog"
+import { CreateClutchDuelDialog } from "@/components/duels/create-clutch-duel-dialog"
 
 const DRAFT_KEY = "loop-composer-draft-v1"
 
@@ -68,6 +70,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
   const [pollQuestion, setPollQuestion] = useState("")
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""])
   const [duelDialogOpen, setDuelDialogOpen] = useState(false)
+  const [clutchDuelDialogOpen, setClutchDuelDialogOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
@@ -823,6 +826,16 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                 <Swords className="mr-1 h-4 w-4 text-amber-400" />
                 Duel
               </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="border-violet-500/50 bg-violet-500/10 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.25)] hover:bg-violet-500/25"
+                onClick={() => setClutchDuelDialogOpen(true)}
+              >
+                <Zap className="mr-1 h-4 w-4 fill-amber-400 text-amber-400" />
+                Clutch Duel
+              </Button>
             </div>
 
             {mediaType === "poll" && (
@@ -990,6 +1003,15 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
       <CreateDuelDialog
         open={duelDialogOpen}
         onOpenChange={setDuelDialogOpen}
+        onDuelCreated={() => {
+          if (onLoopCreated) onLoopCreated()
+          else window.location.reload()
+        }}
+      />
+
+      <CreateClutchDuelDialog
+        open={clutchDuelDialogOpen}
+        onOpenChange={setClutchDuelDialogOpen}
         onDuelCreated={() => {
           if (onLoopCreated) onLoopCreated()
           else window.location.reload()

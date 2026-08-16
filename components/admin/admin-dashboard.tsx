@@ -40,6 +40,7 @@ import { EventManagement } from "@/components/admin/event-management"
 import { MaintenanceModeControl } from "@/components/admin/maintenance-mode-control"
 import { ProLoungeSettings } from "@/components/admin/pro-lounge-settings"
 import { OrgManagementPanel } from "@/components/admin/org-management-panel"
+import { AdsAdminPanel } from "@/components/admin/ads-admin-panel"
 import { UserBadges } from "@/components/user-badge"
 
 interface AdminUser {
@@ -193,6 +194,7 @@ export function AdminDashboard() {
           <TabsTrigger value="support">Support</TabsTrigger>
           <TabsTrigger value="gifs">GIFs</TabsTrigger>
           <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
+          <TabsTrigger value="ads">Ads</TabsTrigger>
           <TabsTrigger value="moderation">Moderation</TabsTrigger>
         </TabsList>
 
@@ -447,6 +449,10 @@ export function AdminDashboard() {
 
         <TabsContent value="broadcast" className="mt-6">
           <AdminBroadcastPanel />
+        </TabsContent>
+
+        <TabsContent value="ads" className="mt-6">
+          <AdsAdminPanel />
         </TabsContent>
       </Tabs>
     </div>

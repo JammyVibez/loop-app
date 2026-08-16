@@ -111,6 +111,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         ? [media_url]
         : []
 
+    // Post tags must come from the circle's admin-curated vocabulary.
+    // Unknown tags are silently dropped — admins own the tag set.
+    let validTags: string[] = []
+    if (Array.isArray(body.tags) && body.tags.length) {
+      const rawTags: unknown[] = Array.isArray(body.tags) ? body.tags : []
+      const requested: string[] = [
+        ...new Set(rawTags.map((t) => String(t || "").trim().replace(/^#/, "").toLowerCase()).filter((s) => Boolean(s))),
+      ]
+      if (requested.length) {
+        const { data: vocab } = await supabase
+          .from("circle_tags")
+          .select("name")
+          .eq("circle_id", circleId)
+        const allowed = new Set((vocab || []).map((t) => t.name))
+        validTags = requested.filter((t) => allowed.has(t)).slice(0, 5)
+      }
+    }
+
     // Check if user is a member of the circle (role needed for announcement-room + max-files checks)
     const { data: member } = await supabase
       .from("circle_members")
@@ -191,6 +209,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         media_urls: mediaUrls,
         media_type: mediaUrls.length ? media_type || "image" : null,
         hashtags: hashtags || [],
+        tags: validTags,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
