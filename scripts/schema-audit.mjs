@@ -6,7 +6,10 @@
 //
 // Heuristic parser — flags anything it can't prove exists, so a report needs
 // human review before acting on it (it deliberately over-reports rather than
-// missing a broken query).
+// missing a broken query). Known safe patterns that are filtered:
+//   - Supabase alias joins: `author:profiles!author_id(...)`, `loop:loops!loop_id(...)`
+//     (nested selects recurse and attribute inner columns to the real table)
+//   - Dead lib/ helpers with no importers (e.g. legacy enhanced-supabase.ts)
 import { readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
 import pg from "pg"
@@ -31,8 +34,14 @@ const tables = new Set(Object.keys(schema))
 
 // ---- column extraction helpers ---------------------------------------------
 
-/** Parse a .select("a, b(c, d), e:f(g)") string into { table: [cols] } pairs. */
-function parseSelectString(str) {
+/** Parse a .select("a, b(c, d), e:f(g)") string into { table: [cols] } pairs.
+ *
+ * Supabase embeds child tables with alias syntax: `loop:loops!loop_id(
+ *   *, author:profiles!author_id(id, username), loop_stats(likes_count)
+ * )`. This recurses so the inner columns are attributed to their real
+ * table (loops / profiles / loop_stats) instead of the outer table.
+ */
+function parseSelectString(str, parentTable = null) {
   const result = []
   for (const raw of splitTopLevel(str)) {
     const token = raw.trim()
@@ -42,14 +51,16 @@ function parseSelectString(str) {
       // "author:profiles!author_id" -> table "profiles" (strip alias + FK hint)
       const tablePart = token.slice(0, paren).trim().split(":").pop().split("!")[0].trim()
       const inner = token.slice(paren + 1, token.lastIndexOf(")")).trim()
-      for (const c of splitTopLevel(inner)) {
-        const col = c.trim().replace(/!.*$/, "").trim()
-        if (col && col !== "*" && col !== "count") result.push({ table: tablePart, column: col })
-      }
+      // Nested child selects recurse; plain columns inside them belong to the
+      // nested table (e.g. profiles / loop_stats), not the outer one.
+      result.push(...parseSelectString(inner, tablePart || parentTable))
       continue
     }
+    // Alias reference without parens (e.g. a bare "author:profiles" inside a
+    // larger token) is a table join, not a column — skip it entirely.
+    if (token.includes(":")) continue
     const col = token.split(":").pop().trim()
-    if (col && col !== "count") result.push({ table: null, column: col })
+    if (col && col !== "count") result.push({ table: parentTable, column: col })
   }
   return result
 }
@@ -77,7 +88,12 @@ function splitTopLevel(str) {
   return parts
 }
 
-/** Collect top-level keys of an object literal (text starts AFTER the '{'). */
+/** Collect top-level keys of an object literal (text starts AFTER the '{').
+ *
+ * After matching a `key:` pair, jump past the whole value (to the next
+ * top-level comma / closing brace) so a ternary like `x: a ? null : b` is
+ * never mistaken for a `null:` key.
+ */
 function collectTopLevelKeys(text) {
   const keys = []
   let depth = 1
@@ -92,13 +108,32 @@ function collectTopLevelKeys(text) {
       continue
     }
     if (ch === '"' || ch === "'" || ch === "`") { inStr = ch; i++; continue }
-    if (ch === "{") depth++
-    else if (ch === "}") { depth--; if (depth === 0) break }
+    if (ch === "{" || ch === "[") depth++
+    else if (ch === "}" || ch === "]") { depth--; if (depth === 0) break }
     else if (depth === 1 && /[a-zA-Z_$]/.test(ch)) {
       const m = /^([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/.exec(text.slice(i))
       if (m) {
         keys.push(m[1])
-        i += m[0].length
+        // Skip the key AND its value: advance past the next top-level comma
+        // or the closing brace, tracking nested braces/brackets/strings.
+        let vDepth = 0
+        let vStr = null
+        while (i < text.length) {
+          const c = text[i]
+          if (vStr) {
+            if (c === "\\") i++
+            else if (c === vStr) vStr = null
+            i++
+            continue
+          }
+          if (c === '"' || c === "'" || c === "`") { vStr = c; i++; continue }
+          if (c === "{" || c === "[") vDepth++
+          else if (c === "}" || c === "]") {
+            if (vDepth === 0) { i++; return keys }
+            vDepth--
+          } else if (c === "," && vDepth === 0) { i++; break }
+          i++
+        }
         continue
       }
     }
@@ -121,6 +156,52 @@ function walk(dir) {
 }
 for (const dir of ["app", "lib", "components"]) walk(dir)
 
+// Dead-code filter: lib/ helpers are only relevant when something imports
+// them. app/ and components/ are entry points by convention. A lib file with
+// no importer (e.g. the legacy lib/enhanced-supabase.ts) can reference tables
+// that no longer exist without being a production risk.
+// Imports come in two forms — `@/lib/foo` (alias, anywhere) and `./foo`
+// (relative, inside lib/). Scan every scanned file for both.
+const importedLibs = new Set()
+const tryAdd = (base) => {
+  // Normalize to a file path: strip ./ and extension, try .ts/.tsx/index.
+  let p = base.replace(/^\.[\\/]/, "").replace(/^\.\//, "")
+  for (const ext of [".ts", ".tsx", ".mjs", ""]) {
+    if (importedLibs.has(p + ext)) return
+  }
+  for (const ext of [".ts", ".tsx", ".mjs", ""]) importedLibs.add(p + ext)
+}
+for (const file of files) {
+  const src = readFileSync(file, "utf8")
+  // Static: `from "@/lib/x"` / `from "./x"`
+  const re = /from\s+["'](@\/lib\/[^"']+|\.[^"']*)["']/g
+  let m
+  while ((m = re.exec(src))) {
+    const spec = m[1]
+    if (spec.startsWith("@/lib/")) {
+      tryAdd("lib/" + spec.slice("@/lib/".length))
+    } else {
+      // Resolve relative imports against the importing file's dir.
+      const dir = join(file.split("/").slice(0, -1).join("/"), spec)
+      tryAdd(dir)
+    }
+  }
+  // Dynamic: `import("@/lib/x")` (code-split server helpers)
+  const dynRe = /import\(\s*["'](@\/lib\/[^"']+)["']/g
+  let d
+  while ((d = dynRe.exec(src))) {
+    tryAdd("lib/" + d[1].slice("@/lib/".length))
+  }
+}
+const deadLibFiles = new Set(
+  files.filter((f) => f.startsWith("lib/") && f !== "lib/supabase.ts" && !importedLibs.has(f)),
+)
+if (deadLibFiles.size) {
+  console.log("SKIPPED dead lib files (nothing imports them):")
+  for (const f of [...deadLibFiles].sort()) console.log(`  ${f}`)
+  console.log()
+}
+
 const refs = new Map() // `${table}::${column}` -> Set of files
 const missingTables = new Map() // table -> Set of files
 
@@ -133,6 +214,7 @@ function ref(table, column, file) {
 const COLUMN_OPS = /\.(eq|neq|gt|gte|lt|lte|like|ilike|is|order|in|cs|cd|select|filter)\(\s*["'`]([a-zA-Z_][a-zA-Z0-9_]*)["'`]/g
 
 for (const file of files) {
+  if (deadLibFiles.has(file)) continue
   const src = readFileSync(file, "utf8")
   const fromRe = /\.from\(\s*["'`]([a-zA-Z_][a-zA-Z0-9_]*)["'`]\s*\)/g
   let m
@@ -144,9 +226,41 @@ for (const file of files) {
       missingTables.get(table).add(file)
       continue
     }
-    // Window: until the next .from( or 1200 chars.
+    // Window: until the next .from( or the end of this statement, capped at
+    // 1200 chars. The statement boundary matters: a chain can be reassigned
+    // to another query (`query = query.in(...)`), so ops from the next
+    // statement must not be attributed here.
     const nextFrom = src.indexOf(".from(", start + 8)
-    const windowEnd = nextFrom > start && nextFrom - start < 1200 ? nextFrom : Math.min(src.length, start + 1200)
+    let windowEnd = nextFrom > start && nextFrom - start < 1200 ? nextFrom : Math.min(src.length, start + 1200)
+    // Scan forward from the end of .from(...): a statement ends at a
+    // top-level ';' or at a newline where the next non-space char isn't a
+    // chain dot (and isn't a comment). Nested parens/braces/strings keep
+    // depth > 0, so multi-line select strings and insert objects stay intact.
+    let depth = 0
+    let inStr = null
+    for (let i = start + m[0].length; i < windowEnd; i++) {
+      const c = src[i]
+      if (inStr) {
+        if (c === "\\") i++
+        else if (c === inStr) inStr = null
+        continue
+      }
+      if (c === '"' || c === "'" || c === "`") { inStr = c; continue }
+      if (c === "(" || c === "{" || c === "[") depth++
+      else if (c === ")" || c === "}" || c === "]") depth--
+      else if (c === ";" && depth === 0) { windowEnd = i; break }
+      else if (c === "\n" && depth === 0) {
+        // Look ahead past spaces/tabs; if the next line isn't a chain
+        // continuation (dot) or a comment, this statement is over.
+        let j = i + 1
+        while (j < windowEnd && (src[j] === " " || src[j] === "\t" || src[j] === "\r")) j++
+        const nxt = src[j]
+        if (nxt !== undefined && nxt !== "." && nxt !== "/" && nxt !== "*" && nxt !== ";" && nxt !== ")" && nxt !== "}") {
+          windowEnd = i
+          break
+        }
+      }
+    }
     const window = src.slice(start + m[0].length, windowEnd)
 
     // select("...")
