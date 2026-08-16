@@ -8,6 +8,7 @@ import {
   Bell,
   Check,
   Crown,
+  Flame,
   Hash,
   Loader2,
   Lock,
@@ -20,6 +21,7 @@ import {
   Trash2,
   Users,
   X,
+  Zap,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -94,6 +96,10 @@ export function SlackCircleWorkspace({ circleId }: { circleId: string }) {
   const [savingChannel, setSavingChannel] = useState(false)
   const [search, setSearch] = useState("")
 
+  // Pro Lounge daily check-in — streaks + coin reward for showing up.
+  const [checkin, setCheckin] = useState<{ claimed: boolean; streak: number; reward: number; bonus: number } | null>(null)
+  const [checkingIn, setCheckingIn] = useState(false)
+
   const loadCircle = useCallback(async () => {
     try {
       const res = await fetch(`/api/circles/${circleId}`, { headers: getAuthHeader() })
@@ -151,6 +157,49 @@ export function SlackCircleWorkspace({ circleId }: { circleId: string }) {
     void loadRooms()
     void loadMembers()
   }, [loadRooms, loadMembers])
+
+  const loadCheckin = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/circles/${circleId}/checkin`, { headers: getAuthHeader() })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setCheckin({ claimed: Boolean(data.claimed), streak: Number(data.streak || 0), reward: Number(data.reward || 30), bonus: Number(data.bonus || 0) })
+      }
+    } catch {
+      /* non-critical */
+    }
+  }, [circleId, getAuthHeader])
+
+  useEffect(() => {
+    void loadCheckin()
+  }, [loadCheckin])
+
+  const claimCheckin = async () => {
+    if (checkingIn || checkin?.claimed) return
+    setCheckingIn(true)
+    try {
+      const res = await fetch(`/api/circles/${circleId}/checkin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast({ title: "Check-in not available", description: data.error || "Already checked in today.", variant: "destructive" })
+        await loadCheckin()
+        return
+      }
+      setCheckin({ claimed: true, streak: Number(data.streak || 1), reward: Number(data.amount || 30), bonus: Number(data.bonus || 0) })
+      toast({
+        title: data.bonus ? `🔥 ${data.streak}-day streak — +${data.amount} coins!` : `Checked in! +${data.amount} coins 🪙`,
+        description: data.bonus ? "7+ day streak bonus applied. Keep it going!" : `You're on a ${data.streak}-day streak.`,
+      })
+    } catch (error: any) {
+      toast({ title: "Check-in failed", description: error?.message || "Please try again.", variant: "destructive" })
+    } finally {
+      setCheckingIn(false)
+    }
+  }
 
   const activeRoom = useMemo(() => rooms.find((r) => r.id === activeRoomId) || null, [rooms, activeRoomId])
   const isManager = useMemo(() => {
@@ -448,6 +497,32 @@ export function SlackCircleWorkspace({ circleId }: { circleId: string }) {
           >
             <Users className="h-4 w-4" />
           </Button>
+          {checkin?.claimed ? (
+            <Badge
+              variant="outline"
+              className="hidden h-8 shrink-0 items-center gap-1 border-amber-400/40 bg-amber-400/10 text-[11px] text-amber-500 sm:inline-flex"
+              title="Daily check-in claimed"
+            >
+              <Flame className="h-3.5 w-3.5 fill-current" />
+              {checkin.streak}-day streak
+              <Check className="h-3 w-3" />
+            </Badge>
+          ) : (
+            <Button
+              size="sm"
+              className="hidden h-8 shrink-0 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-900/30 sm:inline-flex"
+              onClick={() => void claimCheckin()}
+              disabled={checkingIn || !checkin}
+              title="Claim today's Pro Lounge reward"
+            >
+              {checkingIn ? (
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Zap className="mr-1 h-3.5 w-3.5 fill-current" />
+              )}
+              Check in +{checkin?.reward ?? 30}
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" title="More">

@@ -46,6 +46,17 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
   const { toast } = useToast()
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Phase machine guard — "revealed" is terminal, and the anticipation beat
+  // ("revealing") is only ever entered once so no timer fights itself.
+  const phaseRef = useRef<"betting" | "revealing" | "revealed">("betting")
+  phaseRef.current = phase
+  const enterRevealBeat = useCallback(() => {
+    if (phaseRef.current === "revealed") return
+    setPhase("revealing")
+    if (revealTimerRef.current) clearTimeout(revealTimerRef.current)
+    revealTimerRef.current = setTimeout(() => setPhase("revealed"), 1600)
+  }, [])
+
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
 
   // Load duel by loopId if not passed in (e.g. loop detail page).
@@ -72,7 +83,9 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
       if (!res.ok) return
       const data = await res.json()
       setSummary(data.summary || null)
-      setPhase(data.bettingOpen ? "betting" : (d) => (d === "betting" ? "revealed" : d))
+      // NOTE: deliberately no phase writes here. Phase is driven by the
+      // countdown + reveal flow only, so polling can never yank the card
+      // back to "betting" after the window closed (that caused the blink).
     } catch {
       /* ignore */
     }
@@ -117,10 +130,9 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
           const next = payload.new as any
           if (next) {
             setDuel((prev) => (prev ? { ...prev, ...next } : prev))
-            if (next.outcome_revealed) {
-              setPhase("revealing")
-              revealTimerRef.current = setTimeout(() => setPhase("revealed"), 1600)
-            }
+            // Only the winner-side state change matters here; everything else
+            // (stake totals ticking up, etc.) must not touch the phase.
+            if (next.outcome_revealed) enterRevealBeat()
           }
         },
       )
@@ -129,43 +141,54 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
       void supabase.removeChannel(channel)
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current)
     }
-  }, [duel?.id, supabase, refreshSummary])
+  }, [duel?.id, supabase, refreshSummary, enterRevealBeat])
 
-  // Countdown — the tension engine.
+  // Countdown — the tension engine. The interval STOPS the moment it hits
+  // zero (never keeps running), and the reveal beat fires exactly once.
   useEffect(() => {
     if (!duel?.betting_ends_at) return
     if (duel.outcome_revealed) {
-      setPhase("revealed")
+      // If the anticipation beat is already playing (creator just revealed via
+      // realtime), let it finish — never yank it straight to the video.
+      if (phaseRef.current !== "revealing") setPhase("revealed")
       return
     }
     const endsAt = new Date(duel.betting_ends_at).getTime()
+
+    const finishCountdown = () => {
+      setSecondsLeft(0)
+      enterRevealBeat()
+      // Pull the freshest duel row so the creator's reveal UI shows the
+      // post-window state without waiting for a realtime event.
+      if (duel?.id) {
+        fetch(`/api/duels?status=all&id=${duel.id}`)
+          .then((r) => r.json())
+          .then((d) => {
+            if (d.duels?.[0]) setDuel(d.duels[0])
+          })
+          .catch(() => {})
+      }
+    }
+
+    // Window already closed (e.g. card opened late) — go straight to reveal.
+    if (endsAt <= Date.now()) {
+      finishCountdown()
+      return
+    }
+
     const tick = () => {
       const left = Math.max(0, Math.floor((endsAt - Date.now()) / 1000))
       setSecondsLeft(left)
       if (left <= 0) {
-        setPhase("revealing")
-        revealTimerRef.current = setTimeout(() => {
-          setPhase("revealed")
-          // Pull the freshest duel row so creator reveal UI shows post-window state.
-          if (duel?.id) {
-            fetch(`/api/duels?status=all&id=${duel.id}`)
-              .then((r) => r.json())
-              .then((d) => {
-                if (d.duels?.[0]) setDuel(d.duels[0])
-              })
-              .catch(() => {})
-          }
-        }, 1600)
+        clearInterval(interval)
+        finishCountdown()
       }
     }
     tick()
     const interval = setInterval(tick, 1000)
-    return () => {
-      clearInterval(interval)
-      if (revealTimerRef.current) clearTimeout(revealTimerRef.current)
-    }
+    return () => clearInterval(interval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [duel?.betting_ends_at, duel?.outcome_revealed])
+  }, [duel?.betting_ends_at, duel?.outcome_revealed, enterRevealBeat])
 
   // Resolve the viewer's result once revealed.
   useEffect(() => {
@@ -173,6 +196,17 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
     if (userPick.side === duel.correct_side) setMyResult({ kind: "win" })
     else setMyResult({ kind: "loss" })
   }, [phase, duel?.correct_side, userPick])
+
+  // Once the anticipation beat ends, kick the clip off automatically so the
+  // outcome "plays" itself — with the overlay as a fallback if autoplay is
+  // blocked by the browser.
+  useEffect(() => {
+    if (phase !== "revealed" || !duel?.clip_url) return
+    const t = window.setTimeout(() => {
+      void videoRef.current?.play().catch(() => setVideoPlaying(false))
+    }, 120)
+    return () => window.clearTimeout(t)
+  }, [phase, duel?.clip_url])
 
   const totalStake = (summary?.yes?.stake || 0) + (summary?.no?.stake || 0)
   const yesPct = totalStake > 0 ? Math.round(((summary?.yes?.stake || 0) / totalStake) * 100) : 50
@@ -227,8 +261,7 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
         return
       }
       setDuel((prev) => (prev ? { ...prev, correct_side: side, outcome_revealed: true } : prev))
-      setPhase("revealing")
-      revealTimerRef.current = setTimeout(() => setPhase("revealed"), 1600)
+      enterRevealBeat()
       toast({ title: "Outcome revealed!", description: `The clutch was a ${side.toUpperCase()}. Payouts processed.` })
     } catch (err) {
       console.error("Reveal error:", err)
@@ -333,8 +366,10 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
                   src={duel.clip_url}
                   controls
                   playsInline
+                  preload="auto"
                   className="h-full w-full rounded-2xl object-contain"
                   onPlay={() => setVideoPlaying(true)}
+                  onPause={() => setVideoPlaying(false)}
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-slate-400">Clip unavailable</div>

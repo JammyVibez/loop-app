@@ -14,7 +14,7 @@ if (!databaseUrl) {
   process.exit(1)
 }
 
-const files = [
+const DEFAULT_FILES = [
   // Enum categories used by the shop catalog (font / card_effect / …).
   "scripts/add-font-card-effect-categories.sql",
   // profiles.badge_id + verification_badges — fixes
@@ -28,7 +28,12 @@ const files = [
   "scripts/account-status-appeals-schema.sql",
   // Official Welcome Bot + Moderation Bot marketplace listings.
   "scripts/community-bots-seed.sql",
+  // Pro Circle workspace: channel polls + Pro Lounge daily check-in.
+  "scripts/pro-circle-polls-checkins-schema.sql",
 ]
+
+// Allow a targeted run: node apply-pending-schema.mjs scripts/foo.sql …
+const files = process.argv.slice(2).length ? process.argv.slice(2) : DEFAULT_FILES
 
 /** Split a SQL file into top-level statements, honoring quotes + $$ blocks. */
 function splitStatements(sql) {

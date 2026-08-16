@@ -23,6 +23,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const limit = Number.parseInt(searchParams.get("limit") || "50")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
     const before = searchParams.get("before") // cursor for pagination
+    const threadOf = searchParams.get("thread_of") // show only replies to this message
 
     const { id: circleId, roomId } = await params
 
@@ -85,7 +86,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1)
 
-    if (before) {
+    if (threadOf) {
+      // Thread view: only the replies to the given parent message.
+      query = query.eq("reply_to_id", threadOf)
+    } else if (before) {
       query = query.lt("created_at", before)
     }
 
@@ -109,6 +113,47 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       reactionRows = reactions || []
     }
 
+    // Reply counts — every message reports how many replies it has so the UI
+    // can show the Slack-style thread badge without an extra round trip.
+    let replyCounts: Record<string, number> = {}
+    if (!threadOf) {
+      const { data: replyRows } = await supabase
+        .from("circle_room_messages")
+        .select("reply_to_id")
+        .eq("room_id", roomId)
+        .not("reply_to_id", "is", null)
+      replyCounts = (replyRows || []).reduce<Record<string, number>>((acc, row) => {
+        const parentId = row.reply_to_id as string
+        acc[parentId] = Number(acc[parentId] || 0) + 1
+        return acc
+      }, {})
+    }
+
+    // Polls — attach the poll payload (plus the viewer's own vote) to its
+    // message row so poll cards render inline in the feed.
+    let pollsById: Record<string, any> = {}
+    if (messageIds.length > 0) {
+      const { data: pollRows } = await supabase
+        .from("circle_room_polls")
+        .select("*")
+        .in("message_id", messageIds)
+      const pollIds = (pollRows || []).map((p: any) => p.id)
+      let myVotes: Record<string, string> = {}
+      if (pollIds.length > 0) {
+        const { data: voteRows } = await supabase
+          .from("circle_room_poll_votes")
+          .select("poll_id, option_id")
+          .in("poll_id", pollIds)
+          .eq("user_id", user.id)
+        for (const v of voteRows || []) {
+          if (v.poll_id) myVotes[v.poll_id] = v.option_id
+        }
+      }
+      for (const poll of pollRows || []) {
+        if (poll.message_id) pollsById[poll.message_id] = { ...poll, user_vote: myVotes[poll.id] || null }
+      }
+    }
+
     const enriched = sortedMessages.map((message: any) => {
       const rows = reactionRows.filter((r) => r.message_id === message.id)
       const reactions: Record<string, number> = {}
@@ -117,13 +162,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         reactions[row.reaction_type] = Number(reactions[row.reaction_type] || 0) + 1
         if (row.user_id === user.id) my_reactions.push(row.reaction_type)
       }
-      return { ...message, reactions, my_reactions }
+      return {
+        ...message,
+        reactions,
+        my_reactions,
+        reply_count: Number(replyCounts[message.id] || 0),
+        poll: pollsById[message.id] || null,
+      }
     })
 
     return NextResponse.json({
       success: true,
       messages: enriched,
       hasMore: messages?.length === limit,
+      thread_total: threadOf ? enriched.length : undefined,
     })
   } catch (error) {
     console.error("Error fetching room messages:", error)
