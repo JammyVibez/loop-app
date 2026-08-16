@@ -35,7 +35,10 @@ const securityHeaders = [
 ]
 
 const nextConfig = {
-  output: "standalone",
+  // NOTE: Do not set `output: "standalone"` here — the deploy targets are
+  // Vercel (which ignores it) and Render (whose `next start` start command is
+  // incompatible with standalone output). There is no Docker/VPS target that
+  // consumes the standalone server bundle.
   // Keep Node-only packages out of the client/Edge bundles.
   serverExternalPackages: ["stripe", "web-push", "https-proxy-agent", "agent-base"],
   htmlLimitedBots,
