@@ -12,7 +12,6 @@ import { UserSuggestions } from "@/components/users/user-suggestions"
 import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt"
 import { AppDownloadBadges } from "@/components/app-download-badges"
 import { DailyPulse } from "@/components/engagement/daily-pulse"
-import { MomentsSection } from "@/components/engagement/moments-section"
 import { Button } from "@/components/ui/button"
 import { Compass, Users, Video, Plus, Bookmark, LogIn, Search } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -89,7 +88,6 @@ export function HomePageClient() {
                 <ReturnRecap />
                 <CircleActivityStrip />
                 <DailyPulse />
-                <MomentsSection />
               </>
             )}
 

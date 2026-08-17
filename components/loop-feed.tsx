@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, RefreshCw, ArrowUp } from "lucide-react"
+import { Loader2, RefreshCw, ArrowUp, Plus, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { LoopCard } from "@/components/loop-card"
@@ -12,11 +13,33 @@ import { normalizeLoops, type NormalizedLoop } from "@/lib/normalize-loop"
 import { LoopFeedSkeleton } from "@/components/loading-states"
 import { EmptyState } from "@/components/ui/empty-state"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
+import { MomentCard, type MomentCardMoment } from "@/components/engagement/moment-card"
 import { cn } from "@/lib/utils"
 
 /** Max candidates the database ML recommendation engine can score per request. */
 const ML_FETCH_LIMIT = 50
 const PAGE_SIZE = 20
+
+/**
+ * Where ephemeral Moment cards get interleaved into the For You stream
+ * (0-indexed positions in the rendered loop list). Kept sparse so moments
+ * never flood the feed — max 5 live moments, one every few posts.
+ */
+const MOMENT_SLOTS = [2, 7, 12, 17, 22]
+/** After the last moment slot, a compact "Post a moment" tile appears (if moments are live). */
+const COMPOSE_MOMENT_SLOT = 27
+
+interface FeedMoment extends MomentCardMoment {
+  is_self?: boolean
+  duration_hours?: number
+  author?: {
+    id?: string
+    username?: string | null
+    display_name?: string | null
+    avatar_url?: string | null
+    is_verified?: boolean | null
+  } | null
+}
 
 interface LoopFeedProps {
   feedType?: "personalized" | "following" | "trending" | "recent"
@@ -43,6 +66,9 @@ export function LoopFeed({
   const [hasMore, setHasMore] = useState(true)
   const [interacting, setInteracting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** Live ephemeral moments interleaved into the For You tab. */
+  const [moments, setMoments] = useState<FeedMoment[]>([])
+  const viewedMomentsRef = useRef<Set<string>>(new Set())
   const { user, getAuthHeader } = useAuth()
 
   // --- Admin-controlled ads: server decides eligibility, the client only
@@ -96,6 +122,26 @@ export function LoopFeed({
       newestSeenAt.current = top
     }
   }
+
+  /**
+   * Moments belong to the For You tab: the API returns still-live moments
+   * from people the viewer follows + their own (and auto-purges expired rows
+   * from the database). We prune again client-side so a moment visually
+   * vanishes from the tab the second its 24/48h life is up.
+   */
+  const fetchMoments = useCallback(async () => {
+    if (feedType !== "personalized" || !authToken) return
+    try {
+      const res = await fetch("/api/moments", { headers: { ...getAuthHeader() }, cache: "no-store" })
+      if (!res.ok) return
+      const data = await res.json().catch(() => ({}))
+      const list = (data.moments || []) as FeedMoment[]
+      const now = Date.now()
+      setMoments(list.filter((m) => !m.expires_at || new Date(m.expires_at).getTime() > now))
+    } catch {
+      /* moments are progressive enhancement — never break the feed */
+    }
+  }, [feedType, authToken, getAuthHeader])
 
   const fetchLoops = useCallback(
     async (reset = false) => {
@@ -266,6 +312,7 @@ export function LoopFeed({
   useEffect(() => {
     newestSeenAt.current = null
     fetchLoops(true)
+    void fetchMoments()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, authToken, feedType, guestMode])
 
@@ -304,18 +351,20 @@ export function LoopFeed({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feedType])
 
-  // After composing a loop — soft-refresh newer posts instead of full page reload
+  // After composing a loop (or a moment from /create) — soft-refresh newer
+  // posts instead of a full page reload, and pull in fresh moments.
   useEffect(() => {
     const onCreated = () => {
       void (async () => {
         await new Promise((r) => setTimeout(r, 350))
         const newer = await fetchNewer({ silent: true, apply: true })
         if (!newer.length) await fetchLoops(true)
+        void fetchMoments()
       })()
     }
     window.addEventListener("loop-created", onCreated)
     return () => window.removeEventListener("loop-created", onCreated)
-  }, [fetchNewer, fetchLoops])
+  }, [fetchNewer, fetchLoops, fetchMoments])
 
   /** Re-fetch a single loop and patch it into the feed (used for live edits). */
   const refreshLoop = useCallback(
@@ -399,11 +448,74 @@ export function LoopFeed({
           )
         },
       )
+      // Moments are part of the For You stream: a new one slides in, a
+      // deleted/expired one disappears — no refresh needed.
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "moments" },
+        () => {
+          if (feedType === "personalized") void fetchMoments()
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "moments" },
+        (payload: any) => {
+          const deletedId: string | undefined = payload.old?.id
+          if (!deletedId) return
+          setMoments((prev) => prev.filter((m) => m.id !== deletedId))
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "moments" },
+        () => {
+          // Edited or expired server-side — refetch (the API prunes expired rows).
+          if (feedType === "personalized") void fetchMoments()
+        },
+      )
       .subscribe()
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [user?.id, feedType, fetchNewer, guestMode, refreshLoop])
+  }, [user?.id, feedType, fetchNewer, guestMode, refreshLoop, fetchMoments])
+
+  // Moment expiry safety net: even if no realtime DELETE ever fires, a moment
+  // visually vanishes from the For You tab the instant its 24/48h life ends.
+  useEffect(() => {
+    if (feedType !== "personalized") return
+    const t = window.setInterval(() => {
+      const now = Date.now()
+      setMoments((prev) => {
+        const next = prev.filter((m) => !m.expires_at || new Date(m.expires_at).getTime() > now)
+        return next.length === prev.length ? prev : next
+      })
+    }, 30000)
+    return () => window.clearInterval(t)
+  }, [feedType])
+
+  // Count in-feed impressions as moment views (once per viewer per moment).
+  useEffect(() => {
+    if (feedType !== "personalized" || !user?.id || moments.length === 0) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          const momentId = (entry.target as HTMLElement).dataset.feedMomentId
+          if (!momentId || viewedMomentsRef.current.has(momentId)) continue
+          viewedMomentsRef.current.add(momentId)
+          void fetch(`/api/moments/${momentId}/view`, {
+            method: "POST",
+            headers: { ...getAuthHeader() },
+          }).catch(() => {})
+        }
+      },
+      { threshold: 0.4 },
+    )
+    const nodes = document.querySelectorAll<HTMLElement>("[data-feed-moment-id]")
+    nodes.forEach((node) => observer.observe(node))
+    return () => observer.disconnect()
+  }, [moments, feedType, user?.id, getAuthHeader])
 
   // Pull-to-refresh (touch)
   useEffect(() => {
@@ -625,12 +737,49 @@ export function LoopFeed({
         {filteredLoops.map((loop, idx) => {
           const showAdHere =
             adsEligible && feedAds.length > 0 && adInsertIndexRef.current !== null && idx === adInsertIndexRef.current
+          const slotIndex = MOMENT_SLOTS.indexOf(idx)
+          const momentAtSlot = !guestMode && feedType === "personalized" && slotIndex !== -1 ? moments[slotIndex] : null
+          const showMomentCompose =
+            !guestMode && feedType === "personalized" && idx === COMPOSE_MOMENT_SLOT && moments.length > 0
           return (
             <div key={loop.id} className="space-y-1.5">
               {showAdHere && (
                 <div className="mb-1.5">
                   <AdCard ad={feedAds[0]} sessionId={sessionIdRef.current} />
                 </div>
+              )}
+              {momentAtSlot && (
+                <div data-feed-moment-id={momentAtSlot.id} className="mb-1.5">
+                  <Link
+                    href={`/moments/${momentAtSlot.id}`}
+                    className="block rounded-3xl transition-opacity hover:opacity-95"
+                    aria-label="Open moment"
+                  >
+                    <MomentCard
+                      moment={momentAtSlot}
+                      author={momentAtSlot.author}
+                      durationHours={momentAtSlot.duration_hours || 24}
+                      className="pointer-events-none"
+                    />
+                  </Link>
+                </div>
+              )}
+              {showMomentCompose && (
+                <Link
+                  href="/create?tab=moment"
+                  className="mb-1.5 flex items-center justify-between gap-3 rounded-3xl border border-dashed border-amber-500/30 bg-amber-500/5 px-4 py-3.5 transition-colors hover:border-amber-500/60 hover:bg-amber-500/10"
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-fuchsia-600 text-white">
+                      <Zap className="h-4 w-4" />
+                    </span>
+                    <span className="text-sm font-semibold">Post a moment</span>
+                  </span>
+                  <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
+                    <Plus className="h-3.5 w-3.5 text-amber-500" />
+                    Vanishes in 24–48h
+                  </span>
+                </Link>
               )}
               <LoopCard
                 loop={loop}

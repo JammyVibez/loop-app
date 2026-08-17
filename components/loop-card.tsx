@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Heart,
   MessageCircle,
@@ -161,6 +162,7 @@ export function LoopCard({
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
   const { currentTheme } = useTheme3D();
+  const router = useRouter();
   const [isAnimating, setIsAnimating] = useState(false);
   const [doubleTapHeart, setDoubleTapHeart] = useState(false);
   const [localInteracting, setLocalInteracting] = useState<string | null>(null);
@@ -446,6 +448,17 @@ export function LoopCard({
     if (!requireAuth("branch")) return
     setShowBranchDialog(true);
   };
+
+  // When a branch is created elsewhere without a callback (e.g. the tree
+  // viewer), navigate to it so the user sees their new contribution.
+  useEffect(() => {
+    const onBranchCreated = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.branch_id) router.push(`/loop/${detail.branch_id}`)
+    }
+    window.addEventListener("loop-branch-created", onBranchCreated)
+    return () => window.removeEventListener("loop-branch-created", onBranchCreated)
+  }, [router])
 
   const handleFork = async () => {
     if (!requireAuth("branch")) return
@@ -1454,6 +1467,7 @@ export function LoopCard({
         open={showBranchDialog}
         onOpenChange={setShowBranchDialog}
         parentLoop={loop}
+        onBranchCreated={(branchId) => router.push(`/loop/${branchId}`)}
       />
 
       <ConfirmDialog

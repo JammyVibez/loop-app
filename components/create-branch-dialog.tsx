@@ -1,63 +1,114 @@
 "use client";
 import type React from "react";
 
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { GitBranch, Type, ImageIcon, Video, Music, FileText, Upload } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { GitBranch, Type, ImageIcon, Video, Music, FileText, Upload, X, Loader2, CheckCircle2, ArrowUpRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { cn } from "@/lib/utils";
+
+const MAX_BRANCH_CHARS = 1000;
+const MAX_TREE_DEPTH = 10;
 
 interface CreateBranchDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   parentLoop: any
+  /** Optional — fired with the new branch id instead of a full page reload. */
+  onBranchCreated?: (branchId: string) => void
 }
 
-export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBranchDialogProps) {
+function parentContentText(parentLoop: any): string {
+  if (!parentLoop) return ""
+  const c = parentLoop.content
+  if (typeof c === "string") return c
+  if (c && typeof c === "object") return c.text || c.content || ""
+  return parentLoop.content_text || parentLoop.contentText || ""
+}
+
+function parentAuthor(parentLoop: any): any {
+  const a = parentLoop?.author
+  if (!a) return null
+  if (typeof a === "string") return { display_name: a }
+  return a
+}
+
+export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCreated }: CreateBranchDialogProps) {
   const [activeTab, setActiveTab] = useState("text")
   const [content, setContent] = useState("")
   const [title, setTitle] = useState("")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  /** Set after a successful post — the dialog flips to a confirmation step. */
+  const [createdBranchId, setCreatedBranchId] = useState<string | null>(null)
   const { toast } = useToast()
   const { user, getAuthHeader } = useAuth()
 
-  const parentPreview =
-    typeof parentLoop?.content === "string"
-      ? parentLoop.content
-      : parentLoop?.content?.text || parentLoop?.content_text || ""
+  const resetForm = () => {
+    setContent("")
+    setTitle("")
+    setSelectedFile(null)
+    setActiveTab("text")
+    setCreatedBranchId(null)
+  }
 
-  const parentAuthorName =
-    parentLoop?.author?.display_name || parentLoop?.author?.displayName || parentLoop?.author || "Unknown"
+  const handleOpenChange = (next: boolean) => {
+    if (!next) resetForm()
+    onOpenChange(next)
+  }
+
+  const parentPreview = useMemo(() => parentContentText(parentLoop), [parentLoop])
+  const author = useMemo(() => parentAuthor(parentLoop), [parentLoop])
+  const authorName = author?.display_name || author?.username || author?.name || "Someone"
+  const authorHandle = author?.username ? `@${author.username}` : ""
+  const parentMedia = parentLoop?.media_url || parentLoop?.media_urls?.[0] || parentLoop?.content_media_url || ""
+  const parentMediaIsVideo = /\.(mp4|webm|mov|ogg|m4v)(\?|$)/i.test(parentMedia)
+  const treeDepth = Math.min(Number(parentLoop?.tree_depth || 0) + 1, MAX_TREE_DEPTH)
+  const atMaxDepth = Number(parentLoop?.tree_depth || 0) >= MAX_TREE_DEPTH
+
+  const filePreviewUrl = useMemo(
+    () => (selectedFile ? URL.createObjectURL(selectedFile) : null),
+    [selectedFile],
+  )
+
+  // Free the object URL we created for the file preview (memory hygiene).
+  useEffect(() => {
+    return () => {
+      if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl)
+    }
+  }, [filePreviewUrl])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      if (file.size > 50 * 1024 * 1024) {
-        toast({
-          title: "File too large",
-          description: "Please select a file smaller than 50MB",
-          variant: "destructive",
-        })
-        return
-      }
-      setSelectedFile(file)
+    if (!file) return
+    if (file.size > 50 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Please select a file smaller than 50MB", variant: "destructive" })
+      return
     }
+    setSelectedFile(file)
+    e.target.value = ""
   }
 
   const handleSubmit = async () => {
+    if (atMaxDepth) {
+      toast({ title: "Branch limit reached", description: "This loop's tree is already 10 levels deep.", variant: "destructive" })
+      return
+    }
     if (!content.trim() && !selectedFile) {
-      toast({
-        title: "Content required",
-        description: "Please add content to your branch",
-        variant: "destructive",
-      })
+      toast({ title: "Content required", description: "Add your perspective, a file, or both to branch this loop.", variant: "destructive" })
+      return
+    }
+    if (!user) {
+      window.location.href = "/login"
       return
     }
 
@@ -76,9 +127,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
       const response = await fetch("/api/loops/branch", {
         method: "POST",
         body: formData,
-        headers: {
-          ...getAuthHeader(),
-        },
+        headers: { ...getAuthHeader() },
       })
 
       const result = await response.json().catch(() => ({}))
@@ -87,21 +136,20 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
         throw new Error(result.error || "Failed to create branch")
       }
 
-      toast({
-        title: "Branch created",
-        description: "Your branch has been added to the loop tree",
-      })
+      toast({ title: "Branch created 🌿", description: "Your branch is now part of the loop tree." })
 
-      setContent("")
-      setTitle("")
-      setSelectedFile(null)
-      onOpenChange(false)
-
-      // Refresh to show new branch
-      window.location.reload()
+      const branchId = result.branch?.id
+      if (branchId) {
+        // Success step: keep the dialog open so the user can view their new
+        // branch or keep branching — same flow as the create hub.
+        setCreatedBranchId(branchId)
+      } else {
+        resetForm()
+        onOpenChange(false)
+      }
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: "Couldn't create branch",
         description: error?.message || "Failed to create branch. Please try again.",
         variant: "destructive",
       })
@@ -110,250 +158,285 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop }: CreateBra
     }
   }
 
+  const mediaTab = activeTab === "image" || activeTab === "video" || activeTab === "audio" || activeTab === "file"
+
+  const viewCreatedBranch = () => {
+    if (!createdBranchId) return
+    if (onBranchCreated) {
+      onBranchCreated(createdBranchId)
+    } else {
+      window.dispatchEvent(
+        new CustomEvent("loop-branch-created", { detail: { branch_id: createdBranchId, parent_id: parentLoop.id } }),
+      )
+    }
+    onOpenChange(false)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-card border-border text-foreground max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-foreground flex items-center space-x-2">
-            <GitBranch className="w-5 h-5 text-green-500" />
-            <span>Quote / Branch this Loop</span>
-          </DialogTitle>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-2xl border-border bg-card text-foreground max-h-[88dvh] overflow-y-auto p-0 sm:p-0">
+        <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-card px-5 pb-3 pt-5 backdrop-blur sm:px-6">
+          <div className="flex items-start justify-between gap-3">
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15">
+                <GitBranch className="h-4 w-4 text-emerald-500" />
+              </span>
+              {createdBranchId ? "Branch created" : "Branch this Loop"}
+            </DialogTitle>
+            {!createdBranchId && (
+              <Link
+                href="/create"
+                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition hover:border-emerald-500/40 hover:text-emerald-500"
+              >
+                Full studio
+                <ArrowUpRight className="h-3 w-3" />
+              </Link>
+            )}
+          </div>
+          <DialogDescription className="text-muted-foreground">
+            {createdBranchId
+              ? "Your take is live in the loop tree — others can branch from it too."
+              : "Add your take to the tree — others can branch from yours too."}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Parent Loop Preview */}
-          <div className="bg-muted rounded-lg p-4 border-l-4 border-primary">
-            <div className="flex items-center space-x-2 mb-2">
-              <span className="text-sm text-muted-foreground">Quoting:</span>
-              <Badge className="bg-primary text-primary-foreground">{parentAuthorName}</Badge>
+        {createdBranchId ? (
+          <div className="flex flex-col items-center gap-4 px-5 py-12 text-center sm:px-6">
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15">
+              <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+            </span>
+            <div>
+              <h3 className="text-lg font-bold text-foreground">Your branch is live 🌿</h3>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+                It&apos;s connected to the original loop and ready for the community to react, comment, and branch
+                from. What next?
+              </p>
             </div>
-            <p className="text-foreground text-sm">
-              {parentPreview.slice(0, 100)}
-              {parentPreview.length > 100 ? "..." : ""}
-            </p>
+            <div className="flex w-full max-w-sm flex-col gap-2.5 sm:flex-row">
+              <Button variant="outline" className="flex-1 border-border text-foreground hover:bg-muted" onClick={resetForm}>
+                Post another branch
+              </Button>
+              <Button
+                className="flex-1 gap-1.5 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
+                onClick={viewCreatedBranch}
+              >
+                <GitBranch className="h-4 w-4" />
+                View your branch
+              </Button>
+            </div>
+          </div>
+        ) : (
+        <div className="space-y-5 px-5 py-4 sm:px-6">
+          {/* Parent Loop Preview — author + media + text */}
+          <div className="overflow-hidden rounded-xl border border-border/70 bg-muted/40">
+            <div className="flex items-center gap-2.5 border-b border-border/60 bg-background/40 px-3.5 py-2.5">
+              <Avatar className="h-7 w-7">
+                <AvatarImage src={author?.avatar_url || undefined} />
+                <AvatarFallback className="text-[10px]">{authorName.charAt(0).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1 truncate text-xs font-semibold text-foreground">
+                  <span className="truncate">{authorName}</span>
+                  {author?.is_verified && (
+                    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-sky-400 text-[9px] font-bold text-white">✓</span>
+                  )}
+                </p>
+                {authorHandle && <p className="truncate text-[10px] text-muted-foreground">{authorHandle}</p>}
+              </div>
+              <Badge variant="outline" className="shrink-0 gap-1 border-emerald-500/40 text-[10px] text-emerald-600 dark:text-emerald-400">
+                <GitBranch className="h-3 w-3" /> level {treeDepth}/{MAX_TREE_DEPTH}
+              </Badge>
+            </div>
+
+            {parentMedia && (
+              <div className="relative max-h-40 overflow-hidden border-b border-border/60 bg-black">
+                {parentMediaIsVideo ? (
+                  // eslint-disable-next-line jsx-a11y/media-has-caption
+                  <video src={parentMedia} className="max-h-40 w-full object-contain" muted playsInline preload="metadata" />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={parentMedia} alt="Original post media" className="max-h-40 w-full object-contain" loading="lazy" />
+                )}
+              </div>
+            )}
+
+            <div className="px-3.5 py-3">
+              <p className="text-xs leading-relaxed text-foreground/80">
+                <span className="mr-1.5 font-semibold text-emerald-600 dark:text-emerald-400">Quoting:</span>
+                {parentPreview ? (
+                  <span className="line-clamp-3">{parentPreview}</span>
+                ) : (
+                  <span className="italic text-muted-foreground">(original post with media only)</span>
+                )}
+              </p>
+            </div>
           </div>
 
           {/* Content Type Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-5 bg-muted">
               <TabsTrigger value="text" className="text-foreground data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-                <Type className="w-4 h-4" />
-                <span className="ml-2 hidden sm:inline">Text</span>
+                <Type className="h-4 w-4" />
+                <span className="ml-1.5 hidden sm:inline">Text</span>
               </TabsTrigger>
               <TabsTrigger value="image" className="text-foreground data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-                <ImageIcon className="w-4 h-4" />
-                <span className="ml-2 hidden sm:inline">Image</span>
+                <ImageIcon className="h-4 w-4" />
+                <span className="ml-1.5 hidden sm:inline">Image</span>
               </TabsTrigger>
               <TabsTrigger value="video" className="text-foreground data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-                <Video className="w-4 h-4" />
-                <span className="ml-2 hidden sm:inline">Video</span>
+                <Video className="h-4 w-4" />
+                <span className="ml-1.5 hidden sm:inline">Video</span>
               </TabsTrigger>
               <TabsTrigger value="audio" className="text-foreground data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-                <Music className="w-4 h-4" />
-                <span className="ml-2 hidden sm:inline">Audio</span>
+                <Music className="h-4 w-4" />
+                <span className="ml-1.5 hidden sm:inline">Audio</span>
               </TabsTrigger>
               <TabsTrigger value="file" className="text-foreground data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-                <FileText className="w-4 h-4" />
-                <span className="ml-2 hidden sm:inline">File</span>
+                <FileText className="h-4 w-4" />
+                <span className="ml-1.5 hidden sm:inline">File</span>
               </TabsTrigger>
             </TabsList>
 
             {/* Title Input */}
-            <div className="space-y-2">
-              <Label className="text-foreground">Branch Title (Optional)</Label>
+            <div className="mt-4 space-y-1.5">
+              <Label className="text-foreground">Branch title (optional)</Label>
               <Input
-                placeholder="Give your branch a title..."
+                placeholder="Give your branch a title…"
                 value={title}
+                maxLength={120}
                 onChange={(e) => setTitle(e.target.value)}
                 className="bg-background border-border text-foreground placeholder:text-muted-foreground"
               />
             </div>
 
-            <TabsContent value="text" className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-foreground">Your Addition</Label>
-                <Textarea
-                  placeholder="Continue the story, add your perspective, or take it in a new direction..."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[120px] bg-background border-border text-foreground placeholder:text-muted-foreground resize-none"
-                />
-              </div>
+            <TabsContent value="text" className="mt-3 space-y-1.5">
+              <Label className="text-foreground">Your addition</Label>
+              <Textarea
+                placeholder="Continue the story, add your perspective, or take it in a new direction…"
+                value={content}
+                maxLength={MAX_BRANCH_CHARS}
+                onChange={(e) => setContent(e.target.value)}
+                className="min-h-[130px] resize-none bg-background border-border text-foreground placeholder:text-muted-foreground"
+              />
+              <p className={cn("text-right text-[11px] tabular-nums", content.length >= MAX_BRANCH_CHARS ? "text-amber-500" : "text-muted-foreground")}>
+                {content.length.toLocaleString()}/{MAX_BRANCH_CHARS.toLocaleString()}
+              </p>
             </TabsContent>
 
-            <TabsContent value="image" className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-foreground">Upload Image</Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-emerald-500 transition-colors">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    id="branch-image-upload"
-                  />
-                  <label htmlFor="branch-image-upload" className="cursor-pointer">
-                    <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-muted-foreground">Click to upload an image</p>
-                    <p className="text-xs text-muted-foreground mt-1">PNG, JPG, GIF up to 10MB</p>
+            {/* Shared media upload UI for image/video/audio/file tabs */}
+            {mediaTab && (
+              <TabsContent value={activeTab} className="mt-3 space-y-3">
+                {selectedFile ? (
+                  <div className="overflow-hidden rounded-xl border border-border/70">
+                    {activeTab === "image" && filePreviewUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={filePreviewUrl} alt="Selected file" className="max-h-52 w-full object-contain bg-black" />
+                    ) : activeTab === "video" && filePreviewUrl ? (
+                      // eslint-disable-next-line jsx-a11y/media-has-caption
+                      <video src={filePreviewUrl} className="max-h-52 w-full object-contain bg-black" controls muted playsInline />
+                    ) : null}
+                    <div className="flex items-center justify-between gap-2 bg-muted/50 px-3 py-2">
+                      <p className="min-w-0 truncate text-xs text-muted-foreground">
+                        {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </p>
+                      <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs text-red-500 hover:bg-red-500/10" onClick={() => setSelectedFile(null)}>
+                        <X className="h-3 w-3" /> Remove
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor={`branch-${activeTab}-upload`}
+                    className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-border px-6 py-8 text-center transition hover:border-emerald-500/60 hover:bg-emerald-500/5"
+                  >
+                    <Upload className="h-7 w-7 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Click to upload</p>
+                    <p className="text-xs text-muted-foreground/70">
+                      {activeTab === "image" && "PNG, JPG, GIF up to 10MB"}
+                      {activeTab === "video" && "MP4, MOV, WebM up to 50MB"}
+                      {activeTab === "audio" && "MP3, WAV, OGG up to 25MB"}
+                      {activeTab === "file" && "ZIP, PDF, DOCX, code files up to 50MB"}
+                    </p>
                   </label>
-                </div>
-                {selectedFile && (
-                  <Badge className="bg-green-600 text-white">
-                    {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)}MB)
-                  </Badge>
                 )}
-              </div>
-              <div className="space-y-2">
-                <Label className="text-foreground">Caption</Label>
-                <Textarea
-                  placeholder="Add context to your image branch..."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="bg-background border-border text-foreground placeholder:text-muted-foreground"
-                  rows={3}
+                <input
+                  type="file"
+                  id={`branch-${activeTab}-upload`}
+                  className="hidden"
+                  accept={
+                    activeTab === "image"
+                      ? "image/*"
+                      : activeTab === "video"
+                        ? "video/*"
+                        : activeTab === "audio"
+                          ? "audio/*"
+                          : ".zip,.pdf,.docx,.txt,.md,.json,.js,.ts,.py,.java,.cpp,.c,.html,.css"
+                  }
+                  onChange={handleFileSelect}
                 />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="video" className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-foreground">Upload Video</Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-emerald-500 transition-colors">
-                  <input
-                    type="file"
-                    accept="video/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    id="branch-video-upload"
+                <div className="space-y-1.5">
+                  <Label className="text-foreground">{activeTab === "file" ? "Description" : "Caption (optional)"}</Label>
+                  <Textarea
+                    placeholder="Add context to your branch…"
+                    value={content}
+                    maxLength={MAX_BRANCH_CHARS}
+                    onChange={(e) => setContent(e.target.value)}
+                    rows={3}
+                    className="resize-none bg-background border-border text-foreground placeholder:text-muted-foreground"
                   />
-                  <label htmlFor="branch-video-upload" className="cursor-pointer">
-                    <Video className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-muted-foreground">Click to upload a video</p>
-                    <p className="text-xs text-muted-foreground mt-1">MP4, MOV, AVI up to 50MB</p>
-                  </label>
+                  <p className={cn("text-right text-[11px] tabular-nums", content.length >= MAX_BRANCH_CHARS ? "text-amber-500" : "text-muted-foreground")}>
+                    {content.length.toLocaleString()}/{MAX_BRANCH_CHARS.toLocaleString()}
+                  </p>
                 </div>
-                {selectedFile && (
-                  <Badge className="bg-green-600 text-white">
-                    {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)}MB)
-                  </Badge>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label className="text-foreground">Description</Label>
-                <Textarea
-                  placeholder="Describe your video response..."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="bg-background border-border text-foreground placeholder:text-muted-foreground"
-                  rows={3}
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="audio" className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-foreground">Upload Audio</Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-emerald-500 transition-colors">
-                  <input
-                    type="file"
-                    accept="audio/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    id="branch-audio-upload"
-                  />
-                  <label htmlFor="branch-audio-upload" className="cursor-pointer">
-                    <Music className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-muted-foreground">Click to upload audio</p>
-                    <p className="text-xs text-muted-foreground mt-1">MP3, WAV, OGG up to 25MB</p>
-                  </label>
-                </div>
-                {selectedFile && (
-                  <Badge className="bg-green-600 text-white">
-                    {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)}MB)
-                  </Badge>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label className="text-foreground">Track Info</Label>
-                <Textarea
-                  placeholder="Tell us about your audio response..."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="bg-background border-border text-foreground placeholder:text-muted-foreground"
-                  rows={3}
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="file" className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-foreground">Upload File</Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-emerald-500 transition-colors">
-                  <input
-                    type="file"
-                    accept=".zip,.pdf,.docx,.txt,.md,.json,.js,.ts,.py,.java,.cpp,.c,.html,.css"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    id="branch-file-upload"
-                  />
-                  <label htmlFor="branch-file-upload" className="cursor-pointer">
-                    <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-muted-foreground">Click to upload a file</p>
-                    <p className="text-xs text-muted-foreground mt-1">ZIP, PDF, DOCX, code files up to 50MB</p>
-                  </label>
-                </div>
-                {selectedFile && (
-                  <Badge className="bg-green-600 text-white">
-                    {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)}MB)
-                  </Badge>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label className="text-foreground">Description</Label>
-                <Textarea
-                  placeholder="Describe what you're adding to the loop..."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="bg-background border-border text-foreground placeholder:text-muted-foreground"
-                  rows={3}
-                />
-              </div>
-            </TabsContent>
+              </TabsContent>
+            )}
           </Tabs>
 
           {/* Branch Info */}
-          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <GitBranch className="w-4 h-4 text-green-500" />
-              <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Branching Rules</span>
+          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3.5">
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <GitBranch className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                {atMaxDepth ? "Branch limit reached" : `This branch will be level ${treeDepth} of ${MAX_TREE_DEPTH}`}
+              </span>
             </div>
-            <ul className="text-xs text-muted-foreground space-y-1">
-              <li>• Your branch will be connected to the original loop</li>
-              <li>• Others can branch from your branch (up to 10 levels deep)</li>
-              <li>• You'll get credit when others interact with your branch</li>
-              <li>• Branches help create collaborative story trees</li>
+            <ul className="space-y-1 text-[11px] leading-relaxed text-muted-foreground">
+              <li>• Connected to the original loop — your take grows the tree</li>
+              <li>• Anyone can branch from your branch (up to {MAX_TREE_DEPTH} levels deep)</li>
+              <li>• You get credit when others interact with your branch</li>
             </ul>
           </div>
+        </div>
+        )}
 
-          {/* Action Buttons */}
-          <div className="flex space-x-3">
+        {/* Action Buttons — sticky footer (hidden on the success step) */}
+        {!createdBranchId && (
+          <div className="sticky bottom-0 flex gap-2.5 border-t border-border/70 bg-card/95 px-5 py-3.5 backdrop-blur sm:px-6">
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
               className="flex-1 border-border text-foreground hover:bg-muted"
             >
               Cancel
             </Button>
             <Button
-              onClick={handleSubmit}
-              disabled={isSubmitting || (!content.trim() && !selectedFile)}
-              className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+              onClick={() => void handleSubmit()}
+              disabled={isSubmitting || (!content.trim() && !selectedFile) || atMaxDepth}
+              className="flex-1 gap-1.5 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
             >
-              {isSubmitting ? "Posting…" : "Post quote"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Posting…
+                </>
+              ) : (
+                <>
+                  <GitBranch className="h-4 w-4" /> {atMaxDepth ? "Limit reached" : "Create branch"}
+                </>
+              )}
             </Button>
           </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   )
