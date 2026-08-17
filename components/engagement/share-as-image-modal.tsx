@@ -305,6 +305,20 @@ function canvasToJpegBlob(canvas: HTMLCanvasElement, quality = 0.9): Promise<Blo
   })
 }
 
+/** Encode a canvas to a data URL off the main thread where possible (async,
+ *  never blocks paint). Falls back to toDataURL on older engines. */
+async function canvasToJpegDataUrl(canvas: HTMLCanvasElement, quality = 0.82): Promise<string> {
+  try {
+    const blob = await canvasToJpegBlob(canvas, quality)
+    const url = URL.createObjectURL(blob)
+    // Object URLs are async to load but near-free to create — swap the <img>
+    // to a blob URL so the expensive synchronous base64 encoding never runs.
+    return url
+  } catch {
+    return canvas.toDataURL("image/jpeg", quality)
+  }
+}
+
 export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModalProps) {
   const { toast } = useToast()
   const previewCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -313,6 +327,15 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
   const [busy, setBusy] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const avatarRef = useRef<AvatarSource | null>(null)
+  const previewUrlRef = useRef<string | null>(null)
+
+  const setPreview = async (canvas: HTMLCanvasElement, quality: number) => {
+    const url = await canvasToJpegDataUrl(canvas, quality)
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    previewUrlRef.current = url
+    setPreviewUrl(url)
+  }
 
   // Only re-render when the content actually changed — not on every parent
   // render (the post prop object identity can change per render).
@@ -333,6 +356,10 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
   useEffect(() => {
     if (!open) {
       setRendered(false)
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current)
+        previewUrlRef.current = null
+      }
       setPreviewUrl(null)
       setBusy(false)
       return
@@ -348,22 +375,20 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
         //    preview is on-screen within a single frame, no network awaits.
         drawCardBase(previewCanvas, post, PREVIEW_SCALE, null)
         if (cancelled) return
-        // 2. Small canvas + modest quality = a few tens of ms to encode.
-        setPreviewUrl(previewCanvas.toDataURL("image/jpeg", 0.82))
+        // 2. Encode asynchronously (toBlob → object URL) so the JPEG encode
+        //    never blocks the main thread — the preview appears instantly.
+        await setPreview(previewCanvas, 0.82)
         setRendered(true)
         setBusy(false)
 
-        // 3. Full-res canvas in the background for download/share.
-        const exportCanvas = exportCanvasRef.current
-        if (exportCanvas) drawCardBase(exportCanvas, post, EXPORT_SCALE, null)
-
-        // 4. Avatar arrives asynchronously — composite it on top of both
-        //    canvases the moment it's ready (never blocks step 1).
-        const avatar = post.author.avatar_url ? await loadAvatar(post.author.avatar_url) : null
-        if (cancelled || !avatar) return
-        drawCardBase(previewCanvas, post, PREVIEW_SCALE, avatar)
-        if (!cancelled) setPreviewUrl(previewCanvas.toDataURL("image/jpeg", 0.82))
-        if (exportCanvas) drawCardBase(exportCanvas, post, EXPORT_SCALE, avatar)
+        // 3. Avatar arrives asynchronously — composite it on the preview the
+        //    moment it's ready (never blocks step 1). The full-res export
+        //    canvas is drawn lazily in download()/shareNative(), so opening
+        //    the modal costs almost nothing.
+        avatarRef.current = post.author.avatar_url ? await loadAvatar(post.author.avatar_url) : null
+        if (cancelled || !avatarRef.current) return
+        drawCardBase(previewCanvas, post, PREVIEW_SCALE, avatarRef.current)
+        if (!cancelled) await setPreview(previewCanvas, 0.82)
       } catch (error) {
         console.error("Share card render error:", error)
         if (!cancelled) {
@@ -375,12 +400,26 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
     void render()
     return () => {
       cancelled = true
+      avatarRef.current = null
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current)
+        previewUrlRef.current = null
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, renderKey])
 
-  const download = async () => {
+  /** Draw the full-res export canvas on demand (download/share), using the
+   *  latest avatar if it has loaded. Keeps opening the modal nearly free. */
+  const prepareExportCanvas = (): HTMLCanvasElement | null => {
     const canvas = exportCanvasRef.current
+    if (!canvas) return null
+    drawCardBase(canvas, post, EXPORT_SCALE, avatarRef.current)
+    return canvas
+  }
+
+  const download = async () => {
+    const canvas = prepareExportCanvas()
     if (!canvas || exporting || !rendered) return
     setExporting(true)
     try {
@@ -400,7 +439,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
   }
 
   const shareNative = async () => {
-    const canvas = exportCanvasRef.current
+    const canvas = prepareExportCanvas()
     if (!canvas || !rendered) return
     try {
       const blob = await canvasToJpegBlob(canvas, 0.92)

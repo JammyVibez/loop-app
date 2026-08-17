@@ -243,6 +243,37 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           )
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "loops", filter: `id=eq.${loopId}` },
+        () => {
+          // The post was deleted (author/admin) while someone is viewing it —
+          // switch to the "removed" state immediately instead of waiting for
+          // a refresh.
+          setLoop(null)
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "loop_stats", filter: `loop_id=eq.${loopId}` },
+        (payload) => {
+          const stats = payload.new as any
+          if (!stats) return
+          setLoop((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  stats: {
+                    ...prev.stats,
+                    likes: stats.likes_count ?? prev.stats.likes,
+                    comments: stats.comments_count ?? prev.stats.comments,
+                    shares: stats.shares_count ?? prev.stats.shares,
+                  },
+                }
+              : null
+          )
+        }
+      )
       .on("broadcast", { event: "reaction" }, (payload) => {
         if (payload.payload?.emoji) {
           setReactions((prev) => ({

@@ -317,7 +317,31 @@ export function LoopFeed({
     return () => window.removeEventListener("loop-created", onCreated)
   }, [fetchNewer, fetchLoops])
 
-  // Live inserts → banner (don't reshuffle the whole feed)
+  /** Re-fetch a single loop and patch it into the feed (used for live edits). */
+  const refreshLoop = useCallback(
+    async (loopId: string) => {
+      if (!loopId) return
+      try {
+        const headers: HeadersInit = { ...getAuthHeader() }
+        if (authToken) headers.Authorization = `Bearer ${authToken}`
+        const res = await fetch(`/api/loops/${loopId}`, { headers, cache: "no-store" })
+        if (!res.ok) return
+        const data = await res.json().catch(() => ({}))
+        const fresh = normalizeLoops([data.loop || data]).filter(Boolean)
+        if (!fresh.length) return
+        const updated = fresh[0]
+        setLoops((prev) => prev.map((l) => (l.id === updated.id ? { ...l, ...updated } : l)))
+        setPendingNew((prev) => prev.map((l) => (l.id === updated.id ? { ...l, ...updated } : l)))
+      } catch {
+        /* non-fatal — the next manual refresh will reconcile */
+      }
+    },
+    [authToken, getAuthHeader],
+  )
+
+  // Live inserts → banner; live deletes/updates + stats → reconcile in place
+  // (no page refresh needed). postgres_changes delivery works because loops
+  // and loop_stats are readable by everyone via RLS.
   useEffect(() => {
     if (!user?.id && !guestMode) return
     const supabase = getSupabaseBrowserClient()
@@ -333,11 +357,53 @@ export function LoopFeed({
           return [...unique, ...prev]
         })
       })
+      // A loop was deleted (author or admin) → drop it everywhere instantly.
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "loops" }, (payload: any) => {
+        const deletedId: string | undefined = payload.old?.id
+        if (!deletedId) return
+        setLoops((prev) => prev.filter((l) => l.id !== deletedId))
+        setPendingNew((prev) => prev.filter((l) => l.id !== deletedId))
+      })
+      // A loop was edited → refresh that single card in place.
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "loops", filter: "visibility=eq.public" },
+        (payload: any) => {
+          const updatedId: string | undefined = payload.new?.id
+          if (!updatedId) return
+          void refreshLoop(updatedId)
+        },
+      )
+      // Stats (likes / comments / shares) change → live-update the counters.
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "loop_stats" },
+        (payload: any) => {
+          const stats = payload.new as { loop_id?: string; likes_count?: number; comments_count?: number; shares_count?: number; views_count?: number } | undefined
+          if (!stats?.loop_id) return
+          setLoops((prev) =>
+            prev.map((l) =>
+              l.id === stats.loop_id
+                ? {
+                    ...l,
+                    stats: {
+                      ...l.stats,
+                      likes_count: stats.likes_count ?? l.stats?.likes_count,
+                      comments_count: stats.comments_count ?? l.stats?.comments_count,
+                      shares_count: stats.shares_count ?? l.stats?.shares_count,
+                      views_count: stats.views_count ?? l.stats?.views_count,
+                    },
+                  }
+                : l,
+            ),
+          )
+        },
+      )
       .subscribe()
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [user?.id, feedType, fetchNewer, guestMode])
+  }, [user?.id, feedType, fetchNewer, guestMode, refreshLoop])
 
   // Pull-to-refresh (touch)
   useEffect(() => {

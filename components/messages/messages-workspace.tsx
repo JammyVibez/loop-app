@@ -20,6 +20,14 @@ import { cn } from "@/lib/utils"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { playChatSound } from "@/lib/chat-sounds"
 import {
+  CHAT_WALLPAPER_PRESETS,
+  chatWallpaperStyle,
+  DEFAULT_CHAT_WALLPAPER,
+  type ChatWallpaper,
+} from "@/lib/chat-wallpapers"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Slider } from "@/components/ui/slider"
+import {
   ArrowLeft,
   Bell,
   BellOff,
@@ -48,6 +56,8 @@ import {
   Film,
   Trash2,
   Video,
+  Wallpaper,
+  ImagePlus,
   X,
 } from "lucide-react"
 import {
@@ -225,6 +235,12 @@ export function MessagesWorkspace() {
   const [pushEnabled, setPushEnabled] = useState<boolean | null>(null)
   const [pushToggling, setPushToggling] = useState(false)
   const [pushBanner, setPushBanner] = useState(false)
+  const [wallpaper, setWallpaper] = useState<ChatWallpaper>(DEFAULT_CHAT_WALLPAPER)
+  const [wallpaperPickerOpen, setWallpaperPickerOpen] = useState(false)
+  const [wallpaperSaving, setWallpaperSaving] = useState(false)
+  const [wallpaperUploading, setWallpaperUploading] = useState(false)
+  const wallpaperFileRef = useRef<HTMLInputElement>(null)
+  const wallpaperSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -347,6 +363,7 @@ export function MessagesWorkspace() {
     setFreshMessageIds(new Set())
     setReplyTo(null)
     void loadMessages(selectedId)
+    void loadWallpaper(selectedId)
 
     const supabase = getSupabaseBrowserClient()
     const channel = supabase.channel(`conversation:${selectedId}`, {
@@ -441,6 +458,23 @@ export function MessagesWorkspace() {
           if (selectedIdRef.current === selectedId) void loadMessages(selectedId)
         },
       )
+      // Fallback reconciliation for edits/deletes — the sender also broadcasts
+      // message_edited / message_deleted, but this covers sessions where the
+      // broadcast was missed (e.g. a third device or a reconnecting client).
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${selectedId}` },
+        () => {
+          if (selectedIdRef.current === selectedId) void loadMessages(selectedId)
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "messages", filter: `conversation_id=eq.${selectedId}` },
+        () => {
+          if (selectedIdRef.current === selectedId) void loadMessages(selectedId)
+        },
+      )
       .subscribe((status: string) => {
         if (status === "SUBSCRIBED") {
           void channel.send({
@@ -508,6 +542,62 @@ export function MessagesWorkspace() {
       delete next[id]
       return next
     })
+  }
+
+  // ---- Chat wallpaper (per-user, per-conversation) -----------------------
+
+  const loadWallpaper = async (conversationId: string) => {
+    if (!user) return
+    try {
+      const res = await fetch(`/api/conversations/wallpaper?conversation_id=${conversationId}`, {
+        headers: getAuthHeader(),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      setWallpaper(data.wallpaper || DEFAULT_CHAT_WALLPAPER)
+    } catch {
+      /* keep whatever is currently applied */
+    }
+  }
+
+  const saveWallpaper = (next: ChatWallpaper) => {
+    setWallpaper(next)
+    if (!selectedId || !user) return
+    if (wallpaperSaveTimer.current) clearTimeout(wallpaperSaveTimer.current)
+    wallpaperSaveTimer.current = setTimeout(() => {
+      setWallpaperSaving(true)
+      void (async () => {
+        try {
+          await fetch("/api/conversations/wallpaper", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", ...getAuthHeader() },
+            body: JSON.stringify({ conversation_id: selectedId, wallpaper: next }),
+          })
+        } catch {
+          /* non-fatal — the setting is applied locally regardless */
+        } finally {
+          setWallpaperSaving(false)
+        }
+      })()
+    }, 250)
+  }
+
+  const uploadWallpaper = async (file: File) => {
+    if (!user) return
+    setWallpaperUploading(true)
+    try {
+      const uploaded = await uploadMediaFile(file, {
+        type: "image",
+        folder: "chat-wallpapers",
+        authHeaders: getAuthHeader(),
+      })
+      saveWallpaper({ preset: null, image_url: uploaded.url, overlay: 0.35 })
+      toast({ title: "Wallpaper applied", description: "This chat now uses your custom wallpaper." })
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" })
+    } finally {
+      setWallpaperUploading(false)
+    }
   }
 
   const broadcastTyping = () => {
@@ -861,6 +951,12 @@ export function MessagesWorkspace() {
         ),
       )
       toast({ title: "Message updated" })
+      // Push the edit to the peer instantly (no refresh on their side).
+      void channelRef.current?.send({
+        type: "broadcast",
+        event: "message_edited",
+        payload: { id: data.message.id, content: data.message.content, edited_at: data.message.edited_at },
+      })
     } catch (error: any) {
       toast({ title: "Couldn’t edit message", description: error.message, variant: "destructive" })
     } finally {
@@ -921,6 +1017,12 @@ export function MessagesWorkspace() {
         prev.map((m) => (m.id === target.id ? { ...m, is_deleted: true, content: "", media_url: null } : m)),
       )
       toast({ title: "Message deleted" })
+      // Push the deletion to the peer instantly (no refresh on their side).
+      void channelRef.current?.send({
+        type: "broadcast",
+        event: "message_deleted",
+        payload: { id: target.id },
+      })
     } catch (error: any) {
       toast({ title: "Couldn’t delete message", description: error.message, variant: "destructive" })
     }
@@ -1300,7 +1402,10 @@ export function MessagesWorkspace() {
   )
 
   const chatPane = selected ? (
-    <section className="relative flex h-full min-h-0 min-w-0 flex-col bg-background bg-[url('data:image/svg+xml,%3Csvg width%3D%2260%27 height%3D%2260%27 viewBox%3D%220 0 60 60%27 xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%3E%3Cg fill%3D%22none%22 fill-rule%3D%22evenodd%22%3E%3Cg fill%3D%22%23888888%22 fill-opacity%3D%220.05%22%3E%3Cpath d%3D%22M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]">
+    <section
+      className="relative flex h-full min-h-0 min-w-0 flex-col bg-background"
+      style={chatWallpaperStyle(wallpaper)}
+    >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.12),transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(34,211,238,0.08),transparent_55%)]" />
       <div className="flex items-center gap-2 border-b border-border bg-background/95 px-2 py-2.5 shadow-sm backdrop-blur-sm sm:px-4">
@@ -1391,6 +1496,11 @@ export function MessagesWorkspace() {
               </span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setWallpaperPickerOpen(true)}>
+              <Wallpaper className="mr-2 h-4 w-4 text-violet-500" />
+              Chat wallpaper
+              {wallpaperSaving && <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setShowChatSearch((v) => !v)}>
               <Search className="mr-2 h-4 w-4" />
               Search in chat
@@ -1425,6 +1535,108 @@ export function MessagesWorkspace() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Chat wallpaper picker — presets or your own image from the device. */}
+      <Dialog open={wallpaperPickerOpen} onOpenChange={setWallpaperPickerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallpaper className="h-4 w-4 text-violet-500" /> Chat wallpaper
+            </DialogTitle>
+            <DialogDescription>
+              Pick a preset or upload your own image. Only you see this — it's saved to your account for this chat.
+            </DialogDescription>
+          </DialogHeader>
+          <input
+            ref={wallpaperFileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) void uploadWallpaper(file)
+              e.target.value = ""
+            }}
+          />
+          <div
+            className="relative flex h-28 items-end overflow-hidden rounded-xl border border-border"
+            style={chatWallpaperStyle(wallpaper)}
+          >
+            <div className="w-full bg-gradient-to-t from-black/50 to-transparent p-2">
+              <p className="text-[11px] font-medium text-white drop-shadow">
+                {wallpaper.image_url
+                  ? "Custom image"
+                  : wallpaper.preset
+                    ? CHAT_WALLPAPER_PRESETS.find((p) => p.id === wallpaper.preset)?.name || "Preset"
+                    : "Default background"}
+              </p>
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Presets</p>
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => saveWallpaper(DEFAULT_CHAT_WALLPAPER)}
+                className={cn(
+                  "flex h-14 items-center justify-center rounded-lg border border-border bg-muted text-[10px] font-medium text-muted-foreground transition hover:border-violet-500/50",
+                  !wallpaper.preset && !wallpaper.image_url && "border-violet-500 ring-1 ring-violet-500/40",
+                )}
+                title="Default"
+              >
+                Default
+              </button>
+              {CHAT_WALLPAPER_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => saveWallpaper({ preset: preset.id, image_url: null, overlay: null })}
+                  className={cn(
+                    "h-14 rounded-lg border transition hover:scale-[1.03]",
+                    wallpaper.preset === preset.id && !wallpaper.image_url
+                      ? "border-violet-500 ring-2 ring-violet-500/40"
+                      : "border-border",
+                  )}
+                  style={{ background: preset.css }}
+                  title={preset.name}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={wallpaperUploading}
+              onClick={() => wallpaperFileRef.current?.click()}
+            >
+              {wallpaperUploading ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <ImagePlus className="mr-1.5 h-4 w-4" />
+              )}
+              {wallpaper.image_url ? "Change image" : "Upload from device"}
+            </Button>
+            {wallpaper.image_url && (
+              <Button variant="ghost" onClick={() => saveWallpaper(DEFAULT_CHAT_WALLPAPER)}>
+                Reset
+              </Button>
+            )}
+          </div>
+          {wallpaper.image_url && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Darken image</p>
+              <Slider
+                value={[Math.round((wallpaper.overlay ?? 0.35) * 100)]}
+                min={0}
+                max={70}
+                step={5}
+                onValueChange={([v]) => saveWallpaper({ ...wallpaper, overlay: v / 100 })}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {showChatSearch && (
         <div className="border-b border-border bg-card px-3 py-2">
