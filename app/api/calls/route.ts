@@ -1,7 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { createHmsRoom, createHmsAppToken, hmsConfigured, hmsHostRole, hmsRoomName } from "@/lib/hms"
+import { createHmsRoom, createHmsAppToken, hmsHostRole, hmsRoomName } from "@/lib/hms"
+import { createLiveKitToken, livekitRoomName } from "@/lib/livekit"
+import { getRealtimeProvider, providerLabel, providerNotConfiguredMessage, type RealtimeProvider } from "@/lib/realtime-provider"
 import { notifyUser } from "@/lib/notifications"
 
 export const dynamic = "force-dynamic"
@@ -50,11 +52,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "You are not a member of this circle" }, { status: 403 })
     }
 
-    if (!hmsConfigured()) {
-      return NextResponse.json(
-        { error: "Calls are not configured yet. Set HMS_ACCESS_KEY and HMS_SECRET (100ms dashboard → Developer)." },
-        { status: 503 },
-      )
+    const provider = getRealtimeProvider()
+    if (!provider) {
+      return NextResponse.json({ error: providerNotConfiguredMessage() }, { status: 503 })
     }
 
     // Derive the room type.
@@ -71,14 +71,19 @@ export async function POST(request: NextRequest) {
       room_type = is_video ? "circle_video" : "circle_audio"
     }
 
-    // Create the 100ms room + session row.
-    const roomName = hmsRoomName(circle_id ? "circle" : "call")
-    const room = await createHmsRoom(roomName, `Loop ${room_type} call`)
+    // Create the room + session row. 100ms rooms are created via REST;
+    // LiveKit rooms are implicit — the room name alone is enough.
+    const roomName = provider === "100ms" ? hmsRoomName(circle_id ? "circle" : "call") : livekitRoomName(circle_id ? "circle" : "call")
+    let room = { id: roomName, name: roomName }
+    if (provider === "100ms") {
+      room = await createHmsRoom(roomName, `Loop ${room_type} call`)
+    }
 
     const { data: session, error } = await supabase
       .from("call_sessions")
       .insert({
         room_type,
+        provider,
         hms_room_id: room.id,
         hms_room_name: room.name,
         creator_id: user.id,
@@ -95,7 +100,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    const token = createHmsAppToken({ roomId: room.id, userId: user.id, role: hmsHostRole() })
+    let token: string
+    let url: string | null = null
+    if (provider === "100ms") {
+      token = createHmsAppToken({ roomId: room.id, userId: user.id, role: hmsHostRole() })
+    } else {
+      const minted = await createLiveKitToken({
+        room: room.name,
+        identity: user.id,
+        name: String((user.user_metadata as any)?.display_name || (user.user_metadata as any)?.username || user.email || user.id),
+        canPublish: true,
+      })
+      token = minted.token
+      url = minted.url
+    }
 
     // Notify the other side(s) — best effort, never blocks the response.
     void (async () => {
@@ -141,7 +159,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: { session, token, room },
+      data: { session, token, room, provider, url },
     })
   } catch (error: any) {
     console.error("[calls] create call error:", error)

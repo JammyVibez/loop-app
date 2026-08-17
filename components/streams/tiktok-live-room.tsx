@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { GiftModal } from "@/components/gifting/gift-modal"
 import { HmsStreamStage, type HmsStreamStageHandle } from "@/components/streams/hms-stream-stage"
+import { LivekitStreamStage } from "@/components/streams/livekit-stream-stage"
 import { cn } from "@/lib/utils"
 
 interface ChatMessage {
@@ -86,6 +87,8 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
   const [hasLocalPreview, setHasLocalPreview] = useState(false)
   const [hmsToken, setHmsToken] = useState<string | null>(null)
   const [hmsError, setHmsError] = useState<string | null>(null)
+  const [mediaProvider, setMediaProvider] = useState<"100ms" | "livekit" | null>(null)
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null)
 
   const channelRef = useRef<RealtimeChannel | null>(null)
   const supabaseRef = useRef<any>(null)
@@ -252,11 +255,13 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
         if (!res.ok) throw new Error(data.error || "Live media unavailable")
         if (!cancelled) {
           setHmsToken(data.data?.token || null)
+          setMediaProvider((data.data?.provider as "100ms" | "livekit") || "100ms")
+          setMediaUrl(data.data?.url || null)
           setHmsError(null)
         }
       } catch (error: any) {
         if (!cancelled) {
-          setHmsError(error?.message || "Live media is unavailable — check the 100ms setup.")
+          setHmsError(error?.message || "Live media is unavailable — check the media provider keys (100ms or LiveKit).")
           setHmsToken(null)
         }
       }
@@ -308,7 +313,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
     setBusy(true)
     try {
       if (!hmsToken) {
-        throw new Error("Live media isn't ready yet — check the 100ms setup (HMS_ACCESS_KEY / HMS_SECRET).")
+        throw new Error("Live media isn't ready yet — check the media provider keys (100ms or LiveKit).")
       }
       await updateStatus("live")
       // Notify followers with real Web Push
@@ -357,7 +362,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
     }
     stageRef.current?.toggleScreenShare()
     setMediaMode((mode) => (mode === "screen" ? "camera" : "screen"))
-    toast({ title: mediaMode === "screen" ? "Back to camera" : "Sharing screen", description: "Powered by 100ms" })
+    toast({ title: mediaMode === "screen" ? "Back to camera" : "Sharing screen", description: "Live SFU streaming" })
   }
 
   const toggleMic = () => {
@@ -478,21 +483,40 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
     <div className="relative h-[100dvh] w-full overflow-hidden bg-black text-white">
       {/* Full-bleed video stage — 100ms SFU media layer */}
       <div className="absolute inset-0">
-        <HmsStreamStage
-          ref={stageRef}
-          token={hmsToken || ""}
-          userName={user?.display_name || user?.username || "Viewer"}
-          isOwner={isOwner}
-          onMicChange={setMicOn}
-          onCamChange={setCamOn}
-          onRemoteAvailable={setHasRemote}
-          onJoined={() => {
-            setConnectingMedia(false)
-            if (isOwner) setHasLocalPreview(true)
-          }}
-          onError={(msg) => setHmsError(msg)}
-          remoteMuted={muted}
-        />
+        {mediaProvider === "livekit" ? (
+          <LivekitStreamStage
+            ref={stageRef}
+            token={hmsToken || ""}
+            url={mediaUrl || ""}
+            userName={user?.display_name || user?.username || "Viewer"}
+            isOwner={isOwner}
+            onMicChange={setMicOn}
+            onCamChange={setCamOn}
+            onRemoteAvailable={setHasRemote}
+            onJoined={() => {
+              setConnectingMedia(false)
+              if (isOwner) setHasLocalPreview(true)
+            }}
+            onError={(msg) => setHmsError(msg)}
+            remoteMuted={muted}
+          />
+        ) : (
+          <HmsStreamStage
+            ref={stageRef}
+            token={hmsToken || ""}
+            userName={user?.display_name || user?.username || "Viewer"}
+            isOwner={isOwner}
+            onMicChange={setMicOn}
+            onCamChange={setCamOn}
+            onRemoteAvailable={setHasRemote}
+            onJoined={() => {
+              setConnectingMedia(false)
+              if (isOwner) setHasLocalPreview(true)
+            }}
+            onError={(msg) => setHmsError(msg)}
+            remoteMuted={muted}
+          />
+        )}
         {hmsError && (
           <div className="absolute inset-x-0 bottom-48 z-20 mx-auto flex w-fit max-w-[90%] items-center gap-2 rounded-full bg-black/65 px-4 py-2 text-xs text-amber-300 backdrop-blur">
             <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-amber-400" />
@@ -583,7 +607,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
           </span>
           {isOwner && isLive && (
             <span className="hidden items-center gap-1 rounded-md bg-violet-500/90 px-2 py-1 text-[11px] font-bold sm:inline-flex">
-              <Sparkles className="h-3 w-3" /> 100ms SFU
+              <Sparkles className="h-3 w-3" /> Live SFU
             </span>
           )}
           {mediaMode === "screen" && (

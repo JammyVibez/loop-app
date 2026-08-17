@@ -1,7 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { createHmsAppToken, hmsConfigured, hmsGuestRole, hmsHostRole } from "@/lib/hms"
+import { createHmsAppToken, hmsGuestRole, hmsHostRole } from "@/lib/hms"
+import { createLiveKitToken } from "@/lib/livekit"
+import { getRealtimeProvider, providerLabel, providerNotConfiguredMessage, type RealtimeProvider } from "@/lib/realtime-provider"
 
 export const dynamic = "force-dynamic"
 
@@ -46,10 +48,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    if (!hmsConfigured()) {
-      return NextResponse.json({ error: "Calls are not configured yet." }, { status: 503 })
-    }
-
     const { data: session, error } = await supabase
       .from("call_sessions")
       .select("*")
@@ -64,10 +62,28 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "This call has ended" }, { status: 410 })
     }
 
-    const role = session.creator_id === user.id ? hmsHostRole() : hmsGuestRole()
-    const token = createHmsAppToken({ roomId: session.hms_room_id, userId: user.id, role })
+    const provider: RealtimeProvider | null = (session?.provider as RealtimeProvider) || getRealtimeProvider()
+    if (!provider) {
+      return NextResponse.json({ error: providerNotConfiguredMessage() }, { status: 503 })
+    }
 
-    return NextResponse.json({ success: true, data: { session, token, role } })
+    const role = session.creator_id === user.id ? hmsHostRole() : hmsGuestRole()
+    if (provider === "100ms") {
+      const token = createHmsAppToken({ roomId: session.hms_room_id, userId: user.id, role })
+      return NextResponse.json({ success: true, data: { session, token, role, provider } })
+    }
+
+    // LiveKit: everyone in an interactive call can talk; the creator is the host.
+    const minted = await createLiveKitToken({
+      room: session.hms_room_id || session.hms_room_name,
+      identity: user.id,
+      name: String((user.user_metadata as any)?.display_name || (user.user_metadata as any)?.username || user.email || user.id),
+      canPublish: true,
+    })
+    return NextResponse.json({
+      success: true,
+      data: { session, token: minted.token, role, provider, url: minted.url },
+    })
   } catch (error: any) {
     console.error("[calls] get call error:", error)
     return NextResponse.json({ error: error?.message || "Failed to load the call" }, { status: 500 })

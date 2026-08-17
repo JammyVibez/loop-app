@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { HmsRoom } from "@/components/calls/hms-room"
+import { LivekitRoom } from "@/components/calls/livekit-room"
 import { cn } from "@/lib/utils"
 
 export interface CallSheetProps {
@@ -34,6 +35,8 @@ export function CallSheet({
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const [token, setToken] = useState<string | null>(null)
+  const [provider, setProvider] = useState<"100ms" | "livekit" | null>(null)
+  const [roomUrl, setRoomUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [joined, setJoined] = useState(false)
@@ -41,6 +44,8 @@ export function CallSheet({
   const close = useCallback(() => {
     onOpenChange(false)
     setToken(null)
+    setProvider(null)
+    setRoomUrl(null)
     setJoined(false)
     setError(null)
   }, [onOpenChange])
@@ -58,6 +63,8 @@ export function CallSheet({
         if (!res.ok) throw new Error(data.error || "Could not join the call")
         if (cancelled) return
         setToken(data.data?.token || null)
+        setProvider((data.data?.provider as "100ms" | "livekit") || "100ms")
+        setRoomUrl(data.data?.url || null)
       } catch (err: any) {
         if (cancelled) return
         setError(err?.message || "Could not join the call")
@@ -95,16 +102,30 @@ export function CallSheet({
   return (
     <div className="fixed inset-0 z-[120] bg-black">
       {token ? (
-        <HmsRoom
-          token={token}
-          userName={displayName}
-          audioOnly={mode === "audio"}
-          layout="stage"
-          title={title}
-          subtitle={subtitle}
-          onJoined={() => setJoined(true)}
-          onLeave={() => endCall(true)}
-        />
+        provider === "livekit" ? (
+          <LivekitRoom
+            token={token}
+            url={roomUrl || ""}
+            userName={displayName}
+            audioOnly={mode === "audio"}
+            layout="stage"
+            title={title}
+            subtitle={subtitle}
+            onJoined={() => setJoined(true)}
+            onLeave={() => endCall(true)}
+          />
+        ) : (
+          <HmsRoom
+            token={token}
+            userName={displayName}
+            audioOnly={mode === "audio"}
+            layout="stage"
+            title={title}
+            subtitle={subtitle}
+            onJoined={() => setJoined(true)}
+            onLeave={() => endCall(true)}
+          />
+        )
       ) : (
         <div className="flex h-full flex-col items-center justify-center gap-6 bg-gradient-to-b from-zinc-950 via-black to-zinc-950 px-6 text-center text-white">
           {error ? (

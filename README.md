@@ -161,7 +161,52 @@ CRON_SECRET=your_random_cron_secret
 
 # Auth secret (REQUIRED in production — generate with: openssl rand -base64 48)
 BETTER_AUTH_SECRET=your_random_auth_secret
+
+# 100ms Realtime Media (livestream, voice & video calls)
+# Get these at https://dashboard.100ms.live → Developer → App Access Key / App Secret
+HMS_ACCESS_KEY=your_hms_app_access_key
+HMS_SECRET=your_hms_app_secret
+# Optional tuning:
+HMS_HOST_ROLE=host       # role minted for call/livestream creators
+HMS_GUEST_ROLE=guest     # role minted for participants/viewers
+HMS_REGION=auto          # eu | in | us | auto
+
+# ---- OR: LiveKit (free fallback — same SFU/WebRTC model, open source) ----
+# Get these at https://livekit.io → Cloud → create a project → Settings → Keys
+LIVEKIT_API_KEY=your_livekit_api_key
+LIVEKIT_API_SECRET=your_livekit_api_secret
+LIVEKIT_URL=wss://your-project.livekit.cloud
+
+# Optional: force a provider instead of auto-detecting
+# (auto: 100ms if HMS keys are set, else LiveKit if LIVEKIT keys are set)
+REALTIME_PROVIDER=auto   # auto | 100ms | livekit
 \`\`\`
+
+### 🎥 100ms Realtime Media (livestream + voice/video calls)
+
+Livestreaming and all voice/video calls (DMs, group chats, Circles) run on **100ms** (SFU-based WebRTC) instead of the old peer-to-peer mesh. Room creation and per-user app tokens are minted **server-side only** — the client never sees your 100ms secret.
+
+**Setup:**
+1. Create a free account at [100ms Live](https://dashboard.100ms.live) and a new app.
+2. Open **Developer** in the left menu → copy **App Access Key** and **App Secret**.
+3. Add them as `HMS_ACCESS_KEY` / `HMS_SECRET` in your deployment's environment variables (Vercel/Render → Settings → Environment Variables).
+4. Optional: set `HMS_HOST_ROLE` / `HMS_GUEST_ROLE` if you create custom roles in the 100ms dashboard, and `HMS_REGION` to pin room regions.
+
+Until these keys are set, call/livestream endpoints return a clear 503 message — the rest of the app is unaffected.
+
+**Database:** run `scripts/100ms-calls-schema.sql` (idempotent) or `npm run db:apply:pending` to create the `call_sessions` table (RLS-protected) and the `live_streams.hms_room_id` / `hms_room_name` columns. `scripts/livekit-fallback-schema.sql` adds the `provider` column (`100ms` / `livekit`) so every session joins through the SFU it was created on.
+
+### 🎥 LiveKit fallback (free alternative to 100ms)
+
+If you can't get a 100ms account (or want a free, open-source fallback), Loop automatically switches to **LiveKit** — the same SFU-based WebRTC model (rooms, host/viewer roles, server-side JWT tokens) but with a generous free tier (10k participant-minutes/month, no credit card) and the option to self-host entirely free.
+
+**How the switch works (no code changes needed):**
+1. Create a free project at [livekit.io](https://livekit.io) → Cloud → create a project.
+2. Open **Settings → Keys**, copy **API Key**, **API Secret**, and the **WebSocket URL** (`wss://…`).
+3. Set `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_URL` in your deployment env vars (Vercel/Render → Settings → Environment Variables).
+4. Provider auto-detection: 100ms wins if `HMS_*` keys are set, otherwise LiveKit is used. To force one explicitly, set `REALTIME_PROVIDER=100ms` or `REALTIME_PROVIDER=livekit`.
+
+Livestreaming, DM voice/video calls, and Circle calls all work identically on either provider — hosts publish, viewers subscribe, screen share and camera flip are supported on both.
 
 ### Admin System Health monitoring (optional)
 
