@@ -13,6 +13,7 @@ interface MaintenanceSettings {
   maintenance_mode: {
     enabled: boolean;
     message: string;
+    developer_notes?: string;
   };
   user_registration: {
     enabled: boolean;
@@ -25,6 +26,7 @@ export function MaintenanceModeControl() {
   const [settings, setSettings] = useState<MaintenanceSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [notesDraft, setNotesDraft] = useState("");
 
   useEffect(() => {
     fetchSettings();
@@ -38,6 +40,7 @@ export function MaintenanceModeControl() {
       
       if (data.success) {
         setSettings(data.data);
+        setNotesDraft(data.data?.maintenance_mode?.developer_notes || "");
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -91,10 +94,23 @@ export function MaintenanceModeControl() {
     const newSettings = {
       maintenance_mode: {
         enabled: !settings.maintenance_mode.enabled,
-        message: settings.maintenance_mode.message || ""
+        message: settings.maintenance_mode.message || "",
+        developer_notes: settings.maintenance_mode.developer_notes || ""
       }
     };
     
+    await updateSettings(newSettings);
+  };
+
+  const updateDeveloperNotes = async (developer_notes: string) => {
+    if (!settings?.maintenance_mode) return;
+    const newSettings = {
+      maintenance_mode: {
+        enabled: settings.maintenance_mode.enabled,
+        message: settings.maintenance_mode.message || "",
+        developer_notes
+      }
+    };
     await updateSettings(newSettings);
   };
 
@@ -157,24 +173,50 @@ export function MaintenanceModeControl() {
           </div>
           
           {settings?.maintenance_mode?.enabled && (
-            <div className="space-y-2">
-              <Label htmlFor="maintenance-message">Maintenance Message</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="maintenance-message"
-                  value={settings.maintenance_mode.message}
-                  onChange={(e) => updateMaintenanceMessage(e.target.value)}
-                  placeholder="Maintenance message shown to users"
-                  disabled={updating}
-                />
-                <Button 
-                  variant="outline" 
-                  onClick={() => updateMaintenanceMessage(settings.maintenance_mode.message)}
-                  disabled={updating}
-                >
-                  Save
-                </Button>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="maintenance-message">Maintenance Message</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="maintenance-message"
+                    value={settings.maintenance_mode.message}
+                    onChange={(e) => updateMaintenanceMessage(e.target.value)}
+                    placeholder="Maintenance message shown to users"
+                    disabled={updating}
+                  />
+                  <Button 
+                    variant="outline" 
+                    onClick={() => updateMaintenanceMessage(settings.maintenance_mode.message)}
+                    disabled={updating}
+                  >
+                    Save
+                  </Button>
+                </div>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="maintenance-notes">What&apos;s happening right now (shown to users)</Label>
+                <div className="flex gap-2">
+                  <textarea
+                    id="maintenance-notes"
+                    value={settings.maintenance_mode.developer_notes || ""}
+                    onChange={(e) => setNotesDraft(e.target.value)}
+                    placeholder="e.g. Upgrading our database — expect brief slowness while we add new indexes."
+                    disabled={updating}
+                    rows={3}
+                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                  <Button 
+                    variant="outline" 
+                    onClick={() => updateDeveloperNotes(notesDraft)}
+                    disabled={updating}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                When enabled, all visitors see only the maintenance screen with your message and notes. Admins can still access the dashboard to turn it off.
+              </p>
             </div>
           )}
         </CardContent>

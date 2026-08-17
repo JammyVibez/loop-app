@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { AppLogo } from "@/components/brand/app-logo"
 import { useAuth } from "@/hooks/use-auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -124,19 +125,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
         {/* Brand Logo Header */}
         <div className="flex items-center gap-2 px-3 py-2 shrink-0">
           <Link href="/" onClick={onLinkClick} className="flex items-center gap-2.5 group">
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-cyan-400 p-[1px] shadow-md group-hover:scale-105 transition-transform">
-              <div className="flex h-full w-full items-center justify-center rounded-xl bg-background text-sm font-black tracking-tight text-foreground dark:bg-[#0b1220]">
-                L
-              </div>
-            </div>
-            <div>
-              <span className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-primary via-purple-500 to-indigo-600 bg-clip-text text-transparent">
-                LOOP
-              </span>
-              <span className="ml-1 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                HUB
-              </span>
-            </div>
+            <AppLogo showWordmark className="rounded-xl shadow-md transition-transform group-hover:scale-105" />
           </Link>
         </div>
 

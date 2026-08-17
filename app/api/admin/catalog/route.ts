@@ -151,7 +151,20 @@ export async function POST(request: NextRequest) {
       }
     }
     if (category === "card_effect") {
-      if (["gradient_border", "shimmer", "pulse_edge"].includes(body.card_variant)) {
+      if (
+        [
+          "gradient_border",
+          "shimmer",
+          "pulse_edge",
+          "aurora",
+          "ember",
+          "ice",
+          "fire_edge",
+          "neon_edge",
+          "hologram",
+          "rainbow_dash",
+        ].includes(body.card_variant)
+      ) {
         variantHints.card_variant = body.card_variant
       }
     }

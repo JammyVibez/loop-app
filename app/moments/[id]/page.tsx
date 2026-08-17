@@ -33,6 +33,8 @@ export default function MomentPage() {
       }
       setMoment(data.moment)
       setDraft(data.moment.content || "")
+      // Count this as a view (fire-and-forget).
+      void fetch(`/api/moments/${id}/view`, { method: "POST", headers: getAuthHeader() }).catch(() => {})
     } finally {
       setLoading(false)
     }

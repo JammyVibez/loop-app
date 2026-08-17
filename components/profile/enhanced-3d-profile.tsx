@@ -374,6 +374,19 @@ export function Enhanced3DProfile({ username }: { username: string }) {
     }
   }
 
+  // Compute cosmetics BEFORE any early returns so the hook count stays stable
+  // (React error #310 = "rendered more hooks than during the previous render")
+  const cosmetics: ActiveCosmetics =
+    profile?.active_cosmetics && Object.keys(profile.active_cosmetics).length
+      ? profile.active_cosmetics
+      : cosmeticsFromInventory(profile?.active_effects)
+
+  // Load the equipped display-name font so it renders immediately (and when
+  // cosmetics change via realtime, the effect re-runs).
+  useEffect(() => {
+    ensureCosmeticFonts(cosmetics.font)
+  }, [cosmetics.font])
+
   if (loading) return <ProfileSkeleton />
 
   // Deleted / suspended accounts render a placeholder — no profile data,
@@ -403,16 +416,6 @@ export function Enhanced3DProfile({ username }: { username: string }) {
 
   const isOwnProfile = Boolean(user && (user.id === profile.id || user.username === profile.username))
   const displayName = profile.display_name || profile.username
-  const cosmetics: ActiveCosmetics =
-    profile.active_cosmetics && Object.keys(profile.active_cosmetics).length
-      ? profile.active_cosmetics
-      : cosmeticsFromInventory(profile.active_effects)
-
-  // Load the equipped display-name font so it renders immediately (and when
-  // cosmetics change via realtime, the effect re-runs).
-  useEffect(() => {
-    ensureCosmeticFonts(cosmetics.font)
-  }, [cosmetics.font])
   const xp = Number(profile.xp_points || 0)
   const level = Number(profile.level || 1)
   const nextXp = xpForNextLevel(level)

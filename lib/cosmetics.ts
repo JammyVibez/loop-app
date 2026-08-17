@@ -30,7 +30,18 @@ export type ActiveCosmetics = {
 }
 
 export type AvatarFrameVariant = "none" | "ring_rotate" | "orbit_particles" | "pulse_glow" | "tilt_3d"
-export type CardEffectVariant = "none" | "gradient_border" | "shimmer" | "pulse_edge"
+export type CardEffectVariant =
+  | "none"
+  | "gradient_border"
+  | "shimmer"
+  | "pulse_edge"
+  | "aurora"
+  | "ember"
+  | "ice"
+  | "fire_edge"
+  | "neon_edge"
+  | "hologram"
+  | "rainbow_dash"
 export type PfpInteractionVariant = "none" | "burst" | "bounce" | "pulse"
 
 export type CosmeticVariants = {
@@ -56,7 +67,14 @@ export function cosmeticVariants(item?: CosmeticItem | null): CosmeticVariants {
   const card: CardEffectVariant =
     data.card_variant === "gradient_border" ||
     data.card_variant === "shimmer" ||
-    data.card_variant === "pulse_edge"
+    data.card_variant === "pulse_edge" ||
+    data.card_variant === "aurora" ||
+    data.card_variant === "ember" ||
+    data.card_variant === "ice" ||
+    data.card_variant === "fire_edge" ||
+    data.card_variant === "neon_edge" ||
+    data.card_variant === "hologram" ||
+    data.card_variant === "rainbow_dash"
       ? data.card_variant
       : "none"
   const pfp: PfpInteractionVariant =

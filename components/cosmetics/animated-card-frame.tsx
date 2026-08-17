@@ -73,6 +73,94 @@ export function AnimatedCardFrame({ children, effect, className, rounded = "roun
         </div>
       )}
 
+      {/* Aurora — soft shifting band across the top */}
+      {variant === "aurora" && (
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={{ borderRadius: "inherit" }}>
+          <div className="cosmetic-aurora" style={{ background: `linear-gradient(100deg, transparent, ${gradient}66, transparent)` }} />
+        </div>
+      )}
+
+      {/* Ember — floating sparks rising from the bottom corners */}
+      {variant === "ember" && (
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={{ borderRadius: "inherit" }}>
+          {[12, 26, 40, 58, 74, 88].map((left, i) => (
+            <span
+              key={left}
+              className="cosmetic-ember"
+              style={{
+                left: `${left}%`,
+                bottom: "2%",
+                background: gradient,
+                boxShadow: `0 0 8px ${gradient}`,
+                animationDelay: `${i * 0.42}s`,
+                animationDuration: `${2.2 + (i % 3) * 0.7}s`,
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Ice — frost edge with slow icy shimmer */}
+      {variant === "ice" && (
+        <div
+          aria-hidden
+          className="cosmetic-ice-edge pointer-events-none absolute -inset-[2px]"
+          style={{
+            background: `linear-gradient(120deg, ${gradient}44, #e0f2fe88, ${gradient}66, #f0f9ff88, ${gradient}44)`,
+          }}
+        />
+      )}
+
+      {/* Fire edge — flickering flame gradient */}
+      {variant === "fire_edge" && (
+        <div
+          aria-hidden
+          className="cosmetic-fire-edge pointer-events-none absolute -inset-[2.5px]"
+          style={{ background: `linear-gradient(90deg, #ef4444cc, #f97316cc, #fbbf24cc, #ef4444cc)`, filter: "blur(1px)" }}
+        />
+      )}
+
+      {/* Neon edge — hard bright glow pulsing */}
+      {variant === "neon_edge" && (
+        <div
+          aria-hidden
+          className="cosmetic-neon-edge pointer-events-none absolute -inset-[2.5px]"
+          style={{ background: gradient, opacity: 0.75 }}
+        />
+      )}
+
+      {/* Hologram — iridescent hue-shifting border */}
+      {variant === "hologram" && (
+        <div
+          aria-hidden
+          className="cosmetic-holo pointer-events-none absolute -inset-[2.5px]"
+          style={{
+            background: `linear-gradient(120deg, #f472b6cc, #a78bfacc, #22d3eecc, #34d399cc, #f472b6cc)`,
+            opacity: 0.85,
+          }}
+        />
+      )}
+
+      {/* Rainbow dash — rotating conic dashed border */}
+      {variant === "rainbow_dash" && (
+        <div aria-hidden className="pointer-events-none absolute -inset-[2.5px]" style={{ borderRadius: "inherit" }}>
+          <div
+            className="cosmetic-rainbow-dash"
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: `conic-gradient(from 0deg, #f43f5e, #f59e0b, #22c55e, #06b6d4, #8b5cf6, #f43f5e)`,
+              borderRadius: "inherit",
+              mask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+              maskComposite: "exclude",
+              WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+              WebkitMaskComposite: "xor",
+              padding: "2.5px",
+            }}
+          />
+        </div>
+      )}
+
       {/* The card itself on top */}
       <div className="relative z-[1] h-full">{children}</div>
     </div>

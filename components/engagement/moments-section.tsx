@@ -84,6 +84,30 @@ export function MomentsSection() {
     }
   }, [user?.id, fetchMoments])
 
+  // Count feed impressions as views — each moment counts once per viewer session.
+  const viewedRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!user || moments.length === 0) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          const momentId = (entry.target as HTMLElement).dataset.momentId
+          if (!momentId || viewedRef.current.has(momentId)) continue
+          viewedRef.current.add(momentId)
+          void fetch(`/api/moments/${momentId}/view`, {
+            method: "POST",
+            headers: { ...getAuthHeader() },
+          }).catch(() => {})
+        }
+      },
+      { threshold: 0.4 },
+    )
+    const nodes = document.querySelectorAll<HTMLElement>("[data-moment-id]")
+    nodes.forEach((node) => observer.observe(node))
+    return () => observer.disconnect()
+  }, [moments, user, getAuthHeader])
+
   if (!user) return null
 
   const pickFile = (file: File) => {
@@ -210,7 +234,7 @@ export function MomentsSection() {
         ) : (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {liveMoments.map((moment) => (
-              <div key={moment.id} className="group relative">
+              <div key={moment.id} data-moment-id={moment.id} className="group relative">
                 <Link href={`/moments/${moment.id}`} className="absolute inset-0 z-10 rounded-3xl" aria-label="Open moment" />
                 {moment.is_self && (
                   <button

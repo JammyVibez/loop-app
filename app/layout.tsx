@@ -19,6 +19,7 @@ import { CosmeticFontLoader } from "@/components/cosmetics/cosmetic-font-loader"
 import { GlobalFab } from "@/components/global-fab"
 import { PushAutoSubscribe } from "@/components/pwa/push-auto-subscribe"
 import { NativeShell } from "@/components/pwa/native-shell"
+import { MaintenanceGate } from "@/components/maintenance/maintenance-gate"
 import { checkEnvironmentVariables, logEnvironmentStatus, validateEnvironment } from "@/lib/env-check"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -200,23 +201,25 @@ export default function RootLayout({
           <Theme3DProvider>
             <AuthProvider>
               <RealtimeProvider>
-                <OnboardingRedirect>
-                  <div className="min-h-screen bg-background text-foreground">
-                    <div id="theme-environment" className="fixed inset-0 pointer-events-none z-[-1]" />
-                    <div className="relative z-10 flex min-h-screen">
-                      <LeftSidebar />
-                      <AppChrome>{children}</AppChrome>
+                <MaintenanceGate>
+                  <OnboardingRedirect>
+                    <div className="min-h-screen bg-background text-foreground">
+                      <div id="theme-environment" className="fixed inset-0 pointer-events-none z-[-1]" />
+                      <div className="relative z-10 flex min-h-screen">
+                        <LeftSidebar />
+                        <AppChrome>{children}</AppChrome>
+                      </div>
+                      <GlobalFab />
+                      <GiftNotificationSystem />
+        <CosmeticFontLoader />
+                      <PushAutoSubscribe />
+                      <NativeShell />
+                      <Toaster />
+                      <div id="performance-monitor" className="hidden" />
+                      <div id="accessibility-announcements" className="sr-only" aria-live="polite" aria-atomic="true" />
                     </div>
-                    <GlobalFab />
-                    <GiftNotificationSystem />
-      <CosmeticFontLoader />
-                    <PushAutoSubscribe />
-                    <NativeShell />
-                    <Toaster />
-                    <div id="performance-monitor" className="hidden" />
-                    <div id="accessibility-announcements" className="sr-only" aria-live="polite" aria-atomic="true" />
-                  </div>
-                </OnboardingRedirect>
+                  </OnboardingRedirect>
+                </MaintenanceGate>
               </RealtimeProvider>
             </AuthProvider>
           </Theme3DProvider>

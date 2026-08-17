@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { AppLogo } from "@/components/brand/app-logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -36,11 +37,7 @@ import { UserBadges } from "@/components/user-badge"
 
 function LogoMark() {
   return (
-    <div className="relative flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-400 p-[1px] shadow-lg shadow-primary/20 transition-transform duration-300 group-hover:scale-105">
-      <div className="flex h-full w-full items-center justify-center rounded-2xl bg-background text-xs font-black tracking-tight text-foreground dark:bg-[#0b1220] dark:text-white">
-        L
-      </div>
-    </div>
+    <AppLogo className="rounded-2xl shadow-lg shadow-primary/20 transition-transform duration-300 group-hover:scale-105" />
   )
 }
 

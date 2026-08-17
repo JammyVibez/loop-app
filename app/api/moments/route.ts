@@ -36,7 +36,8 @@ export async function GET(request: NextRequest) {
       .from("moments")
       .select(
         `*,
-         author:profiles!user_id(id, username, display_name, avatar_url, is_verified)`,
+         author:profiles!user_id(id, username, display_name, avatar_url, is_verified),
+         comments:moment_comments(id)`,
       )
       .in("user_id", authorIds)
       .gt("expires_at", now)
@@ -45,9 +46,10 @@ export async function GET(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    // Flat card list — each entry carries its author inline.
+    // Flat card list — each entry carries its author + real stats inline.
     const cards = (moments || []).map((moment) => {
       const author = Array.isArray(moment.author) ? moment.author[0] : moment.author
+      const commentList = Array.isArray(moment.comments) ? moment.comments : []
       return {
         id: moment.id,
         user_id: moment.user_id,
@@ -56,6 +58,8 @@ export async function GET(request: NextRequest) {
         content: moment.content,
         created_at: moment.created_at,
         expires_at: moment.expires_at,
+        view_count: Number(moment.view_count || 0),
+        comment_count: commentList.length,
         duration_hours: Math.max(24, Math.min(48, Math.round((new Date(moment.expires_at).getTime() - new Date(moment.created_at).getTime()) / 36e5))),
         is_self: moment.user_id === user.id,
         author: author || { id: moment.user_id },

@@ -39,6 +39,8 @@ import { SettingsTabContent } from "@/components/admin/settings-tab-content"
 import { EventManagement } from "@/components/admin/event-management"
 import { MaintenanceModeControl } from "@/components/admin/maintenance-mode-control"
 import { ProLoungeSettings } from "@/components/admin/pro-lounge-settings"
+import { LogoControl } from "@/components/admin/logo-control"
+import { CacheManagementPanel } from "@/components/admin/cache-management-panel"
 import { OrgManagementPanel } from "@/components/admin/org-management-panel"
 import { AdsAdminPanel } from "@/components/admin/ads-admin-panel"
 import { AwardsAdminPanel } from "@/components/admin/awards-admin-panel"
@@ -413,6 +415,8 @@ export function AdminDashboard() {
 
         <TabsContent value="maintenance" className="mt-6 space-y-6">
           <MaintenanceModeControl />
+          <LogoControl />
+          <CacheManagementPanel />
           <ProLoungeSettings />
         </TabsContent>
 

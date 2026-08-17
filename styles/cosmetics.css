@@ -113,6 +113,95 @@
 .gift-glow-epic { background: radial-gradient(circle at 50% 0%, rgba(139,92,246,0.2), transparent 70%); }
 .gift-glow-legendary { background: radial-gradient(circle at 50% 0%, rgba(245,158,11,0.22), transparent 70%); }
 
+/* ---- Aurora pass (post card) — soft shifting band across the top ---- */
+@keyframes cosmetics-aurora {
+  0% { transform: translateX(-60%) skewX(-16deg); opacity: 0.25; }
+  50% { opacity: 0.5; }
+  100% { transform: translateX(160%) skewX(-16deg); opacity: 0.25; }
+}
+.cosmetic-aurora {
+  position: absolute;
+  top: -20%;
+  bottom: 40%;
+  width: 70%;
+  pointer-events: none;
+  animation: cosmetics-aurora 7s ease-in-out infinite;
+  will-change: transform, opacity;
+  filter: blur(18px);
+}
+
+/* ---- Ember particles (post card) — floating sparks at the edges ---- */
+@keyframes cosmetics-ember {
+  0% { transform: translateY(8px) scale(0.6); opacity: 0; }
+  15% { opacity: 0.9; }
+  100% { transform: translateY(-28px) scale(1); opacity: 0; }
+}
+.cosmetic-ember {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: cosmetics-ember 2.6s ease-out infinite;
+  will-change: transform, opacity;
+}
+
+/* ---- Ice edge — slow frost shimmer ---- */
+@keyframes cosmetics-ice-shift {
+  0%, 100% { background-position: 0% 50%; filter: blur(1.5px) brightness(1); }
+  50% { background-position: 100% 50%; filter: blur(2px) brightness(1.12); }
+}
+.cosmetic-ice-edge {
+  background-size: 400% 400%;
+  animation: cosmetics-ice-shift 8s ease-in-out infinite;
+  will-change: background-position, filter;
+}
+
+/* ---- Fire edge — flickering flame gradient ---- */
+@keyframes cosmetics-fire-flicker {
+  0%, 100% { background-position: 0% 50%; opacity: 0.85; }
+  25% { opacity: 1; }
+  50% { background-position: 100% 50%; opacity: 0.9; }
+  75% { opacity: 1; }
+}
+.cosmetic-fire-edge {
+  background-size: 300% 300%;
+  animation: cosmetics-fire-flicker 1.4s ease-in-out infinite;
+  will-change: background-position, opacity;
+}
+
+/* ---- Neon edge — hard bright glow with pulse ---- */
+@keyframes cosmetics-neon-pulse {
+  0%, 100% { opacity: 0.55; filter: blur(2px) brightness(0.95); }
+  50% { opacity: 1; filter: blur(3px) brightness(1.25); }
+}
+.cosmetic-neon-edge {
+  animation: cosmetics-neon-pulse 1.8s ease-in-out infinite;
+  will-change: opacity, filter;
+}
+
+/* ---- Hologram — iridescent sweep ---- */
+@keyframes cosmetics-holo {
+  0% { background-position: 0% 50%; filter: hue-rotate(0deg); }
+  50% { background-position: 100% 50%; filter: hue-rotate(40deg); }
+  100% { background-position: 0% 50%; filter: hue-rotate(0deg); }
+}
+.cosmetic-holo {
+  background-size: 300% 300%;
+  animation: cosmetics-holo 6s linear infinite;
+  will-change: background-position, filter;
+}
+
+/* ---- Rainbow dash border — rotating conic dashes ---- */
+@keyframes cosmetics-rainbow-dash {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.cosmetic-rainbow-dash {
+  animation: cosmetics-rainbow-dash 10s linear infinite;
+  will-change: transform;
+}
+
 /* ---- Pause everything when the element leaves the viewport ---- */
 .cosmetic-paused *,
 .cosmetic-paused {
@@ -126,6 +215,13 @@
   .cosmetic-glow-pulse,
   .cosmetic-gradient-border,
   .cosmetic-shimmer,
+  .cosmetic-aurora,
+  .cosmetic-ember,
+  .cosmetic-ice-edge,
+  .cosmetic-fire-edge,
+  .cosmetic-neon-edge,
+  .cosmetic-holo,
+  .cosmetic-rainbow-dash,
   .cosmetic-burst-particle,
   .cosmetic-bounce,
   .cosmetic-tilt-3d {

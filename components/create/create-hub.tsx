@@ -2,13 +2,14 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Home, Radio, Video, Lightbulb, CheckCircle2 } from "lucide-react"
+import { Home, Radio, Video, Lightbulb, CheckCircle2, Zap } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateLoopButton } from "@/components/create-loop-button"
 import { CreateReelForm } from "@/components/create/create-reel-form"
 import { CreateStreamForm } from "@/components/create/create-stream-form"
+import { CreateMomentForm } from "@/components/create/create-moment-form"
 
-export type CreateTab = "loop" | "reel" | "live"
+export type CreateTab = "loop" | "reel" | "live" | "moment"
 
 const TIPS = [
   {
@@ -40,12 +41,15 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">
         <Tabs value={tab} onValueChange={(v) => setTab(v as CreateTab)}>
-          <TabsList className="grid w-full grid-cols-3 rounded-full">
+          <TabsList className="grid w-full grid-cols-4 rounded-full">
             <TabsTrigger value="loop" className="rounded-full">
               <Home className="mr-1.5 h-4 w-4" /> Loop
             </TabsTrigger>
             <TabsTrigger value="reel" className="rounded-full">
               <Video className="mr-1.5 h-4 w-4" /> Reel
+            </TabsTrigger>
+            <TabsTrigger value="moment" className="rounded-full">
+              <Zap className="mr-1.5 h-4 w-4" /> Moment
             </TabsTrigger>
             <TabsTrigger value="live" className="rounded-full">
               <Radio className="mr-1.5 h-4 w-4" /> Live
@@ -58,6 +62,10 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
 
           <TabsContent value="reel" className="mt-5">
             <CreateReelForm onReelCreated={(reelId) => router.push(reelId ? `/reels?focus=${reelId}` : "/reels")} />
+          </TabsContent>
+
+          <TabsContent value="moment" className="mt-5">
+            <CreateMomentForm onMomentCreated={() => router.push("/")} />
           </TabsContent>
 
           <TabsContent value="live" className="mt-5">
