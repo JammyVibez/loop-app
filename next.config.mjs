@@ -15,7 +15,7 @@ const securityHeaders = [
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob: https:",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://res.cloudinary.com https://api.cloudinary.com https://tenor.googleapis.com https://api.stripe.com https://*.stripe.com https://vitals.vercel-insights.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://res.cloudinary.com https://api.cloudinary.com https://tenor.googleapis.com https://api.stripe.com https://*.stripe.com https://vitals.vercel-insights.com wss://*.livekit.cloud https://*.livekit.cloud",
       "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://accounts.google.com https://*.supabase.co",
       "worker-src 'self' blob:",
       "object-src 'none'",

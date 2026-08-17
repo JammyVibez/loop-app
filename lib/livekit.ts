@@ -22,8 +22,20 @@ export function livekitConfigured(): boolean {
   )
 }
 
+/**
+ * Normalized client connect URL. Accepts any of these forms and converts
+ * them to a wss:// WebSocket URL the browser can dial:
+ *   https://<project>.livekit.cloud   → wss://<project>.livekit.cloud
+ *   <project>.livekit.cloud           → wss://<project>.livekit.cloud
+ *   wss://<project>.livekit.cloud     → unchanged
+ */
 export function livekitUrl(): string {
-  return (process.env.LIVEKIT_URL || "").trim()
+  const raw = (process.env.LIVEKIT_URL || "").trim().replace(/\/+$/, "")
+  if (!raw) return ""
+  if (raw.startsWith("wss://") || raw.startsWith("ws://")) return raw
+  if (raw.startsWith("https://")) return `wss://${raw.slice("https://".length)}`
+  if (raw.startsWith("http://")) return `ws://${raw.slice("http://".length)}`
+  return `wss://${raw}`
 }
 
 function requireCredentials() {
@@ -33,6 +45,13 @@ function requireCredentials() {
   if (!key || !secret || !url) {
     throw new Error(
       "LiveKit is not configured. Set LIVEKIT_API_KEY, LIVEKIT_API_SECRET and LIVEKIT_URL (LiveKit Cloud → Settings → Keys).",
+    )
+  }
+  // Catch the most common paste mistakes early so users get a clear 503
+  // instead of a confusing client-side "Failed to fetch".
+  if (/cloud\.livekit\.io|dashboard|console/.test(url)) {
+    throw new Error(
+      "LIVEKIT_URL looks wrong. It must be your project WebSocket URL like wss://<project>.livekit.cloud — not the LiveKit dashboard/console URL.",
     )
   }
   return { key, secret, url }

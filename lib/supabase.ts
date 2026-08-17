@@ -167,6 +167,16 @@ export const signInWithGoogle = async () => {
 
 export const createServerClient = () => {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || getAnonKey()
+  // The service key must be a real server-side key. Silently falling back to
+  // the anon key makes every server-side write (moments, loops, circles, …)
+  // fail with RLS "new row violates row-level security policy" errors in
+  // production — warn loudly so it's caught instead.
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.NODE_ENV !== "development") {
+    console.error(
+      "[supabase] SUPABASE_SERVICE_ROLE_KEY is not set — server-side writes will be blocked by RLS. " +
+        "Add the service_role key from Supabase → Settings → API to your deploy environment.",
+    )
+  }
   assertUsableKey(supabaseServiceKey, "SUPABASE_SERVICE_ROLE_KEY")
   return createClient(getSupabaseUrl(), supabaseServiceKey)
 }
