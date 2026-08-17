@@ -263,19 +263,23 @@ export class EnhancedDatabaseService {
 
   // Gift Operations
   async sendGift(senderId: string, recipientId: string, giftItemId: string, options: any = {}) {
-    // Get gift item details
+    // Get gift item details from the real catalog table (`shop_items`).
     const { data: giftItem, error: giftError } = await this.client
-      .from('gift_items')
+      .from('shop_items')
       .select('*')
       .eq('id', giftItemId)
-      .single()
+      .eq('is_active', true)
+      .maybeSingle()
 
     if (giftError || !giftItem) {
       return { error: giftError || new Error('Gift item not found') }
     }
 
-    // Calculate total cost (including gift multiplier)
-    const totalCost = Math.floor(giftItem.price_coins * giftItem.gift_multiplier)
+    // Cost comes straight from the item's coin price.
+    const totalCost = Math.floor(Number(giftItem.price_coins || 0))
+    if (totalCost <= 0) {
+      return { error: new Error('Invalid gift price') }
+    }
 
     // Check sender's balance
     const { data: senderProfile, error: balanceError } = await this.client
@@ -288,25 +292,22 @@ export class EnhancedDatabaseService {
       return { error: balanceError || new Error('Sender not found') }
     }
 
-    if (senderProfile.loop_coins < totalCost) {
+    if (Number(senderProfile.loop_coins) < totalCost) {
       return { error: new Error('Insufficient coins') }
     }
 
-    // Create gift transaction
+    // Create gift transaction (columns match the live `gift_transactions` table).
     const { data: transaction, error: transactionError } = await this.client
       .from('gift_transactions')
       .insert({
         sender_id: senderId,
         recipient_id: recipientId,
-        gift_item_id: giftItemId,
-        message: options.message,
-        is_anonymous: options.is_anonymous || false,
-        payment_method: 'coins',
-        amount_paid: totalCost,
-        status: 'sent',
-        gift_wrapping: options.gift_wrapping,
-        delivery_config: options.delivery_config,
-        metadata: options.metadata || {}
+        gift_id: giftItemId,
+        stream_id: options.stream_id || null,
+        loop_id: options.loop_id || null,
+        quantity: options.quantity || 1,
+        total_cost: totalCost,
+        message: options.message || null
       })
       .select()
       .single()
@@ -319,23 +320,27 @@ export class EnhancedDatabaseService {
     const { error: deductError } = await this.client
       .from('profiles')
       .update({ 
-        loop_coins: senderProfile.loop_coins - totalCost 
+        loop_coins: Number(senderProfile.loop_coins) - totalCost,
+        updated_at: new Date().toISOString()
       })
       .eq('id', senderId)
+      .gte('loop_coins', totalCost)
 
     if (deductError) {
       return { error: deductError }
     }
 
     // Add item to recipient's inventory (if applicable)
-    if (giftItem.category === 'themes' || giftItem.category === 'effects') {
+    if (giftItem.category === 'themes' || giftItem.category === 'effects' || giftItem.category === 'badge') {
       await this.client
         .from('user_inventory')
         .upsert({
           user_id: recipientId,
           item_id: giftItemId,
-          is_active: false
-        })
+          item_type: giftItem.item_type || giftItem.category || 'gift_item',
+          is_active: true,
+          acquired_at: new Date().toISOString()
+        }, { onConflict: 'user_id,item_id,item_type' })
     }
 
     // Send notification to recipient
@@ -343,14 +348,15 @@ export class EnhancedDatabaseService {
       .from('notifications')
       .insert({
         user_id: recipientId,
-        type: 'gift',
-        title: 'You received a gift!',
+        type: 'gift_received',
+        title: 'Gift received',
         message: `${options.is_anonymous ? 'Someone' : 'A friend'} sent you ${giftItem.name}`,
         data: {
           gift_transaction_id: transaction.id,
           gift_item_name: giftItem.name,
           sender_id: options.is_anonymous ? null : senderId
-        }
+        },
+        is_read: false
       })
 
     // Award XP to sender
@@ -362,7 +368,6 @@ export class EnhancedDatabaseService {
 
     return { data: transaction, error: null }
   }
-
   // Room Operations
   async createUserRoom(userId: string, roomData: any) {
     const { data, error } = await this.client

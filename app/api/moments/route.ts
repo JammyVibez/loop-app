@@ -4,13 +4,26 @@ import { getUserFromRequest } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 
-/** Ephemeral posts that auto-delete from the database after expiry (24–48h). */
+/**
+ * Ephemeral moments (24–48h) shown as unique post cards — NOT an
+ * Instagram-style story strip.
+ *
+ * GET purges every expired moment from the database (the "auto-delete"
+ * guarantee), then returns a flat list of still-live moments from people the
+ * viewer follows plus their own.
+ */
 export async function GET(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const supabase = createServerClient()
+    const now = new Date().toISOString()
+
+    // Auto-delete: moments past their 24/48h life are removed from the DB
+    // entirely on first read — no cron needed, nothing lingers.
+    const { error: purgeError } = await supabase.from("moments").delete().lt("expires_at", now)
+    if (purgeError) console.error("Moments purge error:", purgeError.message)
 
     // Active moments from people the viewer follows + their own.
     const { data: following } = await supabase
@@ -26,36 +39,30 @@ export async function GET(request: NextRequest) {
          author:profiles!user_id(id, username, display_name, avatar_url, is_verified)`,
       )
       .in("user_id", authorIds)
-      .gt("expires_at", new Date().toISOString())
+      .gt("expires_at", now)
       .order("created_at", { ascending: false })
       .limit(80)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    const grouped = new Map<string, any>()
-    for (const moment of moments || []) {
+    // Flat card list — each entry carries its author inline.
+    const cards = (moments || []).map((moment) => {
       const author = Array.isArray(moment.author) ? moment.author[0] : moment.author
-      const key = moment.user_id
-      if (!grouped.has(key)) {
-        grouped.set(key, {
-          user: author || { id: moment.user_id },
-          items: [],
-          is_self: moment.user_id === user.id,
-        })
-      }
-      grouped.get(key).items.push({
+      return {
         id: moment.id,
-        type: "moment",
+        user_id: moment.user_id,
         media_url: moment.media_url,
         media_type: moment.media_type || "image",
         content: moment.content,
-        href: `/moments/${moment.id}`,
         created_at: moment.created_at,
         expires_at: moment.expires_at,
-      })
-    }
+        duration_hours: Math.max(24, Math.min(48, Math.round((new Date(moment.expires_at).getTime() - new Date(moment.created_at).getTime()) / 36e5))),
+        is_self: moment.user_id === user.id,
+        author: author || { id: moment.user_id },
+      }
+    })
 
-    return NextResponse.json({ success: true, moments: Array.from(grouped.values()) })
+    return NextResponse.json({ success: true, moments: cards })
   } catch (error: any) {
     console.error("Moments GET error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

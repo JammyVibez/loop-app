@@ -1660,6 +1660,12 @@ export function LoopCard({
             avatar_url: loop.author?.avatar_url,
             is_verified: Boolean(loop.author?.is_verified),
           },
+          stats: {
+            likes_count: Number(loop.stats?.likes_count || 0),
+            comments_count: Number(loop.stats?.comments_count || 0),
+            branches_count: Number(loop.stats?.branches_count || 0),
+            shares_count: Number(loop.stats?.shares_count || 0),
+          },
         }}
       />
     </>

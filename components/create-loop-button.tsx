@@ -180,7 +180,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
           })
           setUploadStatus(null)
 
-          res = await fetch("/api/loops/moments", {
+          res = await fetch("/api/moments", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -190,11 +190,12 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
             body: JSON.stringify({
               media_url: uploaded.url,
               media_type: prepared.type.startsWith("video") ? "video" : "image",
-              caption: content,
+              content: content,
+              hours: 24,
             }),
           })
         } else {
-          res = await fetch("/api/loops/moments", {
+          res = await fetch("/api/moments", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -202,8 +203,9 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
               ...getAuthHeader(),
             },
             body: JSON.stringify({
-              caption: content,
+              content: content,
               media_type: "text",
+              hours: 24,
             }),
           })
         }
