@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { useInventoryRealtime } from "@/hooks/use-inventory-realtime"
 import { Coins, Palette, Crown, Sparkles, Trash2, Eye, ShoppingBag } from "lucide-react"
 
 interface InventoryItem {
@@ -60,6 +61,11 @@ export function UserInventory() {
   useEffect(() => {
     void fetchInventory()
   }, [fetchInventory])
+
+  // Live inventory: purchases, applies and removals sync in instantly.
+  useInventoryRealtime(user?.id, () => {
+    void fetchInventory()
+  })
 
   const applyItem = async (itemId: string) => {
     try {

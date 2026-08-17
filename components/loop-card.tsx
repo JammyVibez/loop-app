@@ -36,6 +36,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar";
 import { AnimatedCardFrame } from "@/components/cosmetics/animated-card-frame";
 import { cardEffectStyle, fontStyle, type ActiveCosmetics } from "@/lib/cosmetics";
+import { ensureCosmeticFonts } from "@/lib/cosmetic-fonts";
 import { optimizeImageUrl } from "@/lib/optimize-image";
 import {
   DropdownMenu,
@@ -262,6 +263,12 @@ export function LoopCard({
   // Defensive fallback for content and hashtags
   const content = typeof loop.content === "string" ? loop.content : "";
   const hashtags = Array.isArray(loop.hashtags) ? loop.hashtags : [];
+
+  // Load the author's equipped display-name font (deduped) so their name
+  // renders in the right typeface as soon as the card is on screen.
+  useEffect(() => {
+    ensureCosmeticFonts((loop.author?.cosmetics || loop.author?.active_cosmetics)?.font)
+  }, [loop.author?.cosmetics, loop.author?.active_cosmetics])
 
   const contentPreview =
     content.length > 200 ? content.substring(0, 200) + "..." : content;

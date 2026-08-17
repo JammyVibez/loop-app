@@ -43,6 +43,7 @@ import { supabase } from "@/lib/supabase"
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
 import { ProfileBanner3D } from "@/components/profile/profile-banner-3d"
 import { cosmeticsFromInventory, fontStyle, type ActiveCosmetics } from "@/lib/cosmetics"
+import { ensureCosmeticFonts } from "@/lib/cosmetic-fonts"
 import { isShopThemePayload } from "@/lib/theme-css"
 import { xpForNextLevel } from "@/lib/xp"
 import { uploadMediaFile } from "@/lib/client-media-upload"
@@ -406,6 +407,12 @@ export function Enhanced3DProfile({ username }: { username: string }) {
     profile.active_cosmetics && Object.keys(profile.active_cosmetics).length
       ? profile.active_cosmetics
       : cosmeticsFromInventory(profile.active_effects)
+
+  // Load the equipped display-name font so it renders immediately (and when
+  // cosmetics change via realtime, the effect re-runs).
+  useEffect(() => {
+    ensureCosmeticFonts(cosmetics.font)
+  }, [cosmetics.font])
   const xp = Number(profile.xp_points || 0)
   const level = Number(profile.level || 1)
   const nextXp = xpForNextLevel(level)

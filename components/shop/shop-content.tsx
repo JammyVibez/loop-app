@@ -8,6 +8,7 @@ import { Coins, Palette, Sparkles, Zap, Crown, Star, Loader2, Eye, CreditCard } 
 import { LoopCoinsBalance } from "@/components/shop/loop-coins-balance";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useInventoryRealtime } from "@/hooks/use-inventory-realtime";
 import { ShopItemMiniPreview, ShopItemPreviewDialog, type ShopPreviewItem } from "@/components/shop/shop-item-preview";
 
 interface ShopItem {
@@ -60,6 +61,12 @@ export function ShopContent() {
       fetchUserInventory()
     }
   }, [user?.id])
+
+  // Live inventory: purchases made anywhere (this tab, another tab, an admin
+  // grant, a Stripe webhook) flip the "Owned" state instantly.
+  useInventoryRealtime(user?.id, () => {
+    void fetchUserInventory()
+  })
 
   // Stripe Checkout success/cancel for card-paid items lands back here.
   useEffect(() => {

@@ -10,9 +10,8 @@ import {
   cosmeticGradient,
   prefersReducedMotion,
   accessoryFromItem,
-  accessoryGlyph,
-  badgeGlyph,
 } from "@/lib/cosmetics"
+import { AccessoryIcon, BadgeStarIcon } from "@/components/cosmetics/accessory-icons"
 
 type Props = {
   src?: string | null
@@ -221,28 +220,27 @@ export function CosmeticAvatar({
         <span
           aria-hidden
           className={cn(
-            "pointer-events-none absolute z-[2] select-none drop-shadow",
-            accessory === "crown" && "left-1/2 -top-[0.35em] -translate-x-1/2 text-[1.15em]",
-            accessory === "hat" && "left-1/2 -top-[0.55em] -translate-x-1/2 text-[1.25em]",
-            accessory === "glasses" && "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[1em]",
-            accessory === "wings" && "-right-[0.15em] top-1/2 -translate-y-1/2 -rotate-12 text-[1.1em]",
-            accessory === "halo" && "left-1/2 -top-[0.7em] -translate-x-1/2 text-[1.05em]",
-            accessory === "cat" && "left-1/2 -top-[0.4em] -translate-x-1/2 text-[1em]",
-            accessory === "heart" && "-right-[0.1em] top-[0.05em] text-[0.95em]",
-            accessory === "trophy" && "-right-[0.1em] -bottom-[0.05em] text-[0.95em]",
-            accessory === "headset" && "left-1/2 -top-[0.45em] -translate-x-1/2 text-[1.1em]",
-            accessory === "ring" && "-right-[0.1em] top-1/2 -translate-y-1/2 text-[0.9em]",
-            (size === "lg" || size === "xl") &&
-              (accessory === "crown" ||
-              accessory === "hat" ||
-              accessory === "wings" ||
-              accessory === "halo" ||
-              accessory === "headset"
-                ? "text-3xl sm:text-4xl"
-                : "text-2xl"),
+            "pointer-events-none absolute z-[2] flex select-none",
+            accessory === "crown" && "left-1/2 -top-[0.35em] -translate-x-1/2",
+            accessory === "hat" && "left-1/2 -top-[0.55em] -translate-x-1/2",
+            accessory === "glasses" && "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
+            accessory === "wings" && "-right-[0.15em] top-1/2 -translate-y-1/2 -rotate-12",
+            accessory === "halo" && "left-1/2 -top-[0.7em] -translate-x-1/2",
+            accessory === "cat" && "left-1/2 -top-[0.4em] -translate-x-1/2",
+            accessory === "heart" && "-right-[0.1em] top-[0.05em]",
+            accessory === "trophy" && "-right-[0.1em] -bottom-[0.05em]",
+            accessory === "headset" && "left-1/2 -top-[0.45em] -translate-x-1/2",
+            accessory === "ring" && "-right-[0.1em] top-1/2 -translate-y-1/2",
           )}
         >
-          {accessoryGlyph(aura || frame || null)}
+          <AccessoryIcon
+            type={accessory}
+            color={glowColor}
+            color2={frame?.item_data?.colors?.secondary || aura?.item_data?.colors?.secondary || undefined}
+            className={cn(
+              size === "sm" ? "h-4 w-4" : size === "lg" || size === "xl" ? "h-8 w-8 sm:h-9 sm:w-9" : "h-5 w-5",
+            )}
+          />
         </span>
       )}
 
@@ -264,7 +262,7 @@ export function CosmeticAvatar({
               className="h-full w-full object-cover"
             />
           ) : (
-            <span className="leading-none">{badgeGlyph(badge)}</span>
+            <BadgeStarIcon color={badge?.color || undefined} className="h-full w-full" />
           )}
         </span>
       )}

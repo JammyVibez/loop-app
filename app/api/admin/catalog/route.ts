@@ -20,7 +20,21 @@ const FONT_PRESETS: Record<string, string> = {
   playfair: "'Playfair Display', serif",
   space_grotesk: "'Space Grotesk', sans-serif",
   jetbrains_mono: "'JetBrains Mono', monospace",
+  fira_code: "'Fira Code', monospace",
   pacifico: "'Pacifico', cursive",
+  bebas: "'Bebas Neue', sans-serif",
+  righteous: "'Righteous', sans-serif",
+  caveat: "'Caveat', cursive",
+  dancing_script: "'Dancing Script', cursive",
+  unbounded: "'Unbounded', sans-serif",
+  cinzel: "'Cinzel', serif",
+  orbitron: "'Orbitron', sans-serif",
+  press_start: "'Press Start 2P', monospace",
+  lobster: "'Lobster', cursive",
+  fredoka: "'Fredoka', sans-serif",
+  sora: "'Sora', sans-serif",
+  manrope: "'Manrope', sans-serif",
+  amatic: "'Amatic SC', cursive",
 }
 
 const THEME_PRESETS: Record<string, any> = {
@@ -38,6 +52,38 @@ const THEME_PRESETS: Record<string, any> = {
   },
   midnight: {
     colors: { primary: "#6366f1", secondary: "#8b5cf6", accent: "#ec4899", background: "#030712", surface: "#111827", text: "#f9fafb" },
+    effects: { glow: true, particles: true, animations: true },
+  },
+  sakura: {
+    colors: { primary: "#f472b6", secondary: "#fb7185", accent: "#fbcfe8", background: "#1c0f18", surface: "#2a1522", text: "#fce7f3" },
+    effects: { glow: true, particles: true, animations: true },
+  },
+  forest: {
+    colors: { primary: "#16a34a", secondary: "#22c55e", accent: "#a3e635", background: "#07130a", surface: "#0e2013", text: "#dcfce7" },
+    effects: { glow: true, particles: true, animations: true },
+  },
+  ocean: {
+    colors: { primary: "#0ea5e9", secondary: "#06b6d4", accent: "#67e8f9", background: "#020617", surface: "#0c2233", text: "#e0f2fe" },
+    effects: { glow: true, particles: true, animations: true },
+  },
+  sunset: {
+    colors: { primary: "#ff6b6b", secondary: "#ffa94d", accent: "#ff1744", background: "#1c0f0a", surface: "#2a1710", text: "#fff3e0" },
+    effects: { glow: true, particles: true, animations: true },
+  },
+  royal: {
+    colors: { primary: "#8b5cf6", secondary: "#fbbf24", accent: "#c4b5fd", background: "#0b0714", surface: "#170f2b", text: "#f3e8ff" },
+    effects: { glow: true, particles: true, animations: true },
+  },
+  cyber: {
+    colors: { primary: "#00ff88", secondary: "#00ccff", accent: "#ff0080", background: "#050b0a", surface: "#0d1a16", text: "#eafff5" },
+    effects: { glow: true, particles: true, animations: true },
+  },
+  arctic: {
+    colors: { primary: "#7dd3fc", secondary: "#e0f2fe", accent: "#38bdf8", background: "#020617", surface: "#0f1b2e", text: "#f0f9ff" },
+    effects: { glow: true, particles: false, animations: true },
+  },
+  candy: {
+    colors: { primary: "#f9a8d4", secondary: "#a5b4fc", accent: "#fde68a", background: "#150b18", surface: "#22142a", text: "#fdf2f8" },
     effects: { glow: true, particles: true, animations: true },
   },
 }

@@ -15,6 +15,7 @@ import { OnboardingRedirect } from "@/components/onboarding-redirect"
 import { AppChrome } from "@/components/layout/app-chrome"
 import { LeftSidebar } from "@/components/left-sidebar"
 import { GiftNotificationSystem } from "@/components/gifting/gift-notification"
+import { CosmeticFontLoader } from "@/components/cosmetics/cosmetic-font-loader"
 import { GlobalFab } from "@/components/global-fab"
 import { PushAutoSubscribe } from "@/components/pwa/push-auto-subscribe"
 import { NativeShell } from "@/components/pwa/native-shell"
@@ -208,6 +209,7 @@ export default function RootLayout({
                     </div>
                     <GlobalFab />
                     <GiftNotificationSystem />
+      <CosmeticFontLoader />
                     <PushAutoSubscribe />
                     <NativeShell />
                     <Toaster />
