@@ -30,6 +30,8 @@ const DEFAULT_FILES = [
   "scripts/community-bots-seed.sql",
   // Pro Circle workspace: channel polls + Pro Lounge daily check-in.
   "scripts/pro-circle-polls-checkins-schema.sql",
+  // 100ms realtime calls: call_sessions + live_streams hms columns.
+  "scripts/100ms-calls-schema.sql",
 ]
 
 // Allow a targeted run: node apply-pending-schema.mjs scripts/foo.sql …

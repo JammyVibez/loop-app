@@ -6,17 +6,21 @@ import {
   BarChart3,
   CalendarClock,
   Hash,
+  Loader2,
   MessageCircle,
   MessageSquareText,
   Mic,
   Minus,
   Paperclip,
+  Phone,
+  PhoneOff,
   Plus,
   Reply,
   Send,
   Smile,
   Square,
   Sparkles,
+  Video,
   X,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -34,6 +38,7 @@ import { cn } from "@/lib/utils"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
 import { uploadMediaFile } from "@/lib/client-media-upload"
+import { CallSheet } from "@/components/calls/call-sheet"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "🔥", "👏", "😮"]
 
@@ -219,6 +224,17 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""])
   const [pollDuration, setPollDuration] = useState(24)
   const [creatingPoll, setCreatingPoll] = useState(false)
+
+  // Voice / video calls (100ms) — one session per circle, anyone can join.
+  const [activeCall, setActiveCall] = useState<{ sessionId: string; mode: "video" | "audio" } | null>(null)
+  const [incomingCall, setIncomingCall] = useState<{
+    sessionId: string
+    mode: "video" | "audio"
+    fromName: string
+    avatarUrl?: string
+  } | null>(null)
+  const [startingCall, setStartingCall] = useState<"video" | "audio" | null>(null)
+  const activeCallRef = useRef<{ sessionId: string; mode: "video" | "audio" } | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const threadEndRef = useRef<HTMLDivElement>(null)
@@ -406,6 +422,106 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [threadReplies])
+
+  // ---- Circle calls (100ms) -------------------------------------------
+
+  const startCircleCall = async (mode: "video" | "audio") => {
+    if (!user || startingCall) return
+    setStartingCall(mode)
+    try {
+      const res = await fetch("/api/calls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ circle_id: circleId, is_video: mode === "video" }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Could not start the call")
+      const sessionId: string = data.data?.session?.id
+      if (!sessionId) throw new Error("Could not start the call")
+      setActiveCall({ sessionId, mode })
+      activeCallRef.current = { sessionId, mode }
+    } catch (error: any) {
+      toast({ title: "Call failed", description: error?.message || "Please try again.", variant: "destructive" })
+    } finally {
+      setStartingCall(null)
+    }
+  }
+
+  const acceptIncomingCall = () => {
+    if (!incomingCall) return
+    const next = { sessionId: incomingCall.sessionId, mode: incomingCall.mode }
+    setIncomingCall(null)
+    setActiveCall(next)
+    activeCallRef.current = next
+  }
+
+  const declineIncomingCall = () => {
+    if (!incomingCall) return
+    void fetch(`/api/calls/${incomingCall.sessionId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
+      body: JSON.stringify({ action: "end" }),
+    }).catch(() => {})
+    setIncomingCall(null)
+  }
+
+  // Ring for circle calls + react when a call ends (RLS-scoped realtime).
+  useEffect(() => {
+    if (!user?.id) return
+    const channel = supabase.channel(`calls-circle:${circleId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "call_sessions", filter: `circle_id=eq.${circleId}` },
+        (payload: any) => {
+          const session = payload.new
+          if (!session || session.creator_id === user.id) return
+          if (session.status !== "ringing") return
+          void (async () => {
+            try {
+              const { data: creator } = await supabase
+                .from("profiles")
+                .select("username, display_name, avatar_url")
+                .eq("id", session.creator_id)
+                .maybeSingle()
+              if (!creator) return
+              setIncomingCall({
+                sessionId: session.id,
+                mode: session.is_video ? "video" : "audio",
+                fromName: creator.display_name || creator.username || "Someone",
+                avatarUrl: creator.avatar_url,
+              })
+            } catch {
+              /* ignore */
+            }
+          })()
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "call_sessions", filter: `circle_id=eq.${circleId}` },
+        (payload: any) => {
+          const session = payload.new
+          if (!session) return
+          setIncomingCall((prev) =>
+            prev && prev.sessionId === session.id && session.status === "ended" ? null : prev,
+          )
+          if (
+            activeCallRef.current &&
+            session.id === activeCallRef.current.sessionId &&
+            session.status === "ended"
+          ) {
+            setActiveCall(null)
+            activeCallRef.current = null
+            toast({ title: "Call ended" })
+          }
+        },
+      )
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [circleId, user?.id])
 
   const broadcastTyping = () => {
     if (!user || !channelRef.current) return
@@ -842,6 +958,28 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
             {isConnected ? `${memberCount != null ? `${memberCount} members · ` : ""}Realtime` : "Syncing…"}
           </p>
         </div>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 text-muted-foreground hover:text-emerald-500"
+          title="Voice call"
+          disabled={Boolean(startingCall) || Boolean(activeCall)}
+          onClick={() => void startCircleCall("audio")}
+        >
+          {startingCall === "audio" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4" />}
+        </Button>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 text-muted-foreground hover:text-violet-500"
+          title="Video call"
+          disabled={Boolean(startingCall) || Boolean(activeCall)}
+          onClick={() => void startCircleCall("video")}
+        >
+          {startingCall === "video" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
+        </Button>
         <span
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
@@ -1223,6 +1361,60 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Incoming circle call banner */}
+      {incomingCall && (
+        <div className="fixed left-1/2 top-4 z-[115] w-[min(94vw,430px)] -translate-x-1/2">
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur-xl">
+            <Avatar className="h-11 w-11 ring-2 ring-emerald-500/50">
+              <AvatarImage src={incomingCall.avatarUrl} />
+              <AvatarFallback className="bg-gradient-to-br from-violet-600 to-cyan-500 text-sm font-bold">
+                {incomingCall.fromName?.charAt(0) || "?"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-foreground">
+                {incomingCall.mode === "video" ? "Incoming video call" : "Incoming voice call"}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">{incomingCall.fromName}</p>
+            </div>
+            <Button
+              size="sm"
+              className="h-9 w-9 rounded-full bg-rose-600 p-0 hover:bg-rose-500"
+              title="Decline"
+              onClick={declineIncomingCall}
+            >
+              <PhoneOff className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              className="h-9 w-9 rounded-full bg-emerald-600 p-0 hover:bg-emerald-500"
+              title="Accept"
+              onClick={acceptIncomingCall}
+            >
+              {incomingCall.mode === "video" ? <Video className="h-4 w-4" /> : <Phone className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <CallSheet
+        open={Boolean(activeCall)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActiveCall(null)
+            activeCallRef.current = null
+          }
+        }}
+        sessionId={activeCall?.sessionId || null}
+        mode={activeCall?.mode || "video"}
+        title={roomName ? `#${roomName}` : "Circle call"}
+        subtitle="Circle voice & video room"
+        onEnded={() => {
+          setActiveCall(null)
+          activeCallRef.current = null
+        }}
+      />
     </div>
   )
 }

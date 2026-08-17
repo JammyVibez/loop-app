@@ -31,7 +31,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { GiftModal } from "@/components/gifting/gift-modal"
-import { LiveBroadcaster, LiveViewer, type SignalPayload } from "@/lib/live-webrtc"
+import { HmsStreamStage, type HmsStreamStageHandle } from "@/components/streams/hms-stream-stage"
 import { cn } from "@/lib/utils"
 
 interface ChatMessage {
@@ -84,12 +84,12 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
   const [connectingMedia, setConnectingMedia] = useState(false)
   const [hasRemote, setHasRemote] = useState(false)
   const [hasLocalPreview, setHasLocalPreview] = useState(false)
+  const [hmsToken, setHmsToken] = useState<string | null>(null)
+  const [hmsError, setHmsError] = useState<string | null>(null)
 
-  const videoRef = useRef<HTMLVideoElement>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const supabaseRef = useRef<any>(null)
-  const broadcasterRef = useRef<LiveBroadcaster | null>(null)
-  const viewerRef = useRef<LiveViewer | null>(null)
+  const stageRef = useRef<HmsStreamStageHandle | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const peerIdRef = useRef(
     user?.id || `guest-${typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`,
@@ -106,16 +106,6 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
   useEffect(() => {
     if (user?.id) peerIdRef.current = user.id
   }, [user?.id])
-
-  const bindVideo = useCallback((streamMedia: MediaStream | null, mirror: boolean) => {
-    const el = videoRef.current
-    if (!el) return
-    el.srcObject = streamMedia
-    el.muted = isOwner || muted
-    el.playsInline = true
-    el.classList.toggle("scale-x-[-1]", mirror && mediaMode === "camera")
-    void el.play().catch(() => {})
-  }, [isOwner, muted, mediaMode])
 
   // Load stream + chat history
   useEffect(() => {
@@ -148,12 +138,6 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
       cancelled = true
     }
   }, [streamId, toast])
-
-  const sendSignal = useCallback(async (event: string, payload: SignalPayload) => {
-    const channel = channelRef.current
-    if (!channel) return
-    await channel.send({ type: "broadcast", event, payload })
-  }, [])
 
   const spawnHeart = useCallback((emoji = "❤️") => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
@@ -210,35 +194,6 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
           toast({ title: "Live ended", description: "The host ended this livestream." })
         }
       })
-      .on("broadcast", { event: "webrtc-signal" }, ({ payload }: any) => {
-        const msg = payload as SignalPayload
-        if (!msg || (msg as any).from === peerIdRef.current) return
-
-        if (isOwner && broadcasterRef.current) {
-          const b = broadcasterRef.current
-          if (msg.type === "hello") void b.handleHello(msg.from)
-          if (msg.type === "answer" && msg.to === peerIdRef.current) {
-            void b.handleAnswer(msg.from, msg.sdp)
-          }
-          if (msg.type === "ice" && msg.to === peerIdRef.current) {
-            void b.handleIce(msg.from, msg.candidate)
-          }
-          if (msg.type === "bye") b.removeViewer(msg.from)
-        } else if (!isOwner && viewerRef.current) {
-          const v = viewerRef.current
-          if (msg.type === "offer" && msg.to === peerIdRef.current) {
-            void v.handleOffer(msg.from, msg.sdp).then(() => setHasRemote(true))
-          }
-          if (msg.type === "ice" && msg.to === peerIdRef.current) {
-            void v.handleIce(msg.from, msg.candidate)
-          }
-          if (msg.type === "media-mode") setMediaMode(msg.mode)
-          if (msg.type === "bye") {
-            setHasRemote(false)
-            if (videoRef.current) videoRef.current.srcObject = null
-          }
-        }
-      })
       .subscribe(async (status: string) => {
         if (status !== "SUBSCRIBED") return
         await channel.track({
@@ -258,17 +213,6 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
           }).catch(() => {})
         }
 
-        if (!isOwner && stream.status === "live") {
-          const viewer = new LiveViewer(peerIdRef.current, sendSignal)
-          viewer.onTrack = (remote) => {
-            setHasRemote(true)
-            bindVideo(remote, false)
-          }
-          viewerRef.current = viewer
-          setConnectingMedia(true)
-          await viewer.announce()
-          window.setTimeout(() => setConnectingMedia(false), 2500)
-        }
       })
 
     return () => {
@@ -279,39 +223,64 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
           body: JSON.stringify({ action: "leave" }),
         }).catch(() => {})
       }
-      void broadcasterRef.current?.dispose()
-      void viewerRef.current?.dispose()
-      broadcasterRef.current = null
-      viewerRef.current = null
+      stageRef.current?.leave()
       channel.unsubscribe()
       channelRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamId, loading, stream?.id, isOwner, user?.id])
 
-  // When stream becomes live for viewers already on page, announce for media
+  // 100ms media: the host creates the room + host token; viewers fetch a
+  // guest token once the stream is live. Media flows through the 100ms SFU
+  // instead of the old peer-to-peer mesh (fixes screen share, camera flip
+  // and large-audience quality).
   useEffect(() => {
-    if (isOwner || !isLive || !channelRef.current) return
-    if (viewerRef.current) {
-      void viewerRef.current.announce()
+    if (!streamId || !stream?.id) return
+    if (!isOwner && stream.status !== "live") {
+      setHmsToken(null)
       return
     }
-    const viewer = new LiveViewer(peerIdRef.current, sendSignal)
-    viewer.onTrack = (remote) => {
-      setHasRemote(true)
-      bindVideo(remote, false)
+    let cancelled = false
+    setConnectingMedia(true)
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/streams/${streamId}/hms`, {
+          method: isOwner ? "POST" : "GET",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || "Live media unavailable")
+        if (!cancelled) {
+          setHmsToken(data.data?.token || null)
+          setHmsError(null)
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setHmsError(error?.message || "Live media is unavailable — check the 100ms setup.")
+          setHmsToken(null)
+        }
+      }
     }
-    viewerRef.current = viewer
-    void viewer.announce()
-  }, [isLive, isOwner, sendSignal, bindVideo])
+    void load()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streamId, stream?.id, isOwner, stream?.status, getAuthHeader])
+
+  // When the stream ends, leave the media room and clear state.
+  useEffect(() => {
+    if (stream?.status === "ended" && hmsToken) {
+      stageRef.current?.leave()
+      setHmsToken(null)
+      setHasRemote(false)
+      setHasLocalPreview(false)
+    }
+  }, [stream?.status, hmsToken])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [chatMessages])
-
-  useEffect(() => {
-    if (videoRef.current) videoRef.current.muted = isOwner || muted
-  }, [muted, isOwner])
 
   const updateStatus = async (status: "live" | "ended" | "paused" | "preparing") => {
     const res = await fetch(`/api/streams/${streamId}`, {
@@ -331,52 +300,15 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
     return next
   }
 
-  const ensureHostPreview = async () => {
-    if (!isOwner) return null
-    if (broadcasterRef.current?.localStream) {
-      setHasLocalPreview(true)
-      bindVideo(broadcasterRef.current.localStream, broadcasterRef.current.mediaMode === "camera")
-      return broadcasterRef.current.localStream
-    }
-    const broadcaster = new LiveBroadcaster(peerIdRef.current, sendSignal)
-    broadcaster.onLocalStream = (stream, mode) => {
-      setMediaMode(mode)
-      setHasLocalPreview(true)
-      bindVideo(stream, mode === "camera")
-    }
-    broadcasterRef.current = broadcaster
-    const local = await broadcaster.startCamera("user")
-    setMediaMode("camera")
-    setHasLocalPreview(true)
-    bindVideo(local, true)
-    return local
-  }
-
-  // Host camera preview while preparing
-  useEffect(() => {
-    if (!isOwner || loading || !stream || stream.status === "live" || stream.status === "ended") return
-    let cancelled = false
-    void (async () => {
-      try {
-        if (cancelled) return
-        await ensureHostPreview()
-      } catch {
-        // Permission prompt happens again on Go Live
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOwner, loading, stream?.id, stream?.status])
+  // Host camera preview + publishing is handled by the 100ms stage, which
+  // joins as soon as the host token arrives (room created on this page).
 
   const handleGoLive = async () => {
     if (!isOwner) return
     setBusy(true)
     try {
-      await ensureHostPreview()
-      if (!broadcasterRef.current?.localStream) {
-        throw new Error("Camera/mic permission is required to go live.")
+      if (!hmsToken) {
+        throw new Error("Live media isn't ready yet — check the 100ms setup (HMS_ACCESS_KEY / HMS_SECRET).")
       }
       await updateStatus("live")
       // Notify followers with real Web Push
@@ -385,12 +317,6 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({ streamId, action: "start" }),
       }).catch(() => {})
-      // Ask currently connected viewers to request the WebRTC offer again
-      await channelRef.current?.send({
-        type: "broadcast",
-        event: "webrtc-signal",
-        payload: { type: "media-mode", from: peerIdRef.current, mode: mediaMode },
-      })
       toast({ title: "You're LIVE", description: "Viewers can watch in real time." })
     } catch (error: any) {
       toast({
@@ -407,9 +333,9 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
     if (!isOwner) return
     setBusy(true)
     try {
-      await broadcasterRef.current?.dispose()
-      broadcasterRef.current = null
-      if (videoRef.current) videoRef.current.srcObject = null
+      stageRef.current?.leave()
+      setHmsToken(null)
+      setHasLocalPreview(false)
       await updateStatus("ended")
       toast({ title: "Live ended" })
     } catch (error: any) {
@@ -419,74 +345,32 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
     }
   }
 
-  const handleScreenShare = async () => {
+  const handleScreenShare = () => {
     if (!isOwner) return
-    if (!broadcasterRef.current) {
+    if (!isLive) {
       toast({
         title: "Go live first",
-        description: "Start your live before sharing your screen.",
+        description: "Screen share is available while you are LIVE.",
         variant: "destructive",
       })
       return
     }
-    if (busy) return
-    setBusy(true)
-    try {
-      if (mediaMode === "screen") {
-        await broadcasterRef.current.stopScreenShare()
-        setMediaMode("camera")
-        const cam = broadcasterRef.current.localStream
-        if (cam) bindVideo(cam, true)
-        toast({ title: "Back to camera" })
-      } else {
-        if (!isLive) {
-          toast({
-            title: "Go live first",
-            description: "Screen share is available while you are LIVE.",
-            variant: "destructive",
-          })
-          return
-        }
-        const display = await broadcasterRef.current.startScreenShare()
-        setMediaMode("screen")
-        bindVideo(display, false)
-        toast({ title: "Sharing screen", description: "Viewers see your screen in real time." })
-      }
-    } catch (error: any) {
-      toast({
-        title: "Screen share failed",
-        description: error?.message || "Pick a screen or window and allow sharing.",
-        variant: "destructive",
-      })
-    } finally {
-      setBusy(false)
-    }
+    stageRef.current?.toggleScreenShare()
+    setMediaMode((mode) => (mode === "screen" ? "camera" : "screen"))
+    toast({ title: mediaMode === "screen" ? "Back to camera" : "Sharing screen", description: "Powered by 100ms" })
   }
 
   const toggleMic = () => {
-    const next = !micOn
-    setMicOn(next)
-    broadcasterRef.current?.setMicEnabled(next)
+    stageRef.current?.toggleMic()
   }
 
   const toggleCam = () => {
-    const next = !camOn
-    setCamOn(next)
-    broadcasterRef.current?.setCameraEnabled(next)
+    stageRef.current?.toggleCam()
   }
 
-  const flipCamera = async () => {
-    if (!broadcasterRef.current || mediaMode !== "camera") return
-    try {
-      const streamMedia = await broadcasterRef.current.flipCamera()
-      if (streamMedia) bindVideo(streamMedia, true)
-    } catch (error: any) {
-      toast({
-        title: "Could not switch camera",
-        description: error?.message || "Your browser blocked the camera switch. Check camera permissions.",
-        variant: "destructive",
-      })
-    }
+  const flipCamera = () => {
+    if (mediaMode !== "camera") return
+    stageRef.current?.flipCamera()
   }
 
   const handleSendChat = async (e: React.FormEvent) => {
@@ -592,18 +476,29 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-black text-white">
-      {/* Full-bleed video stage */}
+      {/* Full-bleed video stage — 100ms SFU media layer */}
       <div className="absolute inset-0">
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={isOwner || muted}
-          className={cn(
-            "h-full w-full object-cover bg-black transition-transform",
-            isOwner && mediaMode === "camera" && "scale-x-[-1]",
-          )}
+        <HmsStreamStage
+          ref={stageRef}
+          token={hmsToken || ""}
+          userName={user?.display_name || user?.username || "Viewer"}
+          isOwner={isOwner}
+          onMicChange={setMicOn}
+          onCamChange={setCamOn}
+          onRemoteAvailable={setHasRemote}
+          onJoined={() => {
+            setConnectingMedia(false)
+            if (isOwner) setHasLocalPreview(true)
+          }}
+          onError={(msg) => setHmsError(msg)}
+          remoteMuted={muted}
         />
+        {hmsError && (
+          <div className="absolute inset-x-0 bottom-48 z-20 mx-auto flex w-fit max-w-[90%] items-center gap-2 rounded-full bg-black/65 px-4 py-2 text-xs text-amber-300 backdrop-blur">
+            <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-amber-400" />
+            {hmsError}
+          </div>
+        )}
         {!isLive && !isOwner && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-b from-zinc-950 via-black to-zinc-900">
             {stream.thumbnail_url ? (
@@ -686,12 +581,9 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
             <Eye className="h-3.5 w-3.5" />
             {viewerCount.toLocaleString()}
           </span>
-          {isOwner && viewerCount >= 20 && (
-            <span
-              className="hidden items-center gap-1 rounded-md bg-amber-500/90 px-2 py-1 text-[11px] font-bold text-black sm:inline-flex"
-              title="This live uses peer-to-peer video — quality can degrade with large audiences. Consider a dedicated streaming provider for bigger crowds."
-            >
-              High viewer load
+          {isOwner && isLive && (
+            <span className="hidden items-center gap-1 rounded-md bg-violet-500/90 px-2 py-1 text-[11px] font-bold sm:inline-flex">
+              <Sparkles className="h-3 w-3" /> 100ms SFU
             </span>
           )}
           {mediaMode === "screen" && (

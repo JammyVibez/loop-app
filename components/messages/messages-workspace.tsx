@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -11,6 +12,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { GiftModal } from "@/components/gifting/gift-modal"
+import { CallSheet } from "@/components/calls/call-sheet"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
 import { ForwardDialog } from "@/components/messages/forward-dialog"
@@ -36,6 +38,8 @@ import {
   MoreHorizontal,
   Paperclip,
   Pencil,
+  Phone,
+  PhoneOff,
   Reply,
   Search,
   Send,
@@ -43,6 +47,7 @@ import {
   Sparkles,
   Film,
   Trash2,
+  Video,
   X,
 } from "lucide-react"
 import {
@@ -207,6 +212,15 @@ export function MessagesWorkspace() {
   const [gifResults, setGifResults] = useState<any[]>([])
   const [gifSearch, setGifSearch] = useState("")
   const [gifsLoading, setGifsLoading] = useState(false)
+  const [outgoingCall, setOutgoingCall] = useState<{ sessionId: string; mode: "video" | "audio" } | null>(null)
+  const [incomingCall, setIncomingCall] = useState<{
+    sessionId: string
+    mode: "video" | "audio"
+    fromName: string
+    avatarUrl?: string
+  } | null>(null)
+  const [startingCall, setStartingCall] = useState<"video" | "audio" | null>(null)
+  const outgoingCallRef = useRef<{ sessionId: string; mode: "video" | "audio" } | null>(null)
   const gifTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [pushEnabled, setPushEnabled] = useState<boolean | null>(null)
   const [pushToggling, setPushToggling] = useState(false)
@@ -303,6 +317,26 @@ export function MessagesWorkspace() {
       setMobileShowChat(true)
     }
   }, [deepLinkId])
+
+  // Deep link ?call=<sessionId> — open a call straight away (from a push).
+  useEffect(() => {
+    const callId = searchParams.get("call")
+    if (!callId || !user?.id) return
+    void (async () => {
+      try {
+        const res = await fetch(`/api/calls/${callId}`, { headers: getAuthHeader() })
+        const data = await res.json()
+        if (!res.ok) return
+        const session = data.data?.session
+        if (!session) return
+        const mode = session.is_video ? "video" : "audio"
+        setOutgoingCall({ sessionId: callId, mode })
+        outgoingCallRef.current = { sessionId: callId, mode }
+      } catch {
+        /* ignore — user can open the chat normally */
+      }
+    })()
+  }, [searchParams, user?.id, getAuthHeader])
 
   useEffect(() => {
     if (!selectedId || !user) return
@@ -509,6 +543,114 @@ export function MessagesWorkspace() {
     setMessages([])
     router.replace("/messages", { scroll: false })
   }
+
+  // ---- Voice / video calls (100ms) ------------------------------------
+
+  const startCall = async (mode: "video" | "audio") => {
+    if (!user || !selectedId || startingCall) return
+    setStartingCall(mode)
+    try {
+      const res = await fetch("/api/calls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ conversation_id: selectedId, is_video: mode === "video" }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Could not start the call")
+      const sessionId: string = data.data?.session?.id
+      if (!sessionId) throw new Error("Could not start the call")
+      setOutgoingCall({ sessionId, mode })
+      outgoingCallRef.current = { sessionId, mode }
+    } catch (error: any) {
+      toast({ title: "Call failed", description: error?.message || "Please try again.", variant: "destructive" })
+    } finally {
+      setStartingCall(null)
+    }
+  }
+
+  const acceptIncomingCall = () => {
+    if (!incomingCall) return
+    const next = { sessionId: incomingCall.sessionId, mode: incomingCall.mode }
+    setIncomingCall(null)
+    setOutgoingCall(next)
+    outgoingCallRef.current = next
+  }
+
+  const declineIncomingCall = () => {
+    if (!incomingCall) return
+    void fetch(`/api/calls/${incomingCall.sessionId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
+      body: JSON.stringify({ action: "end" }),
+    }).catch(() => {})
+    setIncomingCall(null)
+  }
+
+  // Ring for incoming calls and react to ended sessions (RLS-scoped realtime).
+  useEffect(() => {
+    if (!user?.id) return
+    const supabase = getSupabaseBrowserClient()
+    const channel = supabase.channel("calls-inbox")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "call_sessions" },
+        (payload: any) => {
+          const session = payload.new
+          if (!session || session.creator_id === user.id) return
+          if (session.status !== "ringing") return
+          // Only ring for calls in the conversation that is open right now,
+          // so a busy inbox doesn't pile up banners.
+          if (session.conversation_id && selectedIdRef.current && session.conversation_id !== selectedIdRef.current) {
+            return
+          }
+          if (!session.conversation_id) return
+          void (async () => {
+            try {
+              const { data: creator } = await supabase
+                .from("profiles")
+                .select("username, display_name, avatar_url")
+                .eq("id", session.creator_id)
+                .maybeSingle()
+              if (!creator) return
+              setIncomingCall({
+                sessionId: session.id,
+                mode: session.is_video ? "video" : "audio",
+                fromName: creator.display_name || creator.username || "Someone",
+                avatarUrl: creator.avatar_url,
+              })
+              playChatSound("receive")
+            } catch {
+              /* ignore */
+            }
+          })()
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "call_sessions" },
+        (payload: any) => {
+          const session = payload.new
+          if (!session) return
+          setIncomingCall((prev) =>
+            prev && prev.sessionId === session.id && session.status === "ended" ? null : prev,
+          )
+          if (
+            outgoingCallRef.current &&
+            session.id === outgoingCallRef.current.sessionId &&
+            session.status === "ended"
+          ) {
+            setOutgoingCall(null)
+            outgoingCallRef.current = null
+            toast({ title: "Call ended" })
+          }
+        },
+      )
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   const sendMessage = async (opts?: { content?: string; media_url?: string; message_type?: string }) => {
     if (!user || !selectedId || sending) return
@@ -1196,6 +1338,27 @@ export function MessagesWorkspace() {
             )}
           </p>
         </div>
+        {/* Voice + video calls (100ms) — 1:1 and group chats. */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="hidden text-muted-foreground hover:text-emerald-500 sm:inline-flex"
+          title="Voice call"
+          onClick={() => void startCall("audio")}
+          disabled={Boolean(startingCall) || Boolean(outgoingCall)}
+        >
+          {startingCall === "audio" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Phone className="h-5 w-5" />}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="hidden text-muted-foreground hover:text-violet-500 sm:inline-flex"
+          title="Video call"
+          onClick={() => void startCall("video")}
+          disabled={Boolean(startingCall) || Boolean(outgoingCall)}
+        >
+          {startingCall === "video" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Video className="h-5 w-5" />}
+        </Button>
         {/* All chat actions live in one compact menu so the header stays
             clean on every screen size and never overflows on phones. */}
         <DropdownMenu>
@@ -1205,6 +1368,21 @@ export function MessagesWorkspace() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem
+              onClick={() => void startCall("audio")}
+              disabled={Boolean(startingCall) || Boolean(outgoingCall)}
+            >
+              <Phone className="mr-2 h-4 w-4 text-emerald-500" />
+              Voice call
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => void startCall("video")}
+              disabled={Boolean(startingCall) || Boolean(outgoingCall)}
+            >
+              <Video className="mr-2 h-4 w-4 text-violet-500" />
+              Video call
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setShowCoLoop((v) => !v)} className="text-amber-600 dark:text-amber-300">
               <GitBranch className="mr-2 h-4 w-4" />
               Co-Loop together
@@ -1838,6 +2016,62 @@ export function MessagesWorkspace() {
     >
       <div className={cn("min-h-0 min-w-0", mobileShowChat ? "hidden lg:block" : "block")}>{inbox}</div>
       <div className={cn("min-h-0 min-w-0", mobileShowChat ? "block" : "hidden lg:block")}>{chatPane}</div>
+      {/* Incoming call banner */}
+      {incomingCall && (
+        <div className="fixed left-1/2 top-4 z-[115] w-[min(94vw,430px)] -translate-x-1/2">
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur-xl">
+            <Avatar className="h-11 w-11 ring-2 ring-emerald-500/50">
+              <AvatarImage src={incomingCall.avatarUrl} />
+              <AvatarFallback className="bg-gradient-to-br from-violet-600 to-cyan-500 text-sm font-bold">
+                {incomingCall.fromName?.charAt(0) || "?"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-foreground">
+                {incomingCall.mode === "video" ? "Incoming video call" : "Incoming voice call"}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">{incomingCall.fromName}</p>
+            </div>
+            <Button
+              size="sm"
+              className="h-9 w-9 rounded-full bg-rose-600 p-0 hover:bg-rose-500"
+              title="Decline"
+              onClick={declineIncomingCall}
+            >
+              <PhoneOff className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              className="h-9 w-9 rounded-full bg-emerald-600 p-0 hover:bg-emerald-500"
+              title="Accept"
+              onClick={acceptIncomingCall}
+            >
+              {incomingCall.mode === "video" ? <Video className="h-4 w-4" /> : <Phone className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <CallSheet
+        open={Boolean(outgoingCall)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setOutgoingCall(null)
+            outgoingCallRef.current = null
+          }
+        }}
+        sessionId={outgoingCall?.sessionId || null}
+        mode={outgoingCall?.mode || "video"}
+        title={selected?.other_user?.display_name || selected?.name || "Call"}
+        subtitle={
+          selected?.other_user?.username ? `@${selected.other_user.username}` : selected?.is_group ? "Group call" : undefined
+        }
+        avatarUrl={selected?.other_user?.avatar_url}
+        onEnded={() => {
+          setOutgoingCall(null)
+          outgoingCallRef.current = null
+        }}
+      />
     </div>
   )
 }
