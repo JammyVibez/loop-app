@@ -1,4 +1,4 @@
-import { Unzip } from "fflate"
+import { Unzip, UnzipInflate } from "fflate"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 
 /**
@@ -224,8 +224,13 @@ export async function parseProjectZip(
 
   await new Promise<void>((resolve, reject) => {
     const unzip = new Unzip()
+    // fflate does NOT register DEFLATE by default — without this, calling
+    // start() on any compressed entry throws "unknown compression type 8".
+    unzip.register(UnzipInflate)
     let pendingFiles = 0
     let finalPushed = false
+    let totalDiscovered = 0
+    let doneDiscovered = 0
 
     const maybeResolve = () => {
       if (finalPushed && pendingFiles === 0) resolve()
@@ -250,6 +255,7 @@ export async function parseProjectZip(
       }
 
       pendingFiles++
+      totalDiscovered++
       const chunks: Uint8Array[] = []
       let size = 0
 
@@ -264,6 +270,16 @@ export async function parseProjectZip(
         }
         if (final) {
           pendingFiles--
+          doneDiscovered++
+          // Live per-file progress — the extraction phase now actually paints.
+          // Scaled into the 90-100 band so the bar never jumps backwards from
+          // the "read" phase (which caps at 95 in the UI).
+          const frac = doneDiscovered / Math.max(totalDiscovered, 1)
+          onProgress?.(
+            "extract",
+            Math.min(100, Math.round(90 + frac * 10)),
+            `Extracting ${doneDiscovered}/${totalDiscovered} files…`,
+          )
           try {
             if (size > REPO_FILE_LIMITS.maxFileBytes) {
               removedReasons.set(`${zf.name} (over 1MB single-file cap)`, 1)
@@ -296,6 +312,26 @@ export async function parseProjectZip(
           }
           maybeResolve()
         }
+      }
+
+      // THE critical call: fflate only emits ondata for a stream after
+      // start() is invoked. Without it the archive is fully read (progress
+      // hits 100%) but no file is ever decompressed and the promise never
+      // resolves — the upload appeared stuck at "Reading archive… 100%".
+      try {
+        zf.start()
+      } catch (e: any) {
+        // Unknown compression (LZMA/BZIP2/etc.) — skip the file gracefully.
+        pendingFiles--
+        doneDiscovered++
+        removedReasons.set(`${zf.name} (${e?.message || "unsupported compression"})`, 1)
+        try {
+          zf.terminate()
+        } catch {
+          /* ignore */
+        }
+        maybeResolve()
+        return
       }
     }
 
@@ -447,6 +483,7 @@ export async function uploadRepoFiles(
   zipFile: File,
   authHeaders: Record<string, string>,
   onProgress?: (done: number, total: number, label: string) => void,
+  onZipPhase?: (label: string, percent: number) => void,
 ): Promise<{ files: UploadedRepoFile[]; zipUrl: string | null; zipError: string | null }> {
   const files: UploadedRepoFile[] = []
   const failed: string[] = []
@@ -473,15 +510,21 @@ export async function uploadRepoFiles(
     } catch {
       failed.push(entry.path)
     }
-    onProgress?.(files.length + failed.length, entries.length, `Uploading ${entry.path}`)
+    const done = files.length + failed.length
+    const pct = entries.length ? Math.round((done / entries.length) * 100) : 100
+    onProgress?.(done, entries.length, `Uploading files… ${pct}% (${done}/${entries.length})`)
   })
 
   let zipUrl: string | null = null
   let zipError: string | null = null
-  try {
-    zipUrl = await uploadZipArchive(zipFile, authHeaders)
-  } catch (err: any) {
-    zipError = err?.message || "ZIP archive upload failed"
+  if (zipFile.size > 0) {
+    try {
+      onZipPhase?.("Storing ZIP archive…", 0)
+      zipUrl = await uploadZipArchive(zipFile, authHeaders, (pct) => onZipPhase?.("Storing ZIP archive…", pct))
+      onZipPhase?.("Archive stored ✓", 100)
+    } catch (err: any) {
+      zipError = err?.message || "ZIP archive upload failed"
+    }
   }
 
   return { files, zipUrl, zipError }
@@ -490,6 +533,7 @@ export async function uploadRepoFiles(
 async function uploadZipArchive(
   zipFile: File,
   authHeaders: Record<string, string>,
+  onProgress?: (percent: number) => void,
 ): Promise<string> {
   // <= 100MB: standard signed direct upload (uploadMediaFile proxies
   // anything >3.5MB straight to Cloudinary).
@@ -500,6 +544,7 @@ async function uploadZipArchive(
       authHeaders,
       maxSizeBytes: zipSizeLimit(true),
     })
+    onProgress?.(100)
     return result.url
   }
 
@@ -549,11 +594,13 @@ async function uploadZipArchive(
       throw new Error(json?.error?.message || json?.error || `Upload failed (HTTP ${res.status})`)
     }
     lastResponse = json
+    onProgress?.(Math.min(99, Math.round(((start + chunkSize) / total) * 100)))
   }
 
   if (!lastResponse?.secure_url) {
     throw new Error("Upload finished without a file URL")
   }
+  onProgress?.(100)
   return lastResponse.secure_url as string
 }
 

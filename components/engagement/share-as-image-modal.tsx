@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Download, Share2 } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface ShareAsImageModalProps {
   open: boolean
@@ -24,10 +25,8 @@ interface ShareAsImageModalProps {
 
 const CARD_WIDTH = 1080
 const CARD_HEIGHT = 1080
-const PREVIEW_SCALE = 0.5 // 540×540 — fast to encode for the on-screen preview
-const EXPORT_SCALE = 2 // 2160×2160 — crisp for download/share
+const EXPORT_SCALE = 1.9 // 2052×2052 — crisp for social, ~20% faster to encode than 2160
 const BRAND = "#6366f1"
-const BRAND_DARK = "#4338ca"
 const DOMAIN = "loopapp.me"
 const AVATAR_LOAD_TIMEOUT_MS = 1500
 
@@ -38,10 +37,9 @@ function truncate(text: string, max: number): string {
 }
 
 /**
- * Load an avatar with a hard, short timeout. The card is fully drawn with a
- * letter-avatar fallback the moment the modal opens — the real avatar simply
- * composites on top when (and if) it arrives, so a slow image never blocks
- * the generation.
+ * Load an avatar with a hard, short timeout. The card renders instantly with
+ * a letter-avatar fallback — the real avatar composites in when (and if) it
+ * arrives, so a slow image never blocks the generation.
  */
 type AvatarSource = HTMLImageElement | HTMLCanvasElement | ImageBitmap
 
@@ -63,8 +61,6 @@ function loadAvatar(src: string): Promise<AvatarSource | null> {
     }
     const timer = window.setTimeout(() => finish(null), AVATAR_LOAD_TIMEOUT_MS)
 
-    // createImageBitmap decodes off the main thread — noticeably faster than
-    // an <img> element, especially for larger avatar files.
     if (typeof createImageBitmap === "function") {
       fetch(src, { mode: "cors", credentials: "include" })
         .then((res) => {
@@ -74,7 +70,6 @@ function loadAvatar(src: string): Promise<AvatarSource | null> {
         .then((blob) => createImageBitmap(blob))
         .then((bitmap) => finish(bitmap))
         .catch(() => {
-          // Fall back to a plain <img> (handles data: URLs, some CDN setups)
           const img = new Image()
           img.crossOrigin = "anonymous"
           img.onload = () => finish(img)
@@ -157,7 +152,6 @@ function drawCardBase(
   // --- Avatar ---
   const avatarSize = 170
 
-  // Avatar ring
   const ring = ctx.createLinearGradient(margin, 0, margin + avatarSize, avatarSize)
   ring.addColorStop(0, BRAND)
   ring.addColorStop(1, "#22d3ee")
@@ -235,7 +229,6 @@ function drawCardBase(
   ctx.font = "normal 46px system-ui, sans-serif"
   ctx.fillStyle = "#f1f5f9"
 
-  // Manual word wrap
   const words = bodyText.split(" ")
   const lines: string[] = []
   let line = ""
@@ -266,7 +259,6 @@ function drawCardBase(
   ctx.lineTo(CARD_WIDTH - margin, barY)
   ctx.stroke()
 
-  // Loop logomark — rounded square with "L"
   ctx.save()
   roundRect(ctx, margin, barY + 34, 76, 76, 20)
   const logoBg = ctx.createLinearGradient(margin, barY + 34, margin + 76, barY + 110)
@@ -290,7 +282,6 @@ function drawCardBase(
   ctx.fillStyle = "#94a3b8"
   ctx.fillText("Build together. Not just post into the void.", margin + 100, barY + 118)
 
-  // Domain chip bottom-right
   ctx.font = "600 28px ui-monospace, monospace"
   ctx.fillStyle = "rgba(148,163,184,0.9)"
   ctx.textAlign = "right"
@@ -298,47 +289,111 @@ function drawCardBase(
   ctx.textAlign = "left"
 }
 
-/** Encode a canvas as a JPEG blob (fast). */
-function canvasToJpegBlob(canvas: HTMLCanvasElement, quality = 0.9): Promise<Blob> {
+/** Encode a canvas as a JPEG blob (fast, async). */
+function canvasToJpegBlob(canvas: HTMLCanvasElement, quality = 0.92): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Canvas empty"))), "image/jpeg", quality)
   })
 }
 
-/** Encode a canvas to a data URL off the main thread where possible (async,
- *  never blocks paint). Falls back to toDataURL on older engines. */
-async function canvasToJpegDataUrl(canvas: HTMLCanvasElement, quality = 0.82): Promise<string> {
-  try {
-    const blob = await canvasToJpegBlob(canvas, quality)
-    const url = URL.createObjectURL(blob)
-    // Object URLs are async to load but near-free to create — swap the <img>
-    // to a blob URL so the expensive synchronous base64 encoding never runs.
-    return url
-  } catch {
-    return canvas.toDataURL("image/jpeg", quality)
-  }
+/* ------------------------------------------------------------------ */
+/* Instant HTML preview — the same card, rendered as JSX so the modal   */
+/* shows the share card in a single frame with zero encoding.           */
+/* ------------------------------------------------------------------ */
+
+function ShareCardPreview({ post }: { post: ShareAsImageModalProps["post"] }) {
+  const name = truncate(post.author.display_name || post.author.username || "User", 22)
+  const bodyText = truncate(post.content || "Shared a loop", 420)
+  return (
+    <div
+      className="relative aspect-square w-full select-none overflow-hidden rounded-xl bg-[#0f172a] text-left"
+      style={{ containerType: "inline-size" }}
+    >
+      {/* Background gradient + glows (mirrors the canvas card) */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: "linear-gradient(140deg, #0f172a 0%, #111827 55%, #1e1b4b 100%)",
+        }}
+      />
+      <div
+        className="absolute -left-10 -top-12 h-56 w-56 rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(99,102,241,0.28) 0%, rgba(99,102,241,0) 70%)" }}
+      />
+      <div
+        className="absolute -bottom-12 -right-8 h-48 w-48 rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(34,211,238,0.16) 0%, rgba(34,211,238,0) 70%)" }}
+      />
+      {/* Decorative rings */}
+      <div className="absolute -bottom-16 -right-16 h-56 w-56 rounded-full border border-white/5" />
+      <div className="absolute -bottom-8 -right-8 h-36 w-36 rounded-full border border-white/5" />
+
+      <div className="relative flex h-full flex-col p-[8%]">
+        {/* Header: avatar + identity */}
+        <div className="flex items-center gap-[5%]">
+          <span className="flex aspect-square w-[16%] shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 to-cyan-400 p-[4%]">
+            <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-full bg-slate-700 text-[9cqw] font-bold text-slate-200">
+              {post.author.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={post.author.avatar_url} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
+              ) : (
+                name.charAt(0).toUpperCase()
+              )}
+            </span>
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1.5 truncate text-[clamp(11px,3.2cqw,22px)] font-bold leading-tight text-slate-50">
+              <span className="truncate">{name}</span>
+              {post.author.is_verified && (
+                <span className="flex h-[1.2em] w-[1.2em] shrink-0 items-center justify-center rounded-full bg-sky-400 text-[0.8em] font-bold text-slate-900">
+                  ✓
+                </span>
+              )}
+            </p>
+            <p className="truncate text-[clamp(9px,2.4cqw,16px)] text-slate-400">@{truncate(post.author.username || "user", 26)}</p>
+          </div>
+        </div>
+
+        <div className="mt-[6%] h-px w-full bg-slate-400/25" />
+
+        {/* Body text */}
+        <p className="mt-[6%] whitespace-pre-line text-[clamp(12px,3.6cqw,26px)] leading-relaxed text-slate-100 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:8] overflow-hidden">
+          {bodyText}
+        </p>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Branding bar */}
+        <div className="mt-[4%] h-px w-full bg-indigo-500/50" />
+        <div className="mt-[4%] flex items-center gap-[3%]">
+          <span className="flex h-[clamp(20px,6cqw,44px)] w-[clamp(20px,6cqw,44px)] shrink-0 items-center justify-center rounded-[30%] bg-gradient-to-tr from-indigo-500 to-cyan-400 text-[clamp(12px,3.6cqw,26px)] font-bold text-white">
+            L
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[clamp(10px,2.8cqw,20px)] font-bold leading-tight text-slate-50">Loop</p>
+            <p className="truncate text-[clamp(8px,1.9cqw,14px)] text-slate-400">Build together. Not just post into the void.</p>
+          </div>
+          <p className="shrink-0 font-mono text-[clamp(8px,2cqw,15px)] font-semibold text-slate-400">
+            {DOMAIN}/loop/{post.id}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
 }
+
+/* ------------------------------------------------------------------ */
 
 export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModalProps) {
   const { toast } = useToast()
-  const previewCanvasRef = useRef<HTMLCanvasElement>(null)
   const exportCanvasRef = useRef<HTMLCanvasElement>(null)
   const [rendered, setRendered] = useState(false)
-  const [busy, setBusy] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const avatarRef = useRef<AvatarSource | null>(null)
-  const previewUrlRef = useRef<string | null>(null)
+  const cachedBlobRef = useRef<Blob | null>(null)
+  const generationRef = useRef(0)
 
-  const setPreview = async (canvas: HTMLCanvasElement, quality: number) => {
-    const url = await canvasToJpegDataUrl(canvas, quality)
-    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
-    previewUrlRef.current = url
-    setPreviewUrl(url)
-  }
-
-  // Only re-render when the content actually changed — not on every parent
-  // render (the post prop object identity can change per render).
   const renderKey = useMemo(
     () =>
       [
@@ -353,77 +408,83 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
     [post.id, post.content, post.media_url, post.author.username, post.author.display_name, post.author.avatar_url, post.author.is_verified],
   )
 
+  // Pre-generate the full-res export blob in the background as soon as the
+  // modal opens, so Download/Share are instant by the time the user taps.
+  // The preview is plain HTML (rendered in the same frame), so the modal
+  // itself never waits on an encode.
   useEffect(() => {
     if (!open) {
       setRendered(false)
-      if (previewUrlRef.current) {
-        URL.revokeObjectURL(previewUrlRef.current)
-        previewUrlRef.current = null
-      }
-      setPreviewUrl(null)
-      setBusy(false)
+      setExporting(false)
+      cachedBlobRef.current = null
+      avatarRef.current = null
       return
     }
+    const gen = ++generationRef.current
     let cancelled = false
-    setBusy(true)
+    setRendered(false)
 
-    const render = async () => {
-      const previewCanvas = previewCanvasRef.current
-      if (!previewCanvas) return
+    const generate = async () => {
+      const canvas = exportCanvasRef.current
+      if (!canvas) return
       try {
-        // 1. Draw the base card synchronously (letter-avatar fallback) — the
-        //    preview is on-screen within a single frame, no network awaits.
-        drawCardBase(previewCanvas, post, PREVIEW_SCALE, null)
-        if (cancelled) return
-        // 2. Encode asynchronously (toBlob → object URL) so the JPEG encode
-        //    never blocks the main thread — the preview appears instantly.
-        await setPreview(previewCanvas, 0.82)
+        drawCardBase(canvas, post, EXPORT_SCALE, avatarRef.current)
+        const blob = await canvasToJpegBlob(canvas, 0.92)
+        if (cancelled || gen !== generationRef.current) return
+        cachedBlobRef.current = blob
         setRendered(true)
-        setBusy(false)
 
-        // 3. Avatar arrives asynchronously — composite it on the preview the
-        //    moment it's ready (never blocks step 1). The full-res export
-        //    canvas is drawn lazily in download()/shareNative(), so opening
-        //    the modal costs almost nothing.
-        avatarRef.current = post.author.avatar_url ? await loadAvatar(post.author.avatar_url) : null
-        if (cancelled || !avatarRef.current) return
-        drawCardBase(previewCanvas, post, PREVIEW_SCALE, avatarRef.current)
-        if (!cancelled) await setPreview(previewCanvas, 0.82)
+        // Avatar arrives asynchronously — redraw + re-encode so the download
+        // includes the real avatar. Never blocks the initial render.
+        const avatar = post.author.avatar_url ? await loadAvatar(post.author.avatar_url) : null
+        if (cancelled || gen !== generationRef.current) return
+        avatarRef.current = avatar
+        drawCardBase(canvas, post, EXPORT_SCALE, avatar)
+        const blob2 = await canvasToJpegBlob(canvas, 0.92)
+        if (cancelled || gen !== generationRef.current) return
+        cachedBlobRef.current = blob2
       } catch (error) {
-        console.error("Share card render error:", error)
+        console.error("Share card pre-render error:", error)
         if (!cancelled) {
-          setBusy(false)
-          toast({ title: "Couldn't generate the share card", description: "Please try again.", variant: "destructive" })
+          // Non-fatal: Download will generate on demand.
+          setRendered(false)
         }
       }
     }
-    void render()
+
+    const run = () => void generate()
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(run, { timeout: 1500 })
+      return () => {
+        cancelled = true
+        cancelIdleCallback(id)
+      }
+    }
+    const t = window.setTimeout(run, 80)
     return () => {
       cancelled = true
-      avatarRef.current = null
-      if (previewUrlRef.current) {
-        URL.revokeObjectURL(previewUrlRef.current)
-        previewUrlRef.current = null
-      }
+      clearTimeout(t)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, renderKey])
 
-  /** Draw the full-res export canvas on demand (download/share), using the
-   *  latest avatar if it has loaded. Keeps opening the modal nearly free. */
-  const prepareExportCanvas = (): HTMLCanvasElement | null => {
+  /** Returns a ready-to-share JPEG blob, generating it on demand if the idle
+   *  pre-generation hasn't finished yet (rare — the user tapped fast). */
+  const getExportBlob = async (): Promise<Blob> => {
+    if (cachedBlobRef.current) return cachedBlobRef.current
     const canvas = exportCanvasRef.current
-    if (!canvas) return null
+    if (!canvas) throw new Error("Canvas not ready")
     drawCardBase(canvas, post, EXPORT_SCALE, avatarRef.current)
-    return canvas
+    const blob = await canvasToJpegBlob(canvas, 0.92)
+    cachedBlobRef.current = blob
+    return blob
   }
 
   const download = async () => {
-    const canvas = prepareExportCanvas()
-    if (!canvas || exporting || !rendered) return
+    if (exporting) return
     setExporting(true)
     try {
-      const blob = await canvasToJpegBlob(canvas, 0.95)
+      const blob = await getExportBlob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
@@ -439,10 +500,8 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
   }
 
   const shareNative = async () => {
-    const canvas = prepareExportCanvas()
-    if (!canvas || !rendered) return
     try {
-      const blob = await canvasToJpegBlob(canvas, 0.92)
+      const blob = await getExportBlob()
       const file = new File([blob], `loop-${post.id}.jpg`, { type: "image/jpeg" })
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: "Loop", text: post.content.slice(0, 120) })
@@ -468,17 +527,15 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
           </DialogDescription>
         </DialogHeader>
 
-        {/* Preview canvas (small, fast) + hidden export canvas (full-res) */}
-        <canvas ref={previewCanvasRef} className="hidden" />
+        {/* Hidden full-res export canvas */}
         <canvas ref={exportCanvasRef} className="hidden" />
 
         <div className="relative w-full overflow-hidden rounded-xl border border-border">
-          {previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={previewUrl} alt="Share card preview" className="w-full" />
-          ) : (
-            <div className="flex aspect-square items-center justify-center bg-muted text-muted-foreground">
-              {busy ? <Loader2 className="h-6 w-6 animate-spin" /> : "Generating…"}
+          <ShareCardPreview post={post} />
+          {!rendered && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-background/70 backdrop-blur-[1px]">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">Preparing high-res image…</p>
             </div>
           )}
           {!post.media_url && (
@@ -491,11 +548,11 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" onClick={() => void download()} disabled={!rendered || exporting}>
+          <Button variant="outline" onClick={() => void download()} disabled={exporting}>
             {exporting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}
             Download
           </Button>
-          <Button onClick={() => void shareNative()} disabled={!rendered}>
+          <Button onClick={() => void shareNative()}>
             <Share2 className="mr-1.5 h-4 w-4" /> Share
           </Button>
         </div>

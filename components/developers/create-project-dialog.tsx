@@ -95,8 +95,7 @@ export function CreateProjectDialog({
   // ---- ZIP repo state ----
   const [zipName, setZipName] = useState("")
   const [zipParsing, setZipParsing] = useState(false)
-  const [zipProgress, setZipProgress] = useState<{ done: number; total: number; label: string } | null>(null)
-  const [zipExtract, setZipExtract] = useState<{ phase: string; percent: number; label: string } | null>(null)
+  const [zipActivity, setZipActivity] = useState<{ label: string; percent: number } | null>(null)
   const [repoFiles, setRepoFiles] = useState<UploadedRepoFile[]>([])
   const [repoZipUrl, setRepoZipUrl] = useState<string | null>(null)
   const [repoZipError, setRepoZipError] = useState<string | null>(null)
@@ -194,10 +193,13 @@ export function CreateProjectDialog({
     setRepoZipError(null)
     setRepoRemoved([])
     setRepoTruncated(false)
-    setZipExtract(null)
+    setZipActivity({ label: "Reading archive…", percent: 2 })
     try {
       const parsed = await parseProjectZip(picked, (phase, percent, label) => {
-        setZipExtract({ phase, percent, label })
+        // Keep the read phase capped at 95% so the bar never goes backwards
+        // once per-file extraction progress starts.
+        const shown = phase === "read" ? Math.min(95, percent) : percent
+        setZipActivity({ label: phase === "read" ? `Reading archive… ${percent}%` : label, percent: shown })
       })
       setRepoRemoved(parsed.removedReasons)
       setRepoTotalBytes(parsed.totalBytes)
@@ -209,11 +211,21 @@ export function CreateProjectDialog({
           variant: "destructive",
         })
         setZipParsing(false)
+        setZipActivity(null)
         return
       }
-      const result = await uploadRepoFiles(parsed.entries, picked, getAuthHeader(), (done, total, label) => {
-        setZipProgress({ done, total, label })
-      })
+      setZipActivity({ label: `Extracted ${parsed.entries.length} files — uploading…`, percent: 5 })
+      const result = await uploadRepoFiles(
+        parsed.entries,
+        picked,
+        getAuthHeader(),
+        (done, total, label) => {
+          setZipActivity({ label, percent: Math.round((done / total) * 100) })
+        },
+        (label, percent) => {
+          setZipActivity({ label, percent })
+        },
+      )
       setRepoFiles(result.files)
       setRepoZipUrl(result.zipUrl)
       setRepoZipError(result.zipError)
@@ -232,7 +244,7 @@ export function CreateProjectDialog({
       toast({ title: "Couldn't read ZIP", description: error.message || "This archive could not be parsed.", variant: "destructive" })
     } finally {
       setZipParsing(false)
-      setZipProgress(null)
+      setZipActivity(null)
     }
   }
 
@@ -457,19 +469,16 @@ export function CreateProjectDialog({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{zipName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {zipExtract
-                      ? zipExtract.label
-                      : zipProgress
-                        ? `${zipProgress.label} — ${zipProgress.done}/${zipProgress.total}`
-                        : "Extracting & removing unneeded files…"}
-                  {zipExtract && zipExtract.percent < 100 && (
-                    <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-cyan-500 transition-all duration-150"
-                        style={{ width: `${Math.max(4, zipExtract.percent)}%` }}
-                      />
-                    </div>
-                  )}
+                    {zipActivity?.label || "Extracting & removing unneeded files…"}
+                  </p>
+                  <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-cyan-500 transition-all duration-150"
+                      style={{ width: `${Math.max(4, zipActivity?.percent ?? 4)}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[10px] tabular-nums text-muted-foreground">
+                    {zipActivity?.percent != null ? `${Math.min(100, zipActivity.percent)}%` : "…"}
                   </p>
                 </div>
               </div>

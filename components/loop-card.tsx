@@ -36,6 +36,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar";
 import { AnimatedCardFrame } from "@/components/cosmetics/animated-card-frame";
 import { cardEffectStyle, fontStyle, type ActiveCosmetics } from "@/lib/cosmetics";
+import { optimizeImageUrl } from "@/lib/optimize-image";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -622,9 +623,11 @@ export function LoopCard({
               className={`mt-3 overflow-hidden rounded-xl bg-muted ring-1 ring-black/5 ${mediaContainerStyle}`}
             >
               <img
-                src={mediaUrl || "/placeholder.svg"}
+                src={optimizeImageUrl(mediaUrl, 900) || "/placeholder.svg"}
                 alt="Loop media"
                 onClick={() => setViewerOpen(true)}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-auto max-h-96 cursor-zoom-in object-cover transition-transform duration-300 hover:scale-105"
               />
             </div>
@@ -637,6 +640,7 @@ export function LoopCard({
             >
               <video
                 controls
+                preload="metadata"
                 className="w-full h-auto max-h-96"
                 poster="/placeholder.svg?height=300&width=500"
               >
@@ -706,13 +710,16 @@ export function LoopCard({
           )}
           {loop.media_type === "image" ? (
             <img
-              src={mediaUrls[currentMediaIndex] || "/placeholder.svg"}
+              src={optimizeImageUrl(mediaUrls[currentMediaIndex], 900) || "/placeholder.svg"}
               alt={`Loop media ${currentMediaIndex + 1}`}
+              loading="lazy"
+              decoding="async"
               className="w-full h-auto max-h-96 object-cover"
             />
           ) : loop.media_type === "video" ? (
             <video
               controls
+              preload="metadata"
               className="w-full h-auto max-h-96"
               key={currentMediaIndex}
               onClick={(e) => e.stopPropagation()}

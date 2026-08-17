@@ -358,11 +358,27 @@ export function MomentsStrip() {
                 ))}
               </div>
               <div className="absolute left-3 top-6 z-20 flex items-center gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={active.user.avatar_url} />
-                  <AvatarFallback>U</AvatarFallback>
-                </Avatar>
-                <span className="text-sm font-semibold">@{active.user.username}</span>
+                <span className="rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-fuchsia-600 p-[2px]">
+                  <span className="block rounded-full bg-black p-[2px]">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={active.user.avatar_url} />
+                      <AvatarFallback>U</AvatarFallback>
+                    </Avatar>
+                  </span>
+                </span>
+                <span className="min-w-0">
+                  <span className="flex items-center gap-1 text-sm font-semibold">
+                    <span className="truncate">
+                      {active.user.display_name || active.user.username}
+                    </span>
+                    {active.user.is_verified && (
+                      <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-sky-400 text-[9px] font-bold text-white">
+                        ✓
+                      </span>
+                    )}
+                  </span>
+                  <span className="block text-[10px] text-white/60">@{(active.user.username || "user").slice(0, 24)}</span>
+                </span>
               </div>
               {current.media_url ? (
                 current.media_type === "video" || isVideo(current.media_url) ? (
