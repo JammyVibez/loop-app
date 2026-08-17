@@ -1,7 +1,10 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { CirclePulse } from "@/components/circles/circle-pulse"
+import { CreateCircleButton } from "@/components/circles/create-circle-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -27,6 +30,7 @@ import {
   ArrowUpDown,
   Tag,
   ShieldCheck,
+  MessageCirclePlus,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
@@ -51,6 +55,9 @@ export function CirclesList() {
   
   const { toast } = useToast()
   const { user, getAuthHeader } = useAuth()
+  const searchParams = useSearchParams()
+  const initialTab = searchParams.get("tab") === "my-circles" ? "my-circles" : "discover"
+  const [activeTab, setActiveTab] = useState<string>(initialTab)
 
   const fetchCircles = async () => {
     setLoading(true)
@@ -342,6 +349,9 @@ export function CirclesList() {
 
   return (
     <div className="space-y-6">
+      {/* Circle Pulse — live activity in the user's circles */}
+      <CirclePulse />
+
       {/* Search Bar & Sorting Controls Bar */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-3 rounded-3xl border border-border bg-card/90 p-3 sm:p-4 backdrop-blur-2xl shadow-xl">
         {/* Search Input */}
@@ -432,7 +442,7 @@ export function CirclesList() {
       </div>
 
       {/* Main Community Tabs */}
-      <Tabs defaultValue="discover" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 rounded-2xl border border-border bg-card/90 p-1.5 backdrop-blur-xl">
           <TabsTrigger
             value="discover"
@@ -459,12 +469,13 @@ export function CirclesList() {
           ) : discoverCircles.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">{discoverCircles.map(renderCircleCard)}</div>
           ) : (
-            <div className="py-16 text-center rounded-3xl border border-border bg-muted/60 p-8 space-y-3">
+            <div className="py-16 text-center rounded-3xl border border-border bg-muted/60 p-8 space-y-4">
               <Compass className="mx-auto h-12 w-12 text-cyan-400 opacity-60" />
-              <h3 className="text-lg font-extrabold text-foreground">No matching communities found</h3>
+              <h3 className="text-lg font-extrabold text-foreground">No circles match that search… yet</h3>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                Try searching for a different keyword or category, or create your own community circle!
+                Try a different keyword or category — or be the one who starts the conversation and create your own community.
               </p>
+              <CreateCircleButton />
             </div>
           )}
         </TabsContent>
@@ -480,12 +491,22 @@ export function CirclesList() {
           ) : myCircles.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">{myCircles.map(renderCircleCard)}</div>
           ) : (
-            <div className="py-16 text-center rounded-3xl border border-border bg-muted/60 p-8 space-y-3">
+            <div className="py-16 text-center rounded-3xl border border-border bg-muted/60 p-8 space-y-4">
               <Users className="mx-auto h-12 w-12 text-cyan-400 opacity-60" />
-              <h3 className="text-lg font-extrabold text-foreground">You haven't joined any communities yet</h3>
+              <h3 className="text-lg font-extrabold text-foreground">Your circles are quiet… for now</h3>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                Explore the discover tab to find active circles or create your custom circle stage today!
+                Find your people first — explore the Discover tab and join circles around your interests, then the pulse here will show you everything that's happening.
               </p>
+              <Button
+                onClick={() => {
+                  setSelectedCategory("all")
+                  setActiveTab("discover")
+                }}
+                className="rounded-full bg-gradient-to-r from-cyan-500 to-indigo-600 font-bold text-black"
+              >
+                <MessageCirclePlus className="mr-1.5 h-4 w-4" />
+                Find communities
+              </Button>
             </div>
           )}
         </TabsContent>

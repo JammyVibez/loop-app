@@ -5,6 +5,7 @@ import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { isProUser } from "@/lib/pro-features"
 import { maskProfile, profileStatus } from "@/lib/user-status"
+import { applyRealCommentCounts } from "@/lib/loop-stats"
 
 export async function GET(request: NextRequest) {
   try {
@@ -210,6 +211,13 @@ export async function GET(request: NextRequest) {
     const recentLoops = await enrichLoopsWithPollsAndDuels(supabase, combinedRecentLoops)
     const recentBranches = await enrichLoopsWithPollsAndDuels(supabase, rawRecentBranches || [])
     const mediaLoops = await enrichLoopsWithPollsAndDuels(supabase, rawMediaLoops || [])
+
+    // True comment counts from the comments table for every loop surface.
+    await Promise.all([
+      applyRealCommentCounts(supabase, recentLoops),
+      applyRealCommentCounts(supabase, recentBranches),
+      applyRealCommentCounts(supabase, mediaLoops),
+    ])
 
     const likesReceived = (recentLoops || []).reduce((sum, loop: any) => {
       const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats

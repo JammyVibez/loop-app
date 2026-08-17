@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 
 import { GlobalEventsHub } from "@/components/events/global-events-hub"
 import { GlobalEventBanner } from "@/components/events/global-event-banner"
+import { ParticipationDiscovery } from "@/components/explore/participation-discovery"
 import { Calendar } from "lucide-react"
 
 type ExploreTab = "events" | "recent" | "deepest" | "creative" | "hashtags"
@@ -204,6 +205,9 @@ export function ExploreContent() {
   return (
     <div className="space-y-6">
       <GlobalEventBanner />
+
+      {/* Participation discovery — live duels, co-loops, circles, creators */}
+      <ParticipationDiscovery />
 
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">

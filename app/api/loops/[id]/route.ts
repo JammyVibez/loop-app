@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase"
 import { normalizeLoop } from "@/lib/normalize-loop"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { canViewProfile } from "@/lib/privacy"
+import { applyRealCommentCounts } from "@/lib/loop-stats"
 
 export const dynamic = "force-dynamic"
 
@@ -58,7 +59,16 @@ async function getLoopWithRelations(loopId: string, userId?: string) {
     }
   }
 
-  const normalized = normalizeLoop(loop, interactionTypes)
+  const [normalized] = await applyRealCommentCounts(supabase, [
+    {
+      ...loop,
+      loop_stats:
+        Array.isArray(loop.loop_stats) && loop.loop_stats.length
+          ? loop.loop_stats[0]
+          : loop.loop_stats,
+    },
+  ])
+  const normalizedLoop = normalizeLoop(normalized, interactionTypes)
   const branches = (branchData || []).map((branch: any) => {
     const author = Array.isArray(branch.author) ? branch.author[0] : branch.author
     return {
@@ -72,10 +82,10 @@ async function getLoopWithRelations(loopId: string, userId?: string) {
 
   return {
     loop: {
-      ...normalized,
+      ...normalizedLoop,
       stats: {
-        ...normalized.stats,
-        branches_count: Math.max(normalized.stats.branches_count, branches.length),
+        ...normalizedLoop.stats,
+        branches_count: Math.max(normalizedLoop.stats.branches_count, branches.length),
       },
     },
     branches,

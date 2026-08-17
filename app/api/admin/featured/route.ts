@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { normalizeLoops } from "@/lib/normalize-loop"
 import { requireAdmin } from "@/lib/server-auth"
+import { applyRealCommentCounts } from "@/lib/loop-stats"
 
 export async function GET(request: NextRequest) {
   const { response } = await requireAdmin(request)
@@ -31,6 +32,9 @@ export async function GET(request: NextRequest) {
     .eq("is_featured", true)
     .order("created_at", { ascending: false })
     .limit(20)
+
+  await applyRealCommentCounts(supabase, loops || [])
+  await applyRealCommentCounts(supabase, featured || [])
 
   return NextResponse.json({
     success: true,

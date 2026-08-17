@@ -4,6 +4,8 @@ import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { Header } from "@/components/header"
 import { WelcomeBanner } from "@/components/welcome-banner"
+import { ReturnRecap } from "@/components/return-recap"
+import { CircleActivityStrip } from "@/components/circle-activity-strip"
 import { FeedTabs } from "@/components/feed-tabs"
 import { TrendingSidebar } from "@/components/trending-sidebar"
 import { UserSuggestions } from "@/components/users/user-suggestions"
@@ -83,6 +85,8 @@ export function HomePageClient() {
             ) : (
               <>
                 <WelcomeBanner />
+                <ReturnRecap />
+                <CircleActivityStrip />
                 <DailyPulse />
               </>
             )}

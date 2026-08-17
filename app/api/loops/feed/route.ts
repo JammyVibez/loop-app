@@ -8,6 +8,7 @@ import {
 } from "@/lib/feed-ranking"
 import { calculateBoostInfo, isBoostRelevantToUser, capBoostedPostsInFeed } from "@/lib/boost"
 import { cosmeticsFromInventory } from "@/lib/cosmetics"
+import { applyRealCommentCounts } from "@/lib/loop-stats"
 
 async function getUserFromToken(token: string | null) {
   if (!token) return null
@@ -267,6 +268,7 @@ export async function GET(request: NextRequest) {
       let loops = data || []
       loops = await filterPrivateAuthorLoops(supabase, loops, user?.id || null, followingIds)
       loops = await enrichLoopsWithPollsAndDuels(supabase, loops)
+      loops = await applyRealCommentCounts(supabase, loops)
       const interactionMap = new Map<string, string[]>()
       if (user && loops.length > 0) {
         const { data: interactions } = await supabase
@@ -516,6 +518,7 @@ export async function GET(request: NextRequest) {
     })
 
     loops = await enrichLoopsWithPollsAndDuels(supabase, loops)
+    loops = await applyRealCommentCounts(supabase, loops)
 
     const normalizedLoops = normalizeLoops(loops, interactionMap).map((loop, i) => {
       const raw = loops[i] as any

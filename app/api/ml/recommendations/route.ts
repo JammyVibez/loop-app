@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
+import { createServerClient } from "@/lib/supabase"
 import { smartEngagementScore, organizationRankingBoost } from "@/lib/feed-ranking"
+import { applyRealCommentCounts } from "@/lib/loop-stats"
 
 export const dynamic = "force-dynamic"
 
@@ -137,6 +139,10 @@ export async function GET(req: NextRequest) {
 
     // Sort by ML score descending
     scoredLoops.sort((a, b) => b.ml_score - a.ml_score)
+
+    // True comment counts from the comments table (service-role client so
+    // RLS never hides rows the denormalized counter missed).
+    await applyRealCommentCounts(createServerClient(), scoredLoops)
 
     return NextResponse.json({
       success: true,

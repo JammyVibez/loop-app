@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { TreePine, Camera, Palette, Users, Sparkles, ArrowRight, Check, UserPlus, Home, Video } from "lucide-react";
+import { TreePine, Camera, Palette, Users, Sparkles, ArrowRight, Check, UserPlus, Home, Video, Swords, Rocket } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { uploadMediaFile } from "@/lib/client-media-upload";
 
@@ -49,6 +49,59 @@ const INTERESTS = [
   "Nature",
   "DIY",
 ]
+
+// Interest -> circle category mapping so onboarding can drop the user into
+// circles that actually match the topics they picked.
+const INTEREST_TO_CATEGORY: Record<string, string[]> = {
+  "Art & Design": ["Creative & Art"],
+  "Photography": ["Creative & Art"],
+  "Fashion": ["Creative & Art"],
+  "Technology": ["Tech & AI"],
+  "Science": ["Tech & AI", "General"],
+  "Gaming": ["Gaming"],
+  "Music": ["Music & Audio"],
+  "Business": ["Business & Startup"],
+  "Writing": ["General", "Creative & Art"],
+  "Books": ["General", "Creative & Art"],
+  "Movies": ["General"],
+  "Food": ["General"],
+  "Travel": ["General"],
+  "Health": ["General"],
+  "Education": ["General", "Tech & AI"],
+  "Sports": ["General"],
+  "Nature": ["General"],
+  "DIY": ["General", "Creative & Art"],
+}
+
+async function autoJoinInterestCircles(interests: string[], getAuthHeader: () => Record<string, string>) {
+  if (!interests.length) return 0
+  const wanted = new Set(interests.flatMap((i) => INTEREST_TO_CATEGORY[i] || ["General"]))
+  try {
+    const res = await fetch("/api/circles?limit=40", { headers: getAuthHeader() })
+    if (!res.ok) return 0
+    const data = await res.json()
+    const circles: any[] = data.circles || []
+    const matches = circles
+      .filter((c) => !c.is_premium_only && !c.is_private && wanted.has(c.category) && !c.is_member)
+      .sort((a, b) => (b.member_count || 0) - (a.member_count || 0))
+      .slice(0, 2)
+    let joined = 0
+    for (const circle of matches) {
+      try {
+        const joinRes = await fetch(`/api/circles/${circle.id}/join`, {
+          method: "POST",
+          headers: getAuthHeader(),
+        })
+        if (joinRes.ok) joined++
+      } catch {
+        /* non-blocking */
+      }
+    }
+    return joined
+  } catch {
+    return 0
+  }
+}
 
 const THEMES = [
   {
@@ -226,6 +279,15 @@ export default function OnboardingPage() {
             type: "onboarding_bonus",
           }),
         }).catch(() => null)
+      }
+
+      // Phase 4: drop the new user straight into circles that match the
+      // interests they picked — first-session participation, not empty feed.
+      const joinedCount = await autoJoinInterestCircles(profileData.interests, getAuthHeader)
+      if (joinedCount > 0) {
+        try {
+          sessionStorage.setItem("loop-onboarding-joined", String(joinedCount))
+        } catch {}
       }
 
       await refreshUser()
@@ -524,11 +586,17 @@ export default function OnboardingPage() {
               )}
 
               <div className="rounded-2xl border border-dashed border-violet-500/30 bg-violet-500/[0.06] p-4 text-center">
-                <p className="text-sm font-medium text-slate-200">Ready to share something?</p>
-                <p className="mt-0.5 text-xs text-slate-400">Your first Loop or Reel gets you into the feed instantly.</p>
-                <div className="mt-3 flex justify-center gap-2">
+                <p className="text-sm font-medium text-slate-200">Ready to participate?</p>
+                <p className="mt-0.5 text-xs text-slate-400">Start something or jump into the action — your first move lands in the feed instantly.</p>
+                <div className="mt-3 flex flex-wrap justify-center gap-2">
                   <Button asChild size="sm" variant="outline" className="rounded-full">
                     <Link href="/create/loop"><Home className="mr-1.5 h-3.5 w-3.5" /> First Loop</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline" className="rounded-full">
+                    <Link href="/create/loop"><Swords className="mr-1.5 h-3.5 w-3.5 text-amber-400" /> Start a Duel</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline" className="rounded-full">
+                    <Link href="/co-loop/studio"><Rocket className="mr-1.5 h-3.5 w-3.5 text-cyan-400" /> Start a Co-Loop</Link>
                   </Button>
                   <Button asChild size="sm" variant="outline" className="rounded-full">
                     <Link href="/create/reel"><Video className="mr-1.5 h-3.5 w-3.5" /> First Reel</Link>

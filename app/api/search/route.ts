@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { normalizeLoops } from "@/lib/normalize-loop"
+import { applyRealCommentCounts } from "@/lib/loop-stats"
 
 export const dynamic = "force-dynamic"
 
@@ -206,7 +207,8 @@ export async function GET(request: NextRequest) {
         loops = merged.slice(0, limit)
       }
 
-      results.loops = normalizeLoops((await filterPrivateLoops(loops || [])) || [])
+      const visibleLoops = (await filterPrivateLoops(loops || [])) || []
+      results.loops = normalizeLoops(await applyRealCommentCounts(supabase, visibleLoops))
     }
 
     if (wantUsers) {

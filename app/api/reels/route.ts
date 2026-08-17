@@ -111,16 +111,21 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           id, author_id, content, content_text, media_url, content_media_url, media_type, hashtags, created_at,
-          author:profiles!author_id (id, username, display_name, avatar_url, is_verified, is_premium)
+          author:profiles!author_id (id, username, display_name, avatar_url, is_verified, is_premium),
+          loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .or("media_type.eq.video,content_type.eq.video")
         .order("created_at", { ascending: false })
         .limit(limit)
 
-      processed = (await filterPrivateContent(supabase, videoLoops || [], user?.id || null, following))
+      const fallbackRows = await filterPrivateContent(supabase, videoLoops || [], user?.id || null, following)
+      const { applyRealCommentCounts } = await import("@/lib/loop-stats")
+      await applyRealCommentCounts(supabase, fallbackRows)
+      processed = fallbackRows
         .map((loop: any) => {
           const url = loop.media_url || loop.content_media_url
           if (!url) return null
+          const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats
           return {
             id: loop.id,
             author_id: loop.author_id,
@@ -131,10 +136,10 @@ export async function GET(request: NextRequest) {
             content_url: url,
             thumbnail_url: null,
             hashtags: loop.hashtags || [],
-            like_count: 0,
-            comment_count: 0,
-            share_count: 0,
-            view_count: 0,
+            like_count: Number(stats?.likes_count || 0),
+            comment_count: Number(stats?.comments_count || 0),
+            share_count: Number(stats?.shares_count || 0),
+            view_count: Number(stats?.views_count || 0),
             allows_comments: true,
             author: loop.author,
             created_at: loop.created_at,

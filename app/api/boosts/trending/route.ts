@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { calculateBoostInfo } from "@/lib/boost"
 import { normalizeLoops } from "@/lib/normalize-loop"
+import { applyRealCommentCounts } from "@/lib/loop-stats"
 
 export async function GET(req: NextRequest) {
   try {
@@ -42,6 +43,10 @@ export async function GET(req: NextRequest) {
       })
       .slice(0, limit)
 
+    await applyRealCommentCounts(
+      supabase,
+      activeBoostedLoops.map((item) => item.loop),
+    )
     const normalized = normalizeLoops(activeBoostedLoops.map((item) => item.loop))
 
     // Attach boostInfo to normalized items

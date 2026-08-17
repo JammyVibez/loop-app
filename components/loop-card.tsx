@@ -861,18 +861,18 @@ export function LoopCard({
             </Link>
           )}
           {isCoLoop && (
-            <div className="mb-2 flex items-center justify-between">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5">
               <Badge className="bg-gradient-to-r from-cyan-500 via-teal-500 to-indigo-600 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-md shadow-cyan-500/20 border border-cyan-400/40 flex items-center gap-1">
                 <Sparkles className="h-3 w-3 animate-pulse text-cyan-200" />
-                Co-Loop Studio Collaboration
+                Co-Loop Collaboration
               </Badge>
               <button
                 type="button"
                 onClick={() => setRosterOpen(true)}
-                className="text-[11px] font-semibold text-cyan-400 hover:underline flex items-center gap-1"
+                className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-bold text-cyan-400 transition-all hover:bg-cyan-500/20 hover:text-cyan-300"
               >
                 <Users className="h-3 w-3" />
-                View {coAuthors.length + 1} Co-Authors
+                See the collaboration · {coAuthors.length + 1} creators
               </button>
             </div>
           )}

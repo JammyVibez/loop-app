@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { normalizeLoop } from "@/lib/normalize-loop"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { applyRealCommentCounts } from "@/lib/loop-stats"
 
 export const dynamic = "force-dynamic"
 
@@ -29,6 +30,14 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // True comment counts from the comments table before normalizing.
+    await applyRealCommentCounts(
+      supabase,
+      (saves || [])
+        .map((save: any) => (Array.isArray(save.loop) ? save.loop[0] : save.loop))
+        .filter(Boolean),
+    )
 
     const bookmarks = (saves || [])
       .map((save: any) => {
