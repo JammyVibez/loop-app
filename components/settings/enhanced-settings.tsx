@@ -562,6 +562,9 @@ export function EnhancedSettings() {
                     }}
                     placeholder="lowercase, letters, numbers, underscores"
                   />
+                  <p className="text-[10px] text-muted-foreground">
+                    Your profile URL: /profile/{formData.username || "..."} · You can change your username once every 2 weeks.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="website">Website</Label>

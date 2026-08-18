@@ -18,7 +18,6 @@ import {
   ShieldCheck,
   Play,
 } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { optimizeImageUrl } from "@/lib/optimize-image"
 
 interface ShareAsImageModalProps {
@@ -51,9 +50,8 @@ export type ShareCardTheme = "dark" | "light"
 
 const CARD_WIDTH = 1080
 const CARD_HEIGHT = 1080
-/** Taller 4:5 card used when the post carries media — hero image above the caption. */
 const MEDIA_CARD_HEIGHT = 1350
-const EXPORT_SCALE = 1.6 // 1728px on the long edge — crisp for social, ~2× faster to encode than 2052
+const EXPORT_SCALE = 1.6
 const BRAND = "#6366f1"
 const DOMAIN = "loopapp.me"
 const AVATAR_LOAD_TIMEOUT_MS = 1500
@@ -76,7 +74,6 @@ function truncate(text: string, max: number): string {
   return clean.slice(0, max).trimEnd() + "…"
 }
 
-/** Short, social-style count formatting: 1234 → 1.2k */
 function formatCount(n: number | undefined | null): string {
   const value = Math.max(0, Number(n || 0))
   if (value >= 1_000_000) return (value / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M"
@@ -84,77 +81,79 @@ function formatCount(n: number | undefined | null): string {
   return String(value)
 }
 
+/* ── Palette ── */
+
 interface CardPalette {
   bg: [string, string, string]
+  cardBg: string
+  cardBorder: string
   glowPrimary: string
   glowSecondary: string
-  ringStroke: string
+  glowAccent: string
   textPrimary: string
   textSecondary: string
   textMuted: string
-  divider: string
-  avatarFallbackBg: string
-  avatarFallbackText: string
-  verifyBg: string
-  verifyFg: string
+  accentA: string
+  accentB: string
+  accentC: string
+  statBg: string
+  statText: string
   statIcon: string
-  brandDivider: string
   logoFg: string
   footerSub: string
-  mediaBgTop: string
-  mediaBgBottom: string
+  divider: string
+  mediaBg: string
 }
 
 function paletteFor(theme: ShareCardTheme): CardPalette {
   if (theme === "light") {
     return {
-      bg: ["#ffffff", "#f8fafc", "#eef2ff"],
-      glowPrimary: "rgba(99,102,241,0.16)",
-      glowSecondary: "rgba(34,211,238,0.12)",
-      ringStroke: "rgba(15,23,42,0.05)",
+      bg: ["#0f0a2e", "#1a1145", "#0d0b2e"],
+      cardBg: "rgba(255,255,255,0.92)",
+      cardBorder: "rgba(255,255,255,0.3)",
+      glowPrimary: "rgba(99,102,241,0.35)",
+      glowSecondary: "rgba(168,85,247,0.25)",
+      glowAccent: "rgba(34,211,238,0.2)",
       textPrimary: "#0f172a",
       textSecondary: "#334155",
       textMuted: "#64748b",
-      divider: "rgba(100,116,139,0.28)",
-      avatarFallbackBg: "#e2e8f0",
-      avatarFallbackText: "#0f172a",
-      verifyBg: "#38bdf8",
-      verifyFg: "#ffffff",
+      accentA: "#6366f1",
+      accentB: "#a855f7",
+      accentC: "#22d3ee",
+      statBg: "rgba(99,102,241,0.08)",
+      statText: "#4f46e5",
       statIcon: "#6366f1",
-      brandDivider: "rgba(99,102,241,0.45)",
       logoFg: "#ffffff",
-      footerSub: "#64748b",
-      mediaBgTop: "#e2e8f0",
-      mediaBgBottom: "#f8fafc",
+      footerSub: "rgba(99,102,241,0.6)",
+      divider: "rgba(99,102,241,0.12)",
+      mediaBg: "#e2e8f0",
     }
   }
   return {
-    bg: ["#0f172a", "#111827", "#1e1b4b"],
-    glowPrimary: "rgba(99,102,241,0.28)",
-    glowSecondary: "rgba(34,211,238,0.16)",
-    ringStroke: "rgba(255,255,255,0.04)",
-    textPrimary: "#f8fafc",
-    textSecondary: "#f1f5f9",
+    bg: ["#0f0a2e", "#1a1145", "#0d0b2e"],
+    cardBg: "rgba(255,255,255,0.06)",
+    cardBorder: "rgba(255,255,255,0.1)",
+    glowPrimary: "rgba(99,102,241,0.35)",
+    glowSecondary: "rgba(168,85,247,0.25)",
+    glowAccent: "rgba(34,211,238,0.2)",
+    textPrimary: "#f1f5f9",
+    textSecondary: "#e2e8f0",
     textMuted: "#94a3b8",
-    divider: "rgba(148,163,184,0.25)",
-    avatarFallbackBg: "#334155",
-    avatarFallbackText: "#e2e8f0",
-    verifyBg: "#38bdf8",
-    verifyFg: "#0f172a",
+    accentA: "#818cf8",
+    accentB: "#c084fc",
+    accentC: "#67e8f9",
+    statBg: "rgba(129,140,248,0.12)",
+    statText: "#c7d2fe",
     statIcon: "#818cf8",
-    brandDivider: "rgba(99,102,241,0.5)",
     logoFg: "#ffffff",
-    footerSub: "#94a3b8",
-    mediaBgTop: "#1e293b",
-    mediaBgBottom: "#0f172a",
+    footerSub: "rgba(148,163,184,0.6)",
+    divider: "rgba(255,255,255,0.08)",
+    mediaBg: "#1e293b",
   }
 }
 
-/**
- * Load an avatar with a hard, short timeout. The card renders instantly with
- * a letter-avatar fallback — the real avatar composites in when (and if) it
- * arrives, so a slow image never blocks the generation.
- */
+/* ── Avatar loading ── */
+
 type AvatarSource = HTMLImageElement | HTMLCanvasElement | ImageBitmap
 
 function avatarDimensions(src: AvatarSource): { w: number; h: number } {
@@ -177,10 +176,7 @@ function loadAvatar(src: string): Promise<AvatarSource | null> {
 
     if (typeof createImageBitmap === "function") {
       fetch(src, { mode: "cors", credentials: "include" })
-        .then((res) => {
-          if (!res.ok) throw new Error("fetch failed")
-          return res.blob()
-        })
+        .then((res) => { if (!res.ok) throw new Error("fetch failed"); return res.blob() })
         .then((blob) => createImageBitmap(blob))
         .then((bitmap) => finish(bitmap))
         .catch(() => {
@@ -201,6 +197,8 @@ function loadAvatar(src: string): Promise<AvatarSource | null> {
   })
 }
 
+/* ── Canvas helpers ── */
+
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath()
   ctx.moveTo(x + r, y)
@@ -220,7 +218,7 @@ function setupCanvas(canvas: HTMLCanvasElement, scale: number, height = CARD_HEI
   return ctx
 }
 
-/* ------------------------- small vector stat icons ------------------------ */
+/* ── Vector stat icons ── */
 
 function drawHeartIcon(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
   const s = size
@@ -260,28 +258,11 @@ function drawBranchIcon(ctx: CanvasRenderingContext2D, x: number, y: number, siz
   ctx.fillStyle = color
   ctx.lineWidth = Math.max(2, s * 0.09)
   ctx.lineCap = "round"
-  // top node
-  ctx.beginPath()
-  ctx.arc(x, y - s * 0.34, r, 0, Math.PI * 2)
-  ctx.fill()
-  // bottom-left node
-  ctx.beginPath()
-  ctx.arc(x - s * 0.34, y + s * 0.36, r, 0, Math.PI * 2)
-  ctx.fill()
-  // bottom-right node
-  ctx.beginPath()
-  ctx.arc(x + s * 0.34, y + s * 0.36, r, 0, Math.PI * 2)
-  ctx.fill()
-  // connectors
-  ctx.beginPath()
-  ctx.moveTo(x, y - s * 0.2)
-  ctx.lineTo(x, y - s * 0.06)
-  ctx.lineTo(x - s * 0.24, y + s * 0.22)
-  ctx.stroke()
-  ctx.beginPath()
-  ctx.moveTo(x, y - s * 0.06)
-  ctx.lineTo(x + s * 0.24, y + s * 0.22)
-  ctx.stroke()
+  ctx.beginPath(); ctx.arc(x, y - s * 0.34, r, 0, Math.PI * 2); ctx.fill()
+  ctx.beginPath(); ctx.arc(x - s * 0.34, y + s * 0.36, r, 0, Math.PI * 2); ctx.fill()
+  ctx.beginPath(); ctx.arc(x + s * 0.34, y + s * 0.36, r, 0, Math.PI * 2); ctx.fill()
+  ctx.beginPath(); ctx.moveTo(x, y - s * 0.2); ctx.lineTo(x, y - s * 0.06); ctx.lineTo(x - s * 0.24, y + s * 0.22); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(x, y - s * 0.06); ctx.lineTo(x + s * 0.24, y + s * 0.22); ctx.stroke()
   ctx.restore()
 }
 
@@ -289,101 +270,55 @@ function drawShareIcon(ctx: CanvasRenderingContext2D, x: number, y: number, size
   const s = size
   ctx.save()
   ctx.strokeStyle = color
-  ctx.fillStyle = color
   ctx.lineWidth = Math.max(2, s * 0.09)
   ctx.lineCap = "round"
   ctx.lineJoin = "round"
-  // arrow shaft
-  ctx.beginPath()
-  ctx.moveTo(x + s * 0.04, y - s * 0.28)
-  ctx.lineTo(x + s * 0.04, y + s * 0.18)
-  ctx.stroke()
-  // arrow head
-  ctx.beginPath()
-  ctx.moveTo(x - s * 0.16, y - s * 0.1)
-  ctx.lineTo(x + s * 0.04, y - s * 0.3)
-  ctx.lineTo(x + s * 0.24, y - s * 0.1)
-  ctx.stroke()
-  // tray
-  ctx.beginPath()
-  ctx.moveTo(x - s * 0.36, y + s * 0.34)
-  ctx.lineTo(x + s * 0.36, y + s * 0.34)
-  ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(x + s * 0.04, y - s * 0.28); ctx.lineTo(x + s * 0.04, y + s * 0.18); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(x - s * 0.16, y - s * 0.1); ctx.lineTo(x + s * 0.04, y - s * 0.3); ctx.lineTo(x + s * 0.24, y - s * 0.1); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(x - s * 0.36, y + s * 0.34); ctx.lineTo(x + s * 0.36, y + s * 0.34); ctx.stroke()
   ctx.restore()
 }
 
-/* --------------------- small badge glyphs (premium/sponsor/team) ---------- */
+/* ── Badge glyphs ── */
 
 function drawCrownGlyph(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, color: string) {
-  ctx.save()
-  ctx.fillStyle = color
-  ctx.beginPath()
-  ctx.moveTo(cx - s * 0.7, cy + s * 0.5)
-  ctx.lineTo(cx - s * 0.7, cy - s * 0.2)
-  ctx.lineTo(cx - s * 0.35, cy + s * 0.1)
-  ctx.lineTo(cx, cy - s * 0.5)
-  ctx.lineTo(cx + s * 0.35, cy + s * 0.1)
-  ctx.lineTo(cx + s * 0.7, cy - s * 0.2)
-  ctx.lineTo(cx + s * 0.7, cy + s * 0.5)
-  ctx.closePath()
-  ctx.fill()
-  ctx.restore()
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath()
+  ctx.moveTo(cx - s * 0.7, cy + s * 0.5); ctx.lineTo(cx - s * 0.7, cy - s * 0.2)
+  ctx.lineTo(cx - s * 0.35, cy + s * 0.1); ctx.lineTo(cx, cy - s * 0.5)
+  ctx.lineTo(cx + s * 0.35, cy + s * 0.1); ctx.lineTo(cx + s * 0.7, cy - s * 0.2)
+  ctx.lineTo(cx + s * 0.7, cy + s * 0.5); ctx.closePath(); ctx.fill(); ctx.restore()
 }
 
 function drawStarGlyph(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, color: string) {
-  ctx.save()
-  ctx.fillStyle = color
-  ctx.beginPath()
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath()
   for (let i = 0; i < 10; i++) {
     const r = i % 2 === 0 ? s * 0.5 : s * 0.22
     const a = (Math.PI / 5) * i - Math.PI / 2
-    const px = cx + Math.cos(a) * r
-    const py = cy + Math.sin(a) * r
-    if (i === 0) ctx.moveTo(px, py)
-    else ctx.lineTo(px, py)
+    const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py)
   }
-  ctx.closePath()
-  ctx.fill()
-  ctx.restore()
+  ctx.closePath(); ctx.fill(); ctx.restore()
 }
 
 function drawShieldGlyph(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, color: string) {
-  ctx.save()
-  ctx.fillStyle = color
-  ctx.beginPath()
-  ctx.moveTo(cx - s * 0.55, cy - s * 0.6)
-  ctx.lineTo(cx + s * 0.55, cy - s * 0.6)
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath()
+  ctx.moveTo(cx - s * 0.55, cy - s * 0.6); ctx.lineTo(cx + s * 0.55, cy - s * 0.6)
   ctx.lineTo(cx + s * 0.55, cy + s * 0.05)
   ctx.quadraticCurveTo(cx + s * 0.55, cy + s * 0.5, cx, cy + s * 0.68)
   ctx.quadraticCurveTo(cx - s * 0.55, cy + s * 0.5, cx - s * 0.55, cy + s * 0.05)
-  ctx.closePath()
-  ctx.fill()
-  ctx.restore()
+  ctx.closePath(); ctx.fill(); ctx.restore()
 }
 
 function drawPlayGlyph(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, color: string) {
-  ctx.save()
-  ctx.fillStyle = color
-  ctx.beginPath()
-  ctx.moveTo(cx - s * 0.32, cy - s * 0.45)
-  ctx.lineTo(cx + s * 0.42, cy)
-  ctx.lineTo(cx - s * 0.32, cy + s * 0.45)
-  ctx.closePath()
-  ctx.fill()
-  ctx.restore()
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath()
+  ctx.moveTo(cx - s * 0.32, cy - s * 0.45); ctx.lineTo(cx + s * 0.42, cy); ctx.lineTo(cx - s * 0.32, cy + s * 0.45)
+  ctx.closePath(); ctx.fill(); ctx.restore()
 }
 
-/* ------------------------------ canvas card ------------------------------- */
+/* ── Canvas card drawing ── */
 
-interface DrawStats {
-  likes: number
-  comments: number
-  branches: number
-  shares: number
-}
+interface DrawStats { likes: number; comments: number; branches: number; shares: number }
 
-/** Draws the full branded card at the given scale. Avatar is drawn from the
- *  provided source (an image/bitmap or null for the letter fallback). */
 function drawCardBase(
   canvas: HTMLCanvasElement,
   post: ShareAsImageModalProps["post"],
@@ -397,296 +332,240 @@ function drawCardBase(
   const ctx = setupCanvas(canvas, scale, cardH)
   if (!ctx) return
   const pal = paletteFor(theme)
+  const margin = 80
+  const innerW = CARD_WIDTH - margin * 2
 
-  // Background — follows the app theme (deep navy in dark, soft white in light).
-  const bg = ctx.createLinearGradient(0, 0, CARD_WIDTH, cardH)
-  bg.addColorStop(0, pal.bg[0])
-  bg.addColorStop(0.55, pal.bg[1])
-  bg.addColorStop(1, pal.bg[2])
-  ctx.fillStyle = bg
-  ctx.fillRect(0, 0, CARD_WIDTH, cardH)
+  // ── Full-bleed gradient background ──
+  const bg = ctx.createLinearGradient(0, 0, CARD_WIDTH * 0.6, cardH)
+  bg.addColorStop(0, pal.bg[0]); bg.addColorStop(0.5, pal.bg[1]); bg.addColorStop(1, pal.bg[2])
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, CARD_WIDTH, cardH)
 
-  const glow = ctx.createRadialGradient(CARD_WIDTH * 0.15, cardH * 0.1, 50, CARD_WIDTH * 0.15, cardH * 0.1, 700)
-  glow.addColorStop(0, pal.glowPrimary)
-  glow.addColorStop(1, "rgba(99,102,241,0)")
-  ctx.fillStyle = glow
-  ctx.fillRect(0, 0, CARD_WIDTH, cardH)
-
-  const glow2 = ctx.createRadialGradient(CARD_WIDTH * 0.9, cardH * 0.95, 50, CARD_WIDTH * 0.9, cardH * 0.95, 640)
-  glow2.addColorStop(0, pal.glowSecondary)
-  glow2.addColorStop(1, "rgba(34,211,238,0)")
-  ctx.fillStyle = glow2
-  ctx.fillRect(0, 0, CARD_WIDTH, cardH)
-
-  // Decorative rings
-  ctx.strokeStyle = pal.ringStroke
-  ctx.lineWidth = 2
-  for (const r of [180, 320, 460]) {
-    ctx.beginPath()
-    ctx.arc(CARD_WIDTH - 140, cardH - 220, r, 0, Math.PI * 2)
-    ctx.stroke()
+  // ── Gradient mesh blobs ──
+  const addBlob = (cx: number, cy: number, r: number, color: string) => {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
+    g.addColorStop(0, color); g.addColorStop(1, "rgba(0,0,0,0)")
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CARD_WIDTH, cardH)
   }
+  addBlob(CARD_WIDTH * 0.12, cardH * 0.08, 500, pal.glowPrimary)
+  addBlob(CARD_WIDTH * 0.88, cardH * 0.35, 420, pal.glowSecondary)
+  addBlob(CARD_WIDTH * 0.5, cardH * 0.85, 550, pal.glowAccent)
 
-  const margin = 90
-  const maxTextWidth = CARD_WIDTH - margin * 2
-
-  // --- Avatar ---
-  const avatarSize = 170
-
-  const ring = ctx.createLinearGradient(margin, 0, margin + avatarSize, avatarSize)
-  ring.addColorStop(0, BRAND)
-  ring.addColorStop(1, "#22d3ee")
+  // ── Frosted-glass card panel ──
+  const panelX = margin, panelY = margin, panelW = innerW, panelH = cardH - margin * 2, panelR = 40
   ctx.save()
-  ctx.beginPath()
-  ctx.arc(margin + avatarSize / 2, margin + avatarSize / 2, avatarSize / 2 + 12, 0, Math.PI * 2)
-  ctx.fillStyle = ring
-  ctx.fill()
+  roundRect(ctx, panelX, panelY, panelW, panelH, panelR)
+  ctx.fillStyle = pal.cardBg; ctx.fill()
+  ctx.strokeStyle = pal.cardBorder; ctx.lineWidth = 1.5; ctx.stroke()
   ctx.restore()
 
+  // ── Top accent gradient stripe ──
   ctx.save()
   ctx.beginPath()
-  ctx.arc(margin + avatarSize / 2, margin + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2)
+  ctx.moveTo(panelX + panelR, panelY)
+  ctx.arcTo(panelX + panelW, panelY, panelX + panelW, panelY + 6, panelR)
+  ctx.lineTo(panelX + panelW, panelY + 6); ctx.lineTo(panelX, panelY + 6)
+  ctx.arcTo(panelX, panelY, panelX + panelR, panelY, panelR)
+  ctx.closePath()
+  const stripe = ctx.createLinearGradient(panelX, panelY, panelX + panelW, panelY)
+  stripe.addColorStop(0, pal.accentA); stripe.addColorStop(0.5, pal.accentB); stripe.addColorStop(1, pal.accentC)
+  ctx.fillStyle = stripe; ctx.fill()
+  ctx.restore()
+
+  const contentX = panelX + 60
+  const contentMaxW = panelW - 120
+  let yCursor = panelY + 80
+
+  // ── Logo at top center ──
+  const logoSize = 60
+  const logoCX = CARD_WIDTH / 2 - logoSize / 2
+  ctx.save()
+  roundRect(ctx, logoCX, yCursor - 10, logoSize, logoSize, 16)
   ctx.clip()
-  ctx.fillStyle = pal.avatarFallbackBg
-  ctx.fillRect(margin, margin, avatarSize, avatarSize)
+  const logoImg = cachedLogoImg
+  if (logoImg) {
+    ctx.drawImage(logoImg, logoCX, yCursor - 10, logoSize, logoSize)
+  } else {
+    const lb = ctx.createLinearGradient(logoCX, yCursor - 10, logoCX + logoSize, yCursor + logoSize - 10)
+    lb.addColorStop(0, pal.accentA); lb.addColorStop(1, pal.accentB)
+    ctx.fillStyle = lb; ctx.fillRect(logoCX, yCursor - 10, logoSize, logoSize)
+    ctx.fillStyle = pal.logoFg; ctx.font = "bold 36px system-ui, sans-serif"
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"
+    ctx.fillText("L", logoCX + logoSize / 2, yCursor + logoSize / 2 - 10)
+  }
+  ctx.restore()
+  yCursor += logoSize + 40
+
+  // ── Divider ──
+  ctx.strokeStyle = pal.divider; ctx.lineWidth = 1
+  ctx.beginPath(); ctx.moveTo(contentX, yCursor); ctx.lineTo(contentX + contentMaxW, yCursor); ctx.stroke()
+  yCursor += 40
+
+  // ── Author row ──
+  const avatarSize = 100
+  const avatarCY = yCursor + avatarSize / 2
+  const avatarCX = contentX + avatarSize / 2
+
+  // Gradient ring
+  ctx.save()
+  const ringGrad = ctx.createLinearGradient(contentX, yCursor, contentX + avatarSize, yCursor + avatarSize)
+  ringGrad.addColorStop(0, pal.accentA); ringGrad.addColorStop(0.5, pal.accentB); ringGrad.addColorStop(1, pal.accentC)
+  ctx.beginPath(); ctx.arc(avatarCX, avatarCY, avatarSize / 2 + 6, 0, Math.PI * 2)
+  ctx.fillStyle = ringGrad; ctx.fill()
+  ctx.restore()
+
+  // Avatar clip
+  ctx.save()
+  ctx.beginPath(); ctx.arc(avatarCX, avatarCY, avatarSize / 2, 0, Math.PI * 2); ctx.clip()
+  ctx.fillStyle = "rgba(100,116,139,0.3)"; ctx.fillRect(contentX, yCursor, avatarSize, avatarSize)
   if (avatarSrc) {
     const { w, h } = avatarDimensions(avatarSrc)
     const size = Math.min(w, h)
-    const sx = (w - size) / 2
-    const sy = (h - size) / 2
-    ctx.drawImage(avatarSrc, sx, sy, size, size, margin, margin, avatarSize, avatarSize)
+    ctx.drawImage(avatarSrc, (w - size) / 2, (h - size) / 2, size, size, contentX, yCursor, avatarSize, avatarSize)
   } else {
-    ctx.font = "bold 80px system-ui, sans-serif"
-    ctx.fillStyle = pal.avatarFallbackText
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-    ctx.fillText((post.author.display_name || "U").charAt(0).toUpperCase(), margin + avatarSize / 2, margin + avatarSize / 2 + 6)
+    ctx.font = "bold 48px system-ui, sans-serif"; ctx.fillStyle = pal.textPrimary
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"
+    ctx.fillText((post.author.display_name || "U").charAt(0).toUpperCase(), avatarCX, avatarCY + 2)
   }
   ctx.restore()
 
-  // --- Display name + verified badge ---
-  ctx.textAlign = "left"
-  ctx.textBaseline = "alphabetic"
-  ctx.font = "bold 52px system-ui, sans-serif"
-  ctx.fillStyle = pal.textPrimary
-  const name = truncate(post.author.display_name || post.author.username || "User", 22)
-  const nameWidth = ctx.measureText(name).width
-  ctx.fillText(name, margin + avatarSize + 60, margin + 68)
+  // Name + badges
+  const nameX = contentX + avatarSize + 30
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"
+  ctx.font = "bold 40px system-ui, sans-serif"; ctx.fillStyle = pal.textPrimary
+  const name = truncate(post.author.display_name || post.author.username || "User", 24)
+  ctx.fillText(name, nameX, yCursor + 42)
 
-  // Badge chips — verified check, premium crown, sponsor star, team shield.
-  const chipR = 22
-  const chips: Array<{
-    bg: string
-    fg: string
-    glyph: (ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, c: string) => void
-    label: string
-  }> = []
-  if (post.author.is_verified) {
-    chips.push({ bg: pal.verifyBg, fg: pal.verifyFg, glyph: (ctx, cx, cy, s, c) => {
-      ctx.save()
-      ctx.fillStyle = c
-      ctx.font = `bold ${Math.round(s * 1.15)}px system-ui, sans-serif`
-      ctx.textAlign = "center"
-      ctx.textBaseline = "middle"
-      ctx.fillText("✓", cx, cy + s * 0.06)
-      ctx.restore()
-    }, label: "Verified" })
-  }
-  if (post.author.is_premium) {
-    chips.push({ bg: "#f59e0b", fg: "#ffffff", glyph: drawCrownGlyph, label: "Pro" })
-  }
-  if (post.author.is_sponsor) {
-    chips.push({ bg: "#fbbf24", fg: "#78350f", glyph: drawStarGlyph, label: "Sponsor" })
-  }
-  if (post.author.is_team) {
-    chips.push({ bg: "#6366f1", fg: "#ffffff", glyph: drawShieldGlyph, label: "Team" })
-  }
-  let chipX = margin + avatarSize + 60 + nameWidth + 24
-  const chipCY = margin + 68 - 24
+  const chipY = yCursor + 42 - 28
+  const chipR = 18
+  let chipX = nameX + ctx.measureText(name).width + 18
+  const chips: Array<{ bg: string; fg: string; glyph: (ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, c: string) => void }> = []
+  if (post.author.is_verified) chips.push({ bg: pal.accentC, fg: "#0f172a", glyph: (c, cx, cy, s, col) => {
+    c.save(); c.fillStyle = col; c.font = `bold ${Math.round(s * 1.1)}px system-ui`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("✓", cx, cy + s * 0.05); c.restore()
+  }})
+  if (post.author.is_premium) chips.push({ bg: "#f59e0b", fg: "#fff", glyph: drawCrownGlyph })
+  if (post.author.is_sponsor) chips.push({ bg: "#fbbf24", fg: "#78350f", glyph: drawStarGlyph })
+  if (post.author.is_team) chips.push({ bg: pal.accentA, fg: "#fff", glyph: drawShieldGlyph })
   for (const chip of chips) {
-    // Keep the chips inside the card — long names win over extra badges.
-    if (chipX + chipR * 2 + 14 > CARD_WIDTH - margin) break
+    if (chipX + chipR * 2 > contentX + contentMaxW) break
     ctx.save()
-    ctx.beginPath()
-    ctx.arc(chipX + chipR, chipCY, chipR, 0, Math.PI * 2)
-    ctx.fillStyle = chip.bg
-    ctx.fill()
-    ctx.restore()
-    if (chip.label === "Verified") {
-      chip.glyph(ctx, chipX + chipR, chipCY, chipR * 0.75, chip.fg)
-    } else {
-      chip.glyph(ctx, chipX + chipR, chipCY, chipR * 0.9, chip.fg)
-    }
-    chipX += chipR * 2 + 10
+    ctx.beginPath(); ctx.arc(chipX + chipR, chipY, chipR, 0, Math.PI * 2)
+    ctx.fillStyle = chip.bg; ctx.fill()
+    chip.glyph(ctx, chipX + chipR, chipY, chipR * 0.7, chip.fg)
+    chipX += chipR * 2 + 8
   }
-  ctx.textAlign = "left"
-  ctx.textBaseline = "alphabetic"
-  ctx.font = "bold 52px system-ui, sans-serif"
 
-  // --- Username ---
-  ctx.font = "normal 34px system-ui, sans-serif"
-  ctx.fillStyle = pal.textMuted
-  ctx.fillText(`@${truncate(post.author.username || "user", 26)}`, margin + avatarSize + 60, margin + 120)
+  ctx.font = "normal 28px system-ui, sans-serif"; ctx.fillStyle = pal.textMuted
+  ctx.fillText(`@${truncate(post.author.username || "user", 28)}`, nameX, yCursor + 76)
+  yCursor += avatarSize + 30
 
-  // --- Divider ---
-  ctx.strokeStyle = pal.divider
-  ctx.lineWidth = 2
-  ctx.beginPath()
-  ctx.moveTo(margin, margin + avatarSize + 80)
-  ctx.lineTo(CARD_WIDTH - margin, margin + avatarSize + 80)
-  ctx.stroke()
-
-  // --- Post text (fewer lines when the card also shows the media) ---
-  const maxLines = hasMedia ? 3 : 6
-  const textStartY = margin + avatarSize + 150
-  const bodyText = truncate(post.content || "Shared a loop", 360)
-  ctx.font = "normal 46px system-ui, sans-serif"
-  ctx.fillStyle = pal.textSecondary
-
+  // ── Post text ──
+  const maxLines = hasMedia ? 4 : 8
+  const bodyText = truncate(post.content || "Shared a loop", 420)
+  ctx.font = "normal 40px system-ui, sans-serif"; ctx.fillStyle = pal.textSecondary
   const words = bodyText.split(" ")
   const lines: string[] = []
-  let line = ""
+  let ln = ""
   for (const word of words) {
-    const test = line ? `${line} ${word}` : word
-    if (ctx.measureText(test).width > maxTextWidth && line) {
-      lines.push(line)
-      line = word
-    } else {
-      line = test
-    }
+    const test = ln ? `${ln} ${word}` : word
+    if (ctx.measureText(test).width > contentMaxW && ln) { lines.push(ln); ln = word } else { ln = test }
     if (lines.length >= maxLines) break
   }
-  if (line && lines.length < maxLines) lines.push(line)
-  const shownLines = lines.slice(0, maxLines)
-  let y = textStartY
-  for (const l of shownLines) {
-    ctx.fillText(l, margin, y)
-    y += 62
+  if (ln && lines.length < maxLines) lines.push(ln)
+  for (const l of lines.slice(0, maxLines)) {
+    ctx.fillText(l, contentX, yCursor); yCursor += 56
   }
-  const textBottom = shownLines.length ? y - 62 + 62 : textStartY
+  yCursor += 20
 
-  // --- Media band (hero image for the post, cover-cropped) ---
+  // ── Media band ──
   if (hasMedia) {
-    const mediaX = margin
-    const mediaY = textBottom + 54
-    const mediaW = CARD_WIDTH - margin * 2
-    const mediaH = 300
+    const mediaW = contentMaxW, mediaH = 260
     ctx.save()
-    roundRect(ctx, mediaX, mediaY, mediaW, mediaH, 24)
-    ctx.clip()
-    const mediaBg = ctx.createLinearGradient(mediaX, mediaY, mediaX, mediaY + mediaH)
-    mediaBg.addColorStop(0, pal.mediaBgTop)
-    mediaBg.addColorStop(1, pal.mediaBgBottom)
-    ctx.fillStyle = mediaBg
-    ctx.fillRect(mediaX, mediaY, mediaW, mediaH)
+    roundRect(ctx, contentX, yCursor, mediaW, mediaH, 24); ctx.clip()
+    ctx.fillStyle = pal.mediaBg; ctx.fillRect(contentX, yCursor, mediaW, mediaH)
     if (mediaSrc) {
       const { w, h } = avatarDimensions(mediaSrc)
       const cover = Math.max(mediaW / w, mediaH / h)
-      const dw = w * cover
-      const dh = h * cover
-      ctx.drawImage(mediaSrc, mediaX + (mediaW - dw) / 2, mediaY + (mediaH - dh) / 2, dw, dh)
+      ctx.drawImage(mediaSrc, (w - w * cover) / 2, (h - h * cover) / 2, w * cover, h * cover, contentX, yCursor, mediaW, mediaH)
     } else if (post.media_type === "video") {
-      // Video poster unavailable — show a dark band with a play button.
-      drawPlayGlyph(ctx, mediaX + mediaW / 2, mediaY + mediaH / 2, 64, "rgba(255,255,255,0.9)")
+      drawPlayGlyph(ctx, contentX + mediaW / 2, yCursor + mediaH / 2, 56, "rgba(255,255,255,0.9)")
     }
     ctx.restore()
-    ctx.strokeStyle = pal.ringStroke
-    ctx.lineWidth = 2
-    roundRect(ctx, mediaX, mediaY, mediaW, mediaH, 24)
-    ctx.stroke()
+    ctx.strokeStyle = pal.divider; ctx.lineWidth = 1
+    roundRect(ctx, contentX, yCursor, mediaW, mediaH, 24); ctx.stroke()
+    yCursor += mediaH + 30
   }
 
-  // --- Engagement stats row (likes · comments · branches · shares) ---
+  // ── Bottom area: stats + branding ──
+  yCursor = panelY + panelH - 220
+
+  // Stats pill chips
   const stats: DrawStats = {
     likes: Number(post.stats?.likes_count || 0),
     comments: Number(post.stats?.comments_count || 0),
     branches: Number(post.stats?.branches_count || 0),
     shares: Number(post.stats?.shares_count || 0),
   }
-  const hasStats = stats.likes + stats.comments + stats.branches + stats.shares > 0
-  if (hasStats) {
-    const statsY = cardH - 340 // icon center line
-    const itemGap = 96
-    const items: { icon: (ctx: CanvasRenderingContext2D, x: number, y: number, s: number, c: string) => void; count: number }[] = [
-      { icon: drawHeartIcon, count: stats.likes },
-      { icon: drawCommentIcon, count: stats.comments },
-      { icon: drawBranchIcon, count: stats.branches },
-      { icon: drawShareIcon, count: stats.shares },
-    ]
-    const iconSize = 44
-    let cx = margin
-    ctx.font = "600 38px system-ui, sans-serif"
-    ctx.textAlign = "left"
-    ctx.textBaseline = "alphabetic"
-    for (const item of items) {
-      item.icon(ctx, cx + iconSize / 2, statsY - iconSize / 2, iconSize, pal.statIcon)
-      ctx.fillStyle = pal.textPrimary
-      ctx.fillText(formatCount(item.count), cx + iconSize + 22, statsY + 2)
-      cx += iconSize + 22 + ctx.measureText(formatCount(item.count)).width + itemGap
+  const statItems = [
+    { icon: drawHeartIcon, count: stats.likes },
+    { icon: drawCommentIcon, count: stats.comments },
+    { icon: drawBranchIcon, count: stats.branches },
+    { icon: drawShareIcon, count: stats.shares },
+  ]
+  if (stats.likes + stats.comments + stats.branches + stats.shares > 0) {
+    let sx = contentX
+    const iconSz = 30
+    for (const item of statItems) {
+      if (item.count === 0) continue
+      const label = formatCount(item.count)
+      const pillW = iconSz + 18 + ctx.measureText(label).width + 28
+      roundRect(ctx, sx, yCursor, pillW, 50, 25)
+      ctx.fillStyle = pal.statBg; ctx.fill()
+      item.icon(ctx, sx + iconSz / 2 + 12, yCursor + 25, iconSz, pal.statIcon)
+      ctx.font = "600 28px system-ui, sans-serif"; ctx.fillStyle = pal.statText
+      ctx.textAlign = "left"; ctx.textBaseline = "middle"
+      ctx.fillText(label, sx + iconSz + 22, yCursor + 26)
+      sx += pillW + 14
     }
+    yCursor += 72
   }
 
-  // --- Bottom branding bar ---
-  const barY = cardH - 190
-  ctx.strokeStyle = pal.brandDivider
-  ctx.lineWidth = 2
-  ctx.beginPath()
-  ctx.moveTo(margin, barY)
-  ctx.lineTo(CARD_WIDTH - margin, barY)
-  ctx.stroke()
+  // Branding bar
+  ctx.strokeStyle = pal.divider; ctx.lineWidth = 1
+  ctx.beginPath(); ctx.moveTo(contentX, yCursor); ctx.lineTo(contentX + contentMaxW, yCursor); ctx.stroke()
+  yCursor += 28
 
   ctx.save()
-  roundRect(ctx, margin, barY + 34, 76, 76, 20)
-  ctx.clip()
-  const logoImg = cachedLogoImg
+  roundRect(ctx, contentX, yCursor, 44, 44, 12); ctx.clip()
   if (logoImg) {
-    ctx.drawImage(logoImg, margin, barY + 34, 76, 76)
+    ctx.drawImage(logoImg, contentX, yCursor, 44, 44)
   } else {
-    // Fallback: gradient circle with L letter
-    const logoBg = ctx.createLinearGradient(margin, barY + 34, margin + 76, barY + 110)
-    logoBg.addColorStop(0, BRAND)
-    logoBg.addColorStop(1, "#22d3ee")
-    ctx.fillStyle = logoBg
-    ctx.fillRect(margin, barY + 34, 76, 76)
-    ctx.fillStyle = pal.logoFg
-    ctx.font = "bold 52px system-ui, sans-serif"
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-    ctx.fillText("L", margin + 38, barY + 74)
+    const lb2 = ctx.createLinearGradient(contentX, yCursor, contentX + 44, yCursor + 44)
+    lb2.addColorStop(0, pal.accentA); lb2.addColorStop(1, pal.accentB)
+    ctx.fillStyle = lb2; ctx.fillRect(contentX, yCursor, 44, 44)
+    ctx.fillStyle = pal.logoFg; ctx.font = "bold 28px system-ui"
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"
+    ctx.fillText("L", contentX + 22, yCursor + 24)
   }
   ctx.restore()
 
-  ctx.textAlign = "left"
-  ctx.textBaseline = "alphabetic"
-  ctx.font = "bold 40px system-ui, sans-serif"
-  ctx.fillStyle = pal.textPrimary
-  ctx.fillText("Loop", margin + 100, barY + 76)
-  ctx.font = "normal 28px system-ui, sans-serif"
-  ctx.fillStyle = pal.footerSub
-  ctx.fillText("Build together. Not just post into the void.", margin + 100, barY + 118)
-
-  ctx.font = "600 28px ui-monospace, monospace"
-  ctx.fillStyle = pal.footerSub
-  ctx.textAlign = "right"
-  ctx.fillText(`${DOMAIN}/loop/${post.id}`, CARD_WIDTH - margin, barY + 76)
-  ctx.textAlign = "left"
+  ctx.font = "bold 30px system-ui, sans-serif"; ctx.fillStyle = pal.textPrimary
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"
+  ctx.fillText("Loop", contentX + 58, yCursor + 30)
+  ctx.font = "normal 22px system-ui, sans-serif"; ctx.fillStyle = pal.footerSub
+  ctx.fillText("Build together. Not just post into the void.", contentX + 58, yCursor + 56)
 }
 
-/** Encode a canvas as a JPEG blob (fast, async). */
 function canvasToJpegBlob(canvas: HTMLCanvasElement, quality = 0.92): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Canvas empty"))), "image/jpeg", quality)
   })
 }
 
-/* ------------------------------------------------------------------ */
-/* Instant HTML preview — the same card, rendered as JSX so the modal   */
-/* shows the share card in a single frame with zero encoding.           */
-/* ------------------------------------------------------------------ */
+/* ── JSX preview ── */
 
 function ShareCardPreview({ post, theme }: { post: ShareAsImageModalProps["post"]; theme: ShareCardTheme }) {
-  const name = truncate(post.author.display_name || post.author.username || "User", 22)
-  const bodyText = truncate(post.content || "Shared a loop", 360)
+  const name = truncate(post.author.display_name || post.author.username || "User", 24)
+  const bodyText = truncate(post.content || "Shared a loop", 420)
   const dark = theme === "dark"
   const hasMedia = Boolean(post.media_url)
 
@@ -700,145 +579,130 @@ function ShareCardPreview({ post, theme }: { post: ShareAsImageModalProps["post"
 
   return (
     <div
-      className={`relative w-full select-none overflow-hidden rounded-xl text-left ${hasMedia ? "aspect-[4/5]" : "aspect-square"} ${dark ? "bg-[#0f172a]" : "bg-white"}`}
-      style={{ containerType: "inline-size" }}
+      className={`relative w-full select-none overflow-hidden rounded-xl text-left ${hasMedia ? "aspect-[4/5]" : "aspect-square"}`}
+      style={{
+        background: "linear-gradient(140deg, #0f0a2e 0%, #1a1145 50%, #0d0b2e 100%)",
+        containerType: "inline-size",
+      }}
     >
-      {/* Background gradient + glows (mirrors the canvas card) */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: dark
-            ? "linear-gradient(140deg, #0f172a 0%, #111827 55%, #1e1b4b 100%)"
-            : "linear-gradient(140deg, #ffffff 0%, #f8fafc 55%, #eef2ff 100%)",
-        }}
-      />
-      <div
-        className="absolute -left-10 -top-12 h-56 w-56 rounded-full"
-        style={{ background: `radial-gradient(circle, ${dark ? "rgba(99,102,241,0.28)" : "rgba(99,102,241,0.16)"} 0%, rgba(99,102,241,0) 70%)` }}
-      />
-      <div
-        className="absolute -bottom-12 -right-8 h-48 w-48 rounded-full"
-        style={{ background: `radial-gradient(circle, ${dark ? "rgba(34,211,238,0.16)" : "rgba(34,211,238,0.12)"} 0%, rgba(34,211,238,0) 70%)` }}
-      />
-      {/* Decorative rings */}
-      <div className={`absolute -bottom-16 -right-16 h-56 w-56 rounded-full border ${dark ? "border-white/5" : "border-slate-900/5"}`} />
-      <div className={`absolute -bottom-8 -right-8 h-36 w-36 rounded-full border ${dark ? "border-white/5" : "border-slate-900/5"}`} />
+      {/* Gradient mesh blobs */}
+      <div className="absolute -left-16 -top-16 h-64 w-64 rounded-full" style={{ background: "radial-gradient(circle, rgba(99,102,241,0.35) 0%, transparent 70%)" }} />
+      <div className="absolute right-0 top-1/3 h-52 w-52 rounded-full" style={{ background: "radial-gradient(circle, rgba(168,85,247,0.25) 0%, transparent 70%)" }} />
+      <div className="absolute -bottom-16 left-1/3 h-64 w-64 rounded-full" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.2) 0%, transparent 70%)" }} />
 
-      <div className="relative flex h-full flex-col p-[8%]">
-        {/* Header: avatar + identity */}
-        <div className="flex items-center gap-[5%]">
-          <span className="flex aspect-square w-[16%] shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 to-cyan-400 p-[4%]">
-            <span className={`flex aspect-square w-full items-center justify-center overflow-hidden rounded-full ${dark ? "bg-slate-700 text-slate-200" : "bg-slate-200 text-slate-700"} text-[9cqw] font-bold`}>
+      {/* Glass card */}
+      <div
+        className="absolute inset-x-[7%] top-[7%] bottom-[7%] overflow-hidden rounded-3xl border"
+        style={{
+          background: dark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.92)",
+          borderColor: dark ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.3)",
+        }}
+      >
+        {/* Top accent stripe */}
+        <div
+          className="h-1.5 w-full"
+          style={{ background: "linear-gradient(90deg, #6366f1, #a855f7, #22d3ee)" }}
+        />
+      </div>
+
+      {/* Content inside glass card */}
+      <div className="absolute inset-x-[12%] top-[calc(7%+8px)] bottom-[7%] flex flex-col py-[6%]">
+        {/* Logo */}
+        <div className="flex justify-center">
+          <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl">
+            <img src="/icons/icon.svg" alt="Loop" className="h-full w-full object-contain" />
+          </span>
+        </div>
+
+        <div className="my-3 h-px w-full" style={{ background: dark ? "rgba(255,255,255,0.08)" : "rgba(99,102,241,0.12)" }} />
+
+        {/* Author */}
+        <div className="flex items-center gap-3">
+          <span className="flex h-[10cqw] w-[10cqw] shrink-0 items-center justify-center rounded-full p-[3%]" style={{ background: "linear-gradient(135deg, #6366f1, #a855f7, #22d3ee)" }}>
+            <span className={`flex aspect-square w-full items-center justify-center overflow-hidden rounded-full text-[6cqw] font-bold ${dark ? "bg-slate-700 text-slate-200" : "bg-white text-slate-700"}`}>
               {post.author.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img src={post.author.avatar_url} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
-              ) : (
-                name.charAt(0).toUpperCase()
-              )}
+              ) : name.charAt(0).toUpperCase()}
             </span>
           </span>
           <div className="min-w-0 flex-1">
-            <p className={`flex items-center gap-1.5 truncate text-[clamp(11px,3.2cqw,22px)] font-bold leading-tight ${dark ? "text-slate-50" : "text-slate-900"}`}>
+            <p className={`flex items-center gap-1.5 truncate text-[clamp(11px,3cqw,22px)] font-bold leading-tight ${dark ? "text-slate-50" : "text-slate-900"}`}>
               <span className="truncate">{name}</span>
               {post.author.is_verified && (
-                <span className={`flex h-[1.2em] w-[1.2em] shrink-0 items-center justify-center rounded-full bg-sky-400 text-[0.8em] font-bold ${dark ? "text-slate-900" : "text-white"}`}>
-                  ✓
-                </span>
+                <span className={`flex h-[1.2em] w-[1.2em] shrink-0 items-center justify-center rounded-full text-[0.8em] font-bold ${dark ? "bg-cyan-400 text-slate-900" : "bg-cyan-400 text-white"}`}>✓</span>
               )}
               {post.author.is_premium && (
-                <span
-                  title="Pro"
-                  className="flex h-[1.2em] w-[1.2em] shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 text-amber-950"
-                >
+                <span title="Pro" className="flex h-[1.2em] w-[1.2em] shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 text-amber-950">
                   <Crown className="h-[0.7em] w-[0.7em]" fill="currentColor" />
                 </span>
               )}
               {post.author.is_sponsor && (
-                <span
-                  title="Sponsor"
-                  className="flex h-[1.2em] w-[1.2em] shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-400 to-orange-400 text-amber-950"
-                >
+                <span title="Sponsor" className="flex h-[1.2em] w-[1.2em] shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-400 to-orange-400 text-amber-950">
                   <Sparkles className="h-[0.7em] w-[0.7em]" fill="currentColor" />
                 </span>
               )}
               {post.author.is_team && (
-                <span
-                  title="Loop Team"
-                  className="flex h-[1.2em] w-[1.2em] shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 text-white"
-                >
+                <span title="Team" className="flex h-[1.2em] w-[1.2em] shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white">
                   <ShieldCheck className="h-[0.7em] w-[0.7em]" fill="currentColor" />
                 </span>
               )}
             </p>
-            <p className={`truncate text-[clamp(9px,2.4cqw,16px)] ${dark ? "text-slate-400" : "text-slate-500"}`}>@{truncate(post.author.username || "user", 26)}</p>
+            <p className={`truncate text-[clamp(9px,2.2cqw,15px)] ${dark ? "text-slate-400" : "text-slate-500"}`}>@{truncate(post.author.username || "user", 28)}</p>
           </div>
         </div>
 
-        <div className={`mt-[6%] h-px w-full ${dark ? "bg-slate-400/25" : "bg-slate-500/25"}`} />
-
         {/* Body text */}
-        <p className={`${hasMedia ? "mt-[4%]" : "mt-[6%]"} whitespace-pre-line text-[clamp(12px,3.6cqw,26px)] leading-relaxed [display:-webkit-box] [-webkit-box-orient:vertical] ${hasMedia ? "[-webkit-line-clamp:3]" : "[-webkit-line-clamp:6]"} overflow-hidden ${dark ? "text-slate-100" : "text-slate-800"}`}>
+        <p className={`${hasMedia ? "mt-3" : "mt-4"} whitespace-pre-line text-[clamp(11px,3.2cqw,22px)] leading-relaxed [display:-webkit-box] [-webkit-box-orient:vertical] ${hasMedia ? "[-webkit-line-clamp:4]" : "[-webkit-line-clamp:8]"} overflow-hidden ${dark ? "text-slate-200" : "text-slate-700"}`}>
           {bodyText}
         </p>
 
-        {/* Media thumbnail (hero band) */}
-        {hasMedia && (
-          <div className="relative mt-[5%] overflow-hidden rounded-xl border border-black/5 dark:border-white/10">
-            {post.media_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={optimizeImageUrl(post.media_url, 800) || post.media_url}
-                alt=""
-                className="aspect-[16/9] w-full object-cover"
-                loading="lazy"
-                decoding="async"
-              />
-            ) : null}
+        {/* Media thumbnail */}
+        {hasMedia && post.media_url && (
+          <div className="relative mt-3 overflow-hidden rounded-2xl border border-white/10">
+            <img src={optimizeImageUrl(post.media_url, 800) || post.media_url} alt="" className="aspect-[16/9] w-full object-cover" loading="lazy" decoding="async" />
             {post.media_type === "video" && (
               <span className="absolute inset-0 flex items-center justify-center">
-                <span className="flex h-[20%] aspect-square min-h-9 items-center justify-center rounded-full bg-black/50 backdrop-blur">
-                  <Play className="h-[45%] w-[45%] text-white" fill="currentColor" />
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
+                  <Play className="h-7 w-7 text-white" fill="currentColor" />
                 </span>
               </span>
             )}
           </div>
         )}
 
-        {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Engagement stats */}
+        {/* Stats as pills */}
         {hasStats && (
-          <div className={`mb-[3%] flex items-center gap-[5%] ${dark ? "text-slate-200" : "text-slate-800"}`}>
-            {stats.map(({ icon: Icon, count }, i) => (
-              <span key={i} className="flex items-center gap-[1cqw] text-[clamp(9px,2.4cqw,18px)] font-semibold">
-                <Icon className={`h-[clamp(12px,3.2cqw,22px)] w-[clamp(12px,3.2cqw,22px)] ${dark ? "text-indigo-400" : "text-indigo-600"}`} strokeWidth={2.4} />
-                {formatCount(count)}
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            {stats.filter((s) => s.count > 0).map(({ icon: Icon, count }, i) => (
+              <span
+                key={i}
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[clamp(9px,2.2cqw,15px)] font-semibold"
+                style={{ background: dark ? "rgba(129,140,248,0.12)" : "rgba(99,102,241,0.08)" }}
+              >
+                <Icon className={`h-[clamp(11px,2.8cqw,18px)] w-[clamp(11px,2.8cqw,18px)] ${dark ? "text-indigo-400" : "text-indigo-600"}`} strokeWidth={2.4} />
+                <span style={{ color: dark ? "#c7d2fe" : "#4f46e5" }}>{formatCount(count)}</span>
               </span>
             ))}
           </div>
         )}
 
-        {/* Branding bar */}
-        <div className={`mt-[2%] h-px w-full ${dark ? "bg-indigo-500/50" : "bg-indigo-500/45"}`} />
-        <div className="mt-[4%] flex items-center gap-[3%]">
-          <span className="flex h-[clamp(20px,6cqw,44px)] w-[clamp(20px,6cqw,44px)] shrink-0 items-center justify-center overflow-hidden rounded-[24%]">
-            <img src="/icons/icon.svg" alt="Loop" className="h-full w-full object-contain" decoding="async" />
-          </span>
+        {/* Branding */}
+        <div className="h-px w-full" style={{ background: dark ? "rgba(255,255,255,0.08)" : "rgba(99,102,241,0.12)" }} />
+        <div className="mt-3 flex items-center gap-3">
+          <img src="/icons/icon.svg" alt="Loop" className="h-11 w-11 rounded-xl object-contain" />
           <div className="min-w-0 flex-1">
-            <p className={`text-[clamp(10px,2.8cqw,20px)] font-bold leading-tight ${dark ? "text-slate-50" : "text-slate-900"}`}>Loop</p>
-            <p className={`truncate text-[clamp(8px,1.9cqw,14px)] ${dark ? "text-slate-400" : "text-slate-500"}`}>Build together. Not just post into the void.</p>
+            <p className={`text-[clamp(10px,2.5cqw,18px)] font-bold leading-tight ${dark ? "text-slate-50" : "text-slate-900"}`}>Loop</p>
+            <p className={`truncate text-[clamp(8px,1.8cqw,13px)] ${dark ? "text-slate-400" : "text-slate-500"}`}>Build together. Not just post into the void.</p>
           </div>
-          <p className={`shrink-0 font-mono text-[clamp(8px,2cqw,15px)] font-semibold ${dark ? "text-slate-400" : "text-slate-500"}`}>
-            {DOMAIN}/loop/{post.id}
-          </p>
         </div>
       </div>
     </div>
   )
 }
 
-/* ------------------------------------------------------------------ */
+/* ── Main modal ── */
 
 export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModalProps) {
   const { toast } = useToast()
@@ -854,56 +718,24 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
 
   const renderKey = useMemo(
     () =>
-      [
-        post.id,
-        post.content,
-        post.media_url,
-        post.author.username,
-        post.author.display_name,
-        post.author.avatar_url,
-        post.author.is_verified ? "1" : "0",
-        theme,
-        post.stats?.likes_count ?? "",
-        post.stats?.comments_count ?? "",
-        post.stats?.branches_count ?? "",
-        post.stats?.shares_count ?? "",
-      ].join("|"),
+      [post.id, post.content, post.media_url, post.author.username, post.author.display_name, post.author.avatar_url, post.author.is_verified ? "1" : "0", theme, post.stats?.likes_count ?? "", post.stats?.comments_count ?? "", post.stats?.branches_count ?? "", post.stats?.shares_count ?? ""].join("|"),
     [post.id, post.content, post.media_url, post.author.username, post.author.display_name, post.author.avatar_url, post.author.is_verified, theme, post.stats?.likes_count, post.stats?.comments_count, post.stats?.branches_count, post.stats?.shares_count],
   )
 
-  // Pre-generate the full-res export blob in the background as soon as the
-  // modal opens, so Download/Share are instant by the time the user taps.
-  // The preview is plain HTML (rendered in the same frame), so the modal
-  // itself never waits on an encode.
   useEffect(() => {
-    if (!open) {
-      setRendered(false)
-      setExporting(false)
-      cachedBlobRef.current = null
-      avatarRef.current = null
-      mediaRef.current = null
-      return
-    }
+    if (!open) { setRendered(false); setExporting(false); cachedBlobRef.current = null; avatarRef.current = null; mediaRef.current = null; return }
     const gen = ++generationRef.current
     let cancelled = false
     setRendered(false)
-
     const generate = async () => {
       const canvas = exportCanvasRef.current
       if (!canvas) return
       try {
-        // Load the logo early so the first draw has it
         await loadLogo()
-        // Instant UI: the HTML preview is what the user sees, so reveal it as
-        // soon as the first draw succeeds — the JPEG encode continues in the
-        // background and Download/Share fall back to on-demand if needed.
         drawCardBase(canvas, post, EXPORT_SCALE, avatarRef.current, theme, mediaRef.current)
         if (cancelled || gen !== generationRef.current) return
         cachedBlobRef.current = await canvasToJpegBlob(canvas, 0.92)
         setRendered(true)
-
-        // Avatar + media arrive asynchronously — redraw + re-encode so the
-        // download includes them. Never blocks the initial render.
         const avatar = post.author.avatar_url ? await loadAvatar(post.author.avatar_url) : null
         if (cancelled || gen !== generationRef.current) return
         avatarRef.current = avatar
@@ -916,31 +748,19 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
         cachedBlobRef.current = blob2
       } catch (error) {
         console.error("Share card pre-render error:", error)
-        if (!cancelled) {
-          // Non-fatal: Download will generate on demand.
-          setRendered(false)
-        }
+        if (!cancelled) setRendered(false)
       }
     }
-
     const run = () => void generate()
     if (typeof requestIdleCallback === "function") {
       const id = requestIdleCallback(run, { timeout: 1500 })
-      return () => {
-        cancelled = true
-        cancelIdleCallback(id)
-      }
+      return () => { cancelled = true; cancelIdleCallback(id) }
     }
     const t = window.setTimeout(run, 80)
-    return () => {
-      cancelled = true
-      clearTimeout(t)
-    }
+    return () => { cancelled = true; clearTimeout(t) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, renderKey])
 
-  /** Returns a ready-to-share JPEG blob, generating it on demand if the idle
-   *  pre-generation hasn't finished yet (rare — the user tapped fast). */
   const getExportBlob = async (): Promise<Blob> => {
     if (cachedBlobRef.current) return cachedBlobRef.current
     const canvas = exportCanvasRef.current
@@ -958,16 +778,12 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       const blob = await getExportBlob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
-      a.href = url
-      a.download = `loop-${post.id}.jpg`
-      a.click()
+      a.href = url; a.download = `loop-${post.id}.jpg`; a.click()
       window.setTimeout(() => URL.revokeObjectURL(url), 4000)
       toast({ title: "Image downloaded", description: "Share it anywhere." })
     } catch (error: any) {
       toast({ title: "Download failed", description: error?.message || "Unknown error", variant: "destructive" })
-    } finally {
-      setExporting(false)
-    }
+    } finally { setExporting(false) }
   }
 
   const shareNative = async () => {
@@ -977,9 +793,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: "Loop", text: post.content.slice(0, 120) })
         toast({ title: "Shared!" })
-      } else {
-        await download()
-      }
+      } else { await download() }
     } catch (error: any) {
       if (error?.name === "AbortError") return
       toast({ title: "Couldn't share", description: error.message || "Unknown error", variant: "destructive" })
@@ -998,7 +812,6 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
           </DialogDescription>
         </DialogHeader>
 
-        {/* Hidden full-res export canvas */}
         <canvas ref={exportCanvasRef} className="hidden" />
 
         <div className="relative w-full overflow-hidden rounded-xl border border-border">

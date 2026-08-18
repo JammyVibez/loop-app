@@ -63,7 +63,58 @@ export async function POST(request: NextRequest) {
       privacy_settings,
       notification_settings,
       tagged_circles,
+      username: newUsername,
     } = body
+
+    // --- Username change: uniqueness + 2-week cooldown ---
+    let validatedUsername: string | undefined
+    if (typeof newUsername === "string" && newUsername.trim()) {
+      const sanitized = newUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, "")
+      if (sanitized.length < 3) {
+        return NextResponse.json({ error: "Username must be at least 3 characters." }, { status: 400 })
+      }
+      if (sanitized.length > 20) {
+        return NextResponse.json({ error: "Username must be 20 characters or fewer." }, { status: 400 })
+      }
+
+      // Fetch current profile to check cooldown + detect actual change
+      const { data: currentProfile } = await supabase
+        .from("profiles")
+        .select("username, username_change_at")
+        .eq("id", user.id)
+        .maybeSingle()
+
+      if (currentProfile && sanitized !== currentProfile.username) {
+        // Check cooldown: last change must be ≥ 14 days ago
+        if (currentProfile.username_change_at) {
+          const lastChange = new Date(currentProfile.username_change_at).getTime()
+          const cooldownMs = 14 * 24 * 60 * 60 * 1000
+          const remainingMs = cooldownMs - (Date.now() - lastChange)
+          if (remainingMs > 0) {
+            const daysLeft = Math.ceil(remainingMs / (24 * 60 * 60 * 1000))
+            return NextResponse.json(
+              { error: `You can change your username again in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`, cooldown_days: daysLeft },
+              { status: 429 },
+            )
+          }
+        }
+
+        // Check uniqueness
+        const { data: taken } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("username", sanitized)
+          .neq("id", user.id)
+          .maybeSingle()
+        if (taken) {
+          return NextResponse.json({ error: "That username is already taken. Please choose another." }, { status: 409 })
+        }
+
+        validatedUsername = sanitized
+      } else if (currentProfile && sanitized === currentProfile.username) {
+        // No actual change — skip
+      }
+    }
 
     let sanitizedTags: ReturnType<typeof sanitizeTaggedCircles> | undefined
     if (tagged_circles !== undefined) {
@@ -132,6 +183,7 @@ export async function POST(request: NextRequest) {
       notification_settings,
       tagged_circles: sanitizedTags,
       onboarding_completed: typeof onboarding_completed === "boolean" ? onboarding_completed : undefined,
+      ...(validatedUsername ? { username: validatedUsername, username_change_at: new Date().toISOString() } : {}),
       updated_at: new Date().toISOString(),
       // Only write theme_preferences when explicitly sending a shop theme payload (has colors)
       ...(profile_theme !== undefined && profile_theme?.colors
