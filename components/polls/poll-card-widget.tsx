@@ -167,7 +167,7 @@ export function PollCardWidget({ poll: initialPoll, loopId }: { poll?: PollData;
         {poll.expires_at && (
           <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
             <Clock className="h-3.5 w-3.5 text-cyan-500 dark:text-cyan-400" />
-            <span>{isExpired ? "Ended " : "Ends "}</span>
+            <span>{isExpired ? "Ended" : "Ends"}</span>
             <FreshnessTimestamp date={poll.expires_at} />
           </div>
         )}

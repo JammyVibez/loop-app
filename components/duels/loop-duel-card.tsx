@@ -211,7 +211,11 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
 
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <Timer className="h-3.5 w-3.5 text-cyan-400" />
-            <span>Ends</span> <FreshnessTimestamp date={duel.expires_at} />
+            {new Date(duel.expires_at) > new Date() ? (
+              <><span>Ends</span> <FreshnessTimestamp date={duel.expires_at} /></>
+            ) : (
+              <><span>Ended</span> <FreshnessTimestamp date={duel.expires_at} /></>
+            )}
           </div>
         </div>
 

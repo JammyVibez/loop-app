@@ -57,6 +57,18 @@ const EXPORT_SCALE = 1.6 // 1728px on the long edge — crisp for social, ~2× f
 const BRAND = "#6366f1"
 const DOMAIN = "loopapp.me"
 const AVATAR_LOAD_TIMEOUT_MS = 1500
+const LOGO_URL = "/icons/icon.svg"
+let cachedLogoImg: HTMLImageElement | null = null
+function loadLogo(): Promise<HTMLImageElement | null> {
+  if (cachedLogoImg) return Promise.resolve(cachedLogoImg)
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+    img.onload = () => { cachedLogoImg = img; resolve(img) }
+    img.onerror = () => resolve(null)
+    img.src = LOGO_URL
+  })
+}
 
 function truncate(text: string, max: number): string {
   const clean = text.replace(/\s+/g, " ").trim()
@@ -625,16 +637,23 @@ function drawCardBase(
 
   ctx.save()
   roundRect(ctx, margin, barY + 34, 76, 76, 20)
-  const logoBg = ctx.createLinearGradient(margin, barY + 34, margin + 76, barY + 110)
-  logoBg.addColorStop(0, BRAND)
-  logoBg.addColorStop(1, "#22d3ee")
-  ctx.fillStyle = logoBg
-  ctx.fill()
-  ctx.fillStyle = pal.logoFg
-  ctx.font = "bold 52px system-ui, sans-serif"
-  ctx.textAlign = "center"
-  ctx.textBaseline = "middle"
-  ctx.fillText("L", margin + 38, barY + 74)
+  ctx.clip()
+  const logoImg = cachedLogoImg
+  if (logoImg) {
+    ctx.drawImage(logoImg, margin, barY + 34, 76, 76)
+  } else {
+    // Fallback: gradient circle with L letter
+    const logoBg = ctx.createLinearGradient(margin, barY + 34, margin + 76, barY + 110)
+    logoBg.addColorStop(0, BRAND)
+    logoBg.addColorStop(1, "#22d3ee")
+    ctx.fillStyle = logoBg
+    ctx.fillRect(margin, barY + 34, 76, 76)
+    ctx.fillStyle = pal.logoFg
+    ctx.font = "bold 52px system-ui, sans-serif"
+    ctx.textAlign = "center"
+    ctx.textBaseline = "middle"
+    ctx.fillText("L", margin + 38, barY + 74)
+  }
   ctx.restore()
 
   ctx.textAlign = "left"
@@ -803,8 +822,8 @@ function ShareCardPreview({ post, theme }: { post: ShareAsImageModalProps["post"
         {/* Branding bar */}
         <div className={`mt-[2%] h-px w-full ${dark ? "bg-indigo-500/50" : "bg-indigo-500/45"}`} />
         <div className="mt-[4%] flex items-center gap-[3%]">
-          <span className="flex h-[clamp(20px,6cqw,44px)] w-[clamp(20px,6cqw,44px)] shrink-0 items-center justify-center rounded-[30%] bg-gradient-to-tr from-indigo-500 to-cyan-400 text-[clamp(12px,3.6cqw,26px)] font-bold text-white">
-            L
+          <span className="flex h-[clamp(20px,6cqw,44px)] w-[clamp(20px,6cqw,44px)] shrink-0 items-center justify-center overflow-hidden rounded-[24%]">
+            <img src="/icons/icon.svg" alt="Loop" className="h-full w-full object-contain" decoding="async" />
           </span>
           <div className="min-w-0 flex-1">
             <p className={`text-[clamp(10px,2.8cqw,20px)] font-bold leading-tight ${dark ? "text-slate-50" : "text-slate-900"}`}>Loop</p>
@@ -873,6 +892,8 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       const canvas = exportCanvasRef.current
       if (!canvas) return
       try {
+        // Load the logo early so the first draw has it
+        await loadLogo()
         // Instant UI: the HTML preview is what the user sees, so reveal it as
         // soon as the first draw succeeds — the JPEG encode continues in the
         // background and Download/Share fall back to on-demand if needed.
