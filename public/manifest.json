@@ -1,11 +1,11 @@
 {
-  "name": "loopapp.me",
-  "short_name": "loopapp.me",
-  "description": "Connect, create, and collaborate in loopapp.me's next-gen social storytelling platform",
+  "name": "Loop",
+  "short_name": "Loop",
+  "description": "Loop — build together, not just post into the void. Co-Loops, Duels, Circles, live streams and more.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#8b5cf6",
+  "background_color": "#030712",
+  "theme_color": "#6366f1",
   "orientation": "portrait-primary",
   "categories": [
     "social",

@@ -26,6 +26,7 @@ import {
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
+import { unlockAudio } from "@/lib/audio-unlock"
 
 export type HmsRoomLayout = "grid" | "stage"
 
@@ -79,6 +80,16 @@ function HmsRoomInner({
     setLocalJoined(true)
     onJoined?.()
   }, [onJoined])
+
+  // Unlock audio playback on the first user gesture (autoplay policy).
+  useEffect(() => {
+    const unlock = () => {
+      unlockAudio()
+      window.removeEventListener("pointerdown", unlock)
+    }
+    window.addEventListener("pointerdown", unlock)
+    return () => window.removeEventListener("pointerdown", unlock)
+  }, [])
 
   // Join the room once we have a token.
   useEffect(() => {

@@ -4,6 +4,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { Room, RoomEvent, Track, type LocalParticipant, type Participant, type TrackPublication } from "livekit-client"
 import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { playRemoteAudio, unlockAudio } from "@/lib/audio-unlock"
 
 export interface LivekitStreamStageHandle {
   toggleMic: () => void
@@ -47,6 +48,9 @@ export const LivekitStreamStage = forwardRef<LivekitStreamStageHandle, LivekitSt
     ref,
   ) {
     const roomRef = useRef<Room | null>(null)
+    /** Remote audio elements keyed by track SID — without attaching these the
+     *  host's voice is never heard by viewers. */
+    const audioElsRef = useRef<Map<string, HTMLAudioElement>>(new Map())
     const [tiles, setTiles] = useState<StageTileInfo[]>([])
     const [joined, setJoined] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -81,8 +85,32 @@ export const LivekitStreamStage = forwardRef<LivekitStreamStageHandle, LivekitSt
           const room = new Room({ adaptiveStream: true, dynacast: true })
           roomRef.current = room
           room
-            .on(RoomEvent.TrackSubscribed, () => snapshot(room))
-            .on(RoomEvent.TrackUnsubscribed, () => snapshot(room))
+            .on(RoomEvent.TrackSubscribed, (track: Track) => {
+              if (track.kind === Track.Kind.Audio && track.sid) {
+                // Reuse the element on re-subscribes (adaptive stream) so we
+                // never stack duplicate playbacks of the same track.
+                let el = audioElsRef.current.get(track.sid)
+                if (!el) {
+                  el = new Audio()
+                  el.autoplay = true
+                  audioElsRef.current.set(track.sid, el)
+                }
+                el.srcObject = new MediaStream([track.mediaStreamTrack])
+                playRemoteAudio(el)
+              }
+              snapshot(room)
+            })
+            .on(RoomEvent.TrackUnsubscribed, (track: Track) => {
+              if (track.kind === Track.Kind.Audio && track.sid) {
+                const el = audioElsRef.current.get(track.sid)
+                if (el) {
+                  el.pause()
+                  el.srcObject = null
+                  audioElsRef.current.delete(track.sid)
+                }
+              }
+              snapshot(room)
+            })
             .on(RoomEvent.TrackMuted, () => snapshot(room))
             .on(RoomEvent.TrackUnmuted, () => snapshot(room))
             .on(RoomEvent.ParticipantConnected, () => snapshot(room))
@@ -117,11 +145,26 @@ export const LivekitStreamStage = forwardRef<LivekitStreamStageHandle, LivekitSt
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [token, url, isOwner])
 
+    // Unlock audio playback on the first user gesture (autoplay policy).
+    useEffect(() => {
+      const unlock = () => {
+        unlockAudio()
+        window.removeEventListener("pointerdown", unlock)
+      }
+      window.addEventListener("pointerdown", unlock)
+      return () => window.removeEventListener("pointerdown", unlock)
+    }, [])
+
     // Leave cleanly on unmount / tab close.
     useEffect(() => {
       const leave = () => {
         const room = roomRef.current
         if (room && room.state === "connected") void room.disconnect().catch(() => {})
+        audioElsRef.current.forEach((el) => {
+          el.pause()
+          el.srcObject = null
+        })
+        audioElsRef.current.clear()
       }
       window.addEventListener("beforeunload", leave)
       return () => {

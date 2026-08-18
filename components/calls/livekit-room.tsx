@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Room, RoomEvent, Track, type LocalParticipant, type Participant, type TrackPublication } from "livekit-client"
+import { playRemoteAudio, unlockAudio } from "@/lib/audio-unlock"
 import {
   Loader2,
   Mic,
@@ -75,6 +76,9 @@ function LivekitRoomInner({
   const [micOn, setMicOn] = useState(true)
   const [camOn, setCamOn] = useState(!audioOnly)
   const joinedRef = useRef(false)
+  /** Remote audio elements keyed by track SID — LiveKit does NOT attach audio
+   *  automatically, so without this nobody on the other end can hear anyone. */
+  const audioElsRef = useRef<Map<string, HTMLAudioElement>>(new Map())
 
   const getRoom = useCallback(() => {
     if (roomRef.current) return roomRef.current
@@ -107,6 +111,16 @@ function LivekitRoomInner({
     setTiles(list)
   }, [])
 
+  // Unlock audio playback on the first user gesture (autoplay policy).
+  useEffect(() => {
+    const unlock = () => {
+      unlockAudio()
+      window.removeEventListener("pointerdown", unlock)
+    }
+    window.addEventListener("pointerdown", unlock)
+    return () => window.removeEventListener("pointerdown", unlock)
+  }, [])
+
   // Connect once a token + url are available.
   useEffect(() => {
     if (!token || !url) return
@@ -115,8 +129,34 @@ function LivekitRoomInner({
       try {
         const room = getRoom()
         room
-          .on(RoomEvent.TrackSubscribed, () => snapshot(room, room.localParticipant))
-          .on(RoomEvent.TrackUnsubscribed, () => snapshot(room, room.localParticipant))
+          .on(RoomEvent.TrackSubscribed, (track: Track) => {
+            // LiveKit delivers remote audio as raw tracks — attach each to a
+            // dedicated <audio> element so the peer's voice is actually heard.
+            if (track.kind === Track.Kind.Audio && track.sid) {
+              // The same sid can re-subscribe (adaptive stream, mute cycles) —
+              // reuse the element instead of stacking duplicate playbacks.
+              let el = audioElsRef.current.get(track.sid)
+              if (!el) {
+                el = new Audio()
+                el.autoplay = true
+                audioElsRef.current.set(track.sid, el)
+              }
+              el.srcObject = new MediaStream([track.mediaStreamTrack])
+              playRemoteAudio(el)
+            }
+            snapshot(room, room.localParticipant)
+          })
+          .on(RoomEvent.TrackUnsubscribed, (track: Track) => {
+            if (track.kind === Track.Kind.Audio && track.sid) {
+              const el = audioElsRef.current.get(track.sid)
+              if (el) {
+                el.pause()
+                el.srcObject = null
+                audioElsRef.current.delete(track.sid)
+              }
+            }
+            snapshot(room, room.localParticipant)
+          })
           .on(RoomEvent.TrackMuted, () => snapshot(room, room.localParticipant))
           .on(RoomEvent.TrackUnmuted, () => snapshot(room, room.localParticipant))
           .on(RoomEvent.ParticipantConnected, () => snapshot(room, room.localParticipant))
@@ -161,6 +201,11 @@ function LivekitRoomInner({
       if (room && room.state === "connected") {
         void room.disconnect().catch(() => {})
       }
+      audioElsRef.current.forEach((el) => {
+        el.pause()
+        el.srcObject = null
+      })
+      audioElsRef.current.clear()
     }
     window.addEventListener("beforeunload", leave)
     return () => {

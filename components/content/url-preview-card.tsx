@@ -11,33 +11,66 @@ interface UrlMetadata {
   description?: string
   image?: string | null
   icon?: string
+  /** Cache bookkeeping — set client-side only, never sent to the API. */
+  __fetchedAt?: number
+}
+
+// Session-scoped cache: the same link is often shared more than once (a chat
+// paste, the feed, a bio), and each share used to hit /api/url-preview (which
+// re-fetches the remote page server-side) — slow and wasteful. Caching here
+// makes repeat links render instantly and dedupes concurrent fetches.
+const previewCache = new Map<string, UrlMetadata>()
+const pendingFetches = new Map<string, Promise<UrlMetadata | null>>()
+const CACHE_TTL_MS = 10 * 60 * 1000
+
+function fetchPreview(url: string): Promise<UrlMetadata | null> {
+  const existing = pendingFetches.get(url)
+  if (existing) return existing
+  const promise = fetch(`/api/url-preview?url=${encodeURIComponent(url)}`)
+    .then((res) => res.json())
+    .then((resData): UrlMetadata | null =>
+      resData.success && resData.metadata ? resData.metadata : null,
+    )
+    .catch(() => null)
+    .finally(() => {
+      pendingFetches.delete(url)
+    })
+  pendingFetches.set(url, promise)
+  return promise
 }
 
 export function UrlPreviewCard({ url }: { url: string }) {
-  const [data, setData] = useState<UrlMetadata | null>(null)
-  const [loading, setLoading] = useState(true)
+  const isCacheFresh = (cached: UrlMetadata | undefined): cached is UrlMetadata =>
+    Boolean(cached && typeof cached.__fetchedAt === "number" && Date.now() - cached.__fetchedAt < CACHE_TTL_MS)
+
+  const [data, setData] = useState<UrlMetadata | null>(() => {
+    const cached = previewCache.get(url)
+    return isCacheFresh(cached) ? cached : null
+  })
+  const [loading, setLoading] = useState(() => !isCacheFresh(previewCache.get(url)))
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     let active = true
+    const cached = previewCache.get(url)
+    if (isCacheFresh(cached)) {
+      setData(cached)
+      setLoading(false)
+      return
+    }
     setLoading(true)
 
-    fetch(`/api/url-preview?url=${encodeURIComponent(url)}`)
-      .then((res) => res.json())
-      .then((resData) => {
-        if (!active) return
-        if (resData.success && resData.metadata) {
-          setData(resData.metadata)
-        } else {
-          setFailed(true)
-        }
-      })
-      .catch(() => {
-        if (active) setFailed(true)
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
+    void fetchPreview(url).then((meta) => {
+      if (!active) return
+      if (meta) {
+        meta.__fetchedAt = Date.now()
+        previewCache.set(url, meta)
+        setData(meta)
+      } else {
+        setFailed(true)
+      }
+      setLoading(false)
+    })
 
     return () => {
       active = false

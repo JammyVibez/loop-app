@@ -1668,11 +1668,15 @@ export function LoopCard({
           id: loop.id,
           content: content,
           media_url: loop.media_urls?.[0] || loop.media_url || undefined,
+          media_type: loop.media_type || undefined,
           author: {
             username: loop.author?.username || "user",
             display_name: loop.author?.display_name || loop.author?.username || "User",
             avatar_url: loop.author?.avatar_url,
             is_verified: Boolean(loop.author?.is_verified),
+            is_premium: Boolean(loop.author?.is_premium),
+            is_sponsor: Boolean(loop.author?.is_sponsor),
+            is_team: Boolean(loop.author?.is_team_member),
           },
           stats: {
             likes_count: Number(loop.stats?.likes_count || 0),

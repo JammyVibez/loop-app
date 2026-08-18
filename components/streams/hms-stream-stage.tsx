@@ -15,6 +15,7 @@ import {
 } from "@100mslive/react-sdk"
 import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { unlockAudio } from "@/lib/audio-unlock"
 
 export interface HmsStreamStageHandle {
   toggleMic: () => void
@@ -96,6 +97,16 @@ const HmsStreamStageInner = forwardRef<HmsStreamStageHandle, HmsStreamStageProps
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [token])
+
+    // Unlock audio playback on the first user gesture (autoplay policy).
+    useEffect(() => {
+      const unlock = () => {
+        unlockAudio()
+        window.removeEventListener("pointerdown", unlock)
+      }
+      window.addEventListener("pointerdown", unlock)
+      return () => window.removeEventListener("pointerdown", unlock)
+    }, [])
 
     // Leave cleanly on unmount / tab close.
     useEffect(() => {

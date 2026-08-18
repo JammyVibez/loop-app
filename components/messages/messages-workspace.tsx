@@ -18,6 +18,7 @@ import { RichContent } from "@/components/content/rich-content"
 import { ForwardDialog } from "@/components/messages/forward-dialog"
 import { cn } from "@/lib/utils"
 import { uploadMediaFile } from "@/lib/client-media-upload"
+import { optimizeImageUrl } from "@/lib/optimize-image"
 import { playChatSound } from "@/lib/chat-sounds"
 import {
   CHAT_WALLPAPER_PRESETS,
@@ -31,6 +32,7 @@ import {
   ArrowLeft,
   Bell,
   BellOff,
+  Camera,
   Check,
   CheckCheck,
   Copy,
@@ -40,19 +42,20 @@ import {
   Gift,
   MessageCircle,
   Loader2,
-  Lock,
   Mic,
   MicOff,
   MoreHorizontal,
-  Paperclip,
+  Music2,
   Pencil,
   Phone,
   PhoneOff,
+  Plus,
   Reply,
   Search,
   Send,
   Smile,
   Sparkles,
+  Sticker,
   Film,
   Trash2,
   Video,
@@ -72,6 +75,7 @@ import {
   subscriptionToJSON,
   unsubscribeFromPush,
 } from "@/lib/push-client"
+import { unlockAudio } from "@/lib/audio-unlock"
 
 interface Conversation {
   id: string
@@ -243,6 +247,7 @@ export function MessagesWorkspace() {
   const wallpaperSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const cameraFileRef = useRef<HTMLInputElement>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -638,6 +643,7 @@ export function MessagesWorkspace() {
 
   const startCall = async (mode: "video" | "audio") => {
     if (!user || !selectedId || startingCall) return
+    unlockAudio()
     setStartingCall(mode)
     try {
       const res = await fetch("/api/calls", {
@@ -660,6 +666,7 @@ export function MessagesWorkspace() {
 
   const acceptIncomingCall = () => {
     if (!incomingCall) return
+    unlockAudio()
     const next = { sessionId: incomingCall.sessionId, mode: incomingCall.mode }
     setIncomingCall(null)
     setOutgoingCall(next)
@@ -1777,10 +1784,11 @@ export function MessagesWorkspace() {
                           message.message_type === "gif") && (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img
-                            src={message.media_url}
+                            src={optimizeImageUrl(message.media_url, 900) || message.media_url}
                             alt=""
                             className="mb-1 max-h-64 w-full rounded-lg object-cover"
                             loading="lazy"
+                            decoding="async"
                           />
                         )}
                       {message.media_url && (message.media_type === "audio" || message.message_type === "audio") && (
@@ -1988,7 +1996,7 @@ export function MessagesWorkspace() {
         </div>
       )}
 
-      <div className="relative border-t border-border bg-muted p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3">
+      <div className="relative border-t border-border/60 bg-background/70 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl sm:p-3">
         {showEmojiPicker && (
           <>
             <button
@@ -2028,6 +2036,7 @@ export function MessagesWorkspace() {
                   onChange={(e) => {
                     const v = e.target.value
                     setGifSearch(v)
+                    if (gifTimerRef.current) clearTimeout(gifTimerRef.current)
                     const t = setTimeout(() => void loadGifs(v), 350)
                     gifTimerRef.current = t
                   }}
@@ -2087,46 +2096,84 @@ export function MessagesWorkspace() {
               e.target.value = ""
             }}
           />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground"
-            disabled={uploading}
-            onClick={() => fileRef.current?.click()}
-          >
-            {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn("text-muted-foreground", showEmojiPicker && "bg-muted text-violet-600")}
-            onClick={() => setShowEmojiPicker((v) => !v)}
-            title="Emoji"
-          >
-            <Smile className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn("text-muted-foreground", showGifPicker && "bg-muted text-violet-600")}
-            onClick={() => {
-              setShowGifPicker((v) => {
-                if (!v) void loadGifs("")
-                return !v
-              })
-              setShowEmojiPicker(false)
+          <input
+            ref={cameraFileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              void uploadAndSend(file, "image")
+              e.target.value = ""
             }}
-            title="GIF"
-          >
-            <Film className="h-5 w-5" />
-          </Button>
-          <div className="relative min-w-0 flex-1">
+          />
+
+          {/* Circular + button — all attach actions in one tidy menu. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Add to message"
+                title="Add to message"
+                className="h-11 w-11 shrink-0 rounded-full border border-border/60 bg-foreground/[0.04] text-foreground/80 shadow-sm backdrop-blur transition hover:bg-foreground/10 hover:text-foreground"
+              >
+                {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="top" className="w-52">
+              <DropdownMenuItem disabled={uploading} onClick={() => fileRef.current?.click()}>
+                <ImagePlus className="mr-2 h-4 w-4 text-violet-500" />
+                Photo or video
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={uploading} onClick={() => cameraFileRef.current?.click()}>
+                <Camera className="mr-2 h-4 w-4 text-sky-500" />
+                Take a photo
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={uploading} onClick={() => fileRef.current?.click()}>
+                <Music2 className="mr-2 h-4 w-4 text-amber-500" />
+                Audio file
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  setShowGifPicker((v) => {
+                    if (!v) void loadGifs("")
+                    return !v
+                  })
+                  setShowEmojiPicker(false)
+                }}
+              >
+                <Film className="mr-2 h-4 w-4 text-pink-500" />
+                GIF or sticker
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setShowEmojiPicker((v) => !v)
+                  setShowGifPicker(false)
+                }}
+              >
+                <Smile className="mr-2 h-4 w-4 text-amber-500" />
+                Emoji
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setWallpaperPickerOpen(true)}>
+                <Wallpaper className="mr-2 h-4 w-4 text-violet-500" />
+                Chat wallpaper
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Pill input — placeholder + sticker / camera / mic icons inside. */}
+          <div className="relative min-w-0 flex-1 rounded-full border border-border/50 bg-foreground/[0.05] shadow-sm backdrop-blur transition-colors focus-within:border-violet-500/40 focus-within:bg-foreground/[0.07]">
             <MentionTextarea
               value={draft}
               onChange={onDraftChange}
               rows={1}
               placeholder="Message"
-              className="min-h-[40px] resize-none rounded-full border-border bg-background px-4 text-foreground placeholder:text-muted-foreground"
+              className="min-h-[44px] resize-none rounded-full border-0 bg-transparent py-3 pl-4 pr-32 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault()
@@ -2134,36 +2181,64 @@ export function MessagesWorkspace() {
                 }
               }}
             />
+
+            {recording ? (
+              <button
+                type="button"
+                onClick={stopVoice}
+                title="Stop recording"
+                className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-red-500/90 text-white shadow-lg shadow-red-500/30 transition hover:bg-red-500"
+              >
+                <MicOff className="h-4 w-4" />
+              </button>
+            ) : draft.trim() || uploading ? (
+              <button
+                type="button"
+                onClick={() => void sendMessage()}
+                disabled={sending}
+                title="Send"
+                className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-violet-600/25 transition hover:from-violet-500 hover:to-cyan-400 disabled:opacity-60"
+              >
+                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </button>
+            ) : (
+              <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+                <button
+                  type="button"
+                  title="GIFs & stickers"
+                  className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:bg-foreground/10 hover:text-foreground",
+                    showGifPicker && "bg-foreground/10 text-violet-600",
+                  )}
+                  onClick={() => {
+                    setShowGifPicker((v) => {
+                      if (!v) void loadGifs("")
+                      return !v
+                    })
+                    setShowEmojiPicker(false)
+                  }}
+                >
+                  <Sticker className="h-[19px] w-[19px]" />
+                </button>
+                <button
+                  type="button"
+                  title="Take a photo"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:bg-foreground/10 hover:text-foreground"
+                  onClick={() => cameraFileRef.current?.click()}
+                >
+                  <Camera className="h-[19px] w-[19px]" />
+                </button>
+                <button
+                  type="button"
+                  title="Voice message"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:bg-foreground/10 hover:text-foreground"
+                  onClick={() => void startVoice()}
+                >
+                  <Mic className="h-[19px] w-[19px]" />
+                </button>
+              </div>
+            )}
           </div>
-          {recording ? (
-            <Button
-              size="icon"
-              className="rounded-full bg-red-500 hover:bg-red-600"
-              onClick={stopVoice}
-              title="Stop recording"
-            >
-              <MicOff className="h-4 w-4" />
-            </Button>
-          ) : draft.trim() || uploading ? (
-            <Button
-              onClick={() => void sendMessage()}
-              disabled={sending}
-              className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 shadow-lg shadow-violet-600/25 hover:from-violet-500 hover:to-cyan-400"
-              size="icon"
-              title="Send"
-            >
-              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </Button>
-          ) : (
-            <Button
-              size="icon"
-              className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 shadow-lg shadow-violet-600/25 hover:from-violet-500 hover:to-cyan-400"
-              onClick={() => void startVoice()}
-              title="Voice message"
-            >
-              <Mic className="h-4 w-4" />
-            </Button>
-          )}
         </div>
       </div>
 

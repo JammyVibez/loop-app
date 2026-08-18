@@ -34,6 +34,7 @@ import { GiftModal } from "@/components/gifting/gift-modal"
 import { HmsStreamStage, type HmsStreamStageHandle } from "@/components/streams/hms-stream-stage"
 import { LivekitStreamStage } from "@/components/streams/livekit-stream-stage"
 import { cn } from "@/lib/utils"
+import { unlockAudio } from "@/lib/audio-unlock"
 
 interface ChatMessage {
   id: string
@@ -310,6 +311,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
 
   const handleGoLive = async () => {
     if (!isOwner) return
+    unlockAudio()
     setBusy(true)
     try {
       if (!hmsToken) {

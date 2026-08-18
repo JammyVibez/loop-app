@@ -5,8 +5,21 @@ import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Download, Share2, Heart, MessageCircle, GitBranch, Share2 as ShareIcon } from "lucide-react"
+import {
+  Loader2,
+  Download,
+  Share2,
+  Heart,
+  MessageCircle,
+  GitBranch,
+  Share2 as ShareIcon,
+  Crown,
+  Sparkles,
+  ShieldCheck,
+  Play,
+} from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { optimizeImageUrl } from "@/lib/optimize-image"
 
 interface ShareAsImageModalProps {
   open: boolean
@@ -19,8 +32,12 @@ interface ShareAsImageModalProps {
       display_name: string
       avatar_url?: string
       is_verified?: boolean
+      is_premium?: boolean
+      is_sponsor?: boolean
+      is_team?: boolean
     }
     media_url?: string
+    media_type?: string
     stats?: {
       likes_count?: number
       comments_count?: number
@@ -34,7 +51,9 @@ export type ShareCardTheme = "dark" | "light"
 
 const CARD_WIDTH = 1080
 const CARD_HEIGHT = 1080
-const EXPORT_SCALE = 1.9 // 2052×2052 — crisp for social, ~20% faster to encode than 2160
+/** Taller 4:5 card used when the post carries media — hero image above the caption. */
+const MEDIA_CARD_HEIGHT = 1350
+const EXPORT_SCALE = 1.6 // 1728px on the long edge — crisp for social, ~2× faster to encode than 2052
 const BRAND = "#6366f1"
 const DOMAIN = "loopapp.me"
 const AVATAR_LOAD_TIMEOUT_MS = 1500
@@ -70,6 +89,8 @@ interface CardPalette {
   brandDivider: string
   logoFg: string
   footerSub: string
+  mediaBgTop: string
+  mediaBgBottom: string
 }
 
 function paletteFor(theme: ShareCardTheme): CardPalette {
@@ -91,6 +112,8 @@ function paletteFor(theme: ShareCardTheme): CardPalette {
       brandDivider: "rgba(99,102,241,0.45)",
       logoFg: "#ffffff",
       footerSub: "#64748b",
+      mediaBgTop: "#e2e8f0",
+      mediaBgBottom: "#f8fafc",
     }
   }
   return {
@@ -110,6 +133,8 @@ function paletteFor(theme: ShareCardTheme): CardPalette {
     brandDivider: "rgba(99,102,241,0.5)",
     logoFg: "#ffffff",
     footerSub: "#94a3b8",
+    mediaBgTop: "#1e293b",
+    mediaBgBottom: "#0f172a",
   }
 }
 
@@ -174,11 +199,11 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath()
 }
 
-function setupCanvas(canvas: HTMLCanvasElement, scale: number) {
+function setupCanvas(canvas: HTMLCanvasElement, scale: number, height = CARD_HEIGHT) {
   const ctx = canvas.getContext("2d")
   if (!ctx) return null
   canvas.width = Math.round(CARD_WIDTH * scale)
-  canvas.height = Math.round(CARD_HEIGHT * scale)
+  canvas.height = Math.round(height * scale)
   ctx.setTransform(scale, 0, 0, scale, 0, 0)
   return ctx
 }
@@ -275,6 +300,67 @@ function drawShareIcon(ctx: CanvasRenderingContext2D, x: number, y: number, size
   ctx.restore()
 }
 
+/* --------------------- small badge glyphs (premium/sponsor/team) ---------- */
+
+function drawCrownGlyph(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, color: string) {
+  ctx.save()
+  ctx.fillStyle = color
+  ctx.beginPath()
+  ctx.moveTo(cx - s * 0.7, cy + s * 0.5)
+  ctx.lineTo(cx - s * 0.7, cy - s * 0.2)
+  ctx.lineTo(cx - s * 0.35, cy + s * 0.1)
+  ctx.lineTo(cx, cy - s * 0.5)
+  ctx.lineTo(cx + s * 0.35, cy + s * 0.1)
+  ctx.lineTo(cx + s * 0.7, cy - s * 0.2)
+  ctx.lineTo(cx + s * 0.7, cy + s * 0.5)
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+}
+
+function drawStarGlyph(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, color: string) {
+  ctx.save()
+  ctx.fillStyle = color
+  ctx.beginPath()
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 === 0 ? s * 0.5 : s * 0.22
+    const a = (Math.PI / 5) * i - Math.PI / 2
+    const px = cx + Math.cos(a) * r
+    const py = cy + Math.sin(a) * r
+    if (i === 0) ctx.moveTo(px, py)
+    else ctx.lineTo(px, py)
+  }
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+}
+
+function drawShieldGlyph(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, color: string) {
+  ctx.save()
+  ctx.fillStyle = color
+  ctx.beginPath()
+  ctx.moveTo(cx - s * 0.55, cy - s * 0.6)
+  ctx.lineTo(cx + s * 0.55, cy - s * 0.6)
+  ctx.lineTo(cx + s * 0.55, cy + s * 0.05)
+  ctx.quadraticCurveTo(cx + s * 0.55, cy + s * 0.5, cx, cy + s * 0.68)
+  ctx.quadraticCurveTo(cx - s * 0.55, cy + s * 0.5, cx - s * 0.55, cy + s * 0.05)
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+}
+
+function drawPlayGlyph(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, color: string) {
+  ctx.save()
+  ctx.fillStyle = color
+  ctx.beginPath()
+  ctx.moveTo(cx - s * 0.32, cy - s * 0.45)
+  ctx.lineTo(cx + s * 0.42, cy)
+  ctx.lineTo(cx - s * 0.32, cy + s * 0.45)
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+}
+
 /* ------------------------------ canvas card ------------------------------- */
 
 interface DrawStats {
@@ -292,37 +378,40 @@ function drawCardBase(
   scale: number,
   avatarSrc: AvatarSource | null,
   theme: ShareCardTheme,
+  mediaSrc: AvatarSource | null = null,
 ) {
-  const ctx = setupCanvas(canvas, scale)
+  const hasMedia = Boolean(post.media_url)
+  const cardH = hasMedia ? MEDIA_CARD_HEIGHT : CARD_HEIGHT
+  const ctx = setupCanvas(canvas, scale, cardH)
   if (!ctx) return
   const pal = paletteFor(theme)
 
   // Background — follows the app theme (deep navy in dark, soft white in light).
-  const bg = ctx.createLinearGradient(0, 0, CARD_WIDTH, CARD_HEIGHT)
+  const bg = ctx.createLinearGradient(0, 0, CARD_WIDTH, cardH)
   bg.addColorStop(0, pal.bg[0])
   bg.addColorStop(0.55, pal.bg[1])
   bg.addColorStop(1, pal.bg[2])
   ctx.fillStyle = bg
-  ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT)
+  ctx.fillRect(0, 0, CARD_WIDTH, cardH)
 
-  const glow = ctx.createRadialGradient(CARD_WIDTH * 0.15, CARD_HEIGHT * 0.1, 50, CARD_WIDTH * 0.15, CARD_HEIGHT * 0.1, 700)
+  const glow = ctx.createRadialGradient(CARD_WIDTH * 0.15, cardH * 0.1, 50, CARD_WIDTH * 0.15, cardH * 0.1, 700)
   glow.addColorStop(0, pal.glowPrimary)
   glow.addColorStop(1, "rgba(99,102,241,0)")
   ctx.fillStyle = glow
-  ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT)
+  ctx.fillRect(0, 0, CARD_WIDTH, cardH)
 
-  const glow2 = ctx.createRadialGradient(CARD_WIDTH * 0.9, CARD_HEIGHT * 0.95, 50, CARD_WIDTH * 0.9, CARD_HEIGHT * 0.95, 640)
+  const glow2 = ctx.createRadialGradient(CARD_WIDTH * 0.9, cardH * 0.95, 50, CARD_WIDTH * 0.9, cardH * 0.95, 640)
   glow2.addColorStop(0, pal.glowSecondary)
   glow2.addColorStop(1, "rgba(34,211,238,0)")
   ctx.fillStyle = glow2
-  ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT)
+  ctx.fillRect(0, 0, CARD_WIDTH, cardH)
 
   // Decorative rings
   ctx.strokeStyle = pal.ringStroke
   ctx.lineWidth = 2
   for (const r of [180, 320, 460]) {
     ctx.beginPath()
-    ctx.arc(CARD_WIDTH - 140, CARD_HEIGHT - 220, r, 0, Math.PI * 2)
+    ctx.arc(CARD_WIDTH - 140, cardH - 220, r, 0, Math.PI * 2)
     ctx.stroke()
   }
 
@@ -372,23 +461,55 @@ function drawCardBase(
   const nameWidth = ctx.measureText(name).width
   ctx.fillText(name, margin + avatarSize + 60, margin + 68)
 
+  // Badge chips — verified check, premium crown, sponsor star, team shield.
+  const chipR = 22
+  const chips: Array<{
+    bg: string
+    fg: string
+    glyph: (ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, c: string) => void
+    label: string
+  }> = []
   if (post.author.is_verified) {
-    const badgeX = margin + avatarSize + 60 + nameWidth + 24
-    const badgeY = margin + 68 - 42
+    chips.push({ bg: pal.verifyBg, fg: pal.verifyFg, glyph: (ctx, cx, cy, s, c) => {
+      ctx.save()
+      ctx.fillStyle = c
+      ctx.font = `bold ${Math.round(s * 1.15)}px system-ui, sans-serif`
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText("✓", cx, cy + s * 0.06)
+      ctx.restore()
+    }, label: "Verified" })
+  }
+  if (post.author.is_premium) {
+    chips.push({ bg: "#f59e0b", fg: "#ffffff", glyph: drawCrownGlyph, label: "Pro" })
+  }
+  if (post.author.is_sponsor) {
+    chips.push({ bg: "#fbbf24", fg: "#78350f", glyph: drawStarGlyph, label: "Sponsor" })
+  }
+  if (post.author.is_team) {
+    chips.push({ bg: "#6366f1", fg: "#ffffff", glyph: drawShieldGlyph, label: "Team" })
+  }
+  let chipX = margin + avatarSize + 60 + nameWidth + 24
+  const chipCY = margin + 68 - 24
+  for (const chip of chips) {
+    // Keep the chips inside the card — long names win over extra badges.
+    if (chipX + chipR * 2 + 14 > CARD_WIDTH - margin) break
     ctx.save()
     ctx.beginPath()
-    ctx.arc(badgeX + 24, badgeY + 24, 24, 0, Math.PI * 2)
-    ctx.fillStyle = pal.verifyBg
+    ctx.arc(chipX + chipR, chipCY, chipR, 0, Math.PI * 2)
+    ctx.fillStyle = chip.bg
     ctx.fill()
-    ctx.fillStyle = pal.verifyFg
-    ctx.font = "bold 34px system-ui, sans-serif"
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-    ctx.fillText("✓", badgeX + 24, badgeY + 25)
     ctx.restore()
-    ctx.textAlign = "left"
-    ctx.textBaseline = "alphabetic"
+    if (chip.label === "Verified") {
+      chip.glyph(ctx, chipX + chipR, chipCY, chipR * 0.75, chip.fg)
+    } else {
+      chip.glyph(ctx, chipX + chipR, chipCY, chipR * 0.9, chip.fg)
+    }
+    chipX += chipR * 2 + 10
   }
+  ctx.textAlign = "left"
+  ctx.textBaseline = "alphabetic"
+  ctx.font = "bold 52px system-ui, sans-serif"
 
   // --- Username ---
   ctx.font = "normal 34px system-ui, sans-serif"
@@ -403,7 +524,8 @@ function drawCardBase(
   ctx.lineTo(CARD_WIDTH - margin, margin + avatarSize + 80)
   ctx.stroke()
 
-  // --- Post text (truncated to 6 lines so the stats row always fits) ---
+  // --- Post text (fewer lines when the card also shows the media) ---
+  const maxLines = hasMedia ? 3 : 6
   const textStartY = margin + avatarSize + 150
   const bodyText = truncate(post.content || "Shared a loop", 360)
   ctx.font = "normal 46px system-ui, sans-serif"
@@ -420,14 +542,46 @@ function drawCardBase(
     } else {
       line = test
     }
-    if (lines.length >= 6) break
+    if (lines.length >= maxLines) break
   }
-  if (line && lines.length < 6) lines.push(line)
-  const shownLines = lines.slice(0, 6)
+  if (line && lines.length < maxLines) lines.push(line)
+  const shownLines = lines.slice(0, maxLines)
   let y = textStartY
   for (const l of shownLines) {
     ctx.fillText(l, margin, y)
     y += 62
+  }
+  const textBottom = shownLines.length ? y - 62 + 62 : textStartY
+
+  // --- Media band (hero image for the post, cover-cropped) ---
+  if (hasMedia) {
+    const mediaX = margin
+    const mediaY = textBottom + 54
+    const mediaW = CARD_WIDTH - margin * 2
+    const mediaH = 300
+    ctx.save()
+    roundRect(ctx, mediaX, mediaY, mediaW, mediaH, 24)
+    ctx.clip()
+    const mediaBg = ctx.createLinearGradient(mediaX, mediaY, mediaX, mediaY + mediaH)
+    mediaBg.addColorStop(0, pal.mediaBgTop)
+    mediaBg.addColorStop(1, pal.mediaBgBottom)
+    ctx.fillStyle = mediaBg
+    ctx.fillRect(mediaX, mediaY, mediaW, mediaH)
+    if (mediaSrc) {
+      const { w, h } = avatarDimensions(mediaSrc)
+      const cover = Math.max(mediaW / w, mediaH / h)
+      const dw = w * cover
+      const dh = h * cover
+      ctx.drawImage(mediaSrc, mediaX + (mediaW - dw) / 2, mediaY + (mediaH - dh) / 2, dw, dh)
+    } else if (post.media_type === "video") {
+      // Video poster unavailable — show a dark band with a play button.
+      drawPlayGlyph(ctx, mediaX + mediaW / 2, mediaY + mediaH / 2, 64, "rgba(255,255,255,0.9)")
+    }
+    ctx.restore()
+    ctx.strokeStyle = pal.ringStroke
+    ctx.lineWidth = 2
+    roundRect(ctx, mediaX, mediaY, mediaW, mediaH, 24)
+    ctx.stroke()
   }
 
   // --- Engagement stats row (likes · comments · branches · shares) ---
@@ -439,7 +593,7 @@ function drawCardBase(
   }
   const hasStats = stats.likes + stats.comments + stats.branches + stats.shares > 0
   if (hasStats) {
-    const statsY = CARD_HEIGHT - 340 // icon center line
+    const statsY = cardH - 340 // icon center line
     const itemGap = 96
     const items: { icon: (ctx: CanvasRenderingContext2D, x: number, y: number, s: number, c: string) => void; count: number }[] = [
       { icon: drawHeartIcon, count: stats.likes },
@@ -461,7 +615,7 @@ function drawCardBase(
   }
 
   // --- Bottom branding bar ---
-  const barY = CARD_HEIGHT - 190
+  const barY = cardH - 190
   ctx.strokeStyle = pal.brandDivider
   ctx.lineWidth = 2
   ctx.beginPath()
@@ -515,6 +669,7 @@ function ShareCardPreview({ post, theme }: { post: ShareAsImageModalProps["post"
   const name = truncate(post.author.display_name || post.author.username || "User", 22)
   const bodyText = truncate(post.content || "Shared a loop", 360)
   const dark = theme === "dark"
+  const hasMedia = Boolean(post.media_url)
 
   const stats = [
     { icon: Heart, count: Number(post.stats?.likes_count || 0) },
@@ -526,7 +681,7 @@ function ShareCardPreview({ post, theme }: { post: ShareAsImageModalProps["post"
 
   return (
     <div
-      className={`relative aspect-square w-full select-none overflow-hidden rounded-xl text-left ${dark ? "bg-[#0f172a]" : "bg-white"}`}
+      className={`relative w-full select-none overflow-hidden rounded-xl text-left ${hasMedia ? "aspect-[4/5]" : "aspect-square"} ${dark ? "bg-[#0f172a]" : "bg-white"}`}
       style={{ containerType: "inline-size" }}
     >
       {/* Background gradient + glows (mirrors the canvas card) */}
@@ -571,6 +726,30 @@ function ShareCardPreview({ post, theme }: { post: ShareAsImageModalProps["post"
                   ✓
                 </span>
               )}
+              {post.author.is_premium && (
+                <span
+                  title="Pro"
+                  className="flex h-[1.2em] w-[1.2em] shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 text-amber-950"
+                >
+                  <Crown className="h-[0.7em] w-[0.7em]" fill="currentColor" />
+                </span>
+              )}
+              {post.author.is_sponsor && (
+                <span
+                  title="Sponsor"
+                  className="flex h-[1.2em] w-[1.2em] shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-400 to-orange-400 text-amber-950"
+                >
+                  <Sparkles className="h-[0.7em] w-[0.7em]" fill="currentColor" />
+                </span>
+              )}
+              {post.author.is_team && (
+                <span
+                  title="Loop Team"
+                  className="flex h-[1.2em] w-[1.2em] shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 text-white"
+                >
+                  <ShieldCheck className="h-[0.7em] w-[0.7em]" fill="currentColor" />
+                </span>
+              )}
             </p>
             <p className={`truncate text-[clamp(9px,2.4cqw,16px)] ${dark ? "text-slate-400" : "text-slate-500"}`}>@{truncate(post.author.username || "user", 26)}</p>
           </div>
@@ -579,9 +758,32 @@ function ShareCardPreview({ post, theme }: { post: ShareAsImageModalProps["post"
         <div className={`mt-[6%] h-px w-full ${dark ? "bg-slate-400/25" : "bg-slate-500/25"}`} />
 
         {/* Body text */}
-        <p className={`mt-[6%] whitespace-pre-line text-[clamp(12px,3.6cqw,26px)] leading-relaxed [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:6] overflow-hidden ${dark ? "text-slate-100" : "text-slate-800"}`}>
+        <p className={`${hasMedia ? "mt-[4%]" : "mt-[6%]"} whitespace-pre-line text-[clamp(12px,3.6cqw,26px)] leading-relaxed [display:-webkit-box] [-webkit-box-orient:vertical] ${hasMedia ? "[-webkit-line-clamp:3]" : "[-webkit-line-clamp:6]"} overflow-hidden ${dark ? "text-slate-100" : "text-slate-800"}`}>
           {bodyText}
         </p>
+
+        {/* Media thumbnail (hero band) */}
+        {hasMedia && (
+          <div className="relative mt-[5%] overflow-hidden rounded-xl border border-black/5 dark:border-white/10">
+            {post.media_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={optimizeImageUrl(post.media_url, 800) || post.media_url}
+                alt=""
+                className="aspect-[16/9] w-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+            ) : null}
+            {post.media_type === "video" && (
+              <span className="absolute inset-0 flex items-center justify-center">
+                <span className="flex h-[20%] aspect-square min-h-9 items-center justify-center rounded-full bg-black/50 backdrop-blur">
+                  <Play className="h-[45%] w-[45%] text-white" fill="currentColor" />
+                </span>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Spacer */}
         <div className="flex-1" />
@@ -627,6 +829,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
   const [rendered, setRendered] = useState(false)
   const [exporting, setExporting] = useState(false)
   const avatarRef = useRef<AvatarSource | null>(null)
+  const mediaRef = useRef<AvatarSource | null>(null)
   const cachedBlobRef = useRef<Blob | null>(null)
   const generationRef = useRef(0)
 
@@ -659,6 +862,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       setExporting(false)
       cachedBlobRef.current = null
       avatarRef.current = null
+      mediaRef.current = null
       return
     }
     const gen = ++generationRef.current
@@ -669,18 +873,23 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       const canvas = exportCanvasRef.current
       if (!canvas) return
       try {
-        drawCardBase(canvas, post, EXPORT_SCALE, avatarRef.current, theme)
-        const blob = await canvasToJpegBlob(canvas, 0.92)
+        // Instant UI: the HTML preview is what the user sees, so reveal it as
+        // soon as the first draw succeeds — the JPEG encode continues in the
+        // background and Download/Share fall back to on-demand if needed.
+        drawCardBase(canvas, post, EXPORT_SCALE, avatarRef.current, theme, mediaRef.current)
         if (cancelled || gen !== generationRef.current) return
-        cachedBlobRef.current = blob
+        cachedBlobRef.current = await canvasToJpegBlob(canvas, 0.92)
         setRendered(true)
 
-        // Avatar arrives asynchronously — redraw + re-encode so the download
-        // includes the real avatar. Never blocks the initial render.
+        // Avatar + media arrive asynchronously — redraw + re-encode so the
+        // download includes them. Never blocks the initial render.
         const avatar = post.author.avatar_url ? await loadAvatar(post.author.avatar_url) : null
         if (cancelled || gen !== generationRef.current) return
         avatarRef.current = avatar
-        drawCardBase(canvas, post, EXPORT_SCALE, avatar, theme)
+        const media = post.media_url ? await loadAvatar(post.media_url) : null
+        if (cancelled || gen !== generationRef.current) return
+        mediaRef.current = media
+        drawCardBase(canvas, post, EXPORT_SCALE, avatar, theme, media)
         const blob2 = await canvasToJpegBlob(canvas, 0.92)
         if (cancelled || gen !== generationRef.current) return
         cachedBlobRef.current = blob2
@@ -715,7 +924,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
     if (cachedBlobRef.current) return cachedBlobRef.current
     const canvas = exportCanvasRef.current
     if (!canvas) throw new Error("Canvas not ready")
-    drawCardBase(canvas, post, EXPORT_SCALE, avatarRef.current, theme)
+    drawCardBase(canvas, post, EXPORT_SCALE, avatarRef.current, theme, mediaRef.current)
     const blob = await canvasToJpegBlob(canvas, 0.92)
     cachedBlobRef.current = blob
     return blob
