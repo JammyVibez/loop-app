@@ -48,6 +48,7 @@ import { ProCirclePanel } from "@/components/admin/pro-circle-panel"
 import { VerificationBadgesAdminPanel } from "@/components/admin/verification-badges-admin-panel"
 import { SystemHealthPanel } from "@/components/admin/system-health-panel"
 import { BanAppealsPanel } from "@/components/admin/ban-appeals-panel"
+import { AdminAnalyticsTab } from "@/components/admin/admin-analytics-tab"
 import { UserBadges } from "@/components/user-badge"
 
 interface AdminUser {
@@ -190,6 +191,7 @@ export function AdminDashboard() {
 
       <Tabs value={section} onValueChange={setSection}>
         <TabsList className="flex h-auto w-full max-w-6xl flex-wrap gap-1">
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="organizations">Organizations</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
@@ -209,6 +211,10 @@ export function AdminDashboard() {
           <TabsTrigger value="appeals">Ban Appeals</TabsTrigger>
           <TabsTrigger value="health">System Health</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="analytics" className="mt-6">
+          <AdminAnalyticsTab />
+        </TabsContent>
 
         <TabsContent value="users" className="mt-6 space-y-6">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
