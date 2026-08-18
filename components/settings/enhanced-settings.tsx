@@ -270,6 +270,7 @@ export function EnhancedSettings() {
           ...getAuthHeader(),
         },
         body: JSON.stringify({
+          username: formData.username,
           display_name: formData.display_name,
           bio: formData.bio,
           website: formData.website,
@@ -306,6 +307,10 @@ export function EnhancedSettings() {
       if (data.profile) applyServerProfile(data.profile)
       await refreshUser()
       toast({ title: "Settings saved", description: "Your preferences are up to date." })
+      // If username changed, redirect to the new profile URL so links stay valid
+      if (formData.username && formData.username !== user.username && data.profile?.username) {
+        window.location.href = `/profile/${data.profile.username}`
+      }
     } catch (error: any) {
       toast({ title: "Could not save", description: error.message, variant: "destructive" })
     } finally {
@@ -548,7 +553,15 @@ export function EnhancedSettings() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="username">Username</Label>
-                  <Input id="username" value={formData.username} disabled />
+                  <Input
+                    id="username"
+                    value={formData.username}
+                    onChange={(e) => {
+                      const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "")
+                      setFormData((prev) => ({ ...prev, username: val }))
+                    }}
+                    placeholder="lowercase, letters, numbers, underscores"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="website">Website</Label>

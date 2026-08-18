@@ -136,40 +136,52 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const [showGiftModal, setShowGiftModal] = useState(false)
   const coverInputRef = useRef<HTMLInputElement>(null)
 
+  const fetchProfileRef = useRef<{ inFlight?: boolean; lastUsername?: string }>({})
+
   const fetchProfile = useCallback(async (opts?: { silent?: boolean }) => {
-    if (!opts?.silent) setLoading(true)
+    // Guard: skip if this exact username was already fetched and is still in-flight
+    // or if the profile is already up-to-date for this username.
+    const key = `${username}:${user?.id ?? "guest"}`
+    if (fetchProfileRef.current.inFlight && fetchProfileRef.current.lastUsername === key) return
+    fetchProfileRef.current.inFlight = true
+    fetchProfileRef.current.lastUsername = key
+
     try {
+      if (!opts?.silent) setLoading(true)
       const response = await fetch(`/api/users/profile?username=${encodeURIComponent(username)}`, {
         headers: user ? getAuthHeader() : undefined,
         cache: "no-store",
       })
       if (response.ok) {
         const data = await response.json()
-        setProfile(data.profile)
-        setIsFollowing(Boolean(data.profile?.is_following))
-        setFollowRequestPending(Boolean(data.profile?.has_pending_follow_request))
-        setIsPrivateProfile(Boolean(data.profile?.is_private))
-        setCanViewFull(data.profile?.can_view_full !== false)
-        // Sync only slim auth fields for own profile — never full payload
-        if (user && data.profile?.id === user.id) {
+        const newProfile = data.profile
+        setProfile(newProfile)
+        setIsFollowing(Boolean(newProfile?.is_following))
+        setFollowRequestPending(Boolean(newProfile?.has_pending_follow_request))
+        setIsPrivateProfile(Boolean(newProfile?.is_private))
+        setCanViewFull(newProfile?.can_view_full !== false)
+        // Sync only slim auth fields for own profile — never full payload.
+        // Only update if the username actually differs to avoid unnecessary auth
+        // state churn that can trigger re-render loops.
+        if (user && newProfile?.id === user.id && newProfile.username !== user.username) {
           applyServerProfile({
-            username: data.profile.username,
-            display_name: data.profile.display_name,
-            avatar_url: data.profile.avatar_url,
-            banner_url: data.profile.banner_url,
-            bio: data.profile.bio,
-            tagged_circles: Array.isArray(data.profile.tagged_circles) ? data.profile.tagged_circles : [],
-            loop_coins: data.profile.loop_coins,
-            is_premium: data.profile.is_premium,
-            is_verified: data.profile.is_verified,
-            is_admin: data.profile.is_admin,
-            theme_preferences: data.profile.theme_preferences,
-            location: data.profile.location,
-            website: data.profile.website,
+            username: newProfile.username,
+            display_name: newProfile.display_name,
+            avatar_url: newProfile.avatar_url,
+            banner_url: newProfile.banner_url,
+            bio: newProfile.bio,
+            tagged_circles: Array.isArray(newProfile.tagged_circles) ? newProfile.tagged_circles : [],
+            loop_coins: newProfile.loop_coins,
+            is_premium: newProfile.is_premium,
+            is_verified: newProfile.is_verified,
+            is_admin: newProfile.is_admin,
+            theme_preferences: newProfile.theme_preferences,
+            location: newProfile.location,
+            website: newProfile.website,
           })
-          if (typeof window !== "undefined" && isShopThemePayload(data.profile.theme_preferences)) {
+          if (typeof window !== "undefined" && isShopThemePayload(newProfile.theme_preferences)) {
             window.dispatchEvent(
-              new CustomEvent("loop-profile-theme", { detail: data.profile.theme_preferences }),
+              new CustomEvent("loop-profile-theme", { detail: newProfile.theme_preferences }),
             )
           }
         }
@@ -179,9 +191,10 @@ export function Enhanced3DProfile({ username }: { username: string }) {
     } catch (error) {
       console.error("Error fetching profile:", error)
     } finally {
+      fetchProfileRef.current.inFlight = false
       if (!opts?.silent) setLoading(false)
     }
-  }, [username, user?.id, getAuthHeader, applyServerProfile])
+  }, [username, user?.id, user?.username, getAuthHeader, applyServerProfile])
 
   useEffect(() => {
     void fetchProfile()

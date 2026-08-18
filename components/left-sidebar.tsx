@@ -15,11 +15,10 @@ import {
   Video,
   Radio,
   Calendar,
-  MessageCircle,
   Users,
   Coins,
   Bookmark,
-  Bell,
+
   Shield,
   Sparkles,
   LogOut,
@@ -48,8 +47,6 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   const { user, signOut } = useAuth()
   const pathname = usePathname()
   const [trendingCircles, setTrendingCircles] = useState<CircleItem[]>([])
-  const [unreadNotifs, setUnreadNotifs] = useState(0)
-  const [unreadMessages, setUnreadMessages] = useState(0)
 
   useEffect(() => {
     if (!user) return
@@ -63,34 +60,15 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       })
       .catch(() => {})
 
-    fetch("/api/notifications?unread_only=true", {
-      headers: { Authorization: `Bearer ${user.access_token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.notifications) {
-          setUnreadNotifs(data.notifications.length)
-        }
-      })
-      .catch(() => {})
 
-    fetch("/api/messages/unread-count", {
-      headers: { Authorization: `Bearer ${user.access_token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && typeof data.count === "number") {
-          setUnreadMessages(data.count)
-        }
-      })
-      .catch(() => {})
   }, [user])
 
   if (!user) return null
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const discoveryNav = [
     { href: "/", label: "Home Feed", icon: Sparkles },
-    { href: "/messages", label: "Messages & Chat", icon: MessageCircle, count: unreadMessages > 0 ? unreadMessages : null },
+    // Messages moved to navbar only
     { href: "/explore", label: "Explore & Search", icon: Compass },
     { href: "/developers", label: "Developer Hub", icon: Code2 },
     { href: "/streams", label: "Live Streams", icon: Radio, badge: "LIVE" },
@@ -101,12 +79,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
     { href: "/wallet", label: "Wallet & Gifts", icon: Coins },
     { href: "/bookmarks", label: "Saved Bookmarks", icon: Bookmark },
     { href: "/invite", label: "Invite Friends", icon: UserPlus },
-    {
-      href: "/notifications",
-      label: "Notifications",
-      icon: Bell,
-      count: unreadNotifs > 0 ? unreadNotifs : null,
-    },
+    // Notifications moved to navbar only
   ]
 
   if (user.is_premium) {
@@ -158,11 +131,6 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
                       {item.badge}
                     </Badge>
                   )}
-                  {item.count ? (
-                    <Badge className="bg-sky-500 text-[10px] px-1.5 py-0 text-white font-bold">
-                      {item.count}
-                    </Badge>
-                  ) : null}
                 </Link>
               )
             })}
