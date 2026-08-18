@@ -72,6 +72,8 @@ const files = [
   "scripts/events-moderation-schema.sql",
   // Admin-created custom checkmarks: verification_badges + profiles.badge_id.
   "scripts/custom-checkmarks-schema.sql",
+  // Reduce coin pack bonuses and add mid/upper tiers.
+  "scripts/update-coin-packs.sql",
 ]
 
 const ignorable = [

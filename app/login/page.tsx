@@ -62,10 +62,8 @@ export default function LoginPage() {
 
     try {
       await login(email, password)
-      // Give cookie/session hydrate a beat before navigation
-      await new Promise((r) => setTimeout(r, 50))
+      // Navigate immediately — session cookie is already set by the API response.
       router.replace(redirect && redirect.startsWith("/") ? redirect : "/")
-      router.refresh()
     } catch (err: any) {
       setError(err.message || "Failed to sign in")
     } finally {
