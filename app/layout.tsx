@@ -18,6 +18,7 @@ import { GiftNotificationSystem } from "@/components/gifting/gift-notification"
 import { CosmeticFontLoader } from "@/components/cosmetics/cosmetic-font-loader"
 import { GlobalFab } from "@/components/global-fab"
 import { PushAutoSubscribe } from "@/components/pwa/push-auto-subscribe"
+import { NotificationAutoPrompt } from "@/components/pwa/notification-auto-prompt"
 import { NativeShell } from "@/components/pwa/native-shell"
 import { MaintenanceGate } from "@/components/maintenance/maintenance-gate"
 import { checkEnvironmentVariables, logEnvironmentStatus, validateEnvironment } from "@/lib/env-check"
@@ -213,6 +214,7 @@ export default function RootLayout({
                       <GiftNotificationSystem />
         <CosmeticFontLoader />
                       <PushAutoSubscribe />
+                      <NotificationAutoPrompt />
                       <NativeShell />
                       <Toaster />
                       <div id="performance-monitor" className="hidden" />
