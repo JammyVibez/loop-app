@@ -49,6 +49,7 @@ import { ProCirclePanel } from "@/components/admin/pro-circle-panel"
 import { VerificationBadgesAdminPanel } from "@/components/admin/verification-badges-admin-panel"
 import { SystemHealthPanel } from "@/components/admin/system-health-panel"
 import { BanAppealsPanel } from "@/components/admin/ban-appeals-panel"
+import { AdminAccountManagement } from "@/components/admin/admin-account-management"
 import { CoLoopSessionsPanel } from "@/components/admin/co-loop-sessions-panel"
 import { AdminAnalyticsTab } from "@/components/admin/admin-analytics-tab"
 import { UserBadges } from "@/components/user-badge"
@@ -428,6 +429,7 @@ export function AdminDashboard() {
           <LogoControl />
           <CacheManagementPanel />
           <ProLoungeSettings />
+          <AdminAccountManagement />
         </TabsContent>
 
         <TabsContent value="organizations" className="mt-6">

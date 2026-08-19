@@ -15,6 +15,7 @@ import { User, Bell, Shield, Palette, Trash2, Moon, Sun, Upload, Crown, Mail, Lo
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { useTheme } from "next-themes"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 
 export function SettingsContent() {
   const { user, getAuthHeader, refreshUser, applyServerProfile } = useAuth()
@@ -22,6 +23,12 @@ export function SettingsContent() {
   const { toast } = useToast()
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [uploadingBanner, setUploadingBanner] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState("")
+  const [deletionScheduled, setDeletionScheduled] = useState(false)
+  const [deletionExecuteAfter, setDeletionExecuteAfter] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
   const [profileData, setProfileData] = useState({
     display_name: user?.display_name || "",
@@ -258,13 +265,67 @@ export function SettingsContent() {
     })
   }
 
+  // Check deletion status on mount
+  useEffect(() => {
+    if (!user) return
+    fetch("/api/users/delete-account", { headers: { ...getAuthHeader() } })
+      .then(r => r.json())
+      .then(data => {
+        if (data.scheduled) {
+          setDeletionScheduled(true)
+          setDeletionExecuteAfter(data.execute_after)
+        }
+      })
+      .catch(() => {})
+  }, [user])
+
   const handleDeleteAccount = () => {
-    // This would show a confirmation dialog in a real app
-    toast({
-      title: "Account Deletion",
-      description: "This action would require additional confirmation.",
-      variant: "destructive",
-    })
+    setDeleteDialogOpen(true)
+    setDeleteConfirmText("")
+  }
+
+  const confirmDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") return
+    setDeleting(true)
+    try {
+      const res = await fetch("/api/users/delete-account", {
+        method: "POST",
+        headers: { ...getAuthHeader() },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to schedule deletion")
+      setDeletionScheduled(true)
+      setDeletionExecuteAfter(data.execute_after)
+      setDeleteDialogOpen(false)
+      toast({
+        title: "Account deletion scheduled",
+        description: "Your account will be deleted in 3 days. You can cancel anytime before then.",
+        variant: "destructive",
+      })
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const cancelDeletion = async () => {
+    setCancelling(true)
+    try {
+      const res = await fetch("/api/users/delete-account", {
+        method: "DELETE",
+        headers: { ...getAuthHeader() },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to cancel")
+      setDeletionScheduled(false)
+      setDeletionExecuteAfter(null)
+      toast({ title: "Deletion cancelled", description: "Your account is safe." })
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" })
+    } finally {
+      setCancelling(false)
+    }
   }
 
   return (
@@ -819,15 +880,68 @@ export function SettingsContent() {
                     Permanently delete your account and all data
                   </p>
                 </div>
-                <Button variant="destructive" size="sm" onClick={handleDeleteAccount}>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Account
-                </Button>
+                {deletionScheduled ? (
+                  <div className="space-y-2">
+                    <Badge variant="destructive" className="text-xs">
+                      Deletion scheduled for {deletionExecuteAfter ? new Date(deletionExecuteAfter).toLocaleDateString() : 'soon'}
+                    </Badge>
+                    <Button variant="outline" size="sm" onClick={cancelDeletion} disabled={cancelling} className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
+                      {cancelling ? "Cancelling..." : "Cancel Deletion"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="destructive" size="sm" onClick={handleDeleteAccount}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Account
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
       </TabsContent>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-md bg-card border-rose-500/30">
+          <DialogHeader>
+            <DialogTitle className="text-rose-400">Delete Account</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. Your account will be deactivated immediately and permanently deleted after 3 days.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg bg-rose-500/10 border border-rose-500/20 p-3 text-sm text-rose-300">
+              <p className="font-semibold mb-1">What happens:</p>
+              <ul className="list-disc list-inside space-y-1 text-xs text-rose-300/80">
+                <li>Your profile becomes inaccessible immediately</li>
+                <li>Your posts remain visible but show &quot;Deleted Account&quot;</li>
+                <li>You cannot log in for 3 days (grace period)</li>
+                <li>After 3 days, all data is permanently deleted</li>
+              </ul>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Type DELETE to confirm</Label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="Type DELETE"
+                className="border-rose-500/30 focus:border-rose-500"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={confirmDeleteAccount}
+                disabled={deleteConfirmText !== "DELETE" || deleting}
+              >
+                {deleting ? "Scheduling..." : "Delete Account"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Tabs>
   )
 }

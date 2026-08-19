@@ -8,7 +8,7 @@ const supabase = createClient(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = req.headers.get("authorization")
@@ -22,7 +22,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const pollId = params.id
+    const { id: pollId } = await params
     const body = await req.json()
     const { question, options } = body
 

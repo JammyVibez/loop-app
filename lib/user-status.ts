@@ -12,15 +12,15 @@ export type ProfileStatus = "active" | "suspended" | "deleted"
 
 export function profileStatus(profile: Record<string, any> | null | undefined): ProfileStatus {
   if (!profile) return "active"
-  if (profile.is_deleted) return "deleted"
+  if (profile.is_deleted || profile.deletion_executed_at) return "deleted"
   if (profile.is_banned) return "suspended"
   return "active"
 }
 
 export const DELETED_USER = {
   username: "deleted_user",
-  display_name: "Deleted User",
-  name: "Deleted User",
+  display_name: "Deleted Account",
+  name: "Deleted Account",
   avatar_url: null,
   banner_url: null,
   bio: "",
