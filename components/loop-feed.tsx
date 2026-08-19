@@ -8,6 +8,7 @@ import { Loader2, RefreshCw, ArrowUp, Plus, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { LoopCard } from "@/components/loop-card"
+import { OpenCoLoopInviteCard } from "@/components/co-loop/open-co-loop-invite-card"
 import { AdCard, type AdData } from "@/components/ads/ad-card"
 import { normalizeLoops, type NormalizedLoop } from "@/lib/normalize-loop"
 import { LoopFeedSkeleton } from "@/components/loading-states"
@@ -781,15 +782,19 @@ export function LoopFeed({
                   </span>
                 </Link>
               )}
-              <LoopCard
-                loop={loop}
-                interacting={interacting}
-                onInteraction={handleInteraction}
-                onDeleted={(loopId) => setLoops((prev) => prev.filter((item) => item.id !== loopId))}
-                onEdited={(updatedLoop) =>
-                  setLoops((prev) => prev.map((item) => (item.id === updatedLoop.id ? updatedLoop : item)))
-                }
-              />
+              {((loop as any).content_type === "open_coloop_invite" || (loop as any).post_type === "open_coloop_invite" || (loop as any).content_metadata?.is_open_coloop_invite) ? (
+                <OpenCoLoopInviteCard post={loop as any} />
+              ) : (
+                <LoopCard
+                  loop={loop}
+                  interacting={interacting}
+                  onInteraction={handleInteraction}
+                  onDeleted={(loopId) => setLoops((prev) => prev.filter((item) => item.id !== loopId))}
+                  onEdited={(updatedLoop) =>
+                    setLoops((prev) => prev.map((item) => (item.id === updatedLoop.id ? updatedLoop : item)))
+                  }
+                />
+              )}
             </div>
           )
         })}

@@ -2,14 +2,15 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Home, Radio, Video, Lightbulb, CheckCircle2, Zap } from "lucide-react"
+import { Home, Radio, Video, Lightbulb, CheckCircle2, Zap, Sparkles } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateLoopButton } from "@/components/create-loop-button"
 import { CreateReelForm } from "@/components/create/create-reel-form"
 import { CreateStreamForm } from "@/components/create/create-stream-form"
 import { CreateMomentForm } from "@/components/create/create-moment-form"
+import { CreateOpenCoLoopForm } from "@/components/create/create-open-coloop-form"
 
-export type CreateTab = "loop" | "reel" | "live" | "moment"
+export type CreateTab = "loop" | "reel" | "live" | "moment" | "coloop"
 
 const TIPS = [
   {
@@ -41,7 +42,7 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">
         <Tabs value={tab} onValueChange={(v) => setTab(v as CreateTab)}>
-          <TabsList className="grid w-full grid-cols-4 rounded-full">
+          <TabsList className="grid w-full grid-cols-5 rounded-full">
             <TabsTrigger value="loop" className="rounded-full">
               <Home className="mr-1.5 h-4 w-4" /> Loop
             </TabsTrigger>
@@ -53,6 +54,9 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
             </TabsTrigger>
             <TabsTrigger value="live" className="rounded-full">
               <Radio className="mr-1.5 h-4 w-4" /> Live
+            </TabsTrigger>
+            <TabsTrigger value="coloop" className="rounded-full">
+              <Sparkles className="mr-1.5 h-4 w-4" /> Co-Loop
             </TabsTrigger>
           </TabsList>
 
@@ -70,6 +74,9 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
 
           <TabsContent value="live" className="mt-5">
             <CreateStreamForm onStreamCreated={(streamId) => router.push(streamId ? `/streams/${streamId}` : "/streams")} />
+          </TabsContent>
+          <TabsContent value="coloop" className="mt-5">
+            <CreateOpenCoLoopForm onCreated={(sessionId) => router.push(`/co-loop/studio?session=${sessionId}`)} />
           </TabsContent>
         </Tabs>
       </div>

@@ -1,0 +1,31 @@
+User-agent: *
+Allow: /
+
+# Allow all social media crawlers (Twitter/X, Facebook, LinkedIn, etc.)
+User-agent: Twitterbot
+Allow: /
+
+User-agent: FacebookExternalHit
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: Slackbot
+Allow: /
+
+User-agent: Discordbot
+Allow: /
+
+# Allow Googlebot
+User-agent: Googlebot
+Allow: /
+
+# Disallow sensitive paths
+Disallow: /api/
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /auth
+Disallow: /co-loop/studio
+
+Sitemap: https://loopapp.me/sitemap.xml
