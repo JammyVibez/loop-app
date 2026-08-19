@@ -330,7 +330,7 @@ export default function OnboardingPage() {
     switch (step) {
       case 1:
         return (
-          <Card className="w-full max-w-2xl landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
+          <Card className="w-full max-w-2xl landing-card-3d border-border bg-card text-foreground shadow-2xl shadow-violet-950/10 dark:shadow-violet-950/30 backdrop-blur-xl">
             <CardHeader className="text-center">
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <TreePine className="text-white w-8 h-8" />
@@ -364,7 +364,7 @@ export default function OnboardingPage() {
                   />
                 </div>
                 <h3 className="text-xl font-semibold mt-4">{user?.display_name}</h3>
-                <p className="text-gray-600 dark:text-gray-400">@{user?.username}</p>
+                <p className="text-muted-foreground">@{user?.username}</p>
               </div>
 
               <div className="space-y-2">
@@ -387,7 +387,7 @@ export default function OnboardingPage() {
 
       case 2:
         return (
-          <Card className="w-full max-w-2xl landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
+          <Card className="w-full max-w-2xl landing-card-3d border-border bg-card text-foreground shadow-2xl shadow-violet-950/10 dark:shadow-violet-950/30 backdrop-blur-xl">
             <CardHeader className="text-center">
               <Users className="w-12 h-12 text-purple-600 mx-auto mb-4" />
               <CardTitle className="text-2xl">What interests you?</CardTitle>
@@ -427,7 +427,7 @@ export default function OnboardingPage() {
 
       case 3:
         return (
-          <Card className="w-full max-w-2xl landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
+          <Card className="w-full max-w-2xl landing-card-3d border-border bg-card text-foreground shadow-2xl shadow-violet-950/10 dark:shadow-violet-950/30 backdrop-blur-xl">
             <CardHeader className="text-center">
               <Palette className="w-12 h-12 text-purple-600 mx-auto mb-4" />
               <CardTitle className="text-2xl">Choose your theme</CardTitle>
@@ -464,7 +464,7 @@ export default function OnboardingPage() {
 
       case 4:
         return (
-          <Card className="w-full max-w-2xl landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
+          <Card className="w-full max-w-2xl landing-card-3d border-border bg-card text-foreground shadow-2xl shadow-violet-950/10 dark:shadow-violet-950/30 backdrop-blur-xl">
             <CardHeader className="text-center">
               <Zap className="w-12 h-12 text-purple-600 mx-auto mb-4" />
               <CardTitle className="text-2xl">Personalize your start</CardTitle>
@@ -504,7 +504,7 @@ export default function OnboardingPage() {
 
       case 5:
         return (
-          <Card className="w-full max-w-2xl landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
+          <Card className="w-full max-w-2xl landing-card-3d border-border bg-card text-foreground shadow-2xl shadow-violet-950/10 dark:shadow-violet-950/30 backdrop-blur-xl">
             <CardHeader className="text-center">
               <Zap className="w-12 h-12 text-purple-600 mx-auto mb-4" />
               <CardTitle className="text-2xl">You're all set!</CardTitle>
@@ -512,19 +512,19 @@ export default function OnboardingPage() {
             </CardHeader>
             <CardContent className="space-y-5">
               {loadingFirstWin ? (
-                <p className="text-center text-sm text-slate-400">Finding people and circles for you…</p>
+                <p className="text-center text-sm text-muted-foreground">Finding people and circles for you…</p>
               ) : (
                 <>
                   {suggestedUsers.length > 0 && (
                     <div>
-                      <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-200">
+                      <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-foreground">
                         <UserPlus className="h-4 w-4 text-violet-400" /> Creators picked for you
                       </h3>
                       <div className="space-y-2">
                         {suggestedUsers.map((u) => (
                           <div
                             key={u.id}
-                            className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5"
+                            className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/50 p-2.5"
                           >
                             <div className="flex min-w-0 items-center gap-2.5">
                               <Avatar className="h-9 w-9">
@@ -533,7 +533,7 @@ export default function OnboardingPage() {
                               </Avatar>
                               <div className="min-w-0">
                                 <p className="truncate text-sm font-medium">{u.display_name || u.username}</p>
-                                <p className="truncate text-xs text-slate-400">{u.reason || `@${u.username}`}</p>
+                                <p className="truncate text-xs text-muted-foreground">{u.reason || `@${u.username}`}</p>
                               </div>
                             </div>
                             <Button
@@ -553,18 +553,18 @@ export default function OnboardingPage() {
 
                   {suggestedCircles.length > 0 && (
                     <div>
-                      <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-200">
+                      <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-foreground">
                         <Users className="h-4 w-4 text-cyan-400" /> Join a circle
                       </h3>
                       <div className="space-y-2">
                         {suggestedCircles.slice(0, 2).map((c) => (
                           <div
                             key={c.id}
-                            className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5"
+                            className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/50 p-2.5"
                           >
                             <div className="min-w-0">
                               <p className="truncate text-sm font-medium">{c.name}</p>
-                              <p className="truncate text-xs text-slate-400">
+                              <p className="truncate text-xs text-muted-foreground">
                                 {c.member_count ? `${c.member_count} members` : c.description || "Community circle"}
                               </p>
                             </div>
@@ -586,8 +586,8 @@ export default function OnboardingPage() {
               )}
 
               <div className="rounded-2xl border border-dashed border-violet-500/30 bg-violet-500/[0.06] p-4 text-center">
-                <p className="text-sm font-medium text-slate-200">Ready to participate?</p>
-                <p className="mt-0.5 text-xs text-slate-400">Start something or jump into the action — your first move lands in the feed instantly.</p>
+                <p className="text-sm font-medium text-foreground">Ready to participate?</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Start something or jump into the action — your first move lands in the feed instantly.</p>
                 <div className="mt-3 flex flex-wrap justify-center gap-2">
                   <Button asChild size="sm" variant="outline" className="rounded-full">
                     <Link href="/create/loop"><Home className="mr-1.5 h-3.5 w-3.5" /> First Loop</Link>
@@ -626,10 +626,10 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#030712] text-slate-100 flex items-center justify-center p-4">
-      <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-40" />
-      <div className="landing-aurora-blob pointer-events-none absolute -left-1/4 top-[-20%] h-[70vmin] w-[70vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.45),transparent_65%)] blur-3xl" />
-      <div className="landing-aurora-blob pointer-events-none absolute -right-1/4 top-[10%] h-[60vmin] w-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.35),transparent_65%)] blur-3xl [animation-delay:-6s]" />
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground flex items-center justify-center p-4">
+      <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-40 dark:block hidden" />
+      <div className="landing-aurora-blob pointer-events-none absolute -left-1/4 top-[-20%] dark:block hidden h-[70vmin] w-[70vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.45),transparent_65%)] blur-3xl" />
+      <div className="landing-aurora-blob pointer-events-none absolute -right-1/4 top-[10%] dark:block hidden h-[60vmin] w-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.35),transparent_65%)] blur-3xl [animation-delay:-6s]" />
       <div className="relative z-10 w-full flex flex-col items-center">
         {/* Progress indicator */}
         <div className="flex items-center space-x-2 mb-8">
@@ -638,7 +638,7 @@ export default function OnboardingPage() {
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                   step >= stepNumber
-                    ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white" :"bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                    ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white" :"bg-muted text-muted-foreground"
                 }`}
               >
                 {step > stepNumber ? <Check className="w-4 h-4" /> : stepNumber}
@@ -646,7 +646,7 @@ export default function OnboardingPage() {
               {stepNumber < 5 && (
                 <div
                   className={`w-8 h-0.5 sm:w-12 ${
-                    step > stepNumber ? "bg-gradient-to-r from-purple-600 to-blue-600" : "bg-gray-200 dark:bg-gray-700"
+                    step > stepNumber ? "bg-gradient-to-r from-purple-600 to-blue-600" : "bg-muted"
                   }`}
                 />
               )}
@@ -659,7 +659,7 @@ export default function OnboardingPage() {
         <div className="mt-6 flex w-full max-w-2xl justify-center">
           <Button
             variant="ghost"
-            className="text-slate-400 hover:text-slate-100"
+            className="text-muted-foreground hover:text-foreground"
             onClick={handleSkip}
             disabled={saving}
           >
