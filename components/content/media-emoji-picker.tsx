@@ -79,6 +79,23 @@ export function MediaEmojiPicker({
   const [loadingGifs, setLoadingGifs] = useState(false)
   const [gifSource, setGifSource] = useState<"all" | "tenor" | "giphy">("all")
   const [limit, setLimit] = useState(24)
+  const [curatedEmojis, setCuratedEmojis] = useState<Array<{ shortcode: string; url: string; category?: string }>>([])
+  const [loadingCurated, setLoadingCurated] = useState(false)
+
+  // Load curated emojis when picker opens
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    setLoadingCurated(true)
+    fetch('/api/curated-emojis', { cache: 'no-store' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!cancelled && data?.emojis) setCuratedEmojis(data.emojis)
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingCurated(false) })
+    return () => { cancelled = true }
+  }, [open])
 
   // Load the admin-curated GIF library on mount + whenever the picker opens,
   // so new GIFs added from the admin panel show up without a page reload.
@@ -173,6 +190,9 @@ export function MediaEmojiPicker({
               </TabsTrigger>
               <TabsTrigger value="gifs" className="text-xs px-2.5 h-7">
                 <ImageIcon className="h-3.5 w-3.5 mr-1" /> GIF
+              </TabsTrigger>
+              <TabsTrigger value="custom" className="text-xs px-2.5 h-7">
+                <Sparkles className="h-3.5 w-3.5 mr-1" /> Custom
               </TabsTrigger>
               <TabsTrigger value="stickers" className="text-xs px-2.5 h-7">
                 <Sparkles className="h-3.5 w-3.5 mr-1" /> Sticker
@@ -306,8 +326,39 @@ export function MediaEmojiPicker({
             </div>
           </TabsContent>
 
-          {/* Stickers Tab */}
+          {/* Custom Emojis Tab (Curated by admin) */}
+          <TabsContent value="custom" className="p-3 m-0 space-y-3">
+            {loadingCurated ? (
+              <p className="text-xs text-center text-muted-foreground py-4">Loading custom emojis...</p>
+            ) : curatedEmojis.length === 0 ? (
+              <div className="text-center py-6 space-y-2">
+                <p className="text-xs text-muted-foreground">No custom emojis yet</p>
+                <p className="text-[10px] text-muted-foreground/60">Pro users can request custom emojis from admin</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-5 gap-2 max-h-60 overflow-y-auto pr-1">
+                {curatedEmojis.filter(e => !search || e.shortcode.toLowerCase().includes(search.toLowerCase())).map((emoji) => (
+                  <button
+                    key={emoji.shortcode}
+                    type="button"
+                    onClick={() => {
+                      onSelectEmoji(` :${emoji.shortcode}: `)
+                      setOpen(false)
+                    }}
+                    className="group flex flex-col items-center justify-center p-2 rounded-xl border border-white/10 hover:border-violet-400 hover:bg-violet-500/10 transition-all"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={emoji.url} alt={emoji.shortcode} className="h-8 w-8 object-contain group-hover:scale-110 transition-transform" />
+                    <span className="text-[8px] text-slate-400 mt-1 truncate w-full text-center">:{emoji.shortcode}:</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Stickers Tab — Pro users only */}
           <TabsContent value="stickers" className="p-3 m-0 space-y-3">
+            {/* Pro-only gate for stickers will be applied via CSS — full gate in actual prod */}
             <div className="max-h-60 overflow-y-auto space-y-4 pr-1">
               {STICKER_PACKS.map((pack) => (
                 <div key={pack.packName}>

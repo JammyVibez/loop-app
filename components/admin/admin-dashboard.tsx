@@ -470,6 +470,9 @@ export function AdminDashboard() {
         <TabsContent value="gifs" className="mt-6">
           <AdminGifsPanel />
         </TabsContent>
+        <TabsContent value="emojis" className="mt-6">
+          <AdminEmojisPanel />
+        </TabsContent>
 
         <TabsContent value="broadcast" className="mt-6">
           <AdminBroadcastPanel />

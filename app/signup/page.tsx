@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/hooks/use-auth"
-import { Loader2, Eye, EyeOff, ArrowRight, Zap, Check, X } from "lucide-react"
+import { Loader2, Eye, EyeOff, ArrowRight, Zap, Check, X, Users, Sparkles } from "lucide-react"
 
 export default function SignupPage() {
   const [email, setEmail] = useState("")
@@ -123,11 +123,11 @@ export default function SignupPage() {
       <div className={"relative z-10 w-full max-w-md px-6 py-8 transition-all duration-700 " + (mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>
         {/* Logo */}
         <div className="flex justify-center mb-6">
-          <div className="relative">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 via-blue-500 to-cyan-500 flex items-center justify-center shadow-2xl shadow-violet-500/30 -rotate-3 hover:rotate-0 transition-transform duration-300">
-              <Zap className="h-7 w-7 text-white" />
+          <div className="relative group">
+            <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-2xl shadow-violet-500/30 -rotate-3 hover:rotate-0 transition-transform duration-300 ring-2 ring-violet-500/30">
+              <img src="/icons/icon.svg" alt="Loop" className="h-full w-full" />
             </div>
-            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-500 opacity-20 blur-lg" />
+            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-500 opacity-20 blur-lg group-hover:opacity-30 transition-opacity" />
           </div>
         </div>
 
@@ -325,6 +325,28 @@ export default function SignupPage() {
           <Link href="/terms" className="hover:text-slate-400 transition-colors">Terms</Link>
           <span>·</span>
           <Link href="/privacy" className="hover:text-slate-400 transition-colors">Privacy</Link>
+        </div>
+
+        {/* Feature highlights */}
+        <div className="grid grid-cols-3 gap-4 mt-8 max-w-sm mx-auto">
+          <div className="text-center space-y-1.5">
+            <div className="w-8 h-8 mx-auto rounded-lg bg-cyan-500/10 flex items-center justify-center">
+              <Sparkles className="h-4 w-4 text-cyan-400" />
+            </div>
+            <p className="text-[10px] text-slate-500 font-medium">Create Loops</p>
+          </div>
+          <div className="text-center space-y-1.5">
+            <div className="w-8 h-8 mx-auto rounded-lg bg-violet-500/10 flex items-center justify-center">
+              <Users className="h-4 w-4 text-violet-400" />
+            </div>
+            <p className="text-[10px] text-slate-500 font-medium">Co-Loop Live</p>
+          </div>
+          <div className="text-center space-y-1.5">
+            <div className="w-8 h-8 mx-auto rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <Zap className="h-4 w-4 text-blue-400" />
+            </div>
+            <p className="text-[10px] text-slate-500 font-medium">Earn Rewards</p>
+          </div>
         </div>
       </div>
     </div>

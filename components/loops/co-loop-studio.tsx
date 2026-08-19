@@ -43,6 +43,7 @@ import {
   Paperclip,
   Power,
   Globe,
+  List,
 } from "lucide-react"
 import {
   Dialog,
@@ -1484,6 +1485,18 @@ export function CoLoopStudio() {
                 <span className="mt-2 text-xs font-bold text-amber-500">Open Invite</span>
               </button>
             )}
+
+            {/* View All Sessions Link */}
+            <button
+              type="button"
+              onClick={() => window.open('/co-loop', '_blank')}
+              className="group flex flex-col items-center justify-center transition-all hover:scale-105"
+            >
+              <div className="relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full border-2 border-violet-500/50 bg-violet-500/10 text-violet-500 hover:border-violet-400 hover:bg-violet-500/20 shadow-sm">
+                <List className="h-5 w-5" />
+              </div>
+              <span className="mt-2 text-xs font-bold text-violet-500">All Sessions</span>
+            </button>
         </div>
 
         {/* FLOATING GLASS PANEL EDITOR (CENTERED CANVAS) */}
