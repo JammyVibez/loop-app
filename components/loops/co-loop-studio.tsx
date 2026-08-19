@@ -1073,6 +1073,35 @@ export function CoLoopStudio() {
         /* best-effort */
       }
 
+      // If this was an open invite session, update the feed post status so the card
+      // shows "Published" and disables the Join button for everyone else.
+      try {
+        const sessionInfoRes = await fetch("/api/co-loop/session-info?session_id=" + encodeURIComponent(sessionId), {
+          headers: getAuthHeader(),
+        })
+        const sessionInfo = await sessionInfoRes.json()
+        if (sessionInfo?.session?.feed_post_id) {
+          const { getSupabaseBrowserClient } = await import("@/lib/supabase-browser")
+          const supabaseBrowser = getSupabaseBrowserClient()
+          const existingMeta = sessionInfo.session.open_invite_topic ? {
+            is_open_coloop_invite: true,
+            session_id: sessionId,
+            max_collaborators: sessionInfo.session.max_collaborators || 4,
+            topic: sessionInfo.session.open_invite_topic || "",
+            current_participants: (coAuthors.length + 1),
+            status: "published",
+          } : undefined
+          if (existingMeta) {
+            await supabaseBrowser
+              .from("loops")
+              .update({ content_metadata: existingMeta })
+              .eq("id", sessionInfo.session.feed_post_id)
+          }
+        }
+      } catch {
+        /* best-effort — open invite status update */
+      }
+
       // Trigger ceremonial publish modal celebration
       setPublishedLoopData({
         ...data,

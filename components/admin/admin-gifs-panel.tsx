@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
 import { formatDistanceToNow } from "date-fns"
-import { Film, Loader2, Plus, RefreshCw, Trash2, Eye, EyeOff, Search, Link2 } from "lucide-react"
+import { Film, Loader2, Plus, RefreshCw, Trash2, Eye, EyeOff, Search, Link2, Upload, X } from "lucide-react"
 
 interface CuratedGif {
   id: string
@@ -29,9 +29,12 @@ export function AdminGifsPanel() {
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [q, setQ] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState({ title: "", url: "", preview_url: "", tags: "" })
   const [saving, setSaving] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -51,6 +54,91 @@ export function AdminGifsPanel() {
     void load()
   }, [load])
 
+  const uploadFileToCloudinary = async (file: File): Promise<string | null> => {
+    try {
+      // Get signed upload params
+      const signRes = await fetch("/api/upload/sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ type: "image", folder: "admin-gifs" }),
+      })
+      if (!signRes.ok) throw new Error("Failed to get upload signature")
+      const signData = await signRes.json()
+
+      // Upload directly to Cloudinary
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("api_key", signData.apiKey)
+      formData.append("timestamp", String(signData.timestamp))
+      formData.append("signature", signData.signature)
+      formData.append("folder", signData.folder)
+      formData.append("resource_type", signData.resourceType)
+
+      const uploadRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${signData.cloudName}/${signData.resourceType}/upload`,
+        { method: "POST", body: formData },
+      )
+      if (!uploadRes.ok) throw new Error("Cloudinary upload failed")
+      const uploadData = await uploadRes.json()
+      return uploadData.secure_url
+    } catch (err: any) {
+      console.error("File upload error:", err)
+      toast({ title: "Upload failed", description: err.message || "Could not upload file", variant: "destructive" })
+      return null
+    }
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ""
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please select an image file", variant: "destructive" })
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Max 10MB", variant: "destructive" })
+      return
+    }
+
+    setUploadingFile(true)
+    const url = await uploadFileToCloudinary(file)
+    if (url) {
+      setForm((f) => ({
+        ...f,
+        url,
+        preview_url: url,
+        title: f.title || file.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "),
+      }))
+      toast({ title: "GIF uploaded", description: "Ready to add to the library" })
+    }
+    setUploadingFile(false)
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please drop an image file", variant: "destructive" })
+      return
+    }
+    setUploadingFile(true)
+    const url = await uploadFileToCloudinary(file)
+    if (url) {
+      setForm((f) => ({
+        ...f,
+        url,
+        preview_url: url,
+        title: f.title || file.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "),
+      }))
+      toast({ title: "GIF uploaded", description: "Ready to add to the library" })
+    }
+    setUploadingFile(false)
+  }
+
   const addGif = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.title.trim() || !form.url.trim() || saving) return
@@ -64,7 +152,7 @@ export function AdminGifsPanel() {
           url: form.url,
           preview_url: form.preview_url || undefined,
           tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
-          source: "custom",
+          source: form.url.includes("cloudinary") ? "uploaded" : "custom",
         }),
       })
       const data = await res.json()
@@ -133,6 +221,46 @@ export function AdminGifsPanel() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Upload from device area */}
+          <div
+            className={"relative mb-4 flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 transition-colors " + (
+              dragOver
+                ? "border-cyan-500 bg-cyan-500/10"
+                : "border-muted-foreground/25 hover:border-muted-foreground/50"
+            )}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/gif,image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            {uploadingFile ? (
+              <Loader2 className="h-8 w-8 text-cyan-400 animate-spin" />
+            ) : (
+              <>
+                <Upload className="h-8 w-8 text-muted-foreground/50 mb-2" />
+                <p className="text-sm font-medium text-muted-foreground">
+                  Drag & drop a GIF or image here
+                </p>
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  or{" "}
+                  <button
+                    type="button"
+                    className="text-cyan-400 hover:text-cyan-300 underline"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    browse your device
+                  </button>
+                </p>
+              </>
+            )}
+          </div>
+
           <form onSubmit={addGif} className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
@@ -154,13 +282,27 @@ export function AdminGifsPanel() {
               </div>
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">GIF URL</label>
-              <Input
-                value={form.url}
-                onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
-                placeholder="https://media.giphy.com/media/.../giphy.gif"
-                required
-              />
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">GIF URL (or paste a link)</label>
+              <div className="flex gap-2">
+                <Input
+                  value={form.url}
+                  onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+                  placeholder="https://media.giphy.com/media/.../giphy.gif"
+                  className="flex-1"
+                  required
+                />
+                {form.url && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setForm((f) => ({ ...f, url: "", preview_url: "" }))}
+                    title="Clear URL"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-medium text-muted-foreground">

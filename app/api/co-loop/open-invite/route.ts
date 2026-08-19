@@ -170,6 +170,12 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "This is not an open invite session" }, { status: 400 })
     }
 
+    if (session.status === "published") {
+      return NextResponse.json({ error: "This Co-Loop has been published and is no longer accepting collaborators" }, { status: 410 })
+    }
+    if (session.status === "ended") {
+      return NextResponse.json({ error: "This Co-Loop session has ended" }, { status: 410 })
+    }
     if (session.status !== "active") {
       return NextResponse.json({ error: "This session is no longer active" }, { status: 400 })
     }

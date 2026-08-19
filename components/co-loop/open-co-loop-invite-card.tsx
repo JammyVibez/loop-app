@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -20,6 +20,8 @@ import {
   Heart,
   Share2,
   GitBranch,
+  Lock,
+  PartyPopper,
 } from "lucide-react"
 
 interface OpenCoLoopInviteCardProps {
@@ -44,7 +46,7 @@ interface OpenCoLoopInviteCardProps {
       max_collaborators?: number
       topic?: string
       current_participants?: number
-      status?: "open" | "full"
+      status?: "open" | "full" | "published"
     }
     created_at?: string
     loop_stats?: {
@@ -71,16 +73,23 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
   const { toast } = useToast()
   const router = useRouter()
   const supabase = getSupabaseBrowserClient()
+  const mountRef = useRef(true)
+
+  useEffect(() => {
+    mountRef.current = true
+    return () => { mountRef.current = false }
+  }, [])
 
   const metadata = post.content_metadata || {}
   const sessionId = metadata.session_id || ""
   const maxCollabs = metadata.max_collaborators || 4
   const currentParticipants = metadata.current_participants || 1
   const topic = metadata.topic || post.content_text || ""
-  const isOpen = metadata.status !== "full"
   const isCreator = user?.id === post.author_id
   const isAlreadyJoined = post.interactions?.includes("coloop_joined") || false
   const isFull = currentParticipants >= maxCollabs
+  const isPublished = metadata.status === "published"
+  const isSessionClosed = isPublished || isFull
 
   const [joining, setJoining] = useState(false)
   const [joined, setJoined] = useState(isAlreadyJoined)
@@ -88,14 +97,16 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
   const [liveStatus, setLiveStatus] = useState<string>(metadata.status || "open")
   const [liked, setLiked] = useState(post.interactions?.includes("like") || false)
   const [likeCount, setLikeCount] = useState(post.loop_stats?.likes_count || 0)
+  const [commentCount, setCommentCount] = useState(post.loop_stats?.comments_count || 0)
 
-  // Realtime: listen for participants joining
+  // Realtime: listen for participants joining + session status changes + likes/comments
   useEffect(() => {
     if (!sessionId) return
 
     const channel = supabase
       .channel("open-coloop-feed:" + sessionId)
-      .on("broadcast", { event: "co-author-accepted" }, () => {
+      .on("broadcast", { event: "co-author-accepted" }, (payload: any) => {
+        if (!mountRef.current) return
         setLiveCount((prev) => {
           const next = prev + 1
           if (next >= maxCollabs) setLiveStatus("full")
@@ -103,7 +114,16 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
         })
       })
       .on("broadcast", { event: "open_invite_published" }, (payload: any) => {
+        if (!mountRef.current) return
         if (payload.payload?.max_collaborators) setLiveCount(1)
+      })
+      .on("broadcast", { event: "session_ended" }, () => {
+        if (!mountRef.current) return
+        setLiveStatus("ended")
+      })
+      .on("broadcast", { event: "coloop_published" }, () => {
+        if (!mountRef.current) return
+        setLiveStatus("published")
       })
       .subscribe()
 
@@ -111,6 +131,65 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
       void supabase.removeChannel(channel)
     }
   }, [sessionId, maxCollabs, supabase])
+
+  // Realtime: subscribe to loop_stats changes for this post (likes, comments)
+  useEffect(() => {
+    if (!post.id) return
+
+    const channel = supabase
+      .channel("open-invite-stats:" + post.id)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "loop_stats",
+          filter: `loop_id=eq.${post.id}`,
+        },
+        (payload: any) => {
+          if (!mountRef.current) return
+          const row = payload.new
+          if (row) {
+            if (typeof row.likes_count === "number") setLikeCount(row.likes_count)
+            if (typeof row.comments_count === "number") setCommentCount(row.comments_count)
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [post.id, supabase])
+
+  // Also subscribe to likes table for real-time interactor list
+  useEffect(() => {
+    if (!post.id || !user) return
+
+    const channel = supabase
+      .channel("open-invite-likes:" + post.id)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "likes", filter: `loop_id=eq.${post.id}` },
+        (payload: any) => {
+          if (!mountRef.current) return
+          if (payload.new?.user_id === user.id) setLiked(true)
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "likes", filter: `loop_id=eq.${post.id}` },
+        (payload: any) => {
+          if (!mountRef.current) return
+          // optimistic — if we haven't toggled, revert
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [post.id, user, supabase])
 
   const handleJoin = useCallback(async () => {
     if (!user) {
@@ -123,7 +202,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
       return
     }
 
-    if (joined || isFull) return
+    if (joined || isFull || isPublished) return
 
     setJoining(true)
     try {
@@ -158,7 +237,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
     } finally {
       setJoining(false)
     }
-  }, [user, isCreator, isFull, joined, sessionId, getAuthHeader, router, toast, onJoin, liveCount])
+  }, [user, isCreator, isFull, isPublished, joined, sessionId, getAuthHeader, router, toast, onJoin, liveCount])
 
   const handleLike = async () => {
     if (!user) {
@@ -182,37 +261,137 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
   const progressPercent = Math.min(100, (liveCount / maxCollabs) * 100)
   const author = post.author
 
+  // Determine button state
+  const renderActionButton = () => {
+    if (isCreator) {
+      return (
+        <Button
+          asChild
+          className="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 font-bold text-white hover:from-cyan-400 hover:to-indigo-500 shadow-lg shadow-cyan-500/25 text-sm"
+        >
+          <Link href={"/co-loop/studio?session=" + sessionId}>
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Enter Studio
+          </Link>
+        </Button>
+      )
+    }
+
+    if (isPublished) {
+      return (
+        <Button
+          disabled
+          className="flex-1 rounded-xl bg-emerald-700/50 text-emerald-300 text-sm font-bold cursor-not-allowed"
+        >
+          <PartyPopper className="h-4 w-4 mr-2" />
+          Published — Session Complete
+        </Button>
+      )
+    }
+
+    if (isFull) {
+      return (
+        <Button
+          disabled
+          className="flex-1 rounded-xl bg-slate-700/50 text-slate-400 text-sm font-bold cursor-not-allowed"
+        >
+          <Lock className="h-4 w-4 mr-2" />
+          Session Full
+        </Button>
+      )
+    }
+
+    if (joined) {
+      return (
+        <Button
+          asChild
+          className="flex-1 rounded-xl bg-emerald-600 font-bold text-white hover:bg-emerald-500 shadow-lg shadow-emerald-500/25 text-sm"
+        >
+          <Link href={"/co-loop/studio?session=" + sessionId}>
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            Enter Studio
+          </Link>
+        </Button>
+      )
+    }
+
+    return (
+      <Button
+        onClick={handleJoin}
+        disabled={joining}
+        className="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 font-bold text-white hover:from-cyan-400 hover:to-indigo-500 shadow-lg shadow-cyan-500/25 text-sm transition-all"
+      >
+        {joining ? (
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        ) : (
+          <Sparkles className="h-4 w-4 mr-2" />
+        )}
+        {joining ? "Joining..." : "Join Session"}
+      </Button>
+    )
+  }
+
   return (
-    <Card className="relative overflow-hidden border-2 border-cyan-500/30 bg-gradient-to-br from-cyan-950/60 via-slate-900/80 to-indigo-950/60 dark:from-cyan-950/70 dark:via-[#0a0f1e] dark:to-indigo-950/70 p-0 shadow-xl shadow-cyan-500/10">
+    <Card className={"relative overflow-hidden border-2 p-0 shadow-xl " + (
+      isPublished
+        ? "border-emerald-500/30 bg-gradient-to-br from-emerald-950/60 via-slate-900/80 to-teal-950/60 shadow-emerald-500/10"
+        : isFull
+          ? "border-amber-500/30 bg-gradient-to-br from-amber-950/60 via-slate-900/80 to-orange-950/60 shadow-amber-500/10"
+          : "border-cyan-500/30 bg-gradient-to-br from-cyan-950/60 via-slate-900/80 to-indigo-950/60 shadow-cyan-500/10"
+    )}>
       {/* Decorative top bar */}
-      <div className="h-1 w-full bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-500" />
+      <div className={"h-1 w-full " + (
+        isPublished
+          ? "bg-gradient-to-r from-emerald-400 via-teal-500 to-green-500"
+          : isFull
+            ? "bg-gradient-to-r from-amber-400 via-orange-500 to-yellow-500"
+            : "bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-500"
+      )} />
 
       <div className="p-4 sm:p-5 space-y-4">
         {/* Header: Badge + Status */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-indigo-600 shadow-lg shadow-cyan-500/20">
-              <Sparkles className="h-4 w-4 text-white" />
+            <div className={"flex h-8 w-8 items-center justify-center rounded-lg shadow-lg " + (
+              isPublished
+                ? "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20"
+                : "bg-gradient-to-br from-cyan-500 to-indigo-600 shadow-cyan-500/20"
+            )}>
+              {isPublished ? (
+                <PartyPopper className="h-4 w-4 text-white" />
+              ) : (
+                <Sparkles className="h-4 w-4 text-white" />
+              )}
             </div>
-            <div>
-              <Badge
-                variant="outline"
-                className="border-cyan-500/40 bg-cyan-500/10 text-[10px] font-bold text-cyan-300 px-2 py-0.5 uppercase tracking-wider"
-              >
-                Open Co-Loop
-              </Badge>
-            </div>
+            <Badge
+              variant="outline"
+              className={"text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider " + (
+                isPublished
+                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                  : "border-cyan-500/40 bg-cyan-500/10 text-cyan-300"
+              )}
+            >
+              {isPublished ? "Co-Loop Published" : "Open Co-Loop"}
+            </Badge>
           </div>
 
           <div className="flex items-center gap-1.5">
             <span
               className={
                 "h-2 w-2 rounded-full " +
-                (isFull ? "bg-amber-500" : "bg-emerald-500 animate-pulse")
+                (isPublished
+                  ? "bg-emerald-500"
+                  : isFull
+                    ? "bg-amber-500"
+                    : "bg-emerald-500 animate-pulse")
               }
             />
             <span className="text-[11px] font-semibold text-muted-foreground">
-              {isFull ? "Session Full" : "Live · Open"}
+              {isPublished
+                ? "Published"
+                : isFull
+                  ? "Session Full"
+                  : "Live · Open"}
             </span>
           </div>
         </div>
@@ -220,9 +399,13 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
         {/* Creator */}
         {author && (
           <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10 ring-2 ring-cyan-400/60">
+            <Avatar className={"h-10 w-10 ring-2 " + (isPublished ? "ring-emerald-400/60" : "ring-cyan-400/60")}>
               <AvatarImage src={author.avatar_url} alt={author.display_name} />
-              <AvatarFallback className="bg-gradient-to-br from-cyan-600 to-indigo-600 text-sm font-bold text-white">
+              <AvatarFallback className={"text-sm font-bold text-white " + (
+                isPublished
+                  ? "bg-gradient-to-br from-emerald-600 to-teal-600"
+                  : "bg-gradient-to-br from-cyan-600 to-indigo-600"
+              )}>
                 {(author.display_name || author.username || "?")[0].toUpperCase()}
               </AvatarFallback>
             </Avatar>
@@ -258,7 +441,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-cyan-400" />
+              <Users className={"h-4 w-4 " + (isPublished ? "text-emerald-400" : "text-cyan-400")} />
               <span className="text-sm font-bold text-foreground">
                 {liveCount}/{maxCollabs} joined
               </span>
@@ -273,10 +456,17 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
           {/* Progress bar */}
           <div className="relative h-2 overflow-hidden rounded-full bg-slate-800/80">
             <div
-              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-cyan-500 to-indigo-500 transition-all duration-500"
+              className={"absolute inset-y-0 left-0 rounded-full transition-all duration-500 " + (
+                isPublished
+                  ? "bg-gradient-to-r from-emerald-500 to-teal-500"
+                  : "bg-gradient-to-r from-cyan-500 to-indigo-500"
+              )}
               style={{ width: progressPercent + "%" }}
             />
-            {isFull && (
+            {isPublished && (
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/40 to-teal-400/40" />
+            )}
+            {isFull && !isPublished && (
               <div className="absolute inset-0 bg-gradient-to-r from-amber-500/40 to-amber-400/40 animate-pulse" />
             )}
           </div>
@@ -295,57 +485,21 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
               ))}
             </div>
             <span className="ml-2 text-[11px] text-muted-foreground">
-              {isFull ? "Session is full" : (maxCollabs - liveCount) + " spot" + (maxCollabs - liveCount !== 1 ? "s" : "") + " left"}
+              {isPublished
+                ? "Session completed"
+                : isFull
+                  ? "Session is full"
+                  : (maxCollabs - liveCount) + " spot" + (maxCollabs - liveCount !== 1 ? "s" : "") + " left"}
             </span>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          {isCreator ? (
-            <Button
-              asChild
-              className="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 font-bold text-white hover:from-cyan-400 hover:to-indigo-500 shadow-lg shadow-cyan-500/25 text-sm"
-            >
-              <Link href={"/co-loop/studio?session=" + sessionId}>
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Enter Studio
-              </Link>
-            </Button>
-          ) : isFull ? (
-            <Button
-              disabled
-              className="flex-1 rounded-xl bg-slate-700/50 text-slate-400 text-sm font-bold cursor-not-allowed"
-            >
-              Session Full
-            </Button>
-          ) : joined ? (
-            <Button
-              asChild
-              className="flex-1 rounded-xl bg-emerald-600 font-bold text-white hover:bg-emerald-500 shadow-lg shadow-emerald-500/25 text-sm"
-            >
-              <Link href={"/co-loop/studio?session=" + sessionId}>
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Enter Studio
-              </Link>
-            </Button>
-          ) : (
-            <Button
-              onClick={handleJoin}
-              disabled={joining}
-              className="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 font-bold text-white hover:from-cyan-400 hover:to-indigo-500 shadow-lg shadow-cyan-500/25 text-sm transition-all"
-            >
-              {joining ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4 mr-2" />
-              )}
-              {joining ? "Joining..." : "Join Session"}
-            </Button>
-          )}
+          {renderActionButton()}
         </div>
 
-        {/* Engagement bar */}
+        {/* Engagement bar — real-time */}
         <div className="flex items-center justify-between border-t border-white/5 pt-3">
           <div className="flex items-center gap-4">
             <button
@@ -357,7 +511,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
             </button>
             <span className="flex items-center gap-1.5 text-muted-foreground">
               <MessageSquare className="h-4 w-4" />
-              <span className="text-xs font-medium">{post.loop_stats?.comments_count || 0}</span>
+              <span className="text-xs font-medium">{commentCount}</span>
             </span>
             <span className="flex items-center gap-1.5 text-muted-foreground">
               <GitBranch className="h-4 w-4" />

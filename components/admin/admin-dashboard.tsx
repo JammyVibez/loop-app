@@ -30,6 +30,7 @@ import { AdminCatalogPanel } from "@/components/admin/admin-catalog-panel"
 import { AdminBroadcastPanel } from "@/components/admin/admin-broadcast-panel"
 import { AdminSupportPanel } from "@/components/admin/admin-support-panel"
 import { AdminGifsPanel } from "@/components/admin/admin-gifs-panel"
+import { AdminEmojisPanel } from "@/components/admin/admin-emojis-panel"
 import { AdminFeaturedPanel } from "@/components/admin/admin-featured-panel"
 import { ContentModerationControl } from "@/components/admin/content-moderation-control"
 import { EconomyControl } from "@/components/admin/economy-control"
@@ -203,6 +204,7 @@ export function AdminDashboard() {
           <TabsTrigger value="featured">Featured</TabsTrigger>
           <TabsTrigger value="support">Support</TabsTrigger>
           <TabsTrigger value="gifs">GIFs</TabsTrigger>
+          <TabsTrigger value="emojis">Emojis</TabsTrigger>
           <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
           <TabsTrigger value="ads">Ads</TabsTrigger>
           <TabsTrigger value="awards">Awards</TabsTrigger>

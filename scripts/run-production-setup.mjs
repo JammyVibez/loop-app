@@ -78,6 +78,7 @@ const files = [
   // open_invite_topic, feed_post_id on co_loop_sessions +
   // open_co_loop_participants table (see /api/co-loop/open-invite).
   "scripts/open-co-loop-invites-schema.sql",
+  "scripts/curated-emojis-schema.sql",
 ]
 
 const ignorable = [
