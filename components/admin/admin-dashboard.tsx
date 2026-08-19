@@ -48,6 +48,7 @@ import { ProCirclePanel } from "@/components/admin/pro-circle-panel"
 import { VerificationBadgesAdminPanel } from "@/components/admin/verification-badges-admin-panel"
 import { SystemHealthPanel } from "@/components/admin/system-health-panel"
 import { BanAppealsPanel } from "@/components/admin/ban-appeals-panel"
+import { CoLoopSessionsPanel } from "@/components/admin/co-loop-sessions-panel"
 import { AdminAnalyticsTab } from "@/components/admin/admin-analytics-tab"
 import { UserBadges } from "@/components/user-badge"
 
@@ -210,6 +211,7 @@ export function AdminDashboard() {
           <TabsTrigger value="moderation">Moderation</TabsTrigger>
           <TabsTrigger value="appeals">Ban Appeals</TabsTrigger>
           <TabsTrigger value="health">System Health</TabsTrigger>
+          <TabsTrigger value="coloops">Co-Loops</TabsTrigger>
         </TabsList>
 
         <TabsContent value="analytics" className="mt-6">
@@ -488,6 +490,9 @@ export function AdminDashboard() {
         </TabsContent>
         <TabsContent value="appeals" className="mt-6">
           <BanAppealsPanel />
+        </TabsContent>
+        <TabsContent value="coloops" className="mt-6">
+          <CoLoopSessionsPanel />
         </TabsContent>
       </Tabs>
     </div>
