@@ -12,6 +12,7 @@ interface MediaEmojiPickerProps {
   onSelectGif?: (url: string) => void
   onSelectSticker?: (url: string) => void
   triggerClassName?: string
+  isPro?: boolean
 }
 
 const EMOJI_CATEGORIES = [
@@ -70,6 +71,7 @@ export function MediaEmojiPicker({
   onSelectGif,
   onSelectSticker,
   triggerClassName = "",
+  isPro = false,
 }: MediaEmojiPickerProps) {
   const [open, setOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("emojis")
@@ -175,27 +177,27 @@ export function MediaEmojiPicker({
           type="button"
           variant="ghost"
           size="sm"
-          className={`h-8 w-8 rounded-full p-0 text-slate-400 hover:text-cyan-400 hover:bg-white/10 ${triggerClassName}`}
+          className={`h-8 w-8 rounded-full p-0 text-muted-foreground hover:text-primary hover:bg-muted ${triggerClassName}`}
           title="Add Emoji, GIF or Sticker"
         >
           <Smile className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-80 p-0 border border-white/10 bg-[#0c1427]/95 backdrop-blur-md text-slate-100 shadow-2xl">
+      <PopoverContent align="start" className="w-80 p-0 border border-border bg-card backdrop-blur-md text-foreground shadow-2xl">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex items-center justify-between border-b border-white/10 px-3 pt-2 pb-1">
-            <TabsList className="bg-white/5 p-0.5 h-8">
+          <div className="flex items-center justify-between border-b border-border px-3 pt-2 pb-1">
+            <TabsList className="bg-muted p-0.5 h-8">
               <TabsTrigger value="emojis" className="text-xs px-2.5 h-7">
                 <Smile className="h-3.5 w-3.5 mr-1" /> Emoji
               </TabsTrigger>
               <TabsTrigger value="gifs" className="text-xs px-2.5 h-7">
                 <ImageIcon className="h-3.5 w-3.5 mr-1" /> GIF
               </TabsTrigger>
-              <TabsTrigger value="custom" className="text-xs px-2.5 h-7">
-                <Zap className="h-3.5 w-3.5 mr-1" /> Custom
+              <TabsTrigger value="custom" className="text-xs px-2.5 h-7" disabled={!isPro}>
+                <Zap className="h-3.5 w-3.5 mr-1" /> Custom{!isPro && " (Pro)"}
               </TabsTrigger>
-              <TabsTrigger value="stickers" className="text-xs px-2.5 h-7">
-                <Zap className="h-3.5 w-3.5 mr-1" /> Sticker
+              <TabsTrigger value="stickers" className="text-xs px-2.5 h-7" disabled={!isPro}>
+                <Zap className="h-3.5 w-3.5 mr-1" /> Sticker{!isPro && " (Pro)"}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -203,12 +205,12 @@ export function MediaEmojiPicker({
           {/* Emojis Tab */}
           <TabsContent value="emojis" className="p-3 m-0 space-y-3">
             <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 placeholder="Search emojis..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-8 h-8 text-xs bg-white/5 border-white/10 text-white placeholder:text-slate-500 rounded-lg"
+                className="pl-8 h-8 text-xs bg-muted border-border text-foreground placeholder:text-muted-foreground rounded-lg"
               />
             </div>
             <div className="max-h-56 overflow-y-auto space-y-3 pr-1">
@@ -217,7 +219,7 @@ export function MediaEmojiPicker({
                 if (filtered.length === 0) return null
                 return (
                   <div key={cat.name}>
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">{cat.name}</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{cat.name}</p>
                     <div className="grid grid-cols-7 gap-1">
                       {filtered.map((emoji) => (
                         <button
@@ -227,7 +229,7 @@ export function MediaEmojiPicker({
                             onSelectEmoji(emoji)
                             setOpen(false)
                           }}
-                          className="h-8 w-8 rounded-lg hover:bg-white/15 text-lg flex items-center justify-center transition-transform hover:scale-110"
+                          className="h-8 w-8 rounded-lg hover:bg-muted text-lg flex items-center justify-center transition-transform hover:scale-110"
                         >
                           {emoji}
                         </button>
@@ -243,33 +245,33 @@ export function MediaEmojiPicker({
           <TabsContent value="gifs" className="p-3 m-0 space-y-3">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   placeholder="Search GIFs via Tenor/Giphy..."
                   value={gifSearch}
                   onChange={(e) => searchGifs(e.target.value)}
-                  className="pl-8 h-8 text-xs bg-white/5 border-white/10 text-white placeholder:text-slate-500 rounded-lg"
+                  className="pl-8 h-8 text-xs bg-muted border-border text-foreground placeholder:text-muted-foreground rounded-lg"
                 />
               </div>
               <div className="flex gap-1">
                 <button
                   type="button"
                   onClick={() => setGifSource("all")}
-                  className={`px-2 py-1 text-[11px] rounded ${gifSource === "all" ? "bg-white/10" : "bg-transparent"}`}
+                  className={`px-2 py-1 text-[11px] rounded ${gifSource === "all" ? "bg-muted" : "bg-transparent"}`}
                 >
                   All
                 </button>
                 <button
                   type="button"
                   onClick={() => setGifSource("tenor")}
-                  className={`px-2 py-1 text-[11px] rounded ${gifSource === "tenor" ? "bg-white/10" : "bg-transparent"}`}
+                  className={`px-2 py-1 text-[11px] rounded ${gifSource === "tenor" ? "bg-muted" : "bg-transparent"}`}
                 >
                   Tenor
                 </button>
                 <button
                   type="button"
                   onClick={() => setGifSource("giphy")}
-                  className={`px-2 py-1 text-[11px] rounded ${gifSource === "giphy" ? "bg-white/10" : "bg-transparent"}`}
+                  className={`px-2 py-1 text-[11px] rounded ${gifSource === "giphy" ? "bg-muted" : "bg-transparent"}`}
                 >
                   Giphy
                 </button>
@@ -278,7 +280,7 @@ export function MediaEmojiPicker({
 
             <div className="max-h-56 overflow-y-auto grid grid-cols-2 gap-2 pr-1">
               {loadingGifs ? (
-                <div className="col-span-2 py-8 text-center text-xs text-slate-400">Searching GIFs...</div>
+                <div className="col-span-2 py-8 text-center text-xs text-muted-foreground">Searching GIFs...</div>
               ) : (
                 gifsList.map((gif, idx) => (
                   <button
@@ -293,7 +295,7 @@ export function MediaEmojiPicker({
                       }
                       setOpen(false)
                     }}
-                    className="relative group rounded-lg overflow-hidden border border-white/10 hover:border-cyan-400 transition-all h-20 bg-slate-900"
+                    className="relative group rounded-lg overflow-hidden border border-border hover:border-primary transition-all h-20 bg-slate-900"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={proxied(gif.preview || gif.url)} alt={gif.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
@@ -306,19 +308,19 @@ export function MediaEmojiPicker({
             </div>
 
             <div className="flex items-center justify-between pt-2">
-              <div className="text-[11px] text-slate-400">Showing {gifsList.length} results</div>
+              <div className="text-[11px] text-muted-foreground">Showing {gifsList.length} results</div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setLimit((l) => Math.max(6, l - 6))}
-                  className="text-[11px] px-2 py-1 rounded bg-white/5"
+                  className="text-[11px] px-2 py-1 rounded bg-muted"
                 >
                   ◀
                 </button>
                 <button
                   type="button"
                   onClick={() => setLimit((l) => Math.min(48, l + 6))}
-                  className="text-[11px] px-2 py-1 rounded bg-white/5"
+                  className="text-[11px] px-2 py-1 rounded bg-muted"
                 >
                   ▶
                 </button>
@@ -345,11 +347,11 @@ export function MediaEmojiPicker({
                       onSelectEmoji(` :${emoji.shortcode}: `)
                       setOpen(false)
                     }}
-                    className="group flex flex-col items-center justify-center p-2 rounded-xl border border-white/10 hover:border-violet-400 hover:bg-violet-500/10 transition-all"
+                    className="group flex flex-col items-center justify-center p-2 rounded-xl border border-border hover:border-primary hover:bg-primary/10 transition-all"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={emoji.url} alt={emoji.shortcode} className="h-8 w-8 object-contain group-hover:scale-110 transition-transform" />
-                    <span className="text-[8px] text-slate-400 mt-1 truncate w-full text-center">:{emoji.shortcode}:</span>
+                    <span className="text-[8px] text-muted-foreground mt-1 truncate w-full text-center">:{emoji.shortcode}:</span>
                   </button>
                 ))}
               </div>
@@ -376,11 +378,11 @@ export function MediaEmojiPicker({
                           }
                           setOpen(false)
                         }}
-                        className="group flex flex-col items-center justify-center p-2 rounded-xl border border-white/10 hover:border-cyan-400 hover:bg-cyan-500/10 transition-all"
+                        className="group flex flex-col items-center justify-center p-2 rounded-xl border border-border hover:border-primary hover:bg-cyan-500/10 transition-all"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={sticker.url} alt={sticker.name} className="h-10 w-10 object-contain group-hover:scale-110 transition-transform" />
-                        <span className="text-[9px] text-slate-300 mt-1 truncate w-full text-center">{sticker.name}</span>
+                        <span className="text-[9px] text-muted-foreground mt-1 truncate w-full text-center">{sticker.name}</span>
                       </button>
                     ))}
                   </div>

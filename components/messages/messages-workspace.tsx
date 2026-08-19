@@ -18,6 +18,7 @@ import { RichContent } from "@/components/content/rich-content"
 import { ForwardDialog } from "@/components/messages/forward-dialog"
 import { cn } from "@/lib/utils"
 import { uploadMediaFile } from "@/lib/client-media-upload"
+import { MediaEmojiPicker } from "@/components/content/media-emoji-picker"
 import { optimizeImageUrl } from "@/lib/optimize-image"
 import { playChatSound } from "@/lib/chat-sounds"
 import {
@@ -2032,17 +2033,13 @@ export function MessagesWorkspace() {
               aria-label="Close emoji picker"
               onClick={() => setShowEmojiPicker(false)}
             />
-            <div className="absolute bottom-full left-2 z-40 mb-2 grid w-[320px] max-w-[calc(100%-1rem)] grid-cols-8 gap-0.5 overflow-y-auto rounded-2xl border border-border bg-card p-2 shadow-xl">
-              {EMOJI_GRID.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg text-xl transition hover:bg-muted"
-                  onClick={() => insertEmoji(emoji)}
-                >
-                  {emoji}
-                </button>
-              ))}
+            <div className="absolute bottom-full left-2 z-40 mb-2">
+              <MediaEmojiPicker
+                onSelectEmoji={(emoji) => { insertEmoji(emoji); setShowEmojiPicker(false) }}
+                onSelectGif={(url) => { void sendMessage({ content: "", media_url: url, message_type: "gif" }); setShowEmojiPicker(false) }}
+                onSelectSticker={(url) => { void sendMessage({ content: "", media_url: url, message_type: "sticker" }); setShowEmojiPicker(false) }}
+                isPro={Boolean((user as any)?.is_premium)}
+              />
             </div>
           </>
         )}

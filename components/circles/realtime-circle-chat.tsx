@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
 import { uploadMediaFile } from "@/lib/client-media-upload"
+import { MediaEmojiPicker } from "@/components/content/media-emoji-picker"
 import { CallSheet } from "@/components/calls/call-sheet"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "🔥", "👏", "😮"]
@@ -1135,6 +1136,12 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
               >
                 <Paperclip className="h-4 w-4" />
               </Button>
+              <MediaEmojiPicker
+                onSelectEmoji={(emoji) => setNewMessage((prev) => `${prev}${emoji}`)}
+                onSelectGif={(url) => { void handleSendMessage({ content: "", media_url: url, media_type: "gif" }) }}
+                onSelectSticker={(url) => { void handleSendMessage({ content: "", media_url: url, media_type: "sticker" }) }}
+                isPro={Boolean((user as any)?.is_premium)}
+              />
               <Button
                 type="button"
                 size="icon"
