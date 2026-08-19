@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
       .from("loops")
       .insert({
         author_id: user.id,
+        content: topic.trim(),
         content_text: topic.trim(),
         content_title: `🤝 Open Co-Loop: ${topic.trim()}`,
         post_type: "open_coloop_invite",

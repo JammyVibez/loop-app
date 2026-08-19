@@ -227,7 +227,7 @@ export function CoLoopSessionsPanel() {
                   </div>
                 </div>
 
-                {(session.status === "published" || session.status === "ended") && (
+                {(session.status === "published" || session.status === "ended" || (session.status === "active" && (!session.co_authors || session.co_authors.length === 0))) && (
                   <Button
                     variant="ghost"
                     size="sm"

@@ -76,6 +76,11 @@ export function CreateOpenCoLoopForm({ onCreated }: CreateOpenCoLoopFormProps) {
         description: "Your open invite is now live in the feed. Anyone can join!",
       })
 
+      // Refresh the feed to show the new invite
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("loop-created"))
+      }
+
       onCreated?.(sessionId)
     } catch (err: any) {
       toast({

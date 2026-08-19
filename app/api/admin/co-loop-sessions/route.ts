@@ -134,14 +134,15 @@ export async function DELETE(request: NextRequest) {
         // Get session details first
         const { data: session } = await supabase
           .from("co_loop_sessions")
-          .select("session_id, feed_post_id, status")
+          .select("session_id, feed_post_id, status, co_authors")
           .eq("session_id", sid)
           .maybeSingle()
 
         if (!session) continue
 
-        // Only allow deleting ended or published sessions
-        if (session.status === "active") continue
+        // Allow deleting ended/published sessions, or active sessions with no co-authors
+        const coAuthorsCount = Array.isArray(session.co_authors) ? session.co_authors.length : 0
+        if (session.status === "active" && coAuthorsCount > 0) continue
 
         // Delete participants
         await supabase.from("open_co_loop_participants").delete().eq("session_id", sid)
