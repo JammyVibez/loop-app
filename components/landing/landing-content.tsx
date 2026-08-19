@@ -148,52 +148,53 @@ export function LandingContent() {
   }, [])
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#030712] text-slate-100 selection:bg-violet-500/30 selection:text-white">
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground selection:bg-violet-500/30 selection:text-foreground">
       {/* Depth field: grid + aurora */}
       <div
         className="landing-grid-bg pointer-events-none absolute inset-0 opacity-[0.45]"
         aria-hidden
       />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#0b1220] via-transparent to-[#030712]" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#0b1220] via-transparent to-[#030712] dark:block hidden" />
+      <div className="pointer-events-none absolute inset-0 dark:hidden bg-gradient-to-b from-slate-100 via-transparent to-background" />
       <div
-        className="landing-aurora-blob pointer-events-none absolute -left-1/4 top-[-20%] h-[70vmin] w-[70vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.45),transparent_65%)] blur-3xl"
+        className="landing-aurora-blob pointer-events-none absolute -left-1/4 dark:block hidden top-[-20%] h-[70vmin] w-[70vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.45),transparent_65%)] blur-3xl"
         aria-hidden
       />
       <div
-        className="landing-aurora-blob pointer-events-none absolute -right-1/4 top-[10%] h-[60vmin] w-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.35),transparent_65%)] blur-3xl [animation-delay:-6s]"
+        className="landing-aurora-blob pointer-events-none absolute -right-1/4 dark:block hidden top-[10%] h-[60vmin] w-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.35),transparent_65%)] blur-3xl [animation-delay:-6s]"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute bottom-[-30%] left-1/2 h-[50vmin] w-[90vmin] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.25),transparent_70%)] blur-3xl"
+        className="pointer-events-none absolute bottom-[-30%] left-1/2 h-[50vmin] w-[90vmin] dark:block hidden -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.25),transparent_70%)] blur-3xl"
         aria-hidden
       />
 
-      <header className="relative z-20 border-b border-white/[0.06] bg-[#030712]/70 backdrop-blur-xl">
+      <header className="relative z-20 border-b border-border bg-background/70 backdrop-blur-xl">
         <div className="container mx-auto flex items-center justify-between px-4 py-4 sm:px-6">
           <Link href="/" className="group flex items-center gap-3">
             <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-400 p-[1px] shadow-lg shadow-violet-500/25 transition-transform duration-300 group-hover:scale-105">
-              <div className="flex h-full w-full items-center justify-center rounded-2xl bg-[#0b1220] text-sm font-bold tracking-tight text-white">
+              <div className="flex h-full w-full items-center justify-center rounded-2xl bg-background text-sm font-bold tracking-tight text-foreground">
                 L
               </div>
             </div>
             <div className="flex flex-col leading-tight">
-              <span className="text-lg font-semibold tracking-tight text-white">loopapp.me</span>
-              <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-slate-500">
+              <span className="text-lg font-semibold tracking-tight text-foreground">loopapp.me</span>
+              <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
                 Creators &amp; Developers
               </span>
             </div>
           </Link>
-          <nav className="hidden items-center gap-6 text-sm text-slate-300 md:flex">
-            <a href="#features" className="hover:text-white transition-colors">Features</a>
-            <a href="#social-proof" className="hover:text-white transition-colors">Live Activity</a>
-            <a href="#roadmap" className="hover:text-white transition-colors">What&apos;s coming</a>
-            <a href="#creators" className="hover:text-white transition-colors">For creators</a>
+          <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
+            <a href="#features" className="hover:text-foreground transition-colors">Features</a>
+            <a href="#social-proof" className="hover:text-foreground transition-colors">Live Activity</a>
+            <a href="#roadmap" className="hover:text-foreground transition-colors">What&apos;s coming</a>
+            <a href="#creators" className="hover:text-foreground transition-colors">For creators</a>
           </nav>
           <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/login">
               <Button
                 variant="ghost"
-                className="text-slate-300 hover:bg-white/5 hover:text-white"
+                className="text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 Log in
               </Button>
@@ -215,28 +216,28 @@ export function LandingContent() {
             <div>
               <Badge
                 variant="secondary"
-                className="mb-6 border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-cyan-200/90 backdrop-blur"
+                className="mb-6 border border-border bg-muted px-3 py-1 text-xs font-medium text-cyan-600 dark:text-cyan-200/90 backdrop-blur"
               >
                 <Layers className="mr-1.5 h-3.5 w-3.5" />
                 Live Collaboration &amp; Community OS
               </Badge>
 
-              <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-[3.55rem] lg:leading-[1.05]">
+              <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-[3.55rem] lg:leading-[1.05]">
                 Build together.
                 <span className="mt-1 block landing-shimmer-text font-semibold">
                   Not just post into the void.
                 </span>
               </h1>
 
-              <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
+              <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
                 loopapp.me is where communities create in real time — co-write posts live with friends,
                 settle debates in public Duels, and build spaces that are actually yours.
               </p>
 
-              <ul className="mt-8 space-y-2.5 text-sm text-slate-300">
+              <ul className="mt-8 space-y-2.5 text-sm text-muted-foreground">
                 {checklist.map((item) => (
                   <li key={item} className="flex items-center gap-2.5">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
                       <Check className="h-3 w-3" strokeWidth={3} />
                     </span>
                     {item}
@@ -248,7 +249,7 @@ export function LandingContent() {
                 <Link href="/signup">
                   <Button
                     size="lg"
-                    className="h-12 rounded-full bg-white px-8 text-base font-semibold text-slate-900 shadow-xl shadow-black/40 transition hover:bg-slate-100"
+                    className="h-12 rounded-full bg-foreground px-8 text-base font-semibold text-background shadow-xl transition hover:opacity-90"
                   >
                     Join free
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -258,33 +259,33 @@ export function LandingContent() {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="h-12 rounded-full border-white/15 bg-white/[0.03] px-8 text-base text-slate-200 backdrop-blur hover:bg-white/10"
+                    className="h-12 rounded-full border-border bg-card px-8 text-base text-foreground backdrop-blur hover:bg-muted"
                   >
                     Explore as guest
                   </Button>
                 </Link>
               </div>
 
-              <div className="mt-8 border-t border-white/[0.06] pt-6">
-                <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-slate-500">Get the native app</p>
+              <div className="mt-8 border-t border-border pt-6">
+                <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Get the native app</p>
                 <AppDownloadBadges className="justify-start" />
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-muted-foreground">
                   iOS &amp; Android apps are in the works — coming soon to the App Store and Google Play.
                 </p>
               </div>
 
-              <div className="mt-12 flex flex-wrap gap-x-10 gap-y-4 border-t border-white/[0.06] pt-8 text-sm text-slate-500">
+              <div className="mt-12 flex flex-wrap gap-x-10 gap-y-4 border-t border-border pt-8 text-sm text-muted-foreground">
                 <div>
-                  <p className="text-2xl font-semibold tracking-tight text-white">Co-Loop</p>
-                  <p className="text-xs uppercase tracking-wider text-slate-500">Up to 4 collaborators</p>
+                  <p className="text-2xl font-semibold tracking-tight text-foreground">Co-Loop</p>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Up to 4 collaborators</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-semibold tracking-tight text-white">Public Duels</p>
-                  <p className="text-xs uppercase tracking-wider text-slate-500">Stake coins &amp; vote</p>
+                  <p className="text-2xl font-semibold tracking-tight text-foreground">Public Duels</p>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Stake coins &amp; vote</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-semibold tracking-tight text-white">Circles</p>
-                  <p className="text-xs uppercase tracking-wider text-slate-500">Dedicated spaces</p>
+                  <p className="text-2xl font-semibold tracking-tight text-foreground">Circles</p>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Dedicated spaces</p>
                 </div>
               </div>
             </div>
@@ -296,7 +297,7 @@ export function LandingContent() {
                   className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-white/[0.12] to-transparent p-px shadow-2xl shadow-violet-900/40"
                   style={{ transform: "perspective(1200px) rotateY(-8deg)" }}
                 >
-                  <div className="relative h-full w-full overflow-hidden rounded-[2rem] bg-[#070d18]/90 ring-1 ring-white/[0.08]">
+                  <div className="relative h-full w-full overflow-hidden rounded-[2rem] bg-card ring-1 ring-border">
                     <div className="absolute inset-0 bg-gradient-to-br from-violet-600/10 via-transparent to-cyan-500/10" />
                     <div className="landing-hero-3d relative flex h-full flex-col p-6 sm:p-8">
                       <div className="flex items-center justify-between">
@@ -311,48 +312,48 @@ export function LandingContent() {
                       </div>
 
                       <div className="mt-8 flex flex-1 flex-col justify-center gap-4">
-                        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-4 shadow-inner backdrop-blur">
+                        <div className="rounded-2xl border border-border bg-card p-4 shadow-inner backdrop-blur">
                           <div className="flex items-center gap-2">
                             <div className="flex -space-x-2">
-                              <div className="h-6 w-6 rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 ring-2 ring-[#070d18]" />
-                              <div className="h-6 w-6 rounded-full bg-gradient-to-br from-amber-400 to-rose-500 ring-2 ring-[#070d18]" />
+                              <div className="h-6 w-6 rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 ring-2 ring-background" />
+                              <div className="h-6 w-6 rounded-full bg-gradient-to-br from-amber-400 to-rose-500 ring-2 ring-background" />
                             </div>
-                            <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+                            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
                               Collaborative post studio
                             </p>
                           </div>
-                          <p className="mt-2 text-lg font-medium text-white sm:text-xl">
+                          <p className="mt-2 text-lg font-medium text-foreground sm:text-xl">
                             &ldquo;Co-writing live with friends...&rdquo;
                           </p>
-                          <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/5">
+                          <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
                             <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-violet-500 to-cyan-400 shadow-[0_0_20px_rgba(139,92,246,0.6)]" />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
-                          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                            <p className="text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                          <div className="rounded-xl border border-border bg-card p-3">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                               <Swords className="h-3 w-3 text-rose-400" /> Duels
                             </p>
-                            <p className="mt-1 text-base sm:text-lg font-semibold text-white">Public debates</p>
-                            <p className="text-[11px] text-emerald-400/90">Community votes live</p>
+                            <p className="mt-1 text-base sm:text-lg font-semibold text-foreground">Public debates</p>
+                            <p className="text-[11px] text-emerald-600 dark:text-emerald-400/90">Community votes live</p>
                           </div>
-                          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                            <p className="text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                          <div className="rounded-xl border border-border bg-card p-3">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                               <Users className="h-3 w-3 text-cyan-400" /> Circles
                             </p>
-                            <p className="mt-1 text-base sm:text-lg font-semibold text-white">Your spaces</p>
-                            <p className="text-[11px] text-cyan-400/90">Chat, events &amp; roles</p>
+                            <p className="mt-1 text-base sm:text-lg font-semibold text-foreground">Your spaces</p>
+                            <p className="text-[11px] text-cyan-600 dark:text-cyan-400/90">Chat, events &amp; roles</p>
                           </div>
                         </div>
                       </div>
 
-                      <div className="mt-auto flex items-center justify-between rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-xs text-slate-400">
+                      <div className="mt-auto flex items-center justify-between rounded-xl border border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-2">
-                          <ShieldCheck className="h-3.5 w-3.5 text-violet-300" />
+                          <ShieldCheck className="h-3.5 w-3.5 text-violet-600 dark:text-violet-300" />
                           Real Stripe-backed coins
                         </span>
-                        <span className="text-slate-500">Loop · Build together</span>
+                        <span className="text-muted-foreground">Loop · Build together</span>
                       </div>
                     </div>
                   </div>
@@ -360,26 +361,26 @@ export function LandingContent() {
 
                 {/* Floating glass chips */}
                 <div
-                  className="absolute -right-2 top-[12%] hidden max-w-[230px] rounded-2xl border border-white/10 bg-white/[0.06] p-3 text-xs text-slate-200 shadow-xl backdrop-blur-md sm:block lg:-right-6"
+                  className="absolute -right-2 top-[12%] hidden max-w-[230px] rounded-2xl border border-border bg-card p-3 text-xs text-foreground shadow-xl backdrop-blur-md sm:block lg:-right-6"
                   style={{ transform: "perspective(900px) rotateY(12deg) translateZ(40px)" }}
                 >
-                  <p className="flex items-center gap-2 font-medium text-white">
-                    <Coins className="h-3.5 w-3.5 text-amber-300" />
+                  <p className="flex items-center gap-2 font-medium text-foreground">
+                    <Coins className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
                     Loop Coins
                   </p>
-                  <p className="mt-1 text-[11px] leading-snug text-slate-400">
+                  <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
                     Earn, gift creators, boost content, and cash out real earnings.
                   </p>
                 </div>
                 <div
-                  className="absolute -left-4 bottom-[18%] hidden rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-3 text-xs text-cyan-100 shadow-lg backdrop-blur-md sm:block"
+                  className="absolute -left-4 bottom-[18%] hidden rounded-2xl border border-cyan-500/20 bg-cyan-100 dark:bg-cyan-500/10 p-3 text-xs text-cyan-900 dark:text-cyan-100 shadow-lg backdrop-blur-md sm:block"
                   style={{ transform: "perspective(900px) rotateY(-10deg) translateZ(30px)" }}
                 >
-                  <p className="flex items-center gap-2 font-semibold text-cyan-50">
+                  <p className="flex items-center gap-2 font-semibold text-cyan-700 dark:text-cyan-50">
                     <Swords className="h-3.5 w-3.5" />
                     Public Duels
                   </p>
-                  <p className="mt-1 text-[11px] text-cyan-200/80">
+                  <p className="mt-1 text-[11px] text-cyan-700/80 dark:text-cyan-200/80">
                     Stake coins, make your case, and let voters decide.
                   </p>
                 </div>
@@ -389,17 +390,17 @@ export function LandingContent() {
         </section>
 
         {/* Features bento */}
-        <section id="features" className="scroll-mt-24 border-t border-white/[0.06] bg-[#050a14]/80 py-20 backdrop-blur-sm sm:py-24">
+        <section id="features" className="scroll-mt-24 border-t border-border bg-muted/30 py-20 backdrop-blur-sm sm:py-24">
           <div className="container mx-auto px-4 sm:px-6">
             <div className="mx-auto max-w-2xl text-center">
-              <Badge className="border border-white/10 bg-white/5 text-slate-300">
+              <Badge className="border border-border bg-muted text-foreground">
                 Core Differentiators
               </Badge>
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
                 Created for communities that
-                <span className="text-slate-400"> create in real time.</span>
+                <span className="text-muted-foreground"> create in real time.</span>
               </h2>
-              <p className="mt-4 text-slate-400">
+              <p className="mt-4 text-muted-foreground">
                 Four core superpowers built to make social interactions collaborative, meaningful, and rewarding.
               </p>
             </div>
@@ -409,7 +410,7 @@ export function LandingContent() {
                 <div
                   key={title}
                   className={cn(
-                    "landing-card-3d group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a1020]/90 p-6 shadow-xl shadow-black/30",
+                    "landing-card-3d group relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-xl shadow-black/30",
                     className,
                   )}
                 >
@@ -424,13 +425,13 @@ export function LandingContent() {
                       <Icon className="h-5 w-5 text-violet-200" />
                     </div>
                     {badge && (
-                      <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold text-slate-300 uppercase tracking-wider">
+                      <span className="rounded-full border border-border bg-muted px-2.5 py-0.5 text-[10px] font-semibold text-foreground uppercase tracking-wider">
                         {badge}
                       </span>
                     )}
                   </div>
-                  <h3 className="relative mt-5 text-xl font-bold text-white">{title}</h3>
-                  <p className="relative mt-2 text-sm leading-relaxed text-slate-300">
+                  <h3 className="relative mt-5 text-xl font-bold text-foreground">{title}</h3>
+                  <p className="relative mt-2 text-sm leading-relaxed text-muted-foreground">
                     {description}
                   </p>
                 </div>
@@ -440,17 +441,17 @@ export function LandingContent() {
         </section>
 
         {/* Social Proof Section (Dynamic DB Stats & Live Proof) */}
-        <section id="social-proof" className="scroll-mt-24 border-t border-white/[0.06] bg-[#030814] py-16 sm:py-20">
+        <section id="social-proof" className="scroll-mt-24 border-t border-border bg-muted/20 py-16 sm:py-20">
           <div className="container mx-auto px-4 sm:px-6">
             <div className="mx-auto max-w-3xl text-center">
               <Badge className="border border-cyan-500/30 bg-cyan-500/10 text-cyan-200">
                 <Activity className="mr-1.5 h-3.5 w-3.5 text-cyan-400" />
                 Live Community Activity
               </Badge>
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
                 Real people creating on Loop right now.
               </h2>
-              <p className="mt-4 text-slate-400">
+              <p className="mt-4 text-muted-foreground">
                 Live metrics and active spaces pulled directly from our database.
               </p>
             </div>
@@ -460,59 +461,59 @@ export function LandingContent() {
               {loadingStats ? (
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4 animate-pulse">
                   {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="h-28 rounded-2xl border border-white/10 bg-white/5" />
+                    <div key={i} className="h-28 rounded-2xl border border-border bg-muted/50" />
                   ))}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-4">
                   {stats && stats.total_loops > 0 && (
-                    <div className="rounded-2xl border border-white/[0.08] bg-[#0a1020]/90 p-5 text-center shadow-lg">
-                      <p className="text-3xl font-bold text-white sm:text-4xl">
+                    <div className="rounded-2xl border border-border bg-card p-5 text-center shadow-lg">
+                      <p className="text-3xl font-bold text-foreground sm:text-4xl">
                         {stats.total_loops.toLocaleString()}
                       </p>
-                      <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Loops Posted
                       </p>
                     </div>
                   )}
 
                   {stats && stats.total_circles > 0 && (
-                    <div className="rounded-2xl border border-white/[0.08] bg-[#0a1020]/90 p-5 text-center shadow-lg">
+                    <div className="rounded-2xl border border-border bg-card p-5 text-center shadow-lg">
                       <p className="text-3xl font-bold text-cyan-300 sm:text-4xl">
                         {stats.total_circles.toLocaleString()}
                       </p>
-                      <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Circles Created
                       </p>
                     </div>
                   )}
 
                   {stats && stats.total_users > 0 && (
-                    <div className="rounded-2xl border border-white/[0.08] bg-[#0a1020]/90 p-5 text-center shadow-lg">
+                    <div className="rounded-2xl border border-border bg-card p-5 text-center shadow-lg">
                       <p className="text-3xl font-bold text-violet-300 sm:text-4xl">
                         {stats.total_users.toLocaleString()}
                       </p>
-                      <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Creators &amp; Builders
                       </p>
                     </div>
                   )}
 
                   {stats && stats.total_duels > 0 ? (
-                    <div className="rounded-2xl border border-white/[0.08] bg-[#0a1020]/90 p-5 text-center shadow-lg">
+                    <div className="rounded-2xl border border-border bg-card p-5 text-center shadow-lg">
                       <p className="text-3xl font-bold text-amber-300 sm:text-4xl">
                         {stats.total_duels.toLocaleString()}
                       </p>
-                      <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Public Duels
                       </p>
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-white/[0.08] bg-[#0a1020]/90 p-5 text-center shadow-lg">
+                    <div className="rounded-2xl border border-border bg-card p-5 text-center shadow-lg">
                       <p className="text-3xl font-bold text-amber-300 sm:text-4xl flex items-center justify-center gap-1">
                         <Flame className="h-7 w-7 text-amber-400 inline" /> Real-time
                       </p>
-                      <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Live Collaboration
                       </p>
                     </div>
@@ -524,17 +525,17 @@ export function LandingContent() {
               {stats && (stats.recent_loops.length > 0 || stats.recent_circles.length > 0) && (
                 <div className="mt-10 grid gap-6 md:grid-cols-2">
                   {stats.recent_loops.length > 0 && (
-                    <div className="rounded-2xl border border-white/[0.08] bg-[#060c1a]/90 p-5 shadow-xl">
-                      <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                    <div className="rounded-2xl border border-border bg-card p-5 shadow-xl">
+                      <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
+                        <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                           <MessageCircle className="h-4 w-4 text-violet-400" /> Recent Public Loops
                         </span>
                         <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
                       </div>
                       <div className="space-y-3">
                         {stats.recent_loops.slice(0, 3).map((loop) => (
-                          <div key={loop.id} className="rounded-xl border border-white/5 bg-white/[0.03] p-3 text-xs">
-                            <p className="text-slate-200 line-clamp-2">&ldquo;{loop.preview}&rdquo;</p>
+                          <div key={loop.id} className="rounded-xl border border-border bg-muted/50 p-3 text-xs">
+                            <p className="text-foreground line-clamp-2">&ldquo;{loop.preview}&rdquo;</p>
                             {loop.author_username && (
                               <p className="mt-1.5 text-[11px] font-semibold text-violet-300">
                                 @{loop.author_username}
@@ -547,17 +548,17 @@ export function LandingContent() {
                   )}
 
                   {stats.recent_circles.length > 0 && (
-                    <div className="rounded-2xl border border-white/[0.08] bg-[#060c1a]/90 p-5 shadow-xl">
-                      <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                    <div className="rounded-2xl border border-border bg-card p-5 shadow-xl">
+                      <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
+                        <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                           <Users className="h-4 w-4 text-cyan-400" /> Active Circles
                         </span>
                         <span className="text-[11px] text-cyan-300 font-medium">Community Spaces</span>
                       </div>
                       <div className="space-y-3">
                         {stats.recent_circles.slice(0, 3).map((circle) => (
-                          <div key={circle.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.03] p-3 text-xs">
-                            <span className="font-semibold text-white truncate max-w-[200px]">{circle.name}</span>
+                          <div key={circle.id} className="flex items-center justify-between rounded-xl border border-border bg-muted/50 p-3 text-xs">
+                            <span className="font-semibold text-foreground truncate max-w-[200px]">{circle.name}</span>
                             {typeof circle.member_count === "number" && (
                               <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-300 border border-cyan-500/20">
                                 {circle.member_count} member{circle.member_count === 1 ? "" : "s"}
@@ -575,35 +576,35 @@ export function LandingContent() {
         </section>
 
         {/* Creator Studio section */}
-        <section id="creators" className="scroll-mt-24 border-t border-white/[0.06] bg-[#030715]/95 py-16 sm:py-20">
+        <section id="creators" className="scroll-mt-24 border-t border-border bg-muted/10 py-16 sm:py-20">
           <div className="container mx-auto px-4 sm:px-6">
             <div className="mx-auto max-w-3xl text-center">
               <Badge className="border border-amber-400/40 bg-amber-500/10 text-amber-100">
                 Creator Studio
               </Badge>
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
                 See your performance and money in one place.
               </h2>
-              <p className="mt-4 text-slate-400">
+              <p className="mt-4 text-muted-foreground">
                 Coin balance, gifts received, top-performing Loops and Reels, live stream peaks, and
                 boost spend — all pulled from what actually happened, updated in real time.
               </p>
             </div>
 
             <div className="mx-auto mt-10 grid max-w-5xl grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-              <div className="landing-card-3d relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-amber-500/15 via-[#0b0f1e] to-violet-600/25 p-6 shadow-2xl shadow-black/40 sm:p-7">
+              <div className="landing-card-3d relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-amber-500/15 via-card to-violet-600/25 p-6 shadow-2xl shadow-black/40 sm:p-7">
                 <div className="pointer-events-none absolute -right-28 -top-16 h-56 w-56 rounded-full bg-gradient-to-br from-amber-400/50 to-fuchsia-500/40 blur-3xl" />
                 <div className="relative flex items-center justify-between gap-4">
                   <div className="text-left">
                     <p className="text-xs font-medium uppercase tracking-[0.22em] text-amber-200/90">
                       Real earnings, not vanity numbers
                     </p>
-                    <p className="mt-2 text-3xl font-semibold tracking-tight text-white">
+                    <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
                       Gift, earn, and request a real payout.
                     </p>
                   </div>
                 </div>
-                <div className="relative mt-6 grid gap-3 text-sm text-slate-200 sm:grid-cols-2">
+                <div className="relative mt-6 grid gap-3 text-sm text-foreground sm:grid-cols-2">
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2">
                       <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
@@ -635,8 +636,8 @@ export function LandingContent() {
                 </div>
               </div>
 
-              <div className="flex flex-col justify-center gap-4 rounded-2xl border border-white/[0.08] bg-[#050818]/90 p-6 text-sm text-slate-300 shadow-xl sm:p-7">
-                <p className="text-xs font-medium uppercase tracking-[0.25em] text-slate-500">
+              <div className="flex flex-col justify-center gap-4 rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground shadow-xl sm:p-7">
+                <p className="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">
                   Built with early creators
                 </p>
                 <p className="text-base leading-relaxed">
@@ -653,17 +654,17 @@ export function LandingContent() {
         </section>
 
         {/* What's coming / roadmap */}
-        <section id="roadmap" className="scroll-mt-24 border-t border-white/[0.06] bg-[#020617] py-16 sm:py-20">
+        <section id="roadmap" className="scroll-mt-24 border-t border-border bg-muted/20 py-16 sm:py-20">
           <div className="container mx-auto px-4 sm:px-6">
             <div className="mx-auto max-w-2xl text-center">
-              <Badge className="border border-white/10 bg-white/5 text-slate-200">
+              <Badge className="border border-border bg-muted text-foreground">
                 <Rocket className="mr-1.5 h-3.5 w-3.5" />
                 What&apos;s coming
               </Badge>
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
                 Loop is early. Here&apos;s what we&apos;re building next.
               </h2>
-              <p className="mt-4 text-slate-400">
+              <p className="mt-4 text-muted-foreground">
                 No fake dates, no marketing promises — just an honest look at where we&apos;re headed.
               </p>
             </div>
@@ -672,7 +673,7 @@ export function LandingContent() {
               {roadmap.map(({ title, description, icon: Icon, status }) => (
                 <div
                   key={title}
-                  className="landing-card-3d relative rounded-2xl border border-white/[0.08] bg-[#0a1020]/90 p-5 shadow-lg shadow-black/20"
+                  className="landing-card-3d relative rounded-2xl border border-border bg-card p-5 shadow-lg shadow-black/20"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 ring-1 ring-cyan-500/20">
@@ -686,19 +687,19 @@ export function LandingContent() {
                           ? "border-emerald-400/40 text-emerald-300"
                           : status === "Planned"
                             ? "border-violet-400/40 text-violet-300"
-                            : "border-slate-400/40 text-slate-300",
+                            : "border-muted-foreground/40 text-muted-foreground",
                       )}
                     >
                       {status}
                     </Badge>
                   </div>
-                  <h3 className="mt-4 text-base font-semibold text-white">{title}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-slate-400">{description}</p>
+                  <h3 className="mt-4 text-base font-semibold text-foreground">{title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
                 </div>
               ))}
             </div>
 
-            <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-slate-500">
+            <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-muted-foreground">
               Have a feature you want to see? Tell us once you&apos;re in — early users shape this
               roadmap directly.
             </p>
@@ -708,14 +709,14 @@ export function LandingContent() {
         {/* Early users */}
         <section className="border-t border-emerald-500/20 bg-gradient-to-r from-emerald-600/15 via-[#030712] to-cyan-600/15 py-10 sm:py-12">
           <div className="container mx-auto px-4 sm:px-6">
-            <div className="mx-auto flex max-w-4xl flex-col items-start gap-4 rounded-2xl border border-emerald-400/30 bg-black/40 p-5 text-sm text-emerald-50 shadow-xl sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="mx-auto flex max-w-4xl flex-col items-start gap-4 rounded-2xl border border-emerald-400/30 bg-emerald-50 dark:bg-black/40 p-5 text-sm text-emerald-700 dark:text-emerald-50 shadow-xl sm:flex-row sm:items-center sm:justify-between sm:p-6">
               <div>
                 <div className="flex items-center gap-2">
                   <Badge className="border border-emerald-400/60 bg-emerald-500/15 text-[11px] uppercase tracking-[0.18em] text-emerald-100">
                     Early access
                   </Badge>
                 </div>
-                <p className="mt-3 text-base font-semibold text-white sm:text-lg">
+                <p className="mt-3 text-base font-semibold text-foreground sm:text-lg">
                   Be one of the first creators and developers on Loop.
                 </p>
                 <p className="mt-1 text-sm text-emerald-100/80">
@@ -739,13 +740,13 @@ export function LandingContent() {
 
         {/* CTA */}
         <section className="container mx-auto px-4 py-20 sm:px-6 sm:py-24">
-          <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-violet-600/30 via-[#0c1224] to-cyan-600/25 p-[1px] shadow-2xl shadow-violet-950/50">
-            <div className="relative rounded-[2rem] bg-[#070b14]/95 px-6 py-14 text-center sm:px-12 sm:py-16">
+          <div className="relative overflow-hidden rounded-[2rem] border border-border bg-gradient-to-br from-violet-600/30 via-card to-cyan-600/25 p-[1px] shadow-2xl shadow-violet-950/50">
+            <div className="relative rounded-[2rem] bg-background px-6 py-14 text-center sm:px-12 sm:py-16">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.2),transparent_55%)]" />
-              <h2 className="relative text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              <h2 className="relative text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
                 Ready to step inside the Loop?
               </h2>
-              <p className="relative mx-auto mt-4 max-w-xl text-slate-400">
+              <p className="relative mx-auto mt-4 max-w-xl text-muted-foreground">
                 Post a Loop, invite someone into a Co-Loop, or drop your first project in the
                 Developer Hub — see what sticks.
               </p>
@@ -753,7 +754,7 @@ export function LandingContent() {
                 <Link href="/signup">
                   <Button
                     size="lg"
-                    className="h-12 min-w-[200px] rounded-full bg-white px-8 text-base font-semibold text-slate-900 hover:bg-slate-100"
+                    className="h-12 min-w-[200px] rounded-full bg-foreground px-8 text-base font-semibold text-background hover:opacity-90"
                   >
                     Join free
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -763,7 +764,7 @@ export function LandingContent() {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="h-12 min-w-[200px] rounded-full border-white/20 bg-transparent text-white hover:bg-white/10"
+                    className="h-12 min-w-[200px] rounded-full border-border bg-transparent text-foreground hover:bg-muted"
                   >
                     Log in
                   </Button>
@@ -777,9 +778,9 @@ export function LandingContent() {
         </section>
       </main>
 
-      <footer className="relative z-10 border-t border-white/[0.06] bg-[#030712]/90 py-10 text-center text-sm text-slate-500 backdrop-blur">
+      <footer className="relative z-10 border-t border-border bg-background/90 py-10 text-center text-sm text-muted-foreground backdrop-blur">
         <div className="container mx-auto px-4 sm:px-6">
-          <p className="font-medium text-slate-400">Loop</p>
+          <p className="font-medium text-foreground">Loop</p>
           <p className="mt-2">&copy; {new Date().getFullYear()} Loop. Built for creators and developers.</p>
         </div>
       </footer>

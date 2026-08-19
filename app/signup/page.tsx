@@ -107,14 +107,16 @@ export default function SignupPage() {
   const strengthLabels = ["Very weak", "Weak", "Fair", "Strong", "Very strong"]
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#030712] text-white flex items-center justify-center">
-      {/* Animated background orbs */}
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground flex items-center justify-center">
+      {/* Animated background orbs — dark mode only */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-1/4 -right-1/4 w-[80vmin] h-[80vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(139,92,246,0.15),transparent_65%)] blur-3xl animate-pulse" style={{ animationDuration: "4s" }} />
-        <div className="absolute top-1/3 -left-1/4 w-[70vmin] h-[70vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.15),transparent_65%)] blur-3xl animate-pulse" style={{ animationDuration: "6s", animationDelay: "2s" }} />
-        <div className="absolute -bottom-1/4 right-1/3 w-[60vmin] h-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.12),transparent_65%)] blur-3xl animate-pulse" style={{ animationDuration: "5s", animationDelay: "1s" }} />
-        {/* Grid pattern */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
+        <div className="absolute -top-1/4 -right-1/4 w-[80vmin] h-[80vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(139,92,246,0.15),transparent_65%)] blur-3xl animate-pulse dark:block hidden" style={{ animationDuration: "4s" }} />
+        <div className="absolute top-1/3 -left-1/4 w-[70vmin] h-[70vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.15),transparent_65%)] blur-3xl animate-pulse dark:block hidden" style={{ animationDuration: "6s", animationDelay: "2s" }} />
+        <div className="absolute -bottom-1/4 right-1/3 w-[60vmin] h-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.12),transparent_65%)] blur-3xl animate-pulse dark:block hidden" style={{ animationDuration: "5s", animationDelay: "1s" }} />
+        {/* Light mode subtle gradient */}
+        <div className="absolute inset-0 dark:hidden bg-gradient-to-br from-violet-50 via-white to-cyan-50" />
+        {/* Grid pattern — dark only */}
+        <div className="absolute inset-0 opacity-[0.03] dark:block hidden" style={{
           backgroundImage: "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
           backgroundSize: "48px 48px",
         }} />
@@ -124,7 +126,7 @@ export default function SignupPage() {
         {/* Logo */}
         <div className="flex justify-center mb-6">
           <div className="relative group">
-            <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-2xl shadow-violet-500/30 -rotate-3 hover:rotate-0 transition-transform duration-300 ring-2 ring-violet-500/30">
+            <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-2xl shadow-violet-500/20 dark:shadow-violet-500/30 -rotate-3 hover:rotate-0 transition-transform duration-300 ring-2 ring-violet-500/30">
               <img src="/icons/icon.svg" alt="Loop" className="h-full w-full" />
             </div>
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-500 opacity-20 blur-lg group-hover:opacity-30 transition-opacity" />
@@ -134,19 +136,19 @@ export default function SignupPage() {
         {/* Title */}
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold tracking-tight mb-2">
-            <span className="bg-gradient-to-r from-violet-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-violet-600 via-blue-600 to-cyan-600 dark:from-violet-400 dark:via-blue-400 dark:to-cyan-400 bg-clip-text text-transparent">
               Join Loop
             </span>
           </h1>
-          <p className="text-slate-400 text-sm">
+          <p className="text-muted-foreground text-sm">
             Create your account and start your story
           </p>
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 shadow-2xl">
+        <div className="rounded-2xl border border-border bg-card shadow-2xl p-6">
           {error && (
-            <Alert variant="destructive" className="mb-4 bg-rose-500/10 border-rose-500/20 text-rose-300">
+            <Alert variant="destructive" className="mb-4">
               <AlertDescription className="text-xs">{error}</AlertDescription>
             </Alert>
           )}
@@ -155,7 +157,7 @@ export default function SignupPage() {
             {/* Username + Display Name row */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="username" className="text-xs font-medium text-slate-300">Username</Label>
+                <Label htmlFor="username" className="text-xs font-medium">Username</Label>
                 <Input
                   id="username"
                   type="text"
@@ -163,11 +165,11 @@ export default function SignupPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
                   required
-                  className="h-10 bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/30 transition-all rounded-xl text-sm"
+                  className="h-10 rounded-xl text-sm"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="displayName" className="text-xs font-medium text-slate-300">Display Name</Label>
+                <Label htmlFor="displayName" className="text-xs font-medium">Display Name</Label>
                 <Input
                   id="displayName"
                   type="text"
@@ -175,13 +177,13 @@ export default function SignupPage() {
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   required
-                  className="h-10 bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/30 transition-all rounded-xl text-sm"
+                  className="h-10 rounded-xl text-sm"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs font-medium text-slate-300">Email</Label>
+              <Label htmlFor="email" className="text-xs font-medium">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -189,12 +191,12 @@ export default function SignupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="h-11 bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/30 transition-all rounded-xl"
+                className="h-11 rounded-xl"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-xs font-medium text-slate-300">Password</Label>
+              <Label htmlFor="password" className="text-xs font-medium">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -203,13 +205,13 @@ export default function SignupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-11 bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/30 transition-all rounded-xl pr-11"
+                  className="h-11 rounded-xl pr-11"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-slate-500 hover:text-slate-300"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -219,16 +221,16 @@ export default function SignupPage() {
                 <div className="flex items-center gap-2 mt-1">
                   <div className="flex-1 flex gap-1">
                     {Array.from({ length: 5 }).map((_, i) => (
-                      <div key={i} className={"h-1 flex-1 rounded-full transition-all " + (i < strength ? strengthColors[strength - 1] : "bg-white/10")} />
+                      <div key={i} className={"h-1 flex-1 rounded-full transition-all " + (i < strength ? strengthColors[strength - 1] : "bg-muted")} />
                     ))}
                   </div>
-                  <span className="text-[10px] text-slate-500 w-16 text-right">{strength > 0 ? strengthLabels[strength - 1] : ""}</span>
+                  <span className="text-[10px] text-muted-foreground w-16 text-right">{strength > 0 ? strengthLabels[strength - 1] : ""}</span>
                 </div>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="confirmPassword" className="text-xs font-medium text-slate-300">Confirm Password</Label>
+              <Label htmlFor="confirmPassword" className="text-xs font-medium">Confirm Password</Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
@@ -237,13 +239,13 @@ export default function SignupPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  className="h-11 bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/30 transition-all rounded-xl pr-11"
+                  className="h-11 rounded-xl pr-11"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-slate-500 hover:text-slate-300"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -252,9 +254,9 @@ export default function SignupPage() {
               {confirmPassword && (
                 <div className="flex items-center gap-1 mt-0.5">
                   {password === confirmPassword ? (
-                    <span className="flex items-center gap-1 text-[10px] text-emerald-400"><Check className="h-3 w-3" /> Passwords match</span>
+                    <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400"><Check className="h-3 w-3" /> Passwords match</span>
                   ) : (
-                    <span className="flex items-center gap-1 text-[10px] text-rose-400"><X className="h-3 w-3" /> Passwords don&apos;t match</span>
+                    <span className="flex items-center gap-1 text-[10px] text-rose-600 dark:text-rose-400"><X className="h-3 w-3" /> Passwords don&apos;t match</span>
                   )}
                 </div>
               )}
@@ -262,7 +264,7 @@ export default function SignupPage() {
 
             <Button
               type="submit"
-              className="w-full h-11 rounded-xl bg-gradient-to-r from-violet-500 to-cyan-500 text-white font-semibold shadow-lg shadow-violet-500/25 hover:from-violet-400 hover:to-cyan-400 transition-all duration-200 group mt-2"
+              className="w-full h-11 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 dark:from-violet-500 dark:to-cyan-500 text-white font-semibold shadow-lg shadow-violet-500/25 hover:from-violet-500 hover:to-cyan-500 transition-all duration-200 group mt-2"
               disabled={loading}
             >
               {loading ? (
@@ -279,10 +281,10 @@ export default function SignupPage() {
           {/* Divider */}
           <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10" />
+              <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="px-3 bg-transparent text-slate-500">or</span>
+              <span className="px-3 bg-card text-muted-foreground">or</span>
             </div>
           </div>
 
@@ -290,7 +292,7 @@ export default function SignupPage() {
           <Button
             type="button"
             variant="outline"
-            className="w-full h-11 rounded-xl border-white/10 bg-white/[0.02] text-white hover:bg-white/[0.06] font-medium transition-all"
+            className="w-full h-11 rounded-xl font-medium transition-all"
             onClick={handleGoogleSignup}
             disabled={loading || (googleEnabled === false && authStatusChecked)}
           >
@@ -304,16 +306,16 @@ export default function SignupPage() {
           </Button>
 
           {googleEnabled === false && authStatusChecked && (
-            <p className="text-center text-[11px] text-amber-500/80 mt-3">
-              Google sign-in is being set up — use email & password for now.
+            <p className="text-center text-[11px] text-amber-600 dark:text-amber-500/80 mt-3">
+              Google sign-in is being set up — use email &amp; password for now.
             </p>
           )}
 
           {/* Footer */}
           <div className="text-center mt-5">
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Link href="/login" className="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors">
+              <Link href="/login" className="text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 font-semibold transition-colors">
                 Sign in
               </Link>
             </p>
@@ -321,31 +323,31 @@ export default function SignupPage() {
         </div>
 
         {/* Terms */}
-        <div className="flex items-center justify-center gap-3 text-[11px] text-slate-600 mt-6">
-          <Link href="/terms" className="hover:text-slate-400 transition-colors">Terms</Link>
+        <div className="flex items-center justify-center gap-3 text-[11px] text-muted-foreground mt-6">
+          <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
           <span>·</span>
-          <Link href="/privacy" className="hover:text-slate-400 transition-colors">Privacy</Link>
+          <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
         </div>
 
         {/* Feature highlights */}
         <div className="grid grid-cols-3 gap-4 mt-8 max-w-sm mx-auto">
           <div className="text-center space-y-1.5">
-            <div className="w-8 h-8 mx-auto rounded-lg bg-cyan-500/10 flex items-center justify-center">
-              <Zap className="h-4 w-4 text-cyan-400" />
+            <div className="w-8 h-8 mx-auto rounded-lg bg-cyan-100 dark:bg-cyan-500/10 flex items-center justify-center">
+              <Zap className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
             </div>
-            <p className="text-[10px] text-slate-500 font-medium">Create Loops</p>
+            <p className="text-[10px] text-muted-foreground font-medium">Create Loops</p>
           </div>
           <div className="text-center space-y-1.5">
-            <div className="w-8 h-8 mx-auto rounded-lg bg-violet-500/10 flex items-center justify-center">
-              <Users className="h-4 w-4 text-violet-400" />
+            <div className="w-8 h-8 mx-auto rounded-lg bg-violet-100 dark:bg-violet-500/10 flex items-center justify-center">
+              <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
             </div>
-            <p className="text-[10px] text-slate-500 font-medium">Co-Loop Live</p>
+            <p className="text-[10px] text-muted-foreground font-medium">Co-Loop Live</p>
           </div>
           <div className="text-center space-y-1.5">
-            <div className="w-8 h-8 mx-auto rounded-lg bg-blue-500/10 flex items-center justify-center">
-              <Zap className="h-4 w-4 text-blue-400" />
+            <div className="w-8 h-8 mx-auto rounded-lg bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center">
+              <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </div>
-            <p className="text-[10px] text-slate-500 font-medium">Earn Rewards</p>
+            <p className="text-[10px] text-muted-foreground font-medium">Earn Rewards</p>
           </div>
         </div>
       </div>
