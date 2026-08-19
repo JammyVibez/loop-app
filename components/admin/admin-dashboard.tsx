@@ -50,6 +50,7 @@ import { VerificationBadgesAdminPanel } from "@/components/admin/verification-ba
 import { SystemHealthPanel } from "@/components/admin/system-health-panel"
 import { BanAppealsPanel } from "@/components/admin/ban-appeals-panel"
 import { AdminAccountManagement } from "@/components/admin/admin-account-management"
+import { AdminTeamPermissions } from "@/components/admin/admin-team-permissions"
 import { CoLoopSessionsPanel } from "@/components/admin/co-loop-sessions-panel"
 import { AdminAnalyticsTab } from "@/components/admin/admin-analytics-tab"
 import { UserBadges } from "@/components/user-badge"
@@ -215,6 +216,7 @@ export function AdminDashboard() {
           <TabsTrigger value="appeals">Ban Appeals</TabsTrigger>
           <TabsTrigger value="health">System Health</TabsTrigger>
           <TabsTrigger value="coloops">Co-Loops</TabsTrigger>
+          <TabsTrigger value="team">Team</TabsTrigger>
         </TabsList>
 
         <TabsContent value="analytics" className="mt-6">
@@ -500,6 +502,9 @@ export function AdminDashboard() {
         </TabsContent>
         <TabsContent value="coloops" className="mt-6">
           <CoLoopSessionsPanel />
+        </TabsContent>
+        <TabsContent value="team" className="mt-6">
+          <AdminTeamPermissions />
         </TabsContent>
       </Tabs>
     </div>

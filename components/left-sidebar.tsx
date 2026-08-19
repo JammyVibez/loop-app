@@ -154,6 +154,25 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
                 </Badge>
               </Link>
             )}
+            {user.is_team_member && !isAdmin && (
+              <Link
+                href="/team"
+                onClick={onLinkClick}
+                className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
+                  pathname.startsWith("/team")
+                    ? "bg-blue-500 text-white shadow-sm"
+                    : "text-blue-500 hover:bg-blue-500/10"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Shield className="h-4 w-4" />
+                  <span>Team Dashboard</span>
+                </div>
+                <Badge variant="outline" className="border-blue-500/50 text-[9px]">
+                  TEAM
+                </Badge>
+              </Link>
+            )}
           </div>
 
           {/* Trending Circles Section */}

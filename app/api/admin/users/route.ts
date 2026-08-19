@@ -35,12 +35,12 @@ export async function GET(req: NextRequest) {
 
     let query = supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url, is_admin, is_premium, is_verified, is_team, created_at, deletion_executed_at")
+      .select("id, username, display_name, avatar_url, email, is_admin, is_premium, is_verified, is_team_member, is_banned, created_at, deletion_executed_at, loop_coins, followers_count, following_count, loops_count, level, reputation_score")
       .order("created_at", { ascending: false })
       .limit(limit)
 
     if (search.trim()) {
-      query = query.or(`username.ilike.%${search}%,display_name.ilike.%${search}%`)
+      query = query.or(`username.ilike.%${search}%,display_name.ilike.%${search}%,email.ilike.%${search}%`)
     }
 
     const { data: users, error } = await query
