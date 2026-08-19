@@ -74,6 +74,10 @@ const files = [
   "scripts/custom-checkmarks-schema.sql",
   // Reduce coin pack bonuses and add mid/upper tiers.
   "scripts/update-coin-packs.sql",
+  // Open Co-Loop Invite system: is_open_invite, max_collaborators,
+  // open_invite_topic, feed_post_id on co_loop_sessions +
+  // open_co_loop_participants table (see /api/co-loop/open-invite).
+  "scripts/open-co-loop-invites-schema.sql",
 ]
 
 const ignorable = [

@@ -42,6 +42,7 @@ import {
   Upload,
   Paperclip,
   Power,
+  Globe,
 } from "lucide-react"
 import {
   Dialog,
@@ -146,6 +147,10 @@ export function CoLoopStudio() {
   const [linkCopied, setLinkCopied] = useState(false)
   const [isSendingGift, setIsSendingGift] = useState(false)
   const [sendingInvite, setSendingInvite] = useState(false)
+  const [openInviteModal, setOpenInviteModal] = useState(false)
+  const [openInviteTopic, setOpenInviteTopic] = useState("")
+  const [openInviteMax, setOpenInviteMax] = useState(4)
+  const [publishingOpenInvite, setPublishingOpenInvite] = useState(false)
 
   const supabaseRef = useRef<any>(null)
   const channelRef = useRef<any>(null)
@@ -1192,6 +1197,40 @@ export function CoLoopStudio() {
     }
   }
 
+
+  // Create public open invite from studio
+  const handlePublishOpenInvite = async () => {
+    if (!isOwner || !openInviteTopic.trim()) return
+    setPublishingOpenInvite(true)
+    try {
+      const res = await fetch("/api/co-loop/open-invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({
+          session_id: sessionId,
+          topic: openInviteTopic.trim(),
+          max_collaborators: openInviteMax,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to create open invite")
+      toast({
+        title: "Open Co-Loop Published! 🤝",
+        description: "Your open invite is now live in the feed. Anyone can join!",
+      })
+      setOpenInviteModal(false)
+      setOpenInviteTopic("")
+    } catch (err: any) {
+      toast({
+        title: "Failed to publish",
+        description: err.message || "Try again",
+        variant: "destructive",
+      })
+    } finally {
+      setPublishingOpenInvite(false)
+    }
+  }
+
   const wordCount = postContent.trim() ? postContent.trim().split(/\s+/).length : 0
   const charCount = postContent.length
 
@@ -1399,6 +1438,23 @@ export function CoLoopStudio() {
               <span className="mt-2 text-xs font-bold text-muted-foreground">{linkCopied ? "Copied Link!" : "Copy Invite"}</span>
             </button>
           </div>
+
+            {/* Quick Open Invite Orb Button (owner only) */}
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenInviteTopic(postContent || postTitle || "")
+                  setOpenInviteModal(true)
+                }}
+                className="group flex flex-col items-center justify-center transition-all hover:scale-105"
+              >
+                <div className="relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full border-2 border-amber-500/50 bg-amber-500/10 text-amber-500 hover:border-amber-400 hover:bg-amber-500/20 shadow-sm">
+                  <Globe className="h-5 w-5" />
+                </div>
+                <span className="mt-2 text-xs font-bold text-amber-500">Open Invite</span>
+              </button>
+            )}
         </div>
 
         {/* FLOATING GLASS PANEL EDITOR (CENTERED CANVAS) */}
@@ -2079,6 +2135,59 @@ export function CoLoopStudio() {
             </div>
           </div>
         </DialogContent>
+
+      {/* Open Invite Dialog */}
+      <Dialog open={openInviteModal} onOpenChange={setOpenInviteModal}>
+        <DialogContent className="sm:max-w-lg border-cyan-500/30 bg-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-amber-500" />
+              Create Public Open Invite
+            </DialogTitle>
+            <DialogDescription>
+              Publish an open call in the feed. Anyone on Loop can join your session.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <label className="text-sm font-semibold mb-1.5 block">Topic / Prompt</label>
+              <Textarea
+                value={openInviteTopic}
+                onChange={(e) => setOpenInviteTopic(e.target.value)}
+                placeholder="What should we create together?"
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold mb-1.5 block">Max Collaborators</label>
+              <div className="flex gap-2">
+                {[2, 3, 4].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setOpenInviteMax(n)}
+                    className={`flex-1 rounded-xl border-2 px-3 py-2 text-center font-bold transition-all ${
+                      openInviteMax === n
+                        ? "border-amber-500 bg-amber-500/15 text-amber-300"
+                        : "border-white/10 bg-white/5 text-muted-foreground"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <Button
+              onClick={() => void handlePublishOpenInvite()}
+              disabled={publishingOpenInvite || !openInviteTopic.trim()}
+              className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 font-bold text-white shadow-lg"
+            >
+              {publishingOpenInvite ? "Publishing..." : "Publish Open Invite"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       </Dialog>
     </div>
   )
