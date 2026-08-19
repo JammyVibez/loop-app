@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Rocket, Sparkles, Coins, Flame, ChevronRight, User } from "lucide-react"
+import { Rocket, Zap, Coins, Flame, ChevronRight, User } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"

@@ -94,7 +94,7 @@ export function cosmeticVariants(item?: CosmeticItem | null): CosmeticVariants {
  * so buying an item actually produces the effect its description promises.
  */
 const EFFECT_KEY_CONFIG: Record<string, Record<string, any>> = {
-  // Sparkles / particles that orbit the avatar
+  // Zap / particles that orbit the avatar
   sparkle_trail: { frame_variant: "orbit_particles", colors: { primary: "#facc15", secondary: "#fde68a" }, glow: true },
   rainbow_trail: { frame_variant: "orbit_particles", colors: { primary: "#f472b6", secondary: "#22d3ee" }, glow: true },
   star_particles: { frame_variant: "orbit_particles", colors: { primary: "#a78bfa", secondary: "#fbbf24" }, glow: true },

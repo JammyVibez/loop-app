@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Palette, Sparkles, Zap, Crown, Music, TreePine, User, Coins } from "lucide-react";
+import { Palette, Zap, Crown, Music, TreePine, User, Coins } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -270,8 +270,7 @@ const categoryIcons = {
   profile: User,
   avatar: Crown,
   tree: TreePine,
-  post: Sparkles,
-  notification: Music,
+  post: Zap, notification: Music,
 }
 
 export function ShopItems() {
@@ -396,7 +395,7 @@ export function ShopItems() {
           <span>Themes</span>
         </TabsTrigger>
         <TabsTrigger value="animations" className="flex items-center space-x-2 rounded-xl text-xs font-semibold data-[state=active]:bg-cyan-500 data-[state=active]:text-slate-950 text-slate-400 transition-all">
-          <Sparkles className="w-4 h-4" />
+          <Zap className="w-4 h-4" />
           <span>Frames & Anims</span>
         </TabsTrigger>
         <TabsTrigger value="sounds" className="flex items-center space-x-2 rounded-xl text-xs font-semibold data-[state=active]:bg-cyan-500 data-[state=active]:text-slate-950 text-slate-400 transition-all">

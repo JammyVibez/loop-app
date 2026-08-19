@@ -18,7 +18,7 @@ import {
   Flag,
   Copy,
   ExternalLink,
-  Sparkles,
+  Zap,
   Users,
   ChevronLeft,
   ChevronRight,
@@ -484,7 +484,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           {loop.isCoLoop && (
             <div className="mb-3 flex items-center justify-between">
               <Badge className="bg-gradient-to-r from-cyan-500 via-teal-500 to-indigo-600 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-md shadow-cyan-500/20 border border-cyan-400/40 flex items-center gap-1">
-                <Sparkles className="h-3 w-3 animate-pulse text-cyan-200" />
+                <Zap className="h-3 w-3 animate-pulse text-cyan-200" />
                 Co-Loop Studio Collaboration
               </Badge>
               <button
@@ -564,7 +564,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                   <span>•</span>
                   <FreshnessTimestamp date={loop.createdAt} showIcon />
                   <span className="inline-flex items-center gap-1 text-cyan-600 dark:text-cyan-400 text-[10px]">
-                    <Sparkles className="h-3 w-3" /> Real-time active
+                    <Zap className="h-3 w-3" /> Real-time active
                   </span>
                 </div>
               </div>
@@ -762,7 +762,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                   <GitBranch className="h-4 w-4 mr-2 text-green-400" /> Branch this Loop
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setChainOpen(true)} className="cursor-pointer hover:bg-muted">
-                  <Sparkles className="h-4 w-4 mr-2 text-cyan-400" /> View Loop Chain Map
+                  <Zap className="h-4 w-4 mr-2 text-cyan-400" /> View Loop Chain Map
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -793,7 +793,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           <DialogContent className="border-border/60 bg-card text-foreground sm:max-w-md rounded-2xl p-5">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-base font-bold">
-                <Sparkles className="h-5 w-5 text-cyan-400" />
+                <Zap className="h-5 w-5 text-cyan-400" />
                 Co-Loop Contributors Roster
               </DialogTitle>
             </DialogHeader>

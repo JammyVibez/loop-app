@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Sparkles, Trophy, Video, Users, ArrowRight, Star, Calendar, Clock } from "lucide-react"
+import { Zap, Trophy, Video, Users, ArrowRight, Star, Calendar, Clock } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { type GlobalEvent } from "./global-events-hub"

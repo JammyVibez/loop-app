@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import {
   Building2,
   ShieldCheck,
-  Sparkles,
+  Zap,
   Upload,
   Coins,
   Settings2,

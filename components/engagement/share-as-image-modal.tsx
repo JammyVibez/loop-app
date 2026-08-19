@@ -14,7 +14,7 @@ import {
   GitBranch,
   Share2 as ShareIcon,
   Crown,
-  Sparkles,
+  Zap,
   ShieldCheck,
   Play,
 } from "lucide-react"
@@ -347,9 +347,17 @@ function drawCardBase(
     g.addColorStop(0, color); g.addColorStop(1, "rgba(0,0,0,0)")
     ctx.fillStyle = g; ctx.fillRect(0, 0, CARD_WIDTH, cardH)
   }
-  addBlob(CARD_WIDTH * 0.12, cardH * 0.08, 500, pal.glowPrimary)
-  addBlob(CARD_WIDTH * 0.88, cardH * 0.35, 420, pal.glowSecondary)
-  addBlob(CARD_WIDTH * 0.5, cardH * 0.85, 550, pal.glowAccent)
+  // Geometric corner accents instead of gradient blobs
+  ctx.save()
+  ctx.strokeStyle = pal.glowPrimary; ctx.lineWidth = 2; ctx.globalAlpha = 0.3
+  const cornerS = 120
+  // Top-right corner geometric
+  ctx.beginPath(); ctx.moveTo(cardH * 0.05, cardH * 0.05); ctx.lineTo(cardH * 0.05 + cornerS, cardH * 0.05); ctx.lineTo(cardH * 0.05, cardH * 0.05 + cornerS); ctx.closePath(); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(cardH * 0.1, cardH * 0.1); ctx.lineTo(cardH * 0.1 + cornerS * 0.6, cardH * 0.1); ctx.lineTo(cardH * 0.1, cardH * 0.1 + cornerS * 0.6); ctx.closePath(); ctx.stroke()
+  // Bottom-left corner
+  ctx.strokeStyle = pal.glowSecondary
+  ctx.beginPath(); ctx.moveTo(CARD_WIDTH - cardH * 0.05, cardH - cardH * 0.05); ctx.lineTo(CARD_WIDTH - cardH * 0.05 - cornerS, cardH - cardH * 0.05); ctx.lineTo(CARD_WIDTH - cardH * 0.05, cardH - cardH * 0.05 - cornerS); ctx.closePath(); ctx.stroke()
+  ctx.restore()
 
   // ── Frosted-glass card panel ──
   const panelX = margin, panelY = margin, panelW = innerW, panelH = cardH - margin * 2, panelR = 40
@@ -586,10 +594,19 @@ function ShareCardPreview({ post, theme }: { post: ShareAsImageModalProps["post"
         containerType: "inline-size",
       }}
     >
-      {/* Gradient mesh blobs */}
-      <div className="absolute -left-16 -top-16 h-64 w-64 rounded-full" style={{ background: "radial-gradient(circle, rgba(99,102,241,0.35) 0%, transparent 70%)" }} />
-      <div className="absolute right-0 top-1/3 h-52 w-52 rounded-full" style={{ background: "radial-gradient(circle, rgba(168,85,247,0.25) 0%, transparent 70%)" }} />
-      <div className="absolute -bottom-16 left-1/3 h-64 w-64 rounded-full" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.2) 0%, transparent 70%)" }} />
+      {/* Geometric accent pattern */}
+      <div className="absolute top-0 right-0 h-1/3 w-1/3 overflow-hidden opacity-20">
+        <div className="absolute -top-8 -right-8 h-32 w-32 rotate-45 border-2 border-indigo-400/40" />
+        <div className="absolute top-8 right-4 h-24 w-24 rotate-12 border border-violet-400/30" />
+        <div className="absolute top-16 right-12 h-16 w-16 rotate-45 border border-cyan-400/20" />
+      </div>
+      <div className="absolute bottom-0 left-0 h-1/4 w-1/4 overflow-hidden opacity-15">
+        <div className="absolute -bottom-6 -left-6 h-28 w-28 -rotate-12 border-2 border-indigo-400/30" />
+      </div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] opacity-[0.04]" style={{
+        backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+        backgroundSize: '32px 32px',
+      }} />
 
       {/* Glass card */}
       <div
@@ -639,7 +656,7 @@ function ShareCardPreview({ post, theme }: { post: ShareAsImageModalProps["post"
               )}
               {post.author.is_sponsor && (
                 <span title="Sponsor" className="flex h-[1.2em] w-[1.2em] shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-400 to-orange-400 text-amber-950">
-                  <Sparkles className="h-[0.7em] w-[0.7em]" fill="currentColor" />
+                  <Zap className="h-[0.7em] w-[0.7em]" fill="currentColor" />
                 </span>
               )}
               {post.author.is_team && (

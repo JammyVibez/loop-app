@@ -16,7 +16,7 @@ import {
   Lock,
   Globe,
   Search,
-  Sparkles,
+  Zap,
   CheckCircle2,
   Crown,
   TrendingUp,
@@ -37,7 +37,7 @@ import { useAuth } from "@/hooks/use-auth"
 
 const CATEGORIES = [
   { id: "all", label: "All Communities", icon: Compass },
-  { id: "Tech & AI", label: "Tech & AI", icon: Sparkles },
+  { id: "Tech & AI", label: "Tech & AI", icon: Zap },
   { id: "Gaming", label: "Gaming", icon: Flame },
   { id: "Creative & Art", label: "Creative & Art", icon: Tag },
   { id: "Music & Audio", label: "Music & Audio", icon: TrendingUp },

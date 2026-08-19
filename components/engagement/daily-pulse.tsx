@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Coins, Flame, Gift, ShoppingBag, Sparkles } from "lucide-react"
+import { Coins, Flame, Gift, ShoppingBag, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
@@ -219,7 +219,7 @@ export function DailyPulse() {
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <p className="flex items-center gap-1.5 text-sm font-semibold">
-            <Sparkles className="h-4 w-4 text-sky-500" />
+            <Zap className="h-4 w-4 text-sky-500" />
             Daily Pulse
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">

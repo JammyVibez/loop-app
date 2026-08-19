@@ -11,7 +11,7 @@ import { DiscordInviteWidget } from "@/components/lounge/discord-invite-widget"
 import { UserBadges } from "@/components/user-badge"
 import {
   Lock,
-  Sparkles,
+  Zap,
   Users,
   Vote,
   Megaphone,
@@ -139,7 +139,7 @@ function ProBadgePreview() {
         </div>
         <p className="text-sm text-muted-foreground">Your gold Pro badge, live — exactly what followers see.</p>
         <div className="flex items-center gap-2 text-xs text-fuchsia-400">
-          <Sparkles className="h-3.5 w-3.5" />
+          <Zap className="h-3.5 w-3.5" />
           Animated avatar frames, glow, and premium card effects included
         </div>
       </div>
@@ -240,7 +240,7 @@ export default function LoungePage() {
           </p>
           <Button asChild className="mt-6 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white">
             <Link href="/premium">
-              <Sparkles className="mr-2 h-4 w-4" /> Get Loop Pro
+              <Zap className="mr-2 h-4 w-4" /> Get Loop Pro
             </Link>
           </Button>
         </main>
@@ -447,7 +447,7 @@ export default function LoungePage() {
           </div>
           <Button asChild className="shrink-0 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white">
             <Link href="/settings?tab=referrals">
-              <Sparkles className="mr-2 h-4 w-4" /> Get your invite link
+              <Zap className="mr-2 h-4 w-4" /> Get your invite link
             </Link>
           </Button>
         </div>

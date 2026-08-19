@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Code, Plus, Loader2, Search, BookOpen, LayoutTemplate, GitFork, Star, Boxes, RefreshCw, Sparkles, Terminal, UserRound, Target, Trophy } from "lucide-react"
+import { Code, Plus, Loader2, Search, BookOpen, LayoutTemplate, GitFork, Star, Boxes, RefreshCw, Zap, Terminal, UserRound, Target, Trophy } from "lucide-react"
 import { CreateProjectDialog } from "@/components/developers/create-project-dialog"
 import { CodeLoopCard } from "@/components/developers/code-loop-card"
 import { DeveloperSnippets } from "@/components/developers/developer-snippets"
@@ -375,7 +375,7 @@ export function DevelopersContent() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <Sparkles className="w-5 h-5 text-cyan-500" />
+                  <Zap className="w-5 h-5 text-cyan-500" />
                   <span>Featured Developer Resources</span>
                 </CardTitle>
               </CardHeader>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Loader2, Plus, RefreshCw, Sparkles } from "lucide-react"
+import { Loader2, Plus, RefreshCw, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
@@ -323,7 +323,7 @@ export function AdminCatalogPanel() {
           </div>
 
           <Button onClick={createItem} disabled={saving} className="rounded-full">
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
             Create {form.category}
           </Button>
         </CardContent>

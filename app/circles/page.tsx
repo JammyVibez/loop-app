@@ -1,7 +1,7 @@
 import { Header } from "@/components/header"
 import { CirclesList } from "@/components/circles/circles-list"
 import { CreateCircleButton } from "@/components/circles/create-circle-button"
-import { Users, Sparkles, MessageSquare, ShieldCheck } from "lucide-react"
+import { Users, Zap, MessageSquare, ShieldCheck } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 
 export const dynamic = "force-dynamic"
@@ -52,7 +52,7 @@ export default async function CirclesPage() {
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="space-y-3 max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-950/50 px-3 py-1 text-xs font-extrabold text-cyan-300 backdrop-blur-md">
-                <Sparkles className="h-3.5 w-3.5 animate-pulse text-cyan-400" />
+                <Zap className="h-3.5 w-3.5 animate-pulse text-cyan-400" />
                 <span>Next-Gen Creator Communities & Co-Loop Hub</span>
               </div>
 
@@ -76,7 +76,7 @@ export default async function CirclesPage() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-cyan-400" />
+                    <Zap className="h-4 w-4 text-cyan-400" />
                     <span>Communities are just getting started — <strong className="text-white font-extrabold">be one of the first</strong></span>
                   </div>
                 )}

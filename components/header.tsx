@@ -26,7 +26,7 @@ import {
   Coins,
   Radio,
   Bookmark,
-  Sparkles,
+  Zap,
   Shield,
   X,
 } from "lucide-react"

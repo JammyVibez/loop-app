@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { ROLE_PERMISSIONS } from "@/lib/circle-permissions"
-import { Bot, Boxes, Palette, Trophy, Video, Wand2, Shield, Layout, Sparkles, Check, Type, Sliders, Layers, ShoppingBag } from "lucide-react"
+import { Bot, Boxes, Palette, Trophy, Video, Wand2, Shield, Layout, Zap, Check, Type, Sliders, Layers, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"

@@ -12,7 +12,6 @@ import {
   Gift,
   Coins,
   Crown,
-  Sparkles,
   Heart,
   Star,
   Zap,
@@ -79,7 +78,7 @@ function giftIcon(type: string) {
     case "animation":
       return <span className={`${base} border-pink-500/30 bg-gradient-to-br from-pink-500/20 to-rose-600/20 text-pink-500`}><Zap className="h-5 w-5" /></span>
     case "effect":
-      return <span className={`${base} border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-500/20 to-purple-600/20 text-fuchsia-500`}><Sparkles className="h-5 w-5" /></span>
+      return <span className={`${base} border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-500/20 to-purple-600/20 text-fuchsia-500`}><Zap className="h-5 w-5" /></span>
     default:
       return <span className={`${base} border-rose-500/30 bg-gradient-to-br from-rose-500/20 to-red-600/20 text-rose-500`}><Heart className="h-5 w-5" /></span>
   }
@@ -227,7 +226,7 @@ export function GiftModal({ open, onOpenChange, recipient, context, onGiftSent }
       case "post":
         return <MessageCircle className="h-4 w-4" />
       case "reel":
-        return <Sparkles className="h-4 w-4" />
+        return <Zap className="h-4 w-4" />
       case "branch":
         return <TreePine className="h-4 w-4" />
       default:

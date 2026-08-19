@@ -43,7 +43,6 @@ import {
   Pin,
   Archive,
   Flag,
-  Sparkles,
   X,
   Loader2,
   Image as ImageIcon,
@@ -1112,7 +1111,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
           <div className="absolute inset-0 bg-black/25" />
           {(design.title || styling.css_variables || layout !== "default") && (
             <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-cyan-300 border border-cyan-500/30 backdrop-blur">
-              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              <Zap className="h-3.5 w-3.5 text-amber-400" />
               Layout Pack: {layout.toUpperCase()}
             </div>
           )}
@@ -1362,7 +1361,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                     </p>
                   </div>
                   <span className="hidden shrink-0 items-center gap-1 text-[10px] font-medium text-muted-foreground sm:flex">
-                    <Sparkles className="h-3 w-3 text-violet-400" />
+                    <Zap className="h-3 w-3 text-violet-400" />
                     Real-time
                   </span>
                 </div>

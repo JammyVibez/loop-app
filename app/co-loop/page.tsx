@@ -13,7 +13,6 @@ import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import {
   Users,
   Loader2,
-  Sparkles,
   ExternalLink,
   Plus,
   ArrowLeft,
@@ -217,7 +216,7 @@ export default function CoLoopSessionsPage() {
           <Card className="text-center p-12 border-dashed border-2">
             <div className="flex justify-center mb-4">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500/20 to-indigo-600/20">
-                <Sparkles className="h-8 w-8 text-cyan-400" />
+                <Zap className="h-8 w-8 text-cyan-400" />
               </div>
             </div>
             <h3 className="text-lg font-bold text-foreground mb-2">No Co-Loop sessions yet</h3>
@@ -226,7 +225,7 @@ export default function CoLoopSessionsPage() {
             </p>
             <Button asChild className="rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 font-bold text-white hover:from-cyan-400 hover:to-indigo-500">
               <Link href="/create?tab=coloop">
-                <Sparkles className="h-4 w-4 mr-2" />
+                <Zap className="h-4 w-4 mr-2" />
                 Start Your First Co-Loop
               </Link>
             </Button>

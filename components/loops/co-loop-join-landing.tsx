@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/components/ui/use-toast"
-import { Sparkles, Users, UserPlus, LogIn, Coins, CheckCircle2, ShieldCheck, ArrowRight, Loader2, Rocket, Eye, EyeOff } from "lucide-react"
+import { Zap, Users, UserPlus, LogIn, Coins, CheckCircle2, ShieldCheck, ArrowRight, Loader2, Rocket, Eye, EyeOff } from "lucide-react"
 
 interface CoLoopJoinLandingProps {
   sessionId: string
@@ -182,7 +182,7 @@ export function CoLoopJoinLanding({ sessionId, invitedByUsername }: CoLoopJoinLa
         <CardHeader className="space-y-3 text-center pb-4">
           <div className="flex justify-center">
             <Badge className="bg-gradient-to-r from-cyan-500 to-violet-600 text-white border-none px-3 py-1 font-bold shadow-lg shadow-cyan-500/20 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+              <Zap className="w-3.5 h-3.5 animate-pulse" />
               Co-Loop Collaboration Invite
             </Badge>
           </div>

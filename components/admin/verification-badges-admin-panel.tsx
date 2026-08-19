@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2, Plus, Save, Trash2, Power, Check, Star, Shield, Crown, Sparkles, Search, Award } from "lucide-react"
+import { Loader2, Plus, Save, Trash2, Power, Check, Star, Shield, Crown, Zap, Search, Award } from "lucide-react"
 
 interface BadgeRow {
   id: string
@@ -34,7 +34,7 @@ const ICONS = [
   { value: "star", label: "Star", glyph: <Star className="h-3.5 w-3.5" /> },
   { value: "shield", label: "Shield", glyph: <Shield className="h-3.5 w-3.5" /> },
   { value: "crown", label: "Crown", glyph: <Crown className="h-3.5 w-3.5" /> },
-  { value: "sparkle", label: "Sparkle", glyph: <Sparkles className="h-3.5 w-3.5" /> },
+  { value: "sparkle", label: "Sparkle", glyph: <Zap className="h-3.5 w-3.5" /> },
 ]
 
 export function VerificationBadgesAdminPanel() {

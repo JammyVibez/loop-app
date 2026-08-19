@@ -19,7 +19,7 @@ import {
   PinOff,
   Plus,
   Share2,
-  Sparkles,
+  Zap,
   Trophy,
   Upload,
   Users,
@@ -756,7 +756,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 )}
                 {(cosmetics.aura || cosmetics.effect) && (
                   <Badge variant="outline" className="gap-1 text-xs">
-                    <Sparkles className="h-3 w-3" />
+                    <Zap className="h-3 w-3" />
                     {(cosmetics.aura || cosmetics.effect)?.name || "Effect"}
                   </Badge>
                 )}
@@ -767,7 +767,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 )}
                 {cosmetics.cardEffect && (
                   <Badge variant="outline" className="gap-1 text-xs">
-                    <Sparkles className="h-3 w-3" />
+                    <Zap className="h-3 w-3" />
                     {cosmetics.cardEffect.name || "Card Effect"}
                   </Badge>
                 )}

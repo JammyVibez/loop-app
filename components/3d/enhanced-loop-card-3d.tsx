@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, GitBranch, Volume2, Sparkles, Zap } from "lucide-react";
+import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, GitBranch, Volume2, Zap } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -266,7 +266,7 @@ export function EnhancedLoopCard3D({
                 )}
                 {user.is_premium && (
                   <Badge className="h-4 w-4 p-0 bg-gradient-to-r from-purple-500 to-pink-500">
-                    <Sparkles className="h-2 w-2 text-white" />
+                    <Zap className="h-2 w-2 text-white" />
                   </Badge>
                 )}
                 {user.level && user.level > 1 && (

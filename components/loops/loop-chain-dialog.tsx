@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { GitBranch, Heart, Sparkles, ChevronRight, ExternalLink, Plus, RefreshCw, ZoomIn, ZoomOut } from "lucide-react"
+import { GitBranch, Heart, Zap, ChevronRight, ExternalLink, Plus, RefreshCw, ZoomIn, ZoomOut } from "lucide-react"
 import Link from "next/link"
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp"
 
@@ -191,7 +191,7 @@ export function LoopChainDialog({ loopId, open, onOpenChange, onBranchSelect }: 
 
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-300 border-cyan-500/30">
-              <Sparkles className="h-3 w-3 mr-1" /> {totalNodes} Nodes in Chain
+              <Zap className="h-3 w-3 mr-1" /> {totalNodes} Nodes in Chain
             </Badge>
             <Button
               variant="outline"

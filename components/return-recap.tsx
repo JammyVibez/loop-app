@@ -10,7 +10,7 @@ import {
   Users,
   UserPlus,
   Handshake,
-  Sparkles,
+  Zap,
   X,
 } from "lucide-react"
 
@@ -95,7 +95,7 @@ export function ReturnRecap() {
       <div className="relative p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <Sparkles className="h-4 w-4 text-primary" />
+            <Zap className="h-4 w-4 text-primary" />
             Welcome back 👋 — {items.length} thing{items.length === 1 ? "" : "s"} happened while you were away
           </div>
           <Button

@@ -20,7 +20,7 @@ import {
   Bookmark,
 
   Shield,
-  Sparkles,
+  Zap,
   LogOut,
   Flame,
   User,
@@ -67,14 +67,14 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const discoveryNav = [
-    { href: "/", label: "Home Feed", icon: Sparkles },
+    { href: "/", label: "Home Feed", icon: Zap },
     // Messages moved to navbar only
     { href: "/explore", label: "Explore & Search", icon: Compass },
     { href: "/developers", label: "Developer Hub", icon: Code2 },
     { href: "/streams", label: "Live Streams", icon: Radio, badge: "LIVE" },
     { href: "/events", label: "Events Stage", icon: Calendar },
     { href: "/circles", label: "Circles & Communities", icon: Users },
-    { href: "/co-loop/studio", label: "Co-Loop Studio", icon: Sparkles, badge: "NEW" },
+    { href: "/co-loop/studio", label: "Co-Loop Studio", icon: Zap, badge: "NEW" },
     { href: "/earnings", label: "Creator Studio", icon: DollarSign },
     { href: "/wallet", label: "Wallet & Gifts", icon: Coins },
     { href: "/bookmarks", label: "Saved Bookmarks", icon: Bookmark },

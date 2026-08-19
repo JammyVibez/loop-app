@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Calendar, Trophy, Users, Star, Video, Search, ExternalLink, Check, Sparkles, Filter, Clock, Flame, ShieldAlert, Award, Play, MessageSquare, Send, Radio, Gift } from "lucide-react"
+import { Calendar, Trophy, Users, Star, Video, Search, ExternalLink, Check, Zap, Filter, Clock, Flame, ShieldAlert, Award, Play, MessageSquare, Send, Radio, Gift } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
@@ -205,7 +205,7 @@ export function GlobalEventsHub() {
             <div className="pt-2">
               <Button asChild className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-black font-bold shadow-lg hover:brightness-110">
                 <a href="/admin?tab=events">
-                  <Sparkles className="mr-2 h-4 w-4" />
+                  <Zap className="mr-2 h-4 w-4" />
                   Admin: Create & Manage Global Events
                 </a>
               </Button>
@@ -495,7 +495,7 @@ export function GlobalEventsHub() {
           <DialogContent className="border-white/15 bg-card text-foreground max-w-xl">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold text-cyan-300 flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-amber-400" /> {detailEvent.title}
+                <Zap className="h-5 w-5 text-amber-400" /> {detailEvent.title}
               </DialogTitle>
             </DialogHeader>
 

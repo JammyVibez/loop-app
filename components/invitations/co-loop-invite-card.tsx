@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Sparkles, Check, X, Loader2, Users } from "lucide-react"
+import { Zap, Check, X, Loader2, Users } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
@@ -135,7 +135,7 @@ export function CoLoopInviteCard({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-500 text-black font-extrabold shadow-md">
-            <Sparkles className="h-4 w-4 text-white" />
+            <Zap className="h-4 w-4 text-white" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">

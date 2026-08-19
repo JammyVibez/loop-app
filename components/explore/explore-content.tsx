@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, TreePine, Sparkles, TrendingUp, Hash, Loader2, RefreshCw } from "lucide-react"
+import { Clock, TreePine, Zap, TrendingUp, Hash, Loader2, RefreshCw } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
@@ -185,7 +185,7 @@ export function ExploreContent() {
     }
 
     if (items.length === 0) {
-      return <EmptyState title={emptyLabel} icon={<Sparkles className="h-6 w-6" />} />
+      return <EmptyState title={emptyLabel} icon={<Zap className="h-6 w-6" />} />
     }
 
     return (
@@ -235,7 +235,7 @@ export function ExploreContent() {
             Deepest
           </TabsTrigger>
           <TabsTrigger value="creative" className="rounded-xl">
-            <Sparkles className="mr-1.5 h-4 w-4" />
+            <Zap className="mr-1.5 h-4 w-4" />
             Creative
           </TabsTrigger>
           <TabsTrigger value="hashtags" className="rounded-xl">
@@ -268,7 +268,7 @@ export function ExploreContent() {
 
         <TabsContent value="creative" className="mt-6 space-y-4">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-amber-500" />
+            <Zap className="h-5 w-5 text-amber-500" />
             <h2 className="text-xl font-semibold">Most Creative</h2>
             <Badge variant="secondary">Highest engagement</Badge>
           </div>

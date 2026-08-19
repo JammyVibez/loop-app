@@ -23,7 +23,6 @@ import {
   Heart,
   Star,
   Zap,
-  Sparkles,
   TreePine,
   Flame,
   Snowflake,
@@ -117,7 +116,7 @@ const GIFT_CATEGORIES = {
       rarity: 'rare' as const,
       animation_url: '/gifts/animations/sparkle-trail.gif',
       static_url: '/gifts/sparkles-static.png',
-      icon: <Sparkles className="w-6 h-6 text-purple-400" />,
+      icon: <Zap className="w-6 h-6 text-purple-400" />,
     },
     {
       id: 'flame_aura',

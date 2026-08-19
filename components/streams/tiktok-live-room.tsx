@@ -17,7 +17,7 @@ import {
   Radio,
   Send,
   Share2,
-  Sparkles,
+  Zap,
   SwitchCamera,
   Video,
   VideoOff,
@@ -609,7 +609,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
           </span>
           {isOwner && isLive && (
             <span className="hidden items-center gap-1 rounded-md bg-violet-500/90 px-2 py-1 text-[11px] font-bold sm:inline-flex">
-              <Sparkles className="h-3 w-3" /> Live SFU
+              <Zap className="h-3 w-3" /> Live SFU
             </span>
           )}
           {mediaMode === "screen" && (
@@ -755,7 +755,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
           ))}
           {isOwner && isLive && (
             <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-[11px] text-white/80">
-              <Sparkles className="h-3 w-3 text-amber-300" />
+              <Zap className="h-3 w-3 text-amber-300" />
               Host controls on
             </span>
           )}

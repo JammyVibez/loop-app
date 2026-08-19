@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LogIn, Sparkles, UserPlus } from "lucide-react"
+import { LogIn, Zap, UserPlus } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -72,7 +72,7 @@ export function useLoginGate() {
         <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-sky-500/15 to-transparent" />
         <DialogHeader className="relative space-y-3 text-left">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-violet-600 text-white shadow-lg shadow-sky-500/20">
-            <Sparkles className="h-5 w-5" />
+            <Zap className="h-5 w-5" />
           </div>
           <DialogTitle className="text-xl">{copy.title}</DialogTitle>
           <DialogDescription className="text-sm leading-relaxed text-muted-foreground">

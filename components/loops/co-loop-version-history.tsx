@@ -16,7 +16,7 @@ import {
   Clock,
   ArrowLeftRight,
   GitCommit,
-  Sparkles,
+  Zap,
   FileText,
   Tag,
   ImageIcon,
@@ -342,7 +342,7 @@ export function CoLoopVersionHistory({
                 {/* Content Diff */}
                 <div className="space-y-1.5">
                   <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                    <Sparkles className="h-3.5 w-3.5 text-purple-400" /> Content Visual Diff
+                    <Zap className="h-3.5 w-3.5 text-purple-400" /> Content Visual Diff
                   </span>
                   {renderContentDiff(selectedVersion.content, currentDraft.content)}
                 </div>

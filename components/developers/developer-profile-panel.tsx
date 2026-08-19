@@ -18,7 +18,7 @@ import {
   Loader2,
   Plus,
   Save,
-  Sparkles,
+  Zap,
   Trash2,
   Wrench,
 } from "lucide-react"
@@ -157,7 +157,7 @@ export function DeveloperProfilePanel() {
     return (
       <Card>
         <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
-          <Sparkles className="h-8 w-8 text-cyan-500" />
+          <Zap className="h-8 w-8 text-cyan-500" />
           <p className="font-medium">Sign in to set up your developer profile</p>
           <p className="text-sm text-muted-foreground">
             Show off your skills, links, and availability to the Loop dev community.
@@ -261,7 +261,7 @@ export function DeveloperProfilePanel() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Sparkles className="h-5 w-5 text-indigo-500" /> Portfolio & availability
+              <Zap className="h-5 w-5 text-indigo-500" /> Portfolio & availability
             </CardTitle>
             <CardDescription>Links and details shown on your developer profile.</CardDescription>
           </CardHeader>

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coins, Palette, Sparkles, Zap, Crown, Star, Loader2, Eye, CreditCard } from "lucide-react";
+import { Coins, Palette, Zap, Crown, Star, Loader2, Eye, CreditCard } from "lucide-react";
 import { LoopCoinsBalance } from "@/components/shop/loop-coins-balance";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -379,7 +379,7 @@ export function ShopContent() {
             <span>Themes</span>
           </TabsTrigger>
           <TabsTrigger value="animations" className="flex items-center space-x-2">
-            <Sparkles className="w-4 h-4" />
+            <Zap className="w-4 h-4" />
             <span>Animations</span>
           </TabsTrigger>
           <TabsTrigger value="effects" className="flex items-center space-x-2">

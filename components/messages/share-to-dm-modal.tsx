@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Send, Check, MessageSquare, Loader2, Share2, Film, Sparkles, Link2, ExternalLink } from "lucide-react"
+import { Search, Send, Check, MessageSquare, Loader2, Share2, Film, Zap, Link2, ExternalLink } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -272,7 +272,7 @@ export function ShareToDmModal({ open, onOpenChange, item }: ShareToDmModalProps
                   <img src={item.mediaUrl} alt="Preview" className="h-full w-full object-cover" />
                 )}
                 <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                  {item.type === "reel" ? <Film className="h-4 w-4 text-white" /> : <Sparkles className="h-4 w-4 text-white" />}
+                  {item.type === "reel" ? <Film className="h-4 w-4 text-white" /> : <Zap className="h-4 w-4 text-white" />}
                 </div>
               </div>
             ) : (

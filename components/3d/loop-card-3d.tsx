@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, GitBranch, Volume2, Sparkles } from "lucide-react";
+import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, GitBranch, Volume2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -150,7 +150,7 @@ export function LoopCard3D({ loop, onLike, onBookmark, className = '', variant =
               <source src={loop.media_url} type="video/mp4" />
             </video>
             <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <Sparkles className="h-4 w-4 text-white" />
+              <Zap className="h-4 w-4 text-white" />
             </div>
           </div>
         )

@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Vote, CheckCircle2, Clock, Sparkles } from "lucide-react"
+import { Vote, CheckCircle2, Clock, Zap, Pencil, Plus, X } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase"
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 
 interface PollOption {
   id: string
@@ -29,10 +31,15 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 )
 
-export function PollCardWidget({ poll: initialPoll, loopId }: { poll?: PollData; loopId?: string }) {
+export function PollCardWidget({ poll: initialPoll, loopId, creatorId }: { poll?: PollData; loopId?: string; creatorId?: string }) {
   const [poll, setPoll] = useState<PollData | null>(initialPoll || null)
   const [userVotedOptionId, setUserVotedOptionId] = useState<string | null>(null)
   const [isVoting, setIsVoting] = useState<boolean>(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editQuestion, setEditQuestion] = useState("")
+  const [editOptions, setEditOptions] = useState<string[]>([])
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [pollOwnerId, setPollOwnerId] = useState<string | null>(null)
 
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
@@ -108,6 +115,37 @@ export function PollCardWidget({ poll: initialPoll, loopId }: { poll?: PollData;
   const totalVotes = poll.total_votes || poll.options?.reduce((acc, o) => acc + (o.votes || 0), 0) || 0
   const isExpired = poll.expires_at ? new Date(poll.expires_at) < new Date() : false
 
+  const openEdit = () => {
+    setEditQuestion(poll?.question || "")
+    setEditOptions(poll?.options?.map(o => o.text) || ["", ""])
+    setIsEditing(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!poll || !user) return
+    if (editOptions.filter(o => o.trim()).length < 2) {
+      toast({ title: "Need at least 2 options" })
+      return
+    }
+    setSavingEdit(true)
+    try {
+      const res = await fetch(`/api/polls/${poll.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ question: editQuestion, options: editOptions.filter(o => o.trim()) }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to update")
+      setPoll(prev => prev ? { ...prev, question: editQuestion, options: editOptions.filter(o => o.trim()).map((text, i) => ({ id: `opt_${i+1}`, text, votes: 0 })) } : prev)
+      setIsEditing(false)
+      toast({ title: "Poll updated" })
+    } catch (err: any) {
+      toast({ title: "Update failed", description: err.message, variant: "destructive" })
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
   const handleVote = async (optionId: string) => {
     if (!user) {
       toast({ title: "Sign in required", description: "Please sign in to vote!" })
@@ -154,6 +192,7 @@ export function PollCardWidget({ poll: initialPoll, loopId }: { poll?: PollData;
   const showResults = Boolean(userVotedOptionId || isExpired)
 
   return (
+    <>
     <div className="p-5 rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 to-card space-y-4 my-3 shadow-xl">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
@@ -164,6 +203,11 @@ export function PollCardWidget({ poll: initialPoll, loopId }: { poll?: PollData;
           <span className="text-xs text-muted-foreground font-medium">{totalVotes} Total Votes</span>
         </div>
 
+        {creatorId && user?.id === creatorId && (poll.total_votes || 0) === 0 && !isExpired && (
+          <button onClick={openEdit} className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition">
+            <Pencil className="h-3 w-3" /> Edit
+          </button>
+        )}
         {poll.expires_at && (
           <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
             <Clock className="h-3.5 w-3.5 text-cyan-500 dark:text-cyan-400" />
@@ -230,5 +274,34 @@ export function PollCardWidget({ poll: initialPoll, loopId }: { poll?: PollData;
         })}
       </div>
     </div>
+
+      <Dialog open={isEditing} onOpenChange={setIsEditing}>
+        <DialogContent className="max-w-md bg-card border-border">
+          <DialogHeader><DialogTitle>Edit Poll</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Input value={editQuestion} onChange={e => setEditQuestion(e.target.value)} placeholder="Poll question" />
+            {editOptions.map((opt, i) => (
+              <div key={i} className="flex gap-2">
+                <Input value={opt} onChange={e => { const n = [...editOptions]; n[i] = e.target.value; setEditOptions(n) }} placeholder={`Option ${i + 1}`} />
+                {editOptions.length > 2 && (
+                  <button onClick={() => setEditOptions(editOptions.filter((_, j) => j !== i))} className="text-rose-400 hover:text-rose-300 p-2"><X className="h-4 w-4" /></button>
+                )}
+              </div>
+            ))}
+            {editOptions.length < 6 && (
+              <button onClick={() => setEditOptions([...editOptions, ""])} className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300">
+                <Plus className="h-3 w-3" /> Add option
+              </button>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>Cancel</Button>
+              <Button size="sm" onClick={handleSaveEdit} disabled={savingEdit}>
+                {savingEdit ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

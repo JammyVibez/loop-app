@@ -7,8 +7,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
-import { Coins, Zap, ThumbsUp, ThumbsDown, Timer, Play, Trophy, Flame, Sparkles } from "lucide-react"
+import { Coins, Zap, ThumbsUp, ThumbsDown, Timer, Play, Trophy, Flame, Pencil, Plus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 
 interface ClutchDuelData {
   id: string
@@ -38,6 +40,10 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
   const [phase, setPhase] = useState<"betting" | "revealing" | "revealed">("betting")
   const [staking, setStaking] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editPrompt, setEditPrompt] = useState("")
+  const [editPrediction, setEditPrediction] = useState("")
+  const [savingEdit, setSavingEdit] = useState(false)
   const [revealing, setRevealing] = useState(false)
   const [videoPlaying, setVideoPlaying] = useState(false)
   const [myResult, setMyResult] = useState<{ kind: "win" | "loss" | "refund" | null; amount?: number } | null>(null)
@@ -271,6 +277,35 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
   }
 
   const isCreator = Boolean(user && duel?.creator_id && user.id === duel.creator_id)
+  const canEdit = user?.id === duel?.creator?.id && phase === "betting" && !userPick
+
+  const openEdit = () => {
+    setEditPrompt(duel?.prompt || "")
+    setEditPrediction(duel?.prediction_question || "")
+    setIsEditing(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!duel) return
+    setSavingEdit(true)
+    try {
+      const res = await fetch(`/api/duels/${duel.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ prompt: editPrompt, prediction_question: editPrediction }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to update")
+      setDuel(prev => prev ? { ...prev, prompt: editPrompt, prediction_question: editPrediction } : prev)
+      setIsEditing(false)
+      toast({ title: "Duel updated" })
+    } catch (err: any) {
+      toast({ title: "Update failed", description: err.message, variant: "destructive" })
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
   const bettingOpen = phase === "betting" && secondsLeft !== 0
   const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`
   const creatorName = duel?.creator?.display_name || duel?.creator?.username || "A player"
@@ -278,6 +313,7 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
   if (!duel) return null
 
   return (
+    <>
     <div className="relative my-4 overflow-hidden rounded-3xl border border-violet-500/30 bg-gradient-to-b from-[#120b2e] to-[#0a0818] shadow-2xl shadow-violet-950/40">
       {/* Ambient gaming glow */}
       <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-violet-600/20 blur-3xl" />
@@ -285,6 +321,11 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
       {/* Header */}
       <div className="relative flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
         <div className="flex items-center gap-2">
+          {canEdit && (
+            <button onClick={openEdit} className="ml-2 flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/70 hover:bg-white/20 hover:text-white transition">
+              <Pencil className="h-3 w-3" /> Edit
+            </button>
+          )}
           <Badge className="gap-1 bg-gradient-to-r from-amber-400 to-orange-500 px-2.5 py-1 font-black text-slate-950 shadow-lg">
             <Zap className="h-3.5 w-3.5 fill-current" /> CLUTCH DUEL
           </Badge>
@@ -417,7 +458,7 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
               </>
             ) : (
               <>
-                <Sparkles className="h-5 w-5 text-cyan-300" />
+                <Zap className="h-5 w-5 text-cyan-300" />
                 <p className="text-sm font-bold text-white">
                   Outcome: <span className="uppercase">{duel.correct_side}</span> — the clip tells the story.
                 </p>
@@ -534,5 +575,28 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
         )}
       </div>
     </div>
+
+      <Dialog open={isEditing} onOpenChange={setIsEditing}>
+        <DialogContent className="max-w-md bg-[#120b2e] border-violet-500/30">
+          <DialogHeader><DialogTitle className="text-white">Edit Duel</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-violet-300">Prompt</label>
+              <Input value={editPrompt} onChange={e => setEditPrompt(e.target.value)} placeholder="Duel prompt" className="bg-white/5 border-white/10 text-white" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-violet-300">Prediction Question</label>
+              <Input value={editPrediction} onChange={e => setEditPrediction(e.target.value)} placeholder="What should people predict?" className="bg-white/5 border-white/10 text-white" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)} className="text-white/70 hover:text-white">Cancel</Button>
+              <Button size="sm" onClick={handleSaveEdit} disabled={savingEdit} className="bg-violet-600 hover:bg-violet-500">
+                {savingEdit ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

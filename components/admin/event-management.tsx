@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar, Plus, Sparkles, Trophy, Users, Star, Trash2, Edit3, CheckCircle2, Globe, Video, Code, Image as ImageIcon, ExternalLink, Zap } from "lucide-react"
+import { Calendar, Plus, Trophy, Users, Star, Trash2, Edit3, CheckCircle2, Globe, Video, Code, Image as ImageIcon, ExternalLink, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { getEventStatus, formatEventTime, getEventStatusBadge } from "@/lib/events"
@@ -225,7 +225,7 @@ export function EventManagement() {
         <Card className="border-white/10 bg-white/[0.03]">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-amber-400" />
+              <Zap className="h-4 w-4 text-amber-400" />
               Quick Event Templates
             </CardTitle>
           </CardHeader>

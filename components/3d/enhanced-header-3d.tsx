@@ -10,7 +10,6 @@ import {
   LogOut, 
   Menu, 
   X, 
-  Sparkles, 
   Zap,
   Crown,
   Gift,
@@ -204,7 +203,7 @@ export function EnhancedHeader3D() {
             {/* Search suggestions indicator */}
             {searchQuery && (
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                <Zap className="h-4 w-4 text-primary animate-pulse" />
               </div>
             )}
           </div>

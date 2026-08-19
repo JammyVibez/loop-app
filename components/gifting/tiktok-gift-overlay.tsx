@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { Sparkles, Crown, Flame, Rocket, Heart, Trophy, Zap, Star } from "lucide-react"
+import { Crown, Flame, Rocket, Heart, Trophy, Zap, Star } from "lucide-react"
 
 export interface ActiveGiftEffect {
   id: string
@@ -68,7 +68,7 @@ export function TikTokGiftOverlay({ activeGift, onComplete }: TikTokGiftOverlayP
 
           <div className="text-left">
             <p className="text-xs text-amber-300 font-semibold uppercase tracking-wider flex items-center gap-1">
-              <Sparkles className="h-3 w-3" />
+              <Zap className="h-3 w-3" />
               Gift Received!
             </p>
             <p className="text-sm font-bold text-white">

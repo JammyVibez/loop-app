@@ -15,7 +15,7 @@ import {
   Loader2,
   ArrowRight,
   Check,
-  Sparkles,
+  Zap,
 } from "lucide-react"
 
 interface DiscoveryDuel {
@@ -139,7 +139,7 @@ export function ParticipationDiscovery() {
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h2 className="flex items-center gap-2 text-base font-extrabold text-foreground sm:text-lg">
-            <Sparkles className="h-4 w-4 text-amber-400" />
+            <Zap className="h-4 w-4 text-amber-400" />
             What can you participate in right now?
           </h2>
           <p className="text-xs text-muted-foreground">Live duels, open collaborations, growing communities and rising creators.</p>

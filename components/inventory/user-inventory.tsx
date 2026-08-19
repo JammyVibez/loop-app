@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { useInventoryRealtime } from "@/hooks/use-inventory-realtime"
-import { Coins, Palette, Crown, Sparkles, Trash2, Eye, ShoppingBag } from "lucide-react"
+import { Coins, Palette, Crown, Zap, Trash2, Eye, ShoppingBag } from "lucide-react"
 
 interface InventoryItem {
   id: string
@@ -165,7 +165,7 @@ export function UserInventory() {
   const getRarityIcon = (type: string) => {
     if (String(type).includes("theme")) return <Palette className="w-4 h-4 text-cyan-400" />
     if (String(type).includes("frame") || String(type).includes("avatar")) return <Crown className="w-4 h-4 text-amber-400" />
-    if (String(type).includes("badge")) return <Sparkles className="w-4 h-4 text-fuchsia-400" />
+    if (String(type).includes("badge")) return <Zap className="w-4 h-4 text-fuchsia-400" />
     if (String(type).includes("effect") || String(type).includes("animation")) return <Eye className="w-4 h-4 text-emerald-400" />
     return <Coins className="w-4 h-4 text-yellow-400" />
   }

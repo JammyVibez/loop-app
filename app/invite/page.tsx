@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { Copy, Mail, Share2, Users, Sparkles, GitBranch, Loader2, TrendingUp } from "lucide-react"
+import { Copy, Mail, Share2, Users, Zap, GitBranch, Loader2, TrendingUp } from "lucide-react"
 import { Header } from "@/components/header"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
@@ -199,7 +199,7 @@ export default function InviteFriendsPage() {
 
         <Card className="border-cyan-500/30 bg-cyan-500/5">
           <CardContent className="flex items-center gap-3 p-4">
-            <Sparkles className="h-5 w-5 text-cyan-500 dark:text-cyan-400 shrink-0" />
+            <Zap className="h-5 w-5 text-cyan-500 dark:text-cyan-400 shrink-0" />
             <p className="text-sm text-muted-foreground">
               Tip: inviting someone into a{" "}
               <Link href="/co-loop/studio" className="text-cyan-600 dark:text-cyan-400 font-medium hover:underline">

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Coins, Plus, Star, Loader2, Sparkles, Zap, Crown } from "lucide-react";
+import { Coins, Plus, Star, Loader2, Zap, Crown } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,7 +26,7 @@ interface CoinPackage {
 
 const rarityConfig: Record<string, { ring: string; bg: string; icon: React.ReactNode; label: string }> = {
   common: { ring: "", bg: "bg-slate-50 dark:bg-slate-900", icon: <Coins className="w-4 h-4 text-slate-400" />, label: "" },
-  rare: { ring: "ring-2 ring-blue-500/40", bg: "bg-blue-50/50 dark:bg-blue-950/30", icon: <Sparkles className="w-4 h-4 text-blue-500" />, label: "Popular" },
+  rare: { ring: "ring-2 ring-blue-500/40", bg: "bg-blue-50/50 dark:bg-blue-950/30", icon: <Zap className="w-4 h-4 text-blue-500" />, label: "Popular" },
   epic: { ring: "ring-2 ring-purple-500/40", bg: "bg-purple-50/50 dark:bg-purple-950/30", icon: <Zap className="w-4 h-4 text-purple-500" />, label: "Best Value" },
   legendary: { ring: "ring-2 ring-amber-500/40", bg: "bg-amber-50/50 dark:bg-amber-950/30", icon: <Crown className="w-4 h-4 text-amber-500" />, label: "Premium" },
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { ShieldCheck, Check, Sparkles, Crown, Building2, Star, Shield } from "lucide-react"
+import { ShieldCheck, Check, Zap, Crown, Building2, Star, Shield } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export interface VerificationBadgeData {
@@ -38,7 +38,7 @@ function BadgeGlyph({ icon, className }: { icon?: string | null; className: stri
     case "crown":
       return <Crown className={cn(className, "fill-current")} />
     case "sparkle":
-      return <Sparkles className={cn(className, "fill-current")} />
+      return <Zap className={cn(className, "fill-current")} />
     default:
       return <Check className={cn(className, "stroke-[3]")} />
   }
@@ -130,7 +130,7 @@ export function UserBadges({
             showText ? badgePadding[size] : "p-0.5"
           )}
         >
-          <Sparkles className={cn(iconSizes[size], "text-amber-950 fill-amber-300")} />
+          <Zap className={cn(iconSizes[size], "text-amber-950 fill-amber-300")} />
           {showText && <span className="uppercase tracking-wider font-extrabold text-[9px]">SPONSOR</span>}
         </span>
       )}

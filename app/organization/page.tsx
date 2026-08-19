@@ -7,7 +7,7 @@ import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Building2, Users, Coins, Calendar, TrendingUp, ExternalLink, Sparkles, Loader2, Settings2, Plus } from "lucide-react"
+import { Building2, Users, Coins, Calendar, TrendingUp, ExternalLink, Zap, Loader2, Settings2, Plus } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { PageLoading } from "@/components/loading-states"
@@ -164,7 +164,7 @@ export default function OrganizationDashboardPage() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
                 { icon: Users, label: "Followers", value: (status?.follower_count || 0).toLocaleString() },
-                { icon: Sparkles, label: "Loops posted", value: (stats?.loops_count || 0).toLocaleString() },
+                { icon: Zap, label: "Loops posted", value: (stats?.loops_count || 0).toLocaleString() },
                 { icon: Coins, label: "Loop Coins", value: (stats?.loop_coins || 0).toLocaleString() },
                 { icon: TrendingUp, label: "Earnings", value: `${(stats?.total_earnings || 0).toLocaleString()} coins` },
               ].map((s) => (
@@ -182,7 +182,7 @@ export default function OrganizationDashboardPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Sparkles className="h-4 w-4 text-emerald-500" /> Organization perks
+                  <Zap className="h-4 w-4 text-emerald-500" /> Organization perks
                 </CardTitle>
                 <CardDescription>Your active earnings & member perks.</CardDescription>
               </CardHeader>

@@ -32,7 +32,6 @@ import {
   X,
   Vote,
   Swords,
-  Sparkles,
   Zap,
 } from "lucide-react"
 import { CreateDuelDialog } from "@/components/duels/create-duel-dialog"
@@ -545,7 +544,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                 {/* Markdown Formatting Quick Toolbar */}
                 <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border/60 bg-muted/40 p-1.5 text-xs">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-500 flex items-center gap-1 mr-1 px-1">
-                    <Sparkles className="h-3.5 w-3.5" /> Markdown
+                    <Zap className="h-3.5 w-3.5" /> Markdown
                   </span>
                   <button
                     type="button"
@@ -654,7 +653,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                 { type: "audio" as const, icon: Music, label: "Audio" },
                 { type: "code" as const, icon: Code, label: "Code" },
                 { type: "poll" as const, icon: Vote, label: "Poll" },
-                { type: "moment" as const, icon: Sparkles, label: "Moment" },
+                { type: "moment" as const, icon: Zap, label: "Moment" },
               ].map((item) => (
                 <Button
                   key={item.type}
@@ -824,7 +823,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
 
             <div className="flex flex-col-reverse items-stretch justify-end gap-2 border-t border-border/60 pt-3 sm:flex-row sm:items-center">
               <span className="hidden flex-1 items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
-                <Sparkles className="h-3 w-3 text-violet-400" />
+                <Zap className="h-3 w-3 text-violet-400" />
                 Drafts save automatically — nothing gets lost while you write.
               </span>
               <div className="flex gap-2">

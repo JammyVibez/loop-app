@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { TreePine, Camera, Palette, Users, Sparkles, ArrowRight, Check, UserPlus, Home, Video, Swords, Rocket } from "lucide-react";
+import { TreePine, Camera, Palette, Users, Zap, ArrowRight, Check, UserPlus, Home, Video, Swords, Rocket } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { uploadMediaFile } from "@/lib/client-media-upload";
 
@@ -466,7 +466,7 @@ export default function OnboardingPage() {
         return (
           <Card className="w-full max-w-2xl landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
             <CardHeader className="text-center">
-              <Sparkles className="w-12 h-12 text-purple-600 mx-auto mb-4" />
+              <Zap className="w-12 h-12 text-purple-600 mx-auto mb-4" />
               <CardTitle className="text-2xl">Personalize your start</CardTitle>
               <CardDescription>Tell loopapp.me what you want to do first so we can tune your feed.</CardDescription>
             </CardHeader>
@@ -506,7 +506,7 @@ export default function OnboardingPage() {
         return (
           <Card className="w-full max-w-2xl landing-card-3d border-white/10 bg-[#0a1020]/90 text-slate-100 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
             <CardHeader className="text-center">
-              <Sparkles className="w-12 h-12 text-purple-600 mx-auto mb-4" />
+              <Zap className="w-12 h-12 text-purple-600 mx-auto mb-4" />
               <CardTitle className="text-2xl">You're all set!</CardTitle>
               <CardDescription>Get your first win in — follow a few creators and join a circle.</CardDescription>
             </CardHeader>
@@ -613,7 +613,7 @@ export default function OnboardingPage() {
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setStep(4)} className="flex-1">Back</Button>
                 <Button onClick={handleComplete} className="flex-1 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500" disabled={saving}>
-                  {saving ? "Saving..." : "Enter loopapp.me"} <Sparkles className="w-4 h-4 ml-2" />
+                  {saving ? "Saving..." : "Enter loopapp.me"} <Zap className="w-4 h-4 ml-2" />
                 </Button>
               </div>
             </CardContent>

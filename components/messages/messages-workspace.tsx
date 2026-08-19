@@ -44,6 +44,8 @@ import {
   Loader2,
   Mic,
   MicOff,
+  Pause,
+  Play,
   MoreHorizontal,
   Music2,
   Pencil,
@@ -54,7 +56,7 @@ import {
   Search,
   Send,
   Smile,
-  Sparkles,
+  Zap,
   Sticker,
   Film,
   Trash2,
@@ -213,6 +215,9 @@ export function MessagesWorkspace() {
   const [peerOnline, setPeerOnline] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [recording, setRecording] = useState(false)
+  const [recordingPaused, setRecordingPaused] = useState(false)
+  const [recordingDuration, setRecordingDuration] = useState(0)
+  const recordingDurationRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [showGift, setShowGift] = useState(false)
   const [showCoLoop, setShowCoLoop] = useState(false)
   const [coLoopDraft, setCoLoopDraft] = useState("")
@@ -876,14 +881,36 @@ export function MessagesWorkspace() {
       recorderRef.current = recorder
       recorder.start()
       setRecording(true)
+      setRecordingPaused(false)
+      setRecordingDuration(0)
+      recordingDurationRef.current = setInterval(() => setRecordingDuration((d) => d + 1), 1000)
     } catch {
       toast({ title: "Microphone blocked", description: "Allow mic access to send voice notes.", variant: "destructive" })
     }
   }
 
   const stopVoice = () => {
+    if (recordingDurationRef.current) clearInterval(recordingDurationRef.current)
     recorderRef.current?.stop()
     setRecording(false)
+    setRecordingPaused(false)
+    setRecordingDuration(0)
+  }
+
+  const pauseVoice = () => {
+    try {
+      recorderRef.current?.pause()
+      setRecordingPaused(true)
+      if (recordingDurationRef.current) clearInterval(recordingDurationRef.current)
+    } catch {}
+  }
+
+  const resumeVoice = () => {
+    try {
+      recorderRef.current?.resume()
+      setRecordingPaused(false)
+      recordingDurationRef.current = setInterval(() => setRecordingDuration((d) => d + 1), 1000)
+    } catch {}
   }
 
   const loadGifs = async (query: string) => {
@@ -1660,7 +1687,7 @@ export function MessagesWorkspace() {
         <div className="border-b border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-muted/40 to-emerald-500/10 px-3 py-3">
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-600 dark:text-amber-300">
-              <Sparkles className="h-4 w-4" />
+              <Zap className="h-4 w-4" />
               Co-Loop
               <span className="rounded-full border border-amber-400/40 px-2 py-0.5 text-[10px] font-normal text-amber-600 dark:text-amber-100">
                 Only on Loop
@@ -2183,14 +2210,27 @@ export function MessagesWorkspace() {
             />
 
             {recording ? (
-              <button
-                type="button"
-                onClick={stopVoice}
-                title="Stop recording"
-                className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-red-500/90 text-white shadow-lg shadow-red-500/30 transition hover:bg-red-500"
-              >
-                <MicOff className="h-4 w-4" />
-              </button>
+              <div className="absolute inset-y-0 left-0 right-0 flex items-center gap-2 px-3 rounded-full bg-red-500/10 border border-red-500/20 animate-in fade-in slide-in-from-right-2 duration-200">
+                <div className="flex items-center gap-1.5">
+                  <span className={cn(
+                    "h-2 w-2 rounded-full flex-shrink-0",
+                    recordingPaused ? "bg-amber-400" : "bg-red-500 animate-pulse"
+                  )} />
+                  <span className="text-xs font-mono font-semibold text-red-400 tabular-nums min-w-[3ch]">{Math.floor(recordingDuration / 60).toString().padStart(2, "0")}:{(recordingDuration % 60).toString().padStart(2, "0")}</span>
+                </div>
+                {recordingPaused ? (
+                  <button type="button" onClick={resumeVoice} title="Resume" className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/90 text-white transition hover:bg-emerald-500">
+                    <Play className="h-3.5 w-3.5" />
+                  </button>
+                ) : (
+                  <button type="button" onClick={pauseVoice} title="Pause" className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/70 transition hover:bg-white/20 hover:text-white">
+                    <Pause className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <button type="button" onClick={stopVoice} title="Stop & send" className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/90 text-white shadow-lg shadow-red-500/30 transition hover:bg-red-500 ml-auto">
+                  <MicOff className="h-4 w-4" />
+                </button>
+              </div>
             ) : draft.trim() || uploading ? (
               <button
                 type="button"

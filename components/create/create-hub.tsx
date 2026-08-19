@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Home, Radio, Video, Lightbulb, CheckCircle2, Zap, Sparkles } from "lucide-react"
+import { Home, Radio, Video, Lightbulb, CheckCircle2, Zap } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateLoopButton } from "@/components/create-loop-button"
 import { CreateReelForm } from "@/components/create/create-reel-form"
@@ -56,7 +56,7 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
               <Radio className="mr-1.5 h-4 w-4" /> Live
             </TabsTrigger>
             <TabsTrigger value="coloop" className="rounded-full">
-              <Sparkles className="mr-1.5 h-4 w-4" /> Co-Loop
+              <Zap className="mr-1.5 h-4 w-4" /> Co-Loop
             </TabsTrigger>
           </TabsList>
 

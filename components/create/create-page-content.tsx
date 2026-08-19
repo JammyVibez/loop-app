@@ -5,7 +5,7 @@ import { CreateHub, type CreateTab } from "@/components/create/create-hub"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
-import { Sparkles } from "lucide-react"
+import { Zap } from "lucide-react"
 
 export function CreatePageContent({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
   const { user, loading } = useAuth()
@@ -33,7 +33,7 @@ export function CreatePageContent({ defaultTab = "loop" }: { defaultTab?: Create
         <div className="mb-6">
           <div className="flex items-center gap-2">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-cyan-500 shadow-lg shadow-violet-900/30">
-              <Sparkles className="h-5 w-5 text-white" />
+              <Zap className="h-5 w-5 text-white" />
             </span>
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Gift, Sparkles, Crown, Zap, Check } from "lucide-react";
+import { Gift, Crown, Zap, Check } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -30,8 +30,7 @@ const rarityColors = {
 }
 
 const categoryIcons = {
-  theme: Sparkles,
-  animation: Zap,
+  theme: Zap, animation: Zap,
   effect: Crown,
 }
 

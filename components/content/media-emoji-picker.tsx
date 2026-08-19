@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Smile, Image as ImageIcon, Sparkles, Search } from "lucide-react"
+import { Smile, Image as ImageIcon, Zap, Search } from "lucide-react"
 
 interface MediaEmojiPickerProps {
   onSelectEmoji: (emoji: string) => void
@@ -192,10 +192,10 @@ export function MediaEmojiPicker({
                 <ImageIcon className="h-3.5 w-3.5 mr-1" /> GIF
               </TabsTrigger>
               <TabsTrigger value="custom" className="text-xs px-2.5 h-7">
-                <Sparkles className="h-3.5 w-3.5 mr-1" /> Custom
+                <Zap className="h-3.5 w-3.5 mr-1" /> Custom
               </TabsTrigger>
               <TabsTrigger value="stickers" className="text-xs px-2.5 h-7">
-                <Sparkles className="h-3.5 w-3.5 mr-1" /> Sticker
+                <Zap className="h-3.5 w-3.5 mr-1" /> Sticker
               </TabsTrigger>
             </TabsList>
           </div>

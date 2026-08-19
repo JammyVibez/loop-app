@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/hooks/use-auth"
-import { Loader2, Eye, EyeOff, ArrowRight, Zap, Check, X, Users, Sparkles } from "lucide-react"
+import { Loader2, Eye, EyeOff, ArrowRight, Zap, Check, X, Users } from "lucide-react"
 
 export default function SignupPage() {
   const [email, setEmail] = useState("")
@@ -331,7 +331,7 @@ export default function SignupPage() {
         <div className="grid grid-cols-3 gap-4 mt-8 max-w-sm mx-auto">
           <div className="text-center space-y-1.5">
             <div className="w-8 h-8 mx-auto rounded-lg bg-cyan-500/10 flex items-center justify-center">
-              <Sparkles className="h-4 w-4 text-cyan-400" />
+              <Zap className="h-4 w-4 text-cyan-400" />
             </div>
             <p className="text-[10px] text-slate-500 font-medium">Create Loops</p>
           </div>

@@ -10,7 +10,7 @@ import {
   Plus,
   Search,
   ShoppingBag,
-  Sparkles,
+  Zap,
   Wand2,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
@@ -61,7 +61,7 @@ interface MarketplaceListing {
 }
 
 const TYPE_META: Record<ListingType | "all", { label: string; icon: typeof Palette; blurb: string }> = {
-  all: { label: "All", icon: Sparkles, blurb: "Community designs, styling packs, and bot logic" },
+  all: { label: "All", icon: Zap, blurb: "Community designs, styling packs, and bot logic" },
   design: { label: "Designs", icon: Palette, blurb: "Full community look & layout packs" },
   styling: { label: "Styling", icon: Wand2, blurb: "Component tokens, fonts, and UI accents" },
   bot: { label: "Bots", icon: Bot, blurb: "Automation logic for seamless circle activity" },

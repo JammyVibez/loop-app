@@ -15,7 +15,7 @@ import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
 import { AnimatedCardFrame } from "@/components/cosmetics/animated-card-frame"
 import { type CosmeticItem, type ActiveCosmetics, resolveEffectData } from "@/lib/cosmetics"
 import { useTheme3D } from "@/providers/theme-3d-provider"
-import { Coins, Crown, Eye, Heart, MessageCircle, Palette, Sparkles, Wand2 } from "lucide-react"
+import { Coins, Crown, Eye, Heart, MessageCircle, Palette, Zap, Wand2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export type ShopPreviewItem = {
@@ -336,7 +336,7 @@ export function ShopItemPreviewDialog({
                   <div className="mt-2 flex gap-3 text-[10px] text-muted-foreground">
                     <span className="flex items-center gap-1"><Heart className="h-3 w-3 fill-rose-500 text-rose-500" /> 128</span>
                     <span className="flex items-center gap-1"><MessageCircle className="h-3 w-3" /> 24</span>
-                    <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> Branch</span>
+                    <span className="flex items-center gap-1"><Zap className="h-3 w-3" /> Branch</span>
                   </div>
                 </div>
               </AnimatedCardFrame>

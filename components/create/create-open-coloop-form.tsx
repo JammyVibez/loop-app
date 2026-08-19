@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/components/ui/use-toast"
 import {
-  Sparkles,
+  Zap,
   Users,
   Loader2,
   Radio,
@@ -99,7 +99,7 @@ export function CreateOpenCoLoopForm({ onCreated }: CreateOpenCoLoopFormProps) {
         {/* Header */}
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-indigo-600 shadow-lg shadow-cyan-500/25">
-            <Sparkles className="h-5 w-5 text-white" />
+            <Zap className="h-5 w-5 text-white" />
           </div>
           <div>
             <h3 className="text-base font-bold">Open Co-Loop Invite</h3>

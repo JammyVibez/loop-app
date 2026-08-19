@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Code, BookOpen, Database, Sparkles, CheckCircle, Copy, Layers, Palette, Terminal, ArrowRight, Shield, Rocket } from "lucide-react"
+import { Code, BookOpen, Database, Zap, CheckCircle, Copy, Layers, Palette, Terminal, ArrowRight, Shield, Rocket } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 
@@ -198,7 +198,7 @@ export function DeveloperDocs() {
             <Card className="border-border bg-card">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2 text-orange-400">
-                  <Sparkles className="h-4 w-4" /> Reddit Layout
+                  <Zap className="h-4 w-4" /> Reddit Layout
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-xs text-muted-foreground space-y-2">

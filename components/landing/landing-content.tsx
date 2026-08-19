@@ -13,7 +13,7 @@ import {
   GitBranch,
   Code2,
   Coins,
-  Sparkles,
+  Zap,
   Rocket,
   Smartphone,
   BarChart3,
@@ -33,7 +33,7 @@ const features = [
     badge: "Live Collaboration",
     description:
       "Write, edit, and publish live with up to 4 collaborators. Multi-author studios with live cursors, real-time sync, and shared attribution.",
-    icon: Sparkles,
+    icon: Zap,
     className: "md:col-span-2",
     accent: "from-cyan-500/30 to-indigo-500/20",
   },
@@ -306,7 +306,7 @@ export function LandingContent() {
                           <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/90" />
                         </div>
                         <Badge className="border-0 bg-cyan-500/20 text-[10px] uppercase tracking-widest text-cyan-200 flex items-center gap-1">
-                          <Sparkles className="h-3 w-3" /> Co-Loop live
+                          <Zap className="h-3 w-3" /> Co-Loop live
                         </Badge>
                       </div>
 

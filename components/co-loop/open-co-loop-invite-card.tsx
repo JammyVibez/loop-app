@@ -15,7 +15,7 @@ import {
   Users,
   Loader2,
   CheckCircle2,
-  Sparkles,
+  Zap,
   ExternalLink,
   MessageSquare,
   Heart,
@@ -425,7 +425,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
         {joining ? (
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
         ) : (
-          <Sparkles className="h-4 w-4 mr-2" />
+          <Zap className="h-4 w-4 mr-2" />
         )}
         {joining ? "Joining..." : "Join Session"}
       </Button>
@@ -469,7 +469,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
               ) : isEnded ? (
                 <Clock className="h-4 w-4 text-white" />
               ) : (
-                <Sparkles className="h-4 w-4 text-white" />
+                <Zap className="h-4 w-4 text-white" />
               )}
             </div>
             <Badge

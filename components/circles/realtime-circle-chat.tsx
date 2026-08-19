@@ -19,7 +19,7 @@ import {
   Send,
   Smile,
   Square,
-  Sparkles,
+  Zap,
   Video,
   X,
 } from "lucide-react"
@@ -1028,7 +1028,7 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
             {/* Markdown Formatting Toolbar */}
             <div className="mb-2 flex flex-wrap items-center gap-1 rounded-xl border border-border/60 bg-muted/30 p-1 text-xs">
               <span className="mr-1.5 flex items-center gap-1 px-1 text-[10px] font-extrabold uppercase tracking-wider text-amber-500">
-                <Sparkles className="h-3 w-3" /> Markdown
+                <Zap className="h-3 w-3" /> Markdown
               </span>
               <button
                 type="button"

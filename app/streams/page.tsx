@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { Eye, Loader2, Radio, Search, Sparkles } from "lucide-react"
+import { Eye, Loader2, Radio, Search, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
@@ -228,7 +228,7 @@ export default function StreamsPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-center">
-            <Sparkles className="h-10 w-10 text-white/30" />
+            <Zap className="h-10 w-10 text-white/30" />
             <p className="text-lg font-semibold">No lives right now</p>
             <p className="max-w-sm text-sm text-white/50">
               Be the first to go live — share your camera or screen with fans in real time.

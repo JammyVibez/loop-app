@@ -21,7 +21,6 @@ import {
   Clock,
   Eye,
   Radio,
-  Sparkles,
   RefreshCw,
   Loader2,
   ArrowUp,
@@ -217,7 +216,7 @@ export function AdminAnalyticsTab() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Total Circles" value={stats.total_circles} icon={Globe} color="bg-violet-500" />
           <StatCard title="Circle Memberships" value={stats.total_circle_members} icon={Layers} color="bg-indigo-400" />
-          <StatCard title="Active Co-Loops" value={stats.active_co_loops} icon={Sparkles} color="bg-emerald-500" subtitle={`${stats.published_co_loops} published`} />
+          <StatCard title="Active Co-Loops" value={stats.active_co_loops} icon={Zap} color="bg-emerald-500" subtitle={`${stats.published_co_loops} published`} />
           <StatCard title="Active Livestreams" value={stats.livestreams_active} icon={Radio} color="bg-red-500" />
         </div>
       </div>

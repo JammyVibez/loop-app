@@ -17,7 +17,6 @@ import {
   MessageSquare,
   Pin,
   ShieldCheck,
-  Sparkles,
   Swords,
   TrendingUp,
   Type,
@@ -35,8 +34,7 @@ const iconMap = {
   upload: Upload,
   zap: Zap,
   coins: Coins,
-  sparkles: Sparkles,
-  crown: Crown,
+  sparkles: Zap, crown: Crown,
   code: Code2,
   video: Video,
   trending: TrendingUp,
@@ -170,7 +168,7 @@ export function PremiumUpgrade() {
           </div>
           <div className="shrink-0">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3.5 py-1.5 text-xs font-semibold text-amber-300 border border-amber-500/30">
-              <Sparkles className="h-3.5 w-3.5" />
+              <Zap className="h-3.5 w-3.5" />
               Included with Pro
             </span>
           </div>
@@ -251,7 +249,7 @@ export function PremiumUpgrade() {
 
       <div className="grid gap-3 sm:grid-cols-2">
         {PRO_FEATURES.map((feature) => {
-          const Icon = iconMap[feature.icon as keyof typeof iconMap] || Sparkles
+          const Icon = iconMap[feature.icon as keyof typeof iconMap] || Zap
           return (
             <Card key={feature.id} className="border-border/70">
               <CardContent className="flex gap-3 p-4">

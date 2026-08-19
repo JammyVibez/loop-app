@@ -25,7 +25,7 @@ import {
   Loader2,
   Lock,
   Play,
-  Sparkles,
+  Zap,
   TerminalSquare,
 } from "lucide-react"
 
@@ -339,7 +339,7 @@ export function ProjectRepoBrowser({
               )}
             </p>
           </div>
-          <Sparkles className="hidden h-4 w-4 shrink-0 text-indigo-400 sm:block" />
+          <Zap className="hidden h-4 w-4 shrink-0 text-indigo-400 sm:block" />
         </div>
       )}
 
@@ -415,7 +415,7 @@ export function ProjectRepoBrowser({
                   read every file and download the full source.
                 </p>
                 <Badge variant="outline" className="rounded-full text-[10px]">
-                  <Sparkles className="mr-1 h-3 w-3 text-cyan-500" /> Preview coming soon
+                  <Zap className="mr-1 h-3 w-3 text-cyan-500" /> Preview coming soon
                 </Badge>
               </div>
             ) : content !== null ? (

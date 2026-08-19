@@ -11,7 +11,7 @@ import {
   Search,
   Shield,
   ShieldOff,
-  Sparkles,
+  Zap,
   Users,
   Coins,
   Flag,
@@ -353,7 +353,7 @@ export function AdminDashboard() {
                         onClick={() => runAction(u.id, u.is_sponsor ? "revoke_sponsor_badge" : "grant_sponsor_badge")}
                         title="Toggle Sponsor Gold Badge"
                       >
-                        <Sparkles className="mr-1 h-3.5 w-3.5 text-amber-500" />
+                        <Zap className="mr-1 h-3.5 w-3.5 text-amber-500" />
                         {u.is_sponsor ? "Rem Sponsor" : "Add Sponsor"}
                       </Button>
                       <Button
@@ -417,7 +417,7 @@ export function AdminDashboard() {
 
           <Card className="border-dashed">
             <CardContent className="flex items-start gap-3 py-5 text-sm text-muted-foreground">
-              <Sparkles className="mt-0.5 h-4 w-4 text-sky-500" />
+              <Zap className="mt-0.5 h-4 w-4 text-sky-500" />
               Changes sync live across open admin sessions. Recipients also get an in-app notification.
             </CardContent>
           </Card>
