@@ -26,6 +26,7 @@ interface ShareAsImageModalProps {
   post: {
     id: string
     content: string
+    content_type?: string
     author: {
       username: string
       display_name: string
