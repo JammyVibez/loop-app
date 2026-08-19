@@ -540,6 +540,40 @@ export function SettingsContent() {
               </div>
             </CardContent>
           </Card>
+
+          <Card className="border-red-500/20">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+                <Trash2 className="w-5 h-5" />
+                <span>Danger Zone</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-red-600 dark:text-red-400">Delete Account</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Permanently delete your account and all data. You have 3 days to cancel.
+                  </p>
+                </div>
+                {deletionScheduled ? (
+                  <div className="space-y-2">
+                    <Badge variant="destructive" className="text-xs">
+                      Deletion scheduled for {deletionExecuteAfter ? new Date(deletionExecuteAfter).toLocaleDateString() : "soon"}
+                    </Badge>
+                    <Button variant="outline" size="sm" onClick={cancelDeletion} disabled={cancelling} className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
+                      {cancelling ? "Cancelling..." : "Cancel Deletion"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="destructive" size="sm" onClick={handleDeleteAccount}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Account
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </TabsContent>
 
@@ -868,36 +902,6 @@ export function SettingsContent() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-red-600 dark:text-red-400">Danger Zone</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-red-600 dark:text-red-400">Delete Account</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Permanently delete your account and all data
-                  </p>
-                </div>
-                {deletionScheduled ? (
-                  <div className="space-y-2">
-                    <Badge variant="destructive" className="text-xs">
-                      Deletion scheduled for {deletionExecuteAfter ? new Date(deletionExecuteAfter).toLocaleDateString() : 'soon'}
-                    </Badge>
-                    <Button variant="outline" size="sm" onClick={cancelDeletion} disabled={cancelling} className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
-                      {cancelling ? "Cancelling..." : "Cancel Deletion"}
-                    </Button>
-                  </div>
-                ) : (
-                  <Button variant="destructive" size="sm" onClick={handleDeleteAccount}>
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Account
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </TabsContent>
 
