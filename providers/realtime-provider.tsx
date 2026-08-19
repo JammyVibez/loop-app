@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
+import { playChatSound } from "@/lib/chat-sounds";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 interface RealtimeContextType {
@@ -56,6 +57,15 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         })
         .on('broadcast', { event: 'message' }, (payload) => {
           console.log('New message:', payload)
+          // Play receive sound for messages from other users
+          if (
+            payload?.sender_id &&
+            payload.sender_id !== user.id &&
+            typeof document !== "undefined" &&
+            document.visibilityState === "visible"
+          ) {
+            playChatSound("receive")
+          }
         })
         .subscribe(async (status) => {
           if (status === 'SUBSCRIBED') {

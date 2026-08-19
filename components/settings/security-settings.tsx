@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,10 +9,11 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Lock, Mail, ShieldCheck, KeyRound, CheckCircle2, AlertCircle, ExternalLink } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Loader2, Lock, Mail, ShieldCheck, KeyRound, CheckCircle2, AlertCircle, ExternalLink, Trash2 } from "lucide-react"
 
 export function SecuritySettings() {
-  const { user, refreshUser } = useAuth()
+  const { user, refreshUser, getAuthHeader } = useAuth()
   const { toast } = useToast()
 
   const [emailForm, setEmailForm] = useState({ email: "", password: "" })
@@ -22,6 +23,26 @@ export function SecuritySettings() {
   const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" })
   const [pwBusy, setPwBusy] = useState(false)
   const [pwDone, setPwDone] = useState(false)
+
+  // Delete account state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState("")
+  const [deleting, setDeleting] = useState(false)
+  const [deletionScheduled, setDeletionScheduled] = useState(false)
+  const [deletionExecuteAfter, setDeletionExecuteAfter] = useState<string | null>(null)
+  const [cancelling, setCancelling] = useState(false)
+
+  useEffect(() => {
+    fetch("/api/users/delete-account", { headers: { ...getAuthHeader() } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.scheduled) {
+          setDeletionScheduled(true)
+          setDeletionExecuteAfter(data.execute_after || null)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const passwordHint = (pw: string) => {
     const checks = [
@@ -89,6 +110,55 @@ export function SecuritySettings() {
     { label: "Email & password", active: true },
     { label: "Google", active: Boolean(user?.email && user?.user_metadata?.avatar_url) },
   ]
+
+  const handleDeleteAccount = () => {
+    setDeleteDialogOpen(true)
+    setDeleteConfirmText("")
+  }
+
+  const confirmDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") return
+    setDeleting(true)
+    try {
+      const res = await fetch("/api/users/delete-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to delete account")
+      setDeleteDialogOpen(false)
+      setDeletionScheduled(true)
+      setDeletionExecuteAfter(data.execute_after || null)
+      toast({
+        title: "Account deletion scheduled",
+        description: "Your account will be deleted in 3 days. You can cancel anytime before then.",
+      })
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const cancelDeletion = async () => {
+    setCancelling(true)
+    try {
+      const res = await fetch("/api/users/delete-account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({}),
+      })
+      if (!res.ok) throw new Error("Failed to cancel deletion")
+      setDeletionScheduled(false)
+      setDeletionExecuteAfter(null)
+      toast({ title: "Deletion cancelled", description: "Your account is safe." })
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" })
+    } finally {
+      setCancelling(false)
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -249,6 +319,79 @@ export function SecuritySettings() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Danger Zone */}
+      <Card className="border-red-500/20">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+            <Trash2 className="w-5 h-5" />
+            <span>Danger Zone</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-red-600 dark:text-red-400">Delete Account</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Permanently delete your account and all data. You have 3 days to cancel.
+              </p>
+            </div>
+            {deletionScheduled ? (
+              <div className="space-y-2">
+                <Badge variant="destructive" className="text-xs">
+                  Deletion scheduled for {deletionExecuteAfter ? new Date(deletionExecuteAfter).toLocaleDateString() : "soon"}
+                </Badge>
+                <Button variant="outline" size="sm" onClick={cancelDeletion} disabled={cancelling} className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
+                  {cancelling ? "Cancelling..." : "Cancel Deletion"}
+                </Button>
+              </div>
+            ) : (
+              <Button variant="destructive" size="sm" onClick={handleDeleteAccount}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Account
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Delete Account Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-rose-400">Delete Account</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. Your account will be deactivated immediately and permanently deleted after 3 days.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+              <li>Your posts remain visible but show &quot;Deleted Account&quot;</li>
+              <li>Your profile becomes inaccessible</li>
+              <li>You cannot log in during the 3-day grace period</li>
+              <li>After 3 days, all data is permanently deleted</li>
+            </ul>
+            <div className="space-y-2">
+              <Label>Type DELETE to confirm</Label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteAccount}
+              disabled={deleteConfirmText !== "DELETE" || deleting}
+            >
+              {deleting ? "Scheduling..." : "Delete Account"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
