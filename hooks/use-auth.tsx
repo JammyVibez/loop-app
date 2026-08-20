@@ -139,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       premium_expires_at: profileData.premium_expires_at ?? previous?.premium_expires_at,
       is_verified: profileData.is_verified ?? previous?.is_verified ?? false,
       is_admin: profileData.is_admin ?? previous?.is_admin ?? false,
+      is_team_member: profileData.is_team_member ?? previous?.is_team_member ?? false,
       is_organization: Boolean(profileData.is_organization ?? previous?.is_organization ?? false),
       organization_name: profileData.organization_name ?? previous?.organization_name,
       organization_badge_url: profileData.organization_badge_url ?? previous?.organization_badge_url,

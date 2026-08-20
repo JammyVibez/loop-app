@@ -613,7 +613,7 @@ function ShareCardPreview({ post }: { post: ShareAsImageModalProps["post"] }) {
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full p-[2px]" style={{ background: "linear-gradient(135deg, #818cf8, #a78bfa, #67e8f9)" }}>
               <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-full bg-slate-700 text-slate-200 text-lg font-bold">
                 {post.author.avatar_url ? (
-                  <img src={post.author.avatar_url} alt="" className="h-full w-full object-cover" />
+                  <img src={post.author.avatar_url ? `/api/image-proxy?url=${encodeURIComponent(post.author.avatar_url)}` : ""} alt="" className="h-full w-full object-cover" />
                 ) : name.charAt(0).toUpperCase()}
               </span>
             </span>
@@ -722,7 +722,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
         if (cancelled || gen !== generationRef.current) return
         cachedBlobRef.current = await canvasToJpegBlob(canvas, 0.92)
         setRendered(true)
-        const avatar = post.author.avatar_url ? await loadAvatar(post.author.avatar_url) : null
+        const avatar = post.author.avatar_url ? await loadAvatar(`/api/image-proxy?url=${encodeURIComponent(post.author.avatar_url)}`) : null
         if (cancelled || gen !== generationRef.current) return
         avatarRef.current = avatar
         drawCard(canvas, post, EXPORT_SCALE, avatar)

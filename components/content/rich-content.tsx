@@ -88,6 +88,21 @@ export function RichContent({
             const alt = imgMatch[1] || ""
             const url = imgMatch[2]
             const isSticker = isStickerOrGif(url, alt)
+            const isCustomEmoji = alt.toLowerCase().includes("emoji")
+
+            if (isCustomEmoji) {
+              return (
+                <span key={`${i}-${part}`} className="inline-block mx-0.5 align-middle">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={proxied(url)}
+                    alt={alt || "Emoji"}
+                    className="h-5 w-5 sm:h-6 sm:w-6 object-contain inline-block align-middle select-none"
+                    loading="lazy"
+                  />
+                </span>
+              )
+            }
 
             if (isSticker) {
               return (
