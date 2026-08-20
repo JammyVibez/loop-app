@@ -152,6 +152,12 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
   bg.addColorStop(0, "#0b0920"); bg.addColorStop(0.5, "#0e0c28"); bg.addColorStop(1, "#080618")
   ctx.fillStyle = bg; ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT)
 
+  // ── Subtle grid pattern ──
+  ctx.save(); ctx.strokeStyle = "rgba(255,255,255,0.03)"; ctx.lineWidth = 0.5
+  for (let gx = 0; gx < CARD_WIDTH; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, CARD_HEIGHT); ctx.stroke() }
+  for (let gy = 0; gy < CARD_HEIGHT; gy += 40) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(CARD_WIDTH, gy); ctx.stroke() }
+  ctx.restore()
+
   // ── Subtle radial glow at center ──
   const glow = ctx.createRadialGradient(cx, CARD_HEIGHT * 0.35, 0, cx, CARD_HEIGHT * 0.35, 500)
   glow.addColorStop(0, "rgba(99,102,241,0.06)"); glow.addColorStop(1, "rgba(0,0,0,0)")
@@ -312,13 +318,15 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
 
   // ── "Join the Loop" section with glow border ──
   const joinH = 200
+  // Glow shadow
   ctx.save()
-  ctx.shadowColor = "rgba(99,102,241,0.25)"; ctx.shadowBlur = 15
+  ctx.shadowColor = "rgba(99,102,241,0.3)"; ctx.shadowBlur = 18
   roundRect(ctx, cardX, y, cardW, joinH, 24)
-  ctx.fillStyle = "rgba(15,13,35,0.6)"; ctx.fill()
+  ctx.fillStyle = "rgba(15,13,35,0.65)"; ctx.fill()
   ctx.shadowBlur = 0
+  // Gradient border
   const jGrad = ctx.createLinearGradient(cardX, y, cardX + cardW, y)
-  jGrad.addColorStop(0, "rgba(139,92,246,0.25)"); jGrad.addColorStop(0.5, "rgba(34,211,238,0.15)"); jGrad.addColorStop(1, "rgba(99,102,241,0.25)")
+  jGrad.addColorStop(0, "rgba(139,92,246,0.35)"); jGrad.addColorStop(0.5, "rgba(34,211,238,0.2)"); jGrad.addColorStop(1, "rgba(99,102,241,0.35)")
   roundRect(ctx, cardX, y, cardW, joinH, 24); ctx.strokeStyle = jGrad; ctx.lineWidth = 1.5; ctx.stroke()
   ctx.restore()
 
@@ -328,7 +336,7 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
   const jtw = ctx.measureText("Join the ").width
   ctx.fillStyle = "#818cf8"; ctx.fillText("Loop.", cardX + 28 + jtw, y + 45)
 
-  // Feature icons
+  // Feature icons — single row
   const features = [
     { emoji: "\u{1F465}", label: "Create together", sub: "with Co-Loop" },
     { emoji: "\u2694\uFE0F", label: "Challenge ideas", sub: "with Duels" },
@@ -340,12 +348,12 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
   const featSpacing = (cardW - 200) / 4
   for (let i = 0; i < features.length; i++) {
     const fx = featStartX + i * featSpacing + featSpacing / 2
-    ctx.font = "26px system-ui"; ctx.textAlign = "center"
-    ctx.fillText(features[i].emoji, fx, featY + 12)
-    ctx.font = "bold 14px system-ui, sans-serif"; ctx.fillStyle = "#e2e8f0"
-    ctx.fillText(features[i].label, fx, featY + 40)
-    ctx.font = "12px system-ui, sans-serif"; ctx.fillStyle = "#7c83a4"
-    ctx.fillText(features[i].sub, fx, featY + 58)
+    ctx.font = "24px system-ui"; ctx.textAlign = "center"
+    ctx.fillText(features[i].emoji, fx, featY + 10)
+    ctx.font = "bold 12px system-ui, sans-serif"; ctx.fillStyle = "#e2e8f0"
+    ctx.fillText(features[i].label, fx, featY + 36)
+    ctx.font = "10px system-ui, sans-serif"; ctx.fillStyle = "#7c83a4"
+    ctx.fillText(features[i].sub, fx, featY + 52)
   }
 
   // QR Code
@@ -367,18 +375,19 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
   ctx.fillText("Download Loop", qrX + qrSize + 12, qrY + 15)
   ctx.font = "12px system-ui, sans-serif"; ctx.fillStyle = "#7c83a4"
   ctx.fillText("and start your journey.", qrX + qrSize + 12, qrY + 33)
-  // "Scan Me" handwritten style
+  // "Scan Me" handwritten style with curved arrow
   ctx.save()
-  ctx.font = "italic 22px Georgia, serif"; ctx.fillStyle = "#818cf8"
+  ctx.font = "italic bold 14px Georgia, serif"; ctx.fillStyle = "#818cf8"
   ctx.fillText("Scan Me", qrX + qrSize + 12, qrY + 68)
-  // Curved arrow
+  // Curved arrow pointing left to QR code
   ctx.strokeStyle = "#818cf8"; ctx.lineWidth = 2; ctx.lineCap = "round"
   ctx.beginPath()
-  ctx.moveTo(qrX + qrSize + 70, qrY + 75)
-  ctx.bezierCurveTo(qrX + qrSize + 55, qrY + 85, qrX + qrSize + 20, qrY + 80, qrX + qrSize - 10, qrY + qrY * 0 + qrSize + 10)
+  ctx.moveTo(qrX + qrSize + 8, qrY + 62)
+  ctx.bezierCurveTo(qrX + qrSize + 4, qrY + 56, qrX + qrSize - 8, qrY + 58, qrX + qrSize - 14, qrY + 65)
   ctx.stroke()
   // Arrowhead
-  ctx.beginPath(); ctx.moveTo(qrX + qrSize - 10, qrY + qrSize + 10); ctx.lineTo(qrX + qrSize - 3, qrY + qrSize + 2); ctx.lineTo(qrX + qrSize - 16, qrY + qrSize + 5); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(qrX + qrSize - 14, qrY + 65); ctx.lineTo(qrX + qrSize - 8, qrY + 60); ctx.moveTo(qrX + qrSize - 14, qrY + 65); ctx.lineTo(qrX + qrSize - 18, qrY + 60)
+  ctx.stroke()
   ctx.restore()
 
   // ── Footer ──
@@ -426,8 +435,14 @@ function ShareCardPreview({ post }: { post: ShareAsImageModalProps["post"] }) {
       className="relative w-full aspect-[4/5] select-none overflow-hidden rounded-xl text-left"
       style={{ background: "linear-gradient(160deg, #0b0920 0%, #0e0c28 50%, #080618 100%)" }}
     >
+      {/* Subtle grid pattern */}
+      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+
       {/* Center radial glow */}
       <div className="absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-indigo-500/[0.06] blur-3xl" />
+
+      {/* Outer glow border */}
+      <div className="absolute inset-0 rounded-xl" style={{ boxShadow: "inset 0 0 0 1px rgba(99,102,241,0.15), inset 0 0 30px rgba(99,102,241,0.03)" }} />
 
       {/* Inner panel */}
       <div className="absolute inset-x-[6%] top-[4%] bottom-[4%] overflow-hidden rounded-3xl border border-indigo-500/10 bg-[#0d0b22]/80" />
@@ -510,14 +525,14 @@ function ShareCardPreview({ post }: { post: ShareAsImageModalProps["post"] }) {
         <div className="flex-1" />
 
         {/* "Join the Loop" section with glow border */}
-        <div className="rounded-2xl border border-transparent p-[1px]" style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.3), rgba(34,211,238,0.2), rgba(99,102,241,0.3))" }}>
+        <div className="rounded-2xl border border-transparent p-[1.5px]" style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.35), rgba(34,211,238,0.2), rgba(99,102,241,0.35))" }}>
           <div className="rounded-[15px] bg-[#0d0b22]/80 p-5">
             <div className="flex items-start gap-4">
               <div className="flex-1">
                 <p className="text-[20px] font-bold text-slate-100">
                   Join the <span className="text-indigo-400">Loop.</span>
                 </p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="mt-3 grid grid-cols-4 gap-1">
                   {[
                     { emoji: "\u{1F465}", label: "Create together", sub: "with Co-Loop" },
                     { emoji: "\u2694\uFE0F", label: "Challenge ideas", sub: "with Duels" },
@@ -526,8 +541,8 @@ function ShareCardPreview({ post }: { post: ShareAsImageModalProps["post"] }) {
                   ].map((f, i) => (
                     <div key={i} className="text-center">
                       <span className="text-lg">{f.emoji}</span>
-                      <p className="text-[10px] font-bold text-slate-200">{f.label}</p>
-                      <p className="text-[8px] text-[#7c83a4]">{f.sub}</p>
+                      <p className="text-[9px] font-bold text-slate-200 leading-tight">{f.label}</p>
+                      <p className="text-[7px] text-[#7c83a4] leading-tight">{f.sub}</p>
                     </div>
                   ))}
                 </div>
@@ -542,12 +557,13 @@ function ShareCardPreview({ post }: { post: ShareAsImageModalProps["post"] }) {
                   />
                 </div>
                 {/* "Scan Me" with curved arrow */}
-                <div className="relative">
-                  <p className="mt-0.5 font-[Georgia] text-[12px] italic text-indigo-400">Scan Me</p>
-                  <svg className="absolute -top-3 right-0 h-5 w-5 text-indigo-400/60 rotate-[-30deg]" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                    <path d="M15 5 C12 8, 8 10, 4 14" />
-                    <path d="M4 14 L8 12 M4 14 L6 18" />
+                <div className="relative mt-1">
+                  <svg className="absolute -left-2 -top-6 h-8 w-12 text-indigo-400/70" viewBox="0 0 48 32" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M36 4 C28 8, 16 14, 8 22" />
+                    <path d="M8 22 L14 18" />
+                    <path d="M8 22 L12 28" />
                   </svg>
+                  <p className="font-[Georgia] text-[13px] italic font-bold text-indigo-400">Scan Me</p>
                 </div>
               </div>
             </div>
@@ -634,15 +650,15 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-md border-border bg-card text-card-foreground shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <Share2 className="h-4 w-4 text-indigo-400" /> Share as image
           </DialogTitle>
-          <DialogDescription>A branded share card — perfect for X, Instagram, or anywhere else.</DialogDescription>
+          <DialogDescription className="text-muted-foreground">A branded share card — perfect for X, Instagram, or anywhere else.</DialogDescription>
         </DialogHeader>
         <canvas ref={exportCanvasRef} className="hidden" />
-        <div className="relative w-full overflow-hidden rounded-xl border border-border">
+        <div className="relative w-full overflow-hidden rounded-xl border border-border shadow-lg">
           <ShareCardPreview post={post} />
           {!rendered && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-background/70 backdrop-blur-[1px]">
@@ -652,10 +668,10 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
           )}
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" onClick={() => void download()} disabled={exporting}>
+          <Button variant="outline" onClick={() => void download()} disabled={exporting} className="border-border bg-background text-foreground hover:bg-muted">
             {exporting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />} Download
           </Button>
-          <Button onClick={() => void shareNative()}>
+          <Button onClick={() => void shareNative()} className="bg-indigo-600 text-white hover:bg-indigo-700">
             <Share2 className="mr-1.5 h-4 w-4" /> Share
           </Button>
         </div>
