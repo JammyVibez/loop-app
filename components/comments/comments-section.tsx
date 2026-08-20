@@ -373,7 +373,11 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
               className="min-h-[85px] border-border bg-muted text-foreground pr-12"
             />
             <div className="absolute right-2 bottom-2">
-              <MediaEmojiPicker onSelectEmoji={(emoji) => setNewComment((prev) => prev + emoji)} />
+              <MediaEmojiPicker
+                onSelectEmoji={(emoji) => setNewComment((prev) => prev + emoji)}
+                onSelectGif={(url) => setNewComment((prev) => prev + ` ![GIF](${url}) `)}
+                isPro={Boolean((user as any)?.is_premium)}
+              />
             </div>
           </div>
           <Button

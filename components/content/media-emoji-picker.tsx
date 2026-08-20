@@ -344,7 +344,7 @@ export function MediaEmojiPicker({
                     key={emoji.shortcode}
                     type="button"
                     onClick={() => {
-                      onSelectEmoji(` :${emoji.shortcode}: `)
+                      onSelectGif ? onSelectGif(emoji.url) : onSelectEmoji(` ![Emoji](${emoji.url}) `)
                       setOpen(false)
                     }}
                     className="group flex flex-col items-center justify-center p-2 rounded-xl border border-border hover:border-primary hover:bg-primary/10 transition-all"
