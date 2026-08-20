@@ -3,18 +3,22 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, ExternalLink, Loader2, Maximize2, Minimize2, RotateCcw } from "lucide-react"
+import { ArrowLeft, ExternalLink, Loader2, Maximize2, Minimize2, RotateCcw, Lock } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function PreviewPage() {
   const params = useParams()
   const router = useRouter()
   const id = params?.id as string
+  const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [title, setTitle] = useState("")
   const [fullscreen, setFullscreen] = useState(false)
   const [key, setKey] = useState(0)
+
+  const isPro = Boolean(user?.is_premium)
 
   useEffect(() => {
     if (!id) return
@@ -48,6 +52,23 @@ export default function PreviewPage() {
         <div className="text-center space-y-4">
           <p className="text-lg font-medium">Preview unavailable</p>
           <p className="text-sm text-muted-foreground">{error}</p>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/developers"><ArrowLeft className="mr-1.5 h-4 w-4" /> Back to Developer Hub</Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isPro) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4 max-w-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600">
+            <Lock className="h-8 w-8 text-white" />
+          </div>
+          <p className="text-lg font-semibold">Pro Feature</p>
+          <p className="text-sm text-muted-foreground">Project preview is available for Pro users only. Upgrade to preview and publish your projects.</p>
           <Button asChild variant="outline" size="sm">
             <Link href="/developers"><ArrowLeft className="mr-1.5 h-4 w-4" /> Back to Developer Hub</Link>
           </Button>

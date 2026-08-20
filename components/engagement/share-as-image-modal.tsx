@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Download, Share2, Heart, MessageCircle, GitBranch, Zap } from "lucide-react"
+import { useTheme } from "next-themes"
 
 interface ShareAsImageModalProps {
   open: boolean
@@ -71,6 +72,15 @@ function loadAv(src: string): Promise<AV | null> {
   })
 }
 
+function loadImg(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((r) => {
+    let done = false
+    const ok = (v: HTMLImageElement | null) => { if (done) return; done = true; clearTimeout(t); r(v) }
+    const t = window.setTimeout(() => ok(null), 2000)
+    const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src
+  })
+}
+
 /* ── Canvas helpers ── */
 function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath()
@@ -80,7 +90,6 @@ function setup(c: HTMLCanvasElement, s: number) {
   c.width = Math.round(CARD_W * s); c.height = Math.round(CARD_H * s)
   ctx.setTransform(s, 0, 0, s, 0, 0); return ctx
 }
-/** Wrap text with maxLines. Returns bottom Y. */
 function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, startY: number, maxW: number, fontSize: number, color: string, maxLines = 12) {
   ctx.font = `${fontSize}px system-ui, -apple-system, sans-serif`
   const words = text.split(" "), lines: string[] = []
@@ -97,19 +106,126 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, startY
   return y
 }
 
-function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"], scale: number, av: AV | null) {
+/* Draw a heart icon on canvas */
+function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
+  ctx.save()
+  ctx.fillStyle = color
+  ctx.beginPath()
+  const s = size
+  ctx.moveTo(x + s / 2, y + s * 0.35)
+  ctx.bezierCurveTo(x + s / 2, y + s * 0.2, x + s * 0.2, y, x + s * 0.15, y)
+  ctx.bezierCurveTo(x - s * 0.1, y, x - s * 0.1, y + s * 0.4, x + s * 0.15, y + s * 0.55)
+  ctx.bezierCurveTo(x + s * 0.35, y + s * 0.7, x + s / 2, y + s * 0.85, x + s / 2, y + s)
+  ctx.bezierCurveTo(x + s / 2, y + s * 0.85, x + s * 0.65, y + s * 0.7, x + s * 0.85, y + s * 0.55)
+  ctx.bezierCurveTo(x + s + s * 0.1, y + s * 0.4, x + s + s * 0.1, y, x + s * 0.85, y)
+  ctx.bezierCurveTo(x + s * 0.8, y, x + s * 0.5, y + s * 0.2, x + s / 2, y + s * 0.35)
+  ctx.fill()
+  ctx.restore()
+}
+
+/* Draw comment icon (speech bubble) */
+function drawComment(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
+  ctx.save()
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 1.8; ctx.lineCap = "round"
+  const w = size, h = size * 0.8, r = 4
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + w, y, x + w, y + h, r)
+  ctx.arcTo(x + w, y + h, x + w * 0.65, y + h, r)
+  ctx.lineTo(x + w * 0.45, y + h)
+  ctx.lineTo(x + w * 0.3, y + h + size * 0.3)
+  ctx.lineTo(x + w * 0.35, y + h)
+  ctx.lineTo(x + r, y + h)
+  ctx.arcTo(x, y + h, x, y, r)
+  ctx.arcTo(x, y, x + w, y, r)
+  ctx.fill()
+  ctx.restore()
+}
+
+/* Draw branch/retweet icon */
+function drawBranch(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
+  ctx.save()
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.lineJoin = "round"
+  const s = size * 0.8
+  const cx = x + size / 2, cy = y + size / 2
+  // Two curved arrows forming a retweet-like shape
+  ctx.beginPath()
+  ctx.arc(cx, cy - 2, s * 0.32, Math.PI * 0.9, Math.PI * 0.1, true)
+  ctx.stroke()
+  // Arrow tip
+  ctx.beginPath()
+  ctx.moveTo(cx + s * 0.25, cy - s * 0.05)
+  ctx.lineTo(cx + s * 0.35, cy - s * 0.18)
+  ctx.lineTo(cx + s * 0.15, cy - s * 0.18)
+  ctx.stroke()
+  ctx.restore()
+}
+
+/* Draw rocket/boost icon */
+function drawRocket(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
+  ctx.save()
+  ctx.fillStyle = color
+  const cx = x + size / 2, cy = y + size / 2
+  const s = size * 0.35
+  // Rocket body (triangle-ish)
+  ctx.beginPath()
+  ctx.moveTo(cx, cy - s * 1.1)
+  ctx.quadraticCurveTo(cx + s * 0.6, cy - s * 0.3, cx + s * 0.5, cy + s * 0.8)
+  ctx.lineTo(cx - s * 0.5, cy + s * 0.8)
+  ctx.quadraticCurveTo(cx - s * 0.6, cy - s * 0.3, cx, cy - s * 1.1)
+  ctx.fill()
+  // Window
+  ctx.fillStyle = "rgba(255,255,255,0.5)"
+  ctx.beginPath()
+  ctx.arc(cx, cy - s * 0.3, s * 0.18, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+}
+
+/* Theme colors */
+interface ThemeColors {
+  cardBg: string
+  textPrimary: string
+  textSecondary: string
+  textMuted: string
+  divider: string
+  avatarFallback: string
+  avatarText: string
+}
+
+const lightTheme: ThemeColors = {
+  cardBg: "#f5f3f0",
+  textPrimary: "#1c1917",
+  textSecondary: "#57534e",
+  textMuted: "#a8a29e",
+  divider: "rgba(0,0,0,0.06)",
+  avatarFallback: "#d6d3d1",
+  avatarText: "#57534e",
+}
+
+const darkTheme: ThemeColors = {
+  cardBg: "#18181b",
+  textPrimary: "#fafafa",
+  textSecondary: "#a1a1aa",
+  textMuted: "#71717a",
+  divider: "rgba(255,255,255,0.08)",
+  avatarFallback: "#3f3f46",
+  avatarText: "#d4d4d8",
+}
+
+function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"], scale: number, av: AV | null, isDark: boolean) {
   const ctx = setup(canvas, scale); if (!ctx) return
+  const tc = isDark ? darkTheme : lightTheme
   const m = 56, iw = CARD_W - m * 2, cx = CARD_W / 2
 
-  // ── Card background: light gray ──
+  // ── Card background ──
   rr(ctx, 0, 0, CARD_W, CARD_H, 28)
-  ctx.fillStyle = "#f0eeeb"; ctx.fill()
+  ctx.fillStyle = tc.cardBg; ctx.fill()
 
   // ── Gradient top edge: violet-to-cyan ──
   const gradTop = ctx.createLinearGradient(0, 0, CARD_W, 0)
   gradTop.addColorStop(0, "#8b5cf6"); gradTop.addColorStop(0.5, "#a78bfa"); gradTop.addColorStop(1, "#06b6d4")
   ctx.fillStyle = gradTop
-  // Top rounded rect (only top corners)
   ctx.beginPath()
   ctx.moveTo(28, 0); ctx.lineTo(CARD_W - 28, 0)
   ctx.arcTo(CARD_W, 0, CARD_W, 28, 28)
@@ -118,27 +234,35 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
   ctx.arcTo(0, 0, 28, 0, 28)
   ctx.closePath(); ctx.fill()
 
-  let y = m + 32
+  let y = m + 24
 
-  // ── App icon centered at top ──
+  // ── App icon centered at top (draw actual logo image if loaded) ──
+  const logoImg = (canvas as any)._loopLogo as HTMLImageElement | null
   const iconS = 48
-  ctx.save()
-  const ig = ctx.createLinearGradient(cx - iconS / 2, y, cx + iconS / 2, y + iconS)
-  ig.addColorStop(0, "#1e1b4b"); ig.addColorStop(1, "#312e81")
-  rr(ctx, cx - iconS / 2, y, iconS, iconS, 14); ctx.fillStyle = ig; ctx.fill()
-  // App icon: draw the Loop "L" mark
-  ctx.fillStyle = "#fff"; ctx.font = "bold 26px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
-  ctx.fillText("L", cx, y + iconS / 2 + 1)
-  ctx.restore()
-  y += iconS + 28
+  if (logoImg) {
+    ctx.save()
+    rr(ctx, cx - iconS / 2, y, iconS, iconS, 14)
+    ctx.clip()
+    ctx.drawImage(logoImg, cx - iconS / 2, y, iconS, iconS)
+    ctx.restore()
+  } else {
+    ctx.save()
+    const ig = ctx.createLinearGradient(cx - iconS / 2, y, cx + iconS / 2, y + iconS)
+    ig.addColorStop(0, "#1e1b4b"); ig.addColorStop(1, "#312e81")
+    rr(ctx, cx - iconS / 2, y, iconS, iconS, 14); ctx.fillStyle = ig; ctx.fill()
+    ctx.fillStyle = "#fff"; ctx.font = "bold 24px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
+    ctx.fillText("L", cx, y + iconS / 2 + 1)
+    ctx.restore()
+  }
+  y += iconS + 20
 
   // ── Thin divider ──
-  ctx.strokeStyle = "rgba(0,0,0,0.07)"; ctx.lineWidth = 1
+  ctx.strokeStyle = tc.divider; ctx.lineWidth = 1
   ctx.beginPath(); ctx.moveTo(m + 20, y); ctx.lineTo(m + iw - 20, y); ctx.stroke()
-  y += 28
+  y += 20
 
-  // ── COMPACT AUTHOR BYLINE ──
-  const avS = 44
+  // ── AUTHOR BYLINE (compact, name on top, handle below) ──
+  const avS = 40
   // Gradient ring
   ctx.save()
   const rg = ctx.createLinearGradient(m, y, m + avS, y + avS)
@@ -147,33 +271,33 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
   ctx.restore()
   // Avatar clip
   ctx.save(); ctx.beginPath(); ctx.arc(m + avS / 2, y + avS / 2, avS / 2, 0, Math.PI * 2); ctx.clip()
-  ctx.fillStyle = "#d6d3d1"; ctx.fillRect(m, y, avS, avS)
+  ctx.fillStyle = tc.avatarFallback; ctx.fillRect(m, y, avS, avS)
   if (av) {
     const { w, h } = avDim(av); const sz = Math.min(w, h)
     ctx.drawImage(av, (w - sz) / 2, (h - sz) / 2, sz, sz, m, y, avS, avS)
   } else {
-    ctx.font = "bold 20px system-ui, sans-serif"; ctx.fillStyle = "#57534e"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
+    ctx.font = "bold 18px system-ui, sans-serif"; ctx.fillStyle = tc.avatarText; ctx.textAlign = "center"; ctx.textBaseline = "middle"
     ctx.fillText((post.author.display_name || "U").charAt(0).toUpperCase(), m + avS / 2, y + avS / 2 + 1)
   }
   ctx.restore()
 
-  // Name + handle (inline, compact)
+  // Name (top line) + handle (bottom line)
   const nx = m + avS + 12
-  ctx.textAlign = "left"; ctx.textBaseline = "middle"
-  ctx.font = "bold 20px system-ui, sans-serif"; ctx.fillStyle = "#1c1917"
+  ctx.textAlign = "left"; ctx.textBaseline = "top"
+  ctx.font = "bold 19px system-ui, sans-serif"; ctx.fillStyle = tc.textPrimary
   const nm = truncate(post.author.display_name || post.author.username || "User", 24)
-  ctx.fillText(nm, nx, y + avS / 2 - 2)
-  ctx.font = "15px system-ui, sans-serif"; ctx.fillStyle = "#a8a29e"
-  ctx.fillText(`@${truncate(post.author.username || "user", 28)}`, nx, y + avS / 2 + 18)
+  ctx.fillText(nm, nx, y + 4)
+  ctx.font = "14px system-ui, sans-serif"; ctx.fillStyle = tc.textMuted
+  ctx.fillText(`@${truncate(post.author.username || "user", 28)}`, nx, y + 26)
 
-  y += avS + 28
+  y += avS + 16
 
-  // ── POST CONTENT — THE FOCAL POINT ──
-  // Vertically center the text in the available space
+  // ── POST CONTENT — THE FOCAL POINT, closer to byline ──
   const postContent = truncate(post.content || "Shared a loop", 500)
-  const bodyFontSize = 30
-  const availableH = CARD_H - y - 220 // leave room for stats + footer
-  // First measure how tall the text will be
+  const bodyFontSize = 28
+  const availableH = CARD_H - y - 200
+
+  // Measure text height
   ctx.font = `${bodyFontSize}px system-ui, -apple-system, sans-serif`
   const words = postContent.split(" "), testLines: string[] = []
   let tl = ""
@@ -184,70 +308,84 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
   }
   if (tl) testLines.push(tl)
   const textH = testLines.length * bodyFontSize * 1.4
-  // Vertically center
   const textStartY = y + Math.max(0, (availableH - textH) / 2)
-  const textEnd = wrapText(ctx, postContent, m + 8, textStartY, iw - 16, bodyFontSize, "#1c1917", 10)
-  y = Math.max(textEnd + 16, y + availableH)
+  const textEnd = wrapText(ctx, postContent, m + 8, textStartY, iw - 16, bodyFontSize, tc.textPrimary, 10)
+  y = Math.max(textEnd + 12, y + availableH)
 
-  // ── STATS ROW as pill badges ──
-  const allStats = [
-    { icon: "heart", label: "Likes", count: Number(post.stats?.likes_count || 0), bg: "rgba(244,63,94,0.10)", fg: "#e11d48", symbol: "\u2764\uFE0F" },
-    { icon: "comment", label: "Comments", count: Number(post.stats?.comments_count || 0), bg: "rgba(6,182,212,0.10)", fg: "#0891b2", symbol: "\uD83D\uDCAC" },
-    { icon: "repost", label: "Branches", count: Number(post.stats?.branches_count || 0), bg: "rgba(16,185,129,0.10)", fg: "#059669", symbol: "\uD83C\uDF3F" },
-    { icon: "boost", label: "Boosts", count: Number(post.stats?.boosts_count || 0), bg: "rgba(245,158,11,0.10)", fg: "#d97706", symbol: "\uD83D\uDE80" },
-  ].filter(s => s.count > 0)
+  // ── STATS ROW with real icons ──
+  const allStats: { count: number; color: string; bg: string; drawIcon: (ctx: CanvasRenderingContext2D, x: number, y: number, s: number, c: string) => void }[] = []
+  const likes = Number(post.stats?.likes_count || 0)
+  const comments = Number(post.stats?.comments_count || 0)
+  const branches = Number(post.stats?.branches_count || 0)
+  const boosts = Number(post.stats?.boosts_count || 0)
+
+  if (likes > 0) allStats.push({ count: likes, color: "#e11d48", bg: "rgba(244,63,94,0.12)", drawIcon: drawHeart })
+  if (comments > 0) allStats.push({ count: comments, color: "#0891b2", bg: "rgba(6,182,212,0.12)", drawIcon: drawComment })
+  if (branches > 0) allStats.push({ count: branches, color: "#059669", bg: "rgba(16,185,129,0.12)", drawIcon: drawBranch })
+  if (boosts > 0) allStats.push({ count: boosts, color: "#d97706", bg: "rgba(245,158,11,0.12)", drawIcon: drawRocket })
 
   if (allStats.length > 0) {
-    // Position at the bottom of the card area
-    y = CARD_H - 200
+    y = CARD_H - 195
 
     let sx = m + 8
     for (const s of allStats) {
+      const iconSize = 14
+      const label = fmt(s.count)
       ctx.font = "600 15px system-ui, sans-serif"
-      const label = `${s.symbol} ${fmt(s.count)}`
-      const pillW = ctx.measureText(label).width + 24
+      const textW = ctx.measureText(label).width
+      const pillW = iconSize + 8 + textW + 20
       const pillH = 32
+
       // Pill background
       rr(ctx, sx, y, pillW, pillH, pillH / 2)
       ctx.fillStyle = s.bg; ctx.fill()
-      // Text
-      ctx.font = "600 15px system-ui, sans-serif"; ctx.fillStyle = s.fg; ctx.textAlign = "left"; ctx.textBaseline = "middle"
-      ctx.fillText(label, sx + 12, y + pillH / 2 + 1)
-      sx += pillW + 10
-    }
-    y += 42
 
-    // Thin divider above footer
-    ctx.strokeStyle = "rgba(0,0,0,0.06)"; ctx.lineWidth = 1
-    ctx.beginPath(); ctx.moveTo(m + 20, y); ctx.lineTo(m + iw - 20, y); ctx.stroke()
-    y += 20
+      // Draw real icon
+      s.drawIcon(ctx, sx + 9, y + 8, iconSize, s.color)
+
+      // Count text
+      ctx.font = "600 14px system-ui, sans-serif"; ctx.fillStyle = s.color; ctx.textAlign = "left"; ctx.textBaseline = "middle"
+      ctx.fillText(label, sx + iconSize + 16, y + pillH / 2 + 1)
+
+      sx += pillW + 8
+    }
+    y += 40
   } else {
-    y = CARD_H - 178
-    // Thin divider
-    ctx.strokeStyle = "rgba(0,0,0,0.06)"; ctx.lineWidth = 1
-    ctx.beginPath(); ctx.moveTo(m + 20, y); ctx.lineTo(m + iw - 20, y); ctx.stroke()
-    y += 20
+    y = CARD_H - 168
   }
 
+  // ── Divider above footer ──
+  ctx.strokeStyle = tc.divider; ctx.lineWidth = 1
+  ctx.beginPath(); ctx.moveTo(m + 20, y); ctx.lineTo(m + iw - 20, y); ctx.stroke()
+  y += 16
+
   // ── APP SIGNATURE at bottom ──
-  // App icon + "Loop" wordmark
-  const footerIconS = 32
-  ctx.save()
-  const fig = ctx.createLinearGradient(m + 8, y, m + 8 + footerIconS, y + footerIconS)
-  fig.addColorStop(0, "#1e1b4b"); fig.addColorStop(1, "#312e81")
-  rr(ctx, m + 8, y, footerIconS, footerIconS, 8); ctx.fillStyle = fig; ctx.fill()
-  ctx.fillStyle = "#fff"; ctx.font = "bold 18px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
-  ctx.fillText("L", m + 8 + footerIconS / 2, y + footerIconS / 2 + 1)
-  ctx.restore()
+  // Real logo
+  const footerIconS = 30
+  if (logoImg) {
+    ctx.save()
+    rr(ctx, m + 8, y, footerIconS, footerIconS, 8)
+    ctx.clip()
+    ctx.drawImage(logoImg, m + 8, y, footerIconS, footerIconS)
+    ctx.restore()
+  } else {
+    ctx.save()
+    const fig = ctx.createLinearGradient(m + 8, y, m + 8 + footerIconS, y + footerIconS)
+    fig.addColorStop(0, "#1e1b4b"); fig.addColorStop(1, "#312e81")
+    rr(ctx, m + 8, y, footerIconS, footerIconS, 8); ctx.fillStyle = fig; ctx.fill()
+    ctx.fillStyle = "#fff"; ctx.font = "bold 16px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
+    ctx.fillText("L", m + 8 + footerIconS / 2, y + footerIconS / 2 + 1)
+    ctx.restore()
+  }
   // "Loop" wordmark
-  ctx.font = "bold 20px system-ui, sans-serif"; ctx.fillStyle = "#1c1917"; ctx.textAlign = "left"; ctx.textBaseline = "middle"
+  ctx.font = "bold 18px system-ui, sans-serif"; ctx.fillStyle = tc.textPrimary; ctx.textAlign = "left"; ctx.textBaseline = "middle"
   ctx.fillText("Loop", m + 8 + footerIconS + 10, y + footerIconS / 2)
   // Tagline
-  ctx.font = "14px system-ui, sans-serif"; ctx.fillStyle = "#78716c"
-  ctx.fillText(TAGLINE, m + 8, y + footerIconS + 18)
+  ctx.font = "13px system-ui, sans-serif"; ctx.fillStyle = tc.textMuted
+  ctx.fillText(TAGLINE, m + 8, y + footerIconS + 16)
   // www.loopapp.me
-  ctx.font = "13px system-ui, sans-serif"; ctx.fillStyle = "#a8a29e"; ctx.textAlign = "center"
-  ctx.fillText(`www.${DOMAIN}`, cx, y + footerIconS + 40)
+  ctx.font = "12px system-ui, sans-serif"; ctx.fillStyle = tc.textMuted; ctx.textAlign = "center"
+  ctx.fillText(`www.${DOMAIN}`, cx, y + footerIconS + 36)
 }
 
 function toBlob(c: HTMLCanvasElement, q = 0.92): Promise<Blob> {
@@ -255,78 +393,82 @@ function toBlob(c: HTMLCanvasElement, q = 0.92): Promise<Blob> {
 }
 
 /* ── JSX Preview (matches canvas layout exactly) ── */
-function CardPreview({ post }: { post: ShareAsImageModalProps["post"] }) {
+function CardPreview({ post, isDark }: { post: ShareAsImageModalProps["post"]; isDark: boolean }) {
   const nm = truncate(post.author.display_name || post.author.username || "User", 24)
-  const allStats = [
-    { count: Number(post.stats?.likes_count || 0), color: "text-rose-500", bg: "bg-rose-500/10", symbol: "\u2764\uFE0F" },
-    { count: Number(post.stats?.comments_count || 0), color: "text-cyan-600", bg: "bg-cyan-500/10", symbol: "\uD83D\uDCAC" },
-    { count: Number(post.stats?.branches_count || 0), color: "text-emerald-600", bg: "bg-emerald-500/10", symbol: "\uD83C\uDF3F" },
-    { count: Number(post.stats?.boosts_count || 0), color: "text-amber-600", bg: "bg-amber-500/10", symbol: "\uD83D\uDE80" },
-  ].filter(s => s.count > 0)
+  const likes = Number(post.stats?.likes_count || 0)
+  const comments = Number(post.stats?.comments_count || 0)
+  const branches = Number(post.stats?.branches_count || 0)
+  const boosts = Number(post.stats?.boosts_count || 0)
+
+  const allStats: { count: number; color: string; bg: string; icon: React.ReactNode }[] = []
+  if (likes > 0) allStats.push({ count: likes, color: "text-rose-500", bg: "bg-rose-500/12", icon: <Heart className="h-3.5 w-3.5 fill-current" /> })
+  if (comments > 0) allStats.push({ count: comments, color: "text-cyan-600", bg: "bg-cyan-500/12", icon: <MessageCircle className="h-3.5 w-3.5 fill-current" /> })
+  if (branches > 0) allStats.push({ count: branches, color: "text-emerald-600", bg: "bg-emerald-500/12", icon: <GitBranch className="h-3.5 w-3.5" /> })
+  if (boosts > 0) allStats.push({ count: boosts, color: "text-amber-600", bg: "bg-amber-500/12", icon: <Zap className="h-3.5 w-3.5 fill-current" /> })
 
   return (
-    <div className="relative w-full aspect-[4/5] select-none overflow-hidden rounded-[28px] text-left bg-[#f0eeeb]">
+    <div className={`relative w-full aspect-[4/5] select-none overflow-hidden rounded-[28px] text-left ${isDark ? "bg-zinc-900" : "bg-[#f5f3f0]"}`}>
       {/* Gradient top border */}
       <div className="absolute inset-x-0 top-0 h-2 rounded-t-[28px]" style={{ background: "linear-gradient(90deg, #8b5cf6, #a78bfa, #06b6d4)" }} />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col h-full px-[5%]">
         {/* App icon centered at top */}
-        <div className="flex justify-center pt-8">
-          <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-gradient-to-br from-indigo-950 to-indigo-800">
-            <span className="text-white font-bold text-xl">L</span>
+        <div className="flex justify-center pt-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-gradient-to-br from-indigo-950 to-indigo-800 overflow-hidden">
+            <img src="/icons/icon.svg" alt="Loop" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
           </div>
         </div>
 
         {/* Divider */}
-        <div className="mx-auto mt-7 h-px w-[88%] bg-black/[0.07]" />
+        <div className={`mx-auto mt-5 h-px w-[88%] ${isDark ? "bg-white/[0.08]" : "bg-black/[0.06]"}`} />
 
         {/* Compact author byline */}
-        <div className="flex items-center gap-3 mt-7">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full p-[3px]" style={{ background: "linear-gradient(135deg, #c084fc, #818cf8, #67e8f9)" }}>
-            <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-full bg-stone-200 text-stone-600 text-sm font-bold">
+        <div className="flex items-center gap-3 mt-5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-[3px]" style={{ background: "linear-gradient(135deg, #c084fc, #818cf8, #67e8f9)" }}>
+            <span className={`flex aspect-square w-full items-center justify-center overflow-hidden rounded-full text-sm font-bold ${isDark ? "bg-zinc-700 text-zinc-300" : "bg-stone-200 text-stone-600"}`}>
               {post.author.avatar_url ? (
                 <img src={`/api/image-proxy?url=${encodeURIComponent(post.author.avatar_url)}`} alt="" className="h-full w-full object-cover" />
               ) : nm.charAt(0).toUpperCase()}
             </span>
           </span>
-          <div className="flex items-baseline gap-2 min-w-0">
-            <p className="truncate text-[15px] font-bold text-stone-900">{nm}</p>
-            <p className="truncate text-[13px] text-stone-400 shrink-0">@{truncate(post.author.username || "user", 28)}</p>
+          <div className="flex flex-col min-w-0">
+            <p className={`truncate text-[15px] font-bold ${isDark ? "text-zinc-100" : "text-stone-900"}`}>{nm}</p>
+            <p className={`truncate text-[13px] ${isDark ? "text-zinc-500" : "text-stone-400"}`}>@{truncate(post.author.username || "user", 28)}</p>
           </div>
         </div>
 
         {/* Post content — THE FOCAL POINT, vertically centered */}
         <div className="flex-1 flex items-center justify-start">
-          <p className="whitespace-pre-line text-[22px] sm:text-[24px] leading-[1.45] text-stone-800 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:8] overflow-hidden font-medium">
+          <p className={`whitespace-pre-line text-[22px] sm:text-[24px] leading-[1.45] font-medium [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:8] overflow-hidden ${isDark ? "text-zinc-100" : "text-stone-800"}`}>
             {truncate(post.content || "Shared a loop", 500)}
           </p>
         </div>
 
-        {/* Stats as pill badges */}
+        {/* Stats as pill badges with real icons */}
         {allStats.length > 0 && (
           <div className="flex items-center gap-2 mb-3">
-            {allStats.map(({ count, color, bg, symbol }, i) => (
+            {allStats.map(({ count, color, bg, icon }, i) => (
               <span key={i} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold ${bg} ${color}`}>
-                <span>{symbol}</span> {fmt(count)}
+                {icon} {fmt(count)}
               </span>
             ))}
           </div>
         )}
 
         {/* Divider */}
-        <div className="mx-auto h-px w-[88%] bg-black/[0.06]" />
+        <div className={`mx-auto h-px w-[88%] ${isDark ? "bg-white/[0.06]" : "bg-black/[0.06]"}`} />
 
         {/* App signature footer */}
-        <div className="pb-6 pt-4">
+        <div className="pb-5 pt-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-950 to-indigo-800">
-              <span className="text-white font-bold text-sm">L</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-950 to-indigo-800 overflow-hidden">
+              <img src="/icons/icon.svg" alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
             </div>
-            <span className="text-[15px] font-bold text-stone-900">Loop</span>
+            <span className={`text-[15px] font-bold ${isDark ? "text-zinc-100" : "text-stone-900"}`}>Loop</span>
           </div>
-          <p className="mt-2 text-[12px] text-stone-500">{TAGLINE}</p>
-          <p className="mt-1 text-[11px] text-stone-400">www.{DOMAIN}</p>
+          <p className={`mt-2 text-[12px] ${isDark ? "text-zinc-500" : "text-stone-500"}`}>{TAGLINE}</p>
+          <p className={`mt-1 text-[11px] ${isDark ? "text-zinc-600" : "text-stone-400"}`}>www.{DOMAIN}</p>
         </div>
       </div>
     </div>
@@ -336,15 +478,19 @@ function CardPreview({ post }: { post: ShareAsImageModalProps["post"] }) {
 /* ── Main modal ── */
 export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModalProps) {
   const { toast } = useToast()
+  const { resolvedTheme } = useTheme()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [rendered, setRendered] = useState(false)
   const [exporting, setExporting] = useState(false)
   const avRef = useRef<AV | null>(null)
+  const logoRef = useRef<HTMLImageElement | null>(null)
   const blobRef = useRef<Blob | null>(null)
   const genRef = useRef(0)
 
-  const key = useMemo(() => [post.id, post.content, post.author.username, post.author.avatar_url, post.stats?.likes_count, post.stats?.comments_count, post.stats?.branches_count, post.stats?.boosts_count].join("|"),
-    [post.id, post.content, post.author.username, post.author.avatar_url, post.stats?.likes_count, post.stats?.comments_count, post.stats?.branches_count, post.stats?.boosts_count])
+  const isDark = resolvedTheme === "dark"
+
+  const key = useMemo(() => [post.id, post.content, post.author.username, post.author.avatar_url, post.stats?.likes_count, post.stats?.comments_count, post.stats?.branches_count, post.stats?.boosts_count, isDark].join("|"),
+    [post.id, post.content, post.author.username, post.author.avatar_url, post.stats?.likes_count, post.stats?.comments_count, post.stats?.branches_count, post.stats?.boosts_count, isDark])
 
   useEffect(() => {
     if (!open) { setRendered(false); setExporting(false); blobRef.current = null; avRef.current = null; return }
@@ -352,24 +498,30 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
     const run = async () => {
       const cv = canvasRef.current; if (!cv) return
       try {
-        drawCard(cv, post, SCALE, avRef.current)
+        // Load logo if not already cached
+        if (!logoRef.current) {
+          logoRef.current = await loadImg("/icons/icon.svg")
+          ;(cv as any)._loopLogo = logoRef.current
+        }
+        // Load avatar
+        const avUrl = post.author.avatar_url ? `/api/image-proxy?url=${encodeURIComponent(post.author.avatar_url)}` : null
+        const av = avUrl ? await loadAv(avUrl) : null
+        if (c || genRef.current !== g) return
+        avRef.current = av; ;(cv as any)._loopLogo = logoRef.current
+
+        drawCard(cv, post, SCALE, av, isDark)
         if (c || genRef.current !== g) return
         blobRef.current = await toBlob(cv); setRendered(true)
-        const a = post.author.avatar_url ? await loadAv(`/api/image-proxy?url=${encodeURIComponent(post.author.avatar_url)}`) : null
-        if (c || genRef.current !== g) return
-        avRef.current = a; drawCard(cv, post, SCALE, a)
-        const b2 = await toBlob(cv)
-        if (!c && genRef.current === g) blobRef.current = b2
       } catch { if (!c) setRendered(false) }
     }
     const t = window.setTimeout(() => void run(), 80)
     return () => { c = true; clearTimeout(t) }
-  }, [open, key])
+  }, [open, key, isDark])
 
   const getBlob = async (): Promise<Blob> => {
     if (blobRef.current) return blobRef.current
     const cv = canvasRef.current; if (!cv) throw new Error("Canvas not ready")
-    drawCard(cv, post, SCALE, avRef.current)
+    drawCard(cv, post, SCALE, avRef.current, isDark)
     const b = await toBlob(cv); blobRef.current = b; return b
   }
 
@@ -403,11 +555,11 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
         </DialogHeader>
         <canvas ref={canvasRef} className="hidden" />
         <div className="relative w-full overflow-hidden rounded-xl border border-border shadow-lg">
-          <CardPreview post={post} />
+          <CardPreview post={post} isDark={isDark} />
           {!rendered && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-background/70 backdrop-blur-[1px]">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">Preparing image…</p>
+              <p className="text-xs text-muted-foreground">Preparing image...</p>
             </div>
           )}
         </div>
