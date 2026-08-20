@@ -103,6 +103,11 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
   const [showEdit, setShowEdit] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [publishSubdomain, setPublishSubdomain] = useState("")
+  const [showPublish, setShowPublish] = useState(false)
+  const [isPublished, setIsPublished] = useState(false)
+  const [publishedUrl, setPublishedUrl] = useState("")
   const { toast } = useToast()
 
   const authorId = project.author_id || project.author?.id
@@ -264,6 +269,53 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
     )
   }
 
+  const handlePublish = async () => {
+    if (!requireAuth("post")) return
+    if (!publishSubdomain.trim()) {
+      toast({ title: "Enter a subdomain", description: "Choose a unique subdomain for your app.", variant: "destructive" })
+      return
+    }
+    setPublishing(true)
+    try {
+      const res = await fetch(`/api/developers/projects/${project.id}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ subdomain: publishSubdomain.trim(), publish: true }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to publish")
+      setIsPublished(true)
+      setPublishedUrl(data.url)
+      toast({ title: "Published!", description: `Your app is live at ${data.url}` })
+      setShowPublish(false)
+    } catch (error: any) {
+      toast({ title: "Publish failed", description: error.message, variant: "destructive" })
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  const handleUnpublish = async () => {
+    setPublishing(true)
+    try {
+      const res = await fetch(`/api/developers/projects/${project.id}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ publish: false }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to unpublish")
+      setIsPublished(false)
+      setPublishedUrl("")
+      toast({ title: "Unpublished" })
+      setShowPublish(false)
+    } catch (error: any) {
+      toast({ title: "Failed", description: error.message, variant: "destructive" })
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   const editableProject: EditableProject = {
     id: project.id,
     title: project.title,
@@ -321,6 +373,16 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
                 {isOwner && (
                   <>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href={`/preview/${project.id}`}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Preview
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setShowPublish(true)}>
+                      <Globe className="mr-2 h-4 w-4" />
+                      {isPublished ? "Manage publish" : "Publish"}
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setShowEdit(true)}>
                       <Pencil className="mr-2 h-4 w-4" />
                       Edit
@@ -461,6 +523,22 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
           </div>
 
           <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {isOwner && (
+              <Button variant="outline" size="sm" asChild className="min-w-0 border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20">
+                <Link href={`/preview/${project.id}`}>
+                  <Eye className="mr-2 h-4 w-4 shrink-0" />
+                  Preview
+                </Link>
+              </Button>
+            )}
+            {isPublished && publishedUrl && (
+              <Button variant="outline" size="sm" asChild className="min-w-0 border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20">
+                <a href={publishedUrl} target="_blank" rel="noopener noreferrer">
+                  <Globe className="mr-2 h-4 w-4 shrink-0" />
+                  Live
+                </a>
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handleShare} className="min-w-0">
               <Share2 className="mr-2 h-4 w-4 shrink-0" />
               Share
@@ -492,6 +570,53 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
       project={editableProject}
       onProjectUpdated={onUpdated}
     />
+
+    {/* Publish Dialog */}
+    {showPublish && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-md mx-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-lg">{isPublished ? "Manage Published App" : "Publish as Live App"}</h3>
+            <button onClick={() => setShowPublish(false)} className="text-muted-foreground hover:text-foreground">✕</button>
+          </div>
+          {isPublished ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Your app is live at:</p>
+              <a href={publishedUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm font-mono text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors">
+                {publishedUrl}
+              </a>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleUnpublish} disabled={publishing} className="flex-1">
+                  {publishing ? "Processing…" : "Unpublish"}
+                </Button>
+                <Button size="sm" asChild className="flex-1">
+                  <a href={publishedUrl} target="_blank" rel="noopener noreferrer">Visit App</a>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Choose a subdomain for your live app:</p>
+              <div className="flex items-center gap-0 rounded-lg border border-border overflow-hidden">
+                <input
+                  type="text"
+                  value={publishSubdomain}
+                  onChange={(e) => setPublishSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                  placeholder="my-app"
+                  className="flex-1 px-3 py-2 bg-background text-foreground text-sm border-0 outline-none"
+                  maxLength={63}
+                />
+                <span className="px-3 py-2 bg-muted text-muted-foreground text-sm border-l border-border">.loopapp.me</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">Letters, numbers, and hyphens only. Min 3, max 63 characters.</p>
+              <Button onClick={handlePublish} disabled={publishing || publishSubdomain.length < 3} className="w-full">
+                {publishing ? "Publishing…" : "Publish App"}
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
 
     <ConfirmDialog
       open={showDelete}
