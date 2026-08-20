@@ -154,7 +154,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
                 </Badge>
               </Link>
             )}
-            {user.is_team_member && !isAdmin && (
+            {(user.is_team_member || isAdmin) && (
               <Link
                 href="/team"
                 onClick={onLinkClick}
