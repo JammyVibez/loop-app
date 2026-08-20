@@ -97,7 +97,7 @@ export function RichContent({
                   <img
                     src={proxied(url)}
                     alt={alt || "Emoji"}
-                    className="h-5 w-5 sm:h-6 sm:w-6 object-contain inline-block align-middle select-none"
+                    className="h-4 w-4 sm:h-5 sm:w-5 object-contain inline-block align-middle select-none" style={{verticalAlign: "middle"}}
                     loading="lazy"
                   />
                 </span>
