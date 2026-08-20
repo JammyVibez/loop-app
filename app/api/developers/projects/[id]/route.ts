@@ -67,7 +67,17 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       .eq("id", id)
       .maybeSingle()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      // Check if it's a missing table error
+      if (error.message?.includes("does not exist") || error.message?.includes("relation") || error.code === "42P01") {
+        return NextResponse.json({
+          error: "Database not set up",
+          needsSetup: true,
+          message: "The developer projects table doesn't exist yet. Please run the database setup first.",
+        }, { status: 503 })
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
     if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 })
 
     // Best-effort view increment (ignore failures)
@@ -96,7 +106,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       .eq("id", id)
       .maybeSingle()
 
-    if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500 })
+    if (existingError) {
+      if (existingError.message?.includes("does not exist") || existingError.code === "42P01") {
+        return NextResponse.json({ error: "Database not set up", needsSetup: true }, { status: 503 })
+      }
+      return NextResponse.json({ error: existingError.message }, { status: 500 })
+    }
     if (!existing) return NextResponse.json({ error: "Project not found" }, { status: 404 })
     if (existing.author_id !== user.id) {
       return NextResponse.json({ error: "Only the author can edit this project" }, { status: 403 })
@@ -192,7 +207,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       .eq("id", id)
       .maybeSingle()
 
-    if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500 })
+    if (existingError) {
+      if (existingError.message?.includes("does not exist") || existingError.code === "42P01") {
+        return NextResponse.json({ error: "Database not set up", needsSetup: true }, { status: 503 })
+      }
+      return NextResponse.json({ error: existingError.message }, { status: 500 })
+    }
     if (!existing) return NextResponse.json({ error: "Project not found" }, { status: 404 })
     if (existing.author_id !== user.id) {
       return NextResponse.json({ error: "Only the author can delete this project" }, { status: 403 })

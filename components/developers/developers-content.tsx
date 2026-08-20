@@ -1,12 +1,12 @@
 "use client"
 
-import React, { useMemo, useState } from "react"
+import React, { useMemo, useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Code, Plus, Loader2, Search, BookOpen, LayoutTemplate, GitFork, Star, Boxes, RefreshCw, Zap, Terminal, UserRound, Target, Trophy } from "lucide-react"
+import { Code, Plus, Loader2, Search, BookOpen, LayoutTemplate, GitFork, Star, Boxes, RefreshCw, Zap, Terminal, UserRound, Target, Trophy, Database, AlertTriangle } from "lucide-react"
 import { CreateProjectDialog } from "@/components/developers/create-project-dialog"
 import { CodeLoopCard } from "@/components/developers/code-loop-card"
 import { DeveloperSnippets } from "@/components/developers/developer-snippets"
@@ -56,6 +56,40 @@ export function DevelopersContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState("projects")
+  const [dbReady, setDbReady] = useState<boolean | null>(null)
+  const [settingUp, setSettingUp] = useState(false)
+  const [setupMsg, setSetupMsg] = useState<string | null>(null)
+
+  // Check if developer tables exist on mount
+  useEffect(() => {
+    fetch("/api/developers/setup")
+      .then((r) => r.json())
+      .then((d) => setDbReady(d.tableExists))
+      .catch(() => setDbReady(false))
+  }, [])
+
+  const runSetup = async () => {
+    setSettingUp(true)
+    setSetupMsg(null)
+    try {
+      const token = user?.access_token || user?.token
+      const headers: Record<string, string> = { "Content-Type": "application/json" }
+      if (token) headers["Authorization"] = `Bearer ${token}`
+      const res = await fetch("/api/developers/setup", { method: "POST", headers })
+      const data = await res.json()
+      if (data.success) {
+        setSetupMsg("Database tables created! Refreshing...")
+        setDbReady(true)
+        setTimeout(() => fetchProjects(), 1000)
+      } else {
+        setSetupMsg(data.message || data.error || "Setup failed")
+      }
+    } catch (e: any) {
+      setSetupMsg(e.message || "Setup failed")
+    } finally {
+      setSettingUp(false)
+    }
+  }
 
   // Ads on the Developer Hub — eligibility is decided server-side so Pro
   // users and Sponsors are always excluded. The client only places the card.
@@ -171,6 +205,24 @@ export function DevelopersContent() {
   return (
     <>
       <div className="space-y-6">
+        {/* Database Setup Banner */}
+        {dbReady === false && (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-center">
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+              <Database className="h-5 w-5" />
+              <p className="font-medium text-sm">Developer database tables not found</p>
+            </div>
+            <p className="text-xs text-muted-foreground">Click below to create the required tables in Supabase.</p>
+            {setupMsg && (
+              <p className={`text-xs ${setupMsg.includes("created") ? "text-green-600" : "text-amber-600"}`}>{setupMsg}</p>
+            )}
+            <Button size="sm" onClick={runSetup} disabled={settingUp} className="rounded-full">
+              {settingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+              {settingUp ? "Creating tables..." : "Setup Database"}
+            </Button>
+          </div>
+        )}
+
         {/* Hero / actions */}
         <div className="flex flex-col items-center gap-4 rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 via-card to-indigo-600/10 p-6 sm:flex-row sm:justify-between">
           <div className="flex items-center gap-4">

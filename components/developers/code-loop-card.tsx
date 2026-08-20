@@ -108,6 +108,7 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
   const [showPublish, setShowPublish] = useState(false)
   const [isPublished, setIsPublished] = useState(false)
   const [publishedUrl, setPublishedUrl] = useState("")
+  const [showShareDialog, setShowShareDialog] = useState(false)
   const { toast } = useToast()
 
   const authorId = project.author_id || project.author?.id
@@ -179,6 +180,17 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
   }
 
   const handleShare = async () => {
+    setShowShareDialog(true)
+  }
+
+  const copyEmbedCode = () => {
+    const embedUrl = absoluteAppUrl(`/preview/${project.id}`)
+    const embedCode = `<iframe src="${embedUrl}" width="100%" height="500" frameborder="0" title="${project.title}"></iframe>`
+    navigator.clipboard.writeText(embedCode)
+    toast({ title: "Embed code copied", description: "Paste this into any webpage to embed your project." })
+  }
+
+  const copyLink = async () => {
     const result = await shareContent({
       url: projectUrl,
       title: project.title,
@@ -189,6 +201,18 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
     } else if (result === "failed") {
       toast({ title: "Couldn't share", variant: "destructive" })
     }
+  }
+
+  const shareToSocial = (platform: string) => {
+    const text = encodeURIComponent(`Check out ${project.title} on Loop Developers!`)
+    const url = encodeURIComponent(projectUrl)
+    const urls: Record<string, string> = {
+      twitter: `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
+      reddit: `https://reddit.com/submit?url=${url}&title=${text}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+    }
+    window.open(urls[platform], "_blank", "width=600,height=400")
   }
 
   const handleDelete = async () => {
@@ -373,16 +397,20 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
                 {isOwner && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href={`/preview/${project.id}`}>
-                        <Eye className="mr-2 h-4 w-4" />
-                        Preview
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setShowPublish(true)}>
-                      <Globe className="mr-2 h-4 w-4" />
-                      {isPublished ? "Manage publish" : "Publish"}
-                    </DropdownMenuItem>
+                    {user?.is_premium && (
+                      <DropdownMenuItem asChild>
+                        <Link href={`/preview/${project.id}`}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          Preview
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {user?.is_premium && (
+                      <DropdownMenuItem onClick={() => setShowPublish(true)}>
+                        <Globe className="mr-2 h-4 w-4" />
+                        {isPublished ? "Manage publish" : "Publish"}
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={() => setShowEdit(true)}>
                       <Pencil className="mr-2 h-4 w-4" />
                       Edit
@@ -523,7 +551,7 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
           </div>
 
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {isOwner && (
+            {isOwner && user?.is_premium && (
               <Button variant="outline" size="sm" asChild className="min-w-0 border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20">
                 <Link href={`/preview/${project.id}`}>
                   <Eye className="mr-2 h-4 w-4 shrink-0" />
@@ -627,6 +655,39 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
       destructive
       onConfirm={handleDelete}
     />
+
+    {/* Share Dialog */}
+    {showShareDialog && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowShareDialog(false)}>
+        <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-lg">Share Project</h3>
+            <button onClick={() => setShowShareDialog(false)} className="text-muted-foreground hover:text-foreground">&times;</button>
+          </div>
+          <p className="text-sm text-muted-foreground">Share {project.title} with others:</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" size="sm" onClick={() => shareToSocial("twitter")} className="justify-start">Twitter / X</Button>
+            <Button variant="outline" size="sm" onClick={() => shareToSocial("reddit")} className="justify-start">Reddit</Button>
+            <Button variant="outline" size="sm" onClick={() => shareToSocial("linkedin")} className="justify-start">LinkedIn</Button>
+            <Button variant="outline" size="sm" onClick={() => shareToSocial("facebook")} className="justify-start">Facebook</Button>
+          </div>
+          <Button variant="outline" size="sm" onClick={copyLink} className="w-full justify-start">
+            <Share2 className="mr-2 h-4 w-4" /> Copy link
+          </Button>
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Embed code:</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-[11px] bg-muted rounded px-2 py-1.5 overflow-x-auto whitespace-nowrap">
+                {'<iframe src="' + absoluteAppUrl(`/preview/${project.id}`) + '" width="100%" height="500" />'}
+              </code>
+              <Button variant="ghost" size="sm" onClick={copyEmbedCode} className="shrink-0">
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   )
 }
