@@ -624,7 +624,7 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">Choose a subdomain for your live app:</p>
+              <p className="text-sm text-muted-foreground">Choose a slug for your live app URL:</p>
               <div className="flex items-center gap-0 rounded-lg border border-border overflow-hidden">
                 <input
                   type="text"
@@ -634,9 +634,9 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
                   className="flex-1 px-3 py-2 bg-background text-foreground text-sm border-0 outline-none"
                   maxLength={63}
                 />
-                <span className="px-3 py-2 bg-muted text-muted-foreground text-sm border-l border-border">.loopapp.me</span>
+                <span className="px-3 py-2 bg-muted text-muted-foreground text-sm border-l border-border">/app/</span>
               </div>
-              <p className="text-[11px] text-muted-foreground">Letters, numbers, and hyphens only. Min 3, max 63 characters.</p>
+              <p className="text-[11px] text-muted-foreground">This becomes your app URL: loopapp.me/app/your-slug</p>
               <Button onClick={handlePublish} disabled={publishing || publishSubdomain.length < 3} className="w-full">
                 {publishing ? "Publishing…" : "Publish App"}
               </Button>
