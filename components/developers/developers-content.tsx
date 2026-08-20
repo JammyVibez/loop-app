@@ -64,7 +64,10 @@ export function DevelopersContent() {
   useEffect(() => {
     fetch("/api/developers/setup")
       .then((r) => r.json())
-      .then((d) => setDbReady(d.tableExists))
+      .then((d) => {
+        // Show banner if table doesn't exist OR if there was an error
+        setDbReady(Boolean(d.tableExists))
+      })
       .catch(() => setDbReady(false))
   }, [])
 
@@ -82,7 +85,13 @@ export function DevelopersContent() {
         setDbReady(true)
         setTimeout(() => fetchProjects(), 1000)
       } else {
-        setSetupMsg(data.message || data.error || "Setup failed")
+        // Show SQL for manual execution
+        const msg = data.message || data.error || "Auto-setup failed"
+        if (data.sql) {
+          setSetupMsg(`${msg}\n\nRun this SQL in your Supabase SQL Editor:\n${data.sql.slice(0, 200)}...`)
+        } else {
+          setSetupMsg(msg)
+        }
       }
     } catch (e: any) {
       setSetupMsg(e.message || "Setup failed")
@@ -207,19 +216,34 @@ export function DevelopersContent() {
       <div className="space-y-6">
         {/* Database Setup Banner */}
         {dbReady === false && (
-          <div className="flex flex-col items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-center">
-            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-              <Database className="h-5 w-5" />
-              <p className="font-medium text-sm">Developer database tables not found</p>
+          <div className="rounded-xl border-2 border-dashed border-amber-500/50 bg-amber-500/5 p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15">
+                <Database className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <p className="font-bold text-amber-700 dark:text-amber-300">Database Setup Required</p>
+                <p className="text-sm text-muted-foreground">The developer projects tables need to be created in Supabase before you can use the Developer Hub.</p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">Click below to create the required tables in Supabase.</p>
+
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={runSetup} disabled={settingUp} className="rounded-full bg-amber-600 text-white hover:bg-amber-700">
+                {settingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                {settingUp ? "Creating tables..." : "Auto-Setup"}
+              </Button>
+              <Button size="sm" variant="outline" className="rounded-full" asChild>
+                <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer">
+                  Open Supabase Dashboard &rarr;
+                </a>
+              </Button>
+            </div>
+
             {setupMsg && (
-              <p className={`text-xs ${setupMsg.includes("created") ? "text-green-600" : "text-amber-600"}`}>{setupMsg}</p>
+              <div className="rounded-lg bg-background border border-border p-3">
+                <p className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all max-h-40 overflow-y-auto">{setupMsg}</p>
+              </div>
             )}
-            <Button size="sm" onClick={runSetup} disabled={settingUp} className="rounded-full">
-              {settingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-              {settingUp ? "Creating tables..." : "Setup Database"}
-            </Button>
           </div>
         )}
 

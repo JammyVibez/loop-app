@@ -167,59 +167,34 @@ export async function POST(request: NextRequest) {
       .from("profiles").select("is_admin").eq("id", user.id).maybeSingle()
     if (!profile?.is_admin) return NextResponse.json({ error: "Admin only" }, { status: 403 })
 
-    // Execute the SQL setup
-    const { error } = await supabase.rpc("exec_sql", { query: SETUP_SQL }).single()
-
-    // If exec_sql doesn't exist, try direct query via service role
-    if (error) {
-      // Try using the Supabase SQL API endpoint directly
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-      if (!supabaseUrl || !serviceKey) {
-        return NextResponse.json({
-          error: "Cannot auto-setup: missing SUPABASE_SERVICE_ROLE_KEY. Please run the SQL manually.",
-          sql: SETUP_SQL,
-        }, { status: 500 })
+    // Try to execute SQL via exec_sql RPC (if the function exists)
+    let autoSetupWorked = false
+    try {
+      const { error } = await supabase.rpc("exec_sql", { query: SETUP_SQL })
+      if (!error) {
+        autoSetupWorked = true
       }
-
-      const projectId = supabaseUrl.replace("https://", "").replace(".supabase.co", "")
-      const resp = await fetch(`https://${projectId}.supabase.co/rest/v1/rpc/exec`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${serviceKey}`,
-          "apikey": serviceKey,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ query: SETUP_SQL }),
-      })
-
-      if (!resp.ok) {
-        // Return the SQL so admin can run it manually
-        return NextResponse.json({
-          success: false,
-          message: "Auto-setup failed. Please run the SQL below in your Supabase SQL Editor.",
-          sql: SETUP_SQL,
-          apiError: await resp.text(),
-        }, { status: 500 })
-      }
+    } catch {
+      // exec_sql function doesn't exist
     }
 
     // Verify the table exists now
-    const { data: testProject, error: testError } = await supabase
-      .from("developer_projects")
-      .select("id")
-      .limit(1)
-
-    if (testError) {
-      return NextResponse.json({
-        success: false,
-        message: "SQL executed but table still not accessible. Please run the SQL manually in Supabase SQL Editor.",
-        sql: SETUP_SQL,
-        verifyError: testError.message,
-      }, { status: 500 })
+    if (autoSetupWorked) {
+      const { error: testError } = await supabase
+        .from("developer_projects")
+        .select("id")
+        .limit(1)
+      if (!testError) {
+        return NextResponse.json({ success: true, message: "Developer tables created successfully" })
+      }
     }
 
-    return NextResponse.json({ success: true, message: "Developer tables created successfully" })
+    // Auto-setup didn't work — return SQL for manual execution
+    return NextResponse.json({
+      success: false,
+      message: "Please run the SQL below in your Supabase SQL Editor to create the developer tables.",
+      sql: SETUP_SQL,
+    })
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Setup failed" }, { status: 500 })
   }
@@ -229,12 +204,23 @@ export async function GET() {
   // Check if developer_projects table exists
   try {
     const supabase = createServerClient()
-    const { error } = await supabase.from("developer_projects").select("id").limit(1)
+    const { data, error } = await supabase.from("developer_projects").select("id").limit(1)
 
-    return NextResponse.json({
-      tableExists: !error,
-      error: error?.message || null,
-    })
+    if (error) {
+      // If the error mentions the relation doesn't exist, table is missing
+      const isMissing = error.message?.includes("does not exist") ||
+        error.message?.includes("relation") ||
+        error.code === "42P01" ||
+        error.message?.includes("developer_projects")
+      return NextResponse.json({
+        tableExists: false,
+        error: error.message,
+        missing: isMissing,
+      })
+    }
+
+    // Table exists if we got data (even empty array) without error
+    return NextResponse.json({ tableExists: true, error: null })
   } catch (err: any) {
     return NextResponse.json({ tableExists: false, error: err.message })
   }
