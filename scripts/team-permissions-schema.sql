@@ -3,9 +3,9 @@
 
 CREATE TABLE IF NOT EXISTS team_permissions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
   permission_key TEXT NOT NULL,
-  granted_by UUID REFERENCES auth.users(id),
+  granted_by UUID,
   granted_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(user_id, permission_key)
 );

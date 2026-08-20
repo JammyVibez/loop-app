@@ -847,7 +847,7 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
               {message.media_url && (message.media_type === "audio" || /\.(webm|mp3|ogg|m4a|wav)(\?|$)/i.test(message.media_url)) && (
                 <audio controls src={message.media_url} className="mb-1 w-full max-w-[240px]" />
               )}
-              {message.media_url && message.media_type === "image" && (
+              {message.media_url && (message.media_type === "image" || message.media_type === "sticker") && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={message.media_url} alt="" className="mb-1 max-h-48 rounded-xl object-cover" />
               )}

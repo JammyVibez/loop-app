@@ -1809,7 +1809,8 @@ export function MessagesWorkspace() {
                       {message.media_url &&
                         (message.media_type === "image" ||
                           message.message_type === "image" ||
-                          message.message_type === "gif") && (
+                          message.message_type === "gif" ||
+                          message.message_type === "sticker") && (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img
                             src={optimizeImageUrl(message.media_url, 900) || message.media_url}
