@@ -35,9 +35,9 @@ interface ShareAsImageModalProps {
   }
 }
 
-/* ── Card dimensions (compact) ── */
+/* ── Card dimensions ── */
 const CARD_W = 1080
-const CARD_H = 960  /* Was 1350 — much shorter now */
+const CARD_H = 1080
 const SCALE = 1.5
 const DOMAIN = "loopapp.me"
 const SITE_URL = `https://www.${DOMAIN}`
@@ -155,11 +155,11 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
   ctx.arcTo(CARD_W, 0, CARD_W, 24, 24); ctx.lineTo(CARD_W, 7); ctx.lineTo(0, 7)
   ctx.lineTo(0, 24); ctx.arcTo(0, 0, 24, 0, 24); ctx.closePath(); ctx.fill()
 
-  let y = m + 20
+  let y = m + 24
 
   // App icon centered at top
   const logoImg = (canvas as any)._loopLogo as HTMLImageElement | null
-  const iconS = 44
+  const iconS = 48
   if (logoImg) {
     ctx.save(); rr(ctx, cx - iconS / 2, y, iconS, iconS, 12); ctx.clip()
     ctx.drawImage(logoImg, cx - iconS / 2, y, iconS, iconS); ctx.restore()
@@ -171,15 +171,15 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
     ctx.fillStyle = "#fff"; ctx.font = "bold 22px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
     ctx.fillText("L", cx, y + iconS / 2 + 1); ctx.restore()
   }
-  y += iconS + 16
+  y += iconS + 20
 
   // Thin divider
   ctx.strokeStyle = tc.divider; ctx.lineWidth = 1
   ctx.beginPath(); ctx.moveTo(m + 16, y); ctx.lineTo(m + iw - 16, y); ctx.stroke()
-  y += 16
+  y += 20
 
   // Author byline
-  const avS = 36
+  const avS = 40
   ctx.save()
   const rg = ctx.createLinearGradient(m, y, m + avS, y + avS)
   rg.addColorStop(0, "#c084fc"); rg.addColorStop(0.5, "#818cf8"); rg.addColorStop(1, "#67e8f9")
@@ -196,20 +196,20 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
   }
   ctx.restore()
 
-  const nx = m + avS + 10
+  const nx = m + avS + 12
   ctx.textAlign = "left"; ctx.textBaseline = "top"
-  ctx.font = "bold 18px system-ui, sans-serif"; ctx.fillStyle = tc.textPrimary
-  ctx.fillText(truncate(post.author.display_name || "User", 24), nx, y + 3)
-  ctx.font = "13px system-ui, sans-serif"; ctx.fillStyle = tc.textMuted
-  ctx.fillText(`@${truncate(post.author.username || "user", 28)}`, nx, y + 22)
+  ctx.font = "bold 19px system-ui, sans-serif"; ctx.fillStyle = tc.textPrimary
+  ctx.fillText(truncate(post.author.display_name || "User", 24), nx, y + 4)
+  ctx.font = "14px system-ui, sans-serif"; ctx.fillStyle = tc.textMuted
+  ctx.fillText(`@${truncate(post.author.username || "user", 28)}`, nx, y + 24)
 
-  y += avS + 14
+  y += avS + 20
 
-  // Post content — NO vertical centering, just flow naturally after byline
+  // Post content
   const postContent = truncate(post.content || "Shared a loop", 500)
-  const bodyFontSize = 26
-  const textEnd = wrapText(ctx, postContent, m + 4, y, iw - 8, bodyFontSize, tc.textPrimary, 8)
-  y = textEnd + 16
+  const bodyFontSize = 28
+  const textEnd = wrapText(ctx, postContent, m + 4, y, iw - 8, bodyFontSize, tc.textPrimary, 10)
+  y = textEnd + 20
 
   // Stats row
   const allStats: { count: number; color: string; bg: string; drawIcon: (ctx: CanvasRenderingContext2D, x: number, y: number, s: number, c: string) => void }[] = []
@@ -219,27 +219,27 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
   if (allStats.length > 0) {
     let sx = m + 4
     for (const s of allStats) {
-      const iconSize = 12
-      ctx.font = "600 13px system-ui, sans-serif"
+      const iconSize = 13
+      ctx.font = "600 14px system-ui, sans-serif"
       const label = fmt(s.count)
       const textW = ctx.measureText(label).width
-      const pillW = iconSize + 6 + textW + 16, pillH = 28
+      const pillW = iconSize + 8 + textW + 18, pillH = 30
       rr(ctx, sx, y, pillW, pillH, pillH / 2); ctx.fillStyle = s.bg; ctx.fill()
       s.drawIcon(ctx, sx + 7, y + 7, iconSize, s.color)
       ctx.font = "600 13px system-ui, sans-serif"; ctx.fillStyle = s.color; ctx.textAlign = "left"; ctx.textBaseline = "middle"
       ctx.fillText(label, sx + iconSize + 12, y + pillH / 2 + 1)
-      sx += pillW + 6
+      sx += pillW + 8
     }
-    y += 38
+    y += 42
   }
 
   // Divider
   ctx.strokeStyle = tc.divider; ctx.lineWidth = 1
   ctx.beginPath(); ctx.moveTo(m + 16, y); ctx.lineTo(m + iw - 16, y); ctx.stroke()
-  y += 12
+  y += 16
 
   // Footer
-  const footerIconS = 26
+  const footerIconS = 28
   if (logoImg) {
     ctx.save(); rr(ctx, m + 4, y, footerIconS, footerIconS, 6); ctx.clip()
     ctx.drawImage(logoImg, m + 4, y, footerIconS, footerIconS); ctx.restore()
@@ -251,10 +251,10 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
     ctx.fillStyle = "#fff"; ctx.font = "bold 14px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
     ctx.fillText("L", m + 4 + footerIconS / 2, y + footerIconS / 2 + 1); ctx.restore()
   }
-  ctx.font = "bold 16px system-ui, sans-serif"; ctx.fillStyle = tc.textPrimary; ctx.textAlign = "left"; ctx.textBaseline = "middle"
-  ctx.fillText("Loop", m + 4 + footerIconS + 8, y + footerIconS / 2)
+  ctx.font = "bold 17px system-ui, sans-serif"; ctx.fillStyle = tc.textPrimary; ctx.textAlign = "left"; ctx.textBaseline = "middle"
+  ctx.fillText("Loop", m + 4 + footerIconS + 10, y + footerIconS / 2)
   ctx.font = "12px system-ui, sans-serif"; ctx.fillStyle = tc.textMuted; ctx.textAlign = "center"
-  ctx.fillText(`www.${DOMAIN}`, cx, y + footerIconS + 16)
+  ctx.fillText(`www.${DOMAIN}`, cx, y + footerIconS + 18)
 }
 
 function toBlob(c: HTMLCanvasElement, q = 0.92): Promise<Blob> {
@@ -275,44 +275,44 @@ function CardPreview({ post, isDark }: { post: ShareAsImageModalProps["post"]; i
       {/* Gradient top */}
       <div className="absolute inset-x-0 top-0 h-1.5 rounded-t-[24px]" style={{ background: "linear-gradient(90deg, #8b5cf6, #a78bfa, #06b6d4)" }} />
 
-      <div className="relative z-10 flex flex-col h-full px-[5%] pt-[6%]">
+      <div className="relative z-10 flex flex-col h-full px-[5%] pt-[7%]">
         {/* Logo */}
         <div className="flex justify-center">
-          <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-gradient-to-br from-indigo-950 to-indigo-800 overflow-hidden">
+          <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-gradient-to-br from-indigo-950 to-indigo-800 overflow-hidden">
             <img src="/icons/icon.svg" alt="Loop" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
           </div>
         </div>
 
         {/* Divider */}
-        <div className={`mx-auto mt-4 h-px w-[90%] ${isDark ? "bg-white/[0.08]" : "bg-black/[0.06]"}`} />
+        <div className={`mx-auto mt-5 h-px w-[90%] ${isDark ? "bg-white/[0.08]" : "bg-black/[0.06]"}`} />
 
         {/* Byline */}
-        <div className="flex items-center gap-2.5 mt-4">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full p-[3px]" style={{ background: "linear-gradient(135deg, #c084fc, #818cf8, #67e8f9)" }}>
-            <span className={`flex aspect-square w-full items-center justify-center overflow-hidden rounded-full text-xs font-bold ${isDark ? "bg-zinc-700 text-zinc-300" : "bg-stone-200 text-stone-600"}`}>
+        <div className="flex items-center gap-3 mt-5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-[3px]" style={{ background: "linear-gradient(135deg, #c084fc, #818cf8, #67e8f9)" }}>
+            <span className={`flex aspect-square w-full items-center justify-center overflow-hidden rounded-full text-sm font-bold ${isDark ? "bg-zinc-700 text-zinc-300" : "bg-stone-200 text-stone-600"}`}>
               {post.author.avatar_url ? (
                 <img src={`/api/image-proxy?url=${encodeURIComponent(post.author.avatar_url)}`} alt="" className="h-full w-full object-cover" />
               ) : nm.charAt(0).toUpperCase()}
             </span>
           </span>
           <div className="flex flex-col min-w-0">
-            <p className={`truncate text-[13px] font-bold ${isDark ? "text-zinc-100" : "text-stone-900"}`}>{nm}</p>
-            <p className={`truncate text-[11px] ${isDark ? "text-zinc-500" : "text-stone-400"}`}>@{truncate(post.author.username || "user", 28)}</p>
+            <p className={`truncate text-[14px] font-bold ${isDark ? "text-zinc-100" : "text-stone-900"}`}>{nm}</p>
+            <p className={`truncate text-[12px] ${isDark ? "text-zinc-500" : "text-stone-400"}`}>@{truncate(post.author.username || "user", 28)}</p>
           </div>
         </div>
 
-        {/* Post content — flows naturally below byline, no huge gap */}
-        <div className="mt-4 flex-1">
-          <p className={`whitespace-pre-line text-[18px] sm:text-[20px] leading-[1.4] font-medium [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:8] overflow-hidden ${isDark ? "text-zinc-100" : "text-stone-800"}`}>
+        {/* Post content */}
+        <div className="mt-5 flex-1">
+          <p className={`whitespace-pre-line text-[20px] sm:text-[22px] leading-[1.45] font-medium [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:10] overflow-hidden ${isDark ? "text-zinc-100" : "text-stone-800"}`}>
             {truncate(post.content || "Shared a loop", 500)}
           </p>
         </div>
 
         {/* Stats */}
         {allStats.length > 0 && (
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-3">
             {allStats.map(({ count, color, bg, icon }, i) => (
-              <span key={i} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${bg} ${color}`}>
+              <span key={i} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold ${bg} ${color}`}>
                 {icon} {fmt(count)}
               </span>
             ))}
@@ -323,15 +323,15 @@ function CardPreview({ post, isDark }: { post: ShareAsImageModalProps["post"]; i
         <div className={`mx-auto h-px w-[90%] ${isDark ? "bg-white/[0.06]" : "bg-black/[0.06]"}`} />
 
         {/* Footer */}
-        <div className="pb-4 pt-2.5">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-indigo-950 to-indigo-800 overflow-hidden">
+        <div className="pb-5 pt-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-950 to-indigo-800 overflow-hidden">
               <img src="/icons/icon.svg" alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
             </div>
-            <span className={`text-[13px] font-bold ${isDark ? "text-zinc-100" : "text-stone-900"}`}>Loop</span>
+            <span className={`text-[14px] font-bold ${isDark ? "text-zinc-100" : "text-stone-900"}`}>Loop</span>
           </div>
-          <p className={`mt-1.5 text-[11px] ${isDark ? "text-zinc-500" : "text-stone-500"}`}>{TAGLINE}</p>
-          <p className={`mt-0.5 text-[10px] ${isDark ? "text-zinc-600" : "text-stone-400"}`}>www.{DOMAIN}</p>
+          <p className={`mt-2 text-[12px] ${isDark ? "text-zinc-500" : "text-stone-500"}`}>{TAGLINE}</p>
+          <p className={`mt-1 text-[11px] ${isDark ? "text-zinc-600" : "text-stone-400"}`}>www.{DOMAIN}</p>
         </div>
       </div>
     </div>

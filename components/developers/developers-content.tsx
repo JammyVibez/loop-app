@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Code, Plus, Loader2, Search, BookOpen, LayoutTemplate, GitFork, Star, Boxes, RefreshCw, Zap, Terminal, UserRound, Target, Trophy, Database, AlertTriangle } from "lucide-react"
+import { Code, Plus, Loader2, Search, BookOpen, LayoutTemplate, GitFork, Star, Boxes, RefreshCw, Zap, Terminal, UserRound, Target, Trophy } from "lucide-react"
 import { CreateProjectDialog } from "@/components/developers/create-project-dialog"
 import { CodeLoopCard } from "@/components/developers/code-loop-card"
 import { DeveloperSnippets } from "@/components/developers/developer-snippets"
@@ -56,49 +56,8 @@ export function DevelopersContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState("projects")
-  const [dbReady, setDbReady] = useState<boolean | null>(null)
-  const [settingUp, setSettingUp] = useState(false)
-  const [setupMsg, setSetupMsg] = useState<string | null>(null)
 
-  // Check if developer tables exist on mount
-  useEffect(() => {
-    fetch("/api/developers/setup")
-      .then((r) => r.json())
-      .then((d) => {
-        // Show banner if table doesn't exist OR if there was an error
-        setDbReady(Boolean(d.tableExists))
-      })
-      .catch(() => setDbReady(false))
-  }, [])
 
-  const runSetup = async () => {
-    setSettingUp(true)
-    setSetupMsg(null)
-    try {
-      const token = user?.access_token || user?.token
-      const headers: Record<string, string> = { "Content-Type": "application/json" }
-      if (token) headers["Authorization"] = `Bearer ${token}`
-      const res = await fetch("/api/developers/setup", { method: "POST", headers })
-      const data = await res.json()
-      if (data.success) {
-        setSetupMsg("Database tables created! Refreshing...")
-        setDbReady(true)
-        setTimeout(() => fetchProjects(), 1000)
-      } else {
-        // Show SQL for manual execution
-        const msg = data.message || data.error || "Auto-setup failed"
-        if (data.sql) {
-          setSetupMsg(`${msg}\n\nRun this SQL in your Supabase SQL Editor:\n${data.sql.slice(0, 200)}...`)
-        } else {
-          setSetupMsg(msg)
-        }
-      }
-    } catch (e: any) {
-      setSetupMsg(e.message || "Setup failed")
-    } finally {
-      setSettingUp(false)
-    }
-  }
 
   // Ads on the Developer Hub — eligibility is decided server-side so Pro
   // users and Sponsors are always excluded. The client only places the card.
@@ -214,39 +173,6 @@ export function DevelopersContent() {
   return (
     <>
       <div className="space-y-6">
-        {/* Database Setup Banner */}
-        {dbReady === false && (
-          <div className="rounded-xl border-2 border-dashed border-amber-500/50 bg-amber-500/5 p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15">
-                <Database className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="font-bold text-amber-700 dark:text-amber-300">Database Setup Required</p>
-                <p className="text-sm text-muted-foreground">The developer projects tables need to be created in Supabase before you can use the Developer Hub.</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" onClick={runSetup} disabled={settingUp} className="rounded-full bg-amber-600 text-white hover:bg-amber-700">
-                {settingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-                {settingUp ? "Creating tables..." : "Auto-Setup"}
-              </Button>
-              <Button size="sm" variant="outline" className="rounded-full" asChild>
-                <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer">
-                  Open Supabase Dashboard &rarr;
-                </a>
-              </Button>
-            </div>
-
-            {setupMsg && (
-              <div className="rounded-lg bg-background border border-border p-3">
-                <p className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all max-h-40 overflow-y-auto">{setupMsg}</p>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Hero / actions */}
         <div className="flex flex-col items-center gap-4 rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 via-card to-indigo-600/10 p-6 sm:flex-row sm:justify-between">
           <div className="flex items-center gap-4">
