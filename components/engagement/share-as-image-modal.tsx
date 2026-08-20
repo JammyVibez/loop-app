@@ -12,8 +12,8 @@ import {
   MessageCircle,
   GitBranch,
   Globe,
+  BadgeCheck,
 } from "lucide-react"
-import { optimizeImageUrl } from "@/lib/optimize-image"
 
 interface ShareAsImageModalProps {
   open: boolean
@@ -47,18 +47,6 @@ const CARD_HEIGHT = 1350
 const EXPORT_SCALE = 1.5
 const DOMAIN = "loopapp.me"
 const SITE_URL = `https://www.${DOMAIN}`
-const LOGO_URL = "/icons/icon.svg"
-let cachedLogoImg: HTMLImageElement | null = null
-function loadLogo(): Promise<HTMLImageElement | null> {
-  if (cachedLogoImg) return Promise.resolve(cachedLogoImg)
-  return new Promise((resolve) => {
-    const img = new Image()
-    img.crossOrigin = "anonymous"
-    img.onload = () => { cachedLogoImg = img; resolve(img) }
-    img.onerror = () => resolve(null)
-    img.src = LOGO_URL
-  })
-}
 
 function truncate(text: string, max: number): string {
   const clean = text.replace(/\s+/g, " ").trim()
@@ -108,8 +96,8 @@ function setupCanvas(canvas: HTMLCanvasElement, scale: number) {
   ctx.setTransform(scale, 0, 0, scale, 0, 0); return ctx
 }
 
-/* ── Quote highlighting ── */
-function drawTextWithQuotes(ctx: CanvasRenderingContext2D, text: string, x: number, startY: number, maxW: number, fontSize: number, normalColor: string, quoteColor: string): number {
+/* ── Text wrapping ── */
+function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, startY: number, maxW: number, fontSize: number, color: string): number {
   ctx.font = `${fontSize}px system-ui, sans-serif`
   const words = text.split(" ")
   const lines: string[] = []
@@ -117,23 +105,13 @@ function drawTextWithQuotes(ctx: CanvasRenderingContext2D, text: string, x: numb
   for (const word of words) {
     const test = ln ? `${ln} ${word}` : word
     if (ctx.measureText(test).width > maxW && ln) { lines.push(ln); ln = word } else { ln = test }
-    if (lines.length >= 6) break
+    if (lines.length >= 8) break
   }
-  if (ln && lines.length < 6) lines.push(ln)
-
+  if (ln && lines.length < 8) lines.push(ln)
+  ctx.fillStyle = color; ctx.textAlign = "left"
   let y = startY
   for (const line of lines) {
-    // Parse quoted sections
-    const parts = line.split(/("[^"]*"|"[^"]*")/)
-    let cx = x
-    for (const part of parts) {
-      if (!part) continue
-      const isQuote = part.startsWith('"') || part.startsWith("\u201C")
-      ctx.fillStyle = isQuote ? quoteColor : normalColor
-      ctx.textAlign = "left"
-      ctx.fillText(part, cx, y)
-      cx += ctx.measureText(part).width
-    }
+    ctx.fillText(line, x, y)
     y += fontSize * 1.35
   }
   return y
@@ -147,261 +125,226 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
   const innerW = CARD_WIDTH - m * 2
   const cx = CARD_WIDTH / 2
 
-  // ── Background ──
-  const bg = ctx.createLinearGradient(0, 0, CARD_WIDTH * 0.3, CARD_HEIGHT)
-  bg.addColorStop(0, "#0b0920"); bg.addColorStop(0.5, "#0e0c28"); bg.addColorStop(1, "#080618")
+  // ── Background: rich dark gradient ──
+  const bg = ctx.createLinearGradient(0, 0, CARD_WIDTH * 0.4, CARD_HEIGHT)
+  bg.addColorStop(0, "#0a0820"); bg.addColorStop(0.4, "#0d0b28"); bg.addColorStop(1, "#060418")
   ctx.fillStyle = bg; ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT)
 
-  // ── Subtle grid pattern ──
-  ctx.save(); ctx.strokeStyle = "rgba(255,255,255,0.03)"; ctx.lineWidth = 0.5
-  for (let gx = 0; gx < CARD_WIDTH; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, CARD_HEIGHT); ctx.stroke() }
-  for (let gy = 0; gy < CARD_HEIGHT; gy += 40) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(CARD_WIDTH, gy); ctx.stroke() }
+  // Subtle dot grid
+  ctx.save(); ctx.fillStyle = "rgba(255,255,255,0.018)"
+  for (let gx = 20; gx < CARD_WIDTH; gx += 32) {
+    for (let gy = 20; gy < CARD_HEIGHT; gy += 32) {
+      ctx.beginPath(); ctx.arc(gx, gy, 0.8, 0, Math.PI * 2); ctx.fill()
+    }
+  }
   ctx.restore()
 
-  // ── Subtle radial glow at center ──
-  const glow = ctx.createRadialGradient(cx, CARD_HEIGHT * 0.35, 0, cx, CARD_HEIGHT * 0.35, 500)
-  glow.addColorStop(0, "rgba(99,102,241,0.06)"); glow.addColorStop(1, "rgba(0,0,0,0)")
+  // Subtle center radial glow
+  const glow = ctx.createRadialGradient(cx, CARD_HEIGHT * 0.3, 0, cx, CARD_HEIGHT * 0.3, 550)
+  glow.addColorStop(0, "rgba(99,102,241,0.05)"); glow.addColorStop(1, "rgba(0,0,0,0)")
   ctx.fillStyle = glow; ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT)
 
-  let y = m + 20
+  let y = m + 30
 
-  // ── Logo lockup: icon inline with "Loop" wordmark ──
-  const logoSize = 48
-  ctx.save(); roundRect(ctx, cx - 120, y, logoSize, logoSize, 14); ctx.clip()
-  if (cachedLogoImg) { ctx.drawImage(cachedLogoImg, cx - 120, y, logoSize, logoSize) }
-  else { const lg = ctx.createLinearGradient(cx - 120, y, cx - 120 + logoSize, y + logoSize); lg.addColorStop(0, "#818cf8"); lg.addColorStop(1, "#a78bfa"); ctx.fillStyle = lg; ctx.fillRect(cx - 120, y, logoSize, logoSize); ctx.fillStyle = "#fff"; ctx.font = "bold 28px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("L", cx - 120 + logoSize / 2, y + logoSize / 2) }
-  ctx.restore()
-  // "Loop" wordmark next to icon
-  ctx.font = "bold 38px system-ui, sans-serif"; ctx.fillStyle = "#f1f5f9"; ctx.textAlign = "left"; ctx.textBaseline = "middle"
-  ctx.fillText("Loop", cx - 62, y + logoSize / 2)
-  y += logoSize + 14
-
-  // ── Tagline ──
-  ctx.font = "500 18px system-ui, sans-serif"; ctx.fillStyle = "#818cf8"; ctx.textAlign = "center"
-  ctx.fillText("Build together.", cx, y + 12); y += 18
-  ctx.font = "16px system-ui, sans-serif"; ctx.fillStyle = "#7c83a4"
-  ctx.fillText("Not just post into the void.", cx, y + 12); y += 28
-
-  // ── Hand-drawn accent marks flanking "Real posts. Real people." ──
+  // ── App icon ──
+  const iconSize = 56
   ctx.save()
-  ctx.strokeStyle = "rgba(168,85,247,0.5)"; ctx.lineWidth = 2.5; ctx.lineCap = "round"
-  // Left squiggle
-  ctx.beginPath(); ctx.moveTo(cx - 260, y + 5); ctx.bezierCurveTo(cx - 270, y - 8, cx - 250, y - 15, cx - 255, y + 2); ctx.stroke()
-  ctx.beginPath(); ctx.moveTo(cx - 265, y + 18); ctx.bezierCurveTo(cx - 275, y + 8, cx - 248, y + 5, cx - 252, y + 20); ctx.stroke()
-  // Right squiggle
-  ctx.strokeStyle = "rgba(34,211,238,0.4)"
-  ctx.beginPath(); ctx.moveTo(cx + 255, y + 5); ctx.bezierCurveTo(cx + 265, y - 8, cx + 245, y - 15, cx + 250, y + 2); ctx.stroke()
-  ctx.beginPath(); ctx.moveTo(cx + 260, y + 18); ctx.bezierCurveTo(cx + 270, y + 8, cx + 243, y + 5, cx + 247, y + 20); ctx.stroke()
+  const iconGrad = ctx.createLinearGradient(cx - iconSize / 2, y, cx + iconSize / 2, y + iconSize)
+  iconGrad.addColorStop(0, "#818cf8"); iconGrad.addColorStop(1, "#6366f1")
+  roundRect(ctx, cx - iconSize / 2, y, iconSize, iconSize, 16)
+  ctx.fillStyle = iconGrad; ctx.fill()
+  ctx.fillStyle = "#fff"; ctx.font = "bold 30px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
+  ctx.fillText("L", cx, y + iconSize / 2)
   ctx.restore()
+  y += iconSize + 16
 
-  // ── "Real posts. Real people." ──
-  ctx.save()
-  ctx.font = "italic 34px Georgia, 'Times New Roman', serif"; ctx.fillStyle = "#c4b5fd"; ctx.textAlign = "center"
-  ctx.fillText("Real posts.  Real people.", cx, y + 22)
-  ctx.restore()
-  y += 38
-
-  // ── "Real Loop." in bold brush-script with curved underline swash ──
-  ctx.save()
-  const rlGrad = ctx.createLinearGradient(cx - 180, y, cx + 180, y)
-  rlGrad.addColorStop(0, "#6366f1"); rlGrad.addColorStop(0.3, "#818cf8"); rlGrad.addColorStop(0.7, "#3b82f6"); rlGrad.addColorStop(1, "#6366f1")
-  ctx.font = "italic bold 60px Georgia, 'Times New Roman', serif"; ctx.fillStyle = rlGrad; ctx.textAlign = "center"
-  ctx.fillText("Real Loop.", cx, y + 48)
-  // Curved underline swash
-  ctx.strokeStyle = "#6366f1"; ctx.lineWidth = 3; ctx.lineCap = "round"
-  ctx.beginPath()
-  ctx.moveTo(cx - 140, y + 58)
-  ctx.bezierCurveTo(cx - 60, y + 72, cx + 60, y + 52, cx + 140, y + 65)
-  ctx.stroke()
-  ctx.restore()
-  y += 82
+  // ── "Loop" wordmark ──
+  ctx.font = "bold 42px system-ui, sans-serif"; ctx.fillStyle = "#f1f5f9"; ctx.textAlign = "center"; ctx.textBaseline = "top"
+  ctx.fillText("Loop", cx, y)
+  y += 52
 
   // ── Thin divider ──
-  ctx.strokeStyle = "rgba(99,102,241,0.12)"; ctx.lineWidth = 1
-  ctx.beginPath(); ctx.moveTo(m + 40, y); ctx.lineTo(m + innerW - 40, y); ctx.stroke()
-  y += 28
+  const divGrad = ctx.createLinearGradient(m + 80, y, m + innerW - 80, y)
+  divGrad.addColorStop(0, "rgba(99,102,241,0)"); divGrad.addColorStop(0.5, "rgba(99,102,241,0.2)"); divGrad.addColorStop(1, "rgba(99,102,241,0)")
+  ctx.strokeStyle = divGrad; ctx.lineWidth = 1
+  ctx.beginPath(); ctx.moveTo(m + 80, y); ctx.lineTo(m + innerW - 80, y); ctx.stroke()
+  y += 24
 
-  // ── Post card with glowing gradient border ──
-  const cardX = m + 20, cardW = innerW - 40
-  // Calculate card height
-  ctx.font = "28px system-ui, sans-serif"
-  const bodyText = truncate(post.content || "Shared a loop", 350)
-  const textH = drawTextWithQuotes(ctx, bodyText, 0, 0, cardW - 80, 28, "#cbd5e1", "#a78bfa") - 0
-  const cardH = 50 + 65 + textH + 24 + 52 + 36 // padding + avatar + text + gap + stats + bottom pad
+  // ── Author section (ABOVE the post content) ──
+  const aX = m + 40
+  const avSize = 64
+  const avY = y
 
-  // Glow border effect
+  // Gradient ring around avatar
   ctx.save()
-  ctx.shadowColor = "rgba(99,102,241,0.4)"; ctx.shadowBlur = 20; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0
-  roundRect(ctx, cardX, y, cardW, cardH, 24)
-  ctx.strokeStyle = "rgba(139,92,246,0.5)"; ctx.lineWidth = 2; ctx.stroke()
-  ctx.shadowBlur = 0
-  // Inner gradient border
-  const borderGrad = ctx.createLinearGradient(cardX, y, cardX + cardW, y + cardH)
-  borderGrad.addColorStop(0, "rgba(139,92,246,0.3)"); borderGrad.addColorStop(0.5, "rgba(34,211,238,0.2)"); borderGrad.addColorStop(1, "rgba(99,102,241,0.3)")
-  roundRect(ctx, cardX, y, cardW, cardH, 24)
-  ctx.strokeStyle = borderGrad; ctx.lineWidth = 1.5; ctx.stroke()
+  const ringG = ctx.createLinearGradient(aX, avY, aX + avSize, avY + avSize)
+  ringG.addColorStop(0, "#818cf8"); ringG.addColorStop(0.5, "#c084fc"); ringG.addColorStop(1, "#67e8f9")
+  ctx.beginPath(); ctx.arc(aX + avSize / 2, avY + avSize / 2, avSize / 2 + 3, 0, Math.PI * 2); ctx.fillStyle = ringG; ctx.fill()
   ctx.restore()
 
-  // Card fill
-  roundRect(ctx, cardX, y, cardW, cardH, 24)
-  ctx.fillStyle = "rgba(15,13,35,0.7)"; ctx.fill()
-
-  // Avatar + name
-  const aY = y + 28
-  const avSize = 48
-  // Gradient ring
+  // Avatar
   ctx.save()
-  const ringG = ctx.createLinearGradient(cardX + 32, aY, cardX + 32 + avSize, aY + avSize)
-  ringG.addColorStop(0, "#818cf8"); ringG.addColorStop(0.5, "#a78bfa"); ringG.addColorStop(1, "#67e8f9")
-  ctx.beginPath(); ctx.arc(cardX + 32 + avSize / 2, aY + avSize / 2, avSize / 2 + 4, 0, Math.PI * 2); ctx.fillStyle = ringG; ctx.fill()
-  ctx.restore()
-  // Avatar clip
-  ctx.save(); ctx.beginPath(); ctx.arc(cardX + 32 + avSize / 2, aY + avSize / 2, avSize / 2, 0, Math.PI * 2); ctx.clip()
-  ctx.fillStyle = "#334155"; ctx.fillRect(cardX + 32, aY, avSize, avSize)
+  ctx.beginPath(); ctx.arc(aX + avSize / 2, avY + avSize / 2, avSize / 2, 0, Math.PI * 2); ctx.clip()
+  ctx.fillStyle = "#334155"; ctx.fillRect(aX, avY, avSize, avSize)
   if (avatarSrc) {
     const { w, h } = avatarDimensions(avatarSrc); const sz = Math.min(w, h)
-    ctx.drawImage(avatarSrc, (w - sz) / 2, (h - sz) / 2, sz, sz, cardX + 32, aY, avSize, avSize)
+    ctx.drawImage(avatarSrc, (w - sz) / 2, (h - sz) / 2, sz, sz, aX, avY, avSize, avSize)
   } else {
-    ctx.font = "bold 24px system-ui"; ctx.fillStyle = "#e2e8f0"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
-    ctx.fillText((post.author.display_name || "U").charAt(0).toUpperCase(), cardX + 32 + avSize / 2, aY + avSize / 2 + 2)
+    ctx.font = "bold 28px system-ui"; ctx.fillStyle = "#e2e8f0"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
+    ctx.fillText((post.author.display_name || "U").charAt(0).toUpperCase(), aX + avSize / 2, avY + avSize / 2 + 2)
   }
   ctx.restore()
 
-  // Name
-  const nameX = cardX + 32 + avSize + 14
-  ctx.textAlign = "left"; ctx.font = "bold 24px system-ui, sans-serif"; ctx.fillStyle = "#f1f5f9"
-  const name = truncate(post.author.display_name || post.author.username || "User", 24)
-  ctx.fillText(name, nameX, aY + 22)
-  ctx.font = "17px system-ui, sans-serif"; ctx.fillStyle = "#64748b"
-  ctx.fillText(`@${truncate(post.author.username || "user", 28)}`, nameX, aY + 44)
+  // Author name + username
+  const nameX = aX + avSize + 16
+  ctx.textAlign = "left"; ctx.textBaseline = "middle"
+  ctx.font = "bold 26px system-ui, sans-serif"; ctx.fillStyle = "#f1f5f9"
+  const name = truncate(post.author.display_name || post.author.username || "User", 28)
+  ctx.fillText(name, nameX, avY + 24)
 
-  // Post text with quote highlighting
-  const textY = aY + 70
-  drawTextWithQuotes(ctx, bodyText, cardX + 32, textY, cardW - 64, 28, "#cbd5e1", "#a78bfa")
-  const statsY = textY + textH + 16
-
-  // Stats as pill badges
-  const stats = [
-    { icon: "heart", count: Number(post.stats?.likes_count || 0), bg: "rgba(244,114,182,0.15)", fg: "#f472b6" },
-    { icon: "repost", count: Number(post.stats?.branches_count || 0), bg: "rgba(52,211,153,0.15)", fg: "#34d399" },
-    { icon: "comment", count: Number(post.stats?.comments_count || 0), bg: "rgba(34,211,238,0.15)", fg: "#22d3ee" },
-  ]
-  let sx = cardX + 32
-  for (const s of stats) {
-    const label = formatCount(s.count)
-    ctx.font = "600 18px system-ui, sans-serif"
-    const pillW = 18 + 22 + ctx.measureText(label).width + 24
-    roundRect(ctx, sx, statsY, pillW, 38, 19)
-    ctx.fillStyle = s.bg; ctx.fill()
-    // Icon
-    const iconX = sx + 19, iconY = statsY + 19
-    if (s.icon === "heart") {
-      ctx.save(); ctx.fillStyle = s.fg; ctx.beginPath()
-      ctx.moveTo(iconX, iconY + 5); ctx.bezierCurveTo(iconX, iconY - 1.5, iconX - 6, iconY - 0.8, iconX - 6, iconY + 5.5)
-      ctx.bezierCurveTo(iconX - 6, iconY + 11, iconX - 0.8, iconY + 13, iconX, iconY + 16)
-      ctx.bezierCurveTo(iconX + 0.8, iconY + 13, iconX + 6, iconY + 11, iconX + 6, iconY + 5.5)
-      ctx.bezierCurveTo(iconX + 6, iconY - 0.8, iconX, iconY - 1.5, iconX, iconY + 5); ctx.fill(); ctx.restore()
-    } else if (s.icon === "comment") {
-      ctx.save(); ctx.fillStyle = s.fg; roundRect(ctx, iconX - 6, iconY - 5, 12, 9, 3); ctx.fill()
-      ctx.beginPath(); ctx.moveTo(iconX - 2, iconY + 4); ctx.lineTo(iconX - 2, iconY + 7); ctx.lineTo(iconX + 1, iconY + 4); ctx.fill(); ctx.restore()
-    } else {
-      ctx.save(); ctx.strokeStyle = s.fg; ctx.lineWidth = 2; ctx.lineCap = "round"
-      ctx.beginPath(); ctx.moveTo(iconX, iconY - 5); ctx.lineTo(iconX, iconY + 3); ctx.stroke()
-      ctx.beginPath(); ctx.moveTo(iconX - 5, iconY - 1); ctx.lineTo(iconX, iconY - 6); ctx.lineTo(iconX + 5, iconY - 1); ctx.stroke()
-      ctx.restore()
-    }
-    ctx.font = "600 18px system-ui, sans-serif"; ctx.fillStyle = s.fg; ctx.textAlign = "left"; ctx.textBaseline = "middle"
-    ctx.fillText(label, sx + 40, statsY + 20)
-    sx += pillW + 12
+  // Verified badge
+  let badgeX = nameX + ctx.measureText(name).width + 8
+  if (post.author.is_verified) {
+    ctx.fillStyle = "#818cf8"
+    ctx.beginPath(); ctx.arc(badgeX + 10, avY + 24, 10, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = "#fff"; ctx.font = "bold 12px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
+    ctx.fillText("✓", badgeX + 10, avY + 24)
+    badgeX += 24
   }
-  y += cardH + 32
 
-  // ── "Join the Loop" section with glow border ──
-  const joinH = 200
-  // Glow shadow
+  ctx.font = "18px system-ui, sans-serif"; ctx.fillStyle = "#64748b"; ctx.textAlign = "left"
+  ctx.fillText(`@${truncate(post.author.username || "user", 30)}`, nameX, avY + 50)
+
+  // Time ago
+  ctx.font = "15px system-ui, sans-serif"; ctx.fillStyle = "#4a5068"
+  ctx.fillText("Shared on Loop", nameX, avY + 70)
+
+  y = avY + avSize + 20
+
+  // ── Post content ──
+  const bodyText = truncate(post.content || "Shared a loop", 400)
+  const textEndY = wrapText(ctx, bodyText, aX, y + 8, innerW - 80, 26, "#cbd5e1")
+  y = textEndY + 8
+
+  // ── Media image (if present) ──
+  if (post.media_url && (post.media_type === "image" || post.media_type === "gif")) {
+    y += 8
+    const imgH = 200
+    roundRect(ctx, aX, y, innerW - 80, imgH, 12)
+    ctx.fillStyle = "#1a1630"; ctx.fill()
+    // Placeholder rectangle
+    ctx.strokeStyle = "rgba(99,102,241,0.2)"; ctx.lineWidth = 1
+    roundRect(ctx, aX, y, innerW - 80, imgH, 12); ctx.stroke()
+    ctx.font = "14px system-ui"; ctx.fillStyle = "#4a5068"; ctx.textAlign = "center"
+    ctx.fillText("Media attached", aX + (innerW - 80) / 2, y + imgH / 2)
+    y += imgH + 12
+  }
+
+  // ── Stats row (BELOW content, CLOSE to it) ──
+  const stats = [
+    { icon: "heart", count: Number(post.stats?.likes_count || 0), color: "#f472b6" },
+    { icon: "repost", count: Number(post.stats?.branches_count || 0), color: "#34d399" },
+    { icon: "comment", count: Number(post.stats?.comments_count || 0), color: "#22d3ee" },
+  ]
+  const statSpacing = 28
+  let sx = aX
+  for (const s of stats) {
+    // Icon
+    if (s.icon === "heart") {
+      ctx.save(); ctx.fillStyle = s.color; ctx.beginPath()
+      ctx.moveTo(sx + 8, y + 4); ctx.bezierCurveTo(sx + 8, y - 2, sx + 2, y - 1.5, sx + 2, y + 4)
+      ctx.bezierCurveTo(sx + 2, y + 9, sx + 7.2, y + 11, sx + 8, y + 14)
+      ctx.bezierCurveTo(sx + 8.8, y + 11, sx + 14, y + 9, sx + 14, y + 4)
+      ctx.bezierCurveTo(sx + 14, y - 1.5, sx + 8, y - 2, sx + 8, y + 4)
+      ctx.fill(); ctx.restore()
+    } else if (s.icon === "comment") {
+      ctx.fillStyle = s.color
+      roundRect(ctx, sx + 1, y - 3, 13, 10, 3); ctx.fill()
+      ctx.beginPath(); ctx.moveTo(sx + 4, y + 7); ctx.lineTo(sx + 4, y + 10); ctx.lineTo(sx + 8, y + 7); ctx.fill()
+    } else {
+      ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.lineCap = "round"
+      ctx.beginPath(); ctx.moveTo(sx + 8, y - 2); ctx.lineTo(sx + 8, y + 6); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(sx + 3, y + 2); ctx.lineTo(sx + 8, y - 3); ctx.lineTo(sx + 13, y + 2); ctx.stroke()
+    }
+    // Count
+    ctx.font = "600 17px system-ui, sans-serif"; ctx.fillStyle = s.color; ctx.textAlign = "left"; ctx.textBaseline = "middle"
+    ctx.fillText(formatCount(s.count), sx + 18, y + 6)
+    sx += ctx.measureText(formatCount(s.count)).width + statSpacing + 18
+  }
+  y += 40
+
+  // ── www.loopapp.me footer (CLOSE to content) ──
+  const footGrad = ctx.createLinearGradient(m + 80, y, m + innerW - 80, y)
+  footGrad.addColorStop(0, "rgba(99,102,241,0)"); footGrad.addColorStop(0.5, "rgba(99,102,241,0.15)"); footGrad.addColorStop(1, "rgba(99,102,241,0)")
+  ctx.strokeStyle = footGrad; ctx.lineWidth = 1
+  ctx.beginPath(); ctx.moveTo(m + 80, y); ctx.lineTo(m + innerW - 80, y); ctx.stroke()
+  y += 20
+  ctx.font = "500 18px system-ui, sans-serif"; ctx.fillStyle = "#6366f1"; ctx.textAlign = "center"
+  ctx.fillText(`www.${DOMAIN}`, cx, y + 8)
+  y += 36
+
+  // ── "Join the Loop" section ──
+  const joinY = y + 12
+  const joinH = 180
+
+  // Border glow
   ctx.save()
-  ctx.shadowColor = "rgba(99,102,241,0.3)"; ctx.shadowBlur = 18
-  roundRect(ctx, cardX, y, cardW, joinH, 24)
-  ctx.fillStyle = "rgba(15,13,35,0.65)"; ctx.fill()
+  ctx.shadowColor = "rgba(99,102,241,0.25)"; ctx.shadowBlur = 16
+  roundRect(ctx, m + 30, joinY, innerW - 60, joinH, 20)
+  ctx.fillStyle = "rgba(15,13,35,0.6)"; ctx.fill()
   ctx.shadowBlur = 0
   // Gradient border
-  const jGrad = ctx.createLinearGradient(cardX, y, cardX + cardW, y)
-  jGrad.addColorStop(0, "rgba(139,92,246,0.35)"); jGrad.addColorStop(0.5, "rgba(34,211,238,0.2)"); jGrad.addColorStop(1, "rgba(99,102,241,0.35)")
-  roundRect(ctx, cardX, y, cardW, joinH, 24); ctx.strokeStyle = jGrad; ctx.lineWidth = 1.5; ctx.stroke()
+  const jGrad = ctx.createLinearGradient(m + 30, joinY, m + 30 + innerW - 60, joinY)
+  jGrad.addColorStop(0, "rgba(139,92,246,0.3)"); jGrad.addColorStop(0.5, "rgba(34,211,238,0.15)"); jGrad.addColorStop(1, "rgba(99,102,241,0.3)")
+  roundRect(ctx, m + 30, joinY, innerW - 60, joinH, 20); ctx.strokeStyle = jGrad; ctx.lineWidth = 1.5; ctx.stroke()
   ctx.restore()
 
-  // "Join the Loop."
-  ctx.font = "bold 38px system-ui, sans-serif"; ctx.fillStyle = "#f1f5f9"; ctx.textAlign = "left"
-  ctx.fillText("Join the ", cardX + 28, y + 45)
+  // "Join the Loop." text
+  ctx.font = "bold 32px system-ui, sans-serif"; ctx.fillStyle = "#f1f5f9"; ctx.textAlign = "left"
+  ctx.fillText("Join the ", m + 60, joinY + 40)
   const jtw = ctx.measureText("Join the ").width
-  ctx.fillStyle = "#818cf8"; ctx.fillText("Loop.", cardX + 28 + jtw, y + 45)
+  ctx.fillStyle = "#818cf8"; ctx.fillText("Loop.", m + 60 + jtw, joinY + 40)
 
-  // Feature icons — single row
+  // Feature highlights in a row
   const features = [
-    { emoji: "\u{1F465}", label: "Create together", sub: "with Co-Loop" },
-    { emoji: "\u2694\uFE0F", label: "Challenge ideas", sub: "with Duels" },
-    { emoji: "\u{1F4AC}", label: "Find your people", sub: "in Circles" },
-    { emoji: "\u26A1", label: "Be part of", sub: "something real" },
+    { emoji: "\u{1F465}", label: "Co-Loop" },
+    { emoji: "\u2694\uFE0F", label: "Duels" },
+    { emoji: "\u{1F4AC}", label: "Circles" },
+    { emoji: "\u26A1", label: "Connect" },
   ]
-  const featStartX = cardX + 28
-  const featY = y + 80
-  const featSpacing = (cardW - 200) / 4
+  const featStartX = m + 60
+  const featY = joinY + 70
+  const featSpacing = (innerW - 160) / 4
   for (let i = 0; i < features.length; i++) {
-    const fx = featStartX + i * featSpacing + featSpacing / 2
-    ctx.font = "24px system-ui"; ctx.textAlign = "center"
-    ctx.fillText(features[i].emoji, fx, featY + 10)
-    ctx.font = "bold 12px system-ui, sans-serif"; ctx.fillStyle = "#e2e8f0"
-    ctx.fillText(features[i].label, fx, featY + 36)
-    ctx.font = "10px system-ui, sans-serif"; ctx.fillStyle = "#7c83a4"
-    ctx.fillText(features[i].sub, fx, featY + 52)
+    const fx = featStartX + i * featSpacing
+    ctx.font = "28px system-ui"; ctx.textAlign = "left"
+    ctx.fillText(features[i].emoji, fx, featY + 12)
+    ctx.font = "bold 15px system-ui, sans-serif"; ctx.fillStyle = "#e2e8f0"
+    ctx.fillText(features[i].label, fx + 34, featY + 12)
   }
 
   // QR Code
-  const qrX = cardX + cardW - 175
-  const qrY = y + 30
-  const qrSize = 95
-  ctx.save(); roundRect(ctx, qrX, qrY, qrSize, qrSize, 8); ctx.fillStyle = "#fff"; ctx.fill(); ctx.restore()
+  const qrSize = 70
+  const qrX = m + 30 + innerW - 60 - qrSize - 30
+  const qrY = joinY + 42
+  ctx.save(); roundRect(ctx, qrX, qrY, qrSize, qrSize, 6); ctx.fillStyle = "#fff"; ctx.fill(); ctx.restore()
   // QR pattern
   ctx.save(); ctx.fillStyle = "#0f172a"
-  const cellSize = qrSize / 10
-  const drawCorner = (ox: number, oy: number) => { ctx.fillRect(ox, oy, cellSize * 3, cellSize); ctx.fillRect(ox, oy + cellSize * 2, cellSize * 3, cellSize); ctx.fillRect(ox, oy, cellSize, cellSize * 3); ctx.fillRect(ox + cellSize * 2, oy, cellSize, cellSize * 3) }
-  drawCorner(qrX + 5, qrY + 5); drawCorner(qrX + qrSize - cellSize * 3 - 5, qrY + 5); drawCorner(qrX + 5, qrY + qrSize - cellSize * 3 - 5)
+  const cellSize = qrSize / 8
+  const drawCorner = (ox: number, oy: number) => { ctx.fillRect(ox, oy, cellSize * 2.5, cellSize * 0.8); ctx.fillRect(ox, oy + cellSize * 1.7, cellSize * 2.5, cellSize * 0.8); ctx.fillRect(ox, oy, cellSize * 0.8, cellSize * 2.5); ctx.fillRect(ox + cellSize * 1.7, oy, cellSize * 0.8, cellSize * 2.5) }
+  drawCorner(qrX + 4, qrY + 4); drawCorner(qrX + qrSize - cellSize * 2.5 - 4, qrY + 4); drawCorner(qrX + 4, qrY + qrSize - cellSize * 2.5 - 4)
   const seed = post.id.charCodeAt(0) || 42
-  for (let r = 0; r < 10; r++) for (let c = 0; c < 10; c++) { if ((r < 3 && c < 3) || (r < 3 && c > 6) || (r > 6 && c < 3)) continue; if ((seed * (r * 10 + c + 1) * 7) % 3 === 0) ctx.fillRect(qrX + c * cellSize + 5, qrY + r * cellSize + 5, cellSize, cellSize) }
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) { if ((r < 3 && c < 3) || (r < 3 && c > 5) || (r > 5 && c < 3)) continue; if ((seed * (r * 8 + c + 1) * 7) % 3 === 0) ctx.fillRect(qrX + c * cellSize + 4, qrY + r * cellSize + 4, cellSize, cellSize) }
   ctx.restore()
 
-  // "Download Loop" + "Scan Me" with arrow
-  ctx.font = "bold 15px system-ui, sans-serif"; ctx.fillStyle = "#818cf8"; ctx.textAlign = "left"
-  ctx.fillText("Download Loop", qrX + qrSize + 12, qrY + 15)
-  ctx.font = "12px system-ui, sans-serif"; ctx.fillStyle = "#7c83a4"
-  ctx.fillText("and start your journey.", qrX + qrSize + 12, qrY + 33)
-  // "Scan Me" handwritten style with curved arrow
-  ctx.save()
-  ctx.font = "italic bold 14px Georgia, serif"; ctx.fillStyle = "#818cf8"
-  ctx.fillText("Scan Me", qrX + qrSize + 12, qrY + 68)
-  // Curved arrow pointing left to QR code
-  ctx.strokeStyle = "#818cf8"; ctx.lineWidth = 2; ctx.lineCap = "round"
-  ctx.beginPath()
-  ctx.moveTo(qrX + qrSize + 8, qrY + 62)
-  ctx.bezierCurveTo(qrX + qrSize + 4, qrY + 56, qrX + qrSize - 8, qrY + 58, qrX + qrSize - 14, qrY + 65)
-  ctx.stroke()
-  // Arrowhead
-  ctx.beginPath(); ctx.moveTo(qrX + qrSize - 14, qrY + 65); ctx.lineTo(qrX + qrSize - 8, qrY + 60); ctx.moveTo(qrX + qrSize - 14, qrY + 65); ctx.lineTo(qrX + qrSize - 18, qrY + 60)
-  ctx.stroke()
-  ctx.restore()
-
-  // ── Footer ──
-  y = CARD_HEIGHT - m - 30
-  ctx.strokeStyle = "rgba(99,102,241,0.1)"; ctx.lineWidth = 1
-  ctx.beginPath(); ctx.moveTo(m + 40, y); ctx.lineTo(m + innerW - 40, y); ctx.stroke()
-  y += 22
-  ctx.font = "16px system-ui, sans-serif"; ctx.fillStyle = "#4a5072"; ctx.textAlign = "center"
-  ctx.fillText(`\uD83C\uDF10  www.${DOMAIN}`, cx, y + 10)
+  // "Scan Me" text
+  ctx.font = "italic 13px Georgia, serif"; ctx.fillStyle = "#818cf8"; ctx.textAlign = "center"
+  ctx.fillText("Scan Me", qrX + qrSize / 2, qrY + qrSize + 16)
 
   // Bottom glow
-  const bGlow = ctx.createRadialGradient(cx, CARD_HEIGHT, 0, cx, CARD_HEIGHT, 350)
-  bGlow.addColorStop(0, "rgba(99,102,241,0.06)"); bGlow.addColorStop(1, "rgba(0,0,0,0)")
-  ctx.fillStyle = bGlow; ctx.fillRect(0, CARD_HEIGHT - 350, CARD_WIDTH, 350)
+  const bGlow = ctx.createRadialGradient(cx, CARD_HEIGHT, 0, cx, CARD_HEIGHT, 300)
+  bGlow.addColorStop(0, "rgba(99,102,241,0.04)"); bGlow.addColorStop(1, "rgba(0,0,0,0)")
+  ctx.fillStyle = bGlow; ctx.fillRect(0, CARD_HEIGHT - 300, CARD_WIDTH, 300)
 }
 
 function canvasToJpegBlob(canvas: HTMLCanvasElement, quality = 0.92): Promise<Blob> {
@@ -410,175 +353,120 @@ function canvasToJpegBlob(canvas: HTMLCanvasElement, quality = 0.92): Promise<Bl
 
 /* ── JSX Preview ── */
 function ShareCardPreview({ post }: { post: ShareAsImageModalProps["post"] }) {
-  const name = truncate(post.author.display_name || post.author.username || "User", 24)
-  // Parse quoted text for highlighting
-  const renderContent = (text: string) => {
-    const parts = text.split(/("[^"]*"|"[^"]*")/)
-    return parts.map((part, i) => {
-      if (!part) return null
-      const isQuote = part.startsWith('"') || part.startsWith("\u201C")
-      return isQuote ? (
-        <span key={i} className="text-violet-400 font-semibold">{part}</span>
-      ) : (
-        <span key={i}>{part}</span>
-      )
-    })
-  }
+  const name = truncate(post.author.display_name || post.author.username || "User", 28)
   const stats = [
-    { icon: Heart, count: Number(post.stats?.likes_count || 0), bg: "bg-pink-500/15", fg: "text-pink-400" },
-    { icon: GitBranch, count: Number(post.stats?.branches_count || 0), bg: "bg-emerald-500/15", fg: "text-emerald-400" },
-    { icon: MessageCircle, count: Number(post.stats?.comments_count || 0), bg: "bg-cyan-500/15", fg: "text-cyan-400" },
+    { icon: Heart, count: Number(post.stats?.likes_count || 0), color: "text-pink-400" },
+    { icon: GitBranch, count: Number(post.stats?.branches_count || 0), color: "text-emerald-400" },
+    { icon: MessageCircle, count: Number(post.stats?.comments_count || 0), color: "text-cyan-400" },
   ]
 
   return (
     <div
       className="relative w-full aspect-[4/5] select-none overflow-hidden rounded-xl text-left"
-      style={{ background: "linear-gradient(160deg, #0b0920 0%, #0e0c28 50%, #080618 100%)" }}
+      style={{ background: "linear-gradient(160deg, #0a0820 0%, #0d0b28 40%, #060418 100%)" }}
     >
-      {/* Subtle grid pattern */}
-      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+      {/* Dot grid */}
+      <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.5) 0.5px, transparent 0.5px)", backgroundSize: "32px 32px" }} />
 
-      {/* Center radial glow */}
-      <div className="absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-indigo-500/[0.06] blur-3xl" />
+      {/* Center glow */}
+      <div className="absolute top-[25%] left-1/2 -translate-x-1/2 -translate-y-1/2 h-[450px] w-[450px] rounded-full bg-indigo-500/[0.05] blur-3xl" />
 
-      {/* Outer glow border */}
-      <div className="absolute inset-0 rounded-xl" style={{ boxShadow: "inset 0 0 0 1px rgba(99,102,241,0.15), inset 0 0 30px rgba(99,102,241,0.03)" }} />
-
-      {/* Inner panel */}
-      <div className="absolute inset-x-[6%] top-[4%] bottom-[4%] overflow-hidden rounded-3xl border border-indigo-500/10 bg-[#0d0b22]/80" />
+      {/* Bottom glow */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-28 w-[60%] rounded-full bg-indigo-500/[0.04] blur-3xl" />
 
       {/* Content */}
-      <div className="absolute inset-x-[10%] top-[calc(4%+4px)] bottom-[4%] flex flex-col py-[3%]">
-        {/* Logo lockup — icon inline with wordmark */}
-        <div className="flex items-center justify-center gap-3">
-          <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl">
-            <img src="/icons/icon.svg" alt="Loop" className="h-full w-full object-contain" />
-          </span>
-          <span className="text-[28px] font-bold text-slate-100 tracking-tight">Loop</span>
-        </div>
-        <p className="mt-1 text-center text-[15px] font-medium text-indigo-400">Build together.</p>
-        <p className="text-center text-[13px] text-[#7c83a4]">Not just post into the void.</p>
-
-        {/* Hand-drawn accent marks */}
-        <div className="relative mt-3 flex items-center justify-center">
-          {/* Left squiggles */}
-          <svg className="absolute left-[calc(50%-260px)] top-0 h-6 w-8 text-violet-400/50" viewBox="0 0 32 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M4 20 C8 8, 18 4, 14 18" />
-            <path d="M8 22 C14 12, 22 10, 18 22" />
-          </svg>
-          <p className="font-[Georgia] text-[26px] italic text-violet-300">Real posts.  Real people.</p>
-          {/* Right squiggles */}
-          <svg className="absolute right-[calc(50%-260px)] top-0 h-6 w-8 text-cyan-400/40" viewBox="0 0 32 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M28 20 C24 8, 14 4, 18 18" />
-            <path d="M24 22 C18 12, 10 10, 14 22" />
-          </svg>
-        </div>
-
-        {/* "Real Loop." — bold brush script with curved underline swash */}
-        <div className="relative text-center">
-          <p className="font-[Georgia] text-[48px] italic font-bold bg-gradient-to-r from-indigo-500 via-indigo-400 to-blue-400 bg-clip-text text-transparent leading-tight">
-            Real Loop.
-          </p>
-          {/* Curved underline swash */}
-          <svg className="mx-auto -mt-1 h-3 w-[220px]" viewBox="0 0 220 12" fill="none">
-            <path d="M10 8 C60 2, 160 12, 210 4" stroke="#6366f1" strokeWidth="2.5" strokeLinecap="round" />
-          </svg>
-        </div>
-
-        <div className="my-3 h-px w-full bg-indigo-500/10" />
-
-        {/* Post Card with glowing gradient border */}
-        <div className="rounded-2xl border border-transparent p-[1.5px]" style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.4), rgba(34,211,238,0.25), rgba(99,102,241,0.4))" }}>
-          <div className="rounded-[15px] bg-[#0d0b22]/90 p-5">
-            {/* Author */}
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full p-[2px]" style={{ background: "linear-gradient(135deg, #818cf8, #a78bfa, #67e8f9)" }}>
-                <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-full bg-slate-700 text-slate-200 text-base font-bold">
-                  {post.author.avatar_url ? (
-                    <img src={`/api/image-proxy?url=${encodeURIComponent(post.author.avatar_url)}`} alt="" className="h-full w-full object-cover" />
-                  ) : name.charAt(0).toUpperCase()}
-                </span>
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[14px] font-bold text-slate-100">{name}</p>
-                <p className="truncate text-[11px] text-[#64748b]">@{truncate(post.author.username || "user", 28)}</p>
-              </div>
-            </div>
-            {/* Body with quote highlighting */}
-            <p className="mt-3 whitespace-pre-line text-[14px] leading-relaxed text-slate-300 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:5] overflow-hidden">
-              {renderContent(truncate(post.content || "Shared a loop", 350))}
-            </p>
-            {/* Stats as pills */}
-            {stats.some((s) => s.count > 0) && (
-              <div className="mt-3 flex items-center gap-2">
-                {stats.filter((s) => s.count > 0).map(({ icon: Icon, count, bg, fg }, i) => (
-                  <span key={i} className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold ${bg} ${fg}`}>
-                    <Icon className="h-3.5 w-3.5" strokeWidth={2.2} />
-                    {formatCount(count)}
-                  </span>
-                ))}
-              </div>
-            )}
+      <div className="relative z-10 flex flex-col px-[8%] pt-[6%] h-full">
+        {/* App icon */}
+        <div className="flex justify-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-400 to-indigo-600">
+            <span className="text-white font-bold text-2xl">L</span>
           </div>
+        </div>
+
+        {/* Loop wordmark */}
+        <p className="text-center text-[32px] font-bold text-slate-100 mt-2 tracking-tight">Loop</p>
+
+        {/* Divider */}
+        <div className="mx-auto mt-3 h-px w-[60%] bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
+
+        {/* Author section (ABOVE content) */}
+        <div className="flex items-center gap-3 mt-5">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full p-[2.5px]" style={{ background: "linear-gradient(135deg, #818cf8, #c084fc, #67e8f9)" }}>
+            <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-full bg-slate-700 text-slate-200 text-lg font-bold">
+              {post.author.avatar_url ? (
+                <img src={`/api/image-proxy?url=${encodeURIComponent(post.author.avatar_url)}`} alt="" className="h-full w-full object-cover" />
+              ) : name.charAt(0).toUpperCase()}
+            </span>
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-[16px] font-bold text-slate-100">{name}</p>
+              {post.author.is_verified && <BadgeCheck className="h-4 w-4 text-indigo-400 shrink-0" />}
+            </div>
+            <p className="truncate text-[12px] text-slate-500">@{truncate(post.author.username || "user", 30)}</p>
+            <p className="text-[10px] text-slate-600">Shared on Loop</p>
+          </div>
+        </div>
+
+        {/* Post content (below author) */}
+        <p className="mt-4 whitespace-pre-line text-[15px] leading-relaxed text-slate-300 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:6] overflow-hidden">
+          {truncate(post.content || "Shared a loop", 400)}
+        </p>
+
+        {/* Stats row (CLOSE to content) */}
+        {stats.some((s) => s.count > 0) && (
+          <div className="flex items-center gap-5 mt-4">
+            {stats.filter((s) => s.count > 0).map(({ icon: Icon, count, color }, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <Icon className={`h-4 w-4 ${color}`} strokeWidth={2.2} />
+                <span className={`text-[13px] font-semibold ${color}`}>{formatCount(count)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Footer - www.loopapp.me (close to content) */}
+        <div className="mt-3 flex items-center justify-center gap-2">
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent to-indigo-500/15" />
+          <span className="text-[12px] font-medium text-indigo-400 flex items-center gap-1">
+            <Globe className="h-3 w-3" /> www.{DOMAIN}
+          </span>
+          <div className="h-px flex-1 bg-gradient-to-l from-transparent to-indigo-500/15" />
         </div>
 
         <div className="flex-1" />
 
-        {/* "Join the Loop" section with glow border */}
-        <div className="rounded-2xl border border-transparent p-[1.5px]" style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.35), rgba(34,211,238,0.2), rgba(99,102,241,0.35))" }}>
-          <div className="rounded-[15px] bg-[#0d0b22]/80 p-5">
-            <div className="flex items-start gap-4">
-              <div className="flex-1">
-                <p className="text-[20px] font-bold text-slate-100">
-                  Join the <span className="text-indigo-400">Loop.</span>
-                </p>
-                <div className="mt-3 grid grid-cols-4 gap-1">
-                  {[
-                    { emoji: "\u{1F465}", label: "Create together", sub: "with Co-Loop" },
-                    { emoji: "\u2694\uFE0F", label: "Challenge ideas", sub: "with Duels" },
-                    { emoji: "\u{1F4AC}", label: "Find your people", sub: "in Circles" },
-                    { emoji: "\u26A1", label: "Be part of", sub: "something real" },
-                  ].map((f, i) => (
-                    <div key={i} className="text-center">
-                      <span className="text-lg">{f.emoji}</span>
-                      <p className="text-[9px] font-bold text-slate-200 leading-tight">{f.label}</p>
-                      <p className="text-[7px] text-[#7c83a4] leading-tight">{f.sub}</p>
-                    </div>
-                  ))}
+        {/* Join the Loop section */}
+        <div className="mb-[3%] rounded-2xl border border-transparent p-[1.5px]" style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.3), rgba(34,211,238,0.15), rgba(99,102,241,0.3))" }}>
+          <div className="rounded-[15px] bg-[#0d0b22]/70 p-4">
+            <p className="text-[18px] font-bold text-slate-100">
+              Join the <span className="text-indigo-400">Loop.</span>
+            </p>
+            <div className="flex items-center gap-3 mt-2">
+              {[
+                { emoji: "\u{1F465}", label: "Co-Loop" },
+                { emoji: "\u2694\uFE0F", label: "Duels" },
+                { emoji: "\u{1F4AC}", label: "Circles" },
+                { emoji: "\u26A1", label: "Connect" },
+              ].map((f, i) => (
+                <div key={i} className="flex items-center gap-1">
+                  <span className="text-base">{f.emoji}</span>
+                  <p className="text-[10px] font-bold text-slate-300">{f.label}</p>
                 </div>
-              </div>
-              <div className="shrink-0 text-center">
-                <p className="text-[11px] font-bold text-indigo-400">Download Loop</p>
-                <p className="text-[8px] text-[#7c83a4]">and start your journey.</p>
-                <div className="mt-1 h-[72px] w-[72px] rounded-lg bg-white p-0.5">
+              ))}
+              <div className="ml-auto shrink-0 text-center">
+                <div className="h-[52px] w-[52px] rounded-md bg-white p-0.5">
                   <img
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(SITE_URL)}&bgcolor=ffffff&color=0f172a`}
                     alt="QR Code" className="h-full w-full" loading="lazy"
                   />
                 </div>
-                {/* "Scan Me" with curved arrow */}
-                <div className="relative mt-1">
-                  <svg className="absolute -left-2 -top-6 h-8 w-12 text-indigo-400/70" viewBox="0 0 48 32" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <path d="M36 4 C28 8, 16 14, 8 22" />
-                    <path d="M8 22 L14 18" />
-                    <path d="M8 22 L12 28" />
-                  </svg>
-                  <p className="font-[Georgia] text-[13px] italic font-bold text-indigo-400">Scan Me</p>
-                </div>
+                <p className="font-[Georgia] text-[9px] italic text-indigo-400 mt-0.5">Scan Me</p>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="mt-2 flex items-center justify-center gap-2 text-[10px] text-[#4a5072]">
-          <Globe className="h-3 w-3" />
-          www.{DOMAIN}
-        </div>
       </div>
-
-      {/* Bottom glow */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-32 w-[70%] rounded-full bg-indigo-500/[0.05] blur-3xl" />
     </div>
   )
 }
@@ -604,7 +492,6 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
     const generate = async () => {
       const canvas = exportCanvasRef.current; if (!canvas) return
       try {
-        await loadLogo()
         drawCard(canvas, post, EXPORT_SCALE, avatarRef.current)
         if (cancelled || gen !== generationRef.current) return
         cachedBlobRef.current = await canvasToJpegBlob(canvas, 0.92); setRendered(true)
@@ -636,8 +523,8 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       const a = document.createElement("a"); a.href = url; a.download = `loop-${post.id}.jpg`; a.click()
       window.setTimeout(() => URL.revokeObjectURL(url), 4000)
       toast({ title: "Image downloaded", description: "Share it anywhere." })
-    } catch (error: any) { toast({ title: "Download failed", description: error?.message || "Unknown error", variant: "destructive" })
-    } finally { setExporting(false) }
+    } catch (error: any) { toast({ title: "Download failed", description: error?.message || "Unknown error", variant: "destructive" }) }
+    finally { setExporting(false) }
   }
 
   const shareNative = async () => {
