@@ -28,6 +28,7 @@ export type NormalizedLoop = {
     username: string
     display_name: string
     avatar_url?: string
+    video_avatar_url?: string | null
     is_verified?: boolean
     is_team_member?: boolean
     is_sponsor?: boolean
@@ -130,6 +131,7 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
           username: parentAuthor?.username || "unknown",
           display_name: parentAuthor?.display_name || parentAuthor?.username || "someone",
           avatar_url: parentAuthor?.avatar_url || undefined,
+          video_avatar_url: parentAuthor?.video_avatar_url || null,
         },
       }
     })(),
@@ -138,6 +140,7 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
       username: author?.username || "unknown",
       display_name: author?.display_name || author?.username || "Unknown User",
       avatar_url: author?.avatar_url || undefined,
+      video_avatar_url: author?.video_avatar_url || null,
       is_verified: Boolean(author?.is_verified),
       is_team_member: Boolean(author?.is_team_member || author?.email === "useehamza0@gmail.com"),
       is_sponsor: Boolean(author?.is_sponsor),

@@ -34,6 +34,7 @@ import { Card, CardContent, CardHeader } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar";
+import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { AnimatedCardFrame } from "@/components/cosmetics/animated-card-frame";
 import { cardEffectStyle, fontStyle, type ActiveCosmetics } from "@/lib/cosmetics";
 import { ensureCosmeticFonts } from "@/lib/cosmetic-fonts";
@@ -83,6 +84,7 @@ interface LoopAuthor {
   username: string;
   display_name: string;
   avatar_url?: string;
+  video_avatar_url?: string | null;
   is_verified?: boolean;
   is_team_member?: boolean;
   is_sponsor?: boolean;
@@ -912,12 +914,11 @@ export function LoopCard({
                   title="Click to view Co-Authors roster"
                 >
                   <div className="relative z-10">
-                    <CosmeticAvatar
+                    <VideoAvatar
                       src={loop.author.avatar_url || "/placeholder.svg"}
+                      videoSrc={loop.author.video_avatar_url || null}
                       alt={loop.author.display_name}
-                      fallback={loop.author.display_name}
                       size="sm"
-                      cosmetics={loop.author.cosmetics || loop.author.active_cosmetics}
                       className="ring-2 ring-cyan-500 ring-offset-2 ring-offset-background group-hover:scale-105 transition-transform"
                     />
                   </div>
@@ -947,12 +948,11 @@ export function LoopCard({
                   href={`/profile/${loop.author.username}`}
                   className="flex-shrink-0"
                 >
-                  <CosmeticAvatar
+                  <VideoAvatar
                     src={loop.author.avatar_url || "/placeholder.svg"}
+                    videoSrc={loop.author.video_avatar_url || null}
                     alt={loop.author.display_name}
-                    fallback={loop.author.display_name}
                     size="sm"
-                    cosmetics={loop.author.cosmetics || loop.author.active_cosmetics}
                     className={getAvatarStyle()}
                   />
                 </Link>
@@ -1558,10 +1558,13 @@ export function LoopCard({
             {/* Primary Creator */}
             <div className="flex items-center justify-between rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-3">
               <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10 ring-2 ring-cyan-500">
-                  <AvatarImage src={loop.author.avatar_url} />
-                  <AvatarFallback>{loop.author.display_name?.charAt(0) || "A"}</AvatarFallback>
-                </Avatar>
+                <VideoAvatar
+                  src={loop.author.avatar_url}
+                  videoSrc={loop.author.video_avatar_url || null}
+                  alt={loop.author.display_name}
+                  size="md"
+                  className="ring-2 ring-cyan-500"
+                />
                 <div>
                   <div className="flex items-center gap-1.5">
                     <p className="font-bold text-xs sm:text-sm">{loop.author.display_name}</p>
@@ -1582,10 +1585,13 @@ export function LoopCard({
                 className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 p-3"
               >
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10 ring-2 ring-purple-500">
-                    <AvatarImage src={ca.avatar_url} />
-                    <AvatarFallback>{(ca.display_name || ca.username)?.charAt(0) || "C"}</AvatarFallback>
-                  </Avatar>
+                <VideoAvatar
+                  src={ca.avatar_url}
+                  videoSrc={ca.video_avatar_url || null}
+                  alt={ca.display_name || ca.username}
+                  size="md"
+                  className="ring-2 ring-purple-500"
+                />
                   <div>
                     <div className="flex items-center gap-1.5">
                       <p className="font-bold text-xs sm:text-sm">{ca.display_name || ca.username}</p>
