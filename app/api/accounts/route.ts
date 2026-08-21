@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 
 /**
  * GET /api/accounts
- * Returns all accounts linked to the current user (the primary + linked ones).
+ * Returns all accounts linked to the current user.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -15,14 +15,12 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerClient()
 
-    // Get the primary user's profile
     const { data: primaryProfile } = await supabase
       .from("profiles")
       .select("id, username, display_name, avatar_url, video_avatar_url, is_premium, is_verified")
       .eq("id", user.id)
       .maybeSingle()
 
-    // Get linked accounts
     const { data: links, error: linkError } = await supabase
       .from("linked_accounts")
       .select("id, linked_user_id, created_at")
@@ -30,16 +28,14 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: true })
 
     if (linkError && linkError.code === "42P01") {
-      // Table doesn't exist yet — return just primary
       return NextResponse.json({
         success: true,
         accounts: primaryProfile ? [{ ...primaryProfile, is_primary: true, link_id: null }] : [],
-        max_accounts: (user as any).is_premium ? 10 : 2,
+        max_accounts: (primaryProfile as any)?.is_premium ? 10 : 2,
         current_count: 1,
       })
     }
 
-    // Fetch profiles for linked accounts
     const linkedIds = (links || []).map((l) => l.linked_user_id)
     let linkedProfiles: any[] = []
 
@@ -48,7 +44,6 @@ export async function GET(request: NextRequest) {
         .from("profiles")
         .select("id, username, display_name, avatar_url, video_avatar_url, is_premium, is_verified")
         .in("id", linkedIds)
-
       linkedProfiles = data || []
     }
 
@@ -64,7 +59,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       accounts,
-      max_accounts: (user as any).is_premium ? 10 : 2,
+      max_accounts: (primaryProfile as any)?.is_premium ? 10 : 2,
       current_count: accounts.length,
     })
   } catch (error: any) {
@@ -75,10 +70,8 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/accounts
- * Link an existing account to the current user's account.
- * Body: { email: string, password: string }
- * The user must sign in to the target account first to get a session, OR
- * we re-authenticate them with email+password to obtain the target user ID.
+ * Link an existing account. Body: { email, password }
+ * Stores the refresh_token so switching doesn't require password later.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -101,29 +94,28 @@ export async function POST(request: NextRequest) {
       .select("id")
       .eq("owner_id", user.id)
 
-    // Get profile to check premium status
+    // Get profile to check premium status — query from DB, not user object
     const { data: profile } = await supabase
       .from("profiles")
       .select("is_premium")
       .eq("id", user.id)
       .maybeSingle()
 
-    const isPremium = (profile as any)?.is_premium ?? false
+    const isPremium = Boolean((profile as any)?.is_premium)
     const maxAccounts = isPremium ? 10 : 2
-    const currentCount = (existingLinks?.length || 0) + 1 // +1 for primary
+    const currentCount = (existingLinks?.length || 0) + 1
 
     if (currentCount >= maxAccounts) {
       return NextResponse.json(
         {
           error: isPremium
             ? `Pro accounts are limited to ${maxAccounts} linked accounts`
-            : `Free accounts are limited to ${maxAccounts} accounts. Upgrade to Pro for up to ${10}`,
+            : `Free accounts are limited to ${maxAccounts} accounts. Upgrade to Pro for up to 10`,
         },
         { status: 400 }
       )
     }
 
-    // Authenticate the target account using the service-role client
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 
@@ -131,7 +123,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
     }
 
-    // Use the admin auth API to sign in the target user
+    // Authenticate the target account to get user ID + refresh token
     const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
       method: "POST",
       headers: {
@@ -150,12 +142,11 @@ export async function POST(request: NextRequest) {
 
     const targetUserId = authData.user.id
 
-    // Can't link yourself to yourself
     if (targetUserId === user.id) {
       return NextResponse.json({ error: "Cannot link your own account" }, { status: 400 })
     }
 
-    // Check if this account is already linked
+    // Check if already linked
     const { data: alreadyLinked } = await supabase
       .from("linked_accounts")
       .select("id")
@@ -167,7 +158,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Account already linked" }, { status: 400 })
     }
 
-    // Check if the target user is already the owner of another link group
+    // Check if target is already an owner
     const { data: targetAsOwner } = await supabase
       .from("linked_accounts")
       .select("id")
@@ -181,23 +172,53 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Insert the link
+    // Also save current user's refresh token so we can switch back
+    const meRefreshToken = authData.session?.refresh_token || null
+
+    // Insert the link with refresh_token stored for passwordless switching
     const { data: link, error: insertError } = await supabase
       .from("linked_accounts")
       .insert({
         owner_id: user.id,
         linked_user_id: targetUserId,
+        refresh_token: authData.session?.refresh_token || null,
         created_at: new Date().toISOString(),
       })
       .select("id, linked_user_id")
       .single()
 
     if (insertError) {
+      // If refresh_token column doesn't exist, try without it
+      if (insertError.code === "PGRST204" && /refresh_token/i.test(insertError.message || "")) {
+        const { data: link2 } = await supabase
+          .from("linked_accounts")
+          .insert({
+            owner_id: user.id,
+            linked_user_id: targetUserId,
+            created_at: new Date().toISOString(),
+          })
+          .select("id, linked_user_id")
+          .single()
+        if (!link2) {
+          return NextResponse.json({ error: "Failed to link account" }, { status: 500 })
+        }
+        // Fetch target profile
+        const { data: targetProfile } = await supabase
+          .from("profiles")
+          .select("id, username, display_name, avatar_url, video_avatar_url, is_premium, is_verified")
+          .eq("id", targetUserId)
+          .maybeSingle()
+
+        return NextResponse.json({
+          success: true,
+          account: { ...targetProfile, is_primary: false, link_id: link2.id },
+          note: "Account linked but passwordless switching may not work until the database is updated.",
+        })
+      }
       console.error("linked_accounts insert error:", insertError)
       return NextResponse.json({ error: "Failed to link account" }, { status: 500 })
     }
 
-    // Fetch the target profile to return
     const { data: targetProfile } = await supabase
       .from("profiles")
       .select("id, username, display_name, avatar_url, video_avatar_url, is_premium, is_verified")
@@ -206,11 +227,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      account: {
-        ...targetProfile,
-        is_primary: false,
-        link_id: link.id,
-      },
+      account: { ...targetProfile, is_primary: false, link_id: link.id },
     })
   } catch (error: any) {
     console.error("POST /api/accounts error:", error)
@@ -220,7 +237,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * DELETE /api/accounts
- * Unlink an account. Body: { link_id: string } or { linked_user_id: string }
+ * Unlink an account. Body: { link_id, linked_user_id }
  */
 export async function DELETE(request: NextRequest) {
   try {

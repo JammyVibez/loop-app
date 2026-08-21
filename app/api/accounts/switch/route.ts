@@ -6,11 +6,8 @@ export const dynamic = "force-dynamic"
 
 /**
  * POST /api/accounts/switch
- * Switch to a linked account by signing a new session for that user.
- * Body: { user_id: string, password: string }
- *
- * This re-authenticates as the target user and returns a new session token
- * the client can use to become that user.
+ * Switch to a linked account. No password required after initial link.
+ * Body: { user_id: string }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -19,89 +16,104 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json().catch(() => ({}))
     const targetUserId = body.user_id
-    const password = body.password
 
     if (!targetUserId) {
       return NextResponse.json({ error: "user_id required" }, { status: 400 })
     }
 
     const supabase = createServerClient()
-
-    // Verify the target account is linked to the current user
-    const { data: link } = await supabase
-      .from("linked_accounts")
-      .select("id")
-      .eq("owner_id", user.id)
-      .eq("linked_user_id", targetUserId)
-      .maybeSingle()
-
-    // Also allow switching back to the primary (yourself)
     const isPrimary = targetUserId === user.id
 
-    if (!link && !isPrimary) {
-      return NextResponse.json({ error: "Account not linked" }, { status: 403 })
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    if (!serviceKey || !supabaseUrl) {
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
     }
 
-    // Get the target profile to find their email
-    const { data: targetProfile } = await supabase
-      .from("profiles")
-      .select("id, email, username, display_name, avatar_url, video_avatar_url, is_premium, is_verified")
-      .eq("id", targetUserId)
-      .maybeSingle()
+    let refreshToken: string | null = null
 
-    if (!targetProfile) {
-      return NextResponse.json({ error: "Target profile not found" }, { status: 404 })
-    }
-
-    // If switching back to primary, we need the password
     if (isPrimary) {
-      if (!password) {
+      // Switching back to primary — use the main user's session refresh token
+      // We store it from the current auth session
+      refreshToken = body.refresh_token || null
+      if (!refreshToken) {
+        // Fall back: get the current user's auth refresh token from the link where they are the linked_user
+        const { data: backLink } = await supabase
+          .from("linked_accounts")
+          .select("refresh_token")
+          .eq("linked_user_id", user.id)
+          .maybeSingle()
+        refreshToken = (backLink as any)?.refresh_token || null
+      }
+      if (!refreshToken) {
         return NextResponse.json(
-          { error: "Password required to switch back to primary account" },
+          { error: "Cannot switch back to primary — re-login required. No stored session found." },
+          { status: 400 }
+        )
+      }
+    } else {
+      // Switching to a linked account — use the stored refresh token
+      const { data: link } = await supabase
+        .from("linked_accounts")
+        .select("id, refresh_token")
+        .eq("owner_id", user.id)
+        .eq("linked_user_id", targetUserId)
+        .maybeSingle()
+
+      if (!link) {
+        return NextResponse.json({ error: "Account not linked" }, { status: 403 })
+      }
+
+      refreshToken = (link as any)?.refresh_token || null
+      if (!refreshToken) {
+        return NextResponse.json(
+          { error: "No stored session for this account. Please unlink and re-add it." },
           { status: 400 }
         )
       }
     }
 
-    // If switching to a linked account, we need the password for that account
-    if (!isPrimary && !password) {
-      return NextResponse.json(
-        { error: "Password required to switch accounts" },
-        { status: 400 }
-      )
-    }
-
-    // Re-authenticate as the target user using their email + password
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-
-    if (!serviceKey || !supabaseUrl) {
-      return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
-    }
-
-    // Get the email for the target user
-    const targetEmail = targetProfile.email || (targetProfile as any).email
-
-    if (!targetEmail) {
-      return NextResponse.json({ error: "Cannot determine target account email" }, { status: 500 })
-    }
-
-    // We need to get the target user's email from the auth system
-    const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+    // Use the refresh token to get a new session for the target user
+    const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=refresh_token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         apikey: serviceKey,
         Authorization: `Bearer ${serviceKey}`,
       },
-      body: JSON.stringify({ email: targetEmail, password }),
+      body: JSON.stringify({ refresh_token: refreshToken }),
     })
 
     const authData = await authRes.json()
 
     if (!authRes.ok || !authData?.session) {
-      return NextResponse.json({ error: "Invalid password" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Session expired. Please unlink and re-add this account." },
+        { status: 400 }
+      )
     }
+
+    // Update the stored refresh token with the new one
+    if (!isPrimary) {
+      await supabase
+        .from("linked_accounts")
+        .update({ refresh_token: authData.session.refresh_token })
+        .eq("owner_id", user.id)
+        .eq("linked_user_id", targetUserId)
+    } else {
+      // Update the back-link with new refresh token
+      await supabase
+        .from("linked_accounts")
+        .update({ refresh_token: authData.session.refresh_token })
+        .eq("linked_user_id", user.id)
+    }
+
+    // Get the target profile
+    const { data: targetProfile } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, video_avatar_url, is_premium, is_verified")
+      .eq("id", isPrimary ? user.id : targetUserId)
+      .maybeSingle()
 
     return NextResponse.json({
       success: true,

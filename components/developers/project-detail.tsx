@@ -36,6 +36,7 @@ interface CommentAuthor {
   username: string
   display_name: string
   avatar_url?: string | null
+  video_avatar_url?: string | null
   is_verified?: boolean
 }
 
@@ -170,6 +171,7 @@ export function ProjectDetail({ project }: { project: any }) {
       username: string
       display_name: string
       avatar_url?: string | null
+      video_avatar_url?: string | null
       is_verified?: boolean
     }
   }
@@ -384,10 +386,14 @@ export function ProjectDetail({ project }: { project: any }) {
                       className="flex flex-col gap-2 rounded-xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="flex min-w-0 items-center gap-3">
-                        <Avatar className="h-9 w-9 shrink-0">
-                          <AvatarImage src={member.avatar_url ?? undefined} />
-                          <AvatarFallback>{(member.display_name || member.username || "U").charAt(0).toUpperCase()}</AvatarFallback>
-                        </Avatar>
+                        <VideoAvatar
+                          src={member.avatar_url}
+                          videoSrc={(member as any).video_avatar_url}
+                          isPremium={(member as any).is_premium}
+                          fallback={(member.display_name || member.username || "U").charAt(0).toUpperCase()}
+                          size="sm"
+                          className="h-9 w-9 shrink-0 rounded-full"
+                        />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="truncate text-sm font-semibold">
@@ -524,10 +530,14 @@ export function ProjectDetail({ project }: { project: any }) {
                   return (
                     <div key={comment.id}>
                       <div className="flex gap-3">
-                        <Avatar className="h-9 w-9 shrink-0">
-                          <AvatarImage src={author.avatar_url ?? undefined} />
-                          <AvatarFallback>{(author.username || "U").charAt(0).toUpperCase()}</AvatarFallback>
-                        </Avatar>
+                        <VideoAvatar
+                          src={author.avatar_url}
+                          videoSrc={(author as any).video_avatar_url}
+                          isPremium={(author as any).is_premium}
+                          fallback={(author.username || "U").charAt(0).toUpperCase()}
+                          size="sm"
+                          className="h-9 w-9 shrink-0 rounded-full"
+                        />
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                             <span className="text-sm font-semibold">
@@ -565,10 +575,14 @@ export function ProjectDetail({ project }: { project: any }) {
                             const rAuthor: CommentAuthor = reply.author || { id: "", username: "", display_name: "" }
                             return (
                               <div key={reply.id} className="flex gap-3">
-                                <Avatar className="h-7 w-7 shrink-0">
-                                  <AvatarImage src={rAuthor.avatar_url ?? undefined} />
-                                  <AvatarFallback>{(rAuthor.username || "U").charAt(0).toUpperCase()}</AvatarFallback>
-                                </Avatar>
+                                <VideoAvatar
+                                  src={rAuthor.avatar_url}
+                                  videoSrc={(rAuthor as any).video_avatar_url}
+                                  isPremium={(rAuthor as any).is_premium}
+                                  fallback={(rAuthor.username || "U").charAt(0).toUpperCase()}
+                                  size="sm"
+                                  className="h-7 w-7 shrink-0 rounded-full"
+                                />
                                 <div className="min-w-0 flex-1">
                                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                                     <span className="text-sm font-semibold">

@@ -326,10 +326,14 @@ export function DeveloperSnippets() {
               <CardContent className="p-0">
                 <div className="flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={snippet.author?.avatar_url ?? undefined} />
-                      <AvatarFallback>{(snippet.author?.display_name || "U").charAt(0)}</AvatarFallback>
-                    </Avatar>
+                    <VideoAvatar
+                      src={snippet.author?.avatar_url}
+                      videoSrc={(snippet.author as any)?.video_avatar_url}
+                      isPremium={(snippet.author as any)?.is_premium}
+                      fallback={(snippet.author?.display_name || "U").charAt(0)}
+                      size="sm"
+                      className="h-8 w-8 rounded-full"
+                    />
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{snippet.title}</p>
                       <p className="truncate text-xs text-muted-foreground">

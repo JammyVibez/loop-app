@@ -123,10 +123,14 @@ export function DeveloperLeaderboard() {
                 </span>
                 {i === 0 && <Trophy className="h-6 w-6 text-amber-400" />}
                 <Link href={`/profile/${row.username}`} className="group">
-                  <Avatar className={cn("h-16 w-16 border-2", i === 0 ? "border-amber-400/60" : "border-border")}>
-                    <AvatarImage src={row.avatar_url ?? undefined} />
-                    <AvatarFallback>{(row.display_name || "D").charAt(0)}</AvatarFallback>
-                  </Avatar>
+                  <VideoAvatar
+                    src={row.avatar_url}
+                    videoSrc={(row as any).video_avatar_url}
+                    isPremium={(row as any).is_premium}
+                    fallback={(row.display_name || "D").charAt(0)}
+                    size="lg"
+                    className={cn("h-16 w-16 border-2 shrink-0 rounded-full", i === 0 ? "border-amber-400/60" : "border-border")}
+                  />
                 </Link>
                 <div>
                   <p className="font-semibold leading-tight">{row.display_name}</p>
@@ -163,10 +167,14 @@ export function DeveloperLeaderboard() {
               <span className="w-8 shrink-0 text-center text-sm font-bold text-muted-foreground">
                 {i + 4}
               </span>
-              <Avatar className="h-10 w-10 shrink-0">
-                <AvatarImage src={row.avatar_url ?? undefined} />
-                <AvatarFallback>{(row.display_name || "D").charAt(0)}</AvatarFallback>
-              </Avatar>
+              <VideoAvatar
+                src={row.avatar_url}
+                videoSrc={(row as any).video_avatar_url}
+                isPremium={(row as any).is_premium}
+                fallback={(row.display_name || "D").charAt(0)}
+                size="md"
+                className="h-10 w-10 shrink-0 rounded-full"
+              />
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
                   {row.display_name}

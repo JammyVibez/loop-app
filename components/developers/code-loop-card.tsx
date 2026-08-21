@@ -362,10 +362,14 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex items-center space-x-3 min-w-0">
-            <Avatar className="w-10 h-10 shrink-0">
-              <AvatarImage src={project.author.avatar_url || "/placeholder.svg"} />
-              <AvatarFallback>{project.author.display_name?.charAt(0) || "?"}</AvatarFallback>
-            </Avatar>
+            <VideoAvatar
+              src={project.author.avatar_url}
+              videoSrc={(project.author as any).video_avatar_url}
+              isPremium={(project.author as any).is_premium}
+              fallback={project.author.display_name?.charAt(0) || "?"}
+              size="md"
+              className="w-10 h-10 shrink-0 rounded-full"
+            />
             <div className="flex items-center min-w-0">
               <div className="min-w-0">
                 <p className="font-semibold text-sm truncate">{project.author.display_name}</p>

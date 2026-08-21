@@ -574,10 +574,14 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
               <div className="relative z-10 grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 my-auto max-w-lg mx-auto w-full">
                 {participants.slice(0, 3).map((p, idx) => (
                   <div key={p.id || idx} className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-900/90 border border-white/10 text-white text-center shadow-md">
-                    <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-primary/50 shadow-md">
-                      <AvatarImage src={p.avatar_url || "/placeholder.svg"} />
-                      <AvatarFallback>{p.display_name?.charAt(0) || "S"}</AvatarFallback>
-                    </Avatar>
+                    <VideoAvatar
+                      src={p.avatar_url}
+                      videoSrc={(p as any).video_avatar_url}
+                      isPremium={(p as any).is_premium}
+                      fallback={p.display_name?.charAt(0) || "S"}
+                      size="md"
+                      className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-primary/50 shadow-md rounded-full"
+                    />
                     <p className="text-xs font-bold mt-2 truncate w-full">{p.display_name}</p>
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 mt-0.5 bg-white/10 text-cyan-300">
                       {p.role === "host" ? "Host" : p.role === "moderator" ? "Mod" : p.role || "Speaker"}
@@ -595,10 +599,14 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
             {/* Stage Controls Footer */}
             <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-white">
               <div className="flex items-center gap-2 min-w-0">
-                <Avatar className="w-8 h-8 shrink-0">
-                  <AvatarImage src={event.host_avatar || "/placeholder.svg"} />
-                  <AvatarFallback>{event.host_name?.charAt(0) || "H"}</AvatarFallback>
-                </Avatar>
+                <VideoAvatar
+                  src={event.host_avatar}
+                  videoSrc={(event as any).host_video_avatar_url}
+                  isPremium={(event as any).host_is_premium}
+                  fallback={event.host_name?.charAt(0) || "H"}
+                  size="sm"
+                  className="w-8 h-8 shrink-0 rounded-full"
+                />
                 <div className="min-w-0">
                   <p className="text-xs font-bold truncate max-w-[120px] sm:max-w-[150px]">{event.host_name}</p>
                   <p className="text-[10px] text-slate-400">Host</p>
@@ -697,10 +705,14 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
                 {participants.map((p) => (
                   <div key={p.id} className="py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <Avatar className="w-7 h-7 shrink-0">
-                        <AvatarImage src={p.avatar_url || "/placeholder.svg"} />
-                        <AvatarFallback>{p.display_name?.charAt(0) || "P"}</AvatarFallback>
-                      </Avatar>
+                      <VideoAvatar
+                        src={p.avatar_url}
+                        videoSrc={(p as any).video_avatar_url}
+                        isPremium={(p as any).is_premium}
+                        fallback={p.display_name?.charAt(0) || "P"}
+                        size="sm"
+                        className="w-7 h-7 shrink-0 rounded-full"
+                      />
                       <div className="min-w-0">
                         <p className="font-semibold text-foreground truncate">
                           {p.display_name} <span className="text-muted-foreground font-normal">(@{p.username})</span>
@@ -783,10 +795,14 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
             )}
             {chatMessages.map((msg) => (
               <div key={msg.id} className="group flex items-start gap-2 text-xs">
-                <Avatar className="w-6 h-6 shrink-0 mt-0.5">
-                  <AvatarImage src={msg.avatar} />
-                  <AvatarFallback>{msg.sender?.charAt(0) || "U"}</AvatarFallback>
-                </Avatar>
+                <VideoAvatar
+                  src={msg.avatar}
+                  videoSrc={(msg as any).video_avatar_url}
+                  isPremium={(msg as any).is_premium}
+                  fallback={msg.sender?.charAt(0) || "U"}
+                  size="sm"
+                  className="w-6 h-6 shrink-0 mt-0.5 rounded-full"
+                />
                 <div className="min-w-0 flex-1">
                   <div className="min-w-0 bg-muted/60 p-2.5 rounded-xl">
                     <div className="flex items-center justify-between gap-2 mb-0.5">

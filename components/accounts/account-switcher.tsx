@@ -32,8 +32,6 @@ import {
   Check,
   RefreshCw,
   Crown,
-  LogOut,
-  AlertCircle,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -61,10 +59,7 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
   const [accounts, setAccounts] = useState<LinkedAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
-  const [switchDialogOpen, setSwitchDialogOpen] = useState(false)
-  const [switchTarget, setSwitchTarget] = useState<LinkedAccount | null>(null)
-  const [switchPassword, setSwitchPassword] = useState("")
-  const [switching, setSwitching] = useState(false)
+  const [switching, setSwitching] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [maxAccounts, setMaxAccounts] = useState(2)
 
@@ -120,45 +115,35 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
     }
   }
 
-  const handleSwitchAccount = async () => {
-    if (!switchTarget || !switchPassword) {
-      toast({ title: "Password required", description: "Enter the password for this account", variant: "destructive" })
+  const handleSwitchAccount = async (account: LinkedAccount) => {
+    if (account.is_primary) {
+      toast({ title: "Already active", description: "You're already using this account" })
       return
     }
-    setSwitching(true)
+
+    setSwitching(account.id)
     try {
       const res = await fetch("/api/accounts/switch", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ user_id: switchTarget.id, password: switchPassword }),
+        body: JSON.stringify({ user_id: account.id }),
       })
       const data = await res.json()
       if (data.success && data.session) {
-        // Store the new session and refresh the page to re-authenticate
-        // Use the auth client to set the new session
-        const { authClient } = await import("@/lib/auth-client")
-        await authClient.signIn.email({
-          email: switchTarget.username ? `${switchTarget.username}@loop.link` : "",
-          password: switchPassword,
-        }).catch(async () => {
-          // Fallback: use the raw session tokens
-          if (typeof window !== "undefined") {
-            localStorage.setItem("loop-switch-session", JSON.stringify(data.session))
-          }
-        })
+        // Store the session and reload — the auth provider will pick up the new session
+        if (typeof window !== "undefined") {
+          localStorage.setItem("loop-switch-session", JSON.stringify(data.session))
+        }
 
-        toast({ title: "Switched!", description: `Now using ${switchTarget.display_name || switchTarget.username}` })
-        setSwitchDialogOpen(false)
-        setSwitchPassword("")
-        setSwitchTarget(null)
-        window.location.reload()
+        toast({ title: "Switched!", description: `Now using ${account.display_name || account.username}` })
+        window.location.href = "/"
       } else {
-        toast({ title: "Switch failed", description: data.error || "Invalid password", variant: "destructive" })
+        toast({ title: "Switch failed", description: data.error || "Could not switch account", variant: "destructive" })
       }
     } catch {
       toast({ title: "Error", description: "Something went wrong", variant: "destructive" })
     } finally {
-      setSwitching(false)
+      setSwitching(null)
     }
   }
 
@@ -188,7 +173,7 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
       .toUpperCase()
       .slice(0, 2)
 
-  // Settings variant — full inline section
+  // Settings variant
   if (variant === "settings") {
     return (
       <div className="space-y-4">
@@ -214,7 +199,6 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
           )}
         </div>
 
-        {/* Account list */}
         <div className="space-y-2">
           {loading ? (
             <div className="flex items-center justify-center py-8 text-muted-foreground">
@@ -226,11 +210,14 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
             accounts.map((account) => (
               <div
                 key={account.id}
-                className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
                   account.is_primary
                     ? "border-primary/50 bg-primary/5"
+                    : switching === account.id
+                    ? "border-primary bg-primary/10 animate-pulse"
                     : "border-border hover:bg-muted/50"
                 }`}
+                onClick={() => !account.is_primary && handleSwitchAccount(account)}
               >
                 <VideoAvatar
                   src={account.avatar_url}
@@ -245,30 +232,31 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
                   <div className="flex items-center gap-2">
                     <span className="font-medium truncate">{account.display_name || account.username}</span>
                     {account.is_verified && (
-                      <Badge variant="secondary" className="text-xs px-1 py-0">
-                        ✓
-                      </Badge>
+                      <Badge variant="secondary" className="text-xs px-1 py-0">✓</Badge>
                     )}
                     {account.is_primary && (
-                      <Badge variant="default" className="text-xs">Primary</Badge>
+                      <Badge variant="default" className="text-xs">Active</Badge>
                     )}
-                    {!account.is_primary && !account.is_primary && (
-                      <Badge variant="outline" className="text-xs">Linked</Badge>
+                    {!account.is_primary && (
+                      <Badge variant="outline" className="text-xs">
+                        {switching === account.id ? "Switching..." : "Tap to switch"}
+                      </Badge>
                     )}
                   </div>
                   <span className="text-sm text-muted-foreground">@{account.username}</span>
                 </div>
-                {!account.is_primary && (
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 text-destructive hover:text-destructive"
-                      onClick={() => handleRemoveAccount(account)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                {!account.is_primary && switching !== account.id && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-destructive hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleRemoveAccount(account)
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 )}
               </div>
             ))
@@ -312,46 +300,10 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
                 />
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-                  Cancel
-                </Button>
+                <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
                 <Button onClick={handleAddAccount} disabled={adding}>
                   {adding ? <RefreshCw className="h-4 w-4 animate-spin mr-1" /> : <Plus className="h-4 w-4 mr-1" />}
                   {adding ? "Linking..." : "Link Account"}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Switch Account Dialog */}
-        <Dialog open={switchDialogOpen} onOpenChange={setSwitchDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Switch Account</DialogTitle>
-              <DialogDescription>
-                Enter the password for {switchTarget?.display_name || switchTarget?.username} to switch.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div>
-                <Label htmlFor="switch-password">Password</Label>
-                <Input
-                  id="switch-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={switchPassword}
-                  onChange={(e) => setSwitchPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSwitchAccount()}
-                />
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => { setSwitchDialogOpen(false); setSwitchPassword("") }}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSwitchAccount} disabled={switching}>
-                  {switching ? <RefreshCw className="h-4 w-4 animate-spin mr-1" /> : <Users className="h-4 w-4 mr-1" />}
-                  {switching ? "Switching..." : "Switch"}
                 </Button>
               </div>
             </div>
@@ -361,7 +313,7 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
     )
   }
 
-  // Dropdown variant — compact for header
+  // Dropdown variant
   return (
     <>
       <DropdownMenu>
@@ -378,9 +330,7 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64">
-          <DropdownMenuLabel className="text-xs text-muted-foreground">
-            Switch Account
-          </DropdownMenuLabel>
+          <DropdownMenuLabel className="text-xs text-muted-foreground">Switch Account</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {loading ? (
             <div className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2">
@@ -391,23 +341,27 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
               <DropdownMenuItem
                 key={account.id}
                 className="flex items-center gap-3 cursor-pointer py-2"
-                onClick={() => {
-                  if (account.is_primary) return
-                  setSwitchTarget(account)
-                  setSwitchDialogOpen(true)
-                }}
+                onClick={() => handleSwitchAccount(account)}
+                disabled={switching !== null}
               >
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={account.avatar_url} />
-                  <AvatarFallback className="text-xs">
-                    {getInitials(account.display_name || account.username || "?")}
-                  </AvatarFallback>
-                </Avatar>
+                <VideoAvatar
+                  src={account.avatar_url}
+                  videoSrc={account.video_avatar_url}
+                  isPremium={account.is_premium}
+                  fallback={getInitials(account.display_name || account.username || "?")}
+                  alt={account.display_name || account.username}
+                  size="sm"
+                  className="h-8 w-8 rounded-full"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{account.display_name || account.username}</div>
                   <div className="text-xs text-muted-foreground">@{account.username}</div>
                 </div>
-                {account.is_primary && <Check className="h-4 w-4 text-primary" />}
+                {account.is_primary ? (
+                  <Check className="h-4 w-4 text-primary" />
+                ) : switching === account.id ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : null}
               </DropdownMenuItem>
             ))
           )}
@@ -419,9 +373,7 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
           >
             <Plus className="h-4 w-4" />
             <span className="text-sm">Add Account</span>
-            <span className="text-xs text-muted-foreground ml-auto">
-              {accounts.length}/{maxAccounts}
-            </span>
+            <span className="text-xs text-muted-foreground ml-auto">{accounts.length}/{maxAccounts}</span>
           </DropdownMenuItem>
           {accounts.length >= maxAccounts && !user?.is_premium && (
             <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-primary" onClick={() => router.push("/settings")}>
@@ -432,7 +384,7 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Add Account Dialog (reused) */}
+      {/* Add Account Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -463,46 +415,10 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
               />
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-                Cancel
-              </Button>
+              <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
               <Button onClick={handleAddAccount} disabled={adding}>
                 {adding ? <RefreshCw className="h-4 w-4 animate-spin mr-1" /> : <Plus className="h-4 w-4 mr-1" />}
                 {adding ? "Linking..." : "Link Account"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Switch Account Dialog (reused) */}
-      <Dialog open={switchDialogOpen} onOpenChange={setSwitchDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Switch Account</DialogTitle>
-            <DialogDescription>
-              Enter the password for <strong>{switchTarget?.display_name || switchTarget?.username}</strong> to switch.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 mt-4">
-            <div>
-              <Label htmlFor="switch-password-dd">Password</Label>
-              <Input
-                id="switch-password-dd"
-                type="password"
-                placeholder="••••••••"
-                value={switchPassword}
-                onChange={(e) => setSwitchPassword(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSwitchAccount()}
-              />
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => { setSwitchDialogOpen(false); setSwitchPassword("") }}>
-                Cancel
-              </Button>
-              <Button onClick={handleSwitchAccount} disabled={switching}>
-                {switching ? <RefreshCw className="h-4 w-4 animate-spin mr-1" /> : <Users className="h-4 w-4 mr-1" />}
-                {switching ? "Switching..." : "Switch"}
               </Button>
             </div>
           </div>

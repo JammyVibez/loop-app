@@ -276,10 +276,14 @@ export default function StreamsPage() {
                 <div className="absolute bottom-0 left-0 right-0 p-3">
                   <p className="line-clamp-2 text-sm font-bold leading-snug">{stream.title}</p>
                   <div className="mt-2 flex items-center gap-2">
-                    <Avatar className="h-6 w-6 border border-white/20">
-                      <AvatarImage src={stream.streamer?.avatar_url} />
-                      <AvatarFallback>{stream.streamer?.display_name?.[0] || "?"}</AvatarFallback>
-                    </Avatar>
+                    <VideoAvatar
+                      src={stream.streamer?.avatar_url}
+                      videoSrc={(stream.streamer as any)?.video_avatar_url}
+                      isPremium={(stream.streamer as any)?.is_premium}
+                      fallback={stream.streamer?.display_name?.[0] || "?"}
+                      size="sm"
+                      className="h-6 w-6 border border-white/20 rounded-full"
+                    />
                     <p className="truncate text-xs text-white/80">
                       {stream.streamer?.display_name || stream.streamer?.username}
                     </p>

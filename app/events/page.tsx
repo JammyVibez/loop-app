@@ -296,10 +296,14 @@ export default function EventsPage() {
 
                     <div className="flex items-center justify-between text-xs pt-2 border-t border-border/40">
                       <div className="flex items-center gap-2">
-                        <Avatar className="w-6 h-6">
-                          <AvatarImage src={evt.host_avatar || "/placeholder.svg"} />
-                          <AvatarFallback>{evt.host_name?.charAt(0) || "H"}</AvatarFallback>
-                        </Avatar>
+                        <VideoAvatar
+                          src={evt.host_avatar}
+                          videoSrc={(evt as any).host_video_avatar_url}
+                          isPremium={(evt as any).host_is_premium}
+                          fallback={evt.host_name?.charAt(0) || "H"}
+                          size="sm"
+                          className="w-6 h-6 rounded-full"
+                        />
                         <span className="text-foreground font-medium truncate max-w-[120px]">{evt.host_name}</span>
                       </div>
 

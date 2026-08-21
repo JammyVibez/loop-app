@@ -580,10 +580,14 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
             href={streamer?.username ? `/profile/${streamer.username}` : "/streams"}
             className="flex min-w-0 items-center gap-2 rounded-full bg-black/45 py-1 pl-1 pr-3 backdrop-blur"
           >
-            <Avatar className="h-9 w-9 border border-white/20">
-              <AvatarImage src={streamer?.avatar_url} />
-              <AvatarFallback>{streamer?.display_name?.[0] || "L"}</AvatarFallback>
-            </Avatar>
+            <VideoAvatar
+              src={streamer?.avatar_url}
+              videoSrc={(streamer as any)?.video_avatar_url}
+              isPremium={(streamer as any)?.is_premium}
+              fallback={streamer?.display_name?.[0] || "L"}
+              size="sm"
+              className="h-9 w-9 border border-white/20 rounded-full"
+            />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold leading-tight">
                 {streamer?.display_name || "Host"}

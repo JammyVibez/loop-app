@@ -384,10 +384,14 @@ export function DeveloperQuests() {
                   return (
                     <div key={sub.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
                       <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                        <Avatar className="h-9 w-9 shrink-0">
-                          <AvatarImage src={sub.user?.avatar_url ?? undefined} />
-                          <AvatarFallback>{(sub.user?.display_name || "U").charAt(0)}</AvatarFallback>
-                        </Avatar>
+                        <VideoAvatar
+                          src={sub.user?.avatar_url}
+                          videoSrc={(sub.user as any)?.video_avatar_url}
+                          isPremium={(sub.user as any)?.is_premium}
+                          fallback={(sub.user?.display_name || "U").charAt(0)}
+                          size="sm"
+                          className="h-9 w-9 shrink-0 rounded-full"
+                        />
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">
                             {sub.user?.display_name || "user"}
