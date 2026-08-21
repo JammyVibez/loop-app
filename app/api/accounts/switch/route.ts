@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 
 /**
  * POST /api/accounts/switch
- * Switch to a linked account. No password required after initial link.
+ * Switch to a linked account using stored refresh token (no password needed).
  * Body: { user_id: string }
  */
 export async function POST(request: NextRequest) {
@@ -24,30 +24,29 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient()
     const isPrimary = targetUserId === user.id
 
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    if (!serviceKey || !supabaseUrl) {
+    if (!anonKey || !supabaseUrl) {
       return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
     }
 
     let refreshToken: string | null = null
 
     if (isPrimary) {
-      // Switching back to primary — use the main user's session refresh token
-      // We store it from the current auth session
-      refreshToken = body.refresh_token || null
-      if (!refreshToken) {
-        // Fall back: get the current user's auth refresh token from the link where they are the linked_user
-        const { data: backLink } = await supabase
-          .from("linked_accounts")
-          .select("refresh_token")
-          .eq("linked_user_id", user.id)
-          .maybeSingle()
-        refreshToken = (backLink as any)?.refresh_token || null
-      }
+      // Switching back to primary — look for the refresh token stored
+      // when any linked account was added (the back-link stores it)
+      const { data: backLink } = await supabase
+        .from("linked_accounts")
+        .select("refresh_token")
+        .eq("linked_user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      refreshToken = (backLink as any)?.refresh_token || null
+
       if (!refreshToken) {
         return NextResponse.json(
-          { error: "Cannot switch back to primary — re-login required. No stored session found." },
+          { error: "No stored session for primary account. Please log out and log back in." },
           { status: 400 }
         )
       }
@@ -73,13 +72,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Use the refresh token to get a new session for the target user
+    // Use the refresh token with the ANON key (not service role) to get a new session
     const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=refresh_token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
+        apikey: anonKey,
       },
       body: JSON.stringify({ refresh_token: refreshToken }),
     })
@@ -87,13 +85,14 @@ export async function POST(request: NextRequest) {
     const authData = await authRes.json()
 
     if (!authRes.ok || !authData?.session) {
+      // Token expired — try re-linking hint
       return NextResponse.json(
-        { error: "Session expired. Please unlink and re-add this account." },
+        { error: "Session expired. Please unlink this account and add it again." },
         { status: 400 }
       )
     }
 
-    // Update the stored refresh token with the new one
+    // Update the stored refresh token with the new one (refresh tokens rotate)
     if (!isPrimary) {
       await supabase
         .from("linked_accounts")
@@ -101,7 +100,7 @@ export async function POST(request: NextRequest) {
         .eq("owner_id", user.id)
         .eq("linked_user_id", targetUserId)
     } else {
-      // Update the back-link with new refresh token
+      // Update all back-links with the new primary refresh token
       await supabase
         .from("linked_accounts")
         .update({ refresh_token: authData.session.refresh_token })

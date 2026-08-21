@@ -71,7 +71,8 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/accounts
  * Link an existing account. Body: { email, password }
- * Stores the refresh_token so switching doesn't require password later.
+ * Uses the ANON key (not service role) for the token endpoint so a full
+ * session with refresh_token is returned and stored for passwordless switching.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
       .select("id")
       .eq("owner_id", user.id)
 
-    // Get profile to check premium status — query from DB, not user object
+    // Get profile to check premium status
     const { data: profile } = await supabase
       .from("profiles")
       .select("is_premium")
@@ -116,20 +117,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 
-    if (!serviceKey || !supabaseUrl) {
+    if (!anonKey || !supabaseUrl) {
       return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
     }
 
-    // Authenticate the target account to get user ID + refresh token
+    // Use the ANON key for auth token endpoint — this returns a full session
+    // with access_token and refresh_token (service role key does not)
     const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
+        apikey: anonKey,
       },
       body: JSON.stringify({ email: targetEmail, password: targetPassword }),
     })
@@ -141,6 +142,7 @@ export async function POST(request: NextRequest) {
     }
 
     const targetUserId = authData.user.id
+    const refreshToken = authData.session?.refresh_token
 
     if (targetUserId === user.id) {
       return NextResponse.json({ error: "Cannot link your own account" }, { status: 400 })
@@ -172,49 +174,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Also save current user's refresh token so we can switch back
-    const meRefreshToken = authData.session?.refresh_token || null
+    // Store the refresh_token for passwordless switching later
+    const insertPayload: Record<string, any> = {
+      owner_id: user.id,
+      linked_user_id: targetUserId,
+      created_at: new Date().toISOString(),
+    }
+    if (refreshToken) {
+      insertPayload.refresh_token = refreshToken
+    }
 
-    // Insert the link with refresh_token stored for passwordless switching
     const { data: link, error: insertError } = await supabase
       .from("linked_accounts")
-      .insert({
-        owner_id: user.id,
-        linked_user_id: targetUserId,
-        refresh_token: authData.session?.refresh_token || null,
-        created_at: new Date().toISOString(),
-      })
+      .insert(insertPayload)
       .select("id, linked_user_id")
       .single()
 
     if (insertError) {
-      // If refresh_token column doesn't exist, try without it
-      if (insertError.code === "PGRST204" && /refresh_token/i.test(insertError.message || "")) {
-        const { data: link2 } = await supabase
-          .from("linked_accounts")
-          .insert({
-            owner_id: user.id,
-            linked_user_id: targetUserId,
-            created_at: new Date().toISOString(),
-          })
-          .select("id, linked_user_id")
-          .single()
-        if (!link2) {
-          return NextResponse.json({ error: "Failed to link account" }, { status: 500 })
-        }
-        // Fetch target profile
-        const { data: targetProfile } = await supabase
-          .from("profiles")
-          .select("id, username, display_name, avatar_url, video_avatar_url, is_premium, is_verified")
-          .eq("id", targetUserId)
-          .maybeSingle()
-
-        return NextResponse.json({
-          success: true,
-          account: { ...targetProfile, is_primary: false, link_id: link2.id },
-          note: "Account linked but passwordless switching may not work until the database is updated.",
-        })
-      }
       console.error("linked_accounts insert error:", insertError)
       return NextResponse.json({ error: "Failed to link account" }, { status: 500 })
     }
@@ -228,6 +204,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       account: { ...targetProfile, is_primary: false, link_id: link.id },
+      has_session: Boolean(refreshToken),
     })
   } catch (error: any) {
     console.error("POST /api/accounts error:", error)
