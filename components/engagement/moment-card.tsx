@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Button } from "@/components/ui/button"
 import { Eye, Loader2, MessageCircle, Pencil, Send, Trash2, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"

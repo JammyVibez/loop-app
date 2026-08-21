@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Search, Send, Check, Users, Loader2, Share2, Film, Zap } from "lucide-react"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import {
   Dialog,
   DialogContent,
