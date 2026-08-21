@@ -3,7 +3,6 @@
 // Force blocking metadata into <head> for all UAs (including Googlebot).
 // Next 15 streams metadata by default for "dom" bots like Googlebot, which
 // leaves the initial HTML without <title>/<meta name="description">.
-const htmlLimitedBots = /./
 
 const securityHeaders = [
   {
@@ -41,7 +40,6 @@ const nextConfig = {
   // consumes the standalone server bundle.
   // Keep Node-only packages out of the client/Edge bundles.
   serverExternalPackages: ["stripe", "web-push", "https-proxy-agent", "agent-base"],
-  htmlLimitedBots,
   eslint: {
     ignoreDuringBuilds: true,
   },
