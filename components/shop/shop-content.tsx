@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useInventoryRealtime } from "@/hooks/use-inventory-realtime";
 import { ShopItemMiniPreview, ShopItemPreviewDialog, type ShopPreviewItem } from "@/components/shop/shop-item-preview";
+import { CosmeticsShop } from "@/components/cosmetics/cosmetics-shop";
+import { Gem } from "lucide-react";
 
 interface ShopItem {
   id: string
@@ -373,7 +375,7 @@ export function ShopContent() {
 
       {/* Shop Items */}
       <Tabs defaultValue="themes" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="themes" className="flex items-center space-x-2">
             <Palette className="w-4 h-4" />
             <span>Themes</span>
@@ -385,6 +387,10 @@ export function ShopContent() {
           <TabsTrigger value="effects" className="flex items-center space-x-2">
             <Zap className="w-4 h-4" />
             <span>Effects</span>
+          </TabsTrigger>
+          <TabsTrigger value="cosmetics" className="flex items-center space-x-2">
+            <Gem className="w-4 h-4" />
+            <span>Cosmetics</span>
           </TabsTrigger>
           <TabsTrigger value="coins" className="flex items-center space-x-2">
             <Coins className="w-4 h-4" />
@@ -408,6 +414,10 @@ export function ShopContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {shopItems.effects.map(renderItemCard)}
           </div>
+        </TabsContent>
+
+        <TabsContent value="cosmetics" className="mt-6">
+          <CosmeticsShop />
         </TabsContent>
 
         <TabsContent value="coins" className="mt-6">

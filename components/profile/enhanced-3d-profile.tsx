@@ -41,6 +41,8 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
+import { VideoCover } from "@/components/cosmetics/video-cover"
 import { ProfileBanner3D } from "@/components/profile/profile-banner-3d"
 import { cosmeticsFromInventory, fontStyle, type ActiveCosmetics } from "@/lib/cosmetics"
 import { ensureCosmeticFonts } from "@/lib/cosmetic-fonts"
@@ -462,19 +464,22 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       </div>
 
       <div className="lg:px-4 lg:pt-4">
-      {/* Banner — 3D parallax/tilt reserved for Pro & sponsor profiles */}
-      <ProfileBanner3D
+      {/* Banner — animated cover with upload button */}
+      <div className="relative">
+      <VideoCover
         src={profile.banner_url}
-        enabled={Boolean(profile.is_premium || profile.is_sponsor)}
-        className="h-36 sm:h-56 lg:h-64 lg:rounded-2xl"
-      >
+        videoSrc={(profile as any).video_cover_url || null}
+        alt="Cover photo"
+        height="h-36 sm:h-56 lg:h-64 lg:rounded-2xl"
+        className=""
+      />
         {isOwnProfile && (
           <>
             <input
               ref={coverInputRef}
               id="profile-cover-upload"
               type="file"
-              accept="image/*,.gif,image/gif"
+              accept="image/*,.gif,image/gif,video/mp4,video/webm"
               className="hidden"
               onChange={handleCoverUpload}
             />
@@ -490,11 +495,11 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               {uploadingCover ? "Uploading…" : "Edit cover"}
             </Button>
             <p className="pointer-events-none absolute bottom-2 left-2 z-20 hidden rounded-full bg-black/45 px-2 py-0.5 text-[10px] text-white/90 sm:bottom-3 sm:left-3 sm:block">
-              JPG, PNG, or GIF
+              JPG, PNG, GIF, or Video
             </p>
           </>
         )}
-      </ProfileBanner3D>
+      </div>
 
       {/* Desktop: two-column layout — sticky info sidebar + content column. Mobile stays stacked. */}
       <div className="lg:grid lg:grid-cols-[360px_minmax(0,1fr)] lg:gap-8">
@@ -502,12 +507,11 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       <div className="relative z-10 px-3 pb-3 sm:px-4 lg:px-0 lg:pb-0">
         <div className="lg:sticky lg:top-28 lg:pb-8">
         <div className="-mt-10 flex flex-col gap-3 pointer-events-none sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
-          <CosmeticAvatar
+          <VideoAvatar
             src={profile.avatar_url}
+            videoSrc={(profile as any).video_avatar_url || null}
             alt={displayName}
-            fallback={displayName}
-            size="lg"
-            cosmetics={cosmetics}
+            size="xl"
             className="pointer-events-auto border-4 border-background self-start"
           />
 

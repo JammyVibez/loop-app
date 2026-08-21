@@ -12,7 +12,7 @@ export default function ShopPage() {
               Loop Shop
             </h1>
             <p className="text-gray-600 dark:text-gray-400 text-lg">
-              Customize your profile with themes, animations, and exclusive items
+              Customize your profile with themes, animations, cosmetics, and exclusive items
             </p>
           </div>
 

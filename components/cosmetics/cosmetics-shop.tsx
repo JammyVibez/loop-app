@@ -102,6 +102,7 @@ const RARITY_RING: Record<string, string> = {
 
 export function CosmeticsShop() {
   const { user, getAuthHeader, refreshUser } = useAuth()
+  const [purchasing, setPurchasing] = useState<string | null>(null)
   const [catalog, setCatalog] = useState<CatalogItem[]>([])
   const [inventory, setInventory] = useState<string[]>([]) // item IDs user owns
   const [equipped, setEquipped] = useState<Record<CosmeticCategory, string | null>>({
@@ -149,6 +150,48 @@ export function CosmeticsShop() {
   useEffect(() => {
     fetchCosmetics()
   }, [fetchCosmetics])
+
+  const handlePurchase = async (item: CatalogItem) => {
+    if (!user) {
+      toast.error("Please log in to purchase")
+      return
+    }
+    if (item.is_premium_only && !user.is_premium) {
+      toast.error("This item requires Pro membership")
+      return
+    }
+    if (inventory.includes(item.id)) {
+      toast.error("Already owned!")
+      return
+    }
+    if ((user.loop_coins || 0) < item.price_coins) {
+      toast.error("Not enough Loop Coins!")
+      return
+    }
+
+    setPurchasing(item.id)
+    try {
+      const headers = { ...getAuthHeader(), "Content-Type": "application/json" }
+      const res = await fetch("/api/cosmetics/purchase", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ itemId: item.id }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setInventory((prev) => [...prev, item.id])
+        toast.success(`Purchased ${item.name}!`)
+        refreshUser?.()
+        window.dispatchEvent(new CustomEvent("loop-cosmetics-applied", { detail: { category: item.category, itemId: item.id, action: "purchased" } }))
+      } else {
+        toast.error(data.error || "Purchase failed")
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Purchase failed")
+    } finally {
+      setPurchasing(null)
+    }
+  }
 
   const handleEquip = async (category: CosmeticCategory, itemId: string | null) => {
     try {
@@ -199,6 +242,13 @@ export function CosmeticsShop() {
           <h3 className="text-lg font-bold">Cosmetics Shop</h3>
           <p className="text-sm text-muted-foreground">Customize your profile and posts</p>
         </div>
+        {user && (
+          <div className="ml-auto flex items-center gap-2 rounded-full bg-yellow-500/10 px-3 py-1.5">
+            <Zap className="h-4 w-4 text-yellow-500" />
+            <span className="text-sm font-bold text-yellow-600 dark:text-yellow-400">{user.loop_coins?.toLocaleString() || 0}</span>
+            <span className="text-xs text-muted-foreground">coins</span>
+          </div>
+        )}
       </div>
 
       {/* Category Tabs */}
@@ -297,6 +347,8 @@ export function CosmeticsShop() {
                     isOwned={false}
                     onEquip={() => handleEquip(activeCategory, item.id)}
                     onPreview={() => setPreviewItem(item)}
+                    onPurchase={() => handlePurchase(item)}
+                    purchasing={purchasing === item.id}
                   />
                 ))}
               </div>
@@ -351,10 +403,22 @@ export function CosmeticsShop() {
                 >
                   {equipped[previewItem.category as CosmeticCategory] === previewItem.id ? "Unequip" : "Equip"}
                 </Button>
+              ) : previewItem.is_premium_only ? (
+                <Button disabled className="bg-amber-500">
+                  <Crown className="h-3.5 w-3.5 mr-1" />
+                  Pro Only
+                </Button>
               ) : (
-                <Button variant="outline" disabled>
-                  <Lock className="h-3.5 w-3.5 mr-1" />
-                  Not Owned
+                <Button
+                  onClick={() => {
+                    handlePurchase(previewItem)
+                    setPreviewItem(null)
+                  }}
+                  disabled={purchasing === previewItem.id}
+                  className="bg-gradient-to-r from-violet-500 to-fuchsia-500"
+                >
+                  <ShoppingCart className="h-3.5 w-3.5 mr-1" />
+                  Buy for {previewItem.price_coins} coins
                 </Button>
               )}
             </DialogFooter>
@@ -373,12 +437,16 @@ function ItemCard({
   isOwned,
   onEquip,
   onPreview,
+  onPurchase,
+  purchasing,
 }: {
   item: CatalogItem
   isEquipped: boolean
   isOwned: boolean
   onEquip: () => void
   onPreview: () => void
+  onPurchase?: () => void
+  purchasing?: boolean
 }) {
   return (
     <Card
@@ -411,6 +479,11 @@ function ItemCard({
               Pro
             </Badge>
           )}
+          {!item.is_premium_only && item.price_coins > 0 && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20">
+              {item.price_coins} coins
+            </Badge>
+          )}
         </div>
         {isOwned && !isEquipped && (
           <Button
@@ -423,6 +496,19 @@ function ItemCard({
             }}
           >
             Equip
+          </Button>
+        )}
+        {!isOwned && onPurchase && (
+          <Button
+            size="sm"
+            className="w-full h-7 text-xs bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+            disabled={purchasing}
+            onClick={(e) => {
+              e.stopPropagation()
+              onPurchase()
+            }}
+          >
+            {purchasing ? "Buying..." : item.is_premium_only ? "Pro Only" : `Buy ${item.price_coins}`}
           </Button>
         )}
       </CardContent>
