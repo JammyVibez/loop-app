@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { createServerClient } from "@/lib/supabase"
+import { auth, authDbPool } from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
 
@@ -70,9 +71,10 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/accounts
- * Link an existing account. Body: { email, password }
- * Uses the ANON key (not service role) for the token endpoint so a full
- * session with refresh_token is returned and stored for passwordless switching.
+ * Link an existing account using Better Auth sign-in.
+ * Body: { email, password }
+ * Creates a Better Auth session for the target user and stores the session token
+ * so switching later is passwordless.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -117,32 +119,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-
-    if (!anonKey || !supabaseUrl) {
-      return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
-    }
-
-    // Use the ANON key for auth token endpoint — this returns a full session
-    // with access_token and refresh_token (service role key does not)
-    const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: anonKey,
+    // Use Better Auth to sign in as the target user and get a session token
+    const authRes = await auth.api.signInEmail({
+      body: {
+        email: targetEmail,
+        password: targetPassword,
       },
-      body: JSON.stringify({ email: targetEmail, password: targetPassword }),
+      asResponse: true,
+      headers: request.headers,
     })
 
-    const authData = await authRes.json()
-
-    if (!authRes.ok || !authData?.user?.id) {
-      return NextResponse.json({ error: "Invalid credentials for the target account" }, { status: 400 })
+    if (!authRes.ok) {
+      const errData = await authRes.json().catch(() => ({}))
+      return NextResponse.json({ error: errData.message || "Invalid credentials for the target account" }, { status: 400 })
     }
 
-    const targetUserId = authData.user.id
-    const refreshToken = authData.session?.refresh_token
+    const authData = await authRes.json()
+    const targetUserId = authData.user?.id || authData.session?.user?.id
+    const sessionToken = authData.token || authData.session?.token || authData.session?.id
+
+    if (!targetUserId) {
+      return NextResponse.json({ error: "Could not authenticate target account" }, { status: 400 })
+    }
 
     if (targetUserId === user.id) {
       return NextResponse.json({ error: "Cannot link your own account" }, { status: 400 })
@@ -174,14 +172,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Store the refresh_token for passwordless switching later
+    // Store the Better Auth session token for passwordless switching later
     const insertPayload: Record<string, any> = {
       owner_id: user.id,
       linked_user_id: targetUserId,
       created_at: new Date().toISOString(),
     }
-    if (refreshToken) {
-      insertPayload.refresh_token = refreshToken
+    if (sessionToken) {
+      insertPayload.refresh_token = sessionToken
     }
 
     const { data: link, error: insertError } = await supabase
@@ -204,7 +202,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       account: { ...targetProfile, is_primary: false, link_id: link.id },
-      has_session: Boolean(refreshToken),
+      has_session: Boolean(sessionToken),
     })
   } catch (error: any) {
     console.error("POST /api/accounts error:", error)

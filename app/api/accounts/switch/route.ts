@@ -1,12 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { createServerClient } from "@/lib/supabase"
+import { authDbPool } from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
 
 /**
  * POST /api/accounts/switch
- * Switch to a linked account using stored refresh token (no password needed).
+ * Switch to a linked account using the stored Better Auth session token.
+ * No password needed — the token is created when the account was first linked.
  * Body: { user_id: string }
  */
 export async function POST(request: NextRequest) {
@@ -24,34 +26,50 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient()
     const isPrimary = targetUserId === user.id
 
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    if (!anonKey || !supabaseUrl) {
-      return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
-    }
-
-    let refreshToken: string | null = null
+    let storedToken: string | null = null
 
     if (isPrimary) {
-      // Switching back to primary — look for the refresh token stored
-      // when any linked account was added (the back-link stores it)
-      const { data: backLink } = await supabase
-        .from("linked_accounts")
-        .select("refresh_token")
-        .eq("linked_user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      refreshToken = (backLink as any)?.refresh_token || null
-
-      if (!refreshToken) {
+      // Switching back to primary — we need to find the primary user's current session.
+      // The simplest approach: verify the current user's own Better Auth session is still
+      // valid and return it. If not, they need to log in again.
+      const currentToken = request.headers.get("authorization")?.replace("Bearer ", "")
+      if (!currentToken) {
         return NextResponse.json(
-          { error: "No stored session for primary account. Please log out and log back in." },
+          { error: "No active session. Please log out and log back in." },
           { status: 400 }
         )
       }
+
+      // Verify the current session token is valid
+      const sessionRes = await authDbPool.query(
+        'SELECT s.token, s."userId" FROM "session" s WHERE s.token = $1 AND s."expiresAt" > NOW() LIMIT 1;',
+        [currentToken]
+      )
+
+      if (sessionRes.rows.length === 0) {
+        return NextResponse.json(
+          { error: "Your session has expired. Please log out and log back in." },
+          { status: 400 }
+        )
+      }
+
+      // Session is valid — the client already has this token, but let's return
+      // the profile so the UI can update
+      const { data: primaryProfile } = await supabase
+        .from("profiles")
+        .select("id, username, display_name, avatar_url, video_avatar_url, is_premium, is_verified")
+        .eq("id", user.id)
+        .maybeSingle()
+
+      return NextResponse.json({
+        success: true,
+        session: {
+          token: currentToken,
+        },
+        profile: primaryProfile,
+      })
     } else {
-      // Switching to a linked account — use the stored refresh token
+      // Switching to a linked account — look up the stored Better Auth session token
       const { data: link } = await supabase
         .from("linked_accounts")
         .select("id, refresh_token")
@@ -63,66 +81,50 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Account not linked" }, { status: 403 })
       }
 
-      refreshToken = (link as any)?.refresh_token || null
-      if (!refreshToken) {
+      storedToken = (link as any)?.refresh_token || null
+
+      if (!storedToken) {
         return NextResponse.json(
           { error: "No stored session for this account. Please unlink and re-add it." },
           { status: 400 }
         )
       }
-    }
 
-    // Use the refresh token with the ANON key (not service role) to get a new session
-    const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=refresh_token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: anonKey,
-      },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    })
-
-    const authData = await authRes.json()
-
-    if (!authRes.ok || !authData?.session) {
-      // Token expired — try re-linking hint
-      return NextResponse.json(
-        { error: "Session expired. Please unlink this account and add it again." },
-        { status: 400 }
+      // Verify the stored token is still valid in Better Auth's session table
+      const sessionRes = await authDbPool.query(
+        'SELECT s.token, s."userId" FROM "session" s WHERE s.token = $1 AND s."expiresAt" > NOW() LIMIT 1;',
+        [storedToken]
       )
+
+      if (sessionRes.rows.length === 0) {
+        // Token expired — the user needs to re-link. Clear the stale token.
+        await supabase
+          .from("linked_accounts")
+          .update({ refresh_token: null })
+          .eq("owner_id", user.id)
+          .eq("linked_user_id", targetUserId)
+
+        return NextResponse.json(
+          { error: "Session expired. Please unlink this account and add it again." },
+          { status: 400 }
+        )
+      }
+
+      // Token is valid — return it so the client can use it
+      const { data: targetProfile } = await supabase
+        .from("profiles")
+        .select("id, username, display_name, avatar_url, video_avatar_url, is_premium, is_verified")
+        .eq("id", targetUserId)
+        .maybeSingle()
+
+      return NextResponse.json({
+        success: true,
+        session: {
+          token: storedToken,
+        },
+        profile: targetProfile,
+      })
     }
-
-    // Update the stored refresh token with the new one (refresh tokens rotate)
-    if (!isPrimary) {
-      await supabase
-        .from("linked_accounts")
-        .update({ refresh_token: authData.session.refresh_token })
-        .eq("owner_id", user.id)
-        .eq("linked_user_id", targetUserId)
-    } else {
-      // Update all back-links with the new primary refresh token
-      await supabase
-        .from("linked_accounts")
-        .update({ refresh_token: authData.session.refresh_token })
-        .eq("linked_user_id", user.id)
-    }
-
-    // Get the target profile
-    const { data: targetProfile } = await supabase
-      .from("profiles")
-      .select("id, username, display_name, avatar_url, video_avatar_url, is_premium, is_verified")
-      .eq("id", isPrimary ? user.id : targetUserId)
-      .maybeSingle()
-
-    return NextResponse.json({
-      success: true,
-      session: {
-        access_token: authData.session.access_token,
-        refresh_token: authData.session.refresh_token,
-        expires_at: authData.session.expires_at,
-      },
-      profile: targetProfile,
-    })
   } catch (error: any) {
     console.error("POST /api/accounts/switch error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

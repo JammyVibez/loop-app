@@ -6,7 +6,6 @@ import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -52,7 +51,7 @@ interface AccountSwitcherProps {
 }
 
 export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) {
-  const { user, getAuthHeader, signOut } = useAuth()
+  const { user, getAuthHeader, refreshUser } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
 
@@ -129,13 +128,16 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
         body: JSON.stringify({ user_id: account.id }),
       })
       const data = await res.json()
-      if (data.success && data.session) {
-        // Store the session and reload — the auth provider will pick up the new session
+      if (data.success && data.session?.token) {
+        // Store the Better Auth session token for the auth hook to pick up
         if (typeof window !== "undefined") {
-          localStorage.setItem("loop-switch-session", JSON.stringify(data.session))
+          localStorage.setItem("better-auth.session-token", data.session.token)
         }
+        // Also set a cookie that Better Auth's server-side session getter can read
+        document.cookie = `better-auth.session-token=${data.session.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
 
         toast({ title: "Switched!", description: `Now using ${account.display_name || account.username}` })
+        // Full page reload to reinitialize auth state with the new session
         window.location.href = "/"
       } else {
         toast({ title: "Switch failed", description: data.error || "Could not switch account", variant: "destructive" })
