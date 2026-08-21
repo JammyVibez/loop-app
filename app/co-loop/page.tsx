@@ -309,12 +309,7 @@ export default function CoLoopSessionsPage() {
                               {session.co_authors.slice(0, 4).map((ca) => {
                                 const profile = ca.profiles
                                 return (
-                                  <Avatar key={ca.user_id} className="h-5 w-5 ring-2 ring-background">
-                                    <AvatarImage src={profile?.avatar_url} />
-                                    <AvatarFallback className="text-[8px] bg-gradient-to-br from-cyan-600 to-indigo-600 text-white">
-                                      {(profile?.display_name || "?")[0].toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
+                                  <VideoAvatar key={ca.user_id} src={profile?.avatar_url} videoSrc={(profile as any)?.video_avatar_url} isPremium={(profile as any)?.is_premium} fallback={(profile?.display_name || "?")[0].toUpperCase()} size="sm" className="h-5 w-5 ring-2 ring-background rounded-full" />
                                 )
                               })}
                             </div>

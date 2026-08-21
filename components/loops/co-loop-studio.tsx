@@ -1394,12 +1394,14 @@ export function CoLoopStudio() {
                       }`}
                       style={{ backgroundColor: userTyping ? "#22d3ee" : orbColor }}
                     />
-                    <Avatar className="relative h-14 w-14 sm:h-16 sm:w-16 border-2 border-white/20 ring-4 ring-cyan-500/50 shadow-2xl">
-                      <AvatarImage src={participant.avatar_url || undefined} />
-                      <AvatarFallback className="bg-gradient-to-tr from-cyan-600 via-indigo-600 to-purple-600 text-white font-black text-lg">
-                        {participant.display_name?.charAt(0) || "C"}
-                      </AvatarFallback>
-                    </Avatar>
+                    <VideoAvatar
+                      src={participant.avatar_url}
+                      videoSrc={(participant as any).video_avatar_url}
+                      isPremium={(participant as any).is_premium}
+                      fallback={participant.display_name?.charAt(0) || "C"}
+                      size="lg"
+                      className="relative h-14 w-14 sm:h-16 sm:w-16 border-2 border-white/20 ring-4 ring-cyan-500/50 shadow-2xl rounded-full shrink-0"
+                    />
 
                     {/* Role / Crown Badge */}
                     {participant.isCreator ? (
@@ -1770,12 +1772,7 @@ export function CoLoopStudio() {
                         key={msg.id}
                         className={`flex gap-2 text-xs ${isMe ? "flex-row-reverse" : "flex-row"}`}
                       >
-                        <Avatar className="h-7 w-7 border border-cyan-500/30 shrink-0">
-                          <AvatarImage src={msg.sender_avatar} />
-                          <AvatarFallback className="bg-cyan-600 text-white font-bold text-xs">
-                            {msg.sender_name.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
+                        <VideoAvatar src={msg.sender_avatar} videoSrc={(msg as any).sender_video_avatar_url} isPremium={(msg as any).sender_is_premium} fallback={msg.sender_name.charAt(0)} size="sm" className="h-7 w-7 border border-cyan-500/30 shrink-0 rounded-full" />
                         <div
                           className={`rounded-2xl px-3.5 py-2 max-w-[85%] shadow-md ${
                             isMe
@@ -1912,12 +1909,7 @@ export function CoLoopStudio() {
                     key={msg.id}
                     className={`flex gap-2 text-xs ${isMe ? "flex-row-reverse" : "flex-row"}`}
                   >
-                    <Avatar className="h-7 w-7 border border-cyan-500/30">
-                      <AvatarImage src={msg.sender_avatar} />
-                      <AvatarFallback className="bg-cyan-600 text-white font-bold text-xs">
-                        {msg.sender_name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <VideoAvatar src={msg.sender_avatar} videoSrc={(msg as any).sender_video_avatar_url} isPremium={(msg as any).sender_is_premium} fallback={msg.sender_name.charAt(0)} size="sm" className="h-7 w-7 border border-cyan-500/30 rounded-full" />
                     <div
                       className={`rounded-2xl px-3.5 py-2.5 max-w-[82%] shadow-md ${
                         isMe
@@ -1991,15 +1983,9 @@ export function CoLoopStudio() {
             <div className="rounded-2xl border border-cyan-500/30 bg-muted/80 dark:bg-slate-900/80 p-3.5 space-y-2">
               <p className="text-xs font-bold uppercase tracking-wider text-cyan-300">Official Co-Authors</p>
               <div className="flex items-center -space-x-3 overflow-hidden py-1">
-                <Avatar className="h-9 w-9 ring-2 ring-cyan-400">
-                  <AvatarImage src={user.avatar_url} />
-                  <AvatarFallback className="bg-cyan-600 font-bold">{user.username?.charAt(0)}</AvatarFallback>
-                </Avatar>
+                <VideoAvatar src={user.avatar_url} videoSrc={(user as any).video_avatar_url} isPremium={(user as any).is_premium} fallback={user.username?.charAt(0)} size="sm" className="h-9 w-9 ring-2 ring-cyan-400 rounded-full" />
                 {coAuthors.map((ca) => (
-                  <Avatar key={ca.id} className="h-9 w-9 ring-2 ring-purple-500">
-                    <AvatarImage src={ca.avatar_url} />
-                    <AvatarFallback className="bg-purple-600 font-bold">{ca.display_name?.charAt(0)}</AvatarFallback>
-                  </Avatar>
+                  <VideoAvatar key={ca.id} src={ca.avatar_url} videoSrc={(ca as any).video_avatar_url} isPremium={(ca as any).is_premium} fallback={ca.display_name?.charAt(0)} size="sm" className="h-9 w-9 ring-2 ring-purple-500 rounded-full" />
                 ))}
               </div>
             </div>
@@ -2115,10 +2101,7 @@ export function CoLoopStudio() {
                           className="flex items-center justify-between p-2 hover:bg-cyan-500/10 rounded-lg text-xs"
                         >
                           <div className="flex items-center gap-2">
-                            <Avatar className="h-7 w-7">
-                              <AvatarImage src={u.avatar_url} />
-                              <AvatarFallback>{u.username?.charAt(0)}</AvatarFallback>
-                            </Avatar>
+                            <VideoAvatar src={u.avatar_url} videoSrc={u.video_avatar_url} isPremium={u.is_premium} fallback={u.username?.charAt(0)} size="sm" className="h-7 w-7 rounded-full" />
                             <div>
                               <p className="font-bold">{u.display_name || u.username}</p>
                               <p className="text-[10px] text-muted-foreground dark:text-slate-400">@{u.username}</p>
