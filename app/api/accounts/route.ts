@@ -69,12 +69,26 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/** Extract the raw session token value from a Set-Cookie header string */
+function extractTokenFromCookie(setCookie: string): string | null {
+  // Cookie format: better-auth.session_token=<token>; Path=/; ...
+  // Handle multiple cookies in one Set-Cookie header (comma-separated)
+  const cookies = setCookie.split(/,(?=\s*\w+=)/)
+  for (const c of cookies) {
+    if (c.includes("better-auth.session_token")) {
+      const match = c.match(/better-auth\.session_token=([^;]+)/)
+      if (match) return match[1].trim()
+    }
+  }
+  return null
+}
+
 /**
  * POST /api/accounts
  * Link an existing account using Better Auth sign-in.
  * Body: { email, password }
- * Creates a Better Auth session for the target user and stores the session token
- * so switching later is passwordless.
+ * Creates a Better Auth session via signInEmail and stores the raw
+ * session token (unhashed) for passwordless switching later.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -119,7 +133,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Use Better Auth to sign in as the target user and get a session token
+    // Use Better Auth to sign in as the target user.
+    // This creates a proper session with a properly hashed token.
     const authRes = await auth.api.signInEmail({
       body: {
         email: targetEmail,
@@ -136,7 +151,6 @@ export async function POST(request: NextRequest) {
 
     const authData = await authRes.json()
     const targetUserId = authData.user?.id || authData.session?.user?.id
-    const sessionToken = authData.token || authData.session?.token || authData.session?.id
 
     if (!targetUserId) {
       return NextResponse.json({ error: "Could not authenticate target account" }, { status: 400 })
@@ -144,6 +158,16 @@ export async function POST(request: NextRequest) {
 
     if (targetUserId === user.id) {
       return NextResponse.json({ error: "Cannot link your own account" }, { status: 400 })
+    }
+
+    // Extract the raw session token from the Set-Cookie header
+    // This is the UNHASHED token that Better Auth will look up by hashing
+    const setCookieHeader = authRes.headers.get("set-cookie") || ""
+    const rawToken = extractTokenFromCookie(setCookieHeader)
+
+    if (!rawToken) {
+      console.error("Could not extract session token from auth response cookies")
+      return NextResponse.json({ error: "Failed to create session for target account" }, { status: 500 })
     }
 
     // Check if already linked
@@ -172,19 +196,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Store the Better Auth session token for passwordless switching later
-    const insertPayload: Record<string, any> = {
-      owner_id: user.id,
-      linked_user_id: targetUserId,
-      created_at: new Date().toISOString(),
-    }
-    if (sessionToken) {
-      insertPayload.refresh_token = sessionToken
-    }
-
+    // Store the raw (unhashed) session token for passwordless switching
     const { data: link, error: insertError } = await supabase
       .from("linked_accounts")
-      .insert(insertPayload)
+      .insert({
+        owner_id: user.id,
+        linked_user_id: targetUserId,
+        refresh_token: rawToken,
+        created_at: new Date().toISOString(),
+      })
       .select("id, linked_user_id")
       .single()
 
@@ -202,7 +222,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       account: { ...targetProfile, is_primary: false, link_id: link.id },
-      has_session: Boolean(sessionToken),
+      has_session: true,
     })
   } catch (error: any) {
     console.error("POST /api/accounts error:", error)
