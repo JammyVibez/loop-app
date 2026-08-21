@@ -122,10 +122,12 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
 
     setSwitching(account.id)
     try {
+      // Determine if this is a switch to primary or to a linked account
+      const targetId = !account.link_id ? "primary" : account.id
       const res = await fetch("/api/accounts/switch", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ user_id: account.id }),
+        body: JSON.stringify({ targetUserId: targetId }),
       })
       const data = await res.json()
       if (data.success) {

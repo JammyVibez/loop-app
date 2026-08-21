@@ -4,13 +4,16 @@ import { createClient } from '@supabase/supabase-js';
 
 /**
  * POST /api/accounts/switch
- * Switch to a linked account by replaying the stored Set-Cookie header.
+ * Switch to a linked account by setting the stored raw session token as a cookie.
  * Body: { targetUserId: string }
  * When targetUserId === "primary", switches back to the primary account.
+ *
+ * The raw token is the value Better Auth puts in the session cookie.
+ * When we set it as the cookie, Better Auth's API/middleware will hash it
+ * and look it up in the session table — finding the existing session row.
  */
 export async function POST(req: NextRequest) {
   try {
-    // Use getUserFromRequest which reads the session via Better Auth's API
     const user = await getUserFromRequest(req);
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -19,16 +22,19 @@ export async function POST(req: NextRequest) {
     const currentUserId = user.id;
     const { targetUserId } = await req.json();
 
-    // Use service-role client to bypass RLS — linked_accounts rows are owned
-    // by the primary user, so the linked user can't read them via normal client.
+    if (!targetUserId) {
+      return NextResponse.json({ error: 'targetUserId is required' }, { status: 400 });
+    }
+
+    // Use service-role client to bypass RLS on linked_accounts
     const admin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // If switching back to primary, restore primary's stored session
     if (targetUserId === 'primary') {
-      // Find the link where current user is the linked user (owner_id is the primary)
+      // === SWITCH BACK TO PRIMARY ===
+      // Find the link where current user is the linked user
       const { data: link, error: linkError } = await admin
         .from('linked_accounts')
         .select('primary_session, owner_id')
@@ -37,15 +43,16 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (linkError || !link) {
-        console.error('Switch to primary - link query error:', linkError);
+        console.error('Switch to primary - not found:', linkError);
         return NextResponse.json({ error: 'No linked account found' }, { status: 404 });
       }
 
-      const primaryCookieHeader = link.primary_session;
-      const primaryUserId = link.owner_id;
-
-      if (!primaryCookieHeader) {
-        return NextResponse.json({ error: 'Primary session cookie not stored. Please unlink and re-add.' }, { status: 400 });
+      const primaryToken = link.primary_session;
+      if (!primaryToken) {
+        return NextResponse.json(
+          { error: 'Primary session not stored. Please unlink and re-link this account.' },
+          { status: 400 }
+        );
       }
 
       // Update last_used_at
@@ -54,23 +61,26 @@ export async function POST(req: NextRequest) {
         .update({ last_used_at: new Date().toISOString() })
         .eq('linked_user_id', currentUserId);
 
-      // Return the stored Set-Cookie header to restore primary session
+      // Build response with fresh cookie
       const response = NextResponse.json({
         success: true,
-        userId: primaryUserId,
-        cookieHeader: primaryCookieHeader,
+        userId: link.owner_id,
       });
 
-      // Forward each cookie from the stored header
-      const cookies = primaryCookieHeader.split(',').map((c: string) => c.trim());
-      for (const cookie of cookies) {
-        response.headers.append('Set-Cookie', cookie);
-      }
+      // Set the primary user's raw token as a fresh cookie
+      response.cookies.set('better-auth.session_token', primaryToken, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+        // Don't set secure in dev (localhost)
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+      });
 
       return response;
     }
 
-    // Normal switch to linked account
+    // === SWITCH TO LINKED ACCOUNT ===
     const { data: linkCheck, error: checkError } = await admin
       .from('linked_accounts')
       .select('refresh_token, primary_session')
@@ -80,24 +90,26 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (checkError || !linkCheck) {
-      console.error('Switch to linked - link query error:', checkError);
+      console.error('Switch to linked - not found:', checkError);
       return NextResponse.json({ error: 'Account not linked' }, { status: 404 });
     }
 
-    const linkedSetCookie = linkCheck.refresh_token;
-    if (!linkedSetCookie) {
-      return NextResponse.json({ error: 'No session stored for this account. Please unlink and re-add.' }, { status: 400 });
+    const linkedToken = linkCheck.refresh_token;
+    if (!linkedToken) {
+      return NextResponse.json(
+        { error: 'No session stored for this account. Please unlink and re-link.' },
+        { status: 400 }
+      );
     }
 
-    // If the primary user's session cookie hasn't been stored yet, store it now
+    // If the primary user's token hasn't been stored yet, store it now
     if (!linkCheck.primary_session) {
-      // Get the raw token from the cookie for constructing the header
-      const rawToken = extractTokenFromCookie(req.headers.get('cookie') || '');
-      if (rawToken) {
-        const baCookieHeader = `better-auth.session_token=${rawToken}; Path=/; HttpOnly; SameSite=Lax`;
+      const reqCookie = req.headers.get('cookie') || '';
+      const cookieMatch = reqCookie.match(/better-auth\.session_token=([^;]+)/);
+      if (cookieMatch) {
         await admin
           .from('linked_accounts')
-          .update({ primary_session: baCookieHeader })
+          .update({ primary_session: cookieMatch[1] })
           .eq('owner_id', currentUserId)
           .eq('linked_user_id', targetUserId);
       }
@@ -110,29 +122,24 @@ export async function POST(req: NextRequest) {
       .eq('owner_id', currentUserId)
       .eq('linked_user_id', targetUserId);
 
-    // Return the stored Set-Cookie header for the linked account
+    // Build response with fresh cookie
     const response = NextResponse.json({
       success: true,
       userId: targetUserId,
-      cookieHeader: linkedSetCookie,
     });
 
-    // Forward each cookie from the stored header
-    const cookies = linkedSetCookie.split(',').map((c: string) => c.trim());
-    for (const cookie of cookies) {
-      response.headers.append('Set-Cookie', cookie);
-    }
+    // Set the linked user's raw token as a fresh cookie
+    response.cookies.set('better-auth.session_token', linkedToken, {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    });
 
     return response;
   } catch (error: any) {
     console.error('Account switch error:', error);
     return NextResponse.json({ error: error.message || 'Failed to switch account' }, { status: 500 });
   }
-}
-
-/** Extract the better-auth session token value from the raw Cookie header */
-function extractTokenFromCookie(cookieHeader: string): string | null {
-  if (!cookieHeader) return null;
-  const match = cookieHeader.match(/better-auth\.session_token=([^;]+)/);
-  return match ? match[1] : null;
 }

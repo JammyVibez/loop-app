@@ -1,9 +1,33 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { createServerClient } from "@/lib/supabase"
+import { createClient } from "@supabase/supabase-js"
 import { auth } from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
+
+// Use service-role client to bypass RLS for linked_accounts queries
+function getAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
+
+/**
+ * Extract the raw session token value from a Set-Cookie header string.
+ * Better Auth sets: better-auth.session_token=<token>; Path=/; ...
+ * We need just the <token> value.
+ */
+function extractRawToken(setCookieHeader: string): string | null {
+  if (!setCookieHeader) return null
+  // Could be multiple Set-Cookie lines joined by commas
+  const lines = setCookieHeader.split(/,\s*(?=better-auth)/)
+  for (const line of lines) {
+    const match = line.match(/better-auth\.session_token=([^;]+)/)
+    if (match) return match[1].trim()
+  }
+  return null
+}
 
 /**
  * GET /api/accounts
@@ -14,18 +38,30 @@ export async function GET(request: NextRequest) {
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const supabase = createServerClient()
+    const admin = getAdminClient()
 
-    const { data: primaryProfile } = await supabase
-      .from("profiles")
-      .select("id, username, display_name, avatar_url, video_avatar_url, is_premium, is_verified")
-      .eq("id", user.id)
+    // Check if current user is a linked user (not the owner)
+    const { data: asLinked } = await admin
+      .from("linked_accounts")
+      .select("id, owner_id, created_at")
+      .eq("linked_user_id", user.id)
+      .limit(1)
       .maybeSingle()
 
-    const { data: links, error: linkError } = await supabase
+    const isLinkedUser = Boolean(asLinked)
+    const ownerId = isLinkedUser ? asLinked!.owner_id : user.id
+
+    const { data: primaryProfile } = await admin
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, video_avatar_url, is_premium, is_verified")
+      .eq("id", ownerId)
+      .maybeSingle()
+
+    // Query all links for this owner
+    const { data: links, error: linkError } = await admin
       .from("linked_accounts")
       .select("id, linked_user_id, created_at")
-      .eq("owner_id", user.id)
+      .eq("owner_id", ownerId)
       .order("created_at", { ascending: true })
 
     if (linkError && linkError.code === "42P01") {
@@ -41,7 +77,7 @@ export async function GET(request: NextRequest) {
     let linkedProfiles: any[] = []
 
     if (linkedIds.length > 0) {
-      const { data } = await supabase
+      const { data } = await admin
         .from("profiles")
         .select("id, username, display_name, avatar_url, video_avatar_url, is_premium, is_verified")
         .in("id", linkedIds)
@@ -57,11 +93,17 @@ export async function GET(request: NextRequest) {
       })),
     ]
 
+    // Mark the currently active account (the one being used right now)
+    const activeAccounts = accounts.map((a) => ({
+      ...a,
+      is_primary: a.id === user.id, // The currently logged-in account is "active"
+    }))
+
     return NextResponse.json({
       success: true,
-      accounts,
+      accounts: activeAccounts,
       max_accounts: (primaryProfile as any)?.is_premium ? 10 : 2,
-      current_count: accounts.length,
+      current_count: activeAccounts.length,
     })
   } catch (error: any) {
     console.error("GET /api/accounts error:", error)
@@ -69,26 +111,14 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** Extract the Better Auth session cookie value from the raw Cookie header */
-function extractSessionCookie(cookieHeader: string): string | null {
-  if (!cookieHeader) return null
-  // Match better-auth.session_token=... or any cookie containing "better-auth"
-  const cookies = cookieHeader.split(/;\s*/)
-  for (const c of cookies) {
-    if (c.trim().startsWith("better-auth.session_token=")) {
-      return c.trim()
-    }
-  }
-  return null
-}
-
 /**
  * POST /api/accounts
  * Link an existing account using Better Auth sign-in.
  * Body: { email, password }
- * Stores both:
- * - The linked user's session Set-Cookie (for switching TO them)
- * - The primary user's current session cookie (for switching BACK)
+ *
+ * Stores raw session tokens for both accounts so switching is one-click:
+ * - refresh_token: linked user's raw session token (for switching TO them)
+ * - primary_session: primary user's raw session token (for switching BACK)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -103,16 +133,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email and password required" }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const admin = getAdminClient()
 
     // Check how many accounts the user already has linked
-    const { data: existingLinks } = await supabase
+    const { data: existingLinks } = await admin
       .from("linked_accounts")
       .select("id")
       .eq("owner_id", user.id)
 
     // Get profile to check premium status
-    const { data: profile } = await supabase
+    const { data: profile } = await admin
       .from("profiles")
       .select("is_premium")
       .eq("id", user.id)
@@ -133,7 +163,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Use Better Auth to sign in as the target user.
+    // Use Better Auth to sign in as the target user to create a session
     const authRes = await auth.api.signInEmail({
       body: {
         email: targetEmail,
@@ -159,22 +189,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Cannot link your own account" }, { status: 400 })
     }
 
-    // Extract the linked user's Set-Cookie header from the signInEmail response
+    // Extract the raw session token from the linked user's signInEmail response
     const linkedSetCookie = authRes.headers.get("set-cookie") || ""
-    if (!linkedSetCookie) {
+    const linkedRawToken = extractRawToken(linkedSetCookie)
+    if (!linkedRawToken) {
       return NextResponse.json({ error: "Failed to create session for target account" }, { status: 500 })
     }
 
-    // Extract the primary user's current session cookie from the request
-    // Store it as a full Set-Cookie header format for proper replay during switch-back
+    // Extract the primary user's raw session token from the request cookie
     const rawCookieHeader = request.headers.get("cookie") || ""
-    const primarySessionCookie = extractSessionCookie(rawCookieHeader)
-    const primarySetCookieHeader = primarySessionCookie
-      ? `${primarySessionCookie}; Path=/; HttpOnly; SameSite=Lax`
-      : ""
+    const cookieMatch = rawCookieHeader.match(/better-auth\.session_token=([^;]+)/)
+    const primaryRawToken = cookieMatch ? cookieMatch[1] : ""
 
     // Check if already linked
-    const { data: alreadyLinked } = await supabase
+    const { data: alreadyLinked } = await admin
       .from("linked_accounts")
       .select("id")
       .eq("owner_id", user.id)
@@ -186,7 +214,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if target is already an owner
-    const { data: targetAsOwner } = await supabase
+    const { data: targetAsOwner } = await admin
       .from("linked_accounts")
       .select("id")
       .eq("owner_id", targetUserId)
@@ -199,16 +227,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Store both session cookies:
-    // - refresh_token: linked user's Set-Cookie (for switching TO them)
-    // - primary_session: primary user's cookie (for switching BACK)
-    const { data: link, error: insertError } = await supabase
+    // Store raw session tokens (not full Set-Cookie headers)
+    const { data: link, error: insertError } = await admin
       .from("linked_accounts")
       .insert({
         owner_id: user.id,
         linked_user_id: targetUserId,
-        refresh_token: linkedSetCookie,
-        primary_session: primarySetCookieHeader || "",
+        refresh_token: linkedRawToken,
+        primary_session: primaryRawToken,
         created_at: new Date().toISOString(),
       })
       .select("id, linked_user_id")
@@ -219,7 +245,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to link account" }, { status: 500 })
     }
 
-    const { data: targetProfile } = await supabase
+    const { data: targetProfile } = await admin
       .from("profiles")
       .select("id, username, display_name, avatar_url, video_avatar_url, is_premium, is_verified")
       .eq("id", targetUserId)
@@ -252,9 +278,9 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "link_id or linked_user_id required" }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const admin = getAdminClient()
 
-    let query = supabase.from("linked_accounts").delete().eq("owner_id", user.id)
+    let query = admin.from("linked_accounts").delete().eq("owner_id", user.id)
 
     if (link_id) {
       query = query.eq("id", link_id)
