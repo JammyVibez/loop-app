@@ -128,14 +128,9 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
         body: JSON.stringify({ user_id: account.id }),
       })
       const data = await res.json()
-      if (data.success && data.session?.token) {
-        // Store the Better Auth session token for the auth hook to pick up
-        if (typeof window !== "undefined") {
-          localStorage.setItem("better-auth.session-token", data.session.token)
-        }
-        // Also set a cookie that Better Auth's server-side session getter can read
-        document.cookie = `better-auth.session-token=${data.session.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
-
+      if (data.success) {
+        // The Set-Cookie header from the response sets the Better Auth session cookie.
+        // No need to manually set cookies — the browser applies them automatically.
         toast({ title: "Switched!", description: `Now using ${account.display_name || account.username}` })
         // Full page reload to reinitialize auth state with the new session
         window.location.href = "/"
