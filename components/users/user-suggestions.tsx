@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
@@ -15,6 +15,7 @@ interface Suggestion {
   username: string
   display_name: string
   avatar_url?: string
+  video_avatar_url?: string | null
   is_verified?: boolean
   is_team_member?: boolean
   is_sponsor?: boolean
@@ -109,10 +110,13 @@ export function UserSuggestions({
           {suggestions.map((person) => (
             <div key={person.id} className="flex items-center justify-between gap-3">
               <Link href={`/profile/${person.username}`} className="flex min-w-0 flex-1 items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={person.avatar_url || "/placeholder.svg"} />
-                  <AvatarFallback>{person.display_name?.charAt(0) || "?"}</AvatarFallback>
-                </Avatar>
+                <VideoAvatar
+                  src={person.avatar_url}
+                  videoSrc={person.video_avatar_url}
+                  alt={person.display_name}
+                  fallback={person.display_name?.charAt(0) || "?"}
+                  size="md"
+                />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
                     <p className="truncate text-sm font-medium text-foreground">{person.display_name}</p>

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Rocket, Zap, Coins, Flame, ChevronRight, User } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Button } from "@/components/ui/button"
 import { BoostLoopDialog } from "@/components/loops/boost-loop-dialog"
 
@@ -79,12 +80,13 @@ export function TrendingBoostShelf({ limit = 6 }: TrendingBoostShelfProps) {
                 {/* Header info */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <Avatar className="h-6 w-6 border border-cyan-400/40">
-                      <AvatarImage src={author.avatar_url || ""} />
-                      <AvatarFallback className="bg-cyan-950 text-[10px] text-cyan-300">
-                        {author.display_name?.[0] || author.username?.[0] || "U"}
-                      </AvatarFallback>
-                    </Avatar>
+                    <VideoAvatar
+                      src={author.avatar_url}
+                      videoSrc={(author as any).video_avatar_url}
+                      alt={author.display_name || author.username}
+                      fallback={author.display_name?.[0] || author.username?.[0] || "U"}
+                      size="sm"
+                    />
                     <span className="text-xs font-semibold text-slate-200 truncate max-w-[110px]">
                       {author.display_name || author.username || "User"}
                     </span>

@@ -24,6 +24,7 @@ import {
   Zap,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -409,10 +410,13 @@ export function SlackCircleWorkspace({ circleId }: { circleId: string }) {
                 className="flex items-center gap-2 rounded-md px-2 py-1 text-[12px] text-white/75 hover:bg-white/10 hover:text-white"
               >
                 <span className="relative shrink-0">
-                  <Avatar className="h-5 w-5">
-                    <AvatarImage src={u?.avatar_url || undefined} />
-                    <AvatarFallback className="bg-white/15 text-[9px] text-white">{name.charAt(0)}</AvatarFallback>
-                  </Avatar>
+                  <VideoAvatar
+                    src={u?.avatar_url}
+                    videoSrc={(u as any)?.video_avatar_url}
+                    alt={name}
+                    fallback={name.charAt(0)}
+                    size="sm"
+                  />
                   <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-[#1f2023] bg-emerald-400" />
                 </span>
                 <span className="min-w-0 flex-1 truncate">{name}</span>
@@ -429,10 +433,13 @@ export function SlackCircleWorkspace({ circleId }: { circleId: string }) {
       {/* Current user */}
       {user && (
         <div className="flex items-center gap-2 border-t border-white/10 px-3 py-2.5">
-          <Avatar className="h-6 w-6">
-            <AvatarImage src={user.avatar_url} />
-            <AvatarFallback className="bg-white/15 text-[10px] text-white">{(user.display_name || "U")[0]}</AvatarFallback>
-          </Avatar>
+          <VideoAvatar
+            src={user.avatar_url}
+            videoSrc={(user as any)?.video_avatar_url}
+            alt={user.display_name}
+            fallback={(user.display_name || "U")[0]}
+            size="sm"
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[12px] font-semibold text-white">{user.display_name}</p>
             <p className="truncate text-[10px] text-white/50">Pro member</p>
@@ -592,10 +599,13 @@ export function SlackCircleWorkspace({ circleId }: { circleId: string }) {
                   href={`/profile/${u?.username || ""}`}
                   className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-muted"
                 >
-                  <Avatar className="h-7 w-7">
-                    <AvatarImage src={u?.avatar_url || undefined} />
-                    <AvatarFallback>{name.charAt(0)}</AvatarFallback>
-                  </Avatar>
+                  <VideoAvatar
+                    src={u?.avatar_url}
+                    videoSrc={(u as any)?.video_avatar_url}
+                    alt={name}
+                    fallback={name.charAt(0)}
+                    size="sm"
+                  />
                   <span className="min-w-0 flex-1 truncate">{name}</span>
                   {member.role === "owner" && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-500" />}
                   {u?.is_premium && (

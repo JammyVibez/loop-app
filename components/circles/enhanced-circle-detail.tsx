@@ -1903,10 +1903,13 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                 <Card key={member.id} className="transition-shadow hover:shadow-md">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-12 w-12 shrink-0">
-                        <AvatarImage src={member.avatar_url} alt={name} />
-                        <AvatarFallback>{name.charAt(0)}</AvatarFallback>
-                      </Avatar>
+                      <VideoAvatar
+                        src={member.avatar_url}
+                        videoSrc={(member as any).video_avatar_url}
+                        alt={name}
+                        fallback={name.charAt(0)}
+                        size="lg"
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="truncate font-semibold">{name}</span>
@@ -1965,10 +1968,13 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                         }`}>
                           {index + 1}
                         </div>
-                        <Avatar className="w-10 h-10">
-                          <AvatarImage src={member.avatar_url} alt={member.display_name || member.username} />
-                          <AvatarFallback>{(member.display_name || member.username || "?").charAt(0)}</AvatarFallback>
-                        </Avatar>
+                        <VideoAvatar
+                          src={member.avatar_url}
+                          videoSrc={(member as any).video_avatar_url}
+                          alt={member.display_name || member.username}
+                          fallback={(member.display_name || member.username || "?").charAt(0)}
+                          size="md"
+                        />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-2">
                             <span className="font-medium truncate">{member.display_name || member.username}</span>
@@ -2203,10 +2209,13 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                       return (
                         <div key={comment.id} className={isReply ? "ml-4 sm:ml-6 space-y-2.5 border-l-2 border-violet-500/20 pl-3 sm:pl-4" : "space-y-2.5"}>
                           <div className="flex gap-3">
-                            <Avatar className="h-8 w-8 shrink-0">
-                              <AvatarImage src={author?.avatar_url} />
-                              <AvatarFallback>{name.charAt(0)}</AvatarFallback>
-                            </Avatar>
+                            <VideoAvatar
+                              src={author?.avatar_url}
+                              videoSrc={(author as any)?.video_avatar_url}
+                              alt={name}
+                              fallback={name.charAt(0)}
+                              size="sm"
+                            />
                             <div className="min-w-0 flex-1">
                               <div className={isReply ? "rounded-2xl border border-violet-500/10 bg-violet-500/5 px-3 py-2" : "rounded-2xl bg-muted/50 px-3 py-2"}>
                                 <div className="mb-0.5 flex flex-wrap items-center gap-2">
