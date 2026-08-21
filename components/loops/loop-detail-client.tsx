@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import {
   Heart,
   MessageCircle,
@@ -57,6 +58,7 @@ interface LoopData {
     username: string
     displayName: string
     avatar: string
+    videoAvatarUrl?: string | null
     verified: boolean
     premium: boolean
   }
@@ -148,6 +150,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           username: loopData.author?.username || "",
           displayName: loopData.author?.display_name || "",
           avatar: loopData.author?.avatar_url || "/placeholder.svg",
+          videoAvatarUrl: loopData.author?.video_avatar_url || null,
           verified: Boolean(loopData.author?.is_verified),
           premium: Boolean(loopData.author?.is_premium),
         },
@@ -507,17 +510,25 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                   title="Click to view Co-Authors roster"
                 >
                   <div className="relative z-10">
-                    <Avatar className="h-12 w-12 ring-2 ring-cyan-500 ring-offset-2 ring-offset-background group-hover:scale-105 transition-transform">
-                      <AvatarImage src={loop.author.avatar} />
-                      <AvatarFallback>{loop.author.displayName.charAt(0)}</AvatarFallback>
-                    </Avatar>
+                    <VideoAvatar
+                      src={loop.author.avatar}
+                      videoSrc={loop.author.videoAvatarUrl}
+                      alt={loop.author.displayName}
+                      fallback={loop.author.displayName.charAt(0)}
+                      size="lg"
+                      className="ring-2 ring-cyan-500 ring-offset-2 ring-offset-background group-hover:scale-105 transition-transform"
+                    />
                   </div>
                   {loop.coAuthors.slice(0, 3).map((ca, i) => (
                     <div key={ca.id || i} className="-ml-3 relative z-[9] transition-transform group-hover:scale-105" style={{ zIndex: 8 - i }}>
-                      <Avatar className="h-12 w-12 ring-2 ring-cyan-400 ring-offset-2 ring-offset-background">
-                        <AvatarImage src={ca.avatar_url} />
-                        <AvatarFallback>{(ca.display_name || ca.username || "C").charAt(0)}</AvatarFallback>
-                      </Avatar>
+                      <VideoAvatar
+                        src={ca.avatar_url}
+                        videoSrc={(ca as any).video_avatar_url}
+                        alt={ca.display_name || ca.username}
+                        fallback={(ca.display_name || ca.username || "C").charAt(0)}
+                        size="lg"
+                        className="ring-2 ring-cyan-400 ring-offset-2 ring-offset-background"
+                      />
                     </div>
                   ))}
                   {loop.coAuthors.length > 3 && (
@@ -528,10 +539,14 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                 </div>
               ) : (
                 <Link href={`/profile/${loop.author.username}`} className="shrink-0">
-                  <Avatar className="h-12 w-12 border-2 border-cyan-500/40">
-                    <AvatarImage src={loop.author.avatar} />
-                    <AvatarFallback>{loop.author.displayName.charAt(0)}</AvatarFallback>
-                  </Avatar>
+                  <VideoAvatar
+                    src={loop.author.avatar}
+                    videoSrc={loop.author.videoAvatarUrl}
+                    alt={loop.author.displayName}
+                    fallback={loop.author.displayName.charAt(0)}
+                    size="lg"
+                    className="border-2 border-cyan-500/40"
+                  />
                 </Link>
               )}
               <div>
@@ -800,10 +815,14 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
             <div className="space-y-3 py-2">
               <div className="flex items-center justify-between rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3">
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10 ring-2 ring-cyan-500">
-                    <AvatarImage src={loop.author.avatar} />
-                    <AvatarFallback>{loop.author.displayName.charAt(0) || "A"}</AvatarFallback>
-                  </Avatar>
+                  <VideoAvatar
+                    src={loop.author.avatar}
+                    videoSrc={loop.author.videoAvatarUrl}
+                    alt={loop.author.displayName}
+                    fallback={loop.author.displayName.charAt(0) || "A"}
+                    size="md"
+                    className="ring-2 ring-cyan-500"
+                  />
                   <div>
                     <div className="flex items-center gap-1.5">
                       <p className="font-bold text-xs sm:text-sm">{loop.author.displayName}</p>
@@ -823,10 +842,14 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                   className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 p-3"
                 >
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10 ring-2 ring-purple-500">
-                      <AvatarImage src={ca.avatar_url} />
-                      <AvatarFallback>{(ca.display_name || ca.username)?.charAt(0) || "C"}</AvatarFallback>
-                    </Avatar>
+                    <VideoAvatar
+                      src={ca.avatar_url}
+                      videoSrc={(ca as any).video_avatar_url}
+                      alt={ca.display_name || ca.username}
+                      fallback={(ca.display_name || ca.username)?.charAt(0) || "C"}
+                      size="md"
+                      className="ring-2 ring-purple-500"
+                    />
                     <div>
                       <div className="flex items-center gap-1.5">
                         <p className="font-bold text-xs sm:text-sm">{ca.display_name || ca.username}</p>

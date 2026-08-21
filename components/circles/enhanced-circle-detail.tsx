@@ -1620,8 +1620,9 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                   <CardContent className="p-4 sm:p-5">
                     <div className="flex items-start gap-3">
                       <Link href={`/profile/${post.author?.username || ""}`} className="shrink-0 transition-transform hover:scale-105">
-                        <CosmeticAvatar
+                        <VideoAvatar
                           src={post.author?.avatar_url || ""}
+                          videoSrc={(post.author as any)?.video_avatar_url}
                           alt={authorName}
                           fallback={authorName.charAt(0)}
                           size="md"

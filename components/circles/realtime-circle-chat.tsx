@@ -1381,12 +1381,14 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
       {incomingCall && (
         <div className="fixed left-1/2 top-4 z-[115] w-[min(94vw,430px)] -translate-x-1/2">
           <div className="flex items-center gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur-xl">
-            <Avatar className="h-11 w-11 ring-2 ring-emerald-500/50">
-              <AvatarImage src={incomingCall.avatarUrl} />
-              <AvatarFallback className="bg-gradient-to-br from-violet-600 to-cyan-500 text-sm font-bold">
-                {incomingCall.fromName?.charAt(0) || "?"}
-              </AvatarFallback>
-            </Avatar>
+            <VideoAvatar
+              src={incomingCall.avatarUrl}
+              videoSrc={(incomingCall as any).video_avatar_url}
+              alt={incomingCall.fromName}
+              fallback={incomingCall.fromName?.charAt(0) || "?"}
+              size="md"
+              className="ring-2 ring-emerald-500/50"
+            />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-foreground">
                 {incomingCall.mode === "video" ? "Incoming video call" : "Incoming voice call"}
