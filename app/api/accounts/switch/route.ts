@@ -6,9 +6,10 @@ export const dynamic = "force-dynamic"
 
 /**
  * POST /api/accounts/switch
- * Switch to a linked account by setting the Better Auth session cookie
- * to the raw (unhashed) token stored during linking.
- * Better Auth will hash it and match it against the session table.
+ * Switch to a linked account by replaying the exact Set-Cookie header
+ * that Better Auth originally set during linking. This ensures the
+ * cookie name, value, path, httpOnly, secure, and all attributes
+ * are identical to what Better Auth expects.
  * Body: { user_id: string }
  */
 export async function POST(request: NextRequest) {
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Look up the stored raw session token for this linked account
+    // Look up the stored Set-Cookie header for this linked account
     const { data: link } = await supabase
       .from("linked_accounts")
       .select("id, refresh_token")
@@ -46,9 +47,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Account not linked" }, { status: 403 })
     }
 
-    const rawToken = (link as any)?.refresh_token || null
+    const storedSetCookie = (link as any)?.refresh_token || null
 
-    if (!rawToken) {
+    if (!storedSetCookie) {
       return NextResponse.json(
         { error: "No stored session. Please unlink and re-add this account." },
         { status: 400 }
@@ -62,24 +63,17 @@ export async function POST(request: NextRequest) {
       .eq("id", targetUserId)
       .maybeSingle()
 
-    // Build the response with the Better Auth session cookie set.
-    // The raw token is what the browser stores. Better Auth will hash it
-    // and look up the matching session row in the DB.
+    // Build the response and replay the exact Set-Cookie header.
+    // Better Auth set this cookie during signInEmail — same name,
+    // same value, same attributes. The browser will apply it exactly.
     const res = NextResponse.json({
       success: true,
       profile: targetProfile,
     })
 
-    // Set the Better Auth session cookie with the raw (unhashed) token.
-    // This must match what Better Auth's signInEmail sets.
-    const isProd = process.env.NODE_ENV === "production"
-    res.cookies.set("better-auth.session_token", rawToken, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-    })
+    // Replay the stored Set-Cookie header exactly as Better Auth set it.
+    // This handles cookie name, value, path, httpOnly, secure, sameSite, etc.
+    res.headers.set("set-cookie", storedSetCookie)
 
     return res
   } catch (error: any) {

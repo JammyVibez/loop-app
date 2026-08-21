@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { createServerClient } from "@/lib/supabase"
-import { auth, authDbPool } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
 
@@ -69,26 +69,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** Extract the raw session token value from a Set-Cookie header string */
-function extractTokenFromCookie(setCookie: string): string | null {
-  // Cookie format: better-auth.session_token=<token>; Path=/; ...
-  // Handle multiple cookies in one Set-Cookie header (comma-separated)
-  const cookies = setCookie.split(/,(?=\s*\w+=)/)
-  for (const c of cookies) {
-    if (c.includes("better-auth.session_token")) {
-      const match = c.match(/better-auth\.session_token=([^;]+)/)
-      if (match) return match[1].trim()
-    }
-  }
-  return null
-}
-
 /**
  * POST /api/accounts
  * Link an existing account using Better Auth sign-in.
  * Body: { email, password }
- * Creates a Better Auth session via signInEmail and stores the raw
- * session token (unhashed) for passwordless switching later.
+ * Stores the FULL Set-Cookie header from Better Auth for exact replay
+ * during account switching — no token parsing or cookie construction needed.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -134,7 +120,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Use Better Auth to sign in as the target user.
-    // This creates a proper session with a properly hashed token.
+    // This creates a proper session and returns Set-Cookie headers.
     const authRes = await auth.api.signInEmail({
       body: {
         email: targetEmail,
@@ -160,13 +146,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Cannot link your own account" }, { status: 400 })
     }
 
-    // Extract the raw session token from the Set-Cookie header
-    // This is the UNHASHED token that Better Auth will look up by hashing
+    // Extract the FULL Set-Cookie header from Better Auth's response.
+    // We store this raw so during switching we can replay it exactly —
+    // no need to parse or reconstruct cookies ourselves.
     const setCookieHeader = authRes.headers.get("set-cookie") || ""
-    const rawToken = extractTokenFromCookie(setCookieHeader)
 
-    if (!rawToken) {
-      console.error("Could not extract session token from auth response cookies")
+    if (!setCookieHeader) {
       return NextResponse.json({ error: "Failed to create session for target account" }, { status: 500 })
     }
 
@@ -196,13 +181,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Store the raw (unhashed) session token for passwordless switching
+    // Store the FULL Set-Cookie header for exact replay during switching
     const { data: link, error: insertError } = await supabase
       .from("linked_accounts")
       .insert({
         owner_id: user.id,
         linked_user_id: targetUserId,
-        refresh_token: rawToken,
+        refresh_token: setCookieHeader,
         created_at: new Date().toISOString(),
       })
       .select("id, linked_user_id")
