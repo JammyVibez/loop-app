@@ -2,30 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import Link from "next/link"
-import {
-  ArrowLeft,
-  Calendar,
-  Coins,
-  Edit,
-  Flame,
-  Gift,
-  Heart,
-  Link as LinkIcon,
-  Lock,
-  MapPin,
-  MessageCircle,
-  MoreHorizontal,
-  Pin,
-  PinOff,
-  Plus,
-  Share2,
-  Zap,
-  Trophy,
-  Upload,
-  Users,
-  Package,
-  Building2,
-} from "lucide-react"
+import { ArrowLeft, Calendar, Coins, Edit, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Pin, PinOff, Plus, Share2, Sparkles, Zap, Trophy, Upload, Users, Package, Building2, } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -748,35 +725,56 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               </div>
             )}
             {(cosmetics.badge || cosmetics.frame || cosmetics.aura || cosmetics.effect || cosmetics.font || cosmetics.cardEffect) && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {cosmetics.badge && (
-                  <Badge variant="secondary" className="gap-1 text-xs">
-                    <Flame className="h-3 w-3" />
-                    {cosmetics.badge.name || "Badge"}
-                  </Badge>
-                )}
-                {cosmetics.frame && (
-                  <Badge variant="outline" className="text-xs">
-                    {cosmetics.frame.name || "Frame"}
-                  </Badge>
-                )}
-                {(cosmetics.aura || cosmetics.effect) && (
-                  <Badge variant="outline" className="gap-1 text-xs">
-                    <Zap className="h-3 w-3" />
-                    {(cosmetics.aura || cosmetics.effect)?.name || "Effect"}
-                  </Badge>
-                )}
-                {cosmetics.font && (
-                  <Badge variant="outline" className="text-xs">
-                    {cosmetics.font.name || "Font"}
-                  </Badge>
-                )}
-                {cosmetics.cardEffect && (
-                  <Badge variant="outline" className="gap-1 text-xs">
-                    <Zap className="h-3 w-3" />
-                    {cosmetics.cardEffect.name || "Card Effect"}
-                  </Badge>
-                )}
+              <div className="rounded-xl border border-border/60 bg-gradient-to-br from-violet-500/5 via-transparent to-cyan-500/5 p-3 space-y-2.5">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Sparkles className="h-3 w-3 text-violet-400" /> Equipped Cosmetics
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {cosmetics.frame && (
+                    <div className="flex items-center gap-2 rounded-lg bg-background/80 px-2.5 py-1.5">
+                      <div className="h-5 w-5 rounded-full border-2" style={{ borderColor: cosmetics.frame.color || '#8b5cf6' }} />
+                      <span className="text-xs font-medium">{cosmetics.frame.name || 'Frame'}</span>
+                      <Badge variant="outline" className="ml-auto text-[10px] px-1.5 py-0">Frame</Badge>
+                    </div>
+                  )}
+                  {(cosmetics.aura || cosmetics.effect) && (
+                    <div className="flex items-center gap-2 rounded-lg bg-background/80 px-2.5 py-1.5">
+                      <div className="relative h-5 w-5">
+                        <div className="absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle, ${(cosmetics.aura || cosmetics.effect)?.color || '#06b6d4'}60, transparent)`, animation: 'pulse 2s ease-in-out infinite' }} />
+                        <Zap className="absolute inset-0.5 h-3.5 w-3.5" style={{ color: (cosmetics.aura || cosmetics.effect)?.color || '#06b6d4' }} />
+                      </div>
+                      <span className="text-xs font-medium">{(cosmetics.aura || cosmetics.effect)?.name || 'Effect'}</span>
+                      <Badge variant="outline" className="ml-auto text-[10px] px-1.5 py-0">Effect</Badge>
+                    </div>
+                  )}
+                  {cosmetics.badge && (
+                    <div className="flex items-center gap-2 rounded-lg bg-background/80 px-2.5 py-1.5">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/20">
+                        <Flame className="h-3 w-3 text-amber-400" />
+                      </div>
+                      <span className="text-xs font-medium">{cosmetics.badge.name || 'Badge'}</span>
+                      <Badge variant="outline" className="ml-auto text-[10px] px-1.5 py-0">Badge</Badge>
+                    </div>
+                  )}
+                  {cosmetics.font && (
+                    <div className="flex items-center gap-2 rounded-lg bg-background/80 px-2.5 py-1.5">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-sky-500/20">
+                        <span className="text-[10px] font-bold text-sky-400">Aa</span>
+                      </div>
+                      <span className="text-xs font-medium">{cosmetics.font.name || 'Font'}</span>
+                      <Badge variant="outline" className="ml-auto text-[10px] px-1.5 py-0">Font</Badge>
+                    </div>
+                  )}
+                  {cosmetics.cardEffect && (
+                    <div className="flex items-center gap-2 rounded-lg bg-background/80 px-2.5 py-1.5">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-pink-500/20">
+                        <Sparkles className="h-3 w-3 text-pink-400" />
+                      </div>
+                      <span className="text-xs font-medium">{cosmetics.cardEffect.name || 'Card Effect'}</span>
+                      <Badge variant="outline" className="ml-auto text-[10px] px-1.5 py-0">Card</Badge>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

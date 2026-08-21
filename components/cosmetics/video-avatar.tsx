@@ -63,8 +63,8 @@ export function VideoAvatar({
   const [videoFailed, setVideoFailed] = useState(false)
 
   const isGif = videoSrc?.toLowerCase().endsWith(".gif")
-  // Only show video for pro users
-  const hasVideo = Boolean(videoSrc) && isPremium && !videoFailed
+  // Anyone can SEE video/GIF PFPs — only uploading is pro-only
+  const hasVideo = Boolean(videoSrc) && !videoFailed
 
   // Cosmetics
   const frame = cosmetics?.frame
