@@ -93,7 +93,6 @@ export async function realBranchCounts(
       .from("loops")
       .select("parent_loop_id, id", { count: "exact", head: false })
       .in("parent_loop_id", chunk)
-      .is("deleted_at", null)
     if (error) {
       console.error("realBranchCounts error:", error.message)
       continue
