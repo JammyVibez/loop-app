@@ -14,17 +14,18 @@ function getAdminClient() {
 }
 
 /**
- * Extract the raw session token value from a Set-Cookie header string.
- * Better Auth sets: better-auth.session_token=<token>; Path=/; ...
- * We need just the <token> value.
+ * Extract the raw Set-Cookie header value for better-auth.session_token
+ * from a combined Set-Cookie header string (which may contain multiple cookies).
  */
-function extractRawToken(setCookieHeader: string): string | null {
+function extractSessionSetCookie(setCookieHeader: string): string | null {
   if (!setCookieHeader) return null
-  // Could be multiple Set-Cookie lines joined by commas
-  const lines = setCookieHeader.split(/,\s*(?=better-auth)/)
-  for (const line of lines) {
-    const match = line.match(/better-auth\.session_token=([^;]+)/)
-    if (match) return match[1].trim()
+  // Split by comma but be careful with cookie attributes that contain commas
+  // Better Auth's Set-Cookie looks like: better-auth.session_token=TOKEN; Path=/; HttpOnly; SameSite=Lax
+  const parts = setCookieHeader.split(/,(?=\s*better-auth)/)
+  for (const part of parts) {
+    if (part.trim().startsWith("better-auth.session_token")) {
+      return part.trim()
+    }
   }
   return null
 }
@@ -93,10 +94,10 @@ export async function GET(request: NextRequest) {
       })),
     ]
 
-    // Mark the currently active account (the one being used right now)
+    // Mark the currently active account
     const activeAccounts = accounts.map((a) => ({
       ...a,
-      is_primary: a.id === user.id, // The currently logged-in account is "active"
+      is_primary: a.id === user.id,
     }))
 
     return NextResponse.json({
@@ -116,9 +117,9 @@ export async function GET(request: NextRequest) {
  * Link an existing account using Better Auth sign-in.
  * Body: { email, password }
  *
- * Stores raw session tokens for both accounts so switching is one-click:
- * - refresh_token: linked user's raw session token (for switching TO them)
- * - primary_session: primary user's raw session token (for switching BACK)
+ * Stores:
+ * - refresh_token: the full raw Set-Cookie header for the linked user's session
+ * - primary_session: the full raw Set-Cookie header for the primary user's session
  */
 export async function POST(request: NextRequest) {
   try {
@@ -141,7 +142,6 @@ export async function POST(request: NextRequest) {
       .select("id")
       .eq("owner_id", user.id)
 
-    // Get profile to check premium status
     const { data: profile } = await admin
       .from("profiles")
       .select("is_premium")
@@ -165,41 +165,39 @@ export async function POST(request: NextRequest) {
 
     // Use Better Auth to sign in as the target user to create a session
     const authRes = await auth.api.signInEmail({
-      body: {
-        email: targetEmail,
-        password: targetPassword,
-      },
+      body: { email: targetEmail, password: targetPassword },
       asResponse: true,
       headers: request.headers,
     })
 
     if (!authRes.ok) {
       const errData = await authRes.json().catch(() => ({}))
-      return NextResponse.json({ error: errData.message || "Invalid credentials for the target account" }, { status: 400 })
+      return NextResponse.json({ error: errData.message || "Invalid credentials" }, { status: 400 })
     }
 
     const authData = await authRes.json()
     const targetUserId = authData.user?.id || authData.session?.user?.id
-
     if (!targetUserId) {
       return NextResponse.json({ error: "Could not authenticate target account" }, { status: 400 })
     }
-
     if (targetUserId === user.id) {
       return NextResponse.json({ error: "Cannot link your own account" }, { status: 400 })
     }
 
-    // Extract the raw session token from the linked user's signInEmail response
+    // Extract the FULL Set-Cookie header for the linked user's session
     const linkedSetCookie = authRes.headers.get("set-cookie") || ""
-    const linkedRawToken = extractRawToken(linkedSetCookie)
-    if (!linkedRawToken) {
-      return NextResponse.json({ error: "Failed to create session for target account" }, { status: 500 })
+    if (!linkedSetCookie) {
+      return NextResponse.json({ error: "Failed to create session" }, { status: 500 })
     }
 
-    // Extract the primary user's raw session token from the request cookie
+    // Extract the primary user's raw token from the request cookie
+    // and construct a proper Set-Cookie header for replay during switch-back
     const rawCookieHeader = request.headers.get("cookie") || ""
-    const cookieMatch = rawCookieHeader.match(/better-auth\.session_token=([^;]+)/)
-    const primaryRawToken = cookieMatch ? cookieMatch[1] : ""
+    const tokenMatch = rawCookieHeader.match(/better-auth\.session_token=([^;]+)/)
+    const primaryToken = tokenMatch ? tokenMatch[1] : ""
+    const primarySetCookie = primaryToken
+      ? `better-auth.session_token=${primaryToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}`
+      : ""
 
     // Check if already linked
     const { data: alreadyLinked } = await admin
@@ -213,7 +211,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Account already linked" }, { status: 400 })
     }
 
-    // Check if target is already an owner
     const { data: targetAsOwner } = await admin
       .from("linked_accounts")
       .select("id")
@@ -227,14 +224,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Store raw session tokens (not full Set-Cookie headers)
+    // Store the FULL Set-Cookie headers (not just the token)
     const { data: link, error: insertError } = await admin
       .from("linked_accounts")
       .insert({
         owner_id: user.id,
         linked_user_id: targetUserId,
-        refresh_token: linkedRawToken,
-        primary_session: primaryRawToken,
+        refresh_token: linkedSetCookie,
+        primary_session: primarySetCookie,
         created_at: new Date().toISOString(),
       })
       .select("id, linked_user_id")
