@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Calendar, MapPin, Users, Plus, Clock, ExternalLink, Flame, Share2 } from "lucide-react"
 import { absoluteAppUrl, shareContent } from "@/lib/share"
 import { CreateEventModal } from "./create-event-modal"
@@ -276,10 +277,12 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
 
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div className="flex items-center space-x-3">
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src={event.host?.avatar_url || "/placeholder.svg"} />
-                      <AvatarFallback>{event.host?.display_name?.charAt(0) || "H"}</AvatarFallback>
-                    </Avatar>
+                    <VideoAvatar
+                      src={event.host?.avatar_url || "/placeholder.svg"}
+                      videoSrc={event.host?.video_avatar_url || null}
+                      alt={event.host?.display_name}
+                      size="sm"
+                    />
                     <div>
                       <div className="text-sm font-medium">{event.host?.display_name || "Event Host"}</div>
                       <div className="text-xs text-muted-foreground">Event Host</div>

@@ -43,7 +43,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { data: grants, error } = await supabase
       .from("circle_room_members")
-      .select("user_id, created_at, profile:profiles!user_id(id, username, display_name, avatar_url)")
+      .select("user_id, created_at, profile:profiles!user_id(id, username, display_name, avatar_url, video_avatar_url)")
       .eq("room_id", roomId)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

@@ -26,7 +26,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .from("circle_members")
       .select(`
         *,
-        user:profiles(id, username, display_name, avatar_url, is_verified, is_premium, last_active, loop_coins, level)
+        user:profiles(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium, last_active, loop_coins, level)
       `)
       .eq("circle_id", circleId)
       .order("joined_at", { ascending: false })
@@ -132,7 +132,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       .eq("user_id", targetUserId)
       .select(`
         *,
-        user:profiles(id, username, display_name, avatar_url)
+        user:profiles(id, username, display_name, avatar_url, video_avatar_url)
       `)
       .single()
 

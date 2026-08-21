@@ -80,7 +80,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     let query = supabase
       .from("circle_room_messages")
-      .select("*, author:profiles!inner(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium)")
+      .select("*, author:profiles!inner(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium)")
       .eq("room_id", roomId)
       .neq("moderation_status", "removed") // moderation bot soft-deletes violations
       .order("created_at", { ascending: false })
@@ -276,7 +276,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
-      .select("*, author:profiles!inner(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium)")
+      .select("*, author:profiles!inner(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium)")
       .single()
 
     if (insertError) {
@@ -373,7 +373,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         updated_at: new Date().toISOString()
       })
       .eq("id", messageId)
-      .select("*, author:profiles!inner(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium)")
+      .select("*, author:profiles!inner(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium)")
       .single()
 
     if (updateError) {

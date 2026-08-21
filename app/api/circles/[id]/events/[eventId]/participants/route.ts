@@ -26,7 +26,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { data: participants, error } = await supabase
       .from("circle_event_participants")
-      .select("user_id, status, created_at, profile:profiles!user_id(id, username, display_name, avatar_url)")
+      .select("user_id, status, created_at, profile:profiles!user_id(id, username, display_name, avatar_url, video_avatar_url)")
       .eq("event_id", eventId)
       .eq("status", "attending")
 

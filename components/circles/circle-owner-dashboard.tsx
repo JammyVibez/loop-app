@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { Users, Settings, Crown, Shield, MessageCircle, Calendar, UserPlus, UserMinus, Lock, Globe, Plus, Video, Mic, Share, Pin, Search, Filter, Edit, Trash2, Eye, Check, X, AlertTriangle, UserCheck, Ban, TrendingUp, Upload, Power, Loader2, ArrowLeft } from "lucide-react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -58,6 +59,7 @@ interface CircleMember {
   username: string
   display_name: string
   avatar_url?: string
+  video_avatar_url?: string | null
   is_premium: boolean
   is_verified: boolean
   role: 'owner' | 'admin' | 'moderator' | 'member'
@@ -79,6 +81,7 @@ interface CirclePost {
     username: string
     display_name: string
     avatar_url?: string
+    video_avatar_url?: string | null
     is_premium: boolean
     is_verified: boolean
   }
@@ -1339,10 +1342,12 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                   <div key={member.id} className="border rounded-lg p-3 sm:p-4 hover:bg-muted/40">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center space-x-3 min-w-0">
-                        <Avatar className="w-10 h-10 shrink-0">
-                          <AvatarImage src={member.avatar_url} alt={member.display_name} />
-                          <AvatarFallback>{(member.display_name || member.username || "?").charAt(0)}</AvatarFallback>
-                        </Avatar>
+                        <VideoAvatar
+                          src={member.avatar_url}
+                          videoSrc={member.video_avatar_url || null}
+                          alt={member.display_name}
+                          size="md"
+                        />
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="font-semibold truncate">{member.display_name}</span>
@@ -1480,10 +1485,12 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                 {posts.map((post) => (
                   <div key={post.id} className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800">
                     <div className="flex items-start space-x-3">
-                      <Avatar className="w-10 h-10">
-                        <AvatarImage src={post.author.avatar_url} alt={post.author.display_name} />
-                        <AvatarFallback>{post.author.display_name.charAt(0)}</AvatarFallback>
-                      </Avatar>
+                      <VideoAvatar
+                        src={post.author.avatar_url}
+                        videoSrc={post.author.video_avatar_url || null}
+                        alt={post.author.display_name}
+                        size="md"
+                      />
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-2">
                           <span className="font-semibold">{post.author.display_name}</span>

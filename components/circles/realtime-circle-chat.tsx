@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -68,6 +69,7 @@ interface CircleRoomMessage {
     username: string
     display_name: string
     avatar_url?: string
+    video_avatar_url?: string | null
     is_verified?: boolean
     is_premium?: boolean
   }
@@ -802,11 +804,13 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
             "group flex items-start gap-2.5 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted/40",
             isMine && "flex-row-reverse",
           )}
-        >
-          <Avatar className="h-8 w-8 shrink-0 ring-1 ring-border">
-            <AvatarImage src={message.author.avatar_url} alt={message.author.display_name} />
-            <AvatarFallback>{message.author.display_name?.charAt(0) || "M"}</AvatarFallback>
-          </Avatar>
+        >                <VideoAvatar
+                  src={message.author.avatar_url}
+                  videoSrc={message.author.video_avatar_url || null}
+                  alt={message.author.display_name}
+                  size="sm"
+                  className="ring-1 ring-border"
+                />
           <div className={cn("min-w-0 max-w-[85%] flex-1", isMine && "flex flex-col items-end")}>
             <div className={cn("mb-0.5 flex items-baseline gap-2", isMine && "flex-row-reverse")}>
               <span className="text-[13px] font-semibold leading-tight text-foreground">
@@ -1204,10 +1208,12 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
             {/* Parent message */}
             <div className="border-b border-border bg-muted/20 px-3 py-3">
               <div className="flex items-center gap-2">
-                <Avatar className="h-6 w-6">
-                  <AvatarImage src={threadMessage.author.avatar_url} />
-                  <AvatarFallback>{threadMessage.author.display_name?.charAt(0) || "M"}</AvatarFallback>
-                </Avatar>
+                <VideoAvatar
+                  src={threadMessage.author.avatar_url}
+                  videoSrc={threadMessage.author.video_avatar_url || null}
+                  alt={threadMessage.author.display_name}
+                  size="sm"
+                />
                 <span className="truncate text-xs font-semibold">{threadMessage.author.display_name}</span>
                 <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
                   {formatDistanceToNow(new Date(threadMessage.timestamp), { addSuffix: true })}

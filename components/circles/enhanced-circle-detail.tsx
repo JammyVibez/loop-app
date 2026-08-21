@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -1366,10 +1367,12 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <Avatar className="h-9 w-9 sm:h-10 sm:w-10">
-                    <AvatarImage src={user?.avatar_url} />
-                    <AvatarFallback>{user?.display_name?.charAt(0) || "U"}</AvatarFallback>
-                  </Avatar>
+                  <VideoAvatar
+                    src={user?.avatar_url}
+                    videoSrc={(user as any)?.video_avatar_url || null}
+                    alt={user?.display_name}
+                    size="md"
+                  />
                   <div className="min-w-0 flex-1 space-y-3">
                     <MentionTextarea
                       placeholder="Share something… type @ to tag members"

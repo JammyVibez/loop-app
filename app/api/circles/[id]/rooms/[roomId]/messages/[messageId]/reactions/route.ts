@@ -38,7 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .from("circle_room_message_reactions")
       .select(`
         *,
-        user:profiles!user_id(id, username, display_name, avatar_url, is_verified, is_premium)
+        user:profiles!user_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium)
       `)
       .eq("message_id", messageId)
 
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         })
         .select(`
           *,
-          user:profiles!user_id(id, username, display_name, avatar_url, is_verified, is_premium)
+          user:profiles!user_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium)
         `)
         .single()
 

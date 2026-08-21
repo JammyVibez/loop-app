@@ -94,8 +94,8 @@ export async function GET(request: NextRequest) {
         .from("circles")
         .select(`
           *,
-          owner:profiles!owner_id(id, username, display_name, avatar_url),
-          creator:profiles!creator_id(id, username, display_name, avatar_url),
+          owner:profiles!owner_id(id, username, display_name, avatar_url, video_avatar_url),
+          creator:profiles!creator_id(id, username, display_name, avatar_url, video_avatar_url),
           member_count:circle_members(count)
         `)
         .in("id", ids)
@@ -110,8 +110,8 @@ export async function GET(request: NextRequest) {
           .from("circles")
           .select(`
             *,
-            owner:profiles!owner_id(id, username, display_name, avatar_url),
-            creator:profiles!creator_id(id, username, display_name, avatar_url),
+            owner:profiles!owner_id(id, username, display_name, avatar_url, video_avatar_url),
+            creator:profiles!creator_id(id, username, display_name, avatar_url, video_avatar_url),
             member_count:circle_members(count)
           `)
           .in("id", ids)
@@ -134,8 +134,8 @@ export async function GET(request: NextRequest) {
       .from("circles")
       .select(`
         *,
-        owner:profiles!owner_id(id, username, display_name, avatar_url),
-        creator:profiles!creator_id(id, username, display_name, avatar_url),
+        owner:profiles!owner_id(id, username, display_name, avatar_url, video_avatar_url),
+        creator:profiles!creator_id(id, username, display_name, avatar_url, video_avatar_url),
         member_count:circle_members(count)
       `)
       .eq("is_active", true)
@@ -151,8 +151,8 @@ export async function GET(request: NextRequest) {
         .from("circles")
         .select(`
           *,
-          owner:profiles!owner_id(id, username, display_name, avatar_url),
-          creator:profiles!creator_id(id, username, display_name, avatar_url),
+          owner:profiles!owner_id(id, username, display_name, avatar_url, video_avatar_url),
+          creator:profiles!creator_id(id, username, display_name, avatar_url, video_avatar_url),
           member_count:circle_members(count)
         `)
         .order("created_at", { ascending: false })
@@ -272,7 +272,7 @@ export async function POST(request: NextRequest) {
     let { data: circle, error: createError } = await supabase
       .from("circles")
       .insert(payload)
-      .select(`*, owner:profiles!owner_id(id, username, display_name, avatar_url), creator:profiles!creator_id(id, username, display_name, avatar_url)`)
+      .select(`*, owner:profiles!owner_id(id, username, display_name, avatar_url, video_avatar_url), creator:profiles!creator_id(id, username, display_name, avatar_url, video_avatar_url)`)
       .single()
 
     // Compat retry if settings column is missing in older DBs
@@ -281,7 +281,7 @@ export async function POST(request: NextRequest) {
       ;({ data: circle, error: createError } = await supabase
         .from("circles")
         .insert(payload)
-        .select(`*, owner:profiles!owner_id(id, username, display_name, avatar_url), creator:profiles!creator_id(id, username, display_name, avatar_url)`)
+        .select(`*, owner:profiles!owner_id(id, username, display_name, avatar_url, video_avatar_url), creator:profiles!creator_id(id, username, display_name, avatar_url, video_avatar_url)`)
         .single())
     }
 

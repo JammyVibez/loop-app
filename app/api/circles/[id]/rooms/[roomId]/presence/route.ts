@@ -28,7 +28,7 @@ function canManage(role?: string) {
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string; roomId: string }> }) {
   const { roomId } = await params
   const supabase = createServerClient()
-  const { data: presence, error } = await supabase.from("circle_room_presence").select("*, user:profiles(id, username, display_name, avatar_url)").eq("room_id", roomId).gte("last_seen_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+  const { data: presence, error } = await supabase.from("circle_room_presence").select("*, user:profiles(id, username, display_name, avatar_url, video_avatar_url)").eq("room_id", roomId).gte("last_seen_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true, presence: presence || [] })
 }

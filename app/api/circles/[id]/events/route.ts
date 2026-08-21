@@ -38,7 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .from("circle_events")
       .select(`
         *,
-        organizer:profiles!organizer_id(id, username, display_name, avatar_url, is_verified, is_premium)
+        organizer:profiles!organizer_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium)
       `)
       .eq("circle_id", circleId)
       .order("starts_at", { ascending: true })
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       })
       .select(`
         *,
-        organizer:profiles!organizer_id(id, username, display_name, avatar_url, is_verified, is_premium)
+        organizer:profiles!organizer_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium)
       `)
       .single()
 
@@ -268,7 +268,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       .eq("id", eventId)
       .select(`
         *,
-        organizer:profiles!organizer_id(id, username, display_name, avatar_url, is_verified, is_premium)
+        organizer:profiles!organizer_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium)
       `)
       .single()
 
