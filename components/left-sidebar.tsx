@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { AppLogo } from "@/components/brand/app-logo"
 import { useAuth } from "@/hooks/use-auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -231,10 +232,12 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       {/* Footer User Profile & Logout */}
       <div className="border-t border-border/60 pt-3 shrink-0 flex items-center justify-between">
         <Link href={`/profile/${user.username}`} onClick={onLinkClick} className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-80 transition-opacity">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={user.avatar_url || user.user_metadata?.avatar_url} />
-            <AvatarFallback>{(user.display_name || user.username || "U").charAt(0)}</AvatarFallback>
-          </Avatar>
+          <VideoAvatar
+            src={user.avatar_url || user.user_metadata?.avatar_url}
+            videoSrc={(user as any).video_avatar_url || null}
+            alt={user.display_name || user.username}
+            size="md"
+          />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1">
               <p className="text-xs font-bold truncate">{user.display_name || user.username}</p>

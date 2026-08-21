@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Home, Search, Video, MessageCircle, User, LogIn, Compass, Menu } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { cn } from "@/lib/utils"
 import { useLoginGate } from "@/hooks/use-login-gate"
 import { MobileSidebarSheet } from "@/components/left-sidebar"
@@ -129,13 +129,13 @@ export function MobileBottomNav() {
                 pathname.startsWith("/profile") ? "text-primary" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {user.avatar_url || user.user_metadata?.avatar_url ? (
-                <Avatar className="h-5 w-5">
-                  <AvatarImage src={user.avatar_url || user.user_metadata?.avatar_url} />
-                  <AvatarFallback className="text-[9px]">
-                    {(user.display_name || user.username || "U").charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
+              {user.avatar_url || user.user_metadata?.avatar_url || (user as any).video_avatar_url ? (
+                <VideoAvatar
+                  src={user.avatar_url || user.user_metadata?.avatar_url}
+                  videoSrc={(user as any).video_avatar_url || null}
+                  alt={user.display_name || user.username}
+                  size="sm"
+                />
               ) : (
                 <User className="h-5 w-5" />
               )}

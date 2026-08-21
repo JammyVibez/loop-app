@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { AppLogo } from "@/components/brand/app-logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -203,12 +203,12 @@ export function Header() {
                 type="button"
                 className="relative h-8 w-8 rounded-full border border-border/80 bg-muted/50 p-0 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-sky-500/50"
               >
-                <Avatar className="h-full w-full">
-                  <AvatarImage src={user.avatar_url} alt={user.display_name} />
-                  <AvatarFallback className="bg-gradient-to-br from-violet-600 to-cyan-500 text-[10px] font-bold text-white">
-                    {(user.display_name || user.username || "U").charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                <VideoAvatar
+                  src={user.avatar_url}
+                  videoSrc={(user as any).video_avatar_url || null}
+                  alt={user.display_name}
+                  size="md"
+                />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 p-1.5 rounded-2xl">
