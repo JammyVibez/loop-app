@@ -191,12 +191,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract the primary user's raw token from the request cookie
-    // and construct a proper Set-Cookie header for replay during switch-back
+    // and construct a proper Set-Cookie header for replay during switch-back.
+    // On HTTPS, Better Auth uses the __Secure- prefix for the cookie name.
     const rawCookieHeader = request.headers.get("cookie") || ""
-    const tokenMatch = rawCookieHeader.match(/better-auth\.session_token=([^;]+)/)
-    const primaryToken = tokenMatch ? tokenMatch[1] : ""
+    const tokenMatch = rawCookieHeader.match(/(\__Secure-)?better-auth\.session_token=([^;]+)/)
+    const prefix = tokenMatch ? (tokenMatch[1] || "") : ""
+    const primaryToken = tokenMatch ? tokenMatch[2] : ""
+    const isSecure = request.nextUrl.protocol === "https:"
+    const secureFlag = isSecure ? "; Secure" : ""
     const primarySetCookie = primaryToken
-      ? `better-auth.session_token=${primaryToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}`
+      ? `${prefix}better-auth.session_token=${primaryToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}${secureFlag}`
       : ""
 
     // Check if already linked
