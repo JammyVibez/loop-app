@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         new Set((fallback.data || []).map((m) => m.author_id || m.sender_id).filter(Boolean)),
       )
       const { data: profiles } = senderIds.length
-        ? await supabase.from("profiles").select("id, username, display_name, avatar_url").in("id", senderIds)
+        ? await supabase.from("profiles").select("id, username, display_name, avatar_url, video_avatar_url").in("id", senderIds)
         : { data: [] as any[] }
       const map = new Map((profiles || []).map((p) => [p.id, p]))
       const hydrated = (fallback.data || []).map((m) => ({
@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
 
     const { data: senderProfile } = await supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url")
+      .select("id, username, display_name, avatar_url, video_avatar_url")
       .eq("id", user.id)
       .maybeSingle()
 

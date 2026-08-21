@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   // Fetch users from "profiles" table
   let query = supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_url, is_verified, is_premium")
+    .select("id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium")
 
   if (q) {
     query = query.or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)

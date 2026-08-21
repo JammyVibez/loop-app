@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, GitBranch, Volume2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardHeader } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
@@ -219,10 +219,7 @@ export function LoopCard3D({ loop, onLike, onBookmark, className = '', variant =
           <div className="flex items-center space-x-3">
             <Link href={`/profile/${user.username}`}>
               <div className="avatar-3d">
-                <Avatar className="h-10 w-10 transition-transform duration-300 hover:scale-110">
-                  <AvatarImage src={user.avatar_url || "/placeholder.svg"} alt={user.display_name} />
-                  <AvatarFallback>{user.display_name.charAt(0)}</AvatarFallback>
-                </Avatar>
+                <VideoAvatar src={user.avatar_url || "/placeholder.svg"} className="h-10 w-10 transition-transform duration-300 hover:scale-110" fallback={user.display_name.charAt(0)} />
               </div>
             </Link>
             <div>

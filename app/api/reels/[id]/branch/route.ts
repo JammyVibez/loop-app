@@ -69,7 +69,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .select(`
         *,
         author:profiles!author_id (
-          id, username, display_name, avatar_url, is_verified, is_premium
+          id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium
         )
       `)
       .single()

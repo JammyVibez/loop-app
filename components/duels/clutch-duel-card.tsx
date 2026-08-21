@@ -360,10 +360,7 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
       <div className="relative p-4 sm:p-5">
         {/* Creator + question */}
         <div className="mb-4 flex items-center gap-2.5">
-          <Avatar className="h-9 w-9 border border-violet-400/40">
-            <AvatarImage src={duel.creator?.avatar_url} />
-            <AvatarFallback>{creatorName.charAt(0)}</AvatarFallback>
-          </Avatar>
+          <VideoAvatar src={duel.creator?.avatar_url} className="h-9 w-9 border border-violet-400/40" fallback={creatorName.charAt(0)} />
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-white">{creatorName}</p>
             <p className="text-[11px] text-violet-300/80">

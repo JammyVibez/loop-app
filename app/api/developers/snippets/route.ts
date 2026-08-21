@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         `
         *,
         author:profiles!code_snippets_author_id_fkey(
-          id, username, display_name, avatar_url, is_verified
+          id, username, display_name, avatar_url, video_avatar_url, is_verified
         )
       `,
       )
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
         `
         *,
         author:profiles!code_snippets_author_id_fkey(
-          id, username, display_name, avatar_url, is_verified
+          id, username, display_name, avatar_url, video_avatar_url, is_verified
         )
       `,
       )

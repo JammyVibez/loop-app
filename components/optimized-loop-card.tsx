@@ -5,6 +5,7 @@ import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, GitBranch } from
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { Badge } from "./ui/badge";
 import { useIntersectionObserver, useOptimizedImage } from "@/hooks/use-optimized-loading";
 import { useAdaptivePerformance } from "@/lib/performance-monitor";

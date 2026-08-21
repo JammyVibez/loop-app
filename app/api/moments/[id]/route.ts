@@ -16,7 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .from("moments")
       .select(
         `*,
-         author:profiles!user_id(id, username, display_name, avatar_url, is_verified)`,
+         author:profiles!user_id(id, username, display_name, avatar_url, video_avatar_url, is_verified)`,
       )
       .eq("id", id)
       .gt("expires_at", new Date().toISOString())

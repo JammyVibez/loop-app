@@ -51,8 +51,8 @@ export async function GET(request: NextRequest) {
       .from("loops")
       .select(`
         *,
-        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
-        parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url)),
+        author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
+        parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url)),
         loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
       .eq("visibility", "public")
@@ -266,7 +266,7 @@ export async function POST(request: NextRequest) {
       .insert(payload)
       .select(`
         *,
-        author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
+        author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
         loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
       .single()
@@ -293,7 +293,7 @@ export async function POST(request: NextRequest) {
         .insert(payload)
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
+          author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .single())

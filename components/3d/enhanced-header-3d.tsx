@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -249,10 +249,7 @@ export function EnhancedHeader3D() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full btn-3d group">
                 <div className="relative">
-                  <Avatar className="h-8 w-8 transition-all duration-300 group-hover:scale-110">
-                    <AvatarImage src={enhancedUser.avatar_url || "/placeholder.svg"} alt={enhancedUser.display_name} />
-                    <AvatarFallback>{enhancedUser.display_name.charAt(0)}</AvatarFallback>
-                  </Avatar>
+                  <VideoAvatar src={enhancedUser.avatar_url || "/placeholder.svg"} className="h-8 w-8 transition-all duration-300 group-hover:scale-110" fallback={enhancedUser.display_name.charAt(0)} />
                   {/* Premium indicator */}
                   {enhancedUser.is_premium && (
                     <div className="absolute -top-1 -right-1">
@@ -268,10 +265,7 @@ export function EnhancedHeader3D() {
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-72 modal-3d-content" align="end" forceMount>
               <div className="flex items-center justify-start gap-3 p-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={enhancedUser.avatar_url || "/placeholder.svg"} alt={enhancedUser.display_name} />
-                  <AvatarFallback>{enhancedUser.display_name.charAt(0)}</AvatarFallback>
-                </Avatar>
+                <VideoAvatar src={enhancedUser.avatar_url || "/placeholder.svg"} className="h-12 w-12" fallback={enhancedUser.display_name.charAt(0)} />
                 <div className="flex flex-col space-y-1 leading-none">
                   <div className="flex items-center space-x-2">
                     <p className="font-medium">{enhancedUser.display_name}</p>

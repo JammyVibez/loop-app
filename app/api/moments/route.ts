@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       .from("moments")
       .select(
         `*,
-         author:profiles!user_id(id, username, display_name, avatar_url, is_verified),
+         author:profiles!user_id(id, username, display_name, avatar_url, video_avatar_url, is_verified),
          comments:moment_comments(id)`,
       )
       .in("user_id", authorIds)

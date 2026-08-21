@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     const { data: circles } = await supabase
       .from("circles")
-      .select("id, name, description, avatar_url, banner_url, is_premium_only, is_private, category")
+      .select("id, name, description, avatar_url, video_avatar_url, banner_url, is_premium_only, is_private, category")
       .in("id", circleIds)
       .limit(12)
 
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     const [postsRes, commentsRes, eventsRes] = await Promise.all([
       supabase
         .from("circle_posts")
-        .select("circle_id, id, content, created_at, author:profiles!author_id(id, username, display_name, avatar_url)")
+        .select("circle_id, id, content, created_at, author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url)")
         .in("circle_id", circleIds)
         .gte("created_at", since)
         .order("created_at", { ascending: false })

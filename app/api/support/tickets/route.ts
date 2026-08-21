@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       .from("support_tickets")
       .select(`
         *,
-        user:profiles!user_id(id, username, display_name, avatar_url),
+        user:profiles!user_id(id, username, display_name, avatar_url, video_avatar_url),
         last_message:support_messages(id, message, is_from_support, created_at)
       `)
       .order("updated_at", { ascending: false })

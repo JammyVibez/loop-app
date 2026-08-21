@@ -249,10 +249,7 @@ export function ShareToCircleModal({ open, onOpenChange, item }: ShareToCircleMo
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <Avatar className="h-8 w-8 shrink-0">
-                        <AvatarImage src={circle.avatar_url} />
-                        <AvatarFallback>{circle.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
+                      <VideoAvatar src={circle.avatar_url} className="h-8 w-8 shrink-0" fallback={circle.name.slice(0, 2).toUpperCase()} />
                       <div className="min-w-0">
                         <p className="text-xs font-medium truncate text-foreground">{circle.name}</p>
                         {typeof circle.member_count === "number" && (

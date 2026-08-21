@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
           id,
           username,
           display_name,
-          avatar_url,
+          avatar_url, video_avatar_url,
           is_verified,
           verification_level
         )
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
           id,
           username,
           display_name,
-          avatar_url,
+          avatar_url, video_avatar_url,
           is_verified,
           verification_level
         )
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
             id,
             username,
             display_name,
-            avatar_url,
+            avatar_url, video_avatar_url,
             is_verified,
             verification_level
           )

@@ -34,7 +34,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       .eq("id", id)
       .select(`
         *,
-        author:profiles!author_id (id, username, display_name, avatar_url, is_verified)
+        author:profiles!author_id (id, username, display_name, avatar_url, video_avatar_url, is_verified)
       `)
       .single()
 

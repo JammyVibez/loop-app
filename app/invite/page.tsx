@@ -169,10 +169,7 @@ export default function InviteFriendsPage() {
                         className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 hover:bg-muted/50 transition-colors"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <Avatar className="h-9 w-9">
-                            <AvatarImage src={r.avatar_url} />
-                            <AvatarFallback>{(r.display_name || r.username).charAt(0)}</AvatarFallback>
-                          </Avatar>
+                          <VideoAvatar src={r.avatar_url} className="h-9 w-9" fallback={(r.display_name || r.username).charAt(0)} />
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">{r.display_name || r.username}</p>
                             <p className="text-xs text-muted-foreground truncate">@{r.username}</p>

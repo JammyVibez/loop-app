@@ -23,7 +23,7 @@ export async function GET() {
       supabase.from("code_snippets").select("author_id, likes").eq("is_public", true).limit(300),
       supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url, is_verified, verification_level")
+        .select("id, username, display_name, avatar_url, video_avatar_url, is_verified, verification_level")
         .limit(300),
       supabase
         .from("developer_portfolios")
@@ -70,6 +70,7 @@ export async function GET() {
           username: profile.username || "user",
           display_name: profile.display_name || profile.username || "Developer",
           avatar_url: profile.avatar_url || null,
+      video_avatar_url: null,
           is_verified: Boolean(profile.is_verified),
           verification_level: profile.verification_level || null,
           is_available_for_hire: Boolean(portfolio?.is_available_for_hire),

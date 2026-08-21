@@ -31,7 +31,7 @@ export async function PATCH(
         updated_at: new Date().toISOString(),
       })
       .eq("id", commentId)
-      .select(`*, author:profiles!comments_author_id_fkey(id, username, display_name, avatar_url, is_verified, is_premium)`)
+      .select(`*, author:profiles!comments_author_id_fkey(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium)`)
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

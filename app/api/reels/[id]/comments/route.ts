@@ -19,7 +19,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .select(`
         *,
         author:profiles!user_id (
-          id, username, display_name, avatar_url, is_verified
+          id, username, display_name, avatar_url, video_avatar_url, is_verified
         )
       `)
       .eq("reel_id", reelId)
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .select(`
         *,
         author:profiles!user_id (
-          id, username, display_name, avatar_url, is_verified
+          id, username, display_name, avatar_url, video_avatar_url, is_verified
         )
       `)
       .single()

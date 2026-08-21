@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { cn } from "@/lib/utils"
 import {
   type ActiveCosmetics,

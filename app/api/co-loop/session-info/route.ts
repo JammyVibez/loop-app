@@ -46,14 +46,14 @@ export async function POST(request: NextRequest) {
 
     const { data: callerProfile } = await supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url, bio, is_verified")
+      .select("id, username, display_name, avatar_url, video_avatar_url, bio, is_verified")
       .eq("id", callingUser.id)
       .maybeSingle()
 
     // Check existing session
     const { data: existingSession } = await supabase
       .from("co_loop_sessions")
-      .select("*, owner:profiles!owner_id(id, username, display_name, avatar_url, bio, is_verified)")
+      .select("*, owner:profiles!owner_id(id, username, display_name, avatar_url, video_avatar_url, bio, is_verified)")
       .eq("session_id", session_id)
       .maybeSingle()
 
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         owner_username: ownerUsername,
         co_authors: [],
       })
-      .select("*, owner:profiles!owner_id(id, username, display_name, avatar_url, bio, is_verified)")
+      .select("*, owner:profiles!owner_id(id, username, display_name, avatar_url, video_avatar_url, bio, is_verified)")
       .single()
 
     if (insertError) {
@@ -175,7 +175,7 @@ export async function GET(request: NextRequest) {
     // 1. Check existing co_loop_sessions table
     const { data: sessionRecord } = await supabase
       .from("co_loop_sessions")
-      .select("*, owner:profiles!owner_id(id, username, display_name, avatar_url, bio, is_verified)")
+      .select("*, owner:profiles!owner_id(id, username, display_name, avatar_url, video_avatar_url, bio, is_verified)")
       .eq("session_id", session_id)
       .maybeSingle()
 
@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
     } else if (sessionRecord?.owner_id) {
       const { data: p } = await supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url, bio, is_verified")
+        .select("id, username, display_name, avatar_url, video_avatar_url, bio, is_verified")
         .eq("id", sessionRecord.owner_id)
         .maybeSingle()
       if (p) inviterProfile = p
@@ -198,7 +198,7 @@ export async function GET(request: NextRequest) {
     if (!inviterProfile && invited_by) {
       const { data } = await supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url, bio, is_verified")
+        .select("id, username, display_name, avatar_url, video_avatar_url, bio, is_verified")
         .ilike("username", invited_by.trim())
         .maybeSingle()
       if (data) inviterProfile = data
@@ -218,7 +218,7 @@ export async function GET(request: NextRequest) {
       if (notif?.data?.inviter_id) {
         const { data: p } = await supabase
           .from("profiles")
-          .select("id, username, display_name, avatar_url, bio, is_verified")
+          .select("id, username, display_name, avatar_url, video_avatar_url, bio, is_verified")
           .eq("id", notif.data.inviter_id)
           .maybeSingle()
         if (p) inviterProfile = p
@@ -240,7 +240,7 @@ export async function GET(request: NextRequest) {
       if (senderId) {
         const { data: p } = await supabase
           .from("profiles")
-          .select("id, username, display_name, avatar_url, bio, is_verified")
+          .select("id, username, display_name, avatar_url, video_avatar_url, bio, is_verified")
           .eq("id", senderId)
           .maybeSingle()
         if (p) inviterProfile = p
@@ -267,7 +267,7 @@ export async function GET(request: NextRequest) {
     if (!sessionRecord && !inviterProfile && callingUser && !is_invited_flag && !invited_by) {
       const { data: callerProfile } = await supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url, bio, is_verified")
+        .select("id, username, display_name, avatar_url, video_avatar_url, bio, is_verified")
         .eq("id", callingUser.id)
         .maybeSingle()
 

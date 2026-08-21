@@ -363,10 +363,7 @@ export function ShareToDmModal({ open, onOpenChange, item }: ShareToDmModalProps
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <Avatar className="h-8 w-8 shrink-0">
-                        <AvatarImage src={chat.avatar_url} />
-                        <AvatarFallback>{chat.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
+                      <VideoAvatar src={chat.avatar_url} className="h-8 w-8 shrink-0" fallback={chat.name.slice(0, 2).toUpperCase()} />
                       <div className="min-w-0">
                         <p className="text-xs font-medium truncate text-foreground">{chat.name}</p>
                         {chat.username && (

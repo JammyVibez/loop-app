@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     const { data: sender, error: senderError } = await supabase
       .from("profiles")
-      .select("id, loop_coins, username, display_name, avatar_url")
+      .select("id, loop_coins, username, display_name, avatar_url, video_avatar_url")
       .eq("id", user.id)
       .single()
 
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
 
     const { data: recipient, error: recipientError } = await supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url, loop_coins, is_premium, premium_expires_at")
+      .select("id, username, display_name, avatar_url, video_avatar_url, loop_coins, is_premium, premium_expires_at")
       .eq("id", recipientId)
       .single()
 

@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
           id,
           username,
           display_name,
-          avatar_url
+          avatar_url, video_avatar_url
         )
       `)
       .eq('recipient_id', user.id)

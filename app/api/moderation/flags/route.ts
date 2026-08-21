@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
       .from("content_flags")
       .select(`
         *,
-        reporter:profiles!reporter_id(username, display_name, avatar_url)
+        reporter:profiles!reporter_id(username, display_name, avatar_url, video_avatar_url)
       `)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);

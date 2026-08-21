@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
           id,
           username,
           display_name,
-          avatar_url
+          avatar_url, video_avatar_url
         ),
         circle:circles(
           id,
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
           id,
           username,
           display_name,
-          avatar_url
+          avatar_url, video_avatar_url
         ),
         circle:circles(
           id,
@@ -146,13 +146,13 @@ export async function POST(request: NextRequest) {
           id,
           username,
           display_name,
-          avatar_url
+          avatar_url, video_avatar_url
         ),
         invitee:profiles!invitations_invitee_id_fkey(
           id,
           username,
           display_name,
-          avatar_url
+          avatar_url, video_avatar_url
         )
       `)
       .single()

@@ -210,7 +210,7 @@ export async function POST(
     // Fetch user profile details
     const { data: userProfile } = await supabase
       .from("profiles")
-      .select("username, display_name, avatar_url")
+      .select("username, display_name, avatar_url, video_avatar_url")
       .eq("id", user.id)
       .single()
 

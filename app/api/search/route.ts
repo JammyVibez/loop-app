@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
           `
           *,
           author:profiles!author_id(
-            id, username, display_name, avatar_url, is_verified, is_premium
+            id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium
           ),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `,
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
           .select(
             `
             *,
-            author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
+            author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
             loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
           `,
           )
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
           .select(
             `
             *,
-            author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
+            author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
             loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
           `,
           )
@@ -187,7 +187,7 @@ export async function GET(request: NextRequest) {
           .select(
             `
             *,
-            author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
+            author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
             loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
           `,
           )
@@ -217,7 +217,7 @@ export async function GET(request: NextRequest) {
       const primary = await supabase
         .from("profiles")
         .select(
-          "id, username, display_name, avatar_url, bio, is_verified, is_premium, followers_count, following_count",
+          "id, username, display_name, avatar_url, video_avatar_url, bio, is_verified, is_premium, followers_count, following_count",
         )
         .or(`username.ilike.${pattern},display_name.ilike.${pattern}`)
         .order("followers_count", { ascending: false })
@@ -228,7 +228,7 @@ export async function GET(request: NextRequest) {
       } else {
         const fallback = await supabase
           .from("profiles")
-          .select("id, username, display_name, avatar_url, bio, is_verified, is_premium")
+          .select("id, username, display_name, avatar_url, video_avatar_url, bio, is_verified, is_premium")
           .or(`username.ilike.${pattern},display_name.ilike.${pattern}`)
           .limit(20)
         users = fallback.data
@@ -322,8 +322,8 @@ export async function GET(request: NextRequest) {
         .from("circles")
         .select(
           `
-          id, name, description, avatar_url, cover_url, member_count, is_public, slug,
-          owner:profiles!owner_id(id, username, display_name, avatar_url, is_verified)
+          id, name, description, avatar_url, video_avatar_url, cover_url, member_count, is_public, slug,
+          owner:profiles!owner_id(id, username, display_name, avatar_url, video_avatar_url, is_verified)
         `,
         )
         .or(`name.ilike.${pattern},description.ilike.${pattern}`)
@@ -335,7 +335,7 @@ export async function GET(request: NextRequest) {
       } else {
         const fallback = await supabase
           .from("circles")
-          .select("id, name, description, avatar_url, member_count, is_public")
+          .select("id, name, description, avatar_url, video_avatar_url, member_count, is_public")
           .ilike("name", pattern)
           .limit(12)
         circles = fallback.data

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { GitBranch, Type, ImageIcon, Video, Music, FileText, Upload, X, Loader2, CheckCircle2, ArrowUpRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -230,10 +230,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
           {/* Parent Loop Preview — author + media + text */}
           <div className="overflow-hidden rounded-xl border border-border/70 bg-muted/40">
             <div className="flex items-center gap-2.5 border-b border-border/60 bg-background/40 px-3.5 py-2.5">
-              <Avatar className="h-7 w-7">
-                <AvatarImage src={author?.avatar_url || undefined} />
-                <AvatarFallback className="text-[10px]">{authorName.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
+              <VideoAvatar src={author?.avatar_url || undefined} className="h-7 w-7" fallback={authorName.charAt(0).toUpperCase()} />
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1 truncate text-xs font-semibold text-foreground">
                   <span className="truncate">{authorName}</span>

@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     const { data: target } = await supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url, privacy_settings")
+      .select("id, username, display_name, avatar_url, video_avatar_url, privacy_settings")
       .eq("id", targetUserId)
       .maybeSingle()
     if (!target) {
@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
           try {
             const { data: actor } = await supabase
               .from("profiles")
-              .select("username, display_name, avatar_url")
+              .select("username, display_name, avatar_url, video_avatar_url")
               .eq("id", user.id)
               .maybeSingle()
             const { notifyUser } = await import("@/lib/notifications")

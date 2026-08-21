@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     const { data: circles } = await supabase
       .from("circles")
-      .select("id, name, description, avatar_url, banner_url, is_premium_only, is_private, category, created_at")
+      .select("id, name, description, avatar_url, video_avatar_url, banner_url, is_premium_only, is_private, category, created_at")
       .in("id", circleIds)
       .limit(20)
 

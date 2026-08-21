@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     const { data: referred, error } = await supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url, created_at, invited_via_coloop")
+      .select("id, username, display_name, avatar_url, video_avatar_url, created_at, invited_via_coloop")
       .ilike("invited_by_username", profile.username)
       .order("created_at", { ascending: false })
       .limit(200)

@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
           .from("comments")
           .select(
             `id, content, created_at, loop_id, author_id,
-             author:profiles!comments_author_id_fkey(id, username, display_name, avatar_url)`,
+             author:profiles!comments_author_id_fkey(id, username, display_name, avatar_url, video_avatar_url)`,
           )
           .in("loop_id", loopIds)
           .neq("author_id", user.id)
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
           .from("comments")
           .select(
             `id, content, created_at, loop_id, author_id,
-             author:profiles!comments_author_id_fkey(id, username, display_name, avatar_url)`,
+             author:profiles!comments_author_id_fkey(id, username, display_name, avatar_url, video_avatar_url)`,
           )
           .in("parent_comment_id", myCommentIds)
           .neq("author_id", user.id)
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
     try {
       const { data: requests } = await supabase
         .from("follow_requests")
-        .select("id, requester_id, requester:profiles!requester_id(username, display_name, avatar_url)")
+        .select("id, requester_id, requester:profiles!requester_id(username, display_name, avatar_url, video_avatar_url)")
         .eq("target_id", user.id)
         .eq("status", "pending")
         .limit(10)

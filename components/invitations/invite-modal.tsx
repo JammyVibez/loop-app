@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { UserPlus, Search, Users, Code, MessageCircle, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -215,10 +215,7 @@ export function InviteModal({ isOpen, onClose, type, resourceId, resourceName }:
                     onClick={() => addUser(result)}
                   >
                     <div className="flex items-center gap-2">
-                      <Avatar className="w-8 h-8">
-                        <AvatarImage src={result.avatar_url} />
-                        <AvatarFallback>{result.display_name.charAt(0)}</AvatarFallback>
-                      </Avatar>
+                      <VideoAvatar src={result.avatar_url} className="w-8 h-8" fallback={result.display_name.charAt(0)} />
                       <div>
                         <p className="text-sm font-medium">{result.display_name}</p>
                         <p className="text-xs text-gray-500">@{result.username}</p>

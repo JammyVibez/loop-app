@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
         `
         *,
         seller:profiles!community_marketplace_listings_seller_id_fkey(
-          id, username, display_name, avatar_url
+          id, username, display_name, avatar_url, video_avatar_url
         )
       `,
       )
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
         `
         *,
         seller:profiles!community_marketplace_listings_seller_id_fkey(
-          id, username, display_name, avatar_url
+          id, username, display_name, avatar_url, video_avatar_url
         )
       `,
       )

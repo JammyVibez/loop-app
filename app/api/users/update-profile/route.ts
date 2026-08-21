@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         {
           error: "Animated GIF profile pictures and covers are a Pro perk — upgrade to Pro to use them.",
           pro_required: true,
-          gif_field: avatarIsGif ? "avatar_url" : "banner_url",
+          gif_field: avatarIsGif ? "avatar_url, video_avatar_url" : "banner_url",
         },
         { status: 403 },
       )

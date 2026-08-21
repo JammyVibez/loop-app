@@ -25,7 +25,7 @@ const COLLABORATOR_SELECT = `
     id,
     username,
     display_name,
-    avatar_url,
+    avatar_url, video_avatar_url,
     is_verified,
     verification_level
   )
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Find the invitee by username.
     const { data: invitee, error: inviteeError } = await supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url")
+      .select("id, username, display_name, avatar_url, video_avatar_url")
       .ilike("username", username)
       .maybeSingle()
     if (inviteeError) return NextResponse.json({ error: inviteeError.message }, { status: 500 })

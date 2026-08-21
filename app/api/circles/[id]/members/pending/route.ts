@@ -56,7 +56,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .from("circle_members")
       .select(`
         *,
-        profile:profiles(id, username, display_name, avatar_url)
+        profile:profiles(id, username, display_name, avatar_url, video_avatar_url)
       `)
       .eq("circle_id", circleId)
       .eq("status", "pending")

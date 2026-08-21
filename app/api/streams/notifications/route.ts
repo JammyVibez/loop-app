@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
           id,
           username,
           display_name,
-          avatar_url
+          avatar_url, video_avatar_url
         )
       `,
       )
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
       .select(
         `
         id, title, thumbnail_url, viewer_count, category, status, started_at,
-        streamer:profiles!streamer_id(id, username, display_name, avatar_url)
+        streamer:profiles!streamer_id(id, username, display_name, avatar_url, video_avatar_url)
       `,
       )
       .in("streamer_id", ids)

@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { Users } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import type { TaggedCircle } from "@/lib/circle-limits"
 import { cn } from "@/lib/utils"
 

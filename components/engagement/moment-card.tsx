@@ -198,10 +198,7 @@ export function MomentCard({
       <header className="flex items-center gap-2.5 px-3.5 py-3">
         <span className="rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-fuchsia-600 p-[2px]">
           <span className="block rounded-full bg-background p-[2px]">
-            <Avatar className="h-9 w-9">
-              <AvatarImage src={author?.avatar_url || undefined} />
-              <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
+            <VideoAvatar src={author?.avatar_url || undefined} className="h-9 w-9" fallback={displayName.charAt(0).toUpperCase()} />
           </span>
         </span>
         <div className="min-w-0 flex-1">
@@ -417,10 +414,7 @@ function CommentRow({
   const name = comment.author?.display_name || comment.author?.username || "User"
   return (
     <div className="flex items-start gap-2">
-      <Avatar className="h-6 w-6 shrink-0">
-        <AvatarImage src={comment.author?.avatar_url || undefined} />
-        <AvatarFallback className="text-[9px]">{name.charAt(0).toUpperCase()}</AvatarFallback>
-      </Avatar>
+      <VideoAvatar src={comment.author?.avatar_url || undefined} className="h-6 w-6 shrink-0" fallback={name.charAt(0).toUpperCase()} />
       <div className="min-w-0 flex-1 rounded-2xl rounded-tl-sm bg-muted/60 px-3 py-1.5">
         <p className="flex items-center gap-1 text-xs font-semibold leading-tight">
           <span className="truncate">{name}</span>

@@ -19,8 +19,8 @@ export async function GET(req: NextRequest) {
       .from("loop_duels")
       .select(`
         *,
-        creator:profiles!creator_id (id, username, display_name, avatar_url),
-        opponent:profiles!opponent_id (id, username, display_name, avatar_url),
+        creator:profiles!creator_id (id, username, display_name, avatar_url, video_avatar_url),
+        opponent:profiles!opponent_id (id, username, display_name, avatar_url, video_avatar_url),
         entries:loop_duel_entries (id, side, title, content, media_url, votes_count, user_id)
       `)
       .order("created_at", { ascending: false })

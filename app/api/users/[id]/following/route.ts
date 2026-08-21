@@ -59,7 +59,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           id,
           username,
           display_name,
-          avatar_url,
+          avatar_url, video_avatar_url,
           is_verified,
           is_premium
         )

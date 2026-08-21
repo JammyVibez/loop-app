@@ -110,7 +110,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         content,
         parent_comment_id: parentCommentId,
       })
-      .select(`*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)`)
+      .select(`*, author:profiles!user_id(id, username, display_name, avatar_url, video_avatar_url, is_verified)`)
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

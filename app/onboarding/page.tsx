@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { TreePine, Camera, Palette, Users, Zap, ArrowRight, Check, UserPlus, Home, Video, Swords, Rocket } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { uploadMediaFile } from "@/lib/client-media-upload";
@@ -343,10 +343,7 @@ export default function OnboardingPage() {
             <CardContent className="space-y-6">
               <div className="text-center">
                 <div className="relative inline-block">
-                  <Avatar className="w-24 h-24">
-                    <AvatarImage src={profileData.avatar_url || user?.avatar_url || "/placeholder.svg"} />
-                    <AvatarFallback className="text-2xl">{user?.display_name?.charAt(0)}</AvatarFallback>
-                  </Avatar>
+                  <VideoAvatar src={profileData.avatar_url || user?.avatar_url || "/placeholder.svg"} className="w-24 h-24" fallback={user?.display_name?.charAt(0)} />
                   <Button 
                     size="icon" 
                     className="absolute -bottom-2 -right-2 rounded-full w-8 h-8" 
@@ -527,10 +524,7 @@ export default function OnboardingPage() {
                             className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/50 p-2.5"
                           >
                             <div className="flex min-w-0 items-center gap-2.5">
-                              <Avatar className="h-9 w-9">
-                                <AvatarImage src={u.avatar_url} />
-                                <AvatarFallback>{(u.display_name || u.username).charAt(0).toUpperCase()}</AvatarFallback>
-                              </Avatar>
+                              <VideoAvatar src={u.avatar_url} className="h-9 w-9" fallback={(u.display_name || u.username).charAt(0).toUpperCase()} />
                               <div className="min-w-0">
                                 <p className="truncate text-sm font-medium">{u.display_name || u.username}</p>
                                 <p className="truncate text-xs text-muted-foreground">{u.reason || `@${u.username}`}</p>

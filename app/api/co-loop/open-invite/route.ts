@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     // Get creator profile
     const { data: profile } = await supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url, is_verified, is_premium, level, active_cosmetics, cosmetics, badge_id")
+      .select("id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium, level, active_cosmetics, cosmetics, badge_id")
       .eq("id", user.id)
       .single()
 
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
           status: "open",
         },
       })
-      .select("*, author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium, level, active_cosmetics, cosmetics, badge_id)")
+      .select("*, author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium, level, active_cosmetics, cosmetics, badge_id)")
       .single()
 
     if (loopError) {
@@ -221,7 +221,7 @@ export async function PATCH(request: NextRequest) {
     // Get user profile for co_authors update
     const { data: joinerProfile } = await supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url, is_verified")
+      .select("id, username, display_name, avatar_url, video_avatar_url, is_verified")
       .eq("id", user.id)
       .single()
 

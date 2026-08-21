@@ -139,12 +139,9 @@ export function ForwardDialog({
                     onClick={() => onForward(conversation.id)}
                     className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-muted disabled:opacity-60"
                   >
-                    <Avatar className="h-10 w-10 shrink-0">
-                      <AvatarImage src={conversation.other_user?.avatar_url} />
-                      <AvatarFallback className={avatarColor(displayName)}>
+                    <VideoAvatar src={conversation.other_user?.avatar_url} className="h-10 w-10 shrink-0" fallback="
                         {displayName.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                      " />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
                       <p className="truncate text-xs text-muted-foreground">{username}</p>

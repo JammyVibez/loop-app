@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
         created_at,
         loop:loops!loop_id(
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
+          author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         )
       `)
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
         created_at,
         reel:reels!reel_id(
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id)
+          author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id)
         )
       `)
       .eq("user_id", user.id)

@@ -33,7 +33,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .select(
         `
         id, content, created_at, user_id, is_deleted,
-        author:profiles!user_id(id, username, display_name, avatar_url)
+        author:profiles!user_id(id, username, display_name, avatar_url, video_avatar_url)
       `,
       )
       .eq("event_id", eventId)
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .select(
         `
         id, content, created_at, user_id, is_deleted,
-        author:profiles!user_id(id, username, display_name, avatar_url)
+        author:profiles!user_id(id, username, display_name, avatar_url, video_avatar_url)
       `,
       )
       .single()

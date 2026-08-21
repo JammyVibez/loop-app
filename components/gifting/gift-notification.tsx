@@ -124,10 +124,7 @@ export function GiftNotificationSystem() {
                     <span>Someone sent you {notification.gift.name}</span>
                   ) : (
                     <>
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={notification.sender.avatar_url} />
-                        <AvatarFallback>{notification.sender.display_name.charAt(0)}</AvatarFallback>
-                      </Avatar>
+                      <VideoAvatar src={notification.sender.avatar_url} className="h-6 w-6" fallback={notification.sender.display_name.charAt(0)} />
                       <span>
                         @{notification.sender.username} sent {notification.gift.name}
                       </span>

@@ -101,8 +101,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .from("content_flags")
       .select(`
         *,
-        reporter:profiles!reporter_id(username, display_name, avatar_url),
-        content:profiles!content_id(username, display_name, avatar_url)
+        reporter:profiles!reporter_id(username, display_name, avatar_url, video_avatar_url),
+        content:profiles!content_id(username, display_name, avatar_url, video_avatar_url)
       `)
       .eq("id", id)
       .single();

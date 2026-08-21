@@ -25,7 +25,7 @@ export async function POST(
           id,
           username,
           display_name,
-          avatar_url
+          avatar_url, video_avatar_url
         )
       `)
       .eq('id', invitationId)

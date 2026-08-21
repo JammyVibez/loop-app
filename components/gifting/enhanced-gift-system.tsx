@@ -406,10 +406,7 @@ export function EnhancedGiftModal({ isOpen, onClose, recipient, context, context
         <div className="space-y-6">
           {/* Recipient Info */}
           <div className="flex items-center space-x-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <Avatar className="h-12 w-12">
-              <AvatarImage src={recipient.avatar_url} />
-              <AvatarFallback>{recipient.display_name.charAt(0)}</AvatarFallback>
-            </Avatar>
+            <VideoAvatar src={recipient.avatar_url} className="h-12 w-12" fallback={recipient.display_name.charAt(0)} />
             <div>
               <h3 className="font-semibold">{recipient.display_name}</h3>
               <p className="text-sm text-gray-500">@{recipient.username}</p>

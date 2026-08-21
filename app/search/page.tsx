@@ -9,6 +9,7 @@ import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { useAuth } from "@/hooks/use-auth"
 
 type SuggestUser = {

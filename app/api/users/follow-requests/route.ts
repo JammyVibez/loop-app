@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         .from("follow_requests")
         .select(
           `*,
-          requester:profiles!follow_requests_requester_id_fkey(id, username, display_name, avatar_url, is_verified, bio)
+          requester:profiles!follow_requests_requester_id_fkey(id, username, display_name, avatar_url, video_avatar_url, is_verified, bio)
         `
         )
         .eq("target_id", user.id)
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
         .order("created_at", { ascending: false }),
       supabase
         .from("follow_requests")
-        .select(`id, target_id, status, created_at, target:profiles!follow_requests_target_id_fkey(id, username, display_name, avatar_url)`)
+        .select(`id, target_id, status, created_at, target:profiles!follow_requests_target_id_fkey(id, username, display_name, avatar_url, video_avatar_url)`)
         .eq("requester_id", user.id)
         .eq("status", "pending")
         .order("created_at", { ascending: false }),

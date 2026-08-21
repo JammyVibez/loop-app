@@ -19,7 +19,7 @@ export async function GET(
           id,
           username,
           display_name,
-          avatar_url,
+          avatar_url, video_avatar_url,
           is_verified,
           is_premium,
           followers_count
@@ -106,7 +106,7 @@ export async function PUT(
           id,
           username,
           display_name,
-          avatar_url,
+          avatar_url, video_avatar_url,
           is_verified
         )
       `)

@@ -32,7 +32,7 @@ export async function GET(
           id,
           username,
           display_name,
-          avatar_url,
+          avatar_url, video_avatar_url,
           is_verified
         ),
         loop_stats (
@@ -83,7 +83,7 @@ export async function GET(
           id,
           username,
           display_name,
-          avatar_url,
+          avatar_url, video_avatar_url,
           is_verified
         ),
         loop_stats (
@@ -116,7 +116,7 @@ export async function GET(
           id: profileObj?.id || target.author_id,
           username: profileObj?.username || "creator",
           displayName: profileObj?.display_name || "Creator",
-          avatar: profileObj?.avatar_url || "/placeholder.svg",
+          avatar: profileObj?.avatar_url,
           verified: Boolean(profileObj?.is_verified),
         },
         stats: {
@@ -142,7 +142,7 @@ export async function GET(
           id: rootProf?.id || loop.author_id,
           username: rootProf?.username || "creator",
           displayName: rootProf?.display_name || "Creator",
-          avatar: rootProf?.avatar_url || "/placeholder.svg",
+          avatar: rootProf?.avatar_url,
         },
         stats: { likes: 0, branches: 0 },
         children: [],

@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
         const { data: users, error: usersError } = await supabase
           .from("profiles")
           .select(
-            "id, username, display_name, avatar_url, is_verified, is_premium, bio, followers_count, loops_count, created_at",
+            "id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium, bio, followers_count, loops_count, created_at",
           )
           .order("followers_count", { ascending: false, nullsFirst: false })
           .order("created_at", { ascending: false })
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
             .from("loop_duels")
             .select(`
               id, prompt, status, expires_at, stake_coins, loop_id, created_at,
-              creator:profiles!creator_id(id, username, display_name, avatar_url),
+              creator:profiles!creator_id(id, username, display_name, avatar_url, video_avatar_url),
               entries:loop_duel_entries(id, side, title, content, votes_count)
             `)
             .eq("status", "active")
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
             .from("loops")
             .select(`
               id, content_text, content, created_at, author_id, is_co_loop, content_metadata,
-              author:profiles!author_id(id, username, display_name, avatar_url),
+              author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url),
               loop_stats(likes_count, comments_count)
             `)
             .eq("visibility", "public")
@@ -137,11 +137,11 @@ export async function GET(request: NextRequest) {
             .limit(20),
           supabase
             .from("circles")
-            .select("id, name, description, avatar_url, category, is_premium_only, is_private, member_count:circle_members(count)")
+            .select("id, name, description, avatar_url, video_avatar_url, category, is_premium_only, is_private, member_count:circle_members(count)")
             .limit(60),
           supabase
             .from("profiles")
-            .select("id, username, display_name, avatar_url, is_verified, is_premium, bio, followers_count, created_at")
+            .select("id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium, bio, followers_count, created_at")
             .order("followers_count", { ascending: false, nullsFirst: false })
             .order("created_at", { ascending: false })
             .limit(30),
@@ -180,7 +180,7 @@ export async function GET(request: NextRequest) {
             .from("loops")
             .select(`
               id, content_text, content, created_at, author_id, is_co_loop, content_metadata,
-              author:profiles!author_id(id, username, display_name, avatar_url),
+              author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url),
               loop_stats(likes_count, comments_count)
             `)
             .eq("visibility", "public")
@@ -248,7 +248,7 @@ export async function GET(request: NextRequest) {
           .from("loops")
           .select(`
             *,
-            author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, active_cosmetics, cosmetics, badge_id),
+            author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, active_cosmetics, cosmetics, badge_id),
             loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
           `)
           .is("parent_loop_id", null)

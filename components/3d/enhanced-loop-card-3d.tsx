@@ -5,6 +5,7 @@ import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, GitBranch, Volum
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { Badge } from "../ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";

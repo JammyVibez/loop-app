@@ -189,12 +189,9 @@ export function CoLoopJoinLanding({ sessionId, invitedByUsername }: CoLoopJoinLa
 
           {/* Inviter Profile Highlight Card */}
           <div className="mx-auto flex items-center gap-3 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/60 via-slate-900/80 to-purple-950/60 p-3.5 shadow-inner max-w-sm">
-            <Avatar className="h-12 w-12 border-2 border-cyan-400 shadow-md">
-              <AvatarImage src={inviterAvatar || undefined} alt={inviterName} />
-              <AvatarFallback className="bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white font-bold text-lg">
+            <VideoAvatar src={inviterAvatar || undefined} className="h-12 w-12 border-2 border-cyan-400 shadow-md" fallback="
                 {inviterName.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+              " />
             <div className="text-left min-w-0 flex-1">
               <p className="text-xs text-cyan-300 font-semibold tracking-wider uppercase">Inviter</p>
               <h3 className="text-sm sm:text-base font-extrabold text-white truncate">{inviterName}</h3>

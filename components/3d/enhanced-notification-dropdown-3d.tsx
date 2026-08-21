@@ -16,7 +16,7 @@ import {
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { formatDistanceToNow } from "date-fns";
 
 
@@ -276,13 +276,7 @@ export function EnhancedNotificationDropdown3D() {
                     {/* User Avatar or System Icon */}
                     {notification.user ? (
                       <div className="relative">
-                        <Avatar className="h-10 w-10 transition-transform duration-200 group-hover:scale-110">
-                          <AvatarImage
-                            src={notification.user.avatar_url || "/placeholder.svg"}
-                            alt={notification.user.display_name}
-                          />
-                          <AvatarFallback>{notification.user.display_name.charAt(0)}</AvatarFallback>
-                        </Avatar>
+                        <VideoAvatar src={notification.user.avatar_url || "/placeholder.svg"} className="h-10 w-10 transition-transform duration-200 group-hover:scale-110" fallback={notification.user.display_name.charAt(0)} />
                         {notification.user.is_premium && (
                           <Crown className="absolute -top-1 -right-1 h-3 w-3 text-yellow-500" />
                         )}

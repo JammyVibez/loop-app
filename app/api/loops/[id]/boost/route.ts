@@ -30,7 +30,7 @@ export async function GET(
     // Fetch top contributors
     const { data: rawBoosts } = await supabase
       .from("loop_boosts")
-      .select("id, coins, created_at, user:profiles!user_id(id, username, display_name, avatar_url)")
+      .select("id, coins, created_at, user:profiles!user_id(id, username, display_name, avatar_url, video_avatar_url)")
       .eq("loop_id", loopId)
       .order("created_at", { ascending: false })
       .limit(20)
@@ -211,7 +211,7 @@ export async function POST(
     // Fetch total contributors count
     const { data: rawBoosts } = await supabase
       .from("loop_boosts")
-      .select("id, coins, created_at, user:profiles!user_id(id, username, display_name, avatar_url)")
+      .select("id, coins, created_at, user:profiles!user_id(id, username, display_name, avatar_url, video_avatar_url)")
       .eq("loop_id", loopId)
 
     const contributorCount = rawBoosts

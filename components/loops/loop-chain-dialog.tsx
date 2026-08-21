@@ -97,10 +97,7 @@ export function LoopChainDialog({ loopId, open, onOpenChange, onBranchSelect }: 
           {/* Header & Avatar */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8 border border-cyan-500/30">
-                <AvatarImage src={node.author.avatar} />
-                <AvatarFallback>{node.author.displayName.charAt(0)}</AvatarFallback>
-              </Avatar>
+              <VideoAvatar src={node.author.avatar} className="h-8 w-8 border border-cyan-500/30" fallback={node.author.displayName.charAt(0)} />
               <div className="flex flex-col min-w-0">
                 <span className="text-xs font-bold text-foreground truncate">{node.author.displayName}</span>
                 <span className="text-[10px] text-muted-foreground">@{node.author.username}</span>

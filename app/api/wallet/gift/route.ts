@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     // 1. Check sender balance
     const { data: senderProfile } = await supabase
       .from("profiles")
-      .select("loop_coins, username, display_name, avatar_url")
+      .select("loop_coins, username, display_name, avatar_url, video_avatar_url")
       .eq("id", sender.id)
       .single()
 
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     // 2. Find receiver by username
     const { data: receiverProfile } = await supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url, loop_coins")
+      .select("id, username, display_name, avatar_url, video_avatar_url, loop_coins")
       .ilike("username", cleanUsername)
       .maybeSingle()
 

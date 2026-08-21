@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
+          author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .eq("author_id", profile.id)
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
+          author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .is("parent_loop_id", null)
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
+          author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .eq("author_id", profile.id)
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           id, content, content_text, content_media_url, content_type, media_url, media_urls, media_type, hashtags, created_at,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
+          author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .eq("author_id", profile.id)
@@ -159,6 +159,7 @@ export async function GET(request: NextRequest) {
         username: profile.username,
         display_name: profile.display_name,
         avatar_url: profile.avatar_url,
+        video_avatar_url: profile.video_avatar_url,
         banner_url: profile.banner_url,
         bio: profile.bio,
         location: profile.location,
@@ -308,7 +309,7 @@ export async function PUT(request: NextRequest) {
       'bio',
       'location',
       'website',
-      'avatar_url',
+      'avatar_url, video_avatar_url',
       'banner_url',
       'theme_data',
       'privacy_settings',

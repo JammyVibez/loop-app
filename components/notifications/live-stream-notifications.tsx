@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { 
   Radio, 
   Users, 
@@ -122,12 +122,9 @@ export function LiveStreamNotifications() {
                 className="flex items-start gap-3 p-3 rounded-lg border hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
                 <div className="relative">
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage src={stream.streamer.avatar_url} />
-                    <AvatarFallback>
+                  <VideoAvatar src={stream.streamer.avatar_url} className="w-10 h-10" fallback="
                       {stream.streamer.display_name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
+                    " />
                   <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
                     <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                   </div>
@@ -221,12 +218,9 @@ export function LiveStreamFloatingNotification({
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
             <div className="relative">
-              <Avatar className="w-10 h-10">
-                <AvatarImage src={stream.streamer.avatar_url} />
-                <AvatarFallback>
+              <VideoAvatar src={stream.streamer.avatar_url} className="w-10 h-10" fallback="
                   {stream.streamer.display_name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
+                " />
               <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
                 <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
               </div>

@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       .from("support_messages")
       .select(`
         *,
-        sender:profiles!sender_id(id, username, display_name, avatar_url, is_admin, is_moderator)
+        sender:profiles!sender_id(id, username, display_name, avatar_url, video_avatar_url, is_admin, is_moderator)
       `)
       .eq("ticket_id", ticketId)
       .order("created_at", { ascending: true })
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       })
       .select(`
         *,
-        sender:profiles!sender_id(id, username, display_name, avatar_url, is_admin, is_moderator)
+        sender:profiles!sender_id(id, username, display_name, avatar_url, video_avatar_url, is_admin, is_moderator)
       `)
       .single()
 

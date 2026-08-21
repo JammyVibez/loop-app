@@ -212,10 +212,7 @@ export function TrendingContent() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <span className="text-2xl font-bold text-muted-foreground">#{index + 1}</span>
-                          <Avatar className="w-12 h-12">
-                            <AvatarImage src={user.avatar_url || "/placeholder.svg"} />
-                            <AvatarFallback>{(user.display_name || user.username).charAt(0).toUpperCase()}</AvatarFallback>
-                          </Avatar>
+                          <VideoAvatar src={user.avatar_url || "/placeholder.svg"} className="w-12 h-12" fallback={(user.display_name || user.username).charAt(0).toUpperCase()} />
                         </div>
                         {(user.followers_count || 0) > 0 && (
                           <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300">

@@ -162,7 +162,7 @@ export async function GET(
           id,
           username,
           display_name,
-          avatar_url,
+          avatar_url, video_avatar_url,
           is_verified
         )
       `)
