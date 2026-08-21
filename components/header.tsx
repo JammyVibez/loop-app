@@ -34,6 +34,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UserBadges } from "@/components/user-badge"
+import { AccountSwitcher } from "@/components/accounts/account-switcher"
 
 function LogoMark() {
   return (
@@ -245,6 +246,13 @@ export function Header() {
                   <span className="text-xs font-medium">Settings</span>
                 </Link>
               </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              {/* Account Switcher */}
+              <div className="px-1">
+                <AccountSwitcher variant="dropdown" />
+              </div>
 
               <DropdownMenuSeparator />
 

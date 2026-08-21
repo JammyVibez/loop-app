@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { PRO_PRICING } from "@/lib/pro-features"
@@ -45,6 +46,7 @@ import { ReferralsSettings } from "@/components/settings/referrals-settings"
 import { SecuritySettings } from "@/components/settings/security-settings"
 import { CosmeticsShop } from "@/components/cosmetics/cosmetics-shop"
 import { VideoMediaSettings } from "@/components/cosmetics/video-media-settings"
+import { AccountSwitcher } from "@/components/accounts/account-switcher"
 import { cn } from "@/lib/utils"
 
 const themeOptions = [
@@ -467,6 +469,9 @@ export function EnhancedSettings() {
           </TabsTrigger>
           <TabsTrigger value="video-media" className="rounded-xl data-[state=active]:bg-background">
             <Camera className="mr-2 h-4 w-4" /> Video Media
+          </TabsTrigger>
+          <TabsTrigger value="accounts" className="rounded-xl data-[state=active]:bg-background">
+            <Users className="mr-2 h-4 w-4" /> Accounts
           </TabsTrigger>
         </TabsList>
 
@@ -923,6 +928,14 @@ export function EnhancedSettings() {
 
         <TabsContent value="video-media" className="space-y-4">
           <VideoMediaSettings />
+        </TabsContent>
+
+        <TabsContent value="accounts" className="space-y-4">
+          <Card>
+            <CardContent className="pt-6">
+              <AccountSwitcher variant="settings" />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
