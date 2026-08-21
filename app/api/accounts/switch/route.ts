@@ -1,83 +1,159 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { getUserFromRequest } from "@/lib/server-auth"
-import { createServerClient } from "@/lib/supabase"
-
-export const dynamic = "force-dynamic"
+import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@/lib/supabase';
 
 /**
  * POST /api/accounts/switch
- * Switch to a linked account by replaying the exact Set-Cookie header
- * that Better Auth originally set during linking. This ensures the
- * cookie name, value, path, httpOnly, secure, and all attributes
- * are identical to what Better Auth expects.
- * Body: { user_id: string }
+ * Switch to a linked account by replaying the stored Set-Cookie header.
+ * Body: { targetUserId: string }
+ * When targetUserId === "primary", switches back to the primary account.
  */
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const user = await getUserFromRequest(request)
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { targetUserId } = await req.json();
 
-    const body = await request.json().catch(() => ({}))
-    const targetUserId = body.user_id
+    // Get current session cookie from request
+    const currentSessionCookie = req.headers.get('cookie') || '';
 
-    if (!targetUserId) {
-      return NextResponse.json({ error: "user_id required" }, { status: 400 })
+    // Get current authenticated user from Better Auth session cookie
+    const baCookieMatch = currentSessionCookie.match(/better-auth\.session_token=([^;]+)/);
+    if (!baCookieMatch) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+    const currentRawToken = baCookieMatch[1];
 
-    const supabase = createServerClient()
-    const isPrimary = targetUserId === user.id
+    const supabase = createServerClient();
 
-    if (isPrimary) {
-      return NextResponse.json({
+    // If switching back to primary, restore primary's stored session
+    if (targetUserId === 'primary') {
+      // Find the link where current user is the linked user (owner_id is the primary)
+      const { data: link, error: linkError } = await supabase
+        .from('linked_accounts')
+        .select('primary_session, owner_id')
+        .eq('linked_user_id', await getCurrentUserId(currentRawToken))
+        .limit(1)
+        .maybeSingle();
+
+      if (linkError || !link) {
+        return NextResponse.json({ error: 'No linked account found' }, { status: 404 });
+      }
+
+      const primaryCookieHeader = link.primary_session;
+      const primaryUserId = link.owner_id;
+
+      if (!primaryCookieHeader) {
+        return NextResponse.json({ error: 'Primary session cookie not stored. Please unlink and re-add.' }, { status: 400 });
+      }
+
+      // Update last_used_at
+      await supabase
+        .from('linked_accounts')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('linked_user_id', await getCurrentUserId(currentRawToken));
+
+      // Return the stored Set-Cookie header to restore primary session
+      const response = NextResponse.json({
         success: true,
-        switch_to_primary: true,
-        message: "Already on primary account",
-      })
+        userId: primaryUserId,
+        cookieHeader: primaryCookieHeader,
+      });
+
+      // Forward each cookie from the stored header
+      const cookies = primaryCookieHeader.split(',').map((c: string) => c.trim());
+      for (const cookie of cookies) {
+        response.headers.append('Set-Cookie', cookie);
+      }
+
+      return response;
     }
 
-    // Look up the stored Set-Cookie header for this linked account
-    const { data: link } = await supabase
-      .from("linked_accounts")
-      .select("id, refresh_token")
-      .eq("owner_id", user.id)
-      .eq("linked_user_id", targetUserId)
-      .maybeSingle()
+    // Normal switch to linked account
+    const currentUserId = await getCurrentUserId(currentRawToken);
 
-    if (!link) {
-      return NextResponse.json({ error: "Account not linked" }, { status: 403 })
+    const { data: linkCheck, error: checkError } = await supabase
+      .from('linked_accounts')
+      .select('refresh_token, primary_session')
+      .eq('owner_id', currentUserId)
+      .eq('linked_user_id', targetUserId)
+      .limit(1)
+      .maybeSingle();
+
+    if (checkError || !linkCheck) {
+      return NextResponse.json({ error: 'Account not linked' }, { status: 404 });
     }
 
-    const storedSetCookie = (link as any)?.refresh_token || null
-
-    if (!storedSetCookie) {
-      return NextResponse.json(
-        { error: "No stored session. Please unlink and re-add this account." },
-        { status: 400 }
-      )
+    const linkedSetCookie = linkCheck.refresh_token;
+    if (!linkedSetCookie) {
+      return NextResponse.json({ error: 'No session stored for this account. Please unlink and re-add.' }, { status: 400 });
     }
 
-    // Get the target profile for the response
-    const { data: targetProfile } = await supabase
-      .from("profiles")
-      .select("id, username, display_name, avatar_url, video_avatar_url, is_premium, is_verified")
-      .eq("id", targetUserId)
-      .maybeSingle()
+    // If the primary user's session cookie hasn't been stored yet, store it now
+    if (!linkCheck.primary_session) {
+      const baCookieHeader = `better-auth.session_token=${currentRawToken}; Path=/; HttpOnly; SameSite=Lax`;
 
-    // Build the response and replay the exact Set-Cookie header.
-    // Better Auth set this cookie during signInEmail — same name,
-    // same value, same attributes. The browser will apply it exactly.
-    const res = NextResponse.json({
+      await supabase
+        .from('linked_accounts')
+        .update({ primary_session: baCookieHeader })
+        .eq('owner_id', currentUserId)
+        .eq('linked_user_id', targetUserId);
+    }
+
+    // Update last_used_at
+    await supabase
+      .from('linked_accounts')
+      .update({ last_used_at: new Date().toISOString() })
+      .eq('owner_id', currentUserId)
+      .eq('linked_user_id', targetUserId);
+
+    // Return the stored Set-Cookie header for the linked account
+    const response = NextResponse.json({
       success: true,
-      profile: targetProfile,
-    })
+      userId: targetUserId,
+      cookieHeader: linkedSetCookie,
+    });
 
-    // Replay the stored Set-Cookie header exactly as Better Auth set it.
-    // This handles cookie name, value, path, httpOnly, secure, sameSite, etc.
-    res.headers.set("set-cookie", storedSetCookie)
+    // Forward each cookie from the stored header
+    const cookies = linkedSetCookie.split(',').map((c: string) => c.trim());
+    for (const cookie of cookies) {
+      response.headers.append('Set-Cookie', cookie);
+    }
 
-    return res
+    return response;
   } catch (error: any) {
-    console.error("POST /api/accounts/switch error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error('Account switch error:', error);
+    return NextResponse.json({ error: error.message || 'Failed to switch account' }, { status: 500 });
   }
+}
+
+/**
+ * Get user ID from Better Auth session token by querying the session table
+ * Uses service role to bypass RLS
+ */
+async function getCurrentUserId(rawToken: string): Promise<string> {
+  const { createClient } = await import('@supabase/supabase-js');
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  // Try exact token match first, then partial match
+  const { data } = await admin
+    .from('session')
+    .select('userId')
+    .eq('token', rawToken)
+    .limit(1)
+    .maybeSingle();
+
+  if (data?.userId) return data.userId;
+
+  // Partial match fallback (token might be stored with prefix)
+  const { data: partial } = await admin
+    .from('session')
+    .select('userId')
+    .like('token', `%${rawToken.substring(0, 20)}%`)
+    .limit(1)
+    .maybeSingle();
+
+  if (partial?.userId) return partial.userId;
+
+  throw new Error('Could not identify current user from session');
 }

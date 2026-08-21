@@ -69,12 +69,26 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/** Extract the Better Auth session cookie value from the raw Cookie header */
+function extractSessionCookie(cookieHeader: string): string | null {
+  if (!cookieHeader) return null
+  // Match better-auth.session_token=... or any cookie containing "better-auth"
+  const cookies = cookieHeader.split(/;\s*/)
+  for (const c of cookies) {
+    if (c.trim().startsWith("better-auth.session_token=")) {
+      return c.trim()
+    }
+  }
+  return null
+}
+
 /**
  * POST /api/accounts
  * Link an existing account using Better Auth sign-in.
  * Body: { email, password }
- * Stores the FULL Set-Cookie header from Better Auth for exact replay
- * during account switching — no token parsing or cookie construction needed.
+ * Stores both:
+ * - The linked user's session Set-Cookie (for switching TO them)
+ * - The primary user's current session cookie (for switching BACK)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -120,7 +134,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Use Better Auth to sign in as the target user.
-    // This creates a proper session and returns Set-Cookie headers.
     const authRes = await auth.api.signInEmail({
       body: {
         email: targetEmail,
@@ -146,14 +159,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Cannot link your own account" }, { status: 400 })
     }
 
-    // Extract the FULL Set-Cookie header from Better Auth's response.
-    // We store this raw so during switching we can replay it exactly —
-    // no need to parse or reconstruct cookies ourselves.
-    const setCookieHeader = authRes.headers.get("set-cookie") || ""
-
-    if (!setCookieHeader) {
+    // Extract the linked user's Set-Cookie header from the signInEmail response
+    const linkedSetCookie = authRes.headers.get("set-cookie") || ""
+    if (!linkedSetCookie) {
       return NextResponse.json({ error: "Failed to create session for target account" }, { status: 500 })
     }
+
+    // Extract the primary user's current session cookie from the request
+    // Store it as a full Set-Cookie header format for proper replay during switch-back
+    const rawCookieHeader = request.headers.get("cookie") || ""
+    const primarySessionCookie = extractSessionCookie(rawCookieHeader)
+    const primarySetCookieHeader = primarySessionCookie
+      ? `${primarySessionCookie}; Path=/; HttpOnly; SameSite=Lax`
+      : ""
 
     // Check if already linked
     const { data: alreadyLinked } = await supabase
@@ -181,13 +199,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Store the FULL Set-Cookie header for exact replay during switching
+    // Store both session cookies:
+    // - refresh_token: linked user's Set-Cookie (for switching TO them)
+    // - primary_session: primary user's cookie (for switching BACK)
     const { data: link, error: insertError } = await supabase
       .from("linked_accounts")
       .insert({
         owner_id: user.id,
         linked_user_id: targetUserId,
-        refresh_token: setCookieHeader,
+        refresh_token: linkedSetCookie,
+        primary_session: primarySetCookieHeader || "",
         created_at: new Date().toISOString(),
       })
       .select("id, linked_user_id")
