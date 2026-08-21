@@ -3,7 +3,7 @@ import { createServerClient } from "@/lib/supabase"
 import { normalizeLoops } from "@/lib/normalize-loop"
 import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 import { filterPrivateContent, getFollowingIds, getPrivateProfileIds } from "@/lib/privacy"
-import { applyRealCommentCounts } from "@/lib/loop-stats"
+import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats" 
 
 function engagementScore(loop: any) {
   const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats
@@ -299,6 +299,7 @@ export async function GET(request: NextRequest) {
         rows = await filterPrivateContent(supabase, rows, user?.id || null, following)
         const enriched = await enrichLoopsWithPollsAndDuels(supabase, rows)
         await applyRealCommentCounts(supabase, enriched)
+        await applyRealBranchCounts(supabase, enriched)
         const normalized = normalizeLoops(enriched, interactionMap)
         return NextResponse.json({ success: true, data: normalized, loops: normalized })
       }

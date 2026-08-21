@@ -72,3 +72,68 @@ export async function applyRealCommentCounts(supabase: any, loops: any[]): Promi
   }
   return loops
 }
+
+/**
+ * Returns loop_id -> total number of branches (posts where parent_loop_id = loop_id)
+ * from the `loops` table. This recomputes the denormalized branches_count from truth.
+ */
+export async function realBranchCounts(
+  supabase: any,
+  loopIds: string[],
+): Promise<Map<string, number>> {
+  const map = new Map<string, number>()
+  const ids = [...new Set(loopIds.filter(Boolean))]
+  if (!ids.length) return map
+
+  const CHUNK = 200
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const chunk = ids.slice(i, i + CHUNK)
+    // Count loops that branch FROM each parent_loop_id
+    const { data, error } = await supabase
+      .from("loops")
+      .select("parent_loop_id, id", { count: "exact", head: false })
+      .in("parent_loop_id", chunk)
+      .is("deleted_at", null)
+    if (error) {
+      console.error("realBranchCounts error:", error.message)
+      continue
+    }
+    for (const row of data || []) {
+      if (row.parent_loop_id) {
+        map.set(row.parent_loop_id, (map.get(row.parent_loop_id) || 0) + 1)
+      }
+    }
+  }
+  return map
+}
+
+/**
+ * Overwrites the `branches_count` inside each loop's `loop_stats` with the
+ * true count from the `loops` table (posts where parent_loop_id = loop.id).
+ */
+export async function applyRealBranchCounts(supabase: any, loops: any[]): Promise<any[]> {
+  if (!Array.isArray(loops) || loops.length === 0) return loops
+  const counts = await realBranchCounts(
+    supabase,
+    loops.map((l) => l?.id),
+  )
+  if (!counts.size) return loops
+
+  for (const loop of loops) {
+    const real = counts.get(loop?.id)
+    if (real === undefined) continue
+    const stats = Array.isArray(loop?.loop_stats) ? loop.loop_stats[0] : loop?.loop_stats
+    if (stats && typeof stats === "object") {
+      stats.branches_count = real
+    } else {
+      loop.loop_stats = {
+        likes_count: 0,
+        comments_count: 0,
+        branches_count: real,
+        shares_count: 0,
+        views_count: 0,
+      }
+    }
+  }
+  return loops
+}

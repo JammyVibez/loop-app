@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { normalizeLoop } from "@/lib/normalize-loop"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { applyRealCommentCounts } from "@/lib/loop-stats"
+import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats" 
 
 export const dynamic = "force-dynamic"
 
@@ -31,13 +31,12 @@ export async function GET(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    // True comment counts from the comments table before normalizing.
-    await applyRealCommentCounts(
-      supabase,
-      (saves || [])
-        .map((save: any) => (Array.isArray(save.loop) ? save.loop[0] : save.loop))
-        .filter(Boolean),
-    )
+    // True comment & branch counts from the source tables before normalizing.
+    const loopRows = (saves || [])
+      .map((save: any) => (Array.isArray(save.loop) ? save.loop[0] : save.loop))
+      .filter(Boolean)
+    await applyRealCommentCounts(supabase, loopRows)
+    await applyRealBranchCounts(supabase, loopRows)
 
     const bookmarks = (saves || [])
       .map((save: any) => {

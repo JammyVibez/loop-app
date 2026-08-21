@@ -5,7 +5,7 @@ import { normalizeLoop, normalizeLoops } from "@/lib/normalize-loop"
 import { uploadFileToCloudinary } from "@/lib/cloudinary-upload"
 import { isCloudinaryConfigured } from "@/lib/env-check"
 import { filterPrivateContent, getFollowingIds } from "@/lib/privacy"
-import { applyRealCommentCounts } from "@/lib/loop-stats"
+import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats"
 
 async function getUserFromToken(token: string | null) {
   if (!token) return null
@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
     // unless the viewer follows the author (or is the author).
     const visible = await filterPrivateContent(supabase, loops || [], viewer?.id || null, following)
     await applyRealCommentCounts(supabase, visible)
+    await applyRealBranchCounts(supabase, visible)
 
     return NextResponse.json({
       success: true,
