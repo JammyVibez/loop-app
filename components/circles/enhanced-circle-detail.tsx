@@ -1370,6 +1370,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                   <VideoAvatar
                     src={user?.avatar_url}
                     videoSrc={(user as any)?.video_avatar_url || null}
+                    isPremium={user?.is_premium}
                     alt={user?.display_name}
                     size="md"
                   />

@@ -807,6 +807,7 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
         >                <VideoAvatar
                   src={message.author.avatar_url}
                   videoSrc={message.author.video_avatar_url || null}
+                  isPremium={message.author.is_premium}
                   alt={message.author.display_name}
                   size="sm"
                   className="ring-1 ring-border"
@@ -1211,6 +1212,7 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
                 <VideoAvatar
                   src={threadMessage.author.avatar_url}
                   videoSrc={threadMessage.author.video_avatar_url || null}
+                  isPremium={threadMessage.author.is_premium}
                   alt={threadMessage.author.display_name}
                   size="sm"
                 />

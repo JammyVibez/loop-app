@@ -1345,6 +1345,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                         <VideoAvatar
                           src={member.avatar_url}
                           videoSrc={member.video_avatar_url || null}
+                          isPremium={member.is_premium}
                           alt={member.display_name}
                           size="md"
                         />
@@ -1488,6 +1489,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
                       <VideoAvatar
                         src={post.author.avatar_url}
                         videoSrc={post.author.video_avatar_url || null}
+                        isPremium={post.author.is_premium}
                         alt={post.author.display_name}
                         size="md"
                       />

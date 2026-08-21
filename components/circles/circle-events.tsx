@@ -280,6 +280,7 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
                     <VideoAvatar
                       src={event.host?.avatar_url || "/placeholder.svg"}
                       videoSrc={event.host?.video_avatar_url || null}
+                      isPremium={event.host?.is_premium}
                       alt={event.host?.display_name}
                       size="sm"
                     />

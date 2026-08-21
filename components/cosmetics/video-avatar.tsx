@@ -184,8 +184,8 @@ export function VideoAvatar({
               muted
               loop
               playsInline
-              preload={size === "sm" ? "none" : "metadata"}
-              autoPlay
+              preload="metadata"
+              autoPlay={true}
               onError={() => setVideoFailed(true)}
               onLoadedData={() => setVideoReady(true)}
               className={cn(
@@ -241,14 +241,7 @@ export function VideoAvatar({
         </div>
       )}
 
-      {/* Pro indicator: small play icon for video PFPs */}
-      {hasVideo && videoReady && !videoFailed && (
-        <div className="absolute bottom-0 right-0 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-purple-500 text-white pointer-events-none">
-          <svg className="h-2 w-2" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M8 5v14l11-7z" />
-          </svg>
-        </div>
-      )}
+
     </div>
   )
 
