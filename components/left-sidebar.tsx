@@ -235,7 +235,9 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
           <VideoAvatar
             src={user.avatar_url || user.user_metadata?.avatar_url}
             videoSrc={(user as any).video_avatar_url || null}
+            isPremium={user.is_premium}
             alt={user.display_name || user.username}
+            cosmetics={user.cosmetics || user.active_cosmetics}
             size="md"
           />
           <div className="min-w-0 flex-1">

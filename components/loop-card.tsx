@@ -917,7 +917,9 @@ export function LoopCard({
                     <VideoAvatar
                       src={loop.author.avatar_url || "/placeholder.svg"}
                       videoSrc={loop.author.video_avatar_url || null}
+                      isPremium={loop.author.is_premium}
                       alt={loop.author.display_name}
+                      cosmetics={loop.author.cosmetics || loop.author.active_cosmetics}
                       size="sm"
                       className="ring-2 ring-cyan-500 ring-offset-2 ring-offset-background group-hover:scale-105 transition-transform"
                     />
@@ -951,7 +953,9 @@ export function LoopCard({
                   <VideoAvatar
                     src={loop.author.avatar_url || "/placeholder.svg"}
                     videoSrc={loop.author.video_avatar_url || null}
+                    isPremium={loop.author.is_premium}
                     alt={loop.author.display_name}
+                    cosmetics={loop.author.cosmetics || loop.author.active_cosmetics}
                     size="sm"
                     className={getAvatarStyle()}
                   />
@@ -1561,7 +1565,9 @@ export function LoopCard({
                 <VideoAvatar
                   src={loop.author.avatar_url}
                   videoSrc={loop.author.video_avatar_url || null}
+                  isPremium={loop.author.is_premium}
                   alt={loop.author.display_name}
+                  cosmetics={loop.author.cosmetics || loop.author.active_cosmetics}
                   size="md"
                   className="ring-2 ring-cyan-500"
                 />
@@ -1588,6 +1594,7 @@ export function LoopCard({
                 <VideoAvatar
                   src={ca.avatar_url}
                   videoSrc={ca.video_avatar_url || null}
+                  isPremium={ca.is_premium}
                   alt={ca.display_name || ca.username}
                   size="md"
                   className="ring-2 ring-purple-500"

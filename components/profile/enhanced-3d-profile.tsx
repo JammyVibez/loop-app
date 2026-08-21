@@ -510,7 +510,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           <VideoAvatar
             src={profile.avatar_url}
             videoSrc={(profile as any).video_avatar_url || null}
+            isPremium={profile.is_premium}
             alt={displayName}
+            cosmetics={cosmetics}
             size="xl"
             className="pointer-events-auto border-4 border-background self-start"
           />

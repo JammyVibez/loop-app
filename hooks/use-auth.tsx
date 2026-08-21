@@ -12,7 +12,9 @@ interface User {
   username: string
   display_name: string
   avatar_url?: string
+  video_avatar_url?: string | null
   banner_url?: string
+  video_cover_url?: string | null
   bio?: string
   tagged_circles?: Array<{ id: string; name: string; avatar_url?: string | null }>
   loop_coins: number
@@ -23,6 +25,8 @@ interface User {
   is_sponsor?: boolean
   is_admin: boolean
   is_organization?: boolean
+  cosmetics?: any
+  active_cosmetics?: any
   organization_name?: string
   organization_badge_url?: string
   organization_config?: Record<string, any>
@@ -129,7 +133,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       username: profileData.username || previous?.username || "",
       display_name: profileData.display_name || sessionData.user.name || previous?.display_name || "",
       avatar_url: profileData.avatar_url ?? sessionData.user.image ?? previous?.avatar_url,
+      video_avatar_url: profileData.video_avatar_url ?? previous?.video_avatar_url ?? null,
       banner_url: profileData.banner_url ?? previous?.banner_url,
+      video_cover_url: profileData.video_cover_url ?? previous?.video_cover_url ?? null,
       bio: profileData.bio ?? previous?.bio,
       tagged_circles: Array.isArray(profileData.tagged_circles)
         ? profileData.tagged_circles
@@ -152,6 +158,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       location: profileData.location ?? previous?.location,
       privacy_settings: profileData.privacy_settings ?? previous?.privacy_settings,
       notification_settings: profileData.notification_settings ?? previous?.notification_settings,
+      cosmetics: profileData.cosmetics ?? previous?.cosmetics ?? null,
+      active_cosmetics: profileData.active_cosmetics ?? previous?.active_cosmetics ?? null,
       onboarding_completed: preservedOnboarding,
       token,
       access_token: token,
@@ -385,7 +393,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nextUsername = (profile.username as string) || prev.username
       const nextDisplay = (profile.display_name as string) || prev.display_name
       const nextAvatar = (profile.avatar_url as string | undefined) ?? prev.avatar_url
+      const nextVideoAvatar = (profile.video_avatar_url as string | null | undefined) ?? prev.video_avatar_url ?? null
       const nextBanner = (profile.banner_url as string | undefined) ?? prev.banner_url
+      const nextVideoCover = (profile.video_cover_url as string | null | undefined) ?? prev.video_cover_url ?? null
       const nextBio = (profile.bio as string | undefined) ?? prev.bio
       const nextTagged =
         profile.tagged_circles !== undefined
@@ -443,7 +453,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         username: nextUsername,
         display_name: nextDisplay,
         avatar_url: nextAvatar,
+        video_avatar_url: nextVideoAvatar,
         banner_url: nextBanner,
+        video_cover_url: nextVideoCover,
         bio: nextBio,
         tagged_circles: nextTagged,
         loop_coins: nextCoins,

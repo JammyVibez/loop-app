@@ -133,6 +133,7 @@ export function MobileBottomNav() {
                 <VideoAvatar
                   src={user.avatar_url || user.user_metadata?.avatar_url}
                   videoSrc={(user as any).video_avatar_url || null}
+                  isPremium={user.is_premium}
                   alt={user.display_name || user.username}
                   size="sm"
                 />

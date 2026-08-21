@@ -206,7 +206,9 @@ export function Header() {
                 <VideoAvatar
                   src={user.avatar_url}
                   videoSrc={(user as any).video_avatar_url || null}
+                  isPremium={user.is_premium}
                   alt={user.display_name}
+                  cosmetics={user.cosmetics || user.active_cosmetics}
                   size="md"
                 />
               </button>
