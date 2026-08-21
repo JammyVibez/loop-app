@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase';
+import { getUserFromRequest } from '@/lib/server-auth';
+import { createClient } from '@supabase/supabase-js';
 
 /**
  * POST /api/accounts/switch
@@ -9,31 +10,34 @@ import { createServerClient } from '@/lib/supabase';
  */
 export async function POST(req: NextRequest) {
   try {
-    const { targetUserId } = await req.json();
-
-    // Get current session cookie from request
-    const currentSessionCookie = req.headers.get('cookie') || '';
-
-    // Get current authenticated user from Better Auth session cookie
-    const baCookieMatch = currentSessionCookie.match(/better-auth\.session_token=([^;]+)/);
-    if (!baCookieMatch) {
+    // Use getUserFromRequest which reads the session via Better Auth's API
+    const user = await getUserFromRequest(req);
+    if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-    const currentRawToken = baCookieMatch[1];
 
-    const supabase = createServerClient();
+    const currentUserId = user.id;
+    const { targetUserId } = await req.json();
+
+    // Use service-role client to bypass RLS — linked_accounts rows are owned
+    // by the primary user, so the linked user can't read them via normal client.
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
     // If switching back to primary, restore primary's stored session
     if (targetUserId === 'primary') {
       // Find the link where current user is the linked user (owner_id is the primary)
-      const { data: link, error: linkError } = await supabase
+      const { data: link, error: linkError } = await admin
         .from('linked_accounts')
         .select('primary_session, owner_id')
-        .eq('linked_user_id', await getCurrentUserId(currentRawToken))
+        .eq('linked_user_id', currentUserId)
         .limit(1)
         .maybeSingle();
 
       if (linkError || !link) {
+        console.error('Switch to primary - link query error:', linkError);
         return NextResponse.json({ error: 'No linked account found' }, { status: 404 });
       }
 
@@ -45,10 +49,10 @@ export async function POST(req: NextRequest) {
       }
 
       // Update last_used_at
-      await supabase
+      await admin
         .from('linked_accounts')
         .update({ last_used_at: new Date().toISOString() })
-        .eq('linked_user_id', await getCurrentUserId(currentRawToken));
+        .eq('linked_user_id', currentUserId);
 
       // Return the stored Set-Cookie header to restore primary session
       const response = NextResponse.json({
@@ -67,9 +71,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Normal switch to linked account
-    const currentUserId = await getCurrentUserId(currentRawToken);
-
-    const { data: linkCheck, error: checkError } = await supabase
+    const { data: linkCheck, error: checkError } = await admin
       .from('linked_accounts')
       .select('refresh_token, primary_session')
       .eq('owner_id', currentUserId)
@@ -78,6 +80,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (checkError || !linkCheck) {
+      console.error('Switch to linked - link query error:', checkError);
       return NextResponse.json({ error: 'Account not linked' }, { status: 404 });
     }
 
@@ -88,17 +91,20 @@ export async function POST(req: NextRequest) {
 
     // If the primary user's session cookie hasn't been stored yet, store it now
     if (!linkCheck.primary_session) {
-      const baCookieHeader = `better-auth.session_token=${currentRawToken}; Path=/; HttpOnly; SameSite=Lax`;
-
-      await supabase
-        .from('linked_accounts')
-        .update({ primary_session: baCookieHeader })
-        .eq('owner_id', currentUserId)
-        .eq('linked_user_id', targetUserId);
+      // Get the raw token from the cookie for constructing the header
+      const rawToken = extractTokenFromCookie(req.headers.get('cookie') || '');
+      if (rawToken) {
+        const baCookieHeader = `better-auth.session_token=${rawToken}; Path=/; HttpOnly; SameSite=Lax`;
+        await admin
+          .from('linked_accounts')
+          .update({ primary_session: baCookieHeader })
+          .eq('owner_id', currentUserId)
+          .eq('linked_user_id', targetUserId);
+      }
     }
 
     // Update last_used_at
-    await supabase
+    await admin
       .from('linked_accounts')
       .update({ last_used_at: new Date().toISOString() })
       .eq('owner_id', currentUserId)
@@ -124,36 +130,9 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/**
- * Get user ID from Better Auth session token by querying the session table
- * Uses service role to bypass RLS
- */
-async function getCurrentUserId(rawToken: string): Promise<string> {
-  const { createClient } = await import('@supabase/supabase-js');
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  // Try exact token match first, then partial match
-  const { data } = await admin
-    .from('session')
-    .select('userId')
-    .eq('token', rawToken)
-    .limit(1)
-    .maybeSingle();
-
-  if (data?.userId) return data.userId;
-
-  // Partial match fallback (token might be stored with prefix)
-  const { data: partial } = await admin
-    .from('session')
-    .select('userId')
-    .like('token', `%${rawToken.substring(0, 20)}%`)
-    .limit(1)
-    .maybeSingle();
-
-  if (partial?.userId) return partial.userId;
-
-  throw new Error('Could not identify current user from session');
+/** Extract the better-auth session token value from the raw Cookie header */
+function extractTokenFromCookie(cookieHeader: string): string | null {
+  if (!cookieHeader) return null;
+  const match = cookieHeader.match(/better-auth\.session_token=([^;]+)/);
+  return match ? match[1] : null;
 }
