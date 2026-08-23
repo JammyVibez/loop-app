@@ -54,6 +54,7 @@ import { AdminAccountManagement } from "@/components/admin/admin-account-managem
 import { AdminTeamPermissions } from "@/components/admin/admin-team-permissions"
 import { CoLoopSessionsPanel } from "@/components/admin/co-loop-sessions-panel"
 import { AdminAnalyticsTab } from "@/components/admin/admin-analytics-tab"
+import { ThemePresetManager } from "@/components/admin/theme-preset-manager"
 import { UserBadges } from "@/components/user-badge"
 
 interface AdminUser {
@@ -218,6 +219,7 @@ export function AdminDashboard() {
           <TabsTrigger value="health">System Health</TabsTrigger>
           <TabsTrigger value="coloops">Co-Loops</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
+          <TabsTrigger value="circle-themes">Circle Themes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="analytics" className="mt-6">
@@ -506,6 +508,9 @@ export function AdminDashboard() {
         </TabsContent>
         <TabsContent value="team" className="mt-6">
           <AdminTeamPermissions />
+        </TabsContent>
+        <TabsContent value="circle-themes" className="mt-6">
+          <ThemePresetManager />
         </TabsContent>
       </Tabs>
     </div>

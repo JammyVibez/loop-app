@@ -22,6 +22,8 @@ import { formatDistanceToNow } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { uploadMediaFile } from "@/lib/client-media-upload";
+import { CircleThemeEditor } from "@/components/circles/circle-theme-editor";
+import { Palette } from "lucide-react";
 
 interface Circle {
   id: string
@@ -51,6 +53,7 @@ interface Circle {
     active_members: number
     weekly_growth: number
   }
+  theme_config?: Record<string, unknown> | null
 }
 
 interface CircleMember {
@@ -147,6 +150,8 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
   
   // Dialog states
   const [showEditCircle, setShowEditCircle] = useState(false)
+  const [showThemeEditor, setShowThemeEditor] = useState(false)
+  const [themeReloadKey, setThemeReloadKey] = useState(0)
   const [showCreateEvent, setShowCreateEvent] = useState(false)
   const [showCreateRoom, setShowCreateRoom] = useState(false)
   const [showMemberDetails, setShowMemberDetails] = useState(false)
@@ -1147,14 +1152,15 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
       </div>
 
       {/* Main Content Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" key={themeReloadKey}>
         <div className="overflow-x-auto -mx-1 px-1 pb-1">
-          <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-5 h-auto gap-1 p-1">
+          <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-6 h-auto gap-1 p-1">
             <TabsTrigger value="overview" className="text-xs sm:text-sm px-3">Overview</TabsTrigger>
             <TabsTrigger value="members" className="text-xs sm:text-sm px-3">Members</TabsTrigger>
             <TabsTrigger value="posts" className="text-xs sm:text-sm px-3">Posts</TabsTrigger>
             <TabsTrigger value="events" className="text-xs sm:text-sm px-3">Events</TabsTrigger>
             <TabsTrigger value="rooms" className="text-xs sm:text-sm px-3">Rooms</TabsTrigger>
+            <TabsTrigger value="theme" className="text-xs sm:text-sm px-3"><Palette className="inline w-3.5 h-3.5 mr-1" />Theme</TabsTrigger>
           </TabsList>
         </div>
 
@@ -1621,6 +1627,33 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
               </Card>
             ))}
           </div>
+        </TabsContent>
+
+        {/* Theme Tab */}
+        <TabsContent value="theme" className="space-y-6">
+          <Card className="border-border/70 bg-card/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Palette className="h-5 w-5" /> Circle Theme
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Customize your Circle's visual identity with colors, fonts, layout, and more.
+              </p>
+              <Button onClick={() => setShowThemeEditor(true)} className="gap-2">
+                <Palette className="h-4 w-4" /> Open Theme Editor
+              </Button>
+            </CardContent>
+          </Card>
+          <CircleThemeEditor
+            circleId={circle.id}
+            isOpen={showThemeEditor}
+            onClose={() => {
+              setShowThemeEditor(false)
+              setThemeReloadKey((k) => k + 1)
+            }}
+          />
         </TabsContent>
       </Tabs>
 
