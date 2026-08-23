@@ -40,8 +40,8 @@ export const generateViewport = (): Viewport => ({
 })
 
 const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://loopapp.me").replace(/\/$/, "")
-const defaultOgTitle = "loopapp.me — Build together. Not just post into the void."
-const defaultOgDesc = "loopapp.me is where communities create in real time — co-write posts live with friends, settle debates in public Duels, and build spaces that are actually yours."
+const defaultOgTitle = "Loop — Build Together, Not Just Post Into The Void"
+const defaultOgDesc = "Loop is the collaborative social network where you co-write posts live with friends, settle debates in public Duels, build communities in Circles, and earn rewards for being active. Free to join."
 const defaultOgImage = `${siteUrl}/api/og?type=home&title=${encodeURIComponent(defaultOgTitle)}&description=${encodeURIComponent(defaultOgDesc)}`
 
 export const metadata: Metadata = {
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
   generator: "loopapp.me",
   applicationName: "loopapp.me",
   manifest: "/manifest.json",
-  keywords: ["social media", "co-loop", "real-time collaboration", "live streams", "circles", "gamification", "loop coins"],
+  keywords: ["social network", "collaborative social media", "co-loop", "real-time collaboration", "circles", "live streams", "duels", "community app", "creator economy", "loop coins", "free social app"],
   authors: [{ name: "loopapp.me Team", url: siteUrl }],
   creator: "loopapp.me Team",
   publisher: "loopapp.me",
