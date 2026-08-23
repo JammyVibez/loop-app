@@ -100,6 +100,7 @@
     "remark-gfm": "^4.0.1",
     "resend": "^6.20.0",
     "server-only": "^0.0.1",
+    "snowflake-uuid": "1.0.0",
     "socket.io": "latest",
     "socket.io-client": "latest",
     "sonner": "latest",
