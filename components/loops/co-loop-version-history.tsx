@@ -272,12 +272,7 @@ export function CoLoopVersionHistory({
                         {/* Metadata Row */}
                         <div className="flex items-center justify-between pt-3 mt-2 border-t border-border/40 text-[11px] text-muted-foreground">
                           <div className="flex items-center gap-1.5">
-                            <Avatar className="h-4 w-4">
-                              <AvatarImage src={v.savedBy?.avatar} />
-                              <AvatarFallback className="text-[8px]">
-                                {v.savedBy?.name?.charAt(0) || "U"}
-                              </AvatarFallback>
-                            </Avatar>
+                            <VideoAvatar src={v.savedBy?.avatar} videoSrc={(v.savedBy as any)?.video_avatar_url} isPremium={(v.savedBy as any)?.is_premium} fallback={v.savedBy?.name?.charAt(0) || "U"} size="sm" className="h-4 w-4 rounded-full" />
                             <span className="truncate max-w-[90px]">{v.savedBy?.name || "Collaborator"}</span>
                           </div>
 

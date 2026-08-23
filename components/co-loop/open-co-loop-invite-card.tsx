@@ -515,16 +515,15 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
         {/* Creator */}
         {author && (
           <div className="flex items-center gap-3">
-            <Avatar className={"h-10 w-10 ring-2 " + (isPublished ? "ring-emerald-400/60" : "ring-cyan-400/60")}>
-              <AvatarImage src={author.avatar_url} alt={author.display_name} />
-              <AvatarFallback className={"text-sm font-bold text-white " + (
-                isPublished
-                  ? "bg-gradient-to-br from-emerald-600 to-teal-600"
-                  : "bg-gradient-to-br from-cyan-600 to-indigo-600"
-              )}>
-                {(author.display_name || author.username || "?")[0].toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <VideoAvatar
+              src={author.avatar_url}
+              videoSrc={(author as any).video_avatar_url}
+              isPremium={(author as any).is_premium}
+              alt={author.display_name}
+              fallback={(author.display_name || "?").charAt(0)}
+              size="md"
+              className={"h-10 w-10 ring-2 shrink-0 rounded-full " + (isPublished ? "ring-emerald-400/60" : "ring-cyan-400/60")}
+            />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-sm font-bold text-foreground truncate">
@@ -654,12 +653,15 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {comments.map((comment) => (
                   <div key={comment.id} className="flex gap-2 p-2 rounded-lg bg-white/[0.03]">
-                    <Avatar className="h-6 w-6 shrink-0">
-                      <AvatarImage src={comment.author?.avatar_url} alt={comment.author?.display_name} />
-                      <AvatarFallback className="text-[10px] bg-gradient-to-br from-cyan-600 to-indigo-600 text-white">
-                        {(comment.author?.display_name || "?")[0].toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                    <VideoAvatar
+                      src={comment.author?.avatar_url}
+                      videoSrc={(comment.author as any)?.video_avatar_url}
+                      isPremium={(comment.author as any)?.is_premium}
+                      alt={comment.author?.display_name}
+                      fallback={(comment.author?.display_name || "?")[0].toUpperCase()}
+                      size="sm"
+                      className="h-6 w-6 shrink-0 rounded-full"
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-bold text-foreground">
@@ -684,12 +686,15 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
             {/* Comment Input */}
             {user && (
               <div className="flex items-center gap-2">
-                <Avatar className="h-7 w-7 shrink-0">
-                  <AvatarImage src={user.avatar_url} alt={user.display_name} />
-                  <AvatarFallback className="text-[10px] bg-gradient-to-br from-violet-600 to-cyan-600 text-white">
-                    {(user.display_name || user.username || "?")[0].toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                <VideoAvatar
+                  src={user.avatar_url}
+                  videoSrc={(user as any).video_avatar_url}
+                  isPremium={user.is_premium}
+                  alt={user.display_name}
+                  fallback={(user.display_name || user.username || "?")[0].toUpperCase()}
+                  size="sm"
+                  className="h-7 w-7 shrink-0 rounded-full"
+                />
                 <div className="flex-1 flex items-center gap-2 bg-white/[0.05] rounded-xl px-3 py-1.5">
                   <Input
                     value={commentText}
