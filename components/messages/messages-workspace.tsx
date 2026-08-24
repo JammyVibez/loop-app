@@ -265,7 +265,7 @@ export function MessagesWorkspace() {
   selectedIdRef.current = selectedId
 
   const selected = useMemo(
-    () => conversations.find((c) => c.id === selectedId) || null,
+    () => conversations.find((c) => String(c.id) === String(selectedId)) || null,
     [conversations, selectedId],
   )
 
@@ -400,7 +400,7 @@ export function MessagesWorkspace() {
         setConversations((prev) =>
           prev
             .map((c) =>
-              c.id === selectedId
+              String(c.id) === String(selectedId)
                 ? { ...c, last_message: { content: payload.content, created_at: payload.created_at } }
                 : c,
             )
@@ -1390,10 +1390,10 @@ export function MessagesWorkspace() {
                 onClick={() => openConversation(conversation.id)}
                 className={cn(
                   "relative flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50",
-                  selectedId === conversation.id && "bg-gradient-to-r from-violet-500/10 via-muted/40 to-transparent",
+                  String(selectedId) === String(conversation.id) && "bg-gradient-to-r from-violet-500/10 via-muted/40 to-transparent",
                 )}
               >
-                {selectedId === conversation.id && (
+                {String(selectedId) === String(conversation.id) && (
                   <span className="absolute left-0 top-1/2 h-9 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-violet-500 to-cyan-400 shadow shadow-violet-500/40" />
                 )}
                 <div className="relative shrink-0">
