@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation"
 import type React from "react"
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav"
 import { AppUpdateBanner } from "@/components/app-update-banner"
+import { ScreenshotDetector } from "@/components/media-protection"
 
 /**
  * Wraps page content inside the global layout.
@@ -23,6 +24,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         {children}
       </div>
       {!isMessagesPage && <MobileBottomNav />}
+      <ScreenshotDetector />
     </>
   )
 }

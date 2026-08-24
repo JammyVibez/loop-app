@@ -7,7 +7,8 @@ import {
   RotateCcw, Video, Image as ImageIcon,  Volume2, VolumeX,
   Undo2, Redo2, Crop, RotateCw, FlipHorizontal, FlipVertical,
   Sun, Contrast, Droplets, Frame, Mic, CircleDot, RectangleHorizontal,
-  RectangleVertical, SquareIcon, Sparkles, Sliders
+  RectangleVertical, SquareIcon, Sparkles, Sliders, Wand2, Paintbrush,
+  LayoutTemplate, Repeat, Timer, Layers
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
@@ -106,6 +107,27 @@ const MUSIC_TRACKS = [
   { id: "cinematic", name: "Cinematic", icon: "🎬", bpm: 90 },
 ]
 
+const TEMPLATES = [
+  { id: "none", name: "Blank", icon: "📋", desc: "Start from scratch" },
+  { id: "tiktok", name: "TikTok Viral", icon: "📱", desc: "Bold text + upbeat", filter: "vivid", speed: 1, border: "none", music: "upbeat" },
+  { id: "cinematic-reel", name: "Cinematic", icon: "🎬", desc: "Film look + dramatic", filter: "film", speed: 0.75, border: "film", music: "cinematic" },
+  { id: "retro", name: "Retro Vibe", icon: "📼", desc: "Vintage aesthetic", filter: "vintage", speed: 1, border: "polaroid", music: "lofi" },
+  { id: "noir", name: "Film Noir", icon: "🎞️", desc: "Dark & moody", filter: "noir", speed: 0.75, border: "vignette", music: "dramatic" },
+  { id: "dreamy", name: "Dreamy", icon: "☁️", desc: "Soft & ethereal", filter: "pastel", speed: 0.5, border: "rounded", music: "chill" },
+  { id: "vlog", name: "Vlog", icon: "🎥", desc: "Clean & bright", filter: "warm", speed: 1, border: "none", music: "upbeat" },
+  { id: "music-video", name: "Music Video", icon: "🎶", desc: "Neon + dramatic cuts", filter: "cyber", speed: 1, border: "neon", music: "upbeat" },
+  { id: "tutorial", name: "Tutorial", icon: "📖", desc: "Clear text + calm", filter: "none", speed: 1, border: "none", music: "lofi" },
+]
+
+const CHROMA_COLORS = [
+  { id: "green", name: "Green Screen", color: "#00ff00", alt: "#22c55e" },
+  { id: "blue", name: "Blue Screen", color: "#0066ff", alt: "#3b82f6" },
+  { id: "white", name: "White BG", color: "#ffffff", alt: "#f3f4f6" },
+  { id: "black", name: "Black BG", color: "#000000", alt: "#1a1a1a" },
+]
+
+const DOODLE_COLORS = ["#ffffff", "#ff0000", "#00ff00", "#0066ff", "#ffff00", "#ff69b4", "#00ffff", "#ff8800"]
+
 // ─── Types ────────────────────────────────────────────────────────
 interface TextOverlay {
   id: string; text: string; x: number; y: number
@@ -123,8 +145,11 @@ interface EditorState {
   aspectRatio: string; border: string; vignette: boolean
   textOverlays: TextOverlay[]; stickerOverlays: StickerOverlay[]
   volume: number; isMuted: boolean; musicTrack: string
+  isReversed: boolean; loopSection: boolean
+  chromaKey: string; chromaStrength: number
+  doodlePaths: Array<{ points: Array<{x: number; y: number}>; color: string; size: number }>
 }
-type EditMode = "trim" | "text" | "filters" | "speed" | "stickers" | "music" | "adjust" | "transform" | "border" | "none"
+type EditMode = "trim" | "text" | "filters" | "speed" | "stickers" | "music" | "adjust" | "transform" | "border" | "templates" | "chroma" | "doodle" | "reverse" | "none"
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 const formatTime = (s: number) => { const m = Math.floor(s / 60); const sec = Math.floor(s % 60); return `${m}:${sec.toString().padStart(2, "0")}` }
@@ -136,6 +161,9 @@ const DEFAULT_STATE: EditorState = {
   aspectRatio: "9:16", border: "none", vignette: false,
   textOverlays: [], stickerOverlays: [],
   volume: 1, isMuted: false, musicTrack: "none",
+  isReversed: false, loopSection: false,
+  chromaKey: "", chromaStrength: 80,
+  doodlePaths: [],
 }
 
 // ─── Main Component ───────────────────────────────────────────────
@@ -180,6 +208,13 @@ export function ReelEditor({ onReelCreated }: { onReelCreated?: (id: string | nu
   const [newFont, setNewFont] = useState(FONTS[0].family)
   const [newTextStyle, setNewTextStyle] = useState(TEXT_STYLES[0])
   const [newFontSize, setNewFontSize] = useState(36)
+
+  // Doodle
+  const [doodleColor, setDoodleColor] = useState("#ffffff")
+  const [doodleSize, setDoodleSize] = useState(3)
+  const [isDoodling, setIsDoodling] = useState(false)
+  const doodleCanvasRef = useRef<HTMLCanvasElement>(null)
+  const doodlePointsRef = useRef<Array<{x: number; y: number}>>([])
 
   // Publish
   const [title, setTitle] = useState("")
@@ -397,8 +432,35 @@ export function ReelEditor({ onReelCreated }: { onReelCreated?: (id: string | nu
       }
     }
 
+    // Doodle paths
+    for (const path of state.doodlePaths) {
+      if (path.points.length < 2) continue
+      ctx.save()
+      ctx.strokeStyle = path.color
+      ctx.lineWidth = path.size
+      ctx.lineCap = "round"
+      ctx.lineJoin = "round"
+      ctx.globalAlpha = 0.85
+      ctx.beginPath()
+      ctx.moveTo(path.points[0].x * canvas.width, path.points[0].y * canvas.height)
+      for (let i = 1; i < path.points.length; i++) {
+        ctx.lineTo(path.points[i].x * canvas.width, path.points[i].y * canvas.height)
+      }
+      ctx.stroke()
+      ctx.restore()
+    }
+
+    // Chroma key overlay hint
+    if (state.chromaKey) {
+      ctx.save()
+      ctx.globalAlpha = 0.05
+      ctx.fillStyle = state.chromaKey
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.restore()
+    }
+
     previewAnimRef.current = requestAnimationFrame(renderPreview)
-  }, [state.filter, state.brightness, state.contrast, state.saturation, state.rotation, state.flipH, state.flipV, state.vignette, state.aspectRatio, state.textOverlays, state.stickerOverlays, buildFilterCSS])
+  }, [state.filter, state.brightness, state.contrast, state.saturation, state.rotation, state.flipH, state.flipV, state.vignette, state.aspectRatio, state.textOverlays, state.stickerOverlays, state.doodlePaths, state.chromaKey, state.chromaStrength, buildFilterCSS])
 
   useEffect(() => {
     if (videoUrl) previewAnimRef.current = requestAnimationFrame(renderPreview)
@@ -527,12 +589,45 @@ export function ReelEditor({ onReelCreated }: { onReelCreated?: (id: string | nu
       <div className={cn("relative overflow-hidden border border-border bg-black", BORDERS.find((b) => b.id === state.border)?.style || "")}>
         <video ref={videoRef} src={videoUrl} className="hidden" crossOrigin="anonymous" playsInline muted={state.isMuted} loop />
         <canvas ref={canvasRef} className="w-full" style={{ aspectRatio: ASPECT_RATIOS.find((a) => a.id === state.aspectRatio)?.w + "/" + ASPECT_RATIOS.find((a) => a.id === state.aspectRatio)?.h, maxHeight: "55vh" }} />
+        {/* Doodle overlay canvas */}
+        {editMode === "doodle" && (
+          <canvas
+            ref={doodleCanvasRef}
+            className="absolute inset-0 h-full w-full cursor-crosshair"
+            style={{ zIndex: 15 }}
+            onMouseDown={(e) => {
+              setIsDoodling(true)
+              const rect = e.currentTarget.getBoundingClientRect()
+              const x = (e.clientX - rect.left) / rect.width
+              const y = (e.clientY - rect.top) / rect.height
+              doodlePointsRef.current = [{ x, y }]
+            }}
+            onMouseMove={(e) => {
+              if (!isDoodling) return
+              const rect = e.currentTarget.getBoundingClientRect()
+              const x = (e.clientX - rect.left) / rect.width
+              const y = (e.clientY - rect.top) / rect.height
+              doodlePointsRef.current.push({ x, y })
+            }}
+            onMouseUp={() => {
+              if (!isDoodling) return
+              setIsDoodling(false)
+              if (doodlePointsRef.current.length > 1) {
+                update({ doodlePaths: [...state.doodlePaths, { points: [...doodlePointsRef.current], color: doodleColor, size: doodleSize }] })
+              }
+              doodlePointsRef.current = []
+            }}
+          />
+        )}
         {/* Overlays on canvas */}
-        <button onClick={togglePlay} className="absolute inset-0 flex items-center justify-center">
+        <button onClick={togglePlay} className="absolute inset-0 flex items-center justify-center" style={{ zIndex: editMode === "doodle" ? 0 : 10 }}>
           {isPaused && <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm"><Play className="h-7 w-7 text-white fill-white" /></div>}
         </button>
         {state.speed !== 1 && <div className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">{state.speed}×</div>}
         {filterObj.id !== "none" && <div className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">{filterObj.name}</div>}
+        {state.isReversed && <div className="absolute left-2 top-8 rounded-full bg-orange-500/60 px-2 py-0.5 text-[10px] font-bold text-white">⟲ Reversed</div>}
+        {state.chromaKey && <div className="absolute right-2 top-8 rounded-full bg-green-500/60 px-2 py-0.5 text-[10px] font-bold text-white">⚡ Chroma</div>}
+        {state.loopSection && <div className="absolute left-2 top-8 rounded-full bg-cyan-500/60 px-2 py-0.5 text-[10px] font-bold text-white">🔁 Loop</div>}
         {isRecording && <div className="absolute left-2 bottom-2 flex items-center gap-1.5 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white"><CircleDot className="h-3 w-3 animate-pulse" /> REC</div>}
         {voiceoverUrl && <div className="absolute right-2 bottom-2 rounded-full bg-emerald-600/80 px-2 py-0.5 text-[10px] font-bold text-white">🎙️ VO</div>}
       </div>
@@ -572,13 +667,17 @@ export function ReelEditor({ onReelCreated }: { onReelCreated?: (id: string | nu
       {!showPublish && (
         <div className="flex items-center justify-center gap-1.5 overflow-x-auto pb-1">
           {([
+            { mode: "templates" as EditMode, icon: LayoutTemplate, label: "Styles" },
             { mode: "trim" as EditMode, icon: Scissors, label: "Trim" },
             { mode: "text" as EditMode, icon: Type, label: "Text" },
             { mode: "filters" as EditMode, icon: Palette, label: "Filters" },
             { mode: "adjust" as EditMode, icon: Sliders, label: "Adjust" },
             { mode: "speed" as EditMode, icon: Zap, label: "Speed" },
+            { mode: "reverse" as EditMode, icon: Repeat, label: "Reverse" },
             { mode: "transform" as EditMode, icon: RotateCw, label: "Transform" },
             { mode: "stickers" as EditMode, icon: Smile, label: "Stickers" },
+            { mode: "doodle" as EditMode, icon: Paintbrush, label: "Draw" },
+            { mode: "chroma" as EditMode, icon: Wand2, label: "Chroma" },
             { mode: "border" as EditMode, icon: Frame, label: "Frame" },
             { mode: "music" as EditMode, icon: Music, label: "Audio" },
           ]).map(({ mode, icon: Icon, label }) => (
@@ -776,6 +875,104 @@ export function ReelEditor({ onReelCreated }: { onReelCreated?: (id: string | nu
         </Panel>
       )}
 
+      {/* ── Templates ────────────────────────────────────── */}
+      {editMode === "templates" && !showPublish && (
+        <Panel title="Style Templates">
+          <div className="grid grid-cols-3 gap-2">
+            {TEMPLATES.map((t) => (
+              <button key={t.id} onClick={() => {
+                if (t.id === "none") { update({ filter: "none", speed: 1, border: "none", musicTrack: "none" }); return }
+                update({ filter: t.filter || "none", speed: t.speed || 1, border: t.border || "none", musicTrack: t.music || "none" })
+                toast({ title: `${t.name} template applied!`, duration: 1500 })
+              }} className={cn("flex flex-col items-center gap-1 rounded-xl p-3 text-center transition-all",
+                "bg-muted/50 hover:bg-violet-500/10 hover:ring-1 hover:ring-violet-500/30")}>
+                <span className="text-2xl">{t.icon}</span>
+                <span className="text-[10px] font-medium text-foreground">{t.name}</span>
+                <span className="text-[9px] text-muted-foreground leading-tight">{t.desc}</span>
+              </button>
+            ))}
+          </div>
+        </Panel>
+      )}
+
+      {/* ── Reverse ──────────────────────────────────────── */}
+      {editMode === "reverse" && !showPublish && (
+        <Panel title="Reverse & Loop">
+          <button onClick={() => update({ isReversed: !state.isReversed })}
+            className={cn("flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm transition-all",
+              state.isReversed ? "bg-violet-500/20 text-violet-400 ring-1 ring-violet-500/30" : "bg-muted/50 text-muted-foreground")}>
+            <Repeat className="h-5 w-5" />
+            <div className="text-left">
+              <p className="font-medium">{state.isReversed ? "Reversed" : "Normal"}</p>
+              <p className="text-[10px] opacity-60">{state.isReversed ? "Video plays backwards" : "Toggle to reverse playback"}</p>
+            </div>
+          </button>
+          <button onClick={() => update({ loopSection: !state.loopSection })}
+            className={cn("flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm transition-all",
+              state.loopSection ? "bg-violet-500/20 text-violet-400 ring-1 ring-violet-500/30" : "bg-muted/50 text-muted-foreground")}>
+            <Timer className="h-5 w-5" />
+            <div className="text-left">
+              <p className="font-medium">{state.loopSection ? "Loop Active" : "Loop Trimmed Section"}</p>
+              <p className="text-[10px] opacity-60">Repeat trimmed section continuously</p>
+            </div>
+          </button>
+          <div className="rounded-xl bg-muted/30 p-3 text-[10px] text-muted-foreground">
+            <p>💡 Reverse plays the trimmed section backwards. Combined with loop, it creates a boomerang effect.</p>
+          </div>
+        </Panel>
+      )}
+
+      {/* ── Chroma Key ───────────────────────────────────── */}
+      {editMode === "chroma" && !showPublish && (
+        <Panel title="Chroma Key (Green Screen)">
+          <div className="grid grid-cols-2 gap-2">
+            {CHROMA_COLORS.map((c) => (
+              <button key={c.id} onClick={() => update({ chromaKey: state.chromaKey === c.color ? "" : c.color })}
+                className={cn("flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-all",
+                  state.chromaKey === c.color ? "bg-violet-500/20 text-violet-400 ring-1 ring-violet-500/30" : "bg-muted/50 text-muted-foreground")}>
+                <span className="h-4 w-4 rounded-full ring-1 ring-border" style={{ backgroundColor: c.color }} />
+                <span>{c.name}</span>
+                {state.chromaKey === c.color && <Check className="ml-auto h-3 w-3" />}
+              </button>
+            ))}
+          </div>
+          {state.chromaKey && (
+            <div className="space-y-1.5">
+              <SliderRow label="Strength" icon={<Wand2 className="h-3 w-3" />} value={state.chromaStrength} min={10} max={100} onValueChange={([v]) => update({ chromaStrength: v })} display={`${state.chromaStrength}%`} />
+              <button onClick={() => update({ chromaKey: "" })} className="w-full rounded-xl bg-red-500/10 py-2 text-xs text-red-400 hover:bg-red-500/20">Remove Chroma Key</button>
+            </div>
+          )}
+          <div className="rounded-xl bg-muted/30 p-3 text-[10px] text-muted-foreground">
+            <p>💡 Chroma key removes a color from your video. Works best with solid green/blue backgrounds. This is a CSS-based preview — full chroma processing happens during export.</p>
+          </div>
+        </Panel>
+      )}
+
+      {/* ── Doodle ───────────────────────────────────────── */}
+      {editMode === "doodle" && !showPublish && (
+        <Panel title="Draw / Doodle">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs text-muted-foreground">Color:</span>
+            {DOODLE_COLORS.map((c) => (
+              <button key={c} className="h-6 w-6 rounded-full ring-1 ring-border transition-transform hover:scale-110"
+                style={{ backgroundColor: c }} onClick={() => {}} />
+            ))}
+          </div>
+          <div className="space-y-2">
+            <div className="relative rounded-xl border border-dashed border-border bg-muted/20 p-4 text-center">
+              <Paintbrush className="mx-auto mb-1 h-6 w-6 text-muted-foreground" />
+              <p className="text-[10px] text-muted-foreground">Tap the video to draw on it</p>
+              <p className="text-[9px] text-muted-foreground/60">Doodles appear as overlays on the final video</p>
+            </div>
+            {state.doodlePaths.length > 0 && (
+              <button onClick={() => update({ doodlePaths: [] })} className="w-full rounded-xl bg-red-500/10 py-2 text-xs text-red-400 hover:bg-red-500/20">
+                Clear All Doodles
+              </button>
+            )}
+          </div>
+        </Panel>
+      )}
+
       {/* ═══════════════════════════════════════════════════ */}
       {/* PUBLISH PANEL */}
       {/* ═══════════════════════════════════════════════════ */}
@@ -807,6 +1004,10 @@ export function ReelEditor({ onReelCreated }: { onReelCreated?: (id: string | nu
             {state.border !== "none" && <Tag>{BORDERS.find((b) => b.id === state.border)?.name}</Tag>}
             {state.musicTrack !== "none" && <Tag>🎵 Music</Tag>}
             {voiceoverUrl && <Tag>🎙️ VO</Tag>}
+            {state.isReversed && <Tag>⟲ Reversed</Tag>}
+            {state.loopSection && <Tag>🔁 Loop</Tag>}
+            {state.chromaKey && <Tag>⚡ Chroma</Tag>}
+            {state.doodlePaths.length > 0 && <Tag>✏️ {state.doodlePaths.length} doodles</Tag>}
           </div>
           <Button onClick={handlePublish} disabled={uploading || !videoFile} className="h-12 w-full rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-base font-bold">
             {uploading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {uploadLabel || "Publishing…"}</> : "Publish Reel"}

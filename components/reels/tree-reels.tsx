@@ -42,6 +42,7 @@ import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { ShareToDmModal } from "@/components/messages/share-to-dm-modal"
 import { SaveToDevice } from "@/components/download/save-to-device"
+import { MediaProtection } from "@/components/media-protection"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
 import { uploadMediaFile } from "@/lib/client-media-upload"
@@ -689,15 +690,19 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
               data-index={index}
               className="relative flex h-[100dvh] w-full snap-start snap-always items-center justify-center overflow-hidden"
             >
+              <MediaProtection enableWatermark fullArea={false}>
               {mediaType === "image" ? (
                 <img
+                  data-protected-media
                   src={reel.content_url}
                   alt={reel.title}
                   className="h-full w-full object-cover"
+                  draggable={false}
                   onClick={() => doubleTapLike(reel)}
                 />
               ) : (
                 <video
+                  data-protected-media
                   ref={(el) => {
                     if (el) videoRefs.current.set(reel.id, el)
                     else videoRefs.current.delete(reel.id)
@@ -721,6 +726,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                   onClick={() => doubleTapLike(reel)}
                 />
               )}
+              </MediaProtection>
 
               {active && heartBurst && (
                 <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
@@ -859,7 +865,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
           <div className="flex items-center gap-3 border-b px-4 py-3">
             <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded-lg bg-black">
               {commentOpen?.content_url && (
-                <video src={commentOpen.content_url} className="h-full w-full object-cover" muted playsInline />
+                <video data-protected-media src={commentOpen.content_url} className="h-full w-full object-cover" muted playsInline />
               )}
               <div className="absolute inset-0 bg-black/10" />
             </div>
