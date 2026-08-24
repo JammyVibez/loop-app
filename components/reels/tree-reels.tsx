@@ -42,7 +42,7 @@ import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { ShareToDmModal } from "@/components/messages/share-to-dm-modal"
 import { SaveToDevice } from "@/components/download/save-to-device"
-import { MediaProtection } from "@/components/media-protection"
+import { MediaProtection, ProtectedMedia, WatermarkOverlay } from "@/components/media-protection"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
 import { uploadMediaFile } from "@/lib/client-media-upload"
@@ -690,43 +690,23 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
               data-index={index}
               className="relative flex h-[100dvh] w-full snap-start snap-always items-center justify-center overflow-hidden"
             >
-              <MediaProtection enableWatermark fullArea={false}>
               {mediaType === "image" ? (
-                <img
-                  data-protected-media
+                <ProtectedMedia
+                  type="image"
                   src={reel.content_url}
                   alt={reel.title}
-                  className="h-full w-full object-cover"
-                  draggable={false}
+                  className="h-full w-full"
                   onClick={() => doubleTapLike(reel)}
                 />
               ) : (
-                <video
-                  data-protected-media
-                  ref={(el) => {
-                    if (el) videoRefs.current.set(reel.id, el)
-                    else videoRefs.current.delete(reel.id)
-                  }}
+                <ProtectedMedia
+                  type="video"
                   src={reel.content_url}
-                  poster={reel.thumbnail_url || undefined}
-                  className="h-full w-full object-cover"
-                  style={
-                    reel.effects?.filter === "vivid"
-                      ? { filter: "saturate(1.4) contrast(1.1)" }
-                      : reel.effects?.filter === "noir"
-                        ? { filter: "grayscale(1) contrast(1.2)" }
-                        : reel.effects?.filter === "warm"
-                          ? { filter: "sepia(0.25) saturate(1.2)" }
-                          : undefined
-                  }
-                  playsInline
-                  loop
-                  muted={active ? muted : true}
-                  preload={Math.abs(index - activeIndex) <= 1 ? "auto" : "metadata"}
-                  onClick={() => doubleTapLike(reel)}
+                  className="h-full w-full"
+                  showControls={false}
                 />
               )}
-              </MediaProtection>
+              <WatermarkOverlay opacity={0.3} animated={true} />
 
               {active && heartBurst && (
                 <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
@@ -865,7 +845,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
           <div className="flex items-center gap-3 border-b px-4 py-3">
             <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded-lg bg-black">
               {commentOpen?.content_url && (
-                <video data-protected-media src={commentOpen.content_url} className="h-full w-full object-cover" muted playsInline />
+                <ProtectedMedia type="video" src={commentOpen.content_url} className="h-full w-full" showControls={false} />
               )}
               <div className="absolute inset-0 bg-black/10" />
             </div>

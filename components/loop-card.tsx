@@ -66,7 +66,7 @@ import { supabase } from "@/lib/supabase";
 import { CodeBlock } from "@/components/loops/code-block";
 import { ShareToDmModal } from "@/components/messages/share-to-dm-modal"
 import { SaveToDevice } from "@/components/download/save-to-device"
-import { MediaProtection } from "@/components/media-protection";
+import { MediaProtection, ProtectedMedia } from "@/components/media-protection";
 import { ShareToCircleModal } from "@/components/messages/share-to-circle-modal";
 import { ShareAsImageModal } from "@/components/engagement/share-as-image-modal";
 import { isCodeLoop } from "@/lib/pro-features";
@@ -645,14 +645,11 @@ export function LoopCard({
             <div
               className={`mt-3 overflow-hidden rounded-xl bg-muted ring-1 ring-black/5 ${mediaContainerStyle}`}
             >
-              <img
-                data-protected-media
+              <ProtectedMedia
+                type="image"
                 src={optimizeImageUrl(mediaUrl, 900) || "/placeholder.svg"}
                 alt="Loop media"
                 onClick={() => setViewerOpen(true)}
-                loading="lazy"
-                decoding="async"
-                draggable={false}
                 className="w-full h-auto max-h-96 cursor-zoom-in object-cover transition-transform duration-300 hover:scale-105"
               />
             </div>
@@ -661,17 +658,14 @@ export function LoopCard({
           return (
             <div
               className={`mt-3 overflow-hidden rounded-xl bg-black relative ${mediaContainerStyle}`}
-              onClick={() => setViewerOpen(true)}
             >
-              <video
-                data-protected-media
-                controls
-                preload="metadata"
-                className="w-full h-auto max-h-96"
+              <ProtectedMedia
+                type="video"
+                src={mediaUrl}
                 poster="/placeholder.svg?height=300&width=500"
-              >
-                <source src={mediaUrl} type="video/mp4" />
-              </video>
+                className="w-full h-auto max-h-96"
+                onClick={() => setViewerOpen(true)}
+              />
             </div>
           );
         case "audio":
@@ -735,26 +729,18 @@ export function LoopCard({
             </div>
           )}
           {loop.media_type === "image" ? (
-            <img
-              data-protected-media
+            <ProtectedMedia
+              type="image"
               src={optimizeImageUrl(mediaUrls[currentMediaIndex], 900) || "/placeholder.svg"}
               alt={`Loop media ${currentMediaIndex + 1}`}
-              loading="lazy"
-              decoding="async"
-              draggable={false}
               className="w-full h-auto max-h-96 object-cover"
             />
           ) : loop.media_type === "video" ? (
-            <video
-              data-protected-media
-              controls
-              preload="metadata"
+            <ProtectedMedia
+              type="video"
+              src={mediaUrls[currentMediaIndex]}
               className="w-full h-auto max-h-96"
-              key={currentMediaIndex}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <source src={mediaUrls[currentMediaIndex]} type="video/mp4" />
-            </video>
+            />
           ) : null}
 
           {mediaUrls.length > 1 && (
@@ -1533,11 +1519,11 @@ export function LoopCard({
               if (!url) return null
               if (loop.media_type === "video") {
                 return (
-                  <video data-protected-media src={url} controls autoPlay className="max-h-[85vh] max-w-full object-contain" />
+                  <ProtectedMedia type="video" src={url} className="max-h-[85vh] max-w-full object-contain" />
                 )
               }
               return (
-                <img data-protected-media src={url} alt="Full media" className="max-h-[85vh] max-w-full object-contain" draggable={false} />
+                <ProtectedMedia type="image" src={url} alt="Full media" className="max-h-[85vh] max-w-full object-contain" />
               )
             })()}
             {(loop.media_urls?.length || 0) > 1 && (

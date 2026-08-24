@@ -1,56 +1,81 @@
 "use client"
 
-import { useMemo } from "react"
+import { useEffect, useState } from "react"
+import { useAuth } from "@/hooks/use-auth"
 
 type WatermarkOverlayProps = {
-  /** Text to repeat across the overlay */
-  text?: string
   /** Opacity 0–1 */
   opacity?: number
-  /** Rotation angle in degrees */
-  angle?: number
-  /** Spacing between watermark lines */
-  spacing?: number
-  /** Font size in px */
-  fontSize?: number
-  /** Absolute or fixed positioning */
-  position?: "absolute" | "fixed"
+  /** Position: corner or center */
+  position?: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center"
+  /** Whether to animate position periodically */
+  animated?: boolean
 }
 
 /**
- * Renders a subtle, semi-transparent watermark pattern over media content.
- * Uses CSS-only approach for performance — no canvas or DOM overhead.
+ * TikTok-style watermark overlay.
+ * Shows a small, subtle Loop logo + username in one corner — NOT repeating text
+ * all over the image. Optionally animates position periodically.
  *
- * The watermark is a deterrent layer, not a guarantee against screenshots.
- * Admin can toggle on/off per content type.
+ * This is a deterrent layer, not a guarantee.
  */
 export function WatermarkOverlay({
-  text = "Loop",
-  opacity = 0.08,
-  angle = -30,
-  spacing = 120,
-  fontSize = 14,
-  position = "absolute",
+  opacity = 0.35,
+  position: initialPosition = "bottom-right",
+  animated = true,
 }: WatermarkOverlayProps) {
-  const bgStyle = useMemo(() => {
-    const encoded = encodeURIComponent(text)
-    // Create a repeating SVG watermark pattern
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${spacing}' height='${spacing}' viewBox='0 0 ${spacing} ${spacing}'><text x='50%' y='50%' font-family='system-ui,-apple-system,sans-serif' font-size='${fontSize}' fill='white' text-anchor='middle' dominant-baseline='central' transform='rotate(${angle} ${spacing / 2} ${spacing / 2})'>${text}</text></svg>`
-    return `url("data:image/svg+xml,${svg}")`
-  }, [text, angle, spacing, fontSize])
+  const { user } = useAuth()
+  const [pos, setPos] = useState(initialPosition)
+
+  // Animate position every 3 seconds (like TikTok)
+  useEffect(() => {
+    if (!animated) return
+    const positions = ["top-left", "top-right", "bottom-left", "bottom-right"] as const
+    const interval = setInterval(() => {
+      setPos((prev) => {
+        if (prev === "center") return "bottom-right"
+        const current = positions.indexOf(prev as typeof positions[number])
+        return positions[(current + 1) % positions.length]
+      })
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [animated])
+
+  const posClasses = {
+    "top-left": "top-3 left-3",
+    "top-right": "top-3 right-3",
+    "bottom-left": "bottom-3 left-3",
+    "bottom-right": "bottom-3 right-3",
+    "center": "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
+  }
 
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none"
-      style={{
-        position,
-        inset: 0,
-        zIndex: 10,
-        backgroundImage: bgStyle,
-        opacity,
-        mixBlendMode: "overlay",
-      }}
-    />
+      className={`pointer-events-none absolute z-10 transition-all duration-700 ease-in-out ${posClasses[pos]}`}
+      style={{ opacity }}
+    >
+      {/* Small Loop logo + username badge */}
+      <div className="flex items-center gap-1.5 rounded-full bg-black/50 backdrop-blur-sm px-2.5 py-1">
+        {/* Loop infinity icon */}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          className="text-white/80"
+        >
+          <path
+            d="M12 4C8 4 4 7 4 12s4 8 8 8 8-4 8-8-4-8-8-8zm0 12c-2.2 0-4-1.8-4-4s1.8-4 4-4 4 1.8 4 4-1.8 4-4 4z"
+            fill="currentColor"
+            opacity="0.9"
+          />
+          <circle cx="12" cy="12" r="2" fill="currentColor" />
+        </svg>
+        <span className="text-[10px] font-medium text-white/80">
+          @{user?.username || "loop"}
+        </span>
+      </div>
+    </div>
   )
 }

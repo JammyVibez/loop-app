@@ -148,8 +148,9 @@ export function MediaProtection({
       {children}
       {enableWatermark && (
         <WatermarkOverlay
-          text={effectiveWatermarkText}
           opacity={watermarkOpacity}
+          position="bottom-right"
+          animated={true}
         />
       )}
     </div>
