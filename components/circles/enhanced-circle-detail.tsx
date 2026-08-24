@@ -1,3 +1,4 @@
+import { ProtectedMedia } from "@/components/media-protection"
 "use client"
 
 import { useState, useEffect } from "react"
@@ -1698,15 +1699,16 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                             )}
                             {post.media_urls.map((url, i) =>
                               post.media_type === "video" && i === 0 ? (
-                                <video
+                                <ProtectedMedia
                                   key={url}
+                                  type="video"
                                   src={url}
-                                  controls
-                                  className="max-h-96 w-full bg-black object-contain cursor-pointer"
+                                  className="max-h-96 w-full"
                                 />
                               ) : (
-                                <img
+                                <ProtectedMedia
                                   key={url}
+                                  type="image"
                                   src={url}
                                   alt="Post media"
                                   onClick={() => setPreviewMediaUrl(url)}
@@ -2350,7 +2352,8 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
           <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/95 border-none">
             <div className="relative flex items-center justify-center min-h-[50vh] max-h-[85vh]">
               {previewMediaUrl && (
-                <img
+                <ProtectedMedia
+                  type="image"
                   src={previewMediaUrl}
                   alt="Enlarged post media"
                   className="max-h-[85vh] w-auto max-w-full object-contain"

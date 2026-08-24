@@ -1,5 +1,7 @@
 "use client"
 
+import { ProtectedMedia } from "@/components/media-protection"
+
 import { useEffect, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -74,7 +76,7 @@ export function AdCard({ ad, sessionId }: AdCardProps) {
           {ad.media_url && (
             <div className="relative mt-2.5 overflow-hidden bg-muted/40">
               {isVideo ? (
-                <video src={ad.media_url} muted loop playsInline controls className="aspect-video w-full object-cover" />
+                <ProtectedMedia type="video" src={ad.media_url} className="aspect-video w-full" showControls={false} />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img

@@ -1,5 +1,7 @@
 "use client"
 
+import { ProtectedMedia } from "@/components/media-protection"
+
 import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -609,7 +611,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
             <div className="space-y-3">
               <div className="relative rounded-2xl overflow-hidden border border-border bg-black/60 group max-h-[520px] flex items-center justify-center">
                 {loop.mediaUrls[activeMediaIndex]?.match(/\.(mp4|webm|ogg|mov)$/i) ? (
-                  <video src={loop.mediaUrls[activeMediaIndex]} controls className="w-full max-h-[520px] object-contain" />
+                  <ProtectedMedia type="video" src={loop.mediaUrls[activeMediaIndex]} className="w-full max-h-[520px] object-contain" />
                 ) : (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img

@@ -1,3 +1,4 @@
+import { ProtectedMedia } from "@/components/media-protection"
 "use client"
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -854,10 +855,10 @@ export function RealtimeCircleChat({ circleId, roomId, roomName, onBack }: Realt
               )}
               {message.media_url && (message.media_type === "image" || message.media_type === "sticker") && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={message.media_url} alt="" className="mb-1 max-h-48 rounded-xl object-cover" />
+                <ProtectedMedia type="image" src={message.media_url} alt="" className="mb-1 max-h-48 rounded-xl" />
               )}
               {message.media_url && message.media_type === "video" && (
-                <video src={message.media_url} controls className="mb-1 max-h-48 w-full rounded-xl" />
+                <ProtectedMedia type="video" src={message.media_url} className="mb-1 max-h-48 w-full rounded-xl" />
               )}
               {message.content && !(message.media_type === "audio" && message.content === "Voice note") && (
                 <RichContent text={message.content} as="p" />

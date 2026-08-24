@@ -11,7 +11,7 @@ type ProtectedMediaProps = {
   alt?: string
   /** "video" or "image" */
   type: "video" | "image"
-  /** CSS className */
+  /** CSS className applied to both wrapper AND media element */
   className?: string
   /** Poster image for video */
   poster?: string
@@ -19,7 +19,7 @@ type ProtectedMediaProps = {
   onClick?: () => void
   /** Whether to show custom video controls */
   showControls?: boolean
-  /** Whether to show watermark */
+  /** Children (e.g. watermark overlay) */
   children?: ReactNode
 }
 
@@ -29,9 +29,9 @@ type ProtectedMediaProps = {
  * 2. Block right-click context menu ("Save Image As", "Download")
  * 3. Block drag-and-drop
  * 4. Add user-select: none CSS
- * 5. Add watermark overlay
  *
- * This is a deterrent layer — determined users can still bypass via dev tools.
+ * className is applied to BOTH the wrapper div AND the media element
+ * so sizing constraints propagate correctly.
  */
 export function ProtectedMedia({
   src,
@@ -47,9 +47,8 @@ export function ProtectedMedia({
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(true)
   const [progress, setProgress] = useState(0)
-  const [duration, setDuration] = useState(0)
 
-  // Block context menu on ALL descendants
+  // Block context menu
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -90,19 +89,14 @@ export function ProtectedMedia({
     if (!v || type !== "video") return
 
     const onTimeUpdate = () => {
-      if (v.duration) {
-        setProgress((v.currentTime / v.duration) * 100)
-      }
+      if (v.duration) setProgress((v.currentTime / v.duration) * 100)
     }
-    const onLoaded = () => setDuration(v.duration)
     const onEnded = () => setIsPlaying(false)
 
     v.addEventListener("timeupdate", onTimeUpdate)
-    v.addEventListener("loadedmetadata", onLoaded)
     v.addEventListener("ended", onEnded)
     return () => {
       v.removeEventListener("timeupdate", onTimeUpdate)
-      v.removeEventListener("loadedmetadata", onLoaded)
       v.removeEventListener("ended", onEnded)
     }
   }, [type])
@@ -112,24 +106,18 @@ export function ProtectedMedia({
     const v = videoRef.current
     if (!v || !v.duration) return
     const rect = e.currentTarget.getBoundingClientRect()
-    const frac = (e.clientX - rect.left) / rect.width
-    v.currentTime = frac * v.duration
-  }, [])
-
-  // Block keyboard download shortcuts
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && (e.key === "s" || (e.shiftKey && e.key === "S"))) {
-      e.preventDefault()
-      e.stopPropagation()
-    }
+    v.currentTime = ((e.clientX - rect.left) / rect.width) * v.duration
   }, [])
 
   return (
     <div
-      className={cn("relative group", className)}
+      className={cn(
+        "relative group",
+        type === "video" && "overflow-hidden bg-black",
+        className
+      )}
       onContextMenu={handleContextMenu}
       onDragStart={handleDragStart}
-      onKeyDown={handleKeyDown}
       style={{
         WebkitUserSelect: "none",
         userSelect: "none",
@@ -142,7 +130,7 @@ export function ProtectedMedia({
             ref={videoRef}
             src={src}
             poster={poster}
-            className="w-full h-auto"
+            className={cn("w-full h-auto object-cover", className)}
             preload="metadata"
             playsInline
             muted={isMuted}
@@ -153,10 +141,9 @@ export function ProtectedMedia({
           {/* Custom controls — NO download button */}
           {showControls && (
             <div
-              className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-3 pb-2 pt-8 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-8 opacity-0 group-hover:opacity-100 transition-opacity z-10"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Play/Pause button */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={togglePlay}
@@ -171,14 +158,13 @@ export function ProtectedMedia({
                   onClick={seek}
                 >
                   <div
-                    className="h-full bg-white rounded-full relative"
+                    className="h-full bg-white rounded-full relative transition-all"
                     style={{ width: `${progress}%` }}
                   >
                     <div className="absolute right-0 top-1/2 -translate-y-1/2 h-3 w-3 bg-white rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
                   </div>
                 </div>
 
-                {/* Mute toggle */}
                 <button
                   onClick={toggleMute}
                   className="text-white hover:text-white/80 transition-colors"
@@ -188,15 +174,14 @@ export function ProtectedMedia({
               </div>
             </div>
           )}
-          {/* Click overlay to block native controls interaction */}
+          {/* Transparent overlay to block native controls and intercept clicks */}
           <div
-            className="absolute inset-0 z-[1]"
+            className="absolute inset-0 z-[5]"
             onClick={(e) => {
               e.stopPropagation()
               togglePlay()
             }}
             onContextMenu={handleContextMenu}
-            onDoubleClick={(e) => e.stopPropagation()}
           />
         </>
       ) : (
@@ -207,7 +192,7 @@ export function ProtectedMedia({
           onClick={onClick}
           onContextMenu={handleContextMenu}
           onDragStart={handleDragStart}
-          className="w-full h-auto pointer-events-auto"
+          className={cn("w-full h-auto pointer-events-auto", className)}
           style={{ userSelect: "none", WebkitUserSelect: "none" }}
         />
       )}

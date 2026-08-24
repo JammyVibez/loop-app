@@ -1,3 +1,4 @@
+import { ProtectedMedia } from "@/components/media-protection"
 "use client"
 
 import { useState, useEffect, useRef, useMemo } from "react"
@@ -1717,7 +1718,7 @@ export function CoLoopStudio() {
                             // eslint-disable-next-line jsx-a11y/media-has-caption
                             <video src={url} muted preload="metadata" playsInline className="h-full w-full object-cover" />
                           ) : (
-                            <img src={url} alt="Media attachment" className="h-full w-full object-cover" />
+                            <ProtectedMedia type="image" src={url} alt="Media attachment" className="h-full w-full object-cover" />
                           )}
                           <button
                             type="button"

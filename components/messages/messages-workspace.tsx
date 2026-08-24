@@ -1,5 +1,7 @@
 "use client"
 
+import { ProtectedMedia } from "@/components/media-protection"
+
 import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -1825,7 +1827,7 @@ export function MessagesWorkspace() {
                         <audio controls src={message.media_url} className="mb-1 w-full max-w-[240px]" />
                       )}
                       {message.media_url && (message.media_type === "video" || message.message_type === "video") && (
-                        <video controls src={message.media_url} className="mb-1 max-h-64 w-full rounded-lg" />
+                        <ProtectedMedia type="video" src={message.media_url} className="mb-1 max-h-64 w-full rounded-lg" />
                       )}
                       {message.content && !(message.message_type === "audio" && message.content === "Voice note") && (
                         <RichContent

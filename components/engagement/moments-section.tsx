@@ -1,5 +1,7 @@
 "use client"
 
+import { ProtectedMedia } from "@/components/media-protection"
+
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Hourglass, Loader2, Plus, Trash2, X, Zap } from "lucide-react"
@@ -288,10 +290,10 @@ export function MomentsSection() {
               <div className="relative aspect-video overflow-hidden rounded-xl border border-border bg-black">
                 {isVideo(mediaPreview) ? (
                   // eslint-disable-next-line jsx-a11y/media-has-caption
-                  <video src={mediaPreview} className="h-full w-full object-contain" controls playsInline />
+                  <ProtectedMedia type="video" src={mediaPreview} className="h-full w-full object-contain" showControls={false} />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={mediaPreview} alt="Moment preview" className="h-full w-full object-contain" />
+                  <ProtectedMedia type="image" src={mediaPreview} alt="Moment preview" className="h-full w-full object-contain" />
                 )}
                 <button
                   type="button"
