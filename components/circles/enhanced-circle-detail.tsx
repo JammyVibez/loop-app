@@ -1,5 +1,6 @@
-import { ProtectedMedia } from "@/components/media-protection"
 "use client"
+
+import { ProtectedMedia } from "@/components/media-protection"
 
 import { useState, useEffect } from "react"
 import Link from "next/link"

@@ -1,5 +1,6 @@
-import { ProtectedMedia } from "@/components/media-protection"
 "use client"
+
+import { ProtectedMedia } from "@/components/media-protection"
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {

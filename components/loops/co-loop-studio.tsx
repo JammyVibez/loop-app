@@ -1,5 +1,6 @@
-import { ProtectedMedia } from "@/components/media-protection"
 "use client"
+
+import { ProtectedMedia } from "@/components/media-protection"
 
 import { useState, useEffect, useRef, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
