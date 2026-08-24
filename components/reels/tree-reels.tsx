@@ -285,6 +285,27 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
     return () => document.removeEventListener("visibilitychange", onVisibility)
   }, [])
 
+  // Hardware volume button: VolumeUp unmutes the active reel, VolumeDown mutes it
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const active = reels[Math.min(activeIndex, Math.max(0, reels.length - 1))]
+      if (!active) return
+      const video = videoRefs.current.get(active.id)
+      if (!video) return
+
+      if (e.keyCode === 175 || e.key === "VolumeUp") {
+        video.muted = false
+        setMuted(false)
+        if (video.paused) void video.play().catch(() => null)
+      } else if (e.keyCode === 174 || e.key === "VolumeDown") {
+        video.muted = true
+        setMuted(true)
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [activeIndex, reels])
+
   useEffect(() => {
     const active = reels[activeIndex]
     if (!active) return
@@ -704,6 +725,11 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                   src={reel.content_url}
                   className="h-full w-full"
                   showControls={false}
+                  autoPlay={false}
+                  videoRef={(el) => {
+                    if (el) videoRefs.current.set(reel.id, el)
+                    else videoRefs.current.delete(reel.id)
+                  }}
                 />
               )}
               <WatermarkOverlay opacity={0.3} animated={true} />
