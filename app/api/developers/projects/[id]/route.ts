@@ -20,15 +20,19 @@ const AUTHOR_SELECT = `
     avatar_url, video_avatar_url,
     is_verified,
     verification_level
-  ),
-  published_listing:community_marketplace_listings!developer_projects_published_listing_id_fkey(
-    id,
-    listing_type,
-    title,
-    price_coins,
-    is_published
   )
 `
+
+/** Safely fetch the published listing separately to avoid FK join errors */
+async function getPublishedListing(supabase: any, listingId: string | null) {
+  if (!listingId) return null
+  const { data } = await supabase
+    .from("community_marketplace_listings")
+    .select("id, listing_type, title, price_coins, is_published")
+    .eq("id", listingId)
+    .maybeSingle()
+  return data || null
+}
 
 function sanitizeFiles(files: unknown) {
   if (!Array.isArray(files)) return undefined
@@ -79,6 +83,11 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
     if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 })
+
+    // Fetch published listing separately (no FK join needed)
+    const published_listing = await getPublishedListing(supabase, project.published_listing_id)
+    if (published_listing) project.published_listing = published_listing
+    delete project.published_listing_id
 
     // Best-effort view increment (ignore failures)
     void supabase
