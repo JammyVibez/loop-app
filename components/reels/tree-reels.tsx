@@ -41,6 +41,7 @@ import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { ShareToDmModal } from "@/components/messages/share-to-dm-modal"
+import { SaveToDevice } from "@/components/download/save-to-device"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
 import { uploadMediaFile } from "@/lib/client-media-upload"
@@ -822,6 +823,17 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                           Delete reel
                         </DropdownMenuItem>
                       </>
+                    )}
+                    {reel.content_url && (
+                      <DropdownMenuItem asChild className="py-0">
+                        <SaveToDevice
+                          mediaUrl={reel.content_url}
+                          contentType="video"
+                          isPro={Boolean(user?.is_premium)}
+                          className="w-full justify-start gap-2 h-auto"
+                          size="sm"
+                        />
+                      </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>

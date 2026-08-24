@@ -64,7 +64,8 @@ import { CreateBranchDialog } from "@/components/create-branch-dialog";
 import { normalizeLoop } from "@/lib/normalize-loop";
 import { supabase } from "@/lib/supabase";
 import { CodeBlock } from "@/components/loops/code-block";
-import { ShareToDmModal } from "@/components/messages/share-to-dm-modal";
+import { ShareToDmModal } from "@/components/messages/share-to-dm-modal"
+import { SaveToDevice } from "@/components/download/save-to-device";
 import { ShareToCircleModal } from "@/components/messages/share-to-circle-modal";
 import { ShareAsImageModal } from "@/components/engagement/share-as-image-modal";
 import { isCodeLoop } from "@/lib/pro-features";
@@ -1399,6 +1400,17 @@ export function LoopCard({
                       <Share2 className="h-4 w-4 text-fuchsia-500" />
                       <span>Share as image</span>
                     </DropdownMenuItem>
+                    {((loop as any).content_media_url || (loop as any).media_url || ((loop as any).content_metadata?.media_urls as string[] | undefined)?.length) && (
+                      <DropdownMenuItem asChild className="cursor-pointer py-0">
+                        <SaveToDevice
+                          mediaUrl={(loop as any).content_media_url || (loop as any).media_url || ((loop as any).content_metadata?.media_urls as string[] | undefined)?.[0] || ""}
+                          contentType={(loop as any).content_type === "video" ? "video" : (loop as any).content_type === "image" ? "image" : "file"}
+                          isPro={Boolean(currentUser?.is_premium)}
+                          className="w-full justify-start gap-2 py-2 text-xs h-auto"
+                          size="sm"
+                        />
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
 
