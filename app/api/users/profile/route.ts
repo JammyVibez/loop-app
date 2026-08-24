@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
         .eq("author_id", profile.id)
         .is("parent_loop_id", null)
         .order("created_at", { ascending: false })
-        .limit(20),
+        .limit(100),
       // Loops where this profile is listed as a co-author (JSONB containment —
       // scoped directly to this profile, not just "the 30 most recent
       // co-loops platform-wide", which could miss older ones entirely once
@@ -108,12 +108,11 @@ export async function GET(request: NextRequest) {
         `)
         .eq("author_id", profile.id)
         .not("parent_loop_id", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(20),
+        .order("created_at", { ascending: false })        .limit(100),
       supabase
         .from("loops")
-        .select(`
-          id, content, content_text, content_media_url, content_type, media_url, media_urls, media_type, hashtags, created_at,
+        .select(
+          `id, content, content_text, content_media_url, content_type, media_url, media_urls, media_type, hashtags, created_at,
           author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
