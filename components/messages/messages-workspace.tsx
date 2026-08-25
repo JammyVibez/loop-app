@@ -19,6 +19,8 @@ import { CallSheet } from "@/components/calls/call-sheet"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
 import { ForwardDialog } from "@/components/messages/forward-dialog"
+import { VoiceRecorderWaves } from "@/components/messages/voice-recorder-waves"
+import { CallLogs } from "@/components/messages/call-logs"
 import { cn } from "@/lib/utils"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { MediaEmojiPicker } from "@/components/content/media-emoji-picker"
@@ -202,6 +204,7 @@ export function MessagesWorkspace() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [draft, setDraft] = useState("")
+  const [inboxTab, setInboxTab] = useState<"chats" | "calls">("chats")
   const [search, setSearch] = useState("")
   const [chatSearch, setChatSearch] = useState("")
   const [showChatSearch, setShowChatSearch] = useState(false)
@@ -1296,9 +1299,9 @@ export function MessagesWorkspace() {
 
   const inbox = (
     <aside className="flex h-full min-h-0 flex-col bg-background text-foreground">
-      <div className="space-y-3 border-b border-border px-4 py-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Chats</h1>
+      <div className="space-y-0 border-b border-border">
+        <div className="flex items-center justify-between px-4 pt-3 pb-2">
+          <h1 className="text-xl font-semibold">Messages</h1>
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
@@ -1318,7 +1321,36 @@ export function MessagesWorkspace() {
             </Button>
           </div>
         </div>
-        {pushBanner && pushEnabled === false && (
+        {/* Tabs: Chats | Calls */}
+        <div className="flex px-4">
+          <button
+            type="button"
+            onClick={() => setInboxTab("chats")}
+            className={cn(
+              "flex-1 py-2.5 text-sm font-medium transition-colors border-b-2",
+              inboxTab === "chats"
+                ? "border-violet-500 text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <MessageCircle className="mr-1.5 inline h-4 w-4" />
+            Chats
+          </button>
+          <button
+            type="button"
+            onClick={() => setInboxTab("calls")}
+            className={cn(
+              "flex-1 py-2.5 text-sm font-medium transition-colors border-b-2",
+              inboxTab === "calls"
+                ? "border-violet-500 text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Phone className="mr-1.5 inline h-4 w-4" />
+            Calls
+          </button>
+        </div>
+          {pushBanner && pushEnabled === false && (
           <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
             <p className="flex items-center gap-1.5 text-xs text-foreground">
               <Bell className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
@@ -1356,6 +1388,11 @@ export function MessagesWorkspace() {
           </Button>
         </div>
       </div>
+      {inboxTab === "calls" ? (
+        <CallLogs
+          onCallBack={(conversationId) => openConversation(conversationId)}
+        />
+      ) : (
       <div className="min-h-0 flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center py-10 text-muted-foreground">
@@ -1436,6 +1473,7 @@ export function MessagesWorkspace() {
           })
         )}
       </div>
+      )}
     </aside>
   )
 
@@ -2212,7 +2250,16 @@ export function MessagesWorkspace() {
 
             {recording ? (
               <div className="absolute inset-y-0 left-0 right-0 flex items-center gap-2 px-3 rounded-full bg-red-500/10 border border-red-500/20 animate-in fade-in slide-in-from-right-2 duration-200">
-                <div className="flex items-center gap-1.5">
+                <VoiceRecorderWaves
+                  recording={recording}
+                  paused={recordingPaused}
+                  barCount={36}
+                  color="#ef4444"
+                  maxBarHeight={24}
+                  minBarHeight={2}
+                  className="flex-1 h-full"
+                />
+                <div className="flex items-center gap-1.5 shrink-0">
                   <span className={cn(
                     "h-2 w-2 rounded-full flex-shrink-0",
                     recordingPaused ? "bg-amber-400" : "bg-red-500 animate-pulse"
