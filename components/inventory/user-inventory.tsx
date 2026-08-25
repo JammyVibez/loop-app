@@ -192,8 +192,8 @@ export function UserInventory() {
 
   if (!user) {
     return (
-      <Card className="bg-slate-900/80 border-slate-800 text-slate-100 rounded-2xl">
-        <CardContent className="p-10 text-center text-slate-400">
+      <Card className="bg-card border-border text-foreground rounded-2xl">
+        <CardContent className="p-10 text-center text-muted-foreground">
           Sign in to view your inventory.
         </CardContent>
       </Card>
@@ -204,11 +204,11 @@ export function UserInventory() {
     return (
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {[...Array(6)].map((_, i) => (
-          <Card key={i} className="animate-pulse bg-slate-900/80 border-slate-800 rounded-2xl">
+          <Card key={i} className="animate-pulse bg-card border-border rounded-2xl">
             <CardContent className="p-6">
-              <div className="mb-4 h-4 rounded bg-slate-800" />
-              <div className="mb-4 h-20 rounded bg-slate-800" />
-              <div className="h-8 rounded bg-slate-800" />
+              <div className="mb-4 h-4 rounded bg-muted" />
+              <div className="mb-4 h-20 rounded bg-muted" />
+              <div className="h-8 rounded bg-muted" />
             </CardContent>
           </Card>
         ))}
@@ -218,10 +218,10 @@ export function UserInventory() {
 
   if (error) {
     return (
-      <Card className="bg-slate-900/80 border-slate-800 rounded-2xl">
+      <Card className="bg-card border-border rounded-2xl">
         <CardContent className="p-6 text-center">
           <p className="mb-4 text-rose-400">{error}</p>
-          <Button onClick={fetchInventory} className="bg-slate-800 text-slate-100 hover:bg-slate-700">Try Again</Button>
+          <Button onClick={fetchInventory} className="bg-muted text-foreground hover:bg-muted/80">Try Again</Button>
         </CardContent>
       </Card>
     )
@@ -233,8 +233,8 @@ export function UserInventory() {
     return (
       <Card
         key={item.id}
-        className={`relative overflow-hidden bg-slate-900/80 border transition-all duration-200 hover:border-slate-700 rounded-2xl shadow-lg text-slate-100 ${
-          item.is_active ? "border-cyan-500/80 ring-2 ring-cyan-500/30 shadow-cyan-500/10" : "border-slate-800/80"
+        className={`relative overflow-hidden bg-card border transition-all duration-200 hover:border-border rounded-2xl shadow-lg text-foreground ${
+          item.is_active ? "border-cyan-500/80 ring-2 ring-cyan-500/30 shadow-cyan-500/10" : "border-border/80"
         }`}
       >
         <CardHeader className="pb-3">
@@ -252,8 +252,7 @@ export function UserInventory() {
           <div
             className="flex h-28 items-center justify-center rounded-xl border border-white/5 relative overflow-hidden"
             style={{ background: `linear-gradient(135deg, ${primary}44, ${secondary}44)` }}
-          >
-            <div className="p-3 rounded-full bg-slate-950/60 backdrop-blur-md border border-white/10 shadow-inner">
+          >              <div className="p-3 rounded-full bg-background/60 backdrop-blur-md border border-border shadow-inner">
               {getRarityIcon(item.item_type)}
             </div>
           </div>
@@ -263,7 +262,7 @@ export function UserInventory() {
                 variant="outline"
                 size="sm"
                 onClick={() => removeItem(item.id)}
-                className="flex-1 bg-slate-950/60 border-slate-700/80 text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 rounded-xl transition-all"
+                className="flex-1 bg-background/60 border-border/80 text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 rounded-xl transition-all"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Deactivate
@@ -295,7 +294,7 @@ export function UserInventory() {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-slate-900/80 border-slate-800 text-slate-100 rounded-2xl shadow-xl overflow-hidden backdrop-blur-md">
+      <Card className="bg-card border-border text-foreground rounded-2xl shadow-xl overflow-hidden backdrop-blur-md">
         <CardContent className="p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-4">
@@ -327,7 +326,7 @@ export function UserInventory() {
       </Card>
 
       <Tabs defaultValue="all" className="w-full">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-5 bg-slate-900/90 border border-slate-800 rounded-2xl p-1.5">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-5 bg-card border border-border rounded-2xl p-1.5">
           <TabsTrigger value="all" className="rounded-xl text-xs font-semibold data-[state=active]:bg-cyan-500 data-[state=active]:text-slate-950 text-slate-400 transition-all">All</TabsTrigger>
           <TabsTrigger value="theme" className="rounded-xl text-xs font-semibold data-[state=active]:bg-cyan-500 data-[state=active]:text-slate-950 text-slate-400 transition-all">Themes</TabsTrigger>
           <TabsTrigger value="avatar_frame" className="rounded-xl text-xs font-semibold data-[state=active]:bg-cyan-500 data-[state=active]:text-slate-950 text-slate-400 transition-all">Frames</TabsTrigger>
@@ -337,7 +336,7 @@ export function UserInventory() {
 
         <TabsContent value="all" className="space-y-6 mt-6">
           {inventory.length === 0 ? (
-            <Card className="bg-slate-900/80 border-slate-800 rounded-2xl text-slate-100">
+            <Card className="bg-card border-border rounded-2xl text-foreground">
               <CardContent className="p-12 text-center">
                 <Coins className="mx-auto mb-4 h-16 w-16 text-slate-700" />
                 <h3 className="mb-2 text-xl font-semibold text-slate-200">No Items Yet</h3>
@@ -362,7 +361,7 @@ export function UserInventory() {
               {(groupedInventory[type] || []).map(renderCard)}
             </div>
             {(groupedInventory[type] || []).length === 0 && (
-              <p className="py-12 text-center text-sm text-slate-400 bg-slate-900/40 border border-slate-800/60 rounded-2xl">No {type.replace("_", " ")} items in inventory.</p>
+              <p className="py-12 text-center text-sm text-muted-foreground bg-card/40 border border-border/60 rounded-2xl">No {type.replace("_", " ")} items in inventory.</p>
             )}
           </TabsContent>
         ))}

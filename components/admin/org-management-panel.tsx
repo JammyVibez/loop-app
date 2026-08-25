@@ -260,9 +260,9 @@ export function OrgManagementPanel() {
   }
 
   return (
-    <div className="space-y-6 rounded-3xl border border-white/10 bg-[#0b1220] p-4 sm:p-6">
+    <div className="space-y-6 rounded-3xl border border-border bg-card p-4 sm:p-6">
       {/* Header & Threshold Configuration */}
-      <div className="bg-slate-900/80 border border-emerald-500/30 rounded-2xl p-6 backdrop-blur-md shadow-xl">
+      <div className="bg-card border border-emerald-500/30 rounded-2xl p-6 backdrop-blur-md shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -302,7 +302,7 @@ export function OrgManagementPanel() {
       </div>
 
       {/* Candidate Accounts Section (Approaching or Exceeding Follower Threshold) */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur-md">
+      <div className="bg-card border border-border rounded-2xl p-6 backdrop-blur-md">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-amber-400" />
@@ -380,7 +380,7 @@ export function OrgManagementPanel() {
       </div>
 
       {/* Active Organization Accounts */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur-md">
+      <div className="bg-card border border-border rounded-2xl p-6 backdrop-blur-md">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-emerald-400" />

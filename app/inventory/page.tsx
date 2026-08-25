@@ -3,7 +3,7 @@ import { UserInventory } from "@/components/inventory/user-inventory";
 
 export default function InventoryPage() {
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 pb-20">
+    <div className="min-h-screen bg-background text-foreground pb-20">
       <Header />
       <main className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="space-y-6">
