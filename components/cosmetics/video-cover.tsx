@@ -21,6 +21,13 @@ type Props = {
  * automatic fallback to a static image. Pro users can set short video clips
  * as their cover photo. Uses IntersectionObserver for viewport-aware playback.
  */
+/** Proxy an image URL through the server-side proxy to avoid CORS / token issues */
+function proxyImg(url: string | null | undefined): string | undefined {
+  if (!url) return undefined
+  if (url.startsWith("data:") || url.startsWith("blob:") || url.includes("/api/image-proxy")) return url
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
+}
+
 export function VideoCover({
   src,
   videoSrc,
@@ -68,7 +75,7 @@ export function VideoCover({
         {src ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={src}
+            src={proxyImg(src)}
             alt={alt}
             className="h-full w-full object-cover"
           />
@@ -84,7 +91,7 @@ export function VideoCover({
       <div className={cn("relative w-full overflow-hidden", height, className)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={videoSrc!}
+          src={proxyImg(videoSrc)}
           alt={alt}
           className="h-full w-full object-cover"
           loading="lazy"
@@ -93,7 +100,7 @@ export function VideoCover({
         {!videoReady && src && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={src}
+            src={proxyImg(src)}
             alt={alt}
             className="absolute inset-0 h-full w-full object-cover transition-opacity"
             onLoad={() => setVideoReady(true)}
@@ -110,7 +117,7 @@ export function VideoCover({
       <video
         ref={videoRef}
         src={videoSrc!}
-        poster={src || undefined}
+        poster={proxyImg(src)}
         muted
         loop
         playsInline
@@ -127,7 +134,7 @@ export function VideoCover({
       {(!videoReady || videoFailed) && src && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={src}
+          src={proxyImg(src)}
           alt={alt}
           className="absolute inset-0 h-full w-full object-cover"
         />

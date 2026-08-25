@@ -64,13 +64,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to create user" }, { status: 400 })
     }
 
+    // Auto-assign unique animated PFP and cover for new users
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin).replace(/\/$/, "")
+    const defaultAvatar = `${baseUrl}/api/default-avatar?id=${encodeURIComponent(createdUser.id)}&name=${encodeURIComponent(displayName)}`
+    const defaultBanner = `${baseUrl}/api/default-avatar?id=${encodeURIComponent(createdUser.id)}&name=${encodeURIComponent(displayName)}&type=banner`
+
     const profilePayload = {
       id: createdUser.id,
       email,
       username: cleanUsername,
       display_name: displayName,
-      avatar_url: null,
-      banner_url: null,
+      avatar_url: defaultAvatar,
+      banner_url: defaultBanner,
       bio: null,
       loop_coins: ECONOMY_DEFAULTS.signup_bonus,
       is_premium: false,
