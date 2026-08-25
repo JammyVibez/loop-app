@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { ProxyImg } from "@/components/ui/proxy-img"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Calendar, Trophy, Users, Star, Video, Search, ExternalLink, Check, Zap, Filter, Clock, Flame, ShieldAlert, Award, Play, MessageSquare, Send, Radio, Gift } from "lucide-react"
@@ -389,7 +390,7 @@ export function GlobalEventsHub() {
                 <div className="my-auto text-center space-y-4 py-8">
                   {activeStageEvent.banner_url ? (
                     <div className="relative mx-auto max-w-lg overflow-hidden rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10">
-                      <img src={activeStageEvent.banner_url} alt="Stage" className="w-full h-56 object-cover" />
+                      <ProxyImg src={activeStageEvent.banner_url} alt="Stage" className="w-full h-56 object-cover" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent flex items-end justify-center p-4">
                         <Button
                           onClick={() => handleClaimReward(activeStageEvent)}
@@ -501,7 +502,7 @@ export function GlobalEventsHub() {
 
             {detailEvent.banner_url && (
               <div className="h-44 w-full rounded-xl overflow-hidden bg-slate-900 my-2">
-                <img src={detailEvent.banner_url} alt={detailEvent.title} className="h-full w-full object-cover" />
+                <ProxyImg src={detailEvent.banner_url} alt={detailEvent.title} className="h-full w-full object-cover" />
               </div>
             )}
 

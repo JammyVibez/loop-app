@@ -31,6 +31,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ProxyImg } from "@/components/ui/proxy-img"
 import { GiftModal } from "@/components/gifting/gift-modal"
 import { HmsStreamStage, type HmsStreamStageHandle } from "@/components/streams/hms-stream-stage"
 import { LivekitStreamStage } from "@/components/streams/livekit-stream-stage"
@@ -529,7 +530,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
         {!isLive && !isOwner && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-b from-zinc-950 via-black to-zinc-900">
             {stream.thumbnail_url ? (
-              <img src={stream.thumbnail_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30" />
+              <ProxyImg src={stream.thumbnail_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30" />
             ) : null}
             <Radio className="relative z-10 h-14 w-14 text-rose-500/80" />
             <p className="relative z-10 text-sm text-white/70">

@@ -7,6 +7,7 @@ import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { ProxyImg } from "@/components/ui/proxy-img"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
@@ -540,7 +541,7 @@ export function EnhancedSettings() {
                 <div className="relative h-28 overflow-hidden rounded-xl border border-border bg-muted">
                   {user.banner_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={user.banner_url} alt="" className="h-full w-full object-cover" />
+                    <ProxyImg src={user.banner_url} alt="" className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
                       No cover yet

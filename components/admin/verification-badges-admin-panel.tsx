@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ProxyImg } from "@/components/ui/proxy-img"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, Plus, Save, Trash2, Power, Check, Star, Shield, Crown, Zap, Search, Award } from "lucide-react"
@@ -404,7 +405,7 @@ export function VerificationBadgesAdminPanel() {
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-bold">
                       {u.avatar_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={u.avatar_url} alt="" className="h-full w-full object-cover" />
+                        <ProxyImg src={u.avatar_url} alt="" className="h-full w-full object-cover" />
                       ) : (
                         (u.display_name || u.username || "U").charAt(0)
                       )}

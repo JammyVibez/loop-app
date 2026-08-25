@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { cn } from "@/lib/utils"
 import { prefersReducedMotion } from "@/lib/cosmetics"
+import { ProxyImg } from "@/components/ui/proxy-img"
 
 type Props = {
   /** Profile banner image URL (falls back to the gradient when absent). */
@@ -102,7 +103,7 @@ export function ProfileBanner3D({
       >
         {src ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt="" className="h-full w-full object-cover" draggable={false} />
+          <ProxyImg src={src} alt="" className="h-full w-full object-cover" draggable={false} />
         ) : (
           <div
             className={cn(

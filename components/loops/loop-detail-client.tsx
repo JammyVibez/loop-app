@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { ProxyImg } from "@/components/ui/proxy-img"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import {
@@ -668,7 +669,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                           </div>
                         ) : (
                           /* eslint-disable-next-line @next/next/no-img-element */
-                          <img src={url} alt={`Thumbnail ${idx + 1}`} className="h-full w-full object-cover" />
+                          <ProxyImg src={url} alt={`Thumbnail ${idx + 1}`} className="h-full w-full object-cover" />
                         )}
                       </button>
                     )

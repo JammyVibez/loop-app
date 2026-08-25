@@ -399,7 +399,7 @@ export function SettingsContent() {
               <div className="space-y-4">
                 <div className="w-full h-32 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg overflow-hidden">
                   {profileData.banner_url ? (
-                    <img src={profileData.banner_url} alt="Banner" className="w-full h-full object-cover" />
+                    <ProxyImg src={profileData.banner_url} alt="Banner" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-white">
                       <span>No banner uploaded</span>

@@ -33,20 +33,25 @@ export async function GET(request: NextRequest) {
 
     // Auto-assign animated character avatar to users who don't have one yet
     if (!profile.avatar_url) {
-      const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin).replace(/\/$/, "")
-      const name = profile.display_name || profile.username || "U"
-      const defaultAvatar = `${baseUrl}/api/default-avatar?id=${encodeURIComponent(profile.id)}&name=${encodeURIComponent(name)}`
-      const defaultBanner = `${baseUrl}/api/default-avatar?id=${encodeURIComponent(profile.id)}&name=${encodeURIComponent(name)}&type=banner`
-      // Fire-and-forget: update the profile with defaults so this only happens once
-      supabase
-        .from("profiles")
-        .update({ avatar_url: defaultAvatar, banner_url: profile.banner_url || defaultBanner, updated_at: new Date().toISOString() })
-        .eq("id", profile.id)
-        .then(() => {}) // don't await — speed up the response
-      // Mutate the in-memory profile so this response uses the new avatar immediately
-      ;(profile as any).avatar_url = defaultAvatar
-      if (!(profile as any).banner_url) {
-        ;(profile as any).banner_url = defaultBanner
+      try {
+        const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin).replace(/\/$/, "")
+        const name = profile.display_name || profile.username || "U"
+        const defaultAvatar = `${baseUrl}/api/default-avatar?id=${encodeURIComponent(profile.id)}&name=${encodeURIComponent(name)}`
+        const defaultBanner = `${baseUrl}/api/default-avatar?id=${encodeURIComponent(profile.id)}&name=${encodeURIComponent(name)}&type=banner`
+        // Mutate the in-memory profile so this response uses the new avatar immediately
+        ;(profile as any).avatar_url = defaultAvatar
+        if (!(profile as any).banner_url) {
+          ;(profile as any).banner_url = defaultBanner
+        }
+        // Fire-and-forget: persist to DB so this only happens once.
+        // Wrapped in try/catch to prevent unhandled rejection from crashing the response.
+        supabase
+          .from("profiles")
+          .update({ avatar_url: defaultAvatar, banner_url: profile.banner_url || defaultBanner, updated_at: new Date().toISOString() })
+          .eq("id", profile.id)
+          .then(() => {}, () => {}) // swallow errors
+      } catch {
+        // If anything goes wrong generating the URL, just continue with null avatar
       }
     }
 
