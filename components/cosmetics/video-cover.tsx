@@ -31,6 +31,11 @@ function proxyImg(url: string | null | undefined): string | undefined {
     url.startsWith("/") ||
     url.includes("/api/")
   ) return url
+  // For absolute URLs, check if the pathname is an internal API route
+  try {
+    const parsed = new URL(url)
+    if (parsed.pathname.startsWith("/api/")) return url
+  } catch { /* not a valid URL, proxy it */ }
   return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
 

@@ -23,6 +23,11 @@ export function getProxyUrl(url: string | null | undefined): string | undefined 
   ) {
     return url
   }
+  // For absolute URLs, check if the pathname is an internal API route
+  try {
+    const parsed = new URL(url)
+    if (parsed.pathname.startsWith("/api/")) return url
+  } catch { /* not a valid URL, proxy it */ }
   return `${PROXY_PATH}?url=${encodeURIComponent(url)}`
 }
 

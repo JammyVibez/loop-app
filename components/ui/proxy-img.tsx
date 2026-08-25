@@ -18,10 +18,15 @@ interface ProxyImgProps {
 
 function proxyUrl(url: string): string {
   if (!url) return url
-  // Don't proxy local assets or data URIs
-  if (url.startsWith("/") || url.startsWith("data:") || url.startsWith("blob:")) {
+  // Don't proxy local assets, data URIs, or internal API routes
+  if (url.startsWith("/") || url.startsWith("data:") || url.startsWith("blob:") || url.includes("/api/")) {
     return url
   }
+  // For absolute URLs, check if the pathname is an internal API route
+  try {
+    const parsed = new URL(url)
+    if (parsed.pathname.startsWith("/api/")) return url
+  } catch { /* not a valid URL, proxy it */ }
   return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
 
