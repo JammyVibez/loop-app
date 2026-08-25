@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
         description: description || null,
         image_url,
         image_type: image_type || "image/png",
+        is_active: true,
         is_premium: is_premium || false,
         price_coins: price_coins || 0,
         sort_order: sort_order || 0,

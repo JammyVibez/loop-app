@@ -40,6 +40,7 @@ import { RefundsControl } from "@/components/admin/refunds-control"
 import { SettingsTabContent } from "@/components/admin/settings-tab-content"
 import { EventManagement } from "@/components/admin/event-management"
 import { MaintenanceModeControl } from "@/components/admin/maintenance-mode-control"
+import { ShopControl } from "@/components/admin/shop-control"
 import { ProLoungeSettings } from "@/components/admin/pro-lounge-settings"
 import { LogoControl } from "@/components/admin/logo-control"
 import { CacheManagementPanel } from "@/components/admin/cache-management-panel"
@@ -432,6 +433,7 @@ export function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value="maintenance" className="mt-6 space-y-6">
+          <ShopControl />
           <MaintenanceModeControl />
           <LogoControl />
           <CacheManagementPanel />

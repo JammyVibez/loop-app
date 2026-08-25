@@ -21,6 +21,11 @@ const DEFAULTS: Record<string, unknown> = {
     open: true,
     announcement: "",
   },
+  shop_under_construction: {
+    enabled: true,
+    message: "We're building something amazing!",
+    subtitle: "Our shop is being redesigned with new features and items. Check back soon or chat with support.",
+  },
 }
 
 /** GET — public read of maintenance + logo; full read for admins (backward-compatible `data` shape). */
