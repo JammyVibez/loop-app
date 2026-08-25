@@ -24,7 +24,13 @@ type Props = {
 /** Proxy an image URL through the server-side proxy to avoid CORS / token issues */
 function proxyImg(url: string | null | undefined): string | undefined {
   if (!url) return undefined
-  if (url.startsWith("data:") || url.startsWith("blob:") || url.includes("/api/image-proxy")) return url
+  // Don't proxy data: URIs, blobs, local assets, or already-proxied/API URLs
+  if (
+    url.startsWith("data:") ||
+    url.startsWith("blob:") ||
+    url.startsWith("/") ||
+    url.includes("/api/")
+  ) return url
   return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
 

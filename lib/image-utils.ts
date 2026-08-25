@@ -14,8 +14,13 @@ const PROXY_PATH = "/api/image-proxy"
  */
 export function getProxyUrl(url: string | null | undefined): string | undefined {
   if (!url || url.trim() === "") return undefined
-  // Don't proxy data URIs, blobs, or already-proxied URLs
-  if (url.startsWith("data:") || url.startsWith("blob:") || url.includes(PROXY_PATH)) {
+  // Don't proxy data URIs, blobs, local assets, or already-proxied/API URLs
+  if (
+    url.startsWith("data:") ||
+    url.startsWith("blob:") ||
+    url.startsWith("/") ||
+    url.includes("/api/")
+  ) {
     return url
   }
   return `${PROXY_PATH}?url=${encodeURIComponent(url)}`
