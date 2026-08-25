@@ -139,9 +139,14 @@ export async function POST(request: NextRequest) {
       (file.type || "").startsWith("audio/") ||
       /\.(webm|mp3|wav|ogg|m4a|aac)$/i.test(file.name || "")
 
+    // Determine actual resource type from MIME if not explicitly provided
+    const mimePrefix = (file.type || "").split("/")[0]
+    const effectiveType = type || (mimePrefix === "video" ? "video" : mimePrefix === "audio" ? "audio" : mimePrefix === "image" ? "image" : "file")
+
+    // Only validate strict formats when the caller explicitly typed it as image/video/audio
     if (type === 'image' && !allowedImageTypes.includes(file.type)) {
       return NextResponse.json({ 
-        error: "Invalid image format. Supported: JPEG, PNG, GIF, WebP, SVG" 
+        error: "Invalid image format. Supported: JPEG, PNG, GIF, WebP, SVG, HEIC, AVIF, BMP" 
       }, { status: 400 })
     }
 
@@ -165,8 +170,8 @@ export async function POST(request: NextRequest) {
     let uploadResult
 
     try {
-      // Upload to Cloudinary based on type
-      if (type === 'image') {
+      // Upload to Cloudinary based on type (use effectiveType to auto-detect)
+      if (effectiveType === 'image') {
         // Special handling for GIFs to preserve animation
         const isGif = file.type === 'image/gif'
         
@@ -191,7 +196,7 @@ export async function POST(request: NextRequest) {
                 ],
               }),
         })
-      } else if (type === 'video') {
+      } else if (effectiveType === 'video') {
         uploadResult = await cloudinary.uploader.upload(base64, {
           folder: `loop-app/${folder}/videos`,
           resource_type: 'video',
@@ -201,7 +206,7 @@ export async function POST(request: NextRequest) {
             { format: 'auto' }
           ]
         })
-      } else if (type === 'audio') {
+      } else if (effectiveType === 'audio') {
         // Cloudinary supports audio files
         uploadResult = await cloudinary.uploader.upload(base64, {
           folder: `loop-app/${folder}/audio`,
@@ -231,7 +236,7 @@ export async function POST(request: NextRequest) {
           file_size: file.size,
           cloudinary_public_id: uploadResult.public_id,
           cloudinary_url: uploadResult.secure_url,
-          media_type: type,
+          media_type: effectiveType,
           folder,
           width: uploadResult.width || null,
           height: uploadResult.height || null,

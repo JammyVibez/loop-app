@@ -13,7 +13,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { PfpFramesBrowser } from "@/components/profile/pfp-frames-browser"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
@@ -46,7 +45,6 @@ import {
 import { OrganizationSettings } from "@/components/settings/organization-settings"
 import { ReferralsSettings } from "@/components/settings/referrals-settings"
 import { SecuritySettings } from "@/components/settings/security-settings"
-import { CosmeticsShop } from "@/components/cosmetics/cosmetics-shop"
 import { VideoMediaSettings } from "@/components/cosmetics/video-media-settings"
 import { AccountSwitcher } from "@/components/accounts/account-switcher"
 import { cn } from "@/lib/utils"
@@ -466,9 +464,6 @@ export function EnhancedSettings() {
           </TabsTrigger>
           <TabsTrigger value="security" className="rounded-xl data-[state=active]:bg-background">
             <Shield className="mr-2 h-4 w-4" /> Security
-          </TabsTrigger>
-          <TabsTrigger value="cosmetics" className="rounded-xl data-[state=active]:bg-background">
-            <Star className="mr-2 h-4 w-4" /> Cosmetics
           </TabsTrigger>
           <TabsTrigger value="video-media" className="rounded-xl data-[state=active]:bg-background">
             <Camera className="mr-2 h-4 w-4" /> Video Media
@@ -931,10 +926,6 @@ export function EnhancedSettings() {
               ))}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="cosmetics" className="space-y-4">
-          <CosmeticsShop />
         </TabsContent>
 
         <TabsContent value="video-media" className="space-y-4">
