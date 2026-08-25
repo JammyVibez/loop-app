@@ -12,6 +12,14 @@ import {
 } from "@/lib/cosmetics"
 import { AccessoryIcon, BadgeStarIcon } from "@/components/cosmetics/accessory-icons"
 
+/** Proxy an image URL through the server-side proxy to avoid CORS / token issues */
+function proxyImg(url: string | null | undefined): string | undefined {
+  if (!url) return undefined
+  // Don't proxy data: URIs, blobs, or already-proxied URLs
+  if (url.startsWith("data:") || url.startsWith("blob:") || url.includes("/api/image-proxy")) return url
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
+}
+
 type Props = {
   /** Static image URL (always required as fallback) */
   src?: string | null
@@ -130,7 +138,7 @@ export function VideoAvatar({
             {src && !imgFailed ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={src}
+                src={proxyImg(src)}
                 alt={alt}
                 className="h-full w-full rounded-full object-cover"
                 onError={() => setImgFailed(true)}
@@ -157,7 +165,7 @@ export function VideoAvatar({
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={videoSrc!}
+              src={proxyImg(videoSrc)}
               alt={alt}
               className="h-full w-full rounded-full object-cover"
               loading="lazy"
@@ -167,7 +175,7 @@ export function VideoAvatar({
             {!videoReady && src && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={src}
+                src={proxyImg(src)}
                 alt={alt}
                 className="absolute inset-0 h-full w-full rounded-full object-cover transition-opacity"
                 style={{ opacity: videoReady ? 0 : 1 }}
@@ -182,7 +190,7 @@ export function VideoAvatar({
             <video
               ref={videoRef}
               src={videoSrc!}
-              poster={src || undefined}
+              poster={proxyImg(src)}
               aria-label={alt}
               muted
               loop
@@ -200,7 +208,7 @@ export function VideoAvatar({
             {(!videoReady || videoFailed) && src && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={src}
+                src={proxyImg(src)}
                 alt={alt}
                 className="absolute inset-0 h-full w-full rounded-full object-cover"
               />
