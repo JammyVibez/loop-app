@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { ProfileShareCard } from "@/components/profile/profile-share-card"
 import { ProfileSkeleton } from "@/components/loading-states"
 import { EmptyState as PageEmptyState } from "@/components/ui/empty-state"
+import { ProxyImg } from "@/components/ui/proxy-img"
 import { ReportContentButton } from "@/components/moderation/report-content-button"
 import { GiftModal } from "@/components/gifting/gift-modal"
 import { useToast } from "@/hooks/use-toast"
@@ -27,6 +28,7 @@ import { isShopThemePayload } from "@/lib/theme-css"
 import { xpForNextLevel } from "@/lib/xp"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { UserBadges } from "@/components/user-badge"
+import { usePfpFrame } from "@/hooks/use-pfp-frame"
 import { useVerificationBadges } from "@/hooks/use-verification-badges"
 import { AccountStatusScreen } from "@/components/profile/account-status-screen"
 import { RichContent } from "@/components/content/rich-content"
@@ -114,6 +116,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const [uploadingCover, setUploadingCover] = useState(false)
   const [showGiftModal, setShowGiftModal] = useState(false)
   const coverInputRef = useRef<HTMLInputElement>(null)
+  const profileFrame = usePfpFrame((profile as any)?.equipped_frame_id)
 
   const fetchProfileRef = useRef<{ inFlight?: boolean; lastUsername?: string }>({})
 
@@ -300,7 +303,11 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         return
       }
       setIsFollowing(Boolean(data.is_following ?? !previousFollowing))
-      if (data.is_following === false && data.requires_approval === undefined) {
+      // Clear follow-request pending state whenever the API confirms
+      // a definitive follow/unfollow result (i.e. not requiring approval).
+      // This prevents stale "Requested ✓" text on public profiles when
+      // the user was previously pending on a *different* profile.
+      if (data.requires_approval === undefined || data.is_following === true) {
         setFollowRequestPending(false)
       }
       if (typeof data.followers_count === "number") {
@@ -484,15 +491,26 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       <div className="relative z-10 px-3 pb-3 sm:px-4 lg:px-0 lg:pb-0">
         <div className="lg:sticky lg:top-28 lg:pb-8">
         <div className="-mt-10 flex flex-col gap-3 pointer-events-none sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
-          <VideoAvatar
-            src={profile.avatar_url}
-            videoSrc={(profile as any).video_avatar_url || null}
-            isPremium={profile.is_premium}
-            alt={displayName}
-            cosmetics={cosmetics}
-            size="xl"
-            className="pointer-events-auto border-4 border-background self-start"
-          />
+          <div className="relative self-start pointer-events-auto">
+            <VideoAvatar
+              src={profile.avatar_url}
+              videoSrc={(profile as any).video_avatar_url || null}
+              isPremium={profile.is_premium}
+              alt={displayName}
+              cosmetics={cosmetics}
+              size="xl"
+              className="border-4 border-background"
+            />
+            {profileFrame && profileFrame.image_url && (
+              <img
+                src={profileFrame.image_url.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(profileFrame.image_url)}` : profileFrame.image_url}
+                alt=""
+                className="absolute inset-0 pointer-events-none object-contain"
+                style={{ width: "100%", height: "100%" }}
+                draggable={false}
+              />
+            )}
+          </div>
 
           <div className="pointer-events-auto mb-0 flex w-full flex-wrap justify-stretch gap-2 sm:mb-1 sm:w-auto sm:justify-end">
             {isOwnProfile ? (
@@ -936,7 +954,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                       {loop.media_type === "video" ? (
                         <video src={url} className="h-full w-full object-cover" muted />
                       ) : (
-                        <img src={url} alt="" className="h-full w-full object-cover" />
+                        <ProxyImg src={url} alt="" className="h-full w-full object-cover" />
                       )}
                       <span className="pointer-events-none absolute inset-0 bg-black/0 transition group-hover:bg-black/25" />
                     </Link>

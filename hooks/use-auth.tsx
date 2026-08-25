@@ -161,6 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       notification_settings: profileData.notification_settings ?? previous?.notification_settings,
       cosmetics: profileData.cosmetics ?? previous?.cosmetics ?? null,
       active_cosmetics: profileData.active_cosmetics ?? previous?.active_cosmetics ?? null,
+      equipped_frame_id: profileData.equipped_frame_id ?? previous?.equipped_frame_id ?? null,
       onboarding_completed: preservedOnboarding,
       token,
       access_token: token,

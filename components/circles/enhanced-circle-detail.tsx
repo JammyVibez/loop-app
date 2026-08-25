@@ -1,7 +1,6 @@
 "use client"
 
 import { ProtectedMedia } from "@/components/media-protection"
-
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -11,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ProxyImg } from "@/components/ui/proxy-img"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
@@ -1389,7 +1389,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
                       <div className="flex flex-wrap gap-2">
                         {newPostMedia.map((url) => (
                           <div key={url} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border">
-                            <img src={url} alt="" className="h-full w-full object-cover" />
+                            <ProxyImg src={url} alt="" className="h-full w-full object-cover" />
                             <button
                               type="button"
                               onClick={() => handleRemovePostMedia(url)}
