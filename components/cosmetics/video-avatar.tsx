@@ -61,6 +61,7 @@ export function VideoAvatar({
   const videoRef = useRef<HTMLVideoElement>(null)
   const [videoReady, setVideoReady] = useState(false)
   const [videoFailed, setVideoFailed] = useState(false)
+  const [imgFailed, setImgFailed] = useState(false)
 
   const isGif = videoSrc?.toLowerCase().endsWith(".gif")
   // Anyone can SEE video/GIF PFPs — only uploading is pro-only
@@ -81,7 +82,8 @@ export function VideoAvatar({
   useEffect(() => {
     setVideoReady(false)
     setVideoFailed(false)
-  }, [videoSrc])
+    setImgFailed(false)
+  }, [videoSrc, src])
 
   useEffect(() => {
     const video = videoRef.current
@@ -125,12 +127,13 @@ export function VideoAvatar({
         {/* Static image / initials (always rendered as fallback) */}
         {!hasVideo && (
           <>
-            {src ? (
+            {src && !imgFailed ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={src}
                 alt={alt}
                 className="h-full w-full rounded-full object-cover"
+                onError={() => setImgFailed(true)}
               />
             ) : (
               <div
