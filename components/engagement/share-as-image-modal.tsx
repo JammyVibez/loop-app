@@ -436,7 +436,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm border-border bg-card text-card-foreground shadow-2xl">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm border-border bg-card text-card-foreground shadow-2xl p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-foreground">
             <Share2 className="h-4 w-4 text-indigo-500" /> Share as image

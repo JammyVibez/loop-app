@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
+import { PfpFramesBrowser } from "@/components/profile/pfp-frames-browser"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { PRO_PRICING } from "@/lib/pro-features"
@@ -40,6 +41,7 @@ import {
   X,
   Building2,
   Gift,
+  Sparkles,
 } from "lucide-react"
 import { OrganizationSettings } from "@/components/settings/organization-settings"
 import { ReferralsSettings } from "@/components/settings/referrals-settings"
@@ -66,6 +68,7 @@ export function EnhancedSettings() {
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
+  const [framesOpen, setFramesOpen] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
   const [pushPermission, setPushPermission] = useState<NotificationPermission | "unsupported">("default")
 
@@ -525,6 +528,14 @@ export function EnhancedSettings() {
                   </div>
                   <p className="text-sm text-muted-foreground">@{formData.username}</p>
                   <p className="text-xs text-muted-foreground">JPG, PNG, or animated GIF</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-1 gap-1.5 text-xs"
+                    onClick={() => setFramesOpen(true)}
+                  >
+                    <Sparkles className="h-3 w-3" /> Browse Frames
+                  </Button>
                   {uploading && <p className="text-xs text-muted-foreground">Uploading avatar…</p>}
                 </div>
               </div>
@@ -938,6 +949,13 @@ export function EnhancedSettings() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <PfpFramesBrowser
+        open={framesOpen}
+        onOpenChange={setFramesOpen}
+        currentAvatarUrl={user?.avatar_url}
+        onFrameEquipped={() => {}}
+      />
 
       <div className="sticky bottom-20 z-20 flex justify-end gap-2 rounded-2xl border border-border bg-background/90 p-3 shadow-lg backdrop-blur lg:bottom-4">
         <Button onClick={saveSettings} disabled={loading} className="rounded-full px-6">
