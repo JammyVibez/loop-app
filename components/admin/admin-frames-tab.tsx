@@ -54,6 +54,7 @@ export function AdminFramesTab() {
   const [newSortOrder, setNewSortOrder] = useState(0)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState(false)
 
   const fetchFrames = useCallback(async () => {
     try {
@@ -80,6 +81,12 @@ export function AdminFramesTab() {
     setSelectedFile(file)
     const url = URL.createObjectURL(file)
     setPreviewUrl(url)
+
+    // Auto-set name from filename if empty
+    if (!newName.trim()) {
+      const baseName = file.name.replace(/\.[^.]+$/, "")
+      setNewName(baseName)
+    }
   }
 
   const handleUpload = async () => {
@@ -92,9 +99,14 @@ export function AdminFramesTab() {
       setUploading(true)
       const headers = getAuthHeader()
 
+      // Determine upload type based on file MIME
+      const isVideo = selectedFile.type.startsWith("video/")
+      const isAudio = selectedFile.type.startsWith("audio/")
+      const uploadType = isVideo ? "video" : isAudio ? "video" : "image"
+
       // Upload file to Cloudinary
       const uploaded = await uploadMediaFile(selectedFile, {
-        type: "image",
+        type: uploadType,
         folder: "pfp-frames",
         authHeaders: headers,
       })
@@ -161,6 +173,7 @@ export function AdminFramesTab() {
     setNewSortOrder(frames.length)
     setSelectedFile(null)
     setPreviewUrl(null)
+    setDragOver(false)
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
@@ -197,35 +210,64 @@ export function AdminFramesTab() {
           <CardContent className="space-y-4">
             {/* File upload area */}
             <div
-              className="relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 transition-colors hover:border-primary/50 hover:bg-muted/50 cursor-pointer"
+              className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 transition-colors cursor-pointer ${
+                dragOver ? "border-primary bg-primary/5" : "hover:border-primary/50 hover:bg-muted/50"
+              }`}
               onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault()
+                setDragOver(false)
+                const file = e.dataTransfer.files?.[0]
+                if (file) {
+                  setSelectedFile(file)
+                  const url = URL.createObjectURL(file)
+                  setPreviewUrl(url)
+                  if (!newName.trim()) {
+                    const baseName = file.name.replace(/\.[^.]+$/, "")
+                    setNewName(baseName)
+                  }
+                }
+              }}
             >
               {previewUrl ? (
                 <div className="relative">
-                  <img
-                    src={previewUrl}
-                    alt="Preview"
-                    className="h-32 w-32 rounded-full object-cover border-4 border-primary/20"
-                  />
+                  {selectedFile?.type.startsWith("video/") ? (
+                    <video
+                      src={previewUrl}
+                      className="h-32 w-32 rounded-full object-cover border-4 border-primary/20"
+                      muted
+                    />
+                  ) : selectedFile?.type.startsWith("audio/") ? (
+                    <div className="h-32 w-32 rounded-full border-4 border-primary/20 bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
+                      <svg className="h-12 w-12 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                    </div>
+                  ) : (
+                    <img
+                      src={previewUrl}
+                      alt="Preview"
+                      className="h-32 w-32 rounded-full object-cover border-4 border-primary/20"
+                    />
+                  )}
                   <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 hover:opacity-100 transition-opacity">
                     <span className="text-white text-xs font-medium">Change</span>
                   </div>
                 </div>
               ) : (
                 <div className="text-center">
-                  <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                  <Upload className="mx-auto h-12 w-12 text-muted-foreground/50" />
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Click to upload frame image
+                    Click to upload any file
                   </p>
                   <p className="text-xs text-muted-foreground/70 mt-1">
-                    PNG, SVG, GIF, WEBP — any file type
+                    Images, videos, GIFs, audio, SVG, Lottie — anything goes
                   </p>
                 </div>
               )}
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,.svg,.gif,.webp,.png,.jpg,.jpeg"
                 className="hidden"
                 onChange={handleFileSelect}
               />
@@ -322,15 +364,27 @@ export function AdminFramesTab() {
                   {/* Frame preview */}
                   <div className="relative shrink-0">
                     <div className="h-16 w-16 rounded-full overflow-hidden bg-muted border-2 border-primary/20">
-                      <img
-                        src={frame.image_url}
-                        alt={frame.name}
-                        className="h-full w-full object-cover"
-                        onError={(e) => {
-                          const el = e.target as HTMLImageElement
-                          el.style.display = "none"
-                        }}
-                      />
+                      {(frame.image_type || "").startsWith("video/") ? (
+                        <video
+                          src={frame.image_url}
+                          className="h-full w-full object-cover"
+                          muted
+                        />
+                      ) : (frame.image_type || "").startsWith("audio/") ? (
+                        <div className="h-full w-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
+                          <span className="text-lg">🎵</span>
+                        </div>
+                      ) : (
+                        <img
+                          src={frame.image_url}
+                          alt={frame.name}
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            const el = e.target as HTMLImageElement
+                            el.style.display = "none"
+                          }}
+                        />
+                      )}
                     </div>
                     {frame.is_premium && (
                       <div className="absolute -top-1 -right-1">
