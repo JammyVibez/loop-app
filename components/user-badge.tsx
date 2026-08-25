@@ -84,9 +84,9 @@ export function UserBadges({
         <span
           title={`Verified Organization: ${organization_name || username || "Partner"}`}
           className={cn(
-            "inline-flex items-center gap-1 rounded-full font-bold text-white shadow-sm shadow-emerald-500/30 shrink-0",
+            "inline-flex items-center gap-1 rounded-full font-bold text-white shrink-0",
             organization_badge_url
-              ? "p-0.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 ring-1 ring-emerald-400/40"
+              ? "p-0.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600"
               : "bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600",
             showText ? badgePadding[size] : "p-0.5"
           )}
