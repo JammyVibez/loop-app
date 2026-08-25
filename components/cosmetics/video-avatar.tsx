@@ -131,7 +131,8 @@ export function VideoAvatar({
       )}
 
       {/* Main avatar content */}
-      <div className="relative h-full w-full rounded-full overflow-hidden">
+      {/* SVG default avatars get a subtle breathing animation for extra life */}
+      <div className={cn("relative h-full w-full rounded-full overflow-hidden", src?.endsWith(".svg") && !hasVideo && "animate-[breathe_4s_ease-in-out_infinite]")}>
         {/* Static image / initials (always rendered as fallback) */}
         {!hasVideo && (
           <>
