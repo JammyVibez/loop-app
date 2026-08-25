@@ -84,11 +84,9 @@ export function UserBadges({
         <span
           title={`Verified Organization: ${organization_name || username || "Partner"}`}
           className={cn(
-            "inline-flex items-center gap-1 rounded-full font-bold text-white shrink-0",
-            organization_badge_url
-              ? "p-0.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600"
-              : "bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600",
-            showText ? badgePadding[size] : "p-0.5"
+            "inline-flex items-center shrink-0",
+            !organization_badge_url && "rounded-full font-bold text-white bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600",
+            !organization_badge_url && (showText ? badgePadding[size] : "p-0.5")
           )}
         >
           {organization_badge_url ? (
@@ -96,7 +94,7 @@ export function UserBadges({
               src={organization_badge_url}
               alt="Organization Badge"
               className={cn(
-                "object-contain rounded-full shrink-0",
+                "shrink-0",
                 size === "sm" ? "h-3.5 w-3.5" : size === "lg" ? "h-5 w-5" : "h-4 w-4"
               )}
             />

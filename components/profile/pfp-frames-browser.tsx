@@ -4,11 +4,11 @@ import { useEffect, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/use-auth"
 import { Loader2, Check, Lock, Sparkles, Crown, X } from "lucide-react"
-import { createClient } from "@/lib/supabase"
 
 interface PfpFrame {
-  id: number
+  id: string | number
   name: string
   description: string | null
   image_url: string
@@ -23,7 +23,7 @@ interface PfpFramesBrowserProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   currentAvatarUrl?: string | null
-  onFrameEquipped?: (frameId: number | null) => void
+  onFrameEquipped?: (frameId: string | number | null) => void
 }
 
 // Frame overlay SVG components
@@ -95,23 +95,21 @@ function FrameOverlay({ frame, size }: { frame: PfpFrame; size: number }) {
 
 export function PfpFramesBrowser({ open, onOpenChange, currentAvatarUrl, onFrameEquipped }: PfpFramesBrowserProps) {
   const { toast } = useToast()
+  const { getAuthHeader } = useAuth()
   const [frames, setFrames] = useState<PfpFrame[]>([])
   const [coins, setCoins] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [acquiring, setAcquiring] = useState<number | null>(null)
-  const [equipping, setEquipping] = useState<number | null>(null)
+  const [acquiring, setAcquiring] = useState<string | number | null>(null)
+  const [equipping, setEquipping] = useState<string | number | null>(null)
   const [previewFrame, setPreviewFrame] = useState<PfpFrame | null>(null)
 
   const fetchFrames = useCallback(async () => {
     try {
       setLoading(true)
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) return
+      const headers = getAuthHeader()
+      if (!headers.Authorization) return
 
-      const res = await fetch("/api/user/pfp-frames", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      })
+      const res = await fetch("/api/user/pfp-frames", { headers })
       const data = await res.json()
       if (data.frames) setFrames(data.frames)
       if (data.coins !== undefined) setCoins(data.coins)
@@ -120,7 +118,7 @@ export function PfpFramesBrowser({ open, onOpenChange, currentAvatarUrl, onFrame
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [getAuthHeader])
 
   useEffect(() => {
     if (open) fetchFrames()
@@ -129,16 +127,12 @@ export function PfpFramesBrowser({ open, onOpenChange, currentAvatarUrl, onFrame
   const handleAcquire = async (frame: PfpFrame) => {
     try {
       setAcquiring(frame.id)
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) return
+      const headers = getAuthHeader()
+      if (!headers.Authorization) return
 
       const res = await fetch("/api/user/pfp-frames", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ frame_id: frame.id, action: "acquire" }),
       })
 
@@ -161,17 +155,13 @@ export function PfpFramesBrowser({ open, onOpenChange, currentAvatarUrl, onFrame
   const handleEquip = async (frame: PfpFrame) => {
     try {
       setEquipping(frame.id)
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) return
+      const headers = getAuthHeader()
+      if (!headers.Authorization) return
 
       const action = frame.equipped ? "unequip" : "equip"
       const res = await fetch("/api/user/pfp-frames", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ frame_id: frame.id, action }),
       })
 
