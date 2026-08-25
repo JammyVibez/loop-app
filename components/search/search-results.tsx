@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Hash, Users, GitBranch, Search, Loader2, Circle } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
+import { UserBadges } from "@/components/user-badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
@@ -285,7 +286,15 @@ function PersonRow({
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <p className="truncate font-semibold">{person.display_name || person.username}</p>
-              {person.is_verified ? <Badge variant="secondary">Verified</Badge> : null}
+              <UserBadges
+                is_verified={person.is_verified}
+                is_premium={person.is_premium}
+                is_organization={person.is_organization}
+                organization_badge_url={person.organization_badge_url}
+                organization_name={person.organization_name}
+                username={person.username}
+                size="sm"
+              />
             </div>
             <p className="truncate text-sm text-muted-foreground">@{person.username}</p>
             {person.bio ? (

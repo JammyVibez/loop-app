@@ -103,7 +103,7 @@ export function UserBadges({
           ) : (
             <Building2 className={cn(iconSizes[size], "text-emerald-100 fill-emerald-900/40")} />
           )}
-          {showText && <span className="uppercase tracking-wider font-extrabold text-[9px]">ORG</span>}
+
         </span>
       )}
 

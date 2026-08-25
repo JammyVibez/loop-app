@@ -20,6 +20,9 @@ interface Suggestion {
   is_team_member?: boolean
   is_sponsor?: boolean
   is_premium?: boolean
+  is_organization?: boolean
+  organization_badge_url?: string
+  organization_name?: string
   bio?: string
   reason?: string
   shared_interests?: number
@@ -124,6 +127,9 @@ export function UserSuggestions({
                       is_verified={person.is_verified}
                       is_team_member={person.is_team_member}
                       is_sponsor={person.is_sponsor}
+                      is_organization={person.is_organization}
+                      organization_badge_url={person.organization_badge_url}
+                      organization_name={person.organization_name}
                       username={person.username}
                       size="sm"
                     />

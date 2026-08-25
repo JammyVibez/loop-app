@@ -223,6 +223,9 @@ export function Header() {
                       is_verified={user.is_verified}
                       is_team_member={user.is_team_member}
                       is_sponsor={user.is_sponsor}
+                      is_organization={user.is_organization}
+                      organization_badge_url={user.organization_badge_url}
+                      organization_name={user.organization_name}
                       email={user.email}
                       username={user.username}
                       size="sm"

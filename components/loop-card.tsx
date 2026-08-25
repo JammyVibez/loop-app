@@ -91,6 +91,9 @@ interface LoopAuthor {
   is_team_member?: boolean;
   is_sponsor?: boolean;
   is_premium?: boolean;
+  is_organization?: boolean;
+  organization_badge_url?: string;
+  organization_name?: string;
   level?: number;
   cosmetics?: ActiveCosmetics | null;
   active_cosmetics?: ActiveCosmetics | null;
@@ -995,6 +998,9 @@ export function LoopCard({
                     is_team_member={loop.author.is_team_member}
                     is_sponsor={loop.author.is_sponsor}
                     is_premium={loop.author.is_premium}
+                    is_organization={loop.author.is_organization}
+                    organization_badge_url={loop.author.organization_badge_url}
+                    organization_name={loop.author.organization_name}
                     badge={authorBadge}
                     username={loop.author.username}
                     size="sm"

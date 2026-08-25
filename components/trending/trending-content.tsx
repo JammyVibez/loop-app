@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { UserBadges } from "@/components/user-badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -26,6 +27,9 @@ interface TrendingUser {
   avatar_url?: string
   is_verified?: boolean
   is_premium?: boolean
+  is_organization?: boolean
+  organization_badge_url?: string
+  organization_name?: string
   bio?: string
   followers_count?: number
   loops_count?: number
@@ -227,10 +231,15 @@ export function TrendingContent() {
                       <div>
                         <div className="flex items-center space-x-2">
                           <h3 className="font-bold">{user.display_name || user.username}</h3>
-                          {user.is_verified && <Badge className="bg-blue-500 text-white">Verified</Badge>}
-                          {user.is_premium && (
-                            <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">Premium</Badge>
-                          )}
+                          <UserBadges
+                            is_verified={user.is_verified}
+                            is_premium={user.is_premium}
+                            is_organization={user.is_organization}
+                            organization_badge_url={user.organization_badge_url}
+                            organization_name={user.organization_name}
+                            username={user.username}
+                            size="sm"
+                          />
                         </div>
                         <p className="text-muted-foreground text-sm">@{user.username}</p>
                       </div>
