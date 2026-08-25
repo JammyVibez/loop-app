@@ -102,7 +102,8 @@ export function AdminFramesTab() {
       // Determine upload type based on file MIME
       const isVideo = selectedFile.type.startsWith("video/")
       const isAudio = selectedFile.type.startsWith("audio/")
-      const uploadType = isVideo ? "video" : isAudio ? "audio" : "file"
+      const isImage = selectedFile.type.startsWith("image/") || selectedFile.type === "image/svg+xml"
+      const uploadType = isVideo ? "video" : isAudio ? "audio" : isImage ? "image" : "file"
 
       // Upload file to Cloudinary
       const uploaded = await uploadMediaFile(selectedFile, {

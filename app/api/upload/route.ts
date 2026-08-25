@@ -216,10 +216,20 @@ export async function POST(request: NextRequest) {
           ]
         })
       } else {
-        // Default handling for other file types
+        // Auto-detect resource type from MIME prefix for unknown types
+        const mimeCategory = (file.type || '').split('/')[0]
+        const resourceType = mimeCategory === 'image' ? 'image' : mimeCategory === 'video' ? 'video' : mimeCategory === 'audio' ? 'video' : 'auto'
+        const folderSuffix = resourceType === 'image' ? 'images' : resourceType === 'video' ? 'videos' : 'files'
         uploadResult = await cloudinary.uploader.upload(base64, {
-          folder: `loop-app/${folder}/files`,
-          resource_type: 'auto'
+          folder: `loop-app/${folder}/${folderSuffix}`,
+          resource_type: resourceType,
+          ...(resourceType === 'image' ? {
+            transformation: [
+              { width: 1200, height: 1200, crop: 'limit' },
+              { quality: 'auto' },
+              { format: 'auto' },
+            ],
+          } : {})
         })
       }
 

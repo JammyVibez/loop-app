@@ -133,16 +133,25 @@ async function handleUpsert(request: NextRequest) {
     if (updates.length === 0) return NextResponse.json({ error: "Nothing to update" }, { status: 400 })
 
     for (const update of updates) {
-      const { error } = await supabase.from("admin_settings").upsert(
-        {
-          setting_key: update.key,
-          setting_value: update.value,
-          updated_by: user.id,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "setting_key" },
-      )
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      const { data: existing } = await supabase
+        .from("admin_settings")
+        .select("setting_key")
+        .eq("setting_key", update.key)
+        .maybeSingle()
+
+      const now = new Date().toISOString()
+      if (existing) {
+        const { error } = await supabase
+          .from("admin_settings")
+          .update({ setting_value: update.value, updated_by: user.id, updated_at: now })
+          .eq("setting_key", update.key)
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      } else {
+        const { error } = await supabase
+          .from("admin_settings")
+          .insert({ setting_key: update.key, setting_value: update.value, updated_by: user.id, updated_at: now })
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      }
     }
 
     return NextResponse.json({ success: true })
