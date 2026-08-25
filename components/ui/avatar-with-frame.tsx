@@ -76,7 +76,7 @@ export function AvatarWithFrame({
       {/* Frame overlay — custom image */}
       {hasCustomFrame && (
         <img
-          src={frame.image_url}
+          src={frame.image_url.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(frame.image_url)}` : frame.image_url}
           alt=""
           className="absolute inset-0 pointer-events-none object-contain"
           style={{ width: size, height: size }}
