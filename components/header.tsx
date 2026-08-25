@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { AppLogo } from "@/components/brand/app-logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { VideoAvatar } from "@/components/cosmetics/video-avatar"
+import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -204,13 +204,12 @@ export function Header() {
                 type="button"
                 className="relative h-8 w-8 rounded-full border border-border/80 bg-muted/50 p-0 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-sky-500/50"
               >
-                <VideoAvatar
-                  src={user.avatar_url}
-                  videoSrc={(user as any).video_avatar_url || null}
-                  isPremium={user.is_premium}
+                <AvatarWithFrame
+                  avatarUrl={user.avatar_url}
+                  videoAvatarUrl={(user as any).video_avatar_url || null}
+                  frameId={user.equipped_frame_id}
+                  size={32}
                   alt={user.display_name}
-                  cosmetics={user.cosmetics || user.active_cosmetics}
-                  size="md"
                 />
               </button>
             </DropdownMenuTrigger>

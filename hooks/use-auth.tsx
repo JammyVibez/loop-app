@@ -25,6 +25,7 @@ interface User {
   is_sponsor?: boolean
   is_admin: boolean
   is_organization?: boolean
+  equipped_frame_id?: string | number | null
   cosmetics?: any
   active_cosmetics?: any
   organization_name?: string

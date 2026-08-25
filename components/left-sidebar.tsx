@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import { AppLogo } from "@/components/brand/app-logo"
 import { useAuth } from "@/hooks/use-auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { VideoAvatar } from "@/components/cosmetics/video-avatar"
+import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -232,13 +232,12 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       {/* Footer User Profile & Logout */}
       <div className="border-t border-border/60 pt-3 shrink-0 flex items-center justify-between">
         <Link href={`/profile/${user.username}`} onClick={onLinkClick} className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-80 transition-opacity">
-          <VideoAvatar
-            src={user.avatar_url || user.user_metadata?.avatar_url}
-            videoSrc={(user as any).video_avatar_url || null}
-            isPremium={user.is_premium}
+          <AvatarWithFrame
+            avatarUrl={user.avatar_url || user.user_metadata?.avatar_url}
+            videoAvatarUrl={(user as any).video_avatar_url || null}
+            frameId={user.equipped_frame_id}
+            size={36}
             alt={user.display_name || user.username}
-            cosmetics={user.cosmetics || user.active_cosmetics}
-            size="md"
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1">

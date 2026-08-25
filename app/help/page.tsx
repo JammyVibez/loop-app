@@ -202,13 +202,13 @@ export default function HelpPage() {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100/20 text-red-500 dark:bg-red-900/30 dark:text-red-400"
       case "medium":
         return "bg-orange-100 text-orange-800"
       case "low":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100/20 text-green-600 dark:bg-green-900/30 dark:text-green-400"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-muted text-muted-foreground"
     }
   }
 

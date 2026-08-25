@@ -36,6 +36,7 @@ export type NormalizedLoop = {
     is_organization?: boolean
     organization_badge_url?: string
     organization_name?: string
+    equipped_frame_id?: string | number | null
     badge_id?: string | null
     level?: number
     cosmetics?: Record<string, any> | null
@@ -151,6 +152,7 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
       is_organization: Boolean(author?.is_organization),
       organization_badge_url: author?.organization_badge_url || undefined,
       organization_name: author?.organization_name || undefined,
+      equipped_frame_id: author?.equipped_frame_id || null,
       badge_id: author?.badge_id || null,
       level: author?.level,
       cosmetics: author?.cosmetics || author?.active_cosmetics || null,

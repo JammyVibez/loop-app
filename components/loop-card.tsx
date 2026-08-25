@@ -34,7 +34,7 @@ import { Card, CardContent, CardHeader } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar";
-import { VideoAvatar } from "@/components/cosmetics/video-avatar";
+import { AvatarWithFrame } from "@/components/ui/avatar-with-frame";
 import { AnimatedCardFrame } from "@/components/cosmetics/animated-card-frame";
 import { cardEffectStyle, fontStyle, type ActiveCosmetics } from "@/lib/cosmetics";
 import { ensureCosmeticFonts } from "@/lib/cosmetic-fonts";
@@ -94,6 +94,7 @@ interface LoopAuthor {
   is_organization?: boolean;
   organization_badge_url?: string;
   organization_name?: string;
+  equipped_frame_id?: string | number | null;
   level?: number;
   cosmetics?: ActiveCosmetics | null;
   active_cosmetics?: ActiveCosmetics | null;
@@ -911,13 +912,12 @@ export function LoopCard({
                   title="Click to view Co-Authors roster"
                 >
                   <div className="relative z-10">
-                    <VideoAvatar
-                      src={loop.author.avatar_url || "/placeholder.svg"}
-                      videoSrc={loop.author.video_avatar_url || null}
-                      isPremium={loop.author.is_premium}
+                    <AvatarWithFrame
+                      avatarUrl={loop.author.avatar_url || "/placeholder.svg"}
+                      videoAvatarUrl={loop.author.video_avatar_url || null}
+                      frameId={loop.author.equipped_frame_id}
+                      size={32}
                       alt={loop.author.display_name}
-                      cosmetics={loop.author.cosmetics || loop.author.active_cosmetics}
-                      size="sm"
                       className="ring-2 ring-cyan-500 ring-offset-2 ring-offset-background group-hover:scale-105 transition-transform"
                     />
                   </div>
@@ -947,13 +947,12 @@ export function LoopCard({
                   href={`/profile/${loop.author.username}`}
                   className="flex-shrink-0"
                 >
-                  <VideoAvatar
-                    src={loop.author.avatar_url || "/placeholder.svg"}
-                    videoSrc={loop.author.video_avatar_url || null}
-                    isPremium={loop.author.is_premium}
+                  <AvatarWithFrame
+                    avatarUrl={loop.author.avatar_url || "/placeholder.svg"}
+                    videoAvatarUrl={loop.author.video_avatar_url || null}
+                    frameId={loop.author.equipped_frame_id}
+                    size={32}
                     alt={loop.author.display_name}
-                    cosmetics={loop.author.cosmetics || loop.author.active_cosmetics}
-                    size="sm"
                     className={getAvatarStyle()}
                   />
                 </Link>
@@ -1573,13 +1572,12 @@ export function LoopCard({
             {/* Primary Creator */}
             <div className="flex items-center justify-between rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-3">
               <div className="flex items-center gap-3">
-                <VideoAvatar
-                  src={loop.author.avatar_url}
-                  videoSrc={loop.author.video_avatar_url || null}
-                  isPremium={loop.author.is_premium}
+                <AvatarWithFrame
+                  avatarUrl={loop.author.avatar_url}
+                  videoAvatarUrl={loop.author.video_avatar_url || null}
+                  frameId={loop.author.equipped_frame_id}
+                  size={40}
                   alt={loop.author.display_name}
-                  cosmetics={loop.author.cosmetics || loop.author.active_cosmetics}
-                  size="md"
                   className="ring-2 ring-cyan-500"
                 />
                 <div>
@@ -1602,12 +1600,12 @@ export function LoopCard({
                 className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 p-3"
               >
                 <div className="flex items-center gap-3">
-                <VideoAvatar
-                  src={ca.avatar_url}
-                  videoSrc={ca.video_avatar_url || null}
-                  isPremium={ca.is_premium}
+                <AvatarWithFrame
+                  avatarUrl={ca.avatar_url}
+                  videoAvatarUrl={ca.video_avatar_url || null}
+                  frameId={ca.equipped_frame_id}
+                  size={40}
                   alt={ca.display_name || ca.username}
-                  size="md"
                   className="ring-2 ring-purple-500"
                 />
                   <div>
