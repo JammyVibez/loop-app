@@ -41,23 +41,29 @@ export async function POST(request: NextRequest) {
     const { enabled, message, version, update_notes } = await request.json()
 
     const supabase = createServerClient()
-    const { data, error } = await supabase
+    const now = new Date().toISOString()
+    const { data: existing } = await supabase
       .from("admin_settings")
-      .upsert(
-        {
-          setting_key: "app_update_mode",
-          setting_value: { enabled, message, version, update_notes },
-          updated_by: user!.id,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "setting_key" },
-      )
-      .select()
+      .select("setting_key")
+      .eq("setting_key", "app_update_mode")
       .maybeSingle()
 
-    if (error) {
-      console.error("Error updating app update mode:", error)
-      return NextResponse.json({ success: false, error: "Failed to update app update mode" }, { status: 500 })
+    let data
+    if (existing) {
+      const { data: updated } = await supabase
+        .from("admin_settings")
+        .update({ setting_value: { enabled, message, version, update_notes }, updated_by: user!.id, updated_at: now })
+        .eq("setting_key", "app_update_mode")
+        .select()
+        .maybeSingle()
+      data = updated
+    } else {
+      const { data: inserted } = await supabase
+        .from("admin_settings")
+        .insert({ setting_key: "app_update_mode", setting_value: { enabled, message, version, update_notes }, updated_by: user!.id, updated_at: now })
+        .select()
+        .maybeSingle()
+      data = inserted
     }
 
     return NextResponse.json({ success: true, data, message: "App update mode updated successfully" })

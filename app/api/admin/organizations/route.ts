@@ -88,12 +88,21 @@ export async function POST(request: NextRequest) {
 
     if (action === "update_threshold") {
       const newThreshold = Math.max(1, Number(body.threshold) || 100)
-      await supabase.from("admin_settings").upsert({
-        setting_key: "org_follower_threshold",
-        setting_value: String(newThreshold),
-        updated_by: adminUser.id,
-        updated_at: new Date().toISOString(),
-      })
+      // Check if setting exists, then insert or update
+      const { data: existingThreshold } = await supabase
+        .from("admin_settings")
+        .select("setting_key")
+        .eq("setting_key", "org_follower_threshold")
+        .maybeSingle()
+
+      if (existingThreshold) {
+        await supabase.from("admin_settings")
+          .update({ setting_value: String(newThreshold), updated_by: adminUser.id, updated_at: new Date().toISOString() })
+          .eq("setting_key", "org_follower_threshold")
+      } else {
+        await supabase.from("admin_settings")
+          .insert({ setting_key: "org_follower_threshold", setting_value: String(newThreshold), updated_by: adminUser.id, updated_at: new Date().toISOString() })
+      }
       return NextResponse.json({ success: true, threshold: newThreshold, message: "Follower threshold updated" })
     }
 
