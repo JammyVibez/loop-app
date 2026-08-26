@@ -10,19 +10,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder"
 )
 
-async function getUser(token: string | null) {
-  const user = await getUserFromRequest(request)
-  if (!user) return null
-  return user
-}
-
 /**
  * Tagged inbox — why/where you were @mentioned.
  * GET /api/mentions?limit=20&offset=0
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = await getUser(token)
+    const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { searchParams } = new URL(request.url)

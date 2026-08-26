@@ -13,11 +13,7 @@ const supabase = createClient(
 const DAILY_MS = 24 * 60 * 60 * 1000
 const WEEKLY_MS = 7 * 24 * 60 * 60 * 1000
 
-async function getUser(token: string | null) {
-  const user = await getUserFromRequest(request)
-  if (!user) return null
-  return user
-}
+
 
 function nextAt(fromIso: string, windowMs: number) {
   return new Date(new Date(fromIso).getTime() + windowMs).toISOString()
@@ -151,7 +147,7 @@ async function recordDailyClaim(userId: string, amount: number) {
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getUser(token)
+    const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const economy = await getEconomySettings(supabase)
@@ -223,7 +219,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getUser(token)
+    const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const body = await request.json().catch(() => ({}))

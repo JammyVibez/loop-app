@@ -9,29 +9,18 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder"
 )
 
-async function requireAdmin(token: string | null) {
-  const user = await getUserFromRequest(request);
-  if (!user) {
-    return { error: NextResponse.json({ error: "Invalid authentication" }, { status: 401 }) }
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
-    .maybeSingle()
-
-  if (!profile?.is_admin) {
-    return { error: NextResponse.json({ error: "Admin access required" }, { status: 403 }) }
-  }
-
-  return { user }
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requireAdmin(token)
-    if (auth.error) return auth.error
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .maybeSingle()
+
+    if (!profile?.is_admin) return NextResponse.json({ error: "Admin access required" }, { status: 403 })
 
     const [themesRes, categoriesRes] = await Promise.all([
       supabase.from("themes").select("*").order("created_at", { ascending: false }),
@@ -66,8 +55,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAdmin(token)
-    if (auth.error) return auth.error
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
+    const { data: prof1 } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle()
+    if (!prof1?.is_admin) return NextResponse.json({ error: "Admin access required" }, { status: 403 })
 
     const {
       name,
@@ -92,7 +83,7 @@ export async function POST(request: NextRequest) {
     const { data: theme, error } = await supabase
       .from("themes")
       .insert({
-        creator_id: auth.user!.id,
+        creator_id: user.id,
         name: name.trim(),
         description: description || "",
         category_id: category_id || null,
@@ -125,8 +116,10 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const auth = await requireAdmin(token)
-    if (auth.error) return auth.error
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
+    const { data: prof2 } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle()
+    if (!prof2?.is_admin) return NextResponse.json({ error: "Admin access required" }, { status: 403 })
 
     const body = await request.json()
     const themeId = body.id || body.theme_id
@@ -180,8 +173,10 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = await requireAdmin(token)
-    if (auth.error) return auth.error
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
+    const { data: prof3 } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle()
+    if (!prof3?.is_admin) return NextResponse.json({ error: "Admin access required" }, { status: 403 })
 
     const { searchParams } = new URL(request.url)
     const themeId = searchParams.get("id")

@@ -50,6 +50,7 @@ const nextConfig = {
     unoptimized: true,
     remotePatterns: [
       { protocol: "https", hostname: "res.cloudinary.com" },
+      { protocol: "https", hostname: "**.supabase.co" },
       { protocol: "http", hostname: "localhost" },
       { protocol: "https", hostname: "localhost" },
     ],
