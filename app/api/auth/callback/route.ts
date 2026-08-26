@@ -2,7 +2,6 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
 import { createClient, type User as SupabaseUser } from "@supabase/supabase-js"
 import { ECONOMY_DEFAULTS } from "@/lib/economy"
-import { getDiceBearUrl } from "@/lib/dicebear"
 
 export const dynamic = "force-dynamic"
 
@@ -39,11 +38,11 @@ async function ensureProfile(user: SupabaseUser) {
   const username = fallbackUsername(user)
   const displayName = user.user_metadata?.display_name || user.user_metadata?.full_name || user.user_metadata?.name || username
 
-  // Auto-generate a unique DiceBear cartoon avatar for every new user.
-  // If the OAuth provider supplied an avatar (e.g. Google profile photo),
-  // use that instead — DiceBear is the fallback.
-  const dicebearAvatar = getDiceBearUrl(username)
-  const avatarUrl = user.user_metadata?.avatar_url || dicebearAvatar
+  // Use OAuth provider avatar if available. Otherwise leave null —
+  // the frontend AvatarImage component generates a DiceBear cartoon
+  // as a client-side fallback so users without a PFP always see a
+  // unique avatar instead of a broken image.
+  const avatarUrl = user.user_metadata?.avatar_url || null
 
   const { data: createdProfile, error } = await serviceSupabase
     .from("profiles")

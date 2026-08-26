@@ -3,6 +3,7 @@ import * as React from "react";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 
 import { cn } from "@/lib/utils";
+import { getDiceBearUrl } from "@/lib/dicebear";
 
 const Avatar = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Root>,
@@ -19,29 +20,61 @@ const Avatar = React.forwardRef<
 ))
 Avatar.displayName = AvatarPrimitive.Root.displayName
 
+/**
+ * AvatarImage — renders the user's profile photo.
+ * If no src is provided, it generates a DiceBear Adventurer cartoon
+ * as a client-side fallback so users without a PFP always see a
+ * unique avatar instead of a broken image or plain initials.
+ */
 const AvatarImage = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Image>,
-  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
->(({ className, src, ...props }, ref) => {
-  // Don't render <img> at all when src is null/undefined —
-  // this lets AvatarFallback show instead of a broken image icon
-  if (!src) return null
+  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image> & {
+    /** Seed for DiceBear fallback (typically username). Falls back to children/alt. */
+    fallbackSeed?: string;
+  }
+>(({ className, src, fallbackSeed, children, alt, ...props }, ref) => {
+  const [imgFailed, setImgFailed] = React.useState(false);
+
+  // Derive a seed for the DiceBear fallback from the seed prop, children, or alt text
+  const seed =
+    fallbackSeed ||
+    (typeof children === "string" ? children : "") ||
+    (typeof alt === "string" ? alt : "") ||
+    "user";
+
+  // When src is provided and hasn't failed, show the real image
+  if (src && !imgFailed) {
+    return (
+      <AvatarPrimitive.Image
+        ref={ref}
+        src={src}
+        alt={alt}
+        className={cn("aspect-square h-full w-full object-cover", className)}
+        onError={() => setImgFailed(true)}
+        {...props}
+      />
+    );
+  }
+
+  // No src or image failed — show DiceBear cartoon as placeholder
+  const dicebearUrl = getDiceBearUrl(seed);
   return (
-    <AvatarPrimitive.Image
-      ref={ref}
-      src={src}
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={dicebearUrl}
+      alt={alt || "avatar"}
       className={cn("aspect-square h-full w-full object-cover", className)}
-      {...props}
+      draggable={false}
     />
-  )
-})
-AvatarImage.displayName = AvatarPrimitive.Image.displayName
+  );
+});
+AvatarImage.displayName = AvatarPrimitive.Image.displayName;
 
 const AvatarFallback = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Fallback>,
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Fallback>
 >(({ className, children, ...props }, ref) => {
-  const initials = (typeof children === "string" ? children : "?").charAt(0).toUpperCase()
+  const initials = (typeof children === "string" ? children : "?").charAt(0).toUpperCase();
 
   return (
     <AvatarPrimitive.Fallback
@@ -55,8 +88,8 @@ const AvatarFallback = React.forwardRef<
     >
       {initials}
     </AvatarPrimitive.Fallback>
-  )
-})
-AvatarFallback.displayName = AvatarPrimitive.Fallback.displayName
+  );
+});
+AvatarFallback.displayName = AvatarPrimitive.Fallback.displayName;
 
-export { Avatar, AvatarImage, AvatarFallback }
+export { Avatar, AvatarImage, AvatarFallback };
