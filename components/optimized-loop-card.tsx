@@ -102,7 +102,7 @@ export const OptimizedLoopCard = memo<OptimizedLoopCardProps>(({ loop, onLike, o
                   alt={loop.user.display_name}
                   loading={priority === "high" ? "eager" : "lazy"}
                 />
-                <AvatarFallback seed={loop.user.username}>{loop.user.display_name.charAt(0)}</AvatarFallback>
+                <AvatarFallback>{loop.user.display_name.charAt(0)}</AvatarFallback>
               </Avatar>
             </Link>
             <div className="min-w-0 flex-1">

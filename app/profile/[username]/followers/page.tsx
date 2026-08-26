@@ -143,7 +143,7 @@ export default function FollowersPage() {
                 <Link href={`/profile/${person.username}`}>
                   <Avatar className="h-11 w-11">
                     <AvatarImage src={person.avatar_url} />
-                    <AvatarFallback seed={person.username}>{(person.display_name || person.username || "?").charAt(0)}</AvatarFallback>
+                    <AvatarFallback>{(person.display_name || person.username || "?").charAt(0)}</AvatarFallback>
                   </Avatar>
                 </Link>
                 <div className="min-w-0 flex-1">

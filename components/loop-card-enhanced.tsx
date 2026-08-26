@@ -299,7 +299,7 @@ export function EnhancedLoopCard({
                 <Link href={`/profile/${author.username}`}>
                   <Avatar className={`h-10 w-10 transition-transform duration-300 ${isHovered ? 'scale-110 rotate-3' : ''}`}>
                     <AvatarImage src={author.avatar_url} alt={author.display_name} />
-                    <AvatarFallback seed={author.username}>{author.display_name.charAt(0)}</AvatarFallback>
+                    <AvatarFallback>{author.display_name.charAt(0)}</AvatarFallback>
                   </Avatar>
                 </Link>
                 {author.level && author.level > 1 && (

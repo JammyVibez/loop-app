@@ -3,7 +3,6 @@ import * as React from "react";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 
 import { cn } from "@/lib/utils";
-import { getDiceBearUrl } from "@/lib/dicebear";
 
 const Avatar = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Root>,
@@ -31,69 +30,30 @@ const AvatarImage = React.forwardRef<
     <AvatarPrimitive.Image
       ref={ref}
       src={src}
-      className={cn("aspect-square h-full w-full", className)}
+      className={cn("aspect-square h-full w-full object-cover", className)}
       {...props}
     />
   )
 })
 AvatarImage.displayName = AvatarPrimitive.Image.displayName
 
-interface AvatarFallbackProps extends React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Fallback> {
-  /** Seed for DiceBear Adventurer avatar. When provided, shows a unique cartoon avatar instead of initials. */
-  seed?: string | null
-}
-
-/**
- * Extract a stable seed string from arbitrary React children.
- * Strips whitespace and special chars, then lowercases so the same
- * name always produces the same DiceBear character.
- */
-function seedFromChildren(children: React.ReactNode): string | null {
-  if (typeof children === "string") return children.trim().toLowerCase() || null
-  if (typeof children === "number") return String(children)
-  return null
-}
-
 const AvatarFallback = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Fallback>,
-  AvatarFallbackProps
->(({ className, children, seed, ...props }, ref) => {
-  const [diceFailed, setDiceFailed] = React.useState(false)
-  const effectiveSeed = seed || seedFromChildren(children)
+  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Fallback>
+>(({ className, children, ...props }, ref) => {
   const initials = (typeof children === "string" ? children : "?").charAt(0).toUpperCase()
 
   return (
     <AvatarPrimitive.Fallback
       ref={ref}
       className={cn(
-        "flex h-full w-full items-center justify-center rounded-full overflow-hidden",
+        "flex h-full w-full items-center justify-center rounded-full font-bold text-white",
+        "bg-gradient-to-br from-violet-600 to-cyan-500",
         className
       )}
       {...props}
     >
-      {effectiveSeed && !diceFailed ? (
-        /* DiceBear cartoon avatar — unique per user, animated breathing effect */
-        <div className="animate-[dicebear-breathe_3s_ease-in-out_infinite] h-full w-full">
-          <img
-            src={getDiceBearUrl(effectiveSeed)}
-            alt=""
-            className="w-full h-full object-cover"
-            draggable={false}
-            onError={() => setDiceFailed(true)}
-          />
-        </div>
-      ) : (
-        /* Initials fallback — shown when no seed or DiceBear fails */
-        <span
-          className={cn(
-            "font-bold text-white",
-            "bg-gradient-to-br from-violet-600 to-cyan-500",
-            "flex h-full w-full items-center justify-center"
-          )}
-        >
-          {initials}
-        </span>
-      )}
+      {initials}
     </AvatarPrimitive.Fallback>
   )
 })
