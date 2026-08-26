@@ -11,7 +11,7 @@ const supabase = createClient(
 
 
 async function verifyAdmin(token: string) {
-  const authUser = await getUserFromRequest(request)
+  const authUser = await getUserFromRequest(req)
   if (!authUser) return null
   const { data: profile } = await supabase
     .from("profiles")

@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
     let userId: string | null = null
     if (token) {
-      const user = await getUserFromRequest(request)
+      const user = await getUserFromRequest(req)
       if (user) {
         userId = user.id
       }
