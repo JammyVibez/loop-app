@@ -60,9 +60,43 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch notifications" }, { status: 500 })
     }
 
+    // Enrich notifications with actor profile data (avatar, username)
+    const actorIds = new Set<string>()
+    for (const n of notifications || []) {
+      const d = n.data || {}
+      if (d.user_id) actorIds.add(d.user_id)
+      if (d.sender_id) actorIds.add(d.sender_id)
+      if (d.actor_id) actorIds.add(d.actor_id)
+    }
+
+    let actorMap: Record<string, { username: string; display_name: string; avatar_url: string | null; is_verified: boolean }>
+ = {}
+    if (actorIds.size > 0) {
+      const { data: actors } = await supabase
+        .from("profiles")
+        .select("id, username, display_name, avatar_url, is_verified")
+        .in("id", Array.from(actorIds))
+      if (actors) {
+        for (const a of actors) {
+          actorMap[a.id] = a as any
+        }
+      }
+    }
+
+    // Attach actor info to each notification
+    const enriched = (notifications || []).map((n) => {
+      const d = n.data || {}
+      const actorId = d.user_id || d.sender_id || d.actor_id
+      const actor = actorId ? actorMap[actorId] : null
+      return {
+        ...n,
+        actor: actor || null,
+      }
+    })
+
     return NextResponse.json({
       success: true,
-      notifications: notifications || [],
+      notifications: enriched,
       hasMore: notifications?.length === limit,
     })
   } catch (error) {

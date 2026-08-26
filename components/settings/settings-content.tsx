@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { PushNotificationManager } from "@/components/pwa/push-notification-manager"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Badge } from "@/components/ui/badge"
 import { User, Bell, Shield, Palette, Trash2, Moon, Sun, Upload, Crown, Mail, Lock } from "lucide-react"
@@ -580,6 +581,7 @@ export function SettingsContent() {
 
       <TabsContent value="notifications" className="mt-6">
         <div className="space-y-6">
+          <PushNotificationManager />
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
