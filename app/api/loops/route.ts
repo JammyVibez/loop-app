@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("user_id")
     const category = searchParams.get("category")
 
-    const viewer = token ? await getUserFromRequest(request) : null
+    const viewer = await getUserFromRequest(request)
     const following = await getFollowingIds(createServerClient(), viewer?.id || null)
 
     const supabase = createServerClient()

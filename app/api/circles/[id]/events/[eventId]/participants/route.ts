@@ -12,7 +12,7 @@ const supabase = createClient(
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string; eventId: string }> }) {
   try {
     const { eventId } = await params
-    const user = token ? await getUserFromRequest(request) : null
+    const user = await getUserFromRequest(request)
 
     const { data: participants, error } = await supabase
       .from("circle_event_participants")

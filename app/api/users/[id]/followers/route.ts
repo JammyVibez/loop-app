@@ -12,11 +12,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
 
-    let viewerId: string | null = null
-    if (token) {
-      const user = await getUserFromRequest(request);
-      viewerId = user?.id || null
-    }
+    const viewerUser = await getUserFromRequest(request)
+    const viewerId: string | null = viewerUser?.id || null
 
     const { data: targetUser, error: userError } = await supabase
       .from("profiles")

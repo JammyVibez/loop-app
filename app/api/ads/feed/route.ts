@@ -22,17 +22,15 @@ export async function GET(request: NextRequest) {
 
     let eligible = true
     let viewer = null
-    if (token) {
-      const user = await getUserFromRequest(request)
-      if (!error && user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("id, is_premium, is_sponsor")
-          .eq("id", user.id)
-          .maybeSingle()
-        viewer = user
-        if (profile?.is_premium || profile?.is_sponsor) eligible = false
-      }
+    const user = await getUserFromRequest(request)
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, is_premium, is_sponsor")
+        .eq("id", user.id)
+        .maybeSingle()
+      viewer = user
+      if (profile?.is_premium || profile?.is_sponsor) eligible = false
     }
 
     // Master switch — checked before the DB round trip.
