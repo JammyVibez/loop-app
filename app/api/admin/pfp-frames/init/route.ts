@@ -6,9 +6,8 @@ import { getUserFromRequest } from "@/lib/server-auth";
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient()
-    if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     const user = await getUserFromRequest(request)
-    if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { data: profile } = await supabase
       .from("profiles").select("is_admin").eq("id", user.id).single()

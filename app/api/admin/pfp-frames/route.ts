@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth";
 
-async function requireAdmin(supabase: any, token: string) {
+async function requireAdmin(request: NextRequest, supabase: any) {
   const user = await getUserFromRequest(request)
   if (!user) return null
   const { data: profile } = await supabase
@@ -15,9 +15,7 @@ async function requireAdmin(supabase: any, token: string) {
 export async function GET(request: NextRequest) {
   try {
     const supabase = createServerClient()
-    if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    
-    const user = await requireAdmin(supabase, authHeader.replace("Bearer ", ""))
+    const user = await requireAdmin(request, supabase)
     if (!user) return NextResponse.json({ error: "Admin required" }, { status: 403 })
 
     const { data: frames, error } = await supabase
@@ -53,9 +51,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient()
-    if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    
-    const user = await requireAdmin(supabase, authHeader.replace("Bearer ", ""))
+    const user = await requireAdmin(request, supabase)
     if (!user) return NextResponse.json({ error: "Admin required" }, { status: 403 })
 
     const body = await request.json()
@@ -92,9 +88,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = createServerClient()
-    if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    
-    const user = await requireAdmin(supabase, authHeader.replace("Bearer ", ""))
+    const user = await requireAdmin(request, supabase)
     if (!user) return NextResponse.json({ error: "Admin required" }, { status: 403 })
 
     const { searchParams } = new URL(request.url)

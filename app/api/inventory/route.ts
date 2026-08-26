@@ -29,9 +29,8 @@ function mapItem(row: any, shop: any) {
 
 export async function GET(request: NextRequest) {
   try {
-    if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await getUserFromToken(authHeader.replace("Bearer ", ""))
+    const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
 
     const { searchParams } = new URL(request.url)

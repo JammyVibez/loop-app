@@ -35,8 +35,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string; postId: string }> }) {
   try {
-    if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const user = await getUserFromToken(authHeader.replace("Bearer ", ""))
+    const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
 
     const { id: circleId, postId } = await params

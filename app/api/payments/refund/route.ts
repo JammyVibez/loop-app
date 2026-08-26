@@ -6,17 +6,7 @@ export const dynamic = "force-dynamic"
 const REFUND_WINDOW_DAYS = 14
 const REFUNDABLE_TYPES = ["deposit", "premium_purchase", "shop_purchase"]
 
-async function getUserFromRequest(request: NextRequest) {
-  if (!authHeader) return null
-  try {
-    const supabase = createServerClient()
-    const user = await getUserFromRequest(request)
-    if (!user) return null
-    return user
-  } catch {
-    return null
-  }
-}
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export async function GET(request: NextRequest) {
   try {

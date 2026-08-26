@@ -39,7 +39,6 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: loopId } = await params
-    if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })

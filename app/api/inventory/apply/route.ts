@@ -99,7 +99,6 @@ async function refreshActiveCosmetics(userId: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
