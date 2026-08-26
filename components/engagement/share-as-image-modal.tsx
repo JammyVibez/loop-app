@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Download, Share2, Heart, MessageCircle, GitBranch, Zap } from "lucide-react"
 import { useTheme } from "next-themes"
+import { getDiceBearUrl } from "@/lib/dicebear"
 
 interface ShareAsImageModalProps {
   open: boolean
@@ -323,7 +324,7 @@ function CardPreview({ post, isDark }: { post: ShareAsImageModalProps["post"]; i
         <div className="flex items-center gap-3 mt-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-[3px]" style={{ background: "linear-gradient(135deg, #c084fc, #818cf8, #67e8f9)" }}>
             <span className={`flex aspect-square w-full items-center justify-center overflow-hidden rounded-full text-sm font-bold ${isDark ? "bg-zinc-700 text-zinc-300" : "bg-stone-200 text-stone-600"}`}>
-              <img src={post.author.avatar_url ? `/api/image-proxy?url=${encodeURIComponent(post.author.avatar_url)}` : "/default-avatar.svg"} alt="" className="h-full w-full object-cover" />
+              <img src={post.author.avatar_url ? `/api/image-proxy?url=${encodeURIComponent(post.author.avatar_url)}` : getDiceBearUrl(post.author.username)} alt="" className="h-full w-full object-cover" />
             </span>
           </span>
           <div className="flex flex-col min-w-0">

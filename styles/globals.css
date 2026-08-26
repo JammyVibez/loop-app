@@ -88,3 +88,13 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* DiceBear avatar breathing animation */
+@keyframes dicebear-breathe {
+  0%, 100% {
+    transform: scale(1) translateY(0);
+  }
+  50% {
+    transform: scale(1.03) translateY(-1px);
+  }
+}

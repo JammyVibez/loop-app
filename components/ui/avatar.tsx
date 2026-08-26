@@ -3,6 +3,7 @@ import * as React from "react";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 
 import { cn } from "@/lib/utils";
+import { getDiceBearUrl } from "@/lib/dicebear";
 
 const Avatar = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Root>,
@@ -35,21 +36,27 @@ const AvatarImage = React.forwardRef<
 })
 AvatarImage.displayName = AvatarPrimitive.Image.displayName
 
+interface AvatarFallbackProps extends React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Fallback> {
+  /** Seed for DiceBear Adventurer avatar. When provided, shows a unique cartoon avatar instead of initials. */
+  seed?: string | null
+}
+
 const AvatarFallback = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Fallback>,
-  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Fallback>
->(({ className, children, ...props }, ref) => (
+  AvatarFallbackProps
+>(({ className, children, seed, ...props }, ref) => (
   <AvatarPrimitive.Fallback
     ref={ref}
     className={cn(
       "flex h-full w-full items-center justify-center rounded-full overflow-hidden",
+      seed && "animate-[dicebear-breathe_3s_ease-in-out_infinite]",
       className
     )}
     {...props}
   >
     {children || (
       <img
-        src="/default-avatar.svg"
+        src={seed ? getDiceBearUrl(seed) : "/default-avatar.svg"}
         alt=""
         className="w-full h-full object-cover"
         draggable={false}

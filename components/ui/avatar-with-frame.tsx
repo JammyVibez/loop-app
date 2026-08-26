@@ -2,11 +2,13 @@
 
 import { usePfpFrame } from "@/hooks/use-pfp-frame"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
+import { getDiceBearUrl } from "@/lib/dicebear"
 
 interface AvatarWithFrameProps {
   avatarUrl?: string | null
   videoAvatarUrl?: string | null
   frameId?: string | number | null
+  seed?: string | null
   size?: number
   className?: string
   alt?: string
@@ -28,6 +30,7 @@ export function AvatarWithFrame({
   avatarUrl,
   videoAvatarUrl,
   frameId,
+  seed,
   size = 40,
   className = "",
   alt = "",
@@ -65,9 +68,9 @@ export function AvatarWithFrame({
           />
         ) : (
           <img
-            src="/default-avatar.svg"
+            src={seed ? getDiceBearUrl(seed) : "/default-avatar.svg"}
             alt=""
-            className="w-full h-full object-cover rounded-full"
+            className={`w-full h-full object-cover rounded-full ${seed ? "animate-[dicebear-breathe_3s_ease-in-out_infinite]" : ""}`}
             draggable={false}
           />
         )}
