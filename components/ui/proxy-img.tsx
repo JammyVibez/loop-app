@@ -22,6 +22,8 @@ function proxyUrl(url: string): string {
   if (url.startsWith("/") || url.startsWith("data:") || url.startsWith("blob:") || url.includes("/api/")) {
     return url
   }
+  // Don't proxy public third-party avatar APIs (DiceBear, Gravatar) — they're CORS-friendly
+  if (url.includes("dicebear.com") || url.includes("gravatar.com")) return url
   // For absolute URLs, check if the pathname is an internal API route
   try {
     const parsed = new URL(url)

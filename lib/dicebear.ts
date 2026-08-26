@@ -8,7 +8,8 @@ export function getDiceBearUrl(seed: string | null | undefined, size?: number): 
   const s = seed || "default"
   const params = new URLSearchParams({ seed: s })
   if (size) params.set("size", String(size))
-  return `https://api.dicebear.com/9.x/adventurer/svg?${params.toString()}`
+  // Use PNG format — more reliably rendered across browsers than SVG
+  return `https://api.dicebear.com/9.x/adventurer/png?${params.toString()}`
 }
 
 /**
