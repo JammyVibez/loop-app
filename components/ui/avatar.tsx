@@ -24,6 +24,8 @@ const AvatarImage = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Image>,
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
 >(({ className, src, ...props }, ref) => {
+  // Don't render <img> at all when src is null/undefined —
+  // this lets AvatarFallback show instead of a broken image icon
   if (!src) return null
   return (
     <AvatarPrimitive.Image
@@ -56,25 +58,42 @@ const AvatarFallback = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Fallback>,
   AvatarFallbackProps
 >(({ className, children, seed, ...props }, ref) => {
-  // Prefer explicit seed, then try to derive from children text
+  const [diceFailed, setDiceFailed] = React.useState(false)
   const effectiveSeed = seed || seedFromChildren(children)
+  const initials = (typeof children === "string" ? children : "?").charAt(0).toUpperCase()
 
   return (
     <AvatarPrimitive.Fallback
       ref={ref}
       className={cn(
         "flex h-full w-full items-center justify-center rounded-full overflow-hidden",
-        "animate-[dicebear-breathe_3s_ease-in-out_infinite]",
         className
       )}
       {...props}
     >
-      <img
-        src={getDiceBearUrl(effectiveSeed)}
-        alt=""
-        className="w-full h-full object-cover"
-        draggable={false}
-      />
+      {effectiveSeed && !diceFailed ? (
+        /* DiceBear cartoon avatar — unique per user, animated breathing effect */
+        <div className="animate-[dicebear-breathe_3s_ease-in-out_infinite] h-full w-full">
+          <img
+            src={getDiceBearUrl(effectiveSeed)}
+            alt=""
+            className="w-full h-full object-cover"
+            draggable={false}
+            onError={() => setDiceFailed(true)}
+          />
+        </div>
+      ) : (
+        /* Initials fallback — shown when no seed or DiceBear fails */
+        <span
+          className={cn(
+            "font-bold text-white",
+            "bg-gradient-to-br from-violet-600 to-cyan-500",
+            "flex h-full w-full items-center justify-center"
+          )}
+        >
+          {initials}
+        </span>
+      )}
     </AvatarPrimitive.Fallback>
   )
 })

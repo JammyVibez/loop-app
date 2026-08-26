@@ -23,6 +23,9 @@ function proxyImg(url: string | null | undefined): string | undefined {
     url.startsWith("/") ||
     url.includes("/api/")
   ) return url
+  // Don't proxy public third-party avatar APIs (DiceBear, Gravatar, etc.)
+  // — they're CORS-friendly and don't need auth token handling
+  if (url.includes("dicebear.com") || url.includes("gravatar.com")) return url
   // For absolute URLs, check if the pathname is an internal API route
   // (e.g. https://loopapp.me/api/default-avatar?id=...)
   try {
