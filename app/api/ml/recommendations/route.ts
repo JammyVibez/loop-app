@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase"
 import { createServerClient } from "@/lib/supabase"
 import { smartEngagementScore, organizationRankingBoost } from "@/lib/feed-ranking"
 import { applyRealCommentCounts } from "@/lib/loop-stats"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"
 
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
 
     let userId: string | null = null
     if (token) {
-      const { data: { user } } = await supabase.auth.getUser(token)
+      const user = await getUserFromRequest(request)
       if (user) {
         userId = user.id
       }
@@ -101,7 +102,6 @@ export async function GET(req: NextRequest) {
         })
       }
 
-      // Author Affinity Score
       let authorScore = 0
       if (author?.id && interactedAuthorIds.has(author.id)) {
         authorScore += 30

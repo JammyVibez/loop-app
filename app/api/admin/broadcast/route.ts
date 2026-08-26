@@ -2,24 +2,11 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { notifyUsers } from "@/lib/notifications"
 import { isResendConfigured, resend, EMAIL_FROM } from "@/lib/resend"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 55
 
-async function getUserFromToken(token: string | null) {
-  if (!token) return null
-  try {
-    const supabase = createServerClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
 
 function htmlEmail(title: string, message: string, actionUrl?: string | null) {
   const button = actionUrl
@@ -41,8 +28,7 @@ function htmlEmail(title: string, message: string, actionUrl?: string | null) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const supabase = createServerClient()

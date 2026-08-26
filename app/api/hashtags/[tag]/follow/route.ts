@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"
 
@@ -10,9 +11,7 @@ const supabase = createClient(
 
 async function getUser(token: string | null) {
   if (!token) return null
-  const {
-    data: { user },
-  } = await supabase.auth.getUser(token)
+  const user = await getUserFromRequest(request);
   return user || null
 }
 
@@ -21,7 +20,6 @@ export async function POST(
   { params }: { params: Promise<{ tag: string }> },
 ) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
     const user = await getUser(token)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 

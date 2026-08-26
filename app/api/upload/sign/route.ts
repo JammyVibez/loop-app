@@ -2,6 +2,7 @@ import { createHash } from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { isCloudinaryConfigured } from "@/lib/env-check"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 function createServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -14,17 +15,6 @@ function createServerClient() {
   })
 }
 
-async function getUserFromToken(token: string | null) {
-  if (!token) return null
-  try {
-    const supabase = createServerClient()
-    const { data, error } = await supabase.auth.getUser(token)
-    if (error || !data.user) return null
-    return data.user
-  } catch {
-    return null
-  }
-}
 
 function signParams(params: Record<string, string | number>, apiSecret: string) {
   const toSign = Object.keys(params)
@@ -47,13 +37,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
     }

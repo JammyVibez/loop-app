@@ -7,16 +7,11 @@ const REFUND_WINDOW_DAYS = 14
 const REFUNDABLE_TYPES = ["deposit", "premium_purchase", "shop_purchase"]
 
 async function getUserFromRequest(request: NextRequest) {
-  const authHeader = request.headers.get("authorization")
   if (!authHeader) return null
-  const token = authHeader.replace("Bearer ", "")
   try {
     const supabase = createServerClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
-    if (error || !user) return null
+    const user = await getUserFromRequest(request)
+    if (!user) return null
     return user
   } catch {
     return null

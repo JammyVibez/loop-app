@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"
 
@@ -10,11 +11,8 @@ const supabase = createClient(
 
 async function requireAdmin(token: string | null) {
   if (!token) return { error: NextResponse.json({ error: "Authentication required" }, { status: 401 }) }
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser(token)
-  if (authError || !user) {
+  const user = await getUserFromRequest(request);
+  if (!user) {
     return { error: NextResponse.json({ error: "Invalid authentication" }, { status: 401 }) }
   }
 
@@ -33,7 +31,6 @@ async function requireAdmin(token: string | null) {
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
     const auth = await requireAdmin(token)
     if (auth.error) return auth.error
 
@@ -70,7 +67,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
     const auth = await requireAdmin(token)
     if (auth.error) return auth.error
 
@@ -130,7 +126,6 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
     const auth = await requireAdmin(token)
     if (auth.error) return auth.error
 
@@ -186,7 +181,6 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
     const auth = await requireAdmin(token)
     if (auth.error) return auth.error
 

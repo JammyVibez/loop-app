@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,12 +36,8 @@ export async function GET(request: NextRequest) {
     // mine=true returns only the signed-in user's projects (used by the
     // Dev Quest submission picker).
     if (searchParams.get('mine') === 'true') {
-      const token = request.headers.get('authorization')?.replace('Bearer ', '') ?? null
-      if (!token) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-      if (authError || !user) {
+      const user = await getUserFromRequest(request)
+      if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
       query = query.eq('author_id', user.id)
@@ -77,14 +74,9 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient()
 
-    const authHeader = request.headers.get('authorization')
-    const token = authHeader?.replace('Bearer ', '') ?? null
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
+    const user = await getUserFromRequest(request)
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

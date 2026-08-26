@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { processMentions, extractMentions, attachMentionsColumn } from "@/lib/mentions"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -14,18 +15,13 @@ const MAX_STAKE = 1000
 
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
-    if (!token) {
+
+    const authUser = await getUserFromRequest(request)
+    if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { data: authData, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !authData.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const userId = authData.user.id
+    const userId = authUser.id
     const body = await req.json()
     const {
       clipUrl,

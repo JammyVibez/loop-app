@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -9,18 +10,13 @@ const supabase = createClient(
 // POST: Request account deletion (3-day grace period)
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
-    if (!token) {
+
+    const authUser = await getUserFromRequest(request)
+    if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { data: authData, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !authData.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const userId = authData.user.id
+    const userId = authUser.id
 
     // Check if already scheduled
     const { data: existing } = await supabase
@@ -77,18 +73,13 @@ export async function POST(req: NextRequest) {
 // DELETE: Cancel scheduled deletion
 export async function DELETE(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
-    if (!token) {
+
+    const authUser = await getUserFromRequest(request)
+    if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { data: authData, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !authData.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const userId = authData.user.id
+    const userId = authUser.id
 
     const { error: updateErr } = await supabase
       .from("account_deletions")
@@ -116,21 +107,16 @@ export async function DELETE(req: NextRequest) {
 // GET: Check deletion status
 export async function GET(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const { data: authData, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !authData.user) {
+    const authUser = await getUserFromRequest(request)
+    if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { data: deletion } = await supabase
       .from("account_deletions")
       .select("id, cancelled, executed, execute_after, scheduled_at")
-      .eq("user_id", authData.user.id)
+      .eq("user_id", authUser.id)
       .single()
 
     if (!deletion || deletion.cancelled || deletion.executed) {

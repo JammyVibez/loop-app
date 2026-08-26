@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 // GET /api/user/pfp-frames — list all frames + user's inventory
 export async function GET(request: NextRequest) {
   try {
     const supabase = createServerClient()
-    const authHeader = request.headers.get("authorization")
     if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const token = authHeader.replace("Bearer ", "")
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
 
     // Get all active frames
     const { data: frames, error: framesErr } = await supabase
@@ -57,11 +56,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient()
-    const authHeader = request.headers.get("authorization")
     if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const token = authHeader.replace("Bearer ", "")
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
 
     const { frame_id, action } = await request.json()
     if (!frame_id || !action) {

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
 import { notifyUser } from "@/lib/notifications";
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
 
@@ -17,29 +18,12 @@ async function isCircleModerator(circleId: string, userId: string): Promise<bool
   return Boolean(member && ["owner", "admin"].includes(member.role))
 }
 
-async function getUserFromToken(token: string) {
-  try {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
 
 // Get pending join requests
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
@@ -79,13 +63,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 // Approve or reject a join request
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })

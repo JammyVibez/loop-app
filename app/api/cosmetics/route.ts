@@ -1,17 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { getCatalog, getUserCosmeticsBundle, type CosmeticCategory } from "@/lib/cosmetics-system";
+import { getUserFromRequest } from "@/lib/server-auth";
 
-async function getUserFromToken(token: string) {
-  const supabase = createServerClient();
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) return null;
-    return user;
-  } catch {
-    return null;
-  }
-}
 
 /** GET /api/cosmetics — Returns the catalog + user's inventory + equipped items */
 export async function GET(request: NextRequest) {
@@ -27,8 +18,7 @@ export async function GET(request: NextRequest) {
     let userBundle = null;
     const authHeader = request.headers.get("authorization");
     if (authHeader) {
-      const token = authHeader.replace("Bearer ", "");
-      const user = await getUserFromToken(token);
+      const user = await getUserFromRequest(request);
       if (user) {
         userBundle = await getUserCosmeticsBundle(user.id);
       }

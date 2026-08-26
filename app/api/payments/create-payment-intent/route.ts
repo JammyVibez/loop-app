@@ -1,30 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getStripeServer } from "@/lib/stripe-server"
+import { getUserFromRequest } from "@/lib/server-auth";
 
-async function getUserFromToken(token: string) {
-  try {
-    const supabase = createServerClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
-    }
 
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })

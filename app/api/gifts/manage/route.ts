@@ -1,22 +1,17 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient()
     const { gift_id, action, reason } = await request.json()
     
-    // Get user from auth header
-    const authHeader = request.headers.get('authorization')
-    const token = authHeader?.replace('Bearer ', '') ?? null
     
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
+    const user = await getUserFromRequest(request)
+    if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
@@ -69,16 +64,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') || 'sent'
     
-    // Get user from auth header
-    const authHeader = request.headers.get('authorization')
-    const token = authHeader?.replace('Bearer ', '') ?? null
     
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
+    const user = await getUserFromRequest(request)
+    if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 

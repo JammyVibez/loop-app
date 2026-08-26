@@ -6,19 +6,8 @@ import { uploadFileToCloudinary } from "@/lib/cloudinary-upload"
 import { isCloudinaryConfigured } from "@/lib/env-check"
 import { filterPrivateContent, getFollowingIds } from "@/lib/privacy"
 import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats"
+import { getUserFromRequest } from "@/lib/server-auth";
 
-async function getUserFromToken(token: string | null) {
-  if (!token) return null
-
-  try {
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
-    const { data: { user }, error } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
 
 function parseHashtags(value: unknown) {
   if (Array.isArray(value)) return value.map(String)
@@ -41,9 +30,7 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("user_id")
     const category = searchParams.get("category")
 
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "") ?? null
-    const viewer = token ? await getUserFromToken(token) : null
+    const viewer = token ? await getUserFromRequest(request) : null
     const following = await getFollowingIds(createServerClient(), viewer?.id || null)
 
     const supabase = createServerClient()
@@ -88,9 +75,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "") ?? null
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -209,7 +194,6 @@ export async function POST(request: NextRequest) {
     const textContent = contentText.trim()
     const wordCount = textContent ? textContent.split(/\s+/).filter(Boolean).length : 0
 
-    // Check author profile for Pro status word limits
     const { data: authorProfile } = await supabase.from("profiles").select("is_premium").eq("id", user.id).maybeSingle()
     const isPro = Boolean(authorProfile?.is_premium)
     const maxWords = isPro ? 1800 : 500

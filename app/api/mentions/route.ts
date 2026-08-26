@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { sourceLabel } from "@/lib/mentions-shared"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"
 
@@ -11,11 +12,8 @@ const supabase = createClient(
 
 async function getUser(token: string | null) {
   if (!token) return null
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(token)
-  if (error || !user) return null
+  const user = await getUserFromRequest(request)
+  if (!user) return null
   return user
 }
 
@@ -25,7 +23,6 @@ async function getUser(token: string | null) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
     const user = await getUser(token)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { cosmeticsFromInventory } from "@/lib/cosmetics"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"
 
@@ -9,14 +10,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder"
 )
 
-async function getUserFromToken(token: string) {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(token)
-  if (error || !user) return null
-  return user
-}
 
 function themePayloadFromShopItem(shopItem: any) {
   const colors = shopItem?.item_data?.colors || shopItem?.preview_data?.colors || {}
@@ -106,11 +99,9 @@ async function refreshActiveCosmetics(userId: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
     if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
 
     const body = await request.json().catch(() => ({}))

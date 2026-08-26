@@ -1,13 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.loopapp.me"
 
 async function getUser(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
   if (!token) return null
   const supabase = createServerClient()
-  const { data: { user } } = await supabase.auth.getUser(token)
+  const user = await getUserFromRequest(request)
   return user || null
 }
 

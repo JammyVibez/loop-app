@@ -11,7 +11,6 @@ export async function GET(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder"
   )
 
-  // Authenticated user (Better Auth session tokens are not Supabase JWTs —
   // using the shared helper keeps likes/saves/reposts working everywhere).
   const user = await getUserFromRequest(req)
   if (!user) {

@@ -1,18 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { CHAT_WALLPAPER_PRESETS, type ChatWallpaper } from "@/lib/chat-wallpapers"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"
 
 async function getUser(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
   if (!token) return null
   const supabase = createServerClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(token)
-  if (error || !user) return null
+  const user = await getUserFromRequest(request)
+  if (!user) return null
   return { supabase, user }
 }
 

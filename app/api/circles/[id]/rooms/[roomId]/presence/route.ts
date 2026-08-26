@@ -1,12 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 async function getUser(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "") || null
   if (!token) return null
   const supabase = createServerClient()
-  const { data: { user }, error } = await supabase.auth.getUser(token)
-  if (error || !user) return null
+  const user = await getUserFromRequest(request)
+  if (!user) return null
   return user
 }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { calculateBoostInfo } from "@/lib/boost"
 import { notifyUser } from "@/lib/notifications"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -61,19 +62,14 @@ export async function POST(
 ) {
   try {
     const { id: loopId } = await params
-    const authHeader = req.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
 
-    if (!token) {
+
+    const authUser = await getUserFromRequest(request)
+    if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { data: authData, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !authData.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const userId = authData.user.id
+    const userId = authUser.id
     const { coins } = await req.json()
     const coinAmount = Number(coins)
 

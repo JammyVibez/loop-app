@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { awardXp, XP_REWARDS, levelFromXp } from "@/lib/xp"
 import { getEconomySettings } from "@/lib/economy"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"
 
@@ -14,11 +15,8 @@ const WEEKLY_MS = 7 * 24 * 60 * 60 * 1000
 
 async function getUser(token: string | null) {
   if (!token) return null
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(token)
-  if (error || !user) return null
+  const user = await getUserFromRequest(request)
+  if (!user) return null
   return user
 }
 
@@ -154,7 +152,6 @@ async function recordDailyClaim(userId: string, amount: number) {
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
     const user = await getUser(token)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -227,7 +224,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
     const user = await getUser(token)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 

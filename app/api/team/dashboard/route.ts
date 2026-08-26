@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -27,18 +28,16 @@ const SECTION_META: Record<string, { label: string; description: string; icon: s
 
 export async function GET(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
     if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const { data: authData, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !authData.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const authUser = await getUserFromRequest(request)
+    if (!authUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     // Verify team member
     const { data: profile } = await supabase
       .from("profiles")
       .select("is_team_member, is_admin, username, display_name")
-      .eq("id", authData.user.id)
+      .eq("id", authUser.id)
       .single()
 
     if (!profile?.is_team_member && !profile?.is_admin) {
@@ -63,7 +62,7 @@ export async function GET(req: NextRequest) {
     const { data: perms } = await supabase
       .from("team_permissions")
       .select("permission_key")
-      .eq("user_id", authData.user.id)
+      .eq("user_id", authUser.id)
 
     const grantedKeys = new Set((perms || []).map(p => p.permission_key))
 

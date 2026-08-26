@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -8,14 +9,9 @@ const supabase = createClient(
 
 export async function GET(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const { data: authData, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !authData.user) {
+    const authUser = await getUserFromRequest(request)
+    if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -23,7 +19,7 @@ export async function GET(req: NextRequest) {
     const { data: adminProfile } = await supabase
       .from("profiles")
       .select("is_admin")
-      .eq("id", authData.user.id)
+      .eq("id", authUser.id)
       .single()
 
     if (!adminProfile?.is_admin) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -11,14 +12,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authHeader = req.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const { data: authData, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !authData.user) {
+    const authUser = await getUserFromRequest(request)
+    if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -38,7 +34,7 @@ export async function PATCH(
     }
 
     // Only the duel creator can edit
-    if (duel.creator_id !== authData.user.id) {
+    if (duel.creator_id !== authUser.id) {
       return NextResponse.json({ error: "Only the duel creator can edit" }, { status: 403 })
     }
 

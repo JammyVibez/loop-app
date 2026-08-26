@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"
 
@@ -11,13 +12,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
 
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "") || null
     let viewerId: string | null = null
     if (token) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser(token)
+      const user = await getUserFromRequest(request);
       viewerId = user?.id || null
     }
 

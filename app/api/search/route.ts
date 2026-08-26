@@ -2,23 +2,10 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { normalizeLoops } from "@/lib/normalize-loop"
 import { applyRealCommentCounts } from "@/lib/loop-stats"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"
 
-async function getUserFromToken(token: string | null) {
-  if (!token) return null
-  try {
-    const supabase = createServerClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
 
 function escapeIlike(value: string) {
   return value.replace(/[%_,]/g, " ").trim()
@@ -36,9 +23,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Search query is required" }, { status: 400 })
     }
 
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "") ?? null
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
     const supabase = createServerClient()
 
     const query = escapeIlike(rawQuery.replace(/^@/, "").replace(/^#/, ""))

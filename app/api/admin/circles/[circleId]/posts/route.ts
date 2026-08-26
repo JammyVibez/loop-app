@@ -1,20 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const supabase = createServerClient()
 
-async function getUserFromToken(token: string) {
-  try {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
 
 // Get circle posts (admin view)
 export async function GET(
@@ -23,13 +12,8 @@ export async function GET(
 ) {
   try {
     const { circleId } = await params
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
@@ -136,13 +120,8 @@ export async function DELETE(
 ) {
   try {
     const { circleId } = await params
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"
 
@@ -18,15 +19,11 @@ function milestoneFor(count: number) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
     if (!token) return NextResponse.json({ success: true, circles: [] })
 
     const supabase = createServerClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token)
-    if (authError || !user) return NextResponse.json({ success: true, circles: [] })
+    const user = await getUserFromRequest(request);
+    if (!user) return NextResponse.json({ success: true, circles: [] })
 
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 

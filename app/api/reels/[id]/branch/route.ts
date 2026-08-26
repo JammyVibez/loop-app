@@ -1,23 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: parentReelId } = await params
     const supabase = createServerClient()
 
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
-    }
 
-    const token = authHeader.replace("Bearer ", "")
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token)
+    const user = await getUserFromRequest(request);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
     }
 

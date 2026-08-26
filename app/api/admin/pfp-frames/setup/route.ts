@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 // POST /api/admin/pfp-frames/setup — run once to create tables + seed
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient()
 
-    // Auth check
-    const authHeader = request.headers.get("authorization")
     if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const token = authHeader.replace("Bearer ", "")
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
 
     const { data: profile } = await supabase
       .from("profiles").select("is_admin").eq("id", user.id).single()

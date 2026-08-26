@@ -1,17 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { requireModerator } from "@/lib/server-auth";
+import { getUserFromRequest } from "@/lib/server-auth";
 
-async function getUserFromToken(token: string) {
-  try {
-    const supabase = createServerClient();
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) return null;
-    return user;
-  } catch {
-    return null;
-  }
-}
 
 // PUT /api/moderation/flags/[id] - Update a content flag (admin/moderator only)
 async function updateFlag(request: NextRequest, params: Promise<{ id: string }>) {

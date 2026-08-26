@@ -1,21 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getEconomySettings } from "@/lib/economy"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 async function getAuthenticatedUser(request: NextRequest, supabase: ReturnType<typeof createServerClient>) {
-  const authHeader = request.headers.get("authorization")
-  const token = authHeader?.replace(/^Bearer\s+/i, "")
 
-  if (!token) {
-    return { user: null, error: "Unauthorized" }
-  }
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(token)
+  const user = await getUserFromRequest(request)
 
-  if (error || !user) {
+  if (!user) {
     return { user: null, error: "Invalid token" }
   }
 
@@ -30,7 +23,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient()
     const { user, error: authError } = await getAuthenticatedUser(request, supabase)
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ error: authError || "Unauthorized" }, { status: 401 })
     }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -9,14 +10,9 @@ const supabase = createClient(
 // POST: Admin instantly deletes a user account
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const { data: authData, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !authData.user) {
+    const authUser = await getUserFromRequest(request)
+    if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -24,7 +20,7 @@ export async function POST(req: NextRequest) {
     const { data: adminProfile } = await supabase
       .from("profiles")
       .select("is_admin")
-      .eq("id", authData.user.id)
+      .eq("id", authUser.id)
       .single()
 
     if (!adminProfile?.is_admin) {
@@ -39,7 +35,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Don't allow admin to delete themselves
-    if (user_id === authData.user.id) {
+    if (user_id === authUser.id) {
       return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 })
     }
 
@@ -87,7 +83,7 @@ export async function POST(req: NextRequest) {
     await supabase
       .from("admin_account_deletions")
       .insert({
-        admin_id: authData.user.id,
+        admin_id: authUser.id,
         target_user_id: user_id,
         target_username: targetProfile?.username || "unknown",
         reason: reason || "Admin deletion",
@@ -108,7 +104,6 @@ export async function POST(req: NextRequest) {
         ban_duration: "8760000000", // Ban for ~100 years in seconds
       })
     } catch {
-      // Auth ban is best-effort — profile soft-delete is the primary mechanism
     }
 
     return NextResponse.json({

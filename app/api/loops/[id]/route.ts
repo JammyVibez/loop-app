@@ -106,7 +106,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // A loop from a private/followers-only profile is only viewable by the
-    // author and approved followers — anyone else gets the same 404 as a
     // missing loop so the URL doesn't leak private content.
     if (loop.author_id) {
       const supabase = createServerClient()

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const SETUP_SQL = `
 -- Developer Projects Table
@@ -154,13 +155,11 @@ CREATE TRIGGER update_developer_projects_updated_at
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
     if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const supabase = createServerClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
 
     // Check admin
     const { data: profile } = await supabase

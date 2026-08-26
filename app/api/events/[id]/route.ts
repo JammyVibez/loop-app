@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 function createServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -74,12 +75,10 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
     if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const supabase = createServerClient()
-    const { data: { user } } = await supabase.auth.getUser(token)
+    const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const body = await request.json()

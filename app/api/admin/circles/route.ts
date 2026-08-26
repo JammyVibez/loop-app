@@ -1,31 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const supabase = createServerClient();
 
-async function getUserFromToken(token: string) {
-  try {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
 
 // Get all circles with filtering and pagination
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
@@ -94,13 +78,8 @@ export async function GET(request: NextRequest) {
 // Create a new circle (admin override)
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
@@ -189,13 +168,8 @@ export async function POST(request: NextRequest) {
 // Update a circle (admin override)
 export async function PUT(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
@@ -294,13 +268,8 @@ export async function PUT(request: NextRequest) {
 // Delete a circle (admin override)
 export async function DELETE(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })

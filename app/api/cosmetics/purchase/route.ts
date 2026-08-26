@@ -1,27 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { getUserFromRequest } from "@/lib/server-auth";
 
-async function getUserFromToken(token: string) {
-  const supabase = createServerClient();
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) return null;
-    return user;
-  } catch {
-    return null;
-  }
-}
 
 /** POST /api/cosmetics/purchase — Purchase a cosmetic item */
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization");
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
-    const token = authHeader.replace("Bearer ", "");
-    const user = await getUserFromToken(token);
+    const user = await getUserFromRequest(request);
     if (!user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }

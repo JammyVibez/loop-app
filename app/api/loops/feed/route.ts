@@ -9,21 +9,8 @@ import {
 import { calculateBoostInfo, isBoostRelevantToUser, capBoostedPostsInFeed } from "@/lib/boost"
 import { cosmeticsFromInventory } from "@/lib/cosmetics"
 import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats"
+import { getUserFromRequest } from "@/lib/server-auth";
 
-async function getUserFromToken(token: string | null) {
-  if (!token) return null
-  try {
-    const supabase = createServerClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
 
 async function buildHashtagAffinity(supabase: ReturnType<typeof createServerClient>, userId: string) {
   const affinity = new Map<string, number>()
@@ -179,9 +166,7 @@ async function enrichLoopsWithPollsAndDuels(supabase: any, loops: any[]) {
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "") ?? null
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     const { searchParams } = new URL(request.url)
     const limit = Number.parseInt(searchParams.get("limit") || "20")

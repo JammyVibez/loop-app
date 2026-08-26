@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"
 
@@ -13,7 +14,6 @@ export const dynamic = "force-dynamic"
 export async function GET(request: NextRequest) {
   try {
     const supabase = createServerClient()
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
 
     // Which surface is asking? Defaults to the home feed; the Developer Hub
     // passes ?surface=developers so ads show there too (unless Pro/Sponsor).
@@ -23,10 +23,7 @@ export async function GET(request: NextRequest) {
     let eligible = true
     let viewer = null
     if (token) {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser(token)
+      const user = await getUserFromRequest(request)
       if (!error && user) {
         const { data: profile } = await supabase
           .from("profiles")

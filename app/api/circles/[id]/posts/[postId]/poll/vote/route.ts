@@ -1,31 +1,21 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder",
 )
 
-async function getUserFromToken(token: string) {
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; postId: string }> },
 ) {
   try {
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
     if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
 
     const { id: circleId, postId } = await params

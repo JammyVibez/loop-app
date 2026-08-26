@@ -1,29 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const ALLOWED = new Set(["🔥", "❤️", "🚀", "💡", "👏", "💯"])
 
-async function getUserFromToken(token: string | null) {
-  if (!token) return null
-  try {
-    const supabase = createServerClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: loopId } = await params
-    const authHeader = _request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "") ?? null
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
     const supabase = createServerClient()
 
     const { data: rows, error } = await supabase.from("loop_reactions").select("emoji, user_id").eq("loop_id", loopId)
@@ -54,11 +39,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: loopId } = await params
-    const authHeader = request.headers.get("authorization")
     if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
 
     const body = await request.json().catch(() => ({}))

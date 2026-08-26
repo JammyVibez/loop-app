@@ -17,12 +17,9 @@ function engagementScore(loop: any) {
 }
 
 async function getUserFromRequest(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "") ?? null
   if (!token) return null
   const supabase = createServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser(token)
+  const user = await getUserFromRequest(request);
   return user || null
 }
 
@@ -315,19 +312,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const token = authHeader.replace("Bearer ", "")
     const supabase = createServerClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token)
+    const user = await getUserFromRequest(request);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 

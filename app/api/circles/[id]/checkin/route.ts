@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { awardXp } from "@/lib/xp"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -10,18 +11,6 @@ const supabase = createClient(
 const REWARD_COINS = 30
 const STREAK_BONUS_COINS = 10
 
-async function getUserFromToken(token: string) {
-  try {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
-    if (error || !user) return null
-    return user
-  } catch {
-    return null
-  }
-}
 
 function utcDayKey(d: Date) {
   return d.toISOString().slice(0, 10)
@@ -63,7 +52,6 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const authHeader = request.headers.get("authorization")
     if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     const user = await getUserFromToken(authHeader.replace("Bearer ", ""))
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
@@ -89,7 +77,6 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const authHeader = request.headers.get("authorization")
     if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     const user = await getUserFromToken(authHeader.replace("Bearer ", ""))
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })

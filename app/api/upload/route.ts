@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { v2 as cloudinary } from 'cloudinary';
 import { createClient } from "@/lib/supabase";
 import { isCloudinaryConfigured } from "@/lib/env-check"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 const MAX_UPLOAD_BYTES: Record<string, number> = {
   image: 10 * 1024 * 1024,
@@ -45,31 +46,6 @@ function createServerClient() {
   })
 }
 
-async function getUserFromToken(token: string | null) {
-  if (!token) {
-    return null
-  }
-  
-  try {
-    const supabase = createServerClient()
-    const { data: { user }, error } = await supabase.auth.getUser(token)
-    
-    if (error) {
-      console.error('Supabase auth verification error:', error.message)
-      return null
-    }
-    
-    if (!user) {
-      console.error('No user found for provided token')
-      return null
-    }
-    
-    return user
-  } catch (error) {
-    console.error('Auth verification exception:', error)
-    return null
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -80,15 +56,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const authHeader = request.headers.get("authorization")
     
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized - No auth header" }, { status: 401 })
-    }
 
-    const token = authHeader.replace("Bearer ", "")
     
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
       return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
@@ -305,13 +276,8 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const token = authHeader.replace("Bearer ", "")
-    const user = await getUserFromToken(token)
+    const user = await getUserFromRequest(request)
 
     if (!user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
