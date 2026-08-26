@@ -30,19 +30,3 @@ next-env.d.ts
 
 # local-only generated marketing assets (not app code)
 marketing/
-
-# Capacitor native shells
-# Generated icon/splash sources are committed (assets/), but the copied web
-# build output and per-machine build state are not.
-android/app/src/main/assets/public/
-ios/App/App/public/
-android/.gradle/
-android/local.properties
-android/app/*.jks
-android/app/key.properties
-android/app/build/
-ios/App/Pods/
-ios/App/App/public/
-DerivedData/
-*.xcuserstate
-ios/App/App/App.xcworkspace/xcuserdata/
