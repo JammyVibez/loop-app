@@ -112,14 +112,7 @@ function ProBadgePreview() {
         {/* Live rotating gradient ring behind the avatar */}
         <div className="cosmetic-ring-rotate absolute -inset-2 rounded-full bg-gradient-to-tr from-amber-400 via-rose-400 to-fuchsia-500 opacity-80" />
         <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-amber-300/70 bg-gradient-to-br from-amber-200 via-orange-100 to-rose-200 shadow-xl shadow-amber-500/20">
-          {user?.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <span className="text-3xl font-bold text-amber-700">
-              {(user?.display_name || user?.username || "P").charAt(0).toUpperCase()}
-            </span>
-          )}
+          <img src={user?.avatar_url || "/default-avatar.svg"} alt="" className="h-full w-full object-cover" />
         </div>
         <span className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-600 shadow-lg shadow-amber-500/30">
           <Crown className="h-4 w-4 text-white" />

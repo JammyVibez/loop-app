@@ -64,12 +64,12 @@ export function AvatarWithFrame({
             className="w-full h-full object-cover rounded-full"
           />
         ) : (
-          <div
-            className="w-full h-full rounded-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-500 text-white font-bold"
-            style={{ fontSize: innerSize * 0.35 }}
-          >
-            {(alt || "?").charAt(0).toUpperCase()}
-          </div>
+          <img
+            src="/default-avatar.svg"
+            alt=""
+            className="w-full h-full object-cover rounded-full"
+            draggable={false}
+          />
         )}
       </div>
 
