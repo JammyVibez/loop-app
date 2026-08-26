@@ -123,7 +123,7 @@ export default function SearchLandingPage() {
                     >
                       <Avatar className="h-9 w-9">
                         <AvatarImage src={u.avatar_url} />
-                        <AvatarFallback>{(u.display_name || u.username || "?").charAt(0)}</AvatarFallback>
+                        <AvatarFallback seed={u.username}>{(u.display_name || u.username || "?").charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
                         <p className="truncate font-medium">{u.display_name || u.username}</p>

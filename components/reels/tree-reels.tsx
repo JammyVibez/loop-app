@@ -752,7 +752,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                 <Link href={`/profile/${reel.author?.username || ""}`} className="pointer-events-auto inline-flex items-center gap-3">
                   <Avatar className="h-11 w-11 border-2 border-white/40">
                     <AvatarImage src={reel.author?.avatar_url} />
-                    <AvatarFallback>{(reel.author?.display_name || "U").charAt(0)}</AvatarFallback>
+                    <AvatarFallback seed={reel.author?.username}>{(reel.author?.display_name || "U").charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div>
                     <p className="font-semibold">@{reel.author?.username || "creator"}</p>
@@ -898,7 +898,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                   <div className="flex gap-3">
                     <Avatar className="h-9 w-9 shrink-0">
                       <AvatarImage src={author.avatar_url} />
-                      <AvatarFallback>{(author.username || "U").charAt(0).toUpperCase()}</AvatarFallback>
+                      <AvatarFallback seed={author.username}>{(author.username || "U").charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -949,7 +949,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                           <div key={reply.id} className="flex gap-3">
                             <Avatar className="h-7 w-7 shrink-0">
                               <AvatarImage src={rAuthor.avatar_url} />
-                              <AvatarFallback>{(rAuthor.username || "U").charAt(0).toUpperCase()}</AvatarFallback>
+                              <AvatarFallback seed={rAuthor.username}>{(rAuthor.username || "U").charAt(0).toUpperCase()}</AvatarFallback>
                             </Avatar>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">

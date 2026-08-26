@@ -199,7 +199,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Avatar className="h-6 w-6">
                         <AvatarImage src={c.avatar_url} />
-                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary" seed={c.name}>
                           {c.name?.charAt(0) || "C"}
                         </AvatarFallback>
                       </Avatar>

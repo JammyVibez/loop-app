@@ -247,8 +247,8 @@ export function EnhancedLoopCard3D({
               <div className="avatar-3d">
                 <Link href={`/profile/${user.username}`}>
                   <Avatar className={`h-10 w-10 transition-transform duration-300 ${isHovered ? 'scale-110 rotate-3' : ''}`}>
-                    <AvatarImage src={user.avatar_url || "/placeholder.svg"} alt={user.display_name} />
-                    <AvatarFallback>{user.display_name.charAt(0)}</AvatarFallback>
+                    <AvatarImage src={user.avatar_url} alt={user.display_name} />
+                    <AvatarFallback seed={user.username}>{user.display_name.charAt(0)}</AvatarFallback>
                   </Avatar>
                 </Link>
               </div>

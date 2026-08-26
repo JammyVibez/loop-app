@@ -254,7 +254,7 @@ function NotificationsContent() {
                   <Link href={`/profile/${request.requester?.username || ""}`} className="shrink-0">
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={request.requester?.avatar_url || undefined} />
-                      <AvatarFallback>{(request.requester?.display_name || "?").charAt(0)}</AvatarFallback>
+                      <AvatarFallback seed={request.requester?.username}>{(request.requester?.display_name || "?").charAt(0)}</AvatarFallback>
                     </Avatar>
                   </Link>
                   <div className="min-w-0 flex-1">
@@ -341,7 +341,7 @@ function NotificationsContent() {
                         <Link href={href} className="flex gap-3 px-4 py-3 hover:bg-muted/50">
                           <Avatar className="h-10 w-10">
                             <AvatarImage src={m.actor?.avatar_url || undefined} />
-                            <AvatarFallback>
+                            <AvatarFallback seed={m.actor?.username}>
                               {(m.actor?.display_name || m.actor?.username || "?").charAt(0)}
                             </AvatarFallback>
                           </Avatar>

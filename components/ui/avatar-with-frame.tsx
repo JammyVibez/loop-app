@@ -68,9 +68,9 @@ export function AvatarWithFrame({
           />
         ) : (
           <img
-            src={seed ? getDiceBearUrl(seed) : "/default-avatar.svg"}
+            src={getDiceBearUrl(seed)}
             alt=""
-            className={`w-full h-full object-cover rounded-full ${seed ? "animate-[dicebear-breathe_3s_ease-in-out_infinite]" : ""}`}
+            className="w-full h-full object-cover rounded-full animate-[dicebear-breathe_3s_ease-in-out_infinite]"
             draggable={false}
           />
         )}

@@ -281,7 +281,7 @@ function PersonRow({
         <Link href={`/profile/${person.username}`} className="flex min-w-0 flex-1 items-center gap-3">
           <Avatar className={large ? "h-14 w-14" : "h-11 w-11"}>
             <AvatarImage src={person.avatar_url || undefined} />
-            <AvatarFallback>{(person.display_name || person.username || "?").charAt(0)}</AvatarFallback>
+            <AvatarFallback seed={person.username}>{(person.display_name || person.username || "?").charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">

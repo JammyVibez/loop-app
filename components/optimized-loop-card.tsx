@@ -98,11 +98,11 @@ export const OptimizedLoopCard = memo<OptimizedLoopCardProps>(({ loop, onLike, o
             <Link href={`/profile/${loop.user.username}`} className="flex-shrink-0">
               <Avatar className="h-10 w-10">
                 <AvatarImage
-                  src={loop.user.avatar_url || "/placeholder.svg"}
+                  src={loop.user.avatar_url}
                   alt={loop.user.display_name}
                   loading={priority === "high" ? "eager" : "lazy"}
                 />
-                <AvatarFallback>{loop.user.display_name.charAt(0)}</AvatarFallback>
+                <AvatarFallback seed={loop.user.username}>{loop.user.display_name.charAt(0)}</AvatarFallback>
               </Avatar>
             </Link>
             <div className="min-w-0 flex-1">
