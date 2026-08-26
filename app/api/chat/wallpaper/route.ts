@@ -6,7 +6,6 @@ import { getUserFromRequest } from "@/lib/server-auth";
 export const dynamic = "force-dynamic"
 
 async function getUser(request: NextRequest) {
-  if (!token) return null
   const supabase = createServerClient()
   const user = await getUserFromRequest(request)
   if (!user) return null

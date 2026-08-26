@@ -7,7 +7,6 @@ export const dynamic = "force-dynamic"
 const LISTING_TYPES = new Set(["design", "styling", "bot"])
 
 async function getAuthedUser(request: NextRequest) {
-  if (!token) return null
   const supabase = createServerClient()
   const user = await getUserFromRequest(request)
   if (!user) return null

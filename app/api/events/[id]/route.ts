@@ -75,7 +75,6 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const supabase = createServerClient()
     const user = await getUserFromRequest(request)

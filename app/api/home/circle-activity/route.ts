@@ -13,7 +13,6 @@ export const dynamic = "force-dynamic"
  */
 export async function GET(request: NextRequest) {
   try {
-    if (!token) return NextResponse.json({ success: true, circles: [], total_activity: 0 })
 
     const supabase = createServerClient()
     const user = await getUserFromRequest(request);

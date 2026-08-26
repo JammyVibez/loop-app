@@ -13,7 +13,6 @@ const supabase = createClient(
 )
 
 async function getUser(token: string | null) {
-  if (!token) return null
   const user = await getUserFromRequest(request)
   if (!user) return null
   return user

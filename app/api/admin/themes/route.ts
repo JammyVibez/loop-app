@@ -10,7 +10,6 @@ const supabase = createClient(
 )
 
 async function requireAdmin(token: string | null) {
-  if (!token) return { error: NextResponse.json({ error: "Authentication required" }, { status: 401 }) }
   const user = await getUserFromRequest(request);
   if (!user) {
     return { error: NextResponse.json({ error: "Invalid authentication" }, { status: 401 }) }

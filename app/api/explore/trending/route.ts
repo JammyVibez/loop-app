@@ -16,13 +16,6 @@ function engagementScore(loop: any) {
   )
 }
 
-async function getUserFromRequest(request: NextRequest) {
-  if (!token) return null
-  const supabase = createServerClient()
-  const user = await getUserFromRequest(request);
-  return user || null
-}
-
 export async function GET(request: NextRequest) {
   try {
     const supabase = createServerClient()

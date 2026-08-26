@@ -13,7 +13,6 @@ export async function POST(
   { params }: { params: Promise<{ id: string; postId: string }> },
 ) {
   try {
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })

@@ -28,7 +28,6 @@ const SECTION_META: Record<string, { label: string; description: string; icon: s
 
 export async function GET(req: NextRequest) {
   try {
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const authUser = await getUserFromRequest(req)
     if (!authUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

@@ -5,7 +5,6 @@ import { getUserFromRequest } from "@/lib/server-auth";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.loopapp.me"
 
 async function getUser(request: NextRequest) {
-  if (!token) return null
   const supabase = createServerClient()
   const user = await getUserFromRequest(request)
   return user || null

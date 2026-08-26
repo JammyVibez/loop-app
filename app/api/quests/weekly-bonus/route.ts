@@ -16,7 +16,6 @@ const supabase = createClient(
  */
 export async function POST(request: NextRequest) {
   try {
-    if (!token) return NextResponse.json({ error: "Authentication required" }, { status: 401 })
 
     const user = await getUserFromRequest(request);
     if (!user) return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })

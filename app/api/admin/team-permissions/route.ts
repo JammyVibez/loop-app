@@ -10,8 +10,8 @@ const supabase = createClient(
 
 
 
-async function verifyAdmin(token: string) {
-  const authUser = await getUserFromRequest(req)
+async function verifyAdmin(request: NextRequest) {
+  const authUser = await getUserFromRequest(request)
   if (!authUser) return null
   const { data: profile } = await supabase
     .from("profiles")
@@ -25,9 +25,7 @@ async function verifyAdmin(token: string) {
 // GET: List all team members with their permissions
 export async function GET(req: NextRequest) {
   try {
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-    const adminId = await verifyAdmin(token)
+    const adminId = await verifyAdmin(req)
     if (!adminId) return NextResponse.json({ error: "Admin access required" }, { status: 403 })
 
     // Get all team members
@@ -68,9 +66,7 @@ export async function GET(req: NextRequest) {
 // POST: Set permissions for a team member (replaces all permissions)
 export async function POST(req: NextRequest) {
   try {
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-    const adminId = await verifyAdmin(token)
+    const adminId = await verifyAdmin(req)
     if (!adminId) return NextResponse.json({ error: "Admin access required" }, { status: 403 })
 
     const body = await req.json()

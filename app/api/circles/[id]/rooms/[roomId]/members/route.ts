@@ -23,7 +23,6 @@ async function requireCircleAdmin(circleId: string, userId: string) {
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string; roomId: string }> }) {
   try {
     const { id: circleId, roomId } = await params
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
 
@@ -47,7 +46,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string; roomId: string }> }) {
   try {
     const { id: circleId, roomId } = await params
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
 
@@ -84,7 +82,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string; roomId: string }> }) {
   try {
     const { id: circleId, roomId } = await params
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
 

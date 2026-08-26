@@ -155,7 +155,6 @@ CREATE TRIGGER update_developer_projects_updated_at
 
 export async function POST(request: NextRequest) {
   try {
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const supabase = createServerClient()
     const user = await getUserFromRequest(request)

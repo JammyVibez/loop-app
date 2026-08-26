@@ -14,7 +14,6 @@ const DAILY_MS = 24 * 60 * 60 * 1000
 const WEEKLY_MS = 7 * 24 * 60 * 60 * 1000
 
 async function getUser(token: string | null) {
-  if (!token) return null
   const user = await getUserFromRequest(request)
   if (!user) return null
   return user

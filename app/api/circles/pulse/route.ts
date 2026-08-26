@@ -19,7 +19,6 @@ function milestoneFor(count: number) {
  */
 export async function GET(request: NextRequest) {
   try {
-    if (!token) return NextResponse.json({ success: true, circles: [] })
 
     const supabase = createServerClient()
     const user = await getUserFromRequest(request);

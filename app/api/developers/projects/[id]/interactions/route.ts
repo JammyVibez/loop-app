@@ -3,7 +3,6 @@ import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth";
 
 async function getUser(request: NextRequest) {
-  if (!token) return null
   const supabase = createServerClient()
   const user = await getUserFromRequest(request);
   return user || null
