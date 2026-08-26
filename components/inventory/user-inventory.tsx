@@ -298,7 +298,7 @@ export function UserInventory() {
         <CardContent className="p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-4">
-              <VideoAvatar src={user?.avatar_url || "/placeholder.svg"} className="h-16 w-16 border-2 border-cyan-500/40 shadow-md" fallback={user?.display_name?.charAt(0)} />
+              <VideoAvatar src={user?.avatar_url} className="h-16 w-16 border-2 border-cyan-500/40 shadow-md" fallback={user?.display_name?.charAt(0)} />
               <div>
                 <h2 className="text-xl font-bold text-slate-100">{user?.display_name}</h2>
                 <p className="text-sm text-cyan-400 font-medium">@{user?.username}</p>

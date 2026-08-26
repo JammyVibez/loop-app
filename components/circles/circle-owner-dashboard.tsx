@@ -1107,7 +1107,7 @@ export function CircleOwnerDashboard({ circleId }: { circleId: string }) {
         <div className="relative -mt-12 sm:-mt-16 px-3 sm:px-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-6">
             <Avatar className="w-20 h-20 sm:w-24 sm:h-24 border-4 border-background shadow-lg shrink-0">
-              <AvatarImage src={circle.avatar_url || "/placeholder.svg"} alt={circle.name} />
+              <AvatarImage src={circle.avatar_url} alt={circle.name} />
               <AvatarFallback className="text-2xl">{circle.name.charAt(0)}</AvatarFallback>
             </Avatar>
 

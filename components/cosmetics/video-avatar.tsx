@@ -11,6 +11,7 @@ import {
   accessoryFromItem,
 } from "@/lib/cosmetics"
 import { AccessoryIcon, BadgeStarIcon } from "@/components/cosmetics/accessory-icons"
+import { getDiceBearUrl } from "@/lib/dicebear"
 
 /** Proxy an image URL through the server-side proxy to avoid CORS / token issues */
 function proxyImg(url: string | null | undefined): string | undefined {
@@ -127,6 +128,10 @@ export function VideoAvatar({
   const initials = (fallback || alt || "U").charAt(0).toUpperCase()
   const px = pxMap[size]
 
+  // When no src is provided, auto-generate a DiceBear cartoon avatar
+  // seeded by the user's name so every user gets a unique character
+  const dicebearUrl = !src ? getDiceBearUrl(fallback || alt) : undefined
+
   // The inner content: image/video/initials + cosmetics overlays
   const innerContent = (
     <div className={cn("relative inline-flex shrink-0 rounded-full", sizeMap[size], className)}>
@@ -147,10 +152,10 @@ export function VideoAvatar({
         {/* Static image / initials (always rendered as fallback) */}
         {!hasVideo && (
           <>
-            {src && !imgFailed ? (
+            {(src || dicebearUrl) && !imgFailed ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={proxyImg(src)}
+                src={proxyImg(src || dicebearUrl)}
                 alt={alt}
                 className="h-full w-full rounded-full object-cover"
                 onError={() => setImgFailed(true)}

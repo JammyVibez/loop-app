@@ -249,7 +249,7 @@ export function GiftModal({ open, onOpenChange, recipient, context, onGiftSent }
 
         <div className="space-y-6">
           <div className="flex items-center gap-3 rounded-xl border bg-muted/40 p-4">
-            <VideoAvatar src={recipient.avatar_url || "/placeholder.svg"} videoSrc={(recipient as any).video_avatar_url} isPremium={(recipient as any).is_premium} className="h-12 w-12" fallback={recipient.display_name.charAt(0)} />
+            <VideoAvatar src={recipient.avatar_url} videoSrc={(recipient as any).video_avatar_url} isPremium={(recipient as any).is_premium} className="h-12 w-12" fallback={recipient.display_name.charAt(0)} />
             <div className="min-w-0 flex-1">
               <p className="font-semibold">{recipient.display_name}</p>
               <p className="text-sm text-muted-foreground">@{recipient.username}</p>

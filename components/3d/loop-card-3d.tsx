@@ -66,7 +66,7 @@ export function LoopCard3D({ loop, onLike, onBookmark, className = '', variant =
   const user = loop.user || {
     username: "unknown",
     display_name: "Unknown User",
-    avatar_url: "/placeholder.svg",
+    avatar_url: null,
     is_verified: false,
   }
 
@@ -219,7 +219,7 @@ export function LoopCard3D({ loop, onLike, onBookmark, className = '', variant =
           <div className="flex items-center space-x-3">
             <Link href={`/profile/${user.username}`}>
               <div className="avatar-3d">
-                <VideoAvatar src={user.avatar_url || "/placeholder.svg"} className="h-10 w-10 transition-transform duration-300 hover:scale-110" fallback={user.display_name.charAt(0)} />
+                <VideoAvatar src={user.avatar_url} className="h-10 w-10 transition-transform duration-300 hover:scale-110" fallback={user.display_name.charAt(0)} />
               </div>
             </Link>
             <div>

@@ -181,7 +181,7 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
               id: user.id,
               username: user.username || "me",
               display_name: user.display_name || user.username || "You",
-              avatar_url: user.avatar_url || "/placeholder.svg",
+              avatar_url: user.avatar_url || null,
             },
             entries: [...(prev.entries || []), data.entry],
           } as DuelData

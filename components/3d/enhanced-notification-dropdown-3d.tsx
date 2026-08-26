@@ -26,7 +26,7 @@ interface Notification {
   user?: {
     username: string
     display_name: string
-    avatar_url: string
+    avatar_url: string | null
     is_verified?: boolean
     is_premium?: boolean
   }
@@ -69,7 +69,7 @@ export function EnhancedNotificationDropdown3D() {
       user: {
         username: "techcreator",
         display_name: "Tech Creator",
-        avatar_url: "/placeholder.svg?height=32&width=32",
+        avatar_url: null,
         is_verified: true
       },
       content: "liked your loop about AI innovation",
@@ -83,7 +83,7 @@ export function EnhancedNotificationDropdown3D() {
       user: {
         username: "artcreator",
         display_name: "Art Creator",
-        avatar_url: "/placeholder.svg?height=32&width=32",
+        avatar_url: null,
         is_premium: true
       },
       content: "sent you a Cyberpunk Theme!",
@@ -276,7 +276,7 @@ export function EnhancedNotificationDropdown3D() {
                     {/* User Avatar or System Icon */}
                     {notification.user ? (
                       <div className="relative">
-                        <VideoAvatar src={notification.user.avatar_url || "/placeholder.svg"} className="h-10 w-10 transition-transform duration-200 group-hover:scale-110" fallback={notification.user.display_name.charAt(0)} />
+                        <VideoAvatar src={notification.user.avatar_url} className="h-10 w-10 transition-transform duration-200 group-hover:scale-110" fallback={notification.user.display_name.charAt(0)} />
                         {notification.user.is_premium && (
                           <Crown className="absolute -top-1 -right-1 h-3 w-3 text-yellow-500" />
                         )}

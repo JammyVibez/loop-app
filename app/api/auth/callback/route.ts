@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
 import { createClient, type User as SupabaseUser } from "@supabase/supabase-js"
 import { ECONOMY_DEFAULTS } from "@/lib/economy"
+import { getDiceBearUrl } from "@/lib/dicebear"
 
 export const dynamic = "force-dynamic"
 
@@ -38,6 +39,12 @@ async function ensureProfile(user: SupabaseUser) {
   const username = fallbackUsername(user)
   const displayName = user.user_metadata?.display_name || user.user_metadata?.full_name || user.user_metadata?.name || username
 
+  // Auto-generate a unique DiceBear cartoon avatar for every new user.
+  // If the OAuth provider supplied an avatar (e.g. Google profile photo),
+  // use that instead — DiceBear is the fallback.
+  const dicebearAvatar = getDiceBearUrl(username)
+  const avatarUrl = user.user_metadata?.avatar_url || dicebearAvatar
+
   const { data: createdProfile, error } = await serviceSupabase
     .from("profiles")
     .insert({
@@ -45,7 +52,7 @@ async function ensureProfile(user: SupabaseUser) {
       email: user.email,
       username,
       display_name: displayName,
-      avatar_url: user.user_metadata?.avatar_url || null,
+      avatar_url: avatarUrl,
       banner_url: null,
       bio: null,
       loop_coins: ECONOMY_DEFAULTS.signup_bonus,

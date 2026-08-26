@@ -152,7 +152,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           id: loopData.author?.id || "",
           username: loopData.author?.username || "",
           displayName: loopData.author?.display_name || "",
-          avatar: loopData.author?.avatar_url || "/placeholder.svg",
+          avatar: loopData.author?.avatar_url || null,
           videoAvatarUrl: loopData.author?.video_avatar_url || null,
           verified: Boolean(loopData.author?.is_verified),
           premium: Boolean(loopData.author?.is_premium),

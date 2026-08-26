@@ -89,7 +89,7 @@ export function CircleActivityStrip() {
           >
             <div className="flex items-center gap-2.5">
               <Avatar className="h-8 w-8 border border-border">
-                <AvatarImage src={circle.avatar_url || "/placeholder.svg"} alt={circle.name} />
+                <AvatarImage src={circle.avatar_url} alt={circle.name} />
                 <AvatarFallback className="text-xs">{circle.name?.charAt(0) || "C"}</AvatarFallback>
               </Avatar>
               <div className="min-w-0">

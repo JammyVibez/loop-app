@@ -360,7 +360,7 @@ export function SettingsContent() {
             <CardContent className="space-y-4">
               <div className="flex items-center space-x-4">
                 <Avatar className="w-20 h-20">
-                  <AvatarImage src={profileData.avatar_url || user?.avatar_url || "/placeholder.svg"} />
+                  <AvatarImage src={profileData.avatar_url || user?.avatar_url} />
                   <AvatarFallback className="text-2xl">{user?.display_name?.charAt(0) || "U"}</AvatarFallback>
                 </Avatar>
                 <div className="space-y-2">

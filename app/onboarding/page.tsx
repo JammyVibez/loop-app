@@ -11,6 +11,7 @@ import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { TreePine, Camera, Palette, Users, Zap, ArrowRight, Check, UserPlus, Home, Video, Swords, Rocket } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { uploadMediaFile } from "@/lib/client-media-upload";
+import { getDiceBearUrl } from "@/lib/dicebear";
 
 interface SuggestedUser {
   id: string
@@ -343,7 +344,7 @@ export default function OnboardingPage() {
             <CardContent className="space-y-6">
               <div className="text-center">
                 <div className="relative inline-block">
-                  <VideoAvatar src={profileData.avatar_url || user?.avatar_url || "/placeholder.svg"} className="w-24 h-24" fallback={user?.display_name?.charAt(0)} />
+                  <VideoAvatar src={profileData.avatar_url || user?.avatar_url || getDiceBearUrl(user?.username)} className="w-24 h-24" fallback={user?.display_name?.charAt(0) || "U"} />
                   <Button 
                     size="icon" 
                     className="absolute -bottom-2 -right-2 rounded-full w-8 h-8" 

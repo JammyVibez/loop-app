@@ -65,7 +65,7 @@ export function EnhancedLoopCard3D({
   const user = loop.user || {
     username: "unknown",
     display_name: "Unknown User",
-    avatar_url: "/placeholder.svg",
+    avatar_url: null,
     is_verified: false,
     is_premium: false,
     xp_points: 0,

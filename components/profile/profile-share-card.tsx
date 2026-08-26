@@ -59,7 +59,7 @@ export function ProfileShareCard({ username, displayName, bio, avatarUrl, trigge
         <div ref={cardRef} className="rounded-2xl border border-white/10 bg-gradient-to-br from-violet-600/20 via-[#0b1220] to-cyan-500/20 p-5">
           <div className="mb-4 flex items-center gap-3">
             <Avatar className="h-14 w-14">
-              <AvatarImage src={avatarUrl || "/placeholder.svg"} />
+              <AvatarImage src={avatarUrl} />
               <AvatarFallback>{(displayName || username || "?").charAt(0)}</AvatarFallback>
             </Avatar>
             <div>

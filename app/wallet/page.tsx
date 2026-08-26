@@ -802,7 +802,7 @@ export default function WalletPage() {
                     {receivedGifts.map((gift) => (
                       <div key={gift.id} className="p-3.5 rounded-xl border border-border/50 bg-card/60 flex items-start gap-3 shadow-xs">
                         <Avatar className="w-9 h-9 border border-border">
-                          <AvatarImage src={gift.sender_avatar || "/placeholder.svg"} />
+                          <AvatarImage src={gift.sender_avatar} />
                           <AvatarFallback>{gift.sender_username?.charAt(0) || "U"}</AvatarFallback>
                         </Avatar>
                         <div className="min-w-0 flex-1">

@@ -312,7 +312,7 @@ export function EnhancedNotificationSystem() {
                     <CardContent className="p-3">
                       <div className="flex items-start space-x-3">
                         <Avatar className="w-8 h-8">
-                          <AvatarImage src={request.requester?.avatar_url || "/placeholder.svg"} />
+                          <AvatarImage src={request.requester?.avatar_url} />
                           <AvatarFallback>
                             {(request.requester?.display_name || "?").charAt(0)}
                           </AvatarFallback>
@@ -374,7 +374,7 @@ export function EnhancedNotificationSystem() {
                       <div className="flex items-start space-x-3">
                         <Avatar className="w-8 h-8">
                           <AvatarImage 
-                            src={gift.is_anonymous ? "/placeholder.svg" : gift.sender.avatar_url} 
+                            src={gift.is_anonymous ? undefined : gift.sender.avatar_url} 
                           />
                           <AvatarFallback>
                             {gift.is_anonymous ? "?" : gift.sender.display_name.charAt(0)}

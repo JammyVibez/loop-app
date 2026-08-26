@@ -913,7 +913,7 @@ export function LoopCard({
                 >
                   <div className="relative z-10">
                     <AvatarWithFrame
-                      avatarUrl={loop.author.avatar_url || "/placeholder.svg"}
+                      avatarUrl={loop.author.avatar_url}
                       videoAvatarUrl={loop.author.video_avatar_url || null}
                       frameId={loop.author.equipped_frame_id}
                       size={32}
@@ -928,7 +928,7 @@ export function LoopCard({
                       style={{ zIndex: 8 - i }}
                     >
                       <CosmeticAvatar
-                        src={ca.avatar_url || "/placeholder.svg"}
+                        src={ca.avatar_url}
                         alt={ca.display_name || ca.username}
                         fallback={ca.display_name || ca.username}
                         size="sm"
@@ -948,7 +948,7 @@ export function LoopCard({
                   className="flex-shrink-0"
                 >
                   <AvatarWithFrame
-                    avatarUrl={loop.author.avatar_url || "/placeholder.svg"}
+                    avatarUrl={loop.author.avatar_url}
                     videoAvatarUrl={loop.author.video_avatar_url || null}
                     frameId={loop.author.equipped_frame_id}
                     size={32}

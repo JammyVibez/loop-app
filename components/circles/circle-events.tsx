@@ -278,7 +278,7 @@ export function CircleEvents({ circleId, isAdmin = false }: CircleEventsProps) {
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div className="flex items-center space-x-3">
                     <VideoAvatar
-                      src={event.host?.avatar_url || "/placeholder.svg"}
+                      src={event.host?.avatar_url}
                       videoSrc={event.host?.video_avatar_url || null}
                       isPremium={event.host?.is_premium}
                       alt={event.host?.display_name}
