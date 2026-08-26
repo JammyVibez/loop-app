@@ -31,54 +31,27 @@ export function HomePageClient() {
         <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0 space-y-2.5 sm:space-y-3">
             {isGuest ? (
-              <section className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-sky-500/10 via-background to-violet-500/10 p-4 sm:p-5">
-                <div className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full bg-sky-500/20 blur-3xl" />
-                <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <section className="rounded-2xl border border-border/60 bg-card/50 p-4 sm:p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                   <div className="max-w-xl">
-                    <p className="mb-1 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-sky-600 dark:text-sky-400">
-                      <Compass className="h-3.5 w-3.5" />
-                      Guest mode
-                    </p>
-                    <h1 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
-                      Build together. Not just post into the void.
+                    <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                      Build together.
+                      <span className="text-muted-foreground"> Not just post into the void.</span>
                     </h1>
-                    <p className="mt-1.5 text-sm text-muted-foreground sm:text-base">
-                      Loop is where communities create in real time — co-write posts live with friends, settle debates in public Duels, and build spaces that are actually yours.
+                    <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+                      Co-write posts live with friends, settle debates in public Duels, and build spaces that are actually yours.
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
-                    <Button asChild className="rounded-full">
+                    <Button asChild className="rounded-full" size="sm">
                       <Link href="/signup">Join free</Link>
                     </Button>
-                    <Button asChild variant="outline" className="rounded-full">
+                    <Button asChild variant="outline" className="rounded-full" size="sm">
                       <Link href="/login">
                         <LogIn className="mr-1.5 h-4 w-4" />
                         Log in
                       </Link>
                     </Button>
-                  </div>
-                  <div className="mt-1 flex flex-wrap gap-3">
-                    <AppDownloadBadges className="justify-start" />
-                  </div>
-                </div>
-
-                {/* Feature highlights under the hero (mobile / guest experience) */}
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-lg border border-border/60 bg-card/60 p-3">
-                    <h2 className="text-sm font-semibold">Co-Loop</h2>
-                    <p className="mt-1 text-xs text-muted-foreground">Write, edit, and publish live with up to 4 collaborators — perfect for co-authored threads, docs, and quick edits.</p>
-                  </div>
-                  <div className="rounded-lg border border-border/60 bg-card/60 p-3">
-                    <h2 className="text-sm font-semibold">Duels</h2>
-                    <p className="mt-1 text-xs text-muted-foreground">Stake Loop Coins and let the community vote to settle debates — winner takes the pot, and the internet decides.</p>
-                  </div>
-                  <div className="rounded-lg border border-border/60 bg-card/60 p-3">
-                    <h2 className="text-sm font-semibold">Circles</h2>
-                    <p className="mt-1 text-xs text-muted-foreground">Join or build spaces around interests with real-time chat, posts, and moderation tools that make communities feel like home.</p>
-                  </div>
-                  <div className="rounded-lg border border-border/60 bg-card/60 p-3">
-                    <h2 className="text-sm font-semibold">Loop Coins</h2>
-                    <p className="mt-1 text-xs text-muted-foreground">Earn, gift, and boost content — an on-platform economy that rewards meaningful contributions.</p>
                   </div>
                 </div>
               </section>
@@ -159,32 +132,35 @@ export function HomePageClient() {
           <aside className="hidden lg:block">
             <div className="sticky top-20 space-y-4">
               {isGuest ? (
-                <div className="rounded-2xl border border-border/70 bg-card/50 p-4">
-                  <h2 className="font-semibold">Why join Loop?</h2>
-                  <ul className="mt-3 space-y-3 text-sm text-muted-foreground">
-                    <li>
-                      <strong>Co-Loop</strong> — Co-write, edit, and publish live with up to 4 collaborators.
+                <div className="rounded-2xl border border-border/60 bg-card/50 p-4">
+                  <h2 className="text-sm font-semibold">Why join Loop?</h2>
+                  <ul className="mt-3 space-y-2.5 text-xs text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-foreground/30" />
+                      <span><strong className="text-foreground">Co-Loop</strong> — Co-write and publish live with up to 4 people.</span>
                     </li>
-                    <li>
-                      <strong>Duels</strong> — Stake coins and let the community vote on a winner.
+                    <li className="flex items-start gap-2">
+                      <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-foreground/30" />
+                      <span><strong className="text-foreground">Duels</strong> — Stake coins, let the community vote on a winner.</span>
                     </li>
-                    <li>
-                      <strong>Circles</strong> — Join or build communities around your interests.
+                    <li className="flex items-start gap-2">
+                      <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-foreground/30" />
+                      <span><strong className="text-foreground">Circles</strong> — Build communities around your interests.</span>
                     </li>
-                    <li>
-                      <strong>Loop Coins</strong> — Earn, gift, and boost content across the platform.
+                    <li className="flex items-start gap-2">
+                      <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-foreground/30" />
+                      <span><strong className="text-foreground">Coins</strong> — Earn, gift, and boost content across Loop.</span>
                     </li>
                   </ul>
 
-                  {/* Social proof: live stats or fallback recent activity */}
                   <div className="mt-4">
                     <StatsBlock />
                   </div>
 
-                  <Button asChild className="mt-4 w-full rounded-full">
+                  <Button asChild className="mt-4 w-full rounded-full" size="sm">
                     <Link href="/signup">Create account</Link>
                   </Button>
-                  <Button asChild variant="ghost" className="mt-1 w-full rounded-full">
+                  <Button asChild variant="ghost" className="mt-1 w-full rounded-full" size="sm">
                     <Link href="/landing">What is Loop?</Link>
                   </Button>
                 </div>
