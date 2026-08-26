@@ -176,20 +176,18 @@ export function CoLoopJoinLanding({ sessionId, invitedByUsername }: CoLoopJoinLa
     <div className="relative min-h-[90vh] overflow-hidden bg-[#030712] text-slate-100 flex items-center justify-center p-4 py-12">
       {/* Dynamic Background Effects */}
       <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-40" />
-      <div className="landing-aurora-blob pointer-events-none absolute -left-1/4 top-[-10%] h-[70vmin] w-[70vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.45),transparent_65%)] blur-3xl" />
-      <div className="landing-aurora-blob pointer-events-none absolute -right-1/4 top-[20%] h-[60vmin] w-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.35),transparent_65%)] blur-3xl [animation-delay:-6s]" />
 
-      <Card className="relative z-10 w-full max-w-lg border-cyan-500/30 bg-[#0a1020]/95 text-slate-100 shadow-2xl shadow-cyan-950/40 backdrop-blur-xl">
+      <Card className="relative z-10 w-full max-w-lg border-border bg-card text-card-foreground shadow-sm">
         <CardHeader className="space-y-3 text-center pb-4">
           <div className="flex justify-center">
-            <Badge className="bg-gradient-to-r from-cyan-500 to-violet-600 text-white border-none px-3 py-1 font-bold shadow-lg shadow-cyan-500/20 flex items-center gap-1.5">
+            <Badge className="bg-primary text-primary-foreground border-none px-3 py-1 font-bold shadow-sm flex items-center gap-1.5">
               <Zap className="w-3.5 h-3.5 animate-pulse" />
               Co-Loop Collaboration Invite
             </Badge>
           </div>
 
           {/* Inviter Profile Highlight Card */}
-          <div className="mx-auto flex items-center gap-3 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/60 via-slate-900/80 to-purple-950/60 p-3.5 shadow-inner max-w-sm">
+          <div className="mx-auto flex items-center gap-3 rounded-2xl border border-cyan-500/30 bg-card border border-border p-3.5 max-w-sm">
             <VideoAvatar src={inviterAvatar || undefined} className="h-12 w-12 border-2 border-cyan-400 shadow-md" fallback="
                 {inviterName.slice(0, 2).toUpperCase()}
               " />
@@ -331,7 +329,7 @@ export function CoLoopJoinLanding({ sessionId, invitedByUsername }: CoLoopJoinLa
             <Button
               type="submit"
               disabled={submitting}
-              className="w-full bg-gradient-to-r from-cyan-500 via-indigo-600 to-purple-600 text-white font-bold h-10 shadow-lg shadow-cyan-500/25 hover:opacity-95 transition-all text-sm mt-2"
+              className="w-full bg-primary text-primary-foreground font-bold h-10 shadow-sm hover:opacity-95 transition-all text-sm mt-2"
             >
               {submitting ? (
                 <>

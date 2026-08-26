@@ -257,7 +257,7 @@ export function DeveloperQuests() {
     <>
       {LoginGateDialog}
 
-      <Card className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 via-card to-indigo-600/5">
+      <Card className="border-cyan-500/20 bg-card border border-border">
         <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-indigo-600 text-white shadow-lg shadow-cyan-500/20">
             <Target className="h-6 w-6" />

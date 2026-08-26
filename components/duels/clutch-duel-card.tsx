@@ -317,7 +317,6 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
     <>
     <div className="relative my-4 overflow-hidden rounded-3xl border border-violet-500/30 bg-gradient-to-b from-[#120b2e] to-[#0a0818] shadow-2xl shadow-violet-950/40">
       {/* Ambient gaming glow */}
-      <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-violet-600/20 blur-3xl" />
 
       {/* Header */}
       <div className="relative flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">

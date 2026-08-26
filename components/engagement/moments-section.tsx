@@ -190,7 +190,7 @@ export function MomentsSection() {
     <>
       <section className="rounded-3xl border border-amber-500/15 bg-gradient-to-br from-card/60 via-card/40 to-amber-500/5 p-4">
         <div className="mb-3 flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 via-rose-500 to-fuchsia-600 text-white shadow-sm">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-white shadow-sm">
             <Hourglass className="h-4 w-4" />
           </span>
           <div className="min-w-0 flex-1">

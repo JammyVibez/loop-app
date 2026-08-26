@@ -211,7 +211,7 @@ export function CirclesList() {
       >
         {/* Banner with 3D gradient overlay */}
         <div
-          className="relative h-36 bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 transition-all duration-500 group-hover:scale-105"
+          className="relative h-36 bg-slate-800 transition-all duration-500 group-hover:scale-105"
           style={{
             backgroundImage: circle.banner_url ? `url(${circle.banner_url})` : undefined,
             backgroundSize: "cover",
@@ -255,7 +255,7 @@ export function CirclesList() {
             <div className="relative">
               <Avatar className="h-20 w-20 border-4 border-card shadow-2xl ring-2 ring-cyan-500/40">
                 <AvatarImage src={circle.avatar_url || circle.owner?.avatar_url || "/placeholder.svg"} alt={circle.name} />
-                <AvatarFallback className="bg-gradient-to-tr from-cyan-600 via-indigo-600 to-purple-600 font-black text-xl text-white">
+                <AvatarFallback className="bg-slate-700 font-bold text-xl text-white">
                   {circle.name?.charAt(0) || "C"}
                 </AvatarFallback>
               </Avatar>
@@ -316,7 +316,7 @@ export function CirclesList() {
             {circle.is_member ? (
               <>
                 <Link href={`/circles/${circle.id}`} className="flex-1">
-                  <Button className="w-full rounded-2xl bg-gradient-to-r from-cyan-500 via-indigo-500 to-purple-600 font-bold text-white text-xs h-10 shadow-md shadow-cyan-950/50 hover:scale-[1.02] transition-transform">
+                  <Button className="w-full rounded-2xl bg-primary font-bold text-primary-foreground text-xs h-10 shadow-sm hover:scale-[1.02] transition-transform">
                     Enter Circle Studio
                   </Button>
                 </Link>

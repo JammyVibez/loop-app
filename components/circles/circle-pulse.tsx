@@ -73,7 +73,7 @@ export function CirclePulse() {
   const totalActivity = circles.reduce((sum, c) => sum + c.activity, 0)
 
   return (
-    <section className="rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-950/30 via-card/60 to-purple-950/20 p-4 sm:p-5">
+    <section className="rounded-3xl border border-cyan-500/20 bg-card border border-border p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="flex items-center gap-2 text-sm font-extrabold text-foreground sm:text-base">

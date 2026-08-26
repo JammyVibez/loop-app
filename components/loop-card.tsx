@@ -888,7 +888,7 @@ export function LoopCard({
           )}
           {isCoLoop && (
             <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5">
-              <Badge className="bg-gradient-to-r from-cyan-500 via-teal-500 to-indigo-600 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-md shadow-cyan-500/20 border border-cyan-400/40 flex items-center gap-1">
+              <Badge className="bg-primary text-primary-foreground font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-sm flex items-center gap-1">
                 <Zap className="h-3 w-3 animate-pulse text-cyan-200" />
                 Co-Loop Collaboration
               </Badge>
@@ -1056,7 +1056,7 @@ export function LoopCard({
                       <span>•</span>
                       <Badge
                         variant="secondary"
-                        className="text-xs bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 text-white font-bold shadow-sm shadow-cyan-500/30 flex items-center gap-1 border border-cyan-400/30"
+                        className="text-xs bg-primary text-primary-foreground font-bold shadow-sm flex items-center gap-1 border border-cyan-400/30"
                       >
                         <Rocket className="h-3 w-3 text-cyan-200 animate-pulse" />
                         Boosted {boostCoinsCurrent >= 2000 ? "(Tier 3)" : boostCoinsCurrent >= 500 ? "(Tier 2)" : "(Tier 1)"}
@@ -1230,7 +1230,7 @@ export function LoopCard({
                 </div>
                 <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-cyan-400 via-indigo-500 to-amber-400 rounded-full transition-all duration-300 shadow-[0_0_8px_#22d3ee]"
+                    className="h-full bg-primary rounded-full transition-all duration-300"
                     style={{ width: `${Math.min(100, Math.round((boostCoinsCurrent / (rawLoop?.boost_coins_target || 1000)) * 100))}%` }}
                   />
                 </div>

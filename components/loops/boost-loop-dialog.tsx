@@ -119,7 +119,7 @@ export function BoostLoopDialog({
 
             <div className="h-3 w-full bg-muted rounded-full overflow-hidden p-0.5 border border-border">
               <div
-                className="h-full bg-gradient-to-r from-cyan-500 via-indigo-500 to-amber-400 rounded-full transition-all duration-300 shadow-[0_0_12px_#22d3ee]"
+                className="h-full bg-primary rounded-full transition-all duration-300"
                 style={{ width: `${percent}%` }}
               />
             </div>

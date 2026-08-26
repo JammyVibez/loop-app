@@ -68,7 +68,6 @@ export function GlobalEventBanner() {
   return (
     <div className="relative my-4 overflow-hidden rounded-3xl border border-border bg-gradient-to-r from-primary/10 via-card to-accent/10 p-5 shadow-sm sm:p-6">
       {/* Background Glow */}
-      <div className="pointer-events-none absolute -right-16 -top-16 h-60 w-60 rounded-full bg-primary/10 blur-3xl" />
 
       <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="max-w-xl space-y-2">

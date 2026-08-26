@@ -85,7 +85,7 @@ export function GlobalFab() {
     >
       <Link
         href="/create"
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 text-white shadow-2xl shadow-violet-500/40 hover:scale-110 active:scale-95 transition-transform duration-200 focus:outline-none focus:ring-4 focus:ring-cyan-500/40 border border-white/20"
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-110 active:scale-95 transition-transform duration-200 focus:outline-none focus:ring-4 focus:ring-cyan-500/40 border border-white/20"
         title="Create New Post / Loop"
       >
         <Plus className="h-7 w-7 stroke-[2.5]" />

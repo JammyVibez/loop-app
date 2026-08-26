@@ -45,16 +45,11 @@ export default async function CirclesPage() {
       
       <main className="container mx-auto px-4 py-8 max-w-7xl space-y-8">
         {/* Hero Section */}
-        <div className="relative overflow-hidden rounded-3xl border border-cyan-500/20 bg-gradient-to-r from-[#090d20] via-[#0d1530] to-[#0a1128] p-6 sm:p-10 shadow-2xl shadow-cyan-950/40">
-          <div className="absolute top-0 right-0 -mt-12 -mr-12 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-1/3 -mb-12 h-64 w-64 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
+        <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-10 shadow-sm">
 
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="space-y-3 max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-950/50 px-3 py-1 text-xs font-extrabold text-cyan-300 backdrop-blur-md">
-                <Zap className="h-3.5 w-3.5 animate-pulse text-cyan-400" />
-                <span>Next-Gen Creator Communities & Co-Loop Hub</span>
-              </div>
+
 
               <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
                 Discover & Build{" "}

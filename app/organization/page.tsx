@@ -126,7 +126,6 @@ export default function OrganizationDashboardPage() {
           <div className="space-y-6">
             {/* Hero */}
             <Card className="relative overflow-hidden border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 via-background to-cyan-500/10">
-              <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-emerald-500/20 blur-3xl" />
               <CardContent className="relative flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-500/40 bg-emerald-500/15">

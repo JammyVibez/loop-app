@@ -622,9 +622,9 @@ export default function OnboardingPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground flex items-center justify-center p-4">
-      <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-40 dark:block hidden" />
-      <div className="landing-aurora-blob pointer-events-none absolute -left-1/4 top-[-20%] dark:block hidden h-[70vmin] w-[70vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.45),transparent_65%)] blur-3xl" />
-      <div className="landing-aurora-blob pointer-events-none absolute -right-1/4 top-[10%] dark:block hidden h-[60vmin] w-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.35),transparent_65%)] blur-3xl [animation-delay:-6s]" />
+      <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-[0.04] dark:block hidden" />
+      <div className="pointer-events-none absolute -top-32 -left-32 h-64 w-64 rounded-full bg-violet-600/[0.06] dark:block hidden" />
+      <div className="pointer-events-none absolute -bottom-32 -right-32 h-64 w-64 rounded-full bg-cyan-600/[0.05] dark:block hidden" />
       <div className="relative z-10 w-full flex flex-col items-center">
         {/* Progress indicator */}
         <div className="flex items-center space-x-2 mb-8">

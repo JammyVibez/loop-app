@@ -108,18 +108,14 @@ export default function SignupPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground flex items-center justify-center">
-      {/* Animated background orbs — dark mode only */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-1/4 -right-1/4 w-[80vmin] h-[80vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(139,92,246,0.15),transparent_65%)] blur-3xl animate-pulse dark:block hidden" style={{ animationDuration: "4s" }} />
-        <div className="absolute top-1/3 -left-1/4 w-[70vmin] h-[70vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.15),transparent_65%)] blur-3xl animate-pulse dark:block hidden" style={{ animationDuration: "6s", animationDelay: "2s" }} />
-        <div className="absolute -bottom-1/4 right-1/3 w-[60vmin] h-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.12),transparent_65%)] blur-3xl animate-pulse dark:block hidden" style={{ animationDuration: "5s", animationDelay: "1s" }} />
-        {/* Light mode subtle gradient */}
-        <div className="absolute inset-0 dark:hidden bg-gradient-to-br from-violet-50 via-white to-cyan-50" />
-        {/* Grid pattern — dark only */}
-        <div className="absolute inset-0 opacity-[0.03] dark:block hidden" style={{
+        <div className="absolute inset-0 dark:hidden bg-gradient-to-br from-slate-50 via-white to-slate-100" />
+        <div className="absolute inset-0 opacity-[0.04] dark:block hidden" style={{
           backgroundImage: "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
           backgroundSize: "48px 48px",
         }} />
+        <div className="absolute -top-32 -right-32 h-64 w-64 rounded-full bg-violet-600/[0.06] dark:block hidden" />
+        <div className="absolute -bottom-32 -left-32 h-64 w-64 rounded-full bg-cyan-600/[0.05] dark:block hidden" />
       </div>
 
       <div className={"relative z-10 w-full max-w-md px-6 py-8 transition-all duration-700 " + (mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")}>

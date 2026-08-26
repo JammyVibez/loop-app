@@ -190,8 +190,7 @@ export function GlobalEventsHub() {
   return (
     <div className="space-y-6">
       {/* Hero Banner Header */}
-      <div className="relative overflow-hidden rounded-3xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/60 via-slate-900 to-violet-950/60 p-6 sm:p-8">
-        <div className="absolute top-0 right-0 -mt-12 -mr-12 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+      <div className="relative overflow-hidden rounded-3xl border border-cyan-500/20 bg-card border border-border p-6 sm:p-8">
         <div className="relative z-10 max-w-2xl space-y-3">
           <Badge className="border-cyan-400/30 bg-cyan-400/10 text-cyan-300 font-semibold px-3 py-1 text-xs">
             <Flame className="mr-1.5 h-3.5 w-3.5 text-orange-400" /> Platform-Wide Events

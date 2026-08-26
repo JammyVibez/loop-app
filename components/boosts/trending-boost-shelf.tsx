@@ -118,7 +118,7 @@ export function TrendingBoostShelf({ limit = 6 }: TrendingBoostShelfProps) {
 
                 <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden mb-3">
                   <div
-                    className="h-full bg-gradient-to-r from-cyan-500 via-indigo-500 to-amber-400 rounded-full"
+                    className="h-full bg-primary rounded-full"
                     style={{ width: `${Math.min(100, (coins / 2000) * 100)}%` }}
                   />
                 </div>

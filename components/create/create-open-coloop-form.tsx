@@ -95,7 +95,7 @@ export function CreateOpenCoLoopForm({ onCreated }: CreateOpenCoLoopFormProps) {
 
   return (
     <div className="space-y-5">
-      <Card className="border-cyan-500/30 bg-gradient-to-br from-cyan-950/50 via-card to-indigo-950/50 p-5 space-y-5">
+      <Card className="border-border bg-card p-5 space-y-5">
         {/* Header */}
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-indigo-600 shadow-lg shadow-cyan-500/25">

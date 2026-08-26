@@ -291,9 +291,9 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-50 dark:bg-[#030712] text-slate-900 dark:text-slate-100 flex items-center justify-center p-4">
-      <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-20 dark:opacity-40" />
-      <div className="landing-aurora-blob pointer-events-none absolute -left-1/4 top-[-20%] h-[70vmin] w-[70vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.25),transparent_65%)] dark:bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.45),transparent_65%)] blur-3xl" />
-      <div className="landing-aurora-blob pointer-events-none absolute -right-1/4 top-[10%] h-[60vmin] w-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.2),transparent_65%)] dark:bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.35),transparent_65%)] blur-3xl [animation-delay:-6s]" />
+      <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-[0.04] dark:block hidden" />
+      <div className="pointer-events-none absolute -top-32 -left-32 h-64 w-64 rounded-full bg-violet-600/[0.06] dark:block hidden" />
+      <div className="pointer-events-none absolute -bottom-32 -right-32 h-64 w-64 rounded-full bg-cyan-600/[0.05] dark:block hidden" />
       <div className="relative z-10 w-full max-w-md">
         <Card className="landing-card-3d border-slate-200 dark:border-white/10 bg-white/95 dark:bg-[#0a1020]/90 text-slate-900 dark:text-slate-100 shadow-xl dark:shadow-2xl dark:shadow-violet-950/30 backdrop-blur-xl">
           <CardHeader>

@@ -1612,7 +1612,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
               return (
                 <Card key={post.id} className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 border-border/80 bg-card/80 backdrop-blur-sm">
                   {post.is_pinned && (
-                    <div className="bg-gradient-to-r from-violet-500/15 via-fuchsia-500/10 to-transparent border-b border-violet-500/20 px-4 py-1.5 flex items-center justify-between text-xs text-violet-600 dark:text-violet-300 font-medium">
+                    <div className="border-b border-border px-4 py-1.5 flex items-center justify-between text-xs text-violet-600 dark:text-violet-300 font-medium">
                       <span className="flex items-center gap-1.5">
                         <Pin className="h-3.5 w-3.5 fill-current" />
                         Pinned Community Announcement

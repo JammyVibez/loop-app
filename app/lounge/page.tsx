@@ -264,7 +264,6 @@ export default function LoungePage() {
       <main className="container mx-auto max-w-4xl space-y-8 px-4 py-8">
         {/* Hero */}
         <div className="relative overflow-hidden rounded-3xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-card to-orange-600/10 p-6 sm:p-8">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-amber-500/10 blur-3xl" />
           <div className="relative space-y-4">
             <Badge className="rounded-full bg-indigo-500/15 text-indigo-500">
               <Crown className="mr-1 h-3 w-3" /> Invite Only · Loop Pro

@@ -192,12 +192,11 @@ export function MomentCard({
       )}
     >
       {/* Fading corner accent — the "disappearing" motif */}
-      <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br from-amber-500/15 to-transparent blur-2xl" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
 
       {/* Header */}
       <header className="flex items-center gap-2.5 px-3.5 py-3">
-        <span className="rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-fuchsia-600 p-[2px]">
+        <span className="rounded-full bg-primary p-[2px]">
           <span className="block rounded-full bg-background p-[2px]">
             <VideoAvatar src={author?.avatar_url || undefined} className="h-9 w-9" fallback={displayName.charAt(0).toUpperCase()} />
           </span>
@@ -236,7 +235,7 @@ export function MomentCard({
               ? "bg-red-500"
               : lifeLeft < 0.25
                 ? "bg-gradient-to-r from-rose-500 to-red-500"
-                : "bg-gradient-to-r from-amber-400 via-rose-500 to-fuchsia-500",
+                : "bg-primary",
           )}
           style={{ width: `${Math.max(0, lifeLeft * 100)}%` }}
         />

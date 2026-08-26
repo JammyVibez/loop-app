@@ -174,7 +174,7 @@ export function DevelopersContent() {
     <>
       <div className="space-y-6">
         {/* Hero / actions */}
-        <div className="flex flex-col items-center gap-4 rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 via-card to-indigo-600/10 p-6 sm:flex-row sm:justify-between">
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-cyan-500/20 bg-card border border-border p-6 sm:flex-row sm:justify-between">
           <div className="flex items-center gap-4">
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-indigo-600 text-white shadow-lg shadow-cyan-500/20">
               <Code className="h-7 w-7" />

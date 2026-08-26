@@ -1269,22 +1269,20 @@ export function CoLoopStudio() {
 
   return (
     <div className="relative min-h-[92vh] overflow-hidden rounded-3xl border border-cyan-500/20 bg-background text-foreground dark:bg-[#030712] dark:text-slate-100 p-3 sm:p-6 shadow-2xl">
-      {/* Dark Ambient Studio Background Lights & Grid */}
-      <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-20" />
-      <div className="landing-aurora-blob pointer-events-none absolute left-1/2 top-[-10%] h-[75vmin] w-[75vmin] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.25),transparent_65%)] blur-3xl" />
-      <div className="landing-aurora-blob pointer-events-none absolute -right-1/4 top-[40%] h-[60vmin] w-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.2),transparent_65%)] blur-3xl [animation-delay:-4s]" />
-      <div className="landing-aurora-blob pointer-events-none absolute -left-1/4 bottom-[10%] h-[60vmin] w-[60vmin] rounded-full bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.18),transparent_65%)] blur-3xl [animation-delay:-8s]" />
+      <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-[0.04]" />
+      <div className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-64 w-64 rounded-full bg-cyan-600/[0.06]" />
+      <div className="pointer-events-none absolute -bottom-32 -right-32 h-64 w-64 rounded-full bg-violet-600/[0.05]" />
 
       <div className="relative z-10 max-w-6xl mx-auto space-y-6">
         {/* Studio Control Header */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-2xl border border-cyan-500/30 bg-card/85 dark:bg-[#080d1e]/80 p-4 sm:p-5 backdrop-blur-xl shadow-lg shadow-cyan-950/20 text-card-foreground">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-purple-600 text-white font-bold shadow-lg shadow-cyan-500/25">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-bold shadow-sm">
               <Radio className="h-6 w-6 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black tracking-tight bg-gradient-to-r from-cyan-600 via-teal-600 to-indigo-600 dark:from-cyan-400 dark:via-teal-300 dark:to-indigo-300 bg-clip-text text-transparent">
+                <h1 className="text-xl font-bold tracking-tight text-foreground">
                   Co-Loop Studio Room
                 </h1>
                 <Badge className="bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 border-cyan-500/40 text-[10px] font-bold px-2 py-0.5">
@@ -1506,7 +1504,7 @@ export function CoLoopStudio() {
 
         {/* FLOATING GLASS PANEL EDITOR (CENTERED CANVAS) */}
         <div className="relative mx-auto max-w-4xl">
-          <Card className="border-cyan-500/30 bg-card/90 dark:bg-[#080d1e]/85 p-5 sm:p-8 backdrop-blur-2xl shadow-xl rounded-3xl space-y-6 text-card-foreground">
+          <Card className="border-border bg-card p-5 sm:p-8 shadow-sm rounded-3xl space-y-6 text-card-foreground">
             {/* Live Synchronized Notice */}
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div className="flex items-center gap-2">
@@ -1829,7 +1827,7 @@ export function CoLoopStudio() {
                 <Button
                   onClick={handlePublishCoLoop}
                   disabled={publishing}
-                  className="flex-1 sm:flex-initial rounded-xl bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-600 text-white font-extrabold shadow-xl shadow-cyan-500/25 px-8 h-11 hover:scale-105 transition-all"
+                  className="flex-1 sm:flex-initial rounded-xl bg-primary text-primary-foreground font-bold shadow-sm px-8 h-11 hover:scale-105 transition-all"
                 >
                   {publishing ? (
                     <>
@@ -1956,7 +1954,7 @@ export function CoLoopStudio() {
 
           <DialogHeader className="text-center space-y-3 relative z-10">
             <div className="flex justify-center">
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-400 via-indigo-600 to-purple-600 shadow-2xl shadow-cyan-500/50">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg">
                 <Rocket className="h-10 w-10 text-white animate-bounce" />
               </div>
             </div>
@@ -1999,7 +1997,7 @@ export function CoLoopStudio() {
                   setPublishCeremonyOpen(false)
                   router.push("/")
                 }}
-                className="w-full bg-gradient-to-r from-cyan-500 via-indigo-600 to-purple-600 text-white font-bold h-11 rounded-xl shadow-lg shadow-cyan-500/25"
+                className="w-full bg-primary text-primary-foreground font-bold h-11 rounded-xl shadow-sm"
               >
                 View in Community Feed <ExternalLink className="ml-2 h-4 w-4" />
               </Button>
