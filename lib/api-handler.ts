@@ -164,7 +164,7 @@ export function withAdmin(handler: HandlerFn<HandlerContext & { profile: AuthPro
       if (response) return response
 
       const supabase = createServerClient()
-      return await handler(request, { user: user!, profile, supabase })
+      return await handler(request, { user: user!, profile: profile as AuthProfile, supabase })
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Internal server error"
       console.error(`[api] ${request.method} ${request.nextUrl.pathname}:`, msg)
@@ -185,7 +185,7 @@ export function withModerator(handler: HandlerFn<HandlerContext & { profile: Aut
       if (response) return response
 
       const supabase = createServerClient()
-      return await handler(request, { user: user!, profile, supabase })
+      return await handler(request, { user: user!, profile: profile as AuthProfile, supabase })
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Internal server error"
       console.error(`[api] ${request.method} ${request.nextUrl.pathname}:`, msg)
@@ -256,7 +256,7 @@ export function withAdminParams(handler: ParamsHandlerFn<HandlerContext & { prof
       if (response) return response
 
       const supabase = createServerClient()
-      return await handler(request, { user: user!, profile, supabase, params })
+      return await handler(request, { user: user!, profile: profile as AuthProfile, supabase, params })
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Internal server error"
       console.error(`[api] ${request.method} ${request.nextUrl.pathname}:`, msg)
@@ -278,7 +278,7 @@ export function withModeratorParams(handler: ParamsHandlerFn<HandlerContext & { 
       if (response) return response
 
       const supabase = createServerClient()
-      return await handler(request, { user: user!, profile, supabase, params })
+      return await handler(request, { user: user!, profile: profile as AuthProfile, supabase, params })
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Internal server error"
       console.error(`[api] ${request.method} ${request.nextUrl.pathname}:`, msg)
