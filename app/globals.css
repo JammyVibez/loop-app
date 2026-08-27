@@ -600,3 +600,98 @@ body.theme-animations .rounded-xl {
     transform: scale(1.03);
   }
 }
+
+/* =================================================================== */
+/* THEME OVERRIDES — remap hardcoded Tailwind colors to CSS variables   */
+/* so every custom theme (midnight, sakura, forest) works app-wide.     */
+/* =================================================================== */
+
+/* ── Midnight (pure black) ── */
+.midnight .bg-white { background-color: hsl(var(--card)) !important; }
+.midnight .bg-gray-50,
+.midnight .bg-gray-100,
+.midnight .bg-stone-50,
+.midnight .bg-stone-100 { background-color: hsl(var(--secondary)) !important; }
+.midnight .bg-gray-200 { background-color: hsl(var(--border)) !important; }
+.midnight .bg-gray-800,
+.midnight .bg-zinc-800,
+.midnight .bg-zinc-900,
+.midnight .bg-gray-900 { background-color: hsl(var(--muted)) !important; }
+.midnight .bg-black { background-color: hsl(var(--background)) !important; }
+.midnight .text-black,
+.midnight .text-gray-900,
+.midnight .text-gray-800,
+.midnight .text-gray-700 { color: hsl(var(--foreground)) !important; }
+.midnight .text-gray-600,
+.midnight .text-gray-500 { color: hsl(var(--muted-foreground)) !important; }
+.midnight .text-gray-400,
+.midnight .text-gray-300,
+.midnight .text-zinc-300,
+.midnight .text-zinc-400 { color: hsl(var(--muted-foreground)) !important; }
+.midnight .text-white { color: hsl(var(--card-foreground)) !important; }
+.midnight .border-gray-200,
+.midnight .border-gray-300 { border-color: hsl(var(--border)) !important; }
+.midnight .border-gray-700,
+.midnight .border-gray-800,
+.midnight .border-zinc-700,
+.midnight .border-zinc-800 { border-color: hsl(var(--border)) !important; }
+
+/* ── Sakura (pink) ── */
+.sakura .bg-white { background-color: hsl(var(--card)) !important; }
+.sakura .bg-gray-50,
+.sakura .bg-gray-100,
+.sakura .bg-stone-50,
+.sakura .bg-stone-100 { background-color: hsl(var(--secondary)) !important; }
+.sakura .bg-gray-200 { background-color: hsl(var(--border)) !important; }
+.sakura .bg-gray-800,
+.sakura .bg-zinc-800,
+.sakura .bg-zinc-900,
+.sakura .bg-gray-900 { background-color: hsl(var(--muted)) !important; }
+.sakura .bg-black { background-color: hsl(var(--background)) !important; }
+.sakura .text-black,
+.sakura .text-gray-900,
+.sakura .text-gray-800,
+.sakura .text-gray-700 { color: hsl(var(--foreground)) !important; }
+.sakura .text-gray-600,
+.sakura .text-gray-500 { color: hsl(var(--muted-foreground)) !important; }
+.sakura .text-gray-400,
+.sakura .text-gray-300,
+.sakura .text-zinc-300,
+.sakura .text-zinc-400 { color: hsl(var(--muted-foreground)) !important; }
+.sakura .text-white { color: hsl(var(--card-foreground)) !important; }
+.sakura .border-gray-200,
+.sakura .border-gray-300 { border-color: hsl(var(--border)) !important; }
+.sakura .border-gray-700,
+.sakura .border-gray-800,
+.sakura .border-zinc-700,
+.sakura .border-zinc-800 { border-color: hsl(var(--border)) !important; }
+
+/* ── Forest (green) ── */
+.forest .bg-white { background-color: hsl(var(--card)) !important; }
+.forest .bg-gray-50,
+.forest .bg-gray-100,
+.forest .bg-stone-50,
+.forest .bg-stone-100 { background-color: hsl(var(--secondary)) !important; }
+.forest .bg-gray-200 { background-color: hsl(var(--border)) !important; }
+.forest .bg-gray-800,
+.forest .bg-zinc-800,
+.forest .bg-zinc-900,
+.forest .bg-gray-900 { background-color: hsl(var(--muted)) !important; }
+.forest .bg-black { background-color: hsl(var(--background)) !important; }
+.forest .text-black,
+.forest .text-gray-900,
+.forest .text-gray-800,
+.forest .text-gray-700 { color: hsl(var(--foreground)) !important; }
+.forest .text-gray-600,
+.forest .text-gray-500 { color: hsl(var(--muted-foreground)) !important; }
+.forest .text-gray-400,
+.forest .text-gray-300,
+.forest .text-zinc-300,
+.forest .text-zinc-400 { color: hsl(var(--muted-foreground)) !important; }
+.forest .text-white { color: hsl(var(--card-foreground)) !important; }
+.forest .border-gray-200,
+.forest .border-gray-300 { border-color: hsl(var(--border)) !important; }
+.forest .border-gray-700,
+.forest .border-gray-800,
+.forest .border-zinc-700,
+.forest .border-zinc-800 { border-color: hsl(var(--border)) !important; }
