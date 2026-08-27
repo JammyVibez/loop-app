@@ -8,7 +8,7 @@ const ALLOWED = new Set(["🔥", "❤️", "🚀", "💡", "👏", "💯"])
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: loopId } = await params
-    const user = await getUserFromRequest(request)
+    const user = await getUserFromRequest(_request)
     const supabase = createServerClient()
 
     const { data: rows, error } = await supabase.from("loop_reactions").select("emoji, user_id").eq("loop_id", loopId)
