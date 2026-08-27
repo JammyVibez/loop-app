@@ -720,6 +720,7 @@ export function LandingContent() {
             <a href="#activity" className="hover:text-foreground transition-colors duration-150">Activity</a>
             <a href="#roadmap" className="hover:text-foreground transition-colors duration-150">Roadmap</a>
             <a href="#creators" className="hover:text-foreground transition-colors duration-150">Creators</a>
+            <Link href="/status" className="hover:text-foreground transition-colors duration-150">Status</Link>
           </div>
         </div>
       </footer>
