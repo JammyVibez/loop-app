@@ -80,9 +80,16 @@ export async function GET(request: NextRequest) {
       // which triggers the DiceBear / initials fallback chain in AvatarImage
       // and VideoAvatar. Using HTTP 200 with a transparent pixel silently
       // swallowed the error and left users seeing blank/empty avatars.
+      console.warn(`[image-proxy] Upstream ${response.status} for: ${imageUrl}`)
       return NextResponse.json(
         { error: `Upstream returned ${response.status}` },
-        { status: 502 }
+        {
+          status: 502,
+          headers: {
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
       )
     }
 
@@ -94,7 +101,10 @@ export async function GET(request: NextRequest) {
 
     const responseHeaders: Record<string, string> = {
       "Content-Type": contentType,
-      "Cache-Control": cacheControl,
+      // Use no-store so browsers always fetch fresh — prevents stale cached
+      // broken images when users update their PFP. The upstream fetch already
+      // uses cache: "no-store".
+      "Cache-Control": "no-store, no-cache, must-revalidate",
       "Access-Control-Allow-Origin": "*",
       "X-Content-Type-Options": "nosniff",
     }
@@ -114,7 +124,13 @@ export async function GET(request: NextRequest) {
     // / VideoAvatar fallback chain activates (DiceBear → initials).
     return NextResponse.json(
       { error: error?.message || "Proxy error" },
-      { status: 502 }
+      {
+        status: 502,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+          "Access-Control-Allow-Origin": "*",
+        },
+      }
     )
   }
 }
