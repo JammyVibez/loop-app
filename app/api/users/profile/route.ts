@@ -1,11 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
-import { normalizeLoops } from "@/lib/normalize-loop"
-import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
+import { } from "@/lib/normalize-loop"
+import { } from "@/lib/enrich-loops"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { isProUser } from "@/lib/pro-features"
+import { } from "@/lib/pro-features"
 import { maskProfile, profileStatus } from "@/lib/user-status"
-import { applyRealCommentCounts } from "@/lib/loop-stats"
+import { } from "@/lib/loop-stats"
 
 export async function GET(request: NextRequest) {
   try {

@@ -1,6 +1,6 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase"
-import { getUserFromRequest } from "@/lib/server-auth"
+import { type } from "next/server"
+import { } from "@/lib/supabase"
+import { } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 

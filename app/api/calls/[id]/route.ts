@@ -3,7 +3,7 @@ import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { createHmsAppToken, hmsGuestRole, hmsHostRole } from "@/lib/hms"
 import { createLiveKitToken } from "@/lib/livekit"
-import { getRealtimeProvider, providerLabel, providerNotConfiguredMessage, type RealtimeProvider } from "@/lib/realtime-provider"
+import { getRealtimeProvider, providerNotConfiguredMessage, type RealtimeProvider } from "@/lib/realtime-provider"
 
 export const dynamic = "force-dynamic"
 
