@@ -10,8 +10,6 @@ import { getUserFromRequest } from "@/lib/server-auth";
  */
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
-
     const user = await getUserFromRequest(request);
     if (!user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
@@ -119,8 +117,6 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
-
     const user = await getUserFromRequest(request);
     if (!user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });

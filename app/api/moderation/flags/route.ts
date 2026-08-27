@@ -7,8 +7,6 @@ import { getUserFromRequest } from "@/lib/server-auth";
 // POST /api/moderation/flags - Create a new content flag
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
-
     const user = await getUserFromRequest(request);
 
     if (!user) {

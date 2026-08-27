@@ -67,8 +67,6 @@ function generateAvatar(id: string, name: string) {
   const hairStyle = h3 % 6 // 0=spiky, 1=flowing, 2=bob, 3=ponytail, 4=buzz, 5=curly
   const accessory = h4 % 8 // 0=none, 1=glasses, 2=hat, 3=headband, 4=earring, 5=bow, 6=mask, 7=crown
 
-  const initials = getInitials(name)
-
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 100 100">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -192,9 +190,6 @@ function generateEyes(expression: number, eyeColor: number, seed: number): strin
   const irises = iris(leftX) + iris(rightX)
 
   // Blink animation
-  const blink = `
-    <animateTransform attributeName="transform" type="scale" values="1 1;1 0.1;1 1" dur="${blinkDur}s" begin="2s" repeatCount="indefinite" additive="sum"/>`
-
   switch (expression) {
     case 1: // Wink
       return whites + irises + `

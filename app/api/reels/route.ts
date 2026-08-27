@@ -21,7 +21,6 @@ export async function GET(request: NextRequest) {
     const hashtag = searchParams.get("hashtag")
     const focusId = searchParams.get("focus")
     const shouldShuffle = searchParams.get("shuffle") !== "false"
-    const offset = (page - 1) * limit
 
     let query = supabase
       .from("reels")

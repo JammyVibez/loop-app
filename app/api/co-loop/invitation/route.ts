@@ -8,7 +8,6 @@ const supabase = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization")
     const body = await req.json()
     const { sessionId, inviteId, status } = body
 

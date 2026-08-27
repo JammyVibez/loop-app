@@ -10,7 +10,6 @@ const supabase = createClient(
 
 const MIN_WINDOW = 10
 const MAX_WINDOW = 300
-const MIN_STAKE = 5
 const MAX_STAKE = 1000
 
 export async function POST(req: NextRequest) {

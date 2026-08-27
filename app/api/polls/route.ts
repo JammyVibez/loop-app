@@ -43,7 +43,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userId = authUser.id
     const body = await req.json()
     const { loopId, question, options, durationHours = 24 } = body
 

@@ -28,7 +28,6 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const language = searchParams.get("language")
-    const q = (searchParams.get("q") || "").trim().toLowerCase()
     const limit = Math.min(Number(searchParams.get("limit") || 50), 100)
 
     const supabase = createServerClient()
