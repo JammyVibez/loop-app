@@ -1,16 +1,26 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,  } from "@/components/ui/dropdown-menu";
-import { Bell, Check, Loader2, Settings } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Bell, Check, Loader2, Settings, Heart, MessageCircle, UserPlus, GitBranch, AtSign, Gift, Mail, BellRing, ChevronRight } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp";
 import { CoLoopInviteCard } from "@/components/invitations/co-loop-invite-card";
 import { supabase } from "@/lib/supabase";
+import { getDiceBearUrl } from "@/lib/dicebear";
+
+interface Actor {
+  id: string
+  username: string
+  display_name: string
+  avatar_url: string | null
+  is_verified: boolean
+}
 
 interface Notification {
   id: string
@@ -20,6 +30,48 @@ interface Notification {
   data?: any
   is_read: boolean
   created_at: string
+  actor?: Actor | null
+}
+
+// ── Notification type → icon + color ──────────────────────────────
+const TYPE_CONFIG: Record<string, { icon: typeof Heart; color: string; bg: string; label: string }> = {
+  like: { icon: Heart, color: "text-rose-500", bg: "bg-rose-500/10", label: "Like" },
+  comment: { icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-500/10", label: "Comment" },
+  follow: { icon: UserPlus, color: "text-violet-500", bg: "bg-violet-500/10", label: "Follow" },
+  branch: { icon: GitBranch, color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Branch" },
+  mention: { icon: AtSign, color: "text-amber-500", bg: "bg-amber-500/10", label: "Mention" },
+  gift: { icon: Gift, color: "text-pink-500", bg: "bg-pink-500/10", label: "Gift" },
+  message: { icon: Mail, color: "text-cyan-500", bg: "bg-cyan-500/10", label: "Message" },
+  system: { icon: BellRing, color: "text-sky-500", bg: "bg-sky-500/10", label: "System" },
+}
+
+function getTypeConfig(type: string) {
+  return TYPE_CONFIG[type] || { icon: Bell, color: "text-muted-foreground", bg: "bg-muted", label: "Notification" }
+}
+
+// ── Time grouping helper ──────────────────────────────────────────
+function groupNotifications(notifications: Notification[]): { label: string; items: Notification[] }[] {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today.getTime() - 86400000)
+  const weekAgo = new Date(today.getTime() - 7 * 86400000)
+
+  const groups: { label: string; items: Notification[] }[] = [
+    { label: "Today", items: [] },
+    { label: "Yesterday", items: [] },
+    { label: "This week", items: [] },
+    { label: "Earlier", items: [] },
+  ]
+
+  for (const n of notifications) {
+    const d = new Date(n.created_at)
+    if (d >= today) groups[0].items.push(n)
+    else if (d >= yesterday) groups[1].items.push(n)
+    else if (d >= weekAgo) groups[2].items.push(n)
+    else groups[3].items.push(n)
+  }
+
+  return groups.filter((g) => g.items.length > 0)
 }
 
 export function NotificationDropdown() {
@@ -95,26 +147,15 @@ export function NotificationDropdown() {
 
   const markAsRead = async (notificationId: string) => {
     if (!user) return
-
     try {
       const response = await fetch("/api/notifications", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
-        },
-        body: JSON.stringify({
-          notification_ids: [notificationId],
-        }),
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ notification_ids: [notificationId] }),
       })
-
       if (response.ok) {
-        setNotifications(prev =>
-          prev.map(n =>
-            n.id === notificationId ? { ...n, is_read: true } : n
-          )
-        )
-        setUnreadCount(prev => Math.max(0, prev - 1))
+        setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)))
+        setUnreadCount((prev) => Math.max(0, prev - 1))
       }
     } catch (error) {
       console.error("Error marking notification as read:", error)
@@ -123,54 +164,19 @@ export function NotificationDropdown() {
 
   const markAllAsRead = async () => {
     if (!user) return
-
     try {
       const response = await fetch("/api/notifications", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
-        },
-        body: JSON.stringify({
-          mark_all_read: true,
-        }),
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ mark_all_read: true }),
       })
-
       if (response.ok) {
-        setNotifications(prev =>
-          prev.map(n => ({ ...n, is_read: true }))
-        )
+        setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
         setUnreadCount(0)
-        toast({
-          title: "Success",
-          description: "All notifications marked as read",
-        })
+        toast({ title: "Success", description: "All notifications marked as read" })
       }
     } catch (error) {
       console.error("Error marking all notifications as read:", error)
-    }
-  }
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case "like":
-        return "❤️"
-      case "comment":
-        return "💬"
-      case "follow":
-        return "👤"
-      case "branch":
-        return "🌿"
-      case "mention":
-        return "📢"
-      case "gift":
-        return "🎁"
-      case "message":
-        return "💬"
-      case "system":
-        return "🔔"
-      default:
-        return "📢"
     }
   }
 
@@ -189,119 +195,164 @@ export function NotificationDropdown() {
     return "/notifications"
   }
 
+  const groups = useMemo(() => groupNotifications(notifications), [notifications])
+
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="relative">
-          <Bell className="w-5 h-5" />
+        <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
+          <Bell className="h-4 w-4 text-muted-foreground" />
           {unreadCount > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
-            >
+            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-background">
               {unreadCount > 9 ? "9+" : unreadCount}
-            </Badge>
+            </span>
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-80" align="end" forceMount>
-        <div className="flex items-center justify-between p-4">
-          <h4 className="text-sm font-semibold">Notifications</h4>
-          <div className="flex items-center space-x-2">
+      <DropdownMenuContent className="w-[380px] max-w-[calc(100vw-2rem)] p-0" align="end" forceMount>
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
+          <div className="flex items-center gap-2">
+            <h4 className="text-sm font-semibold">Notifications</h4>
             {unreadCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={markAllAsRead}
-                className="text-xs"
-              >
-                <Check className="w-3 h-3 mr-1" />
+              <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold">
+                {unreadCount}
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            {unreadCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={markAllAsRead} className="h-7 text-xs text-muted-foreground hover:text-foreground">
+                <Check className="h-3 w-3 mr-1" />
                 Mark all read
               </Button>
             )}
             <Link href="/settings">
-              <Button variant="ghost" size="sm">
-                <Settings className="w-4 h-4" />
+              <Button variant="ghost" size="icon" className="h-7 w-7">
+                <Settings className="h-3.5 w-3.5 text-muted-foreground" />
               </Button>
             </Link>
           </div>
         </div>
-        <DropdownMenuSeparator />
-        
-        <ScrollArea className="h-96">
+
+        {/* Notification list */}
+        <ScrollArea className="h-[420px]">
           {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin" />
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : notifications.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No notifications yet</p>
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                <Bell className="h-6 w-6 opacity-50" />
+              </div>
+              <p className="text-sm font-medium">No notifications yet</p>
+              <p className="text-xs mt-1">When someone interacts with you, it will show up here</p>
             </div>
           ) : (
-            <div className="space-y-1">
-              {notifications.map((notification) => {
-                const href = notificationHref(notification)
-                const isCoLoopInvite = notification.type === "co_loop" || notification.type === "co_loop_invite" || notification.title.toLowerCase().includes("co-loop")
-
-                if (isCoLoopInvite) {
-                  const inviteSessionId = notification.data?.session_id || notification.data?.sessionId || "demo-session-1"
-                  const inviterDisplayName = notification.data?.inviter_name || notification.data?.inviter_username || notification.message?.split(" invited")[0] || "A Collaborator"
-                  return (
-                    <div key={notification.id} className="p-2">
-                      <CoLoopInviteCard
-                        sessionId={inviteSessionId}
-                        inviterName={inviterDisplayName}
-                        createdAt={notification.created_at}
-                      />
-                    </div>
-                  )
-                }
-
-                return (
-                <DropdownMenuItem
-                  key={notification.id}
-                  className={`p-4 cursor-pointer border-b border-white/5 last:border-0 ${
-                    !notification.is_read ? "bg-cyan-950/20" : ""
-                  }`}
-                  onClick={() => {
-                    if (!notification.is_read) {
-                      void markAsRead(notification.id)
-                    }
-                    if (href) window.location.href = href
-                  }}
-                >
-                  <div className="flex items-start space-x-3 w-full">
-                    <div className="text-lg">
-                      {getNotificationIcon(notification.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium truncate">
-                          {notification.title}
-                        </p>
-                        {!notification.is_read && (
-                          <div className="w-2 h-2 bg-cyan-400 rounded-full ml-2 shadow-[0_0_6px_#22d3ee]" />
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-300 mt-1">
-                        {notification.message}
-                      </p>
-                      <div className="mt-1">
-                        <FreshnessTimestamp date={notification.created_at} showIcon />
-                      </div>
-                    </div>
+            <div>
+              {groups.map((group) => (
+                <div key={group.label}>
+                  <div className="px-4 py-2 bg-muted/30">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{group.label}</p>
                   </div>
-                </DropdownMenuItem>
-              )})}
+                  {group.items.map((notification) => {
+                    const href = notificationHref(notification)
+                    const config = getTypeConfig(notification.type)
+                    const Icon = config.icon
+                    const actor = notification.actor
+
+                    const isCoLoopInvite =
+                      notification.type === "co_loop" ||
+                      notification.type === "co_loop_invite" ||
+                      notification.title.toLowerCase().includes("co-loop")
+
+                    if (isCoLoopInvite) {
+                      const inviteSessionId = notification.data?.session_id || notification.data?.sessionId || "demo-session-1"
+                      const inviterDisplayName =
+                        notification.data?.inviter_name ||
+                        notification.data?.inviter_username ||
+                        notification.message?.split(" invited")[0] ||
+                        "A Collaborator"
+                      return (
+                        <div key={notification.id} className="p-2 border-b border-border/40">
+                          <CoLoopInviteCard
+                            sessionId={inviteSessionId}
+                            inviterName={inviterDisplayName}
+                            createdAt={notification.created_at}
+                          />
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <button
+                        key={notification.id}
+                        type="button"
+                        className={`w-full text-left px-4 py-3 flex items-start gap-3 border-b border-border/40 last:border-0 transition-colors hover:bg-muted/50 ${
+                          !notification.is_read ? "bg-primary/5" : ""
+                        }`}
+                        onClick={() => {
+                          if (!notification.is_read) void markAsRead(notification.id)
+                          if (href) window.location.href = href
+                        }}
+                      >
+                        {/* Actor avatar with type badge */}
+                        <div className="relative shrink-0">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage
+                              src={actor?.avatar_url || undefined}
+                              alt={actor?.display_name || actor?.username || "user"}
+                              fallbackSeed={actor?.username}
+                            />
+                            <AvatarFallback className="text-xs">
+                              {actor?.display_name?.charAt(0) || actor?.username?.charAt(0) || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          {/* Type icon badge overlay */}
+                          <div className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full ${config.bg} flex items-center justify-center ring-2 ring-background`}>
+                            <Icon className={`h-2.5 w-2.5 ${config.color}`} />
+                          </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm leading-snug">
+                            <span className="font-semibold">
+                              {actor?.display_name || actor?.username || ""}
+                            </span>
+                            {actor && <span className="text-muted-foreground"> </span>}
+                            <span className="text-muted-foreground">
+                              {notification.title}
+                            </span>
+                          </p>
+                          {notification.message && notification.message !== notification.title && (
+                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{notification.message}</p>
+                          )}
+                          <div className="mt-1 flex items-center gap-2">
+                            <FreshnessTimestamp date={notification.created_at} showIcon />
+                            {!notification.is_read && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Arrow */}
+                        <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0 mt-2" />
+                      </button>
+                    )
+                  })}
+                </div>
+              ))}
             </div>
           )}
         </ScrollArea>
-        <DropdownMenuSeparator />
-        <div className="p-2">
+
+        {/* Footer */}
+        <div className="border-t border-border/60 p-2">
           <Link href="/notifications" className="block">
-            <Button variant="ghost" className="w-full justify-center text-sm" onClick={() => setIsOpen(false)}>
-              See all notifications & tags
+            <Button variant="ghost" className="w-full justify-center text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setIsOpen(false)}>
+              See all notifications
             </Button>
           </Link>
         </div>
