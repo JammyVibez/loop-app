@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { requireAdmin } from "@/lib/server-auth"
 
 export async function GET(request: NextRequest) {
   try {

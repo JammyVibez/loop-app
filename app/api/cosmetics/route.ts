@@ -1,5 +1,7 @@
-import { type NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { getCatalog, getUserCosmeticsBundle, type CosmeticCategory } from "@/lib/cosmetics-system";
+import { getUserFromRequest } from "@/lib/server-auth";
 
 
 /** GET /api/cosmetics — Returns the catalog + user's inventory + equipped items */

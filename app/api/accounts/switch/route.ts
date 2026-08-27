@@ -1,4 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getUserFromRequest } from '@/lib/server-auth';
+import { createClient } from '@supabase/supabase-js';
 
 /**
  * POST /api/accounts/switch

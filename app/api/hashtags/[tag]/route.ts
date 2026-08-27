@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { normalizeLoops } from "@/lib/normalize-loop"
 import { smartEngagementScore } from "@/lib/feed-ranking"
-import { filterPrivateContent} from "@/lib/privacy"
+import { filterPrivateContent, getFollowingIds } from "@/lib/privacy"
 import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats" 
 
 function createServerClient() {

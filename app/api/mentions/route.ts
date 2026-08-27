@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
+import { sourceLabel } from "@/lib/mentions-shared"
 import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"

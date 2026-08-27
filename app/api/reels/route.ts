@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { filterPrivateContent} from "@/lib/privacy"
+import { filterPrivateContent, getFollowingIds } from "@/lib/privacy"
 
 export const dynamic = "force-dynamic"
 

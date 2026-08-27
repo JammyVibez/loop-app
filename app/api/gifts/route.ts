@@ -1,4 +1,4 @@
-import { type NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 
 export const dynamic = "force-dynamic"

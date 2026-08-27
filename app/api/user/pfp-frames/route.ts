@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth";
 
 // GET /api/user/pfp-frames — list all frames + user's inventory
 export async function GET(request: NextRequest) {

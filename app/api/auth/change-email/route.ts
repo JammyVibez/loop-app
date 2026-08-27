@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { verifyCredentialPassword } from "@/lib/auth"
+import { authDbPool, verifyCredentialPassword } from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
 

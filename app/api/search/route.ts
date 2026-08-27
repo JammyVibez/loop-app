@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { normalizeLoops } from "@/lib/normalize-loop"
+import { applyRealCommentCounts } from "@/lib/loop-stats"
 import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"

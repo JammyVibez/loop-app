@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { validateThemeConfig } from "@/lib/circle-themes"
+import { validateThemeConfig, type CircleThemeConfig } from "@/lib/circle-themes"
 
 function createServerClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
