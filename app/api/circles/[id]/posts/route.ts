@@ -17,6 +17,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { id: circleId } = await params
 
     // Private circles: only approved members (or the owner) may read posts.
+    const authHeader = request.headers.get("authorization")
     const access = await checkCirclePrivateAccess(circleId, authHeader)
     if (access.isPrivate && !access.canView) {
       return NextResponse.json({ success: true, posts: [], hasMore: false, locked: true })
