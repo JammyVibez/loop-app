@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
   try {
-    const { user, response } = await requireAdmin(request)
+    const { user: _user, response } = await requireAdmin(request)
     if (response) return response
 
     const supabase = createServerClient()
