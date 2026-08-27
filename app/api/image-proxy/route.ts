@@ -76,25 +76,13 @@ export async function GET(request: NextRequest) {
     })
 
     if (!response.ok) {
-      // If the original image is 404, return a transparent 1x1 pixel instead
-      // of showing a broken image icon
-      if (response.status === 404 || response.status === 410) {
-        const pixel = Buffer.from(
-          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAABJRUEFTkSuQmCC",
-          "base64"
-        )
-        return new NextResponse(pixel, {
-          status: 200, // Return 200 so browsers don't show broken-image icon
-          headers: {
-            "Content-Type": "image/png",
-            "Cache-Control": "public, max-age=60, s-maxage=60", // Short cache for missing images
-            "Access-Control-Allow-Origin": "*",
-          },
-        })
-      }
+      // Return an error status so the browser fires onError on <img> tags,
+      // which triggers the DiceBear / initials fallback chain in AvatarImage
+      // and VideoAvatar. Using HTTP 200 with a transparent pixel silently
+      // swallowed the error and left users seeing blank/empty avatars.
       return NextResponse.json(
         { error: `Upstream returned ${response.status}` },
-        { status: response.status }
+        { status: 502 }
       )
     }
 
@@ -120,18 +108,11 @@ export async function GET(request: NextRequest) {
     })
   } catch (error: any) {
     console.error("[image-proxy] Error:", error?.message || error)
-    // Return a transparent pixel on error so the UI stays clean
-    const pixel = Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAABJRUEFTkSuQmCC",
-      "base64"
+    // Return error status so the browser fires onError and the AvatarImage
+    // / VideoAvatar fallback chain activates (DiceBear → initials).
+    return NextResponse.json(
+      { error: error?.message || "Proxy error" },
+      { status: 502 }
     )
-    return new NextResponse(pixel, {
-      status: 200,
-      headers: {
-        "Content-Type": "image/png",
-        "Cache-Control": "public, max-age=30, s-maxage=30",
-        "Access-Control-Allow-Origin": "*",
-      },
-    })
   }
 }
