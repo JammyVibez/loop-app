@@ -88,4 +88,22 @@ describe("API route structure", () => {
     const mod = await import("@/app/api/image-proxy/route")
     expect(typeof mod.GET).toBe("function")
   })
+
+  it("health route module exists", async () => {
+    const mod = await import("@/app/api/health/route")
+    expect(typeof mod.GET).toBe("function")
+  })
+})
+
+describe("API handler utilities", () => {
+  it("imports api-handler without error", async () => {
+    const mod = await import("@/lib/api-handler")
+    expect(typeof mod.withHandler).toBe("function")
+    expect(typeof mod.withUser).toBe("function")
+    expect(typeof mod.withAdmin).toBe("function")
+    expect(typeof mod.withModerator).toBe("function")
+    expect(typeof mod.withAdminParams).toBe("function")
+    expect(typeof mod.apiError).toBe("function")
+    expect(typeof mod.apiSuccess).toBe("function")
+  })
 })
