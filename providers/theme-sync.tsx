@@ -4,26 +4,30 @@ import { useEffect } from "react"
 import { useTheme } from "next-themes"
 
 /**
- * Keeps the `dark` class on <html> in sync when custom themes are selected.
+ * Keeps both the `dark` class AND `data-theme` attribute on <html> in sync.
  *
- * next-themes adds the theme name as a class (e.g. "midnight", "sakura")
- * but only adds `dark` for themes it recognises. Components throughout
- * the app rely on `dark:` Tailwind prefixes and CSS selectors like
- * `.sakura.dark { ... }` — both require `dark` on <html>.
+ * - `dark` class: needed for Tailwind dark: prefixes and CSS variable cascade
+ * - `data-theme` attribute: used by CSS overrides to remap hardcoded colors
+ *   (e.g. `html[data-theme="midnight"] .bg-white { ... }`)
  *
- * Strategy: keep `dark` on <html> for ALL non-light themes.
- * Theme-specific CSS (e.g. `.sakura.dark { --background: ... }`) has
- * higher specificity than `.dark { ... }`, so the theme overrides win.
+ * This dual approach ensures themes work regardless of which element
+ * next-themes puts the class on.
  */
 export function ThemeSync() {
   const { theme } = useTheme()
 
   useEffect(() => {
     const root = document.documentElement
+
+    // Set data-theme attribute for CSS overrides
+    if (theme && theme !== "system") {
+      root.setAttribute("data-theme", theme)
+    }
+
+    // Sync dark class: all non-light themes need it
     if (theme === "light" || !theme) {
       root.classList.remove("dark")
     } else {
-      // dark, midnight, sakura, forest → all need dark class
       root.classList.add("dark")
     }
   }, [theme])
