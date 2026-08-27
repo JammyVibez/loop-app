@@ -14,23 +14,6 @@ function getAdminClient() {
 }
 
 /**
- * Extract the raw Set-Cookie header value for better-auth.session_token
- * from a combined Set-Cookie header string (which may contain multiple cookies).
- */
-function extractSessionSetCookie(setCookieHeader: string): string | null {
-  if (!setCookieHeader) return null
-  // Split by comma but be careful with cookie attributes that contain commas
-  // Better Auth's Set-Cookie looks like: better-auth.session_token=TOKEN; Path=/; HttpOnly; SameSite=Lax
-  const parts = setCookieHeader.split(/,(?=\s*better-auth)/)
-  for (const part of parts) {
-    if (part.trim().startsWith("better-auth.session_token")) {
-      return part.trim()
-    }
-  }
-  return null
-}
-
-/**
  * GET /api/accounts
  * Returns all accounts linked to the current user.
  */
