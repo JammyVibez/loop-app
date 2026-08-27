@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { AppLogo } from "@/components/brand/app-logo"
 import { AppDownloadBadges } from "@/components/app-download-badges"
 
 /* ─── Feature definitions ─────────────────────────────── */
@@ -201,9 +202,7 @@ export function LandingContent() {
       <header className="relative z-20 border-b border-border/60 bg-background/80 backdrop-blur-xl">
         <div className="container mx-auto flex items-center justify-between px-4 py-3.5 sm:px-6">
           <Link href="/" className="group flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground text-background text-sm font-bold tracking-tight transition-transform duration-200 group-hover:scale-105">
-              L
-            </div>
+            <AppLogo className="rounded-xl shadow-md transition-transform duration-200 group-hover:scale-105" />
             <span className="text-base font-semibold tracking-tight text-foreground">
               loopapp.me
             </span>
@@ -709,9 +708,7 @@ export function LandingContent() {
       <footer className="relative z-10 border-t border-border/60 py-8">
         <div className="container mx-auto flex flex-col items-center gap-4 px-4 text-sm text-muted-foreground sm:flex-row sm:justify-between sm:px-6">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-background text-[10px] font-bold">
-              L
-            </div>
+            <AppLogo className="h-6 w-6 rounded-md" />
             <span className="font-medium text-foreground">Loop</span>
             <span>&copy; {new Date().getFullYear()}</span>
           </div>

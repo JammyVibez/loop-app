@@ -145,18 +145,20 @@ async function checkRealtime(): Promise<ServiceCheck> {
 async function checkAPI(): Promise<ServiceCheck> {
   const start = Date.now()
   try {
-    // Self-check: hit our own health endpoint
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-    const res = await fetch(`${baseUrl}/api/health`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(10000),
-    })
+    // If this handler is executing, the API server is alive.
+    // We verify by checking that critical env vars are present
+    // and the Node.js process is responsive.
+    const hasSupabase = !!process.env.NEXT_PUBLIC_SUPABASE_URL
+    const hasAnonKey = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     const latency = Date.now() - start
+    const missing = [!hasSupabase && "SUPABASE_URL", !hasAnonKey && "SUPABASE_ANON_KEY"].filter(Boolean)
     return {
       name: "API Server",
-      status: res.ok ? (latency > 5000 ? "degraded" : "operational") : "down",
+      status: missing.length > 0 ? "degraded" : latency > 2000 ? "degraded" : "operational",
       latencyMs: latency,
-      description: "Next.js API routes",
+      description: missing.length > 0
+        ? `Missing env: ${missing.join(", ")}`
+        : "Next.js 15 API routes",
       lastChecked: new Date().toISOString(),
     }
   } catch {
@@ -164,7 +166,7 @@ async function checkAPI(): Promise<ServiceCheck> {
       name: "API Server",
       status: "down",
       latencyMs: Date.now() - start,
-      description: "Unreachable",
+      description: "Process error",
       lastChecked: new Date().toISOString(),
     }
   }
