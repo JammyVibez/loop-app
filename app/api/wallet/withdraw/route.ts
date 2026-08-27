@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     const currentCoins = profile?.loop_coins ?? 0
-    const isVerified = profile?.is_verified || user.user_metadata?.is_verified || false
+    const isVerified = profile?.is_verified || false
 
     if (!isVerified) {
       return NextResponse.json({
