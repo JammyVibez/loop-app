@@ -4,6 +4,7 @@ import { normalizeLoops } from "@/lib/normalize-loop"
 import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 import { filterPrivateContent, getFollowingIds, getPrivateProfileIds } from "@/lib/privacy"
 import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats" 
+import { getUserFromRequest } from "@/lib/server-auth"
 
 function engagementScore(loop: any) {
   const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats
