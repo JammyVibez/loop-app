@@ -13,7 +13,7 @@ export async function PATCH(
 ) {
   try {
 
-    const authUser = await getUserFromRequest(request)
+    const authUser = await getUserFromRequest(req)
     if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }

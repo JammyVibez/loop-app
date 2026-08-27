@@ -64,7 +64,7 @@ export async function POST(
     const { id: loopId } = await params
 
 
-    const authUser = await getUserFromRequest(request)
+    const authUser = await getUserFromRequest(req)
     if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
