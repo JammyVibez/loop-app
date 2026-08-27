@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(imageUrl, {
       headers,
       redirect: "follow",
-      next: { revalidate: 86400 }, // Cache for 24h on the edge
+      cache: "no-store",
     })
 
     if (!response.ok) {
@@ -102,7 +102,9 @@ export async function GET(request: NextRequest) {
     if (etag) responseHeaders["ETag"] = etag
     if (lastModified) responseHeaders["Last-Modified"] = lastModified
 
-    return new NextResponse(response.body, {
+    // Buffer the entire response to avoid streaming issues in serverless
+    const buffer = await response.arrayBuffer()
+    return new NextResponse(Buffer.from(buffer), {
       status: 200,
       headers: responseHeaders,
     })
