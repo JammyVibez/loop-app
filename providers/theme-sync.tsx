@@ -11,34 +11,22 @@ import { useTheme } from "next-themes"
  * the app rely on `dark:` Tailwind prefixes and CSS selectors like
  * `.sakura.dark { ... }` — both require `dark` on <html>.
  *
- * This component ensures `dark` is present whenever the effective color
- * scheme is dark, regardless of which theme is active.
+ * Strategy: keep `dark` on <html> for ALL non-light themes.
+ * Theme-specific CSS (e.g. `.sakura.dark { --background: ... }`) has
+ * higher specificity than `.dark { ... }`, so the theme overrides win.
  */
-
-/** Themes that are always dark, regardless of system preference */
-const ALWAYS_DARK = new Set(["dark", "midnight"])
-
 export function ThemeSync() {
-  const { theme, resolvedTheme } = useTheme()
+  const { theme } = useTheme()
 
   useEffect(() => {
     const root = document.documentElement
-
-    // If the theme itself is always-dark → force dark
-    if (ALWAYS_DARK.has(theme ?? "")) {
+    if (theme === "light" || !theme) {
+      root.classList.remove("dark")
+    } else {
+      // dark, midnight, sakura, forest → all need dark class
       root.classList.add("dark")
-      return
     }
-
-    // If resolvedTheme says "dark" (system preference is dark) → dark
-    if (resolvedTheme === "dark") {
-      root.classList.add("dark")
-      return
-    }
-
-    // For sakura/forest in light mode, or light theme → no dark class
-    root.classList.remove("dark")
-  }, [theme, resolvedTheme])
+  }, [theme])
 
   return null
 }
