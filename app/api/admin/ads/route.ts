@@ -37,7 +37,7 @@ export async function GET(_request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { user, response } = await requireAdmin(request)
+    const { user: _user, response } = await requireAdmin(request)
     if (response) return response
     const supabase = createServerClient()
     const body = await request.json().catch(() => ({}))

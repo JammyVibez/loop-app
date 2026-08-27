@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 /** Create an award definition. */
 export async function POST(request: NextRequest) {
   try {
-    const { user, response } = await requireAdmin(request)
+    const { user: _user, response } = await requireAdmin(request)
     if (response) return response
 
     const body = await request.json().catch(() => ({}))
