@@ -1,4 +1,3 @@
-import { type } from "next/server"
 import { createClient } from "@/lib/supabase"
 
 const supabase = createClient(

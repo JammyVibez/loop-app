@@ -1,7 +1,5 @@
 import { type NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
-import { type } from "@/lib/cosmetics-system";
-import { } from "@/lib/server-auth";
 
 
 /** GET /api/cosmetics — Returns the catalog + user's inventory + equipped items */

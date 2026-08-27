@@ -1,11 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
-import { } from "@/lib/normalize-loop"
-import { } from "@/lib/enrich-loops"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { } from "@/lib/pro-features"
 import { maskProfile, profileStatus } from "@/lib/user-status"
-import { } from "@/lib/loop-stats"
 
 export async function GET(request: NextRequest) {
   try {

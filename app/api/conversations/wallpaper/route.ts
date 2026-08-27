@@ -1,6 +1,3 @@
-import { type } from "next/server"
-import { } from "@/lib/supabase"
-import { } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 

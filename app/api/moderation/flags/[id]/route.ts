@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { requireModerator } from "@/lib/server-auth";
-import { } from "@/lib/server-auth";
 
 
 // PUT /api/moderation/flags/[id] - Update a content flag (admin/moderator only)

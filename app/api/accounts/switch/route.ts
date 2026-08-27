@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { } from '@/lib/server-auth';
-import { } from '@supabase/supabase-js';
 
 /**
  * POST /api/accounts/switch
