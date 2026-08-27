@@ -199,6 +199,8 @@ export default function RootLayout({
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange={false}
+          storageKey="loop-theme"
+          themes={["light", "dark", "midnight", "sakura", "forest"]}
         >
           <ThemeSync />
           <Theme3DProvider>
