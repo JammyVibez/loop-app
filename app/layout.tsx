@@ -8,6 +8,7 @@ import "../styles/responsive.css"
 import "../styles/cosmetics.css"
 import { AuthProvider } from "../providers/auth-provider"
 import { ThemeProvider } from "../providers/theme-provider"
+import { ThemeSync } from "../providers/theme-sync"
 import { Theme3DProvider } from "../providers/theme-3d-provider"
 import { RealtimeProvider } from "@/providers/realtime-provider"
 import { Toaster } from "@/components/ui/toaster"
@@ -199,6 +200,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange={false}
         >
+          <ThemeSync />
           <Theme3DProvider>
             <AuthProvider>
               <RealtimeProvider>
