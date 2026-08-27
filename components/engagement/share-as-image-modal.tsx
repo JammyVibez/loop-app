@@ -435,7 +435,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm border-border bg-card text-card-foreground shadow-2xl p-4 sm:p-6">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm max-h-[90dvh] sm:max-h-[85vh] overflow-y-auto border-border bg-card text-card-foreground shadow-2xl p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-foreground">
             <Share2 className="h-4 w-4 text-indigo-500" /> Share as image
@@ -443,7 +443,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
           <DialogDescription className="text-muted-foreground">A branded card for sharing on X, Instagram, or anywhere.</DialogDescription>
         </DialogHeader>
         <canvas ref={canvasRef} className="hidden" />
-        <div className="relative w-full overflow-hidden rounded-xl border border-border shadow-lg">
+        <div className="relative w-full overflow-hidden rounded-xl border border-border shadow-lg max-h-[50dvh] sm:max-h-[55vh] overflow-y-auto">
           <CardPreview post={post} isDark={isDark} />
           {!rendered && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-background/70 backdrop-blur-[1px]">
