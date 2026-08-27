@@ -93,6 +93,11 @@ describe("API route structure", () => {
     const mod = await import("@/app/api/health/route")
     expect(typeof mod.GET).toBe("function")
   })
+
+  it("status route module exists", async () => {
+    const mod = await import("@/app/api/status/route")
+    expect(typeof mod.GET).toBe("function")
+  })
 })
 
 describe("API handler utilities", () => {

@@ -19,7 +19,7 @@ import {
   Users,
   Coins,
   Bookmark,
-
+  Activity,
   Shield,
   Zap,
   LogOut,
@@ -227,6 +227,19 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
             </Button>
           </div>
         </ScrollArea>
+      </div>
+
+      {/* Status Link */}
+      <div className="px-3 pb-2">
+        <Link
+          href="/status"
+          onClick={onLinkClick}
+          className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+        >
+          <Activity className="h-3.5 w-3.5" />
+          <span>System Status</span>
+          <span className="ml-auto flex h-1.5 w-1.5 rounded-full bg-emerald-500" title="All systems operational" />
+        </Link>
       </div>
 
       {/* Footer User Profile & Logout */}
