@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic"
 // GET /api/admin/ban-appeals?status=pending
 export async function GET(request: NextRequest) {
   try {
-    const { user, response } = await requireModerator(request)
+    const { user: _user, response } = await requireModerator(request)
     if (response) return response
 
     const supabase = createServerClient()
