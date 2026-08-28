@@ -162,14 +162,17 @@ export default function RootLayout({
                 try {
                   var stored = localStorage.getItem('loop-theme');
                   var theme = stored || 'system';
+                  var isDark = false;
                   if (theme === 'system') {
-                    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    theme = prefersDark ? 'dark' : 'light';
-                  }
-                  if (theme === 'light') {
-                    document.documentElement.classList.remove('dark');
+                    isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    theme = isDark ? 'dark' : 'light';
                   } else {
+                    isDark = theme === 'dark' || theme === 'midnight';
+                  }
+                  if (isDark) {
                     document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
                   }
                   document.documentElement.setAttribute('data-theme', theme);
                 } catch(e) {}
@@ -220,10 +223,10 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} antialiased`}>
         <ThemeProvider
-          attribute="class"
+          attribute="data-theme"
           defaultTheme="system"
           enableSystem
-          disableTransitionOnChange={false}
+          disableTransitionOnChange
           storageKey="loop-theme"
           themes={["light", "dark", "midnight", "sakura", "forest"]}
         >

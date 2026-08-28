@@ -1300,16 +1300,15 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
           />
         </div>
       ) : (
-      <div className="w-full space-y-4">
-        <button
-          onClick={() => setActiveTab(null)}
-          className="flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors group"
-        >
-          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to {circle?.name || "Circle"}
-        </button>
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        </div>
+        <div className="w-full space-y-4">
+          <button
+            onClick={() => setActiveTab(null)}
+            className="flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors group"
+          >
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+            Back to {circle?.name || "Circle"}
+          </button>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
 
         <TabsContent value="feed" className="mt-4 space-y-4 sm:mt-6 sm:space-y-6">
           {canBypassPostFreeze && (
