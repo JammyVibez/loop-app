@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -147,7 +147,7 @@ interface LoopCardProps {
   className?: string;
 }
 
-export function LoopCard({
+export const LoopCard = memo(function LoopCard({
   loop: rawLoop,
   interacting = null,
   onInteraction,
@@ -1709,5 +1709,5 @@ export function LoopCard({
       />
     </>
   );
-}
+})
 

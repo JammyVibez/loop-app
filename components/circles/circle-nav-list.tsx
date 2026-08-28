@@ -174,15 +174,15 @@ export function CircleNavList({
               key={item.id}
               onClick={() => onNavigate(item.id)}
               disabled={locked}
-              className={`w-full flex items-center gap-4 px-4 py-3.5 transition-all text-left ${
+              className={`w-full flex items-center gap-4 px-4 py-3.5 text-left tap-feedback ${
                 locked
                   ? "opacity-40 cursor-not-allowed"
-                  : "hover:bg-muted/50 active:bg-muted/70 cursor-pointer"
+                  : "hover:bg-muted/60 active:bg-muted/80 cursor-pointer transition-colors duration-200"
               }`}
             >
               {/* Icon */}
-              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${item.bgColor}`}>
-                <Icon className={`h-5 w-5 ${item.color}`} />
+              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${item.bgColor} transition-transform duration-200 group-hover:scale-110`}>
+                <Icon className={`h-5 w-5 ${item.color} transition-transform duration-200`} />
               </div>
 
               {/* Label & Description */}
@@ -203,7 +203,7 @@ export function CircleNavList({
                     {item.badge}
                   </Badge>
                 )}
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-200" style={{ transform: undefined }} />
               </div>
             </button>
           )
