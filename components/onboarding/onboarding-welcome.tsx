@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { TreePine, Camera, ArrowRight, Sparkles } from "lucide-react"
+import { TreePine, Camera, ArrowRight, Sparkles, Zap, Palette, Music, Gamepad2, Camera as CameraIcon, Rocket } from "lucide-react"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { getDiceBearUrl } from "@/lib/dicebear"
 import { useAuth } from "@/hooks/use-auth"
@@ -12,7 +12,16 @@ interface OnboardingWelcomeProps {
   onComplete: (data: { avatar_url: string; bio: string }) => void
 }
 
-const FLOATING_EMOJIS = ["🌳", "⚡", "🎨", "🎵", "🎮", "📸", "✨", "🚀"]
+const FLOATING_ICONS = [
+  { Icon: TreePine, color: "text-emerald-400" },
+  { Icon: Zap, color: "text-amber-400" },
+  { Icon: Palette, color: "text-violet-400" },
+  { Icon: Music, color: "text-rose-400" },
+  { Icon: Gamepad2, color: "text-cyan-400" },
+  { Icon: CameraIcon, color: "text-sky-400" },
+  { Icon: Sparkles, color: "text-yellow-400" },
+  { Icon: Rocket, color: "text-orange-400" },
+]
 
 export function OnboardingWelcome({ onComplete }: OnboardingWelcomeProps) {
   const { user } = useAuth()
@@ -44,15 +53,15 @@ export function OnboardingWelcome({ onComplete }: OnboardingWelcomeProps) {
 
   return (
     <div className="relative w-full max-w-2xl mx-auto">
-      {/* Floating background emojis */}
+      {/* Floating background icons */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {FLOATING_EMOJIS.map((emoji, i) => (
-          <motion.span
+        {FLOATING_ICONS.map(({ Icon, color }, i) => (
+          <motion.div
             key={i}
-            className="absolute text-2xl opacity-20"
+            className={`absolute opacity-15 ${color}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{
-              opacity: [0.1, 0.25, 0.1],
+              opacity: [0.08, 0.2, 0.08],
               y: [0, -20, 0],
               x: [0, Math.sin(i) * 10, 0],
             }}
@@ -66,8 +75,8 @@ export function OnboardingWelcome({ onComplete }: OnboardingWelcomeProps) {
               top: `${10 + (i * 15) % 70}%`,
             }}
           >
-            {emoji}
-          </motion.span>
+            <Icon className="h-6 w-6" />
+          </motion.div>
         ))}
       </div>
 
