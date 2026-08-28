@@ -134,10 +134,10 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
     return `${m}m ${sec}s`
   }
 
+  if (!duel) return null
+
   const labelA = duel.side_a_label || "Side A"
   const labelB = duel.side_b_label || "Side B"
-
-  if (!duel) return null
 
   const entryA = duel.entries?.find((e) => e.side === "A")
   const entryB = duel.entries?.find((e) => e.side === "B")
