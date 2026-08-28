@@ -14,7 +14,14 @@ BEGIN
         ALTER TABLE public.co_loop_sessions ADD COLUMN open_invite_topic TEXT;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='co_loop_sessions' AND column_name='feed_post_id') THEN
-        ALTER TABLE public.co_loop_sessions ADD COLUMN feed_post_id UUID REFERENCES public.loops(id) ON DELETE SET NULL;
+        ALTER TABLE public.co_loop_sessions ADD COLUMN feed_post_id TEXT;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'co_loop_sessions_session_id_unique') THEN
+        ALTER TABLE public.co_loop_sessions ADD CONSTRAINT co_loop_sessions_session_id_unique UNIQUE (session_id);
     END IF;
 END $$;
 
@@ -23,7 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_co_loop_sessions_feed_post ON public.co_loop_sess
 
 -- 2. Open invite participants tracking (who has joined)
 CREATE TABLE IF NOT EXISTS public.open_co_loop_participants (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id BIGSERIAL PRIMARY KEY,
     session_id TEXT NOT NULL REFERENCES public.co_loop_sessions(session_id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
