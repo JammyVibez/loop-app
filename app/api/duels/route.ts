@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase"
+import { createServerClient } from "@/lib/supabase"
 import { processMentions, extractMentions, attachMentionsColumn } from "@/lib/mentions"
 import { getUserFromRequest } from "@/lib/server-auth"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder"
-)
-
 export async function GET(req: NextRequest) {
   try {
+    const supabase = createServerClient()
     const { searchParams } = new URL(req.url)
     const status = searchParams.get("status") || "active"
     const loopId = searchParams.get("loop_id")
@@ -50,6 +46,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = createServerClient()
     const user = await getUserFromRequest(req)
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
