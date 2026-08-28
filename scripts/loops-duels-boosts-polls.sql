@@ -38,22 +38,33 @@ CREATE TABLE IF NOT EXISTS loop_poll_votes (
 
 -- 3. Loop Duels Tables
 CREATE TABLE IF NOT EXISTS loop_duels (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   prompt TEXT NOT NULL,
   creator_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  opponent_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  circle_id UUID,
+  opponent_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  loop_id TEXT REFERENCES loops(id) ON DELETE CASCADE,
+  circle_id BIGINT REFERENCES circles(id),
   stake_coins INTEGER DEFAULT 50,
   duration_hours INTEGER DEFAULT 24,
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
   status TEXT DEFAULT 'active',
   winner_id UUID REFERENCES profiles(id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  duel_type TEXT DEFAULT 'standard',
+  clip_url TEXT,
+  prediction_question TEXT,
+  betting_ends_at TIMESTAMP WITH TIME ZONE,
+  correct_side TEXT,
+  outcome_revealed BOOLEAN DEFAULT false,
+  payout_processed BOOLEAN DEFAULT false,
+  yes_stake BIGINT DEFAULT 0,
+  no_stake BIGINT DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS loop_duel_entries (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  duel_id UUID REFERENCES loop_duels(id) ON DELETE CASCADE,
+  id BIGSERIAL PRIMARY KEY,
+  duel_id BIGINT REFERENCES loop_duels(id) ON DELETE CASCADE,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   side TEXT NOT NULL,
   title TEXT,
