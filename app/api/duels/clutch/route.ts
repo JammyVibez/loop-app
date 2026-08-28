@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase"
+import { createServerClient } from "@/lib/supabase"
 import { processMentions, extractMentions, attachMentionsColumn } from "@/lib/mentions"
 import { getUserFromRequest } from "@/lib/server-auth";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder"
-)
 
 const MIN_WINDOW = 10
 const MAX_WINDOW = 300
@@ -14,6 +9,7 @@ const MAX_STAKE = 1000
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = createServerClient()
 
     const authUser = await getUserFromRequest(req)
     if (!authUser) {
