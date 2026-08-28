@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Loader2, Lock, Mail, ShieldCheck, KeyRound, CheckCircle2, AlertCircle, ExternalLink, Trash2 } from "lucide-react"
+import { TwoFactorSettings } from "@/components/settings/two-factor-settings"
 
 export function SecuritySettings() {
   const { user, refreshUser, getAuthHeader } = useAuth()
@@ -392,6 +393,9 @@ export function SecuritySettings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Two-Factor Authentication */}
+      <TwoFactorSettings />
     </div>
   )
 }
