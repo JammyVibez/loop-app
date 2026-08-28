@@ -1,0 +1,409 @@
+"use client"
+
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { Zap, Users, ChevronLeft, ChevronRight } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { GiftModal } from "@/components/gifting/gift-modal"
+import { CreateBranchDialog } from "@/components/create-branch-dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { LoopChainDialog } from "@/components/loops/loop-chain-dialog"
+import { BoostLoopDialog } from "@/components/loops/boost-loop-dialog"
+import { ShareToDmModal } from "@/components/messages/share-to-dm-modal"
+import { ShareToCircleModal } from "@/components/messages/share-to-circle-modal"
+import { ShareAsImageModal } from "@/components/engagement/share-as-image-modal"
+import { EnhancedShareSheet } from "@/components/engagement/enhanced-share-sheet"
+import { ProtectedMedia } from "@/components/media-protection"
+
+interface LoopCardModalsProps {
+  loop: any
+  rawLoop: any
+  content: string
+  // Gift modal
+  showGiftModal: boolean
+  setShowGiftModal: (v: boolean) => void
+  // Branch dialog
+  showBranchDialog: boolean
+  setShowBranchDialog: (v: boolean) => void
+  // Delete
+  deleteOpen: boolean
+  setDeleteOpen: (v: boolean) => void
+  confirmDelete: () => void
+  // Edit
+  editOpen: boolean
+  setEditOpen: (v: boolean) => void
+  editContent: string
+  setEditContent: (v: string) => void
+  savingEdit: boolean
+  saveEdit: () => void
+  // Viewer
+  viewerOpen: boolean
+  setViewerOpen: (v: boolean) => void
+  currentMediaIndex: number
+  setCurrentMediaIndex: (fn: (prev: number) => number) => void
+  // Roster
+  rosterOpen: boolean
+  setRosterOpen: (v: boolean) => void
+  coAuthors: any[]
+  // Chain
+  chainDialogOpen: boolean
+  setChainDialogOpen: (v: boolean) => void
+  // Boost
+  boostDialogOpen: boolean
+  setBoostDialogOpen: (v: boolean) => void
+  boostCoinsCurrent: number
+  setBoostCoinsCurrent: (v: number) => void
+  setIsBoosted: (v: boolean) => void
+  // Share modals
+  shareDmOpen: boolean
+  setShareDmOpen: (v: boolean) => void
+  shareCircleOpen: boolean
+  setShareCircleOpen: (v: boolean) => void
+  shareImageOpen: boolean
+  setShareImageOpen: (v: boolean) => void
+  shareSheetOpen: boolean
+  setShareSheetOpen: (v: boolean) => void
+}
+
+export function LoopCardModals({
+  loop,
+  rawLoop,
+  content,
+  showGiftModal,
+  setShowGiftModal,
+  showBranchDialog,
+  setShowBranchDialog,
+  deleteOpen,
+  setDeleteOpen,
+  confirmDelete,
+  editOpen,
+  setEditOpen,
+  editContent,
+  setEditContent,
+  savingEdit,
+  saveEdit,
+  viewerOpen,
+  setViewerOpen,
+  currentMediaIndex,
+  setCurrentMediaIndex,
+  rosterOpen,
+  setRosterOpen,
+  coAuthors,
+  chainDialogOpen,
+  setChainDialogOpen,
+  boostDialogOpen,
+  setBoostDialogOpen,
+  boostCoinsCurrent,
+  setBoostCoinsCurrent,
+  setIsBoosted,
+  shareDmOpen,
+  setShareDmOpen,
+  shareCircleOpen,
+  setShareCircleOpen,
+  shareImageOpen,
+  setShareImageOpen,
+  shareSheetOpen,
+  setShareSheetOpen,
+}: LoopCardModalsProps) {
+  const router = useRouter()
+
+  const mediaUrls = loop.media_urls || (loop.media_url ? [loop.media_url] : [])
+
+  return (
+    <>
+      {/* Gift Modal */}
+      <GiftModal
+        open={showGiftModal}
+        onOpenChange={setShowGiftModal}
+        recipient={{
+          id: loop.author.id,
+          username: loop.author.username,
+          display_name: loop.author.display_name,
+          avatar_url: loop.author.avatar_url,
+        }}
+        context={{
+          type: "post",
+          id: loop.id,
+          title: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
+        }}
+      />
+
+      {/* Branch Dialog */}
+      <CreateBranchDialog
+        open={showBranchDialog}
+        onOpenChange={setShowBranchDialog}
+        parentLoop={loop}
+        onBranchCreated={(branchId) => router.push(`/loop/${branchId}`)}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete this loop?"
+        description="This cannot be undone. Branches from others may remain."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={confirmDelete}
+      />
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="border-border bg-popover text-foreground">
+          <DialogHeader>
+            <DialogTitle>Edit loop</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            className="min-h-[140px] border-border bg-muted"
+          />
+          <DialogFooter>
+            <Button variant="outline" className="border-border" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveEdit} disabled={savingEdit}>
+              {savingEdit ? "Saving..." : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Media Viewer Dialog */}
+      <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
+        <DialogContent className="max-h-[100dvh] max-w-[100vw] border-0 bg-black/95 p-0 text-white sm:max-w-5xl">
+          <div className="relative flex min-h-[70vh] items-center justify-center p-4">
+            {(() => {
+              const url = mediaUrls[currentMediaIndex]
+              if (!url) return null
+              if (loop.media_type === "video") {
+                return (
+                  <ProtectedMedia
+                    type="video"
+                    src={url}
+                    className="max-h-[85vh] max-w-full object-contain"
+                  />
+                )
+              }
+              return (
+                <ProtectedMedia
+                  type="image"
+                  src={url}
+                  alt="Full media"
+                  className="max-h-[85vh] max-w-full object-contain"
+                />
+              )
+            })()}
+            {mediaUrls.length > 1 && (
+              <>
+                <Button
+                  variant="ghost"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 text-white"
+                  onClick={() =>
+                    setCurrentMediaIndex((prev) =>
+                      prev > 0 ? prev - 1 : mediaUrls.length - 1
+                    )
+                  }
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white"
+                  onClick={() =>
+                    setCurrentMediaIndex((prev) =>
+                      prev < mediaUrls.length - 1 ? prev + 1 : 0
+                    )
+                  }
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </Button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Co-Loop Roster Dialog */}
+      <Dialog open={rosterOpen} onOpenChange={setRosterOpen}>
+        <DialogContent className="border-border/60 bg-card text-foreground sm:max-w-md rounded-2xl p-5">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold">
+              <Zap className="h-5 w-5 text-cyan-400" />
+              Co-Loop Contributors Roster
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {/* Primary Creator */}
+            <div className="flex items-center justify-between rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-3">
+              <div className="flex items-center gap-3">
+                <AvatarWithFrame
+                  avatarUrl={loop.author.avatar_url}
+                  videoAvatarUrl={loop.author.video_avatar_url || null}
+                  frameId={loop.author.equipped_frame_id}
+                  size={40}
+                  alt={loop.author.display_name}
+                  className="ring-2 ring-cyan-500"
+                />
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-bold text-xs sm:text-sm">{loop.author.display_name}</p>
+                    <Badge className="bg-cyan-500 text-[9px] font-bold px-1.5 py-0 text-black">
+                      CREATOR
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">@{loop.author.username}</p>
+                </div>
+              </div>
+              <Button asChild size="sm" variant="outline" className="rounded-xl text-xs h-8">
+                <Link href={`/profile/${loop.author.username}`}>Profile</Link>
+              </Button>
+            </div>
+
+            {/* Co-Authors List */}
+            {coAuthors.map((ca: any, idx: number) => (
+              <div
+                key={ca.id || idx}
+                className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 p-3"
+              >
+                <div className="flex items-center gap-3">
+                  <AvatarWithFrame
+                    avatarUrl={ca.avatar_url}
+                    videoAvatarUrl={ca.video_avatar_url || null}
+                    frameId={ca.equipped_frame_id}
+                    size={40}
+                    alt={ca.display_name || ca.username}
+                    className="ring-2 ring-purple-500"
+                  />
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-bold text-xs sm:text-sm">
+                        {ca.display_name || ca.username}
+                      </p>
+                      <Badge variant="secondary" className="text-[9px] font-bold px-1.5 py-0">
+                        {ca.role || "CO-AUTHOR"}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">@{ca.username}</p>
+                  </div>
+                </div>
+                <Button asChild size="sm" variant="outline" className="rounded-xl text-xs h-8">
+                  <Link href={`/profile/${ca.username}`}>Profile</Link>
+                </Button>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" className="w-full rounded-xl" onClick={() => setRosterOpen(false)}>
+              Close Roster
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Loop Chain Branch Map Dialog */}
+      <LoopChainDialog
+        loopId={loop.id}
+        open={chainDialogOpen}
+        onOpenChange={setChainDialogOpen}
+      />
+
+      {/* Crowd-Funded Boost Dialog */}
+      <BoostLoopDialog
+        loopId={loop.id}
+        loopTitle={content.slice(0, 40)}
+        currentCoins={boostCoinsCurrent}
+        targetCoins={rawLoop?.boost_coins_target || 1000}
+        open={boostDialogOpen}
+        onOpenChange={setBoostDialogOpen}
+        onBoostSuccess={(newCurrent, isBoostedState) => {
+          setBoostCoinsCurrent(newCurrent)
+          setIsBoosted(isBoostedState)
+        }}
+      />
+
+      {/* Share to Direct Message Modal */}
+      <ShareToDmModal
+        open={shareDmOpen}
+        onOpenChange={setShareDmOpen}
+        item={{
+          id: loop.id,
+          type: "loop",
+          title: content.slice(0, 60),
+          text: content,
+          authorName: loop.author?.display_name || loop.author?.username,
+          mediaUrl: loop.media_urls?.[0] || loop.media_url || undefined,
+        }}
+      />
+
+      {/* Share to Circle Community Feed Modal */}
+      <ShareToCircleModal
+        open={shareCircleOpen}
+        onOpenChange={setShareCircleOpen}
+        item={{
+          id: loop.id,
+          type: "loop",
+          title: content.slice(0, 60),
+          text: content,
+          authorName: loop.author?.display_name || loop.author?.username,
+          mediaUrl: loop.media_urls?.[0] || loop.media_url || undefined,
+        }}
+      />
+
+      {/* Share as image card */}
+      <ShareAsImageModal
+        open={shareImageOpen}
+        onOpenChange={setShareImageOpen}
+        post={{
+          id: loop.id,
+          content: content,
+          media_url: loop.media_urls?.[0] || loop.media_url || undefined,
+          media_type: loop.media_type || undefined,
+          author: {
+            username: loop.author?.username || "user",
+            display_name: loop.author?.display_name || loop.author?.username || "User",
+            avatar_url: loop.author?.avatar_url,
+            is_verified: Boolean(loop.author?.is_verified),
+            is_premium: Boolean(loop.author?.is_premium),
+            is_sponsor: Boolean(loop.author?.is_sponsor),
+            is_team: Boolean(loop.author?.is_team_member),
+          },
+          stats: {
+            likes_count: Number(loop.stats?.likes_count || 0),
+            comments_count: Number(loop.stats?.comments_count || 0),
+            branches_count: Number(loop.stats?.branches_count || 0),
+            shares_count: Number(loop.stats?.shares_count || 0),
+          },
+        }}
+      />
+
+      {/* Enhanced Share Sheet */}
+      <EnhancedShareSheet
+        open={shareSheetOpen}
+        onOpenChange={setShareSheetOpen}
+        item={{
+          id: loop.id,
+          type: "loop",
+          title: content.slice(0, 80),
+          text: content,
+          authorName: loop.author?.display_name || loop.author?.username,
+          mediaUrl: loop.media_urls?.[0] || loop.media_url || undefined,
+          mediaType: loop.media_type || undefined,
+          sharePath: `/loop/${loop.id}`,
+        }}
+        onDmShare={() => setShareDmOpen(true)}
+        onCircleShare={() => setShareCircleOpen(true)}
+      />
+    </>
+  )
+}
