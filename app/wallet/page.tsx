@@ -16,6 +16,7 @@ import { Coins, ArrowDownLeft, ArrowUpRight, Gift, PlusCircle, CreditCard, Shiel
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
+import { TransactionFilter } from "@/components/wallet/transaction-filter"
 
 interface Transaction {
   id: string
@@ -694,16 +695,11 @@ export default function WalletPage() {
           <CardContent className="pt-4">
             {/* Tab 1: Transactions */}
             <TabsContent value="transactions" className="m-0 space-y-4">
-              <div className="flex justify-end mb-2">
-                <Tabs value={filterType} onValueChange={setFilterType} className="w-full sm:w-auto">
-                  <TabsList className="grid grid-cols-4 h-7 text-xs bg-muted/70 p-0.5 rounded-lg">
-                    <TabsTrigger value="all" className="rounded-md px-2 py-0.5 text-[11px]">All</TabsTrigger>
-                    <TabsTrigger value="deposits" className="rounded-md px-2 py-0.5 text-[11px]">Deposits</TabsTrigger>
-                    <TabsTrigger value="gifts" className="rounded-md px-2 py-0.5 text-[11px]">Gifts</TabsTrigger>
-                    <TabsTrigger value="purchases" className="rounded-md px-2 py-0.5 text-[11px]">Shop</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
+              {/* Advanced Transaction Filter */}
+              <TransactionFilter
+                transactions={transactions}
+                onFiltered={(filtered) => setFilteredTransactions(filtered)}
+              />
 
               {loading ? (
                 <div className="py-12 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">

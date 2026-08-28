@@ -46,6 +46,7 @@ import {
 import { OrganizationSettings } from "@/components/settings/organization-settings"
 import { ReferralsSettings } from "@/components/settings/referrals-settings"
 import { SecuritySettings } from "@/components/settings/security-settings"
+import { SecuritySessions } from "@/components/settings/security-sessions"
 import { VideoMediaSettings } from "@/components/cosmetics/video-media-settings"
 import { AccountSwitcher } from "@/components/accounts/account-switcher"
 import { cn } from "@/lib/utils"
@@ -826,6 +827,7 @@ export function EnhancedSettings() {
 
         <TabsContent value="security" className="space-y-4">
           <SecuritySettings />
+          <SecuritySessions />
         </TabsContent>
 
         <TabsContent value="privacy" className="space-y-4">

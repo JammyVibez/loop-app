@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { GlobalEventsHub } from "@/components/events/global-events-hub"
 import { GlobalEventBanner } from "@/components/events/global-event-banner"
 import { ParticipationDiscovery } from "@/components/explore/participation-discovery"
+import { ExploreSearchAutocomplete } from "@/components/explore/explore-search-autocomplete"
 import { Calendar } from "lucide-react"
 
 type ExploreTab = "events" | "recent" | "deepest" | "creative" | "hashtags"
@@ -205,6 +206,9 @@ export function ExploreContent() {
   return (
     <div className="space-y-6">
       <GlobalEventBanner />
+
+      {/* Search Autocomplete */}
+      <ExploreSearchAutocomplete onSearch={(q) => {/* search handled by tabs */}} />
 
       {/* Participation discovery — live duels, co-loops, circles, creators */}
       <ParticipationDiscovery />

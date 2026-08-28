@@ -30,6 +30,11 @@ import { uploadMediaFile } from "@/lib/client-media-upload"
 import { UserBadges } from "@/components/user-badge"
 import { usePfpFrame } from "@/hooks/use-pfp-frame"
 import { useVerificationBadges } from "@/hooks/use-verification-badges"
+import { ProfileAboutTab } from "@/components/profile/profile-about-tab"
+import { ProfileCompletionIndicator } from "@/components/profile/profile-completion"
+import { ActivityHeatmap } from "@/components/profile/activity-heatmap"
+import { ProfileMediaGrid } from "@/components/profile/profile-media-grid"
+import { SimilarCreators } from "@/components/profile/similar-creators"
 import { AccountStatusScreen } from "@/components/profile/account-status-screen"
 import { RichContent } from "@/components/content/rich-content"
 import { BioCommunityTags } from "@/components/profile/bio-community-tags"
@@ -855,6 +860,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full lg:pt-4">
         <TabsList className="flex h-auto w-full justify-stretch overflow-x-auto rounded-none border-b border-border/70 bg-transparent p-0">
           {[
+            { id: "about", label: "About" },
             { id: "loops", label: "Loops" },
             { id: "branches", label: "Branches" },
             { id: "media", label: "Media" },
@@ -869,6 +875,31 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             </TabsTrigger>
           ))}
         </TabsList>
+
+        <TabsContent value="about" className="mt-0 space-y-4">
+          {/* Profile Completion Indicator (own profile only) */}
+          {isOwnProfile && (
+            <ProfileCompletionIndicator profile={profile} />
+          )}
+
+          {/* About Tab Content */}
+          <ProfileAboutTab
+            profile={profile}
+            isOwnProfile={isOwnProfile}
+            onEdit={() => window.location.href = "/settings?tab=profile"}
+          />
+
+          {/* Activity Heatmap */}
+          <ActivityHeatmap userId={profile.id} />
+
+          {/* Similar Creators */}
+          {!isOwnProfile && (
+            <SimilarCreators
+              currentUserId={profile.id}
+              circles={profile.tagged_circles}
+            />
+          )}
+        </TabsContent>
 
         <TabsContent value="loops" className="mt-0 space-y-0">
           {(() => {
@@ -942,28 +973,11 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         </TabsContent>
 
         <TabsContent value="media" className="mt-0">
-          {(profile.media_loops?.length || profile.recent_loops?.some((l) => l.media_url || l.media_urls?.length)) ? (
-            <div className="grid grid-cols-3 gap-0.5">
-              {(profile.media_loops?.length
-                ? profile.media_loops
-                : profile.recent_loops.filter((l) => l.media_url || l.media_urls?.length)
-              ).map((loop) => {
-                  const url = loop.media_url || loop.media_urls?.[0]
-                  return (
-                    <Link key={loop.id} href={`/loop/${loop.id}`} className="group relative aspect-square bg-muted">
-                      {loop.media_type === "video" ? (
-                        <video src={url} className="h-full w-full object-cover" muted />
-                      ) : (
-                        <ProxyImg src={url} alt="" className="h-full w-full object-cover" />
-                      )}
-                      <span className="pointer-events-none absolute inset-0 bg-black/0 transition group-hover:bg-black/25" />
-                    </Link>
-                  )
-                })}
-            </div>
-          ) : (
-            <EmptyBlock icon={Users} label="No media yet" />
-          )}
+          <ProfileMediaGrid
+            loops={profile.media_loops?.length
+              ? profile.media_loops
+              : (profile.recent_loops || []).filter((l: any) => l.media_url || l.media_urls?.length)}
+          />
         </TabsContent>
 
         <TabsContent value="awards" className="mt-0 p-4">
