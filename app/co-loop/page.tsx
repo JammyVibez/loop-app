@@ -29,11 +29,10 @@ interface CoLoopSession {
   session_id: string
   created_at: string
   updated_at: string
-  post_content?: string
+  open_invite_topic?: string
   max_collaborators: number
   status: string
   is_open_invite: boolean
-  open_invite_topic?: string
   co_authors: Array<{
     user_id: string
     joined_at: string
@@ -67,7 +66,6 @@ export default function CoLoopSessionsPage() {
           session_id,
           created_at,
           updated_at,
-          post_content,
           max_collaborators,
           status,
           is_open_invite,
@@ -94,7 +92,6 @@ export default function CoLoopSessionsPage() {
             session_id,
             created_at,
             updated_at,
-            post_content,
             max_collaborators,
             status,
             is_open_invite,
@@ -238,7 +235,7 @@ export default function CoLoopSessionsPage() {
               const sessionActive = session.status === "active"
               const sessionEnded = session.status === "ended"
               const sessionPublished = session.status === "published"
-              const topic = session.open_invite_topic || session.post_content || "Untitled session"
+              const topic = session.open_invite_topic || "Untitled session"
 
               return (
                 <Card

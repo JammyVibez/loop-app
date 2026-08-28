@@ -72,14 +72,74 @@ interface Comment {
   content: string
   author_id: string
   created_at: string
+  parent_comment_id?: string | null
   author?: {
     id: string
     username: string
     display_name: string
     avatar_url?: string
+    video_avatar_url?: string
     is_verified?: boolean
+    is_premium?: boolean
   }
   like_count?: number
+  replies?: Comment[]
+}
+
+function CommentThread({ comment, user, onReply, depth = 0 }: { comment: Comment; user: any; onReply: (c: Comment) => void; depth?: number }) {
+  const maxDepth = 3
+  return (
+    <div className={depth > 0 ? "ml-6 border-l border-white/5 pl-3" : ""}>
+      <div className="flex gap-2 p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.05] transition-colors">
+        <VideoAvatar
+          src={comment.author?.avatar_url}
+          videoSrc={(comment.author as any)?.video_avatar_url}
+          isPremium={(comment.author as any)?.is_premium}
+          alt={comment.author?.display_name}
+          fallback={(comment.author?.display_name || "?")[0].toUpperCase()}
+          size="sm"
+          className="h-6 w-6 shrink-0 rounded-full"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-bold text-foreground">
+              {comment.author?.display_name || comment.author?.username}
+            </span>
+            {comment.author?.is_verified && (
+              <CheckCircle2 className="h-2.5 w-2.5 text-cyan-400 fill-cyan-400/20" />
+            )}
+            <span className="text-[10px] text-muted-foreground">
+              {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+            </span>
+          </div>
+          <p className="text-xs text-foreground/90 leading-relaxed mt-0.5 break-words">
+            {comment.content}
+          </p>
+          <div className="flex items-center gap-3 mt-1">
+            {user && depth < maxDepth && (
+              <button
+                onClick={() => onReply(comment)}
+                className="text-[10px] font-semibold text-cyan-400 hover:text-cyan-300 transition-colors"
+              >
+                Reply
+              </button>
+            )}
+            <span className="text-[10px] text-muted-foreground">
+              {(comment.like_count || 0) > 0 && `${comment.like_count} like${(comment.like_count || 0) !== 1 ? "s" : ""}`}
+            </span>
+          </div>
+        </div>
+      </div>
+      {/* Render nested replies */}
+      {comment.replies && comment.replies.length > 0 && (
+        <div className="space-y-0">
+          {comment.replies.map((reply) => (
+            <CommentThread key={reply.id} comment={reply} user={user} onReply={onReply} depth={depth + 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 const AVATAR_RING_COLORS = [
@@ -128,6 +188,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
   const [commentsLoading, setCommentsLoading] = useState(false)
   const [commentText, setCommentText] = useState("")
   const [submittingComment, setSubmittingComment] = useState(false)
+  const [replyTo, setReplyTo] = useState<Comment | null>(null)
 
   // Realtime: listen for participants joining + session status changes + likes/comments
   useEffect(() => {
@@ -298,16 +359,21 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
       router.push("/auth?returnTo=" + encodeURIComponent("/"))
       return
     }
-    setLiked(!liked)
-    setLikeCount((prev) => (liked ? prev - 1 : prev + 1))
+    const wasLiked = liked
+    setLiked(!wasLiked)
+    setLikeCount((prev) => (wasLiked ? prev - 1 : prev + 1))
     try {
-      await fetch(`/api/loops/${post.id}/interactions`, {
+      const res = await fetch(`/api/loops/${post.id}/interactions`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({ interaction_type: "like" }),
       })
+      if (!res.ok) {
+        setLiked(wasLiked)
+        setLikeCount(post.loop_stats?.likes_count || 0)
+      }
     } catch {
-      setLiked(liked)
+      setLiked(wasLiked)
       setLikeCount(post.loop_stats?.likes_count || 0)
     }
   }
@@ -322,24 +388,34 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
     setSubmittingComment(true)
     const text = commentText.trim()
     setCommentText("")
+    const parentId = replyTo?.id || null
+    setReplyTo(null)
 
     try {
       const res = await fetch(`/api/loops/${post.id}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ content: text }),
+        body: JSON.stringify({ content: text, parent_comment_id: parentId }),
       })
 
       if (res.ok) {
         const data = await res.json()
         if (data.comment) {
-          setComments((prev) => [...prev, data.comment])
+          if (parentId) {
+            // Add as nested reply
+            setComments((prev) => prev.map((c) =>
+              c.id === parentId ? { ...c, replies: [...(c.replies || []), data.comment] } : c
+            ))
+          } else {
+            setComments((prev) => [...prev, { ...data.comment, replies: [] }])
+          }
         }
         setCommentCount((prev) => prev + 1)
       } else {
         const data = await res.json().catch(() => ({}))
         toast({ title: "Failed to post comment", description: data.error || "Try again", variant: "destructive" })
         setCommentText(text)
+        if (parentId) setReplyTo(comments.find((c) => c.id === parentId) || null)
       }
     } catch {
       toast({ title: "Failed to post comment", description: "Network error", variant: "destructive" })
@@ -650,36 +726,28 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
                 No comments yet. Be the first to comment!
               </p>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="space-y-1 max-h-80 overflow-y-auto">
                 {comments.map((comment) => (
-                  <div key={comment.id} className="flex gap-2 p-2 rounded-lg bg-white/[0.03]">
-                    <VideoAvatar
-                      src={comment.author?.avatar_url}
-                      videoSrc={(comment.author as any)?.video_avatar_url}
-                      isPremium={(comment.author as any)?.is_premium}
-                      alt={comment.author?.display_name}
-                      fallback={(comment.author?.display_name || "?")[0].toUpperCase()}
-                      size="sm"
-                      className="h-6 w-6 shrink-0 rounded-full"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-foreground">
-                          {comment.author?.display_name || comment.author?.username}
-                        </span>
-                        {comment.author?.is_verified && (
-                          <CheckCircle2 className="h-2.5 w-2.5 text-cyan-400 fill-cyan-400/20" />
-                        )}
-                        <span className="text-[10px] text-muted-foreground">
-                          {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
-                        </span>
-                      </div>
-                      <p className="text-xs text-foreground/90 leading-relaxed mt-0.5 break-words">
-                        {comment.content}
-                      </p>
-                    </div>
-                  </div>
+                  <CommentThread
+                    key={comment.id}
+                    comment={comment}
+                    user={user}
+                    onReply={(c) => { setReplyTo(c); setCommentText(""); }}
+                    depth={0}
+                  />
                 ))}
+              </div>
+            )}
+
+            {/* Reply indicator */}
+            {replyTo && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
+                <span className="text-[11px] text-cyan-400 truncate flex-1">
+                  Replying to {replyTo.author?.display_name || replyTo.author?.username || "someone"}
+                </span>
+                <button onClick={() => setReplyTo(null)} className="text-[10px] text-muted-foreground hover:text-foreground">
+                  ✕
+                </button>
               </div>
             )}
 
@@ -699,7 +767,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
                   <Input
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="Add a comment..."
+                    placeholder={replyTo ? `Reply to ${replyTo.author?.display_name || "..."}...` : "Add a comment..."}
                     className="bg-transparent border-none text-xs text-foreground placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
