@@ -211,13 +211,16 @@ export function CirclesList() {
       >
         {/* Banner with 3D gradient overlay */}
         <div
-          className="relative h-36 bg-slate-800 transition-all duration-500 group-hover:scale-105"
+          className="relative h-36 overflow-hidden transition-all duration-500 group-hover:scale-105"
           style={{
             backgroundImage: circle.banner_url ? `url(${circle.banner_url})` : undefined,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         >
+          {!circle.banner_url && (
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/30 via-indigo-600/30 to-violet-600/30" />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
 
           {/* Top Badges */}
@@ -305,9 +308,15 @@ export function CirclesList() {
               {isOwnerPro && <Crown className="h-3 w-3 text-amber-400 shrink-0" />}
             </div>
 
-            <div className="flex items-center gap-1 text-[11px] text-cyan-400 font-semibold shrink-0">
-              <MessageSquare className="h-3 w-3" />
-              <span>Active Stage</span>
+            <div className="flex items-center gap-1.5 text-[11px] text-cyan-400 font-semibold shrink-0">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
+              </span>
+              <span>Active</span>
+              {Number(circle.post_count || 0) > 0 && (
+                <span className="text-muted-foreground">· {circle.post_count} posts</span>
+              )}
             </div>
           </div>
 

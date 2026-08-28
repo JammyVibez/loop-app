@@ -59,6 +59,9 @@ import {
 } from "lucide-react"
 import { RealtimeCircleChat } from "@/components/circles/realtime-circle-chat"
 import { SlackCircleWorkspace } from "@/components/circles/slack-circle-workspace"
+import { CircleActivityFeed } from "@/components/circles/circle-activity-feed"
+import { CircleLeaderboard } from "@/components/circles/circle-leaderboard"
+import { CircleColoop } from "@/components/circles/circle-coloop"
 import { CircleEvents } from "@/components/circles/circle-events"
 import { CommunityAdvancedPanel } from "@/components/circles/community-advanced-panel"
 import { GiftModal } from "@/components/gifting/gift-modal"
@@ -1288,11 +1291,13 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
         <div className="-mx-1 overflow-x-auto pb-1">
           <TabsList className="inline-flex h-auto min-w-full w-max gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:min-w-0 sm:w-full sm:flex-wrap">
             {[
-              { value: "posts", label: "Posts", icon: Hash },
+              { value: "posts", label: "Feed", icon: Hash },
+              { value: "activity", label: "Activity", icon: Zap },
+              { value: "coloop", label: "Co-Loop", icon: Video },
               { value: "rooms", label: "Rooms", icon: MessageCircle },
               { value: "events", label: "Events", icon: Calendar },
               { value: "members", label: "Members", icon: Users },
-              { value: "leaderboard", label: "Board", icon: Trophy },
+              { value: "leaderboard", label: "Leaderboard", icon: Trophy },
               { value: "about", label: "About", icon: Star },
               { value: "studio", label: "Studio", icon: Settings },
             ].map((tab) => (
@@ -1835,6 +1840,14 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
           </div>
         </TabsContent>
 
+        <TabsContent value="activity" className="mt-4 space-y-4 sm:mt-6 sm:space-y-6">
+          <CircleActivityFeed circleId={circleId} />
+        </TabsContent>
+
+        <TabsContent value="coloop" className="mt-4 space-y-4 sm:mt-6 sm:space-y-6">
+          <CircleColoop circleId={circleId} isMember={isJoined} />
+        </TabsContent>
+
           <TabsContent value="rooms" className="mt-4 space-y-4 sm:mt-6 sm:space-y-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h3 className="text-lg font-semibold sm:text-xl">Circle Rooms</h3>
@@ -1953,52 +1966,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
           </TabsContent>
 
           <TabsContent value="leaderboard" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Top Contributors</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {members
-                    .sort((a, b) => b.contribution_score - a.contribution_score)
-                    .slice(0, 10)
-                    .map((member, index) => (
-                      <div key={member.id} className="flex items-center space-x-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                          index === 0 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-300' :
-                          index === 1 ? 'bg-muted text-foreground' :
-                          index === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300' :
-                          'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300'
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <VideoAvatar
-                          src={member.avatar_url}
-                          videoSrc={(member as any).video_avatar_url}
-                          alt={member.display_name || member.username}
-                          fallback={(member.display_name || member.username || "?").charAt(0)}
-                          size="md"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-medium truncate">{member.display_name || member.username}</span>
-                            {member.is_premium && <Crown className="w-4 h-4 text-yellow-500" />}
-                          </div>
-                          <p className="text-sm text-muted-foreground">{member.contribution_score} points</p>
-                        </div>
-                        
-{index < 3 && (
-                          <Trophy className={`w-5 h-5 ${
-                            index === 0 ? 'text-yellow-500' :
-                            index === 1 ? 'text-muted-foreground' :
-                            'text-orange-500'
-                          }`} />
-                        )}
-                      </div>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
+            <CircleLeaderboard circleId={circleId} members={members} />
           </TabsContent>
 
           <TabsContent value="about" className="space-y-6">
