@@ -285,6 +285,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   const [editPostContent, setEditPostContent] = useState("")
   const [savingPostEdit, setSavingPostEdit] = useState(false)
   const [deletePostId, setDeletePostId] = useState<string | null>(null)
+  const [memberSearchQuery, setMemberSearchQuery] = useState("")
   const [deletingPost, setDeletingPost] = useState(false)
   const [previewMediaUrl, setPreviewMediaUrl] = useState<string | null>(null)
   const [doubleTapPostId, setDoubleTapPostId] = useState<string | null>(null)
@@ -1026,11 +1027,34 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
     return (
       <div className="w-full">
         {backBar("Loading…")}
-        <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
-            <p className="text-muted-foreground">Loading circle...</p>
+        {/* Skeleton banner */}
+        <div className="h-40 w-full animate-pulse rounded-t-xl bg-muted" />
+        {/* Skeleton header card */}
+        <div className="mx-4 -mt-8 relative z-10 rounded-xl border bg-card p-6 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 animate-pulse rounded-full bg-muted" />
+            <div className="flex-1 space-y-2">
+              <div className="h-6 w-48 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-72 animate-pulse rounded bg-muted" />
+            </div>
           </div>
+          <div className="mt-4 flex gap-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-8 w-20 animate-pulse rounded-full bg-muted" />
+            ))}
+          </div>
+        </div>
+        {/* Skeleton nav items */}
+        <div className="px-4 mt-4 space-y-2">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex items-center gap-3 rounded-xl border bg-card p-4">
+              <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+                <div className="h-3 w-48 animate-pulse rounded bg-muted" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     )
@@ -1910,8 +1934,30 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
           </TabsContent>
 
           <TabsContent value="members" className="mt-4 space-y-4 sm:mt-6 sm:space-y-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search members by name or username..."
+                value={memberSearchQuery}
+                onChange={(e) => setMemberSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            {memberSearchQuery && (
+              <p className="text-xs text-muted-foreground">
+                Showing {members.filter((m) => {
+                  const q = memberSearchQuery.toLowerCase()
+                  return m.display_name?.toLowerCase().includes(q) || m.username?.toLowerCase().includes(q)
+                }).length} of {members.length} members
+              </p>
+            )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-              {members.map((member) => {
+              {members.filter((member) => {
+                if (!memberSearchQuery) return true
+                const q = memberSearchQuery.toLowerCase()
+                return member.display_name?.toLowerCase().includes(q) || member.username?.toLowerCase().includes(q)
+              }).map((member) => {
                 const name = member.display_name || member.username || "Member"
                 return (
                 <Card key={member.id} className="transition-shadow hover:shadow-md">
