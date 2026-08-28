@@ -33,6 +33,8 @@ interface DuelData {
   status: "active" | "completed"
   winner_id?: string
   created_at: string
+  side_a_label?: string | null
+  side_b_label?: string | null
   creator?: {
     id: string
     username: string
@@ -58,6 +60,7 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
   const [hasVoted, setHasVoted] = useState<"A" | "B" | null>(null)
   const [userSideBContent, setUserSideBContent] = useState("")
   const [isSubmittingB, setIsSubmittingB] = useState(false)
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
 
@@ -108,6 +111,31 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
       void supabase.removeChannel(channel)
     }
   }, [duel?.id])
+
+  // Live countdown timer
+  useEffect(() => {
+    if (!duel?.expires_at) return
+    const endsAt = new Date(duel.expires_at).getTime()
+    const tick = () => {
+      const left = Math.max(0, Math.floor((endsAt - Date.now()) / 1000))
+      setSecondsLeft(left)
+      if (left <= 0) clearInterval(interval)
+    }
+    tick()
+    const interval = setInterval(tick, 1000)
+    return () => clearInterval(interval)
+  }, [duel?.expires_at])
+
+  const fmtTime = (s: number) => {
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    const sec = s % 60
+    if (h > 0) return `${h}h ${m}m`
+    return `${m}m ${sec}s`
+  }
+
+  const labelA = duel.side_a_label || "Side A"
+  const labelB = duel.side_b_label || "Side B"
 
   if (!duel) return null
 
@@ -212,10 +240,10 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
 
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <Timer className="h-3.5 w-3.5 text-cyan-400" />
-            {new Date(duel.expires_at) > new Date() ? (
-              <><span>Ends</span> <FreshnessTimestamp date={duel.expires_at} /></>
+            {secondsLeft !== null && secondsLeft > 0 ? (
+              <span className="font-mono font-bold text-cyan-300">⏱ {fmtTime(secondsLeft)}</span>
             ) : (
-              <><span>Ended</span> <FreshnessTimestamp date={duel.expires_at} /></>
+              <><span className="text-rose-400 font-semibold">Ended</span> <FreshnessTimestamp date={duel.expires_at} /></>
             )}
           </div>
         </div>
@@ -230,10 +258,10 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-slate-300">
             <span className="text-rose-400 flex items-center gap-1">
-              SIDE A ({percentA}%) — {votesA} votes
+              {labelA} ({percentA}%) — {votesA} votes
             </span>
             <span className="text-cyan-400 flex items-center gap-1">
-              SIDE B ({percentB}%) — {votesB} votes
+              {labelB} ({percentB}%) — {votesB} votes
             </span>
           </div>
 
@@ -268,7 +296,7 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
                   <span className="font-bold text-white text-sm block">
                     {duel.creator?.display_name || "Challenger"}
                   </span>
-                  <span className="text-xs text-rose-300 font-semibold">@Side A</span>
+                  <span className="text-xs text-rose-300 font-semibold">@{labelA}</span>
                 </div>
               </div>
               <p className="text-sm text-slate-200 whitespace-pre-wrap">{entryA?.content || "No take posted yet."}</p>
@@ -285,10 +313,10 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
             >
               {hasVoted === "A" ? (
                 <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4" /> Voted for A
+                  <CheckCircle2 className="h-4 w-4" /> Voted {labelA}
                 </span>
               ) : (
-                `Vote Side A (${votesA})`
+                `Vote ${labelA} (${votesA})`
               )}
             </Button>
           </div>
@@ -307,7 +335,7 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
                       <span className="font-bold text-white text-sm block">
                         {duel.opponent?.display_name || "Opponent"}
                       </span>
-                      <span className="text-xs text-cyan-300 font-semibold">@Side B</span>
+                      <span className="text-xs text-cyan-300 font-semibold">@{labelB}</span>
                     </div>
                   </div>
                   <p className="text-sm text-slate-200 whitespace-pre-wrap">{entryB.content}</p>
@@ -324,10 +352,10 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
                 >
                   {hasVoted === "B" ? (
                     <span className="flex items-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4" /> Voted for B
+                      <CheckCircle2 className="h-4 w-4" /> Voted {labelB}
                     </span>
                   ) : (
-                    `Vote Side B (${votesB})`
+                    `Vote ${labelB} (${votesB})`
                   )}
                 </Button>
               </>

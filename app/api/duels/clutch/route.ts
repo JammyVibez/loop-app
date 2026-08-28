@@ -25,6 +25,8 @@ export async function POST(req: NextRequest) {
       stakeCoins = 0,
       content = "",
       hashtags = [],
+      side_a_label = null,
+      side_b_label = null,
     } = body
 
     if (!clipUrl || !question?.trim()) {
@@ -76,6 +78,8 @@ export async function POST(req: NextRequest) {
         clip_url: clipUrl,
         prediction_question: question.trim(),
         betting_ends_at: bettingEndsAt,
+        side_a_label: side_a_label || null,
+        side_b_label: side_b_label || null,
         correct_side: null,
         outcome_revealed: false,
         payout_processed: false,

@@ -21,6 +21,7 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
   const [creatorContent, setCreatorContent] = useState("")
   const [stakeCoins, setStakeCoins] = useState(50)
   const [durationHours, setDurationHours] = useState(24)
+  const [durationMinutes, setDurationMinutes] = useState(0)
   const [loading, setLoading] = useState(false)
 
   const { getAuthHeader } = useAuth()
@@ -45,7 +46,7 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
           prompt,
           opponentUsername: opponent,
           stakeCoins,
-          durationHours,
+          durationHours: durationHours + durationMinutes / 60,
           creatorContent,
         }),
       })
@@ -136,16 +137,27 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
               <label className="text-xs font-semibold text-foreground dark:text-slate-300 flex items-center gap-1">
                 <Clock className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" /> Voting Window
               </label>
-              <select
-                value={durationHours}
-                onChange={(e) => setDurationHours(Number(e.target.value))}
-                className="w-full h-10 bg-background dark:bg-slate-900 border border-input rounded-xl px-3 text-sm text-foreground dark:text-white focus:outline-none"
-              >
-                <option value={12}>12 Hours</option>
-                <option value={24}>24 Hours</option>
-                <option value={48}>48 Hours</option>
-                <option value={168}>7 Days</option>
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={durationHours}
+                  onChange={(e) => setDurationHours(Number(e.target.value))}
+                  className="flex-1 h-10 bg-background dark:bg-slate-900 border border-input rounded-xl px-3 text-sm text-foreground dark:text-white focus:outline-none"
+                >
+                  {[0,1,2,3,6,12,24,48,72,96,120,144,168].map(h => (
+                    <option key={h} value={h}>{h}h</option>
+                  ))}
+                </select>
+                <select
+                  value={durationMinutes}
+                  onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                  className="w-20 h-10 bg-background dark:bg-slate-900 border border-input rounded-xl px-3 text-sm text-foreground dark:text-white focus:outline-none"
+                >
+                  {[0,15,30,45].map(m => (
+                    <option key={m} value={m}>{m}m</option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-[10px] text-muted-foreground dark:text-slate-500">Total: {durationHours + (durationMinutes > 0 ? 1 : 0)}h{durationMinutes > 0 ? ` ${durationMinutes}m` : ''} — up to 7 days</p>
             </div>
           </div>
 

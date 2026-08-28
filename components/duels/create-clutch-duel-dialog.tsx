@@ -31,9 +31,12 @@ export function CreateClutchDuelDialog({ open, onOpenChange, onDuelCreated }: Cr
   const [clipUrl, setClipUrl] = useState("")
   const [clipPreview, setClipPreview] = useState<string | null>(null)
   const [windowSeconds, setWindowSeconds] = useState(20)
+  const [customWindowMinutes, setCustomWindowMinutes] = useState(0)
   const [stakeCoins, setStakeCoins] = useState(0)
   const [context, setContext] = useState("")
   const [hashtags, setHashtags] = useState("")
+  const [yesLabel, setYesLabel] = useState("")
+  const [noLabel, setNoLabel] = useState("")
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -83,13 +86,14 @@ export function CreateClutchDuelDialog({ open, onOpenChange, onDuelCreated }: Cr
         return
       }
 
+      const totalSeconds = windowSeconds + customWindowMinutes * 60
       const res = await fetch("/api/duels/clutch", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({
           clipUrl: finalClipUrl,
           question: question.trim(),
-          predictionWindowSeconds: windowSeconds,
+          predictionWindowSeconds: totalSeconds,
           stakeCoins,
           content: context.trim(),
           hashtags: hashtags
@@ -97,6 +101,8 @@ export function CreateClutchDuelDialog({ open, onOpenChange, onDuelCreated }: Cr
             .map((h) => h.replace(/^#/, "").trim())
             .filter(Boolean)
             .slice(0, 8),
+          side_a_label: yesLabel.trim() || null,
+          side_b_label: noLabel.trim() || null,
         }),
       })
       const data = await res.json()
@@ -113,6 +119,9 @@ export function CreateClutchDuelDialog({ open, onOpenChange, onDuelCreated }: Cr
         setContext("")
         setHashtags("")
         setStakeCoins(0)
+        setYesLabel("")
+        setNoLabel("")
+        setCustomWindowMinutes(0)
         if (onDuelCreated) onDuelCreated()
         else window.location.reload()
       } else {
@@ -190,17 +199,34 @@ export function CreateClutchDuelDialog({ open, onOpenChange, onDuelCreated }: Cr
               <label className="flex items-center gap-1 text-xs font-semibold text-foreground dark:text-slate-300">
                 <Timer className="h-3.5 w-3.5 text-cyan-400" /> Prediction window
               </label>
-              <select
-                value={windowSeconds}
-                onChange={(e) => setWindowSeconds(Number(e.target.value))}
-                className="w-full h-10 bg-background dark:bg-slate-900 border border-input rounded-xl px-3 text-sm text-foreground dark:text-white focus:outline-none"
-              >
-                {WINDOW_OPTIONS.map((opt) => (
-                  <option key={opt.seconds} value={opt.seconds}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={windowSeconds}
+                  onChange={(e) => setWindowSeconds(Number(e.target.value))}
+                  className="flex-1 h-10 bg-background dark:bg-slate-900 border border-input rounded-xl px-3 text-sm text-foreground dark:text-white focus:outline-none"
+                >
+                  {WINDOW_OPTIONS.map((opt) => (
+                    <option key={opt.seconds} value={opt.seconds}>
+                      {opt.label}
+                    </option>
+                  ))}
+                  <option value={180}>3 min</option>
+                  <option value={300}>5 min</option>
+                  <option value={600}>10 min</option>
+                </select>
+                <select
+                  value={customWindowMinutes}
+                  onChange={(e) => setCustomWindowMinutes(Number(e.target.value))}
+                  className="w-16 h-10 bg-background dark:bg-slate-900 border border-input rounded-xl px-2 text-sm text-foreground dark:text-white focus:outline-none"
+                >
+                  {[0,1,2,3,5,10,15,30].map(m => (
+                    <option key={m} value={m}>{m}m</option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-[10px] text-muted-foreground dark:text-slate-500">
+                Total: {windowSeconds + customWindowMinutes * 60}s — predictions close after this
+              </p>
             </div>
             <div className="space-y-1.5">
               <label className="flex items-center gap-1 text-xs font-semibold text-foreground dark:text-slate-300">
@@ -215,6 +241,36 @@ export function CreateClutchDuelDialog({ open, onOpenChange, onDuelCreated }: Cr
                 placeholder="0"
                 className="bg-background dark:bg-slate-900 border-input text-foreground dark:text-white rounded-xl"
               />
+            </div>
+          </div>
+
+          {/* Custom Button Labels */}
+          <div className="space-y-2 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3">
+            <label className="text-xs font-semibold text-violet-300">
+              ⚡ Custom Button Labels (optional)
+            </label>
+            <p className="text-[10px] text-slate-400">
+              Customize what the voting buttons say instead of YES/NO
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] text-emerald-400 font-medium">Side A (positive)</label>
+                <Input
+                  value={yesLabel}
+                  onChange={(e) => setYesLabel(e.target.value.slice(0, 20))}
+                  placeholder="e.g. He lands it"
+                  className="h-8 bg-background dark:bg-slate-900 border-input text-foreground dark:text-white text-xs rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-sky-400 font-medium">Side B (negative)</label>
+                <Input
+                  value={noLabel}
+                  onChange={(e) => setNoLabel(e.target.value.slice(0, 20))}
+                  placeholder="e.g. He chokes"
+                  className="h-8 bg-background dark:bg-slate-900 border-input text-foreground dark:text-white text-xs rounded-lg"
+                />
+              </div>
             </div>
           </div>
 

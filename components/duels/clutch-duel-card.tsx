@@ -27,6 +27,8 @@ interface ClutchDuelData {
   no_stake?: number
   creator_id?: string
   status?: string
+  side_a_label?: string | null
+  side_b_label?: string | null
   creator?: { id: string; username?: string; display_name?: string; avatar_url?: string }
 }
 
@@ -214,6 +216,9 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
     }, 120)
     return () => window.clearTimeout(t)
   }, [phase, duel?.clip_url])
+
+  const yesLabel = duel?.side_a_label || "YES"
+  const noLabel = duel?.side_b_label || "NO"
 
   const totalStake = (summary?.yes?.stake || 0) + (summary?.no?.stake || 0)
   const yesPct = totalStake > 0 ? Math.round(((summary?.yes?.stake || 0) / totalStake) * 100) : 50
@@ -468,10 +473,10 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
         <div className="mt-4 space-y-2">
           <div className="flex items-center justify-between text-xs font-bold">
             <span className="flex items-center gap-1 text-emerald-400">
-              <ThumbsUp className="h-3.5 w-3.5" /> YES ({yesPct}%) · {summary?.yes?.stake || 0} coins
+              <ThumbsUp className="h-3.5 w-3.5" /> {yesLabel} ({yesPct}%) · {summary?.yes?.stake || 0} coins
             </span>
             <span className="flex items-center gap-1 text-sky-400">
-              NO ({noPct}%) · {summary?.no?.stake || 0} coins <ThumbsDown className="h-3.5 w-3.5" />
+              {noLabel} ({noPct}%) · {summary?.no?.stake || 0} coins <ThumbsDown className="h-3.5 w-3.5" />
             </span>
           </div>
           <div className="flex h-3 w-full overflow-hidden rounded-full border border-white/10 bg-slate-900">
@@ -525,14 +530,14 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
                     disabled={staking || !user}
                     className="h-11 bg-gradient-to-r from-emerald-500 to-teal-500 font-black text-white shadow-lg shadow-emerald-900/40 transition hover:scale-[1.02] hover:from-emerald-400 hover:to-teal-400"
                   >
-                    <ThumbsUp className="mr-1.5 h-4 w-4" /> YES — He lands it
+                    <ThumbsUp className="mr-1.5 h-4 w-4" /> {yesLabel !== "YES" ? yesLabel : "YES — He lands it"}
                   </Button>
                   <Button
                     onClick={() => void handlePredict("no")}
                     disabled={staking || !user}
                     className="h-11 bg-gradient-to-r from-sky-500 to-indigo-500 font-black text-white shadow-lg shadow-sky-900/40 transition hover:scale-[1.02] hover:from-sky-400 hover:to-indigo-400"
                   >
-                    <ThumbsDown className="mr-1.5 h-4 w-4" /> NO — He chokes
+                    <ThumbsDown className="mr-1.5 h-4 w-4" /> {noLabel !== "NO" ? noLabel : "NO — He chokes"}
                   </Button>
                 </div>
                 {!user && <p className="mt-2 text-center text-[11px] text-slate-400">Sign in to stake coins on your call.</p>}
@@ -553,14 +558,14 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
                 disabled={revealing}
                 className="bg-gradient-to-r from-emerald-500 to-teal-500 font-black"
               >
-                He landed it (YES)
+                {yesLabel !== "YES" ? yesLabel : "He landed it"} (YES)
               </Button>
               <Button
                 onClick={() => void handleReveal("no")}
                 disabled={revealing}
                 className="bg-gradient-to-r from-sky-500 to-indigo-500 font-black"
               >
-                He choked (NO)
+                {noLabel !== "NO" ? noLabel : "He choked"} (NO)
               </Button>
             </div>
           </div>
