@@ -2,6 +2,8 @@ import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import Script from "next/script"
+import { Analytics } from "@vercel/analytics/react"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import "./globals.css"
 import "../styles/3d-framework.css"
 import "../styles/responsive.css"
@@ -251,6 +253,8 @@ export default function RootLayout({
                       <NativeShell />
                       <Toaster />
                       <OfflineIndicator />
+                      <Analytics />
+                      <SpeedInsights />
                       <div id="performance-monitor" className="hidden" />
                       <div id="accessibility-announcements" className="sr-only" aria-live="polite" aria-atomic="true" />
                     </div>
