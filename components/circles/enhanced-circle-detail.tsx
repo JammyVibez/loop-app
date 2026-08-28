@@ -62,6 +62,7 @@ import { SlackCircleWorkspace } from "@/components/circles/slack-circle-workspac
 import { CircleActivityFeed } from "@/components/circles/circle-activity-feed"
 import { CircleLeaderboard } from "@/components/circles/circle-leaderboard"
 import { CircleColoop } from "@/components/circles/circle-coloop"
+import { CircleNavList } from "@/components/circles/circle-nav-list"
 import { CircleEvents } from "@/components/circles/circle-events"
 import { CommunityAdvancedPanel } from "@/components/circles/community-advanced-panel"
 import { GiftModal } from "@/components/gifting/gift-modal"
@@ -247,7 +248,7 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
   const [posts, setPosts] = useState<CirclePost[]>([])
   const [members, setMembers] = useState<CircleMember[]>([])
   const [rooms, setRooms] = useState<CircleRoom[]>([])
-  const [activeTab, setActiveTab] = useState("posts")
+  const [activeTab, setActiveTab] = useState<string | null>(null)
   const [activeRoom, setActiveRoom] = useState<string | null>(null)
   const [isJoined, setIsJoined] = useState(false)
   const [membershipPending, setMembershipPending] = useState(false)
@@ -1287,33 +1288,30 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
       ) : (
       <>
       {/* Main Content */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="-mx-1 overflow-x-auto pb-1">
-          <TabsList className="inline-flex h-auto min-w-full w-max gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:min-w-0 sm:w-full sm:flex-wrap">
-            {[
-              { value: "posts", label: "Feed", icon: Hash },
-              { value: "activity", label: "Activity", icon: Zap },
-              { value: "coloop", label: "Co-Loop", icon: Video },
-              { value: "rooms", label: "Rooms", icon: MessageCircle },
-              { value: "events", label: "Events", icon: Calendar },
-              { value: "members", label: "Members", icon: Users },
-              { value: "leaderboard", label: "Leaderboard", icon: Trophy },
-              { value: "about", label: "About", icon: Star },
-              { value: "studio", label: "Studio", icon: Settings },
-            ].map((tab) => (
-              <TabsTrigger
-                key={tab.value}
-                value={tab.value}
-                className="shrink-0 rounded-xl px-3 py-2 text-xs data-[state=active]:bg-background sm:text-sm"
-              >
-                <tab.icon className="mr-1.5 h-3.5 w-3.5" />
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+      {/* WhatsApp-style Navigation */}
+      {activeTab === null ? (
+        <div className="w-full">
+          <CircleNavList
+            circle={circle}
+            isJoined={isJoined}
+            userRole={userRole}
+            memberCount={circle?.member_count || members.length}
+            onNavigate={setActiveTab}
+          />
+        </div>
+      ) : (
+      <div className="w-full space-y-4">
+        <button
+          onClick={() => setActiveTab(null)}
+          className="flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors group"
+        >
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          Back to {circle?.name || "Circle"}
+        </button>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         </div>
 
-        <TabsContent value="posts" className="mt-4 space-y-4 sm:mt-6 sm:space-y-6">
+        <TabsContent value="feed" className="mt-4 space-y-4 sm:mt-6 sm:space-y-6">
           {canBypassPostFreeze && (
             <Card className="border-border">
               <CardContent className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
@@ -2026,6 +2024,8 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
             />
           </TabsContent>
         </Tabs>
+      </div>
+      )}
       </>
       )}
 
