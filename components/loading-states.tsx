@@ -29,10 +29,12 @@ interface PageLoadingProps {
   message?: string
 }
 
+import { AppTips } from '@/components/ui/app-tips'
+
 export function PageLoading({ message = 'Loading...' }: PageLoadingProps) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-4">
-      <div className="text-center space-y-4 max-w-xs w-full">
+      <div className="text-center space-y-6 max-w-sm w-full">
         <div className="relative inline-flex items-center justify-center">
           <div className="w-12 h-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
           <div className="absolute inset-1 rounded-full border border-cyan-500/30 border-b-cyan-500 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.2s' }} />
@@ -45,6 +47,7 @@ export function PageLoading({ message = 'Loading...' }: PageLoadingProps) {
             <div className="h-full bg-gradient-to-r from-indigo-500 to-cyan-500 animate-pulse w-full" />
           </div>
         </div>
+        <AppTips variant="loading" />
       </div>
     </div>
   )
@@ -122,6 +125,7 @@ export function LoopFeedSkeleton() {
       {Array.from({ length: 3 }).map((_, i) => (
         <SkeletonCard key={i} />
       ))}
+      <AppTips variant="inline" />
     </div>
   )
 }
