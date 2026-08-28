@@ -72,6 +72,7 @@ import { ShareAsImageModal } from "@/components/engagement/share-as-image-modal"
 import { isCodeLoop } from "@/lib/pro-features";
 import { RichContent } from "@/components/content/rich-content";
 import { useLoginGate } from "@/hooks/use-login-gate";
+import { hapticPress, hapticSuccess } from "@/lib/haptics";
 import { UserBadges } from "@/components/user-badge";
 import { useVerificationBadges } from "@/hooks/use-verification-badges";
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp";
@@ -283,6 +284,7 @@ export const LoopCard = memo(function LoopCard({
     content.length > 200 ? content.substring(0, 200) + "..." : content;
 
   const runInteraction = async (type: "like" | "save") => {
+    if (type === "save") hapticSuccess()
     if (onInteraction) {
       if (!currentUser && !requireAuth(type === "like" ? "like" : "save")) return
       onInteraction(loop.id, type)
@@ -424,6 +426,7 @@ export const LoopCard = memo(function LoopCard({
 
   // Enhanced like animation with gift effects
   const handleLike = (opts?: { fromDoubleTap?: boolean }) => {
+    hapticPress()
     if (opts?.fromDoubleTap && loop.user_interactions.is_liked) {
       setDoubleTapHeart(true)
       setTimeout(() => setDoubleTapHeart(false), 700)

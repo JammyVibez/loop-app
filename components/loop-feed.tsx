@@ -16,6 +16,8 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { MomentCard, type MomentCardMoment } from "@/components/engagement/moment-card"
 import { cn } from "@/lib/utils"
+import { useFeedPreload } from "@/hooks/use-media-preload"
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 
 /** Max candidates the database ML recommendation engine can score per request. */
 const ML_FETCH_LIMIT = 50
@@ -71,6 +73,58 @@ export function LoopFeed({
   const [moments, setMoments] = useState<FeedMoment[]>([])
   const viewedMomentsRef = useRef<Set<string>>(new Set())
   const { user, getAuthHeader } = useAuth()
+
+  // Media preloading for next 3 posts
+  useFeedPreload(loops, 0, 3)
+
+  // Keyboard shortcuts for power users
+  const feedRef = useRef<HTMLDivElement>(null)
+  const currentPostIndexRef = useRef(0)
+
+  useKeyboardShortcuts([
+    {
+      key: "j",
+      description: "Next post",
+      handler: () => {
+        currentPostIndexRef.current = Math.min(
+          currentPostIndexRef.current + 1,
+          loops.length - 1
+        )
+        const cards = feedRef.current?.querySelectorAll("[data-loop-card]")
+        cards?.[currentPostIndexRef.current]?.scrollIntoView({ behavior: "smooth", block: "center" })
+      },
+    },
+    {
+      key: "k",
+      description: "Previous post",
+      handler: () => {
+        currentPostIndexRef.current = Math.max(currentPostIndexRef.current - 1, 0)
+        const cards = feedRef.current?.querySelectorAll("[data-loop-card]")
+        cards?.[currentPostIndexRef.current]?.scrollIntoView({ behavior: "smooth", block: "center" })
+      },
+    },
+    {
+      key: "l",
+      description: "Like current post",
+      handler: () => {
+        const currentLoop = loops[currentPostIndexRef.current]
+        if (currentLoop) handleInteraction(currentLoop.id, "like")
+      },
+    },
+    {
+      key: "s",
+      description: "Save current post",
+      handler: () => {
+        const currentLoop = loops[currentPostIndexRef.current]
+        if (currentLoop) handleInteraction(currentLoop.id, "save")
+      },
+    },
+    {
+      key: "g",
+      description: "Scroll to top",
+      handler: () => feedRef.current?.scrollTo({ top: 0, behavior: "smooth" }),
+    },
+  ])
 
   // --- Admin-controlled ads: server decides eligibility, the client only
   // places the cards. Frequency is randomized once per session (default
@@ -696,7 +750,7 @@ export function LoopFeed({
   }
 
   return (
-    <div className="relative space-y-4 sm:space-y-6">
+    <div ref={feedRef} className="relative space-y-4 sm:space-y-6">
       {pullDistance > 8 && (
         <div className="flex justify-center text-xs text-muted-foreground" style={{ height: pullDistance }}>
           {pullDistance > 48 ? "Release to refresh" : "Pull to refresh"}
@@ -785,15 +839,17 @@ export function LoopFeed({
               {((loop as any).content_type === "open_coloop_invite" || (loop as any).post_type === "open_coloop_invite" || (loop as any).content_metadata?.is_open_coloop_invite) ? (
                 <OpenCoLoopInviteCard post={loop as any} />
               ) : (
-                <LoopCard
-                  loop={loop}
-                  interacting={interacting}
-                  onInteraction={handleInteraction}
-                  onDeleted={(loopId) => setLoops((prev) => prev.filter((item) => item.id !== loopId))}
-                  onEdited={(updatedLoop) =>
-                    setLoops((prev) => prev.map((item) => (item.id === updatedLoop.id ? updatedLoop : item)))
-                  }
-                />
+                <div data-loop-card>
+                  <LoopCard
+                    loop={loop}
+                    interacting={interacting}
+                    onInteraction={handleInteraction}
+                    onDeleted={(loopId) => setLoops((prev) => prev.filter((item) => item.id !== loopId))}
+                    onEdited={(updatedLoop) =>
+                      setLoops((prev) => prev.map((item) => (item.id === updatedLoop.id ? updatedLoop : item)))
+                    }
+                  />
+                </div>
               )}
             </div>
           )
