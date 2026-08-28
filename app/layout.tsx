@@ -22,6 +22,7 @@ import { PushAutoSubscribe } from "@/components/pwa/push-auto-subscribe"
 import { NotificationAutoPrompt } from "@/components/pwa/notification-auto-prompt"
 import { NativeShell } from "@/components/pwa/native-shell"
 import { MaintenanceGate } from "@/components/maintenance/maintenance-gate"
+import { OfflineIndicator } from "@/components/ui/offline-indicator"
 import { checkEnvironmentVariables, logEnvironmentStatus, validateEnvironment } from "@/lib/env-check"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -249,6 +250,7 @@ export default function RootLayout({
                       <NotificationAutoPrompt />
                       <NativeShell />
                       <Toaster />
+                      <OfflineIndicator />
                       <div id="performance-monitor" className="hidden" />
                       <div id="accessibility-announcements" className="sr-only" aria-live="polite" aria-atomic="true" />
                     </div>

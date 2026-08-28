@@ -13,6 +13,7 @@ import { AdCard, type AdData } from "@/components/ads/ad-card"
 import { normalizeLoops, type NormalizedLoop } from "@/lib/normalize-loop"
 import { LoopFeedSkeleton } from "@/components/loading-states"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ContentRecommendations } from "@/components/feed/content-recommendations"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { MomentCard, type MomentCardMoment } from "@/components/engagement/moment-card"
 import { cn } from "@/lib/utils"
@@ -874,6 +875,15 @@ export function LoopFeed({
             )}
           </Button>
         </div>
+      )}
+
+      {/* Content Recommendations - shown after feed content */}
+      {!guestMode && loops.length > 5 && (
+        <ContentRecommendations
+          currentHashtags={loops.slice(0, 5).flatMap(l => l.hashtags || [])}
+          currentAuthorId={user?.id}
+          context="feed"
+        />
       )}
     </div>
   )

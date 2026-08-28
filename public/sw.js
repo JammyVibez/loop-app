@@ -1,422 +1,340 @@
-const CACHE_NAME = "loop-social-v2.1"
-const STATIC_CACHE = "loop-static-v2.1"
-const DYNAMIC_CACHE = "loop-dynamic-v2.1"
-const IMAGE_CACHE = "loop-images-v2.1"
+const CACHE_VERSION = "loop-social-v3.0"
+const STATIC_CACHE = "loop-static-v3.0"
+const DYNAMIC_CACHE = "loop-dynamic-v3.0"
+const IMAGE_CACHE = "loop-images-v3.0"
+const FONT_CACHE = "loop-fonts-v3.0"
 
-// Static assets to cache immediately
-const STATIC_ASSETS = ["/", "/manifest.json", "/offline", "/icons/icon.svg", "/icons/icon-192x192.png"]
+// Static assets to cache immediately on install
+const PRECACHE_ASSETS = [
+  "/",
+  "/offline",
+  "/manifest.json",
+  "/icons/icon.svg",
+  "/icons/icon-192x192.png",
+  "/icons/icon-512x512.png",
+]
 
-// Only cache public, read-only API routes. Never cache auth, admin, upload,
-// payments, inventory, messages, or other user-specific endpoints.
-const API_CACHE_PATTERNS = [/^\/api\/shop\/items$/]
-const NEVER_CACHE_API_PATTERNS = [
-  /^\/api\/admin/,
+// Routes that should be cached with stale-while-revalidate
+const SWR_ROUTES = [
+  "/api/search",
+  "/api/circles",
+  "/api/shop/items",
+  "/api/ml/recommendations",
+]
+
+// Routes that should NEVER be cached
+const NEVER_CACHE = [
   /^\/api\/auth/,
   /^\/api\/upload/,
   /^\/api\/payments/,
   /^\/api\/inventory/,
   /^\/api\/messages/,
   /^\/api\/notifications/,
-  /^\/api\/users/,
+  /^\/api\/users\/(?!suggestions)/,
+  /^\/api\/admin/,
+  /^\/api\/coins/,
+  /^\/api\/gifts/,
+  /^\/api\/boost/,
+  /^\/api\/creator/,
 ]
 
-// Install event - cache static assets
+// Font files to cache aggressively
+const FONT_PATTERN = /\.(woff2?|ttf|otf|eot)(\?.*)?$/
+
+// ─── Install ───────────────────────────────────────────────────────
 self.addEventListener("install", (event) => {
-  console.log("Service Worker: Installing...")
+  console.log("[SW] Installing...")
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
-      console.log("Service Worker: Caching static assets")
+      console.log("[SW] Precaching assets")
       return Promise.allSettled(
-        STATIC_ASSETS.map(url => {
-          return cache.add(url).catch(err => {
-            console.warn(`Failed to cache ${url}:`, err);
-            return null;
-          });
-        })
-      );
+        PRECACHE_ASSETS.map((url) =>
+          cache.add(url).catch((err) => {
+            console.warn(`[SW] Failed to precache ${url}:`, err.message)
+          })
+        )
+      )
     })
-    .catch(err => {
-      console.error('Service Worker installation failed:', err);
-    })
-  );
+  )
+  // Activate immediately without waiting for old SW to die
+  self.skipWaiting()
 })
 
-// Activate event - clean up old caches
+// ─── Activate ──────────────────────────────────────────────────────
 self.addEventListener("activate", (event) => {
-  console.log("Service Worker: Activating...")
+  console.log("[SW] Activating...")
   event.waitUntil(
     Promise.all([
-      caches.keys().then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => {
-            if (
-              cacheName !== STATIC_CACHE &&
-              cacheName !== DYNAMIC_CACHE &&
-              cacheName !== IMAGE_CACHE &&
-              cacheName !== CACHE_NAME
-            ) {
-              console.log("Service Worker: Deleting old cache:", cacheName)
-              return caches.delete(cacheName)
-            }
-          }),
+      // Delete all caches not in our version set
+      caches.keys().then((names) =>
+        Promise.all(
+          names
+            .filter((name) => {
+              return (
+                name !== STATIC_CACHE &&
+                name !== DYNAMIC_CACHE &&
+                name !== IMAGE_CACHE &&
+                name !== FONT_CACHE &&
+                name !== CACHE_VERSION
+              )
+            })
+            .map((name) => {
+              console.log(`[SW] Deleting old cache: ${name}`)
+              return caches.delete(name)
+            })
         )
-      }),
+      ),
       self.clients.claim(),
-    ]),
+    ])
   )
 })
 
-// Fetch event - implement caching strategies
+// ─── Fetch ─────────────────────────────────────────────────────────
 self.addEventListener("fetch", (event) => {
   const { request } = event
   const url = new URL(request.url)
 
-  // Skip non-GET requests and chrome-extension requests
-  if (request.method !== "GET" || url.protocol === "chrome-extension:") {
-    return
-  }
+  // Only handle GET requests and same-origin
+  if (request.method !== "GET") return
+  if (url.origin !== self.location.origin) return
+  if (url.protocol === "chrome-extension:") return
 
-  // Handle different types of requests with appropriate strategies
-  if (request.destination === "image") {
-    event.respondWith(handleImageRequest(request))
+  // Route to appropriate strategy
+  if (FONT_PATTERN.test(url.pathname)) {
+    event.respondWith(cacheFirst(request, FONT_CACHE))
+  } else if (request.destination === "image" || /\.(jpg|jpeg|png|gif|webp|avif|svg)(\?.*)?$/.test(url.pathname)) {
+    event.respondWith(cacheFirstWithFallback(request, IMAGE_CACHE))
   } else if (url.pathname.startsWith("/api/")) {
-    event.respondWith(handleAPIRequest(request))
+    if (NEVER_CACHE.some((p) => p.test(url.pathname))) {
+      event.respondWith(networkOnly(request))
+    } else if (SWR_ROUTES.some((p) => url.pathname.startsWith(p))) {
+      event.respondWith(staleWhileRevalidate(request, DYNAMIC_CACHE))
+    } else {
+      event.respondWith(networkFirst(request, DYNAMIC_CACHE))
+    }
   } else if (request.mode === "navigate") {
-    event.respondWith(handleNavigationRequest(request))
+    event.respondWith(networkFirstWithOffline(request))
   } else {
-    event.respondWith(handleStaticRequest(request))
+    event.respondWith(cacheFirst(request, STATIC_CACHE))
   }
 })
 
-// Image caching strategy - Cache First with fallback
-async function handleImageRequest(request) {
+// ─── Caching Strategies ────────────────────────────────────────────
+
+async function cacheFirst(request, cacheName) {
   try {
-    const cache = await caches.open(IMAGE_CACHE)
-    const cachedResponse = await cache.match(request)
+    const cache = await caches.open(cacheName)
+    const cached = await cache.match(request)
+    if (cached) return cached
 
-    if (cachedResponse) {
-      return cachedResponse
-    }
+    const response = await fetch(request)
+    if (response.ok) cache.put(request, response.clone())
+    return response
+  } catch {
+    return new Response("Offline", { status: 503 })
+  }
+}
 
-    const networkResponse = await fetch(request)
-    if (networkResponse.ok) {
-      cache.put(request, networkResponse.clone())
+async function cacheFirstWithFallback(request, cacheName) {
+  try {
+    const cache = await caches.open(cacheName)
+    const cached = await cache.match(request)
+    if (cached) return cached
+
+    const response = await fetch(request)
+    if (response.ok) {
+      cache.put(request, response.clone())
     }
-    return networkResponse
-  } catch (error) {
-    console.log("Image request failed:", error)
-    // Return placeholder image
+    return response
+  } catch {
+    // Return a placeholder SVG for images
     return new Response(
-      '<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="200" fill="#f3f4f6"/><text x="100" y="100" text-anchor="middle" fill="#9ca3af">Image unavailable</text></svg>',
-      { headers: { "Content-Type": "image/svg+xml" } },
+      '<svg width="400" height="300" xmlns="http://www.w3.org/2000/svg"><rect width="400" height="300" fill="#1a1a2e"/><text x="200" y="150" text-anchor="middle" fill="#666" font-size="14">📷 Image unavailable offline</text></svg>',
+      { headers: { "Content-Type": "image/svg+xml" } }
     )
   }
 }
 
-// API caching strategy - Network First with cache fallback
-async function handleAPIRequest(request) {
-  const url = new URL(request.url)
-  const shouldCache = API_CACHE_PATTERNS.some((pattern) => pattern.test(url.pathname))
-
-  if (NEVER_CACHE_API_PATTERNS.some((pattern) => pattern.test(url.pathname)) || !shouldCache) {
-    return fetch(request)
-  }
-
+async function networkFirst(request, cacheName) {
   try {
-    const cache = await caches.open(DYNAMIC_CACHE)
-    const networkResponse = await fetch(request)
-
-    if (networkResponse.ok) {
-      cache.put(request, networkResponse.clone())
+    const response = await fetch(request)
+    if (response.ok) {
+      const cache = await caches.open(cacheName)
+      cache.put(request, response.clone())
     }
-    return networkResponse
-  } catch (error) {
-    console.log("API request failed, trying cache:", error)
-    const cache = await caches.open(DYNAMIC_CACHE)
-    const cachedResponse = await cache.match(request)
+    return response
+  } catch {
+    const cache = await caches.open(cacheName)
+    const cached = await cache.match(request)
+    if (cached) return cached
 
-    if (cachedResponse) {
-      return cachedResponse
-    }
-
-    // Return offline response for API requests
     return new Response(
-      JSON.stringify({
-        error: "Offline",
-        message: "This feature is not available offline",
-        offline: true,
-      }),
-      {
-        status: 503,
-        headers: { "Content-Type": "application/json" },
-      },
+      JSON.stringify({ error: "Offline", offline: true }),
+      { status: 503, headers: { "Content-Type": "application/json" } }
     )
   }
 }
 
-// Navigation caching strategy - Network First with offline fallback
-async function handleNavigationRequest(request) {
-  try {
-    const networkResponse = await fetch(request)
+async function staleWhileRevalidate(request, cacheName) {
+  const cache = await caches.open(cacheName)
+  const cached = await cache.match(request)
 
-    // Cache successful navigation responses
-    if (networkResponse.ok) {
+  // Return cached immediately, update in background
+  const fetchPromise = fetch(request)
+    .then((response) => {
+      if (response.ok) cache.put(request, response.clone())
+      return response
+    })
+    .catch(() => cached)
+
+  return cached || fetchPromise
+}
+
+async function networkOnly(request) {
+  try {
+    return await fetch(request)
+  } catch {
+    return new Response(
+      JSON.stringify({ error: "Offline", offline: true }),
+      { status: 503, headers: { "Content-Type": "application/json" } }
+    )
+  }
+}
+
+async function networkFirstWithOffline(request) {
+  try {
+    const response = await fetch(request)
+    if (response.ok) {
       const cache = await caches.open(DYNAMIC_CACHE)
-      cache.put(request, networkResponse.clone())
+      cache.put(request, response.clone())
     }
+    return response
+  } catch {
+    const cache = await caches.open(STATIC_CACHE)
+    const cached = await cache.match(request)
+    if (cached) return cached
 
-    return networkResponse
-  } catch (error) {
-    console.log("Navigation request failed, trying cache:", error)
-    const cache = await caches.open(DYNAMIC_CACHE)
-    const cachedResponse = await cache.match(request)
-
-    if (cachedResponse) {
-      return cachedResponse
-    }
-
-    // Return offline page
+    // Try offline page
     const offlineCache = await caches.open(STATIC_CACHE)
-    return (
-      offlineCache.match("/offline") ||
-      new Response(
-        "<!DOCTYPE html><html><head><title>Offline</title></head><body><h1>You are offline</h1><p>Please check your internet connection.</p></body></html>",
-        { headers: { "Content-Type": "text/html" } },
-      )
+    const offlinePage = await offlineCache.match("/offline")
+    if (offlinePage) return offlinePage
+
+    return new Response(
+      `<!DOCTYPE html><html><head><title>Offline</title></head><body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#030712;color:#f8fafc;text-align:center;padding:2rem">
+        <div><h1 style="font-size:1.5rem;margin-bottom:0.5rem">You're offline</h1><p style="color:#94a3b8">Check your connection and try again.</p></div>
+      </body></html>`,
+      { headers: { "Content-Type": "text/html; charset=utf-8" } }
     )
   }
 }
 
-// Static asset caching strategy - Cache First
-async function handleStaticRequest(request) {
-  try {
-    const cache = await caches.open(STATIC_CACHE)
-    const cachedResponse = await cache.match(request)
-
-    if (cachedResponse) {
-      return cachedResponse
-    }
-
-    const networkResponse = await fetch(request)
-    if (networkResponse.ok) {
-      cache.put(request, networkResponse.clone())
-    }
-    return networkResponse
-  } catch (error) {
-    console.log("Static request failed:", error)
-    return new Response("Resource unavailable offline", { status: 503 })
-  }
-}
-
-// Push notification event
+// ─── Push Notifications ────────────────────────────────────────────
 self.addEventListener("push", (event) => {
-  console.log("Push notification received")
-
-  let notificationData = {
+  let data = {
     title: "loopapp.me",
     body: "You have a new notification!",
-    icon: "/icons/icon-144x144.png",
-    badge: "/icons/icon-144x144.png",
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/icon-192x192.png",
     tag: "loop-notification",
     requireInteraction: false,
     vibrate: [200, 100, 200],
-    data: {
-      dateOfArrival: Date.now(),
-      primaryKey: Math.random(),
-      url: "/",
-    },
-    actions: [
-      {
-        action: "open",
-        title: "Open loopapp.me",
-        icon: "/icons/icon-144x144.png",
-      },
-      {
-        action: "close",
-        title: "Close",
-        icon: "/icons/icon-144x144.png",
-      },
-    ],
+    data: { url: "/" },
   }
 
   if (event.data) {
     try {
       const payload = event.data.json()
-      notificationData = { ...notificationData, ...payload }
-    } catch (error) {
-      console.log("Error parsing push data:", error)
-      notificationData.body = event.data.text()
+      data = { ...data, ...payload }
+    } catch {
+      data.body = event.data.text()
     }
   }
 
-  event.waitUntil(self.registration.showNotification(notificationData.title, notificationData))
-})
-
-// Notification click event
-self.addEventListener("notificationclick", (event) => {
-  console.log("Notification clicked:", event.action)
-  event.notification.close()
-
-  if (event.action === "close") {
-    return
-  }
-
-  const urlToOpen =
-    event.action === "open"
-      ? event.notification.data?.url || "/"
-      : event.notification.data?.url || event.notification.data?.data?.url || "/"
-
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if ("focus" in client) {
-          if (client.url.includes(self.location.origin)) {
-            client.focus()
-            if ("navigate" in client && urlToOpen) {
-              try {
-                client.navigate(urlToOpen)
-              } catch (_) {}
-            }
-            return
-          }
-        }
-      }
-
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen)
-      }
-    }),
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: data.icon,
+      badge: data.badge,
+      tag: data.tag,
+      requireInteraction: data.requireInteraction,
+      vibrate: data.vibrate,
+      data: data.data,
+      actions: [
+        { action: "open", title: "Open" },
+        { action: "dismiss", title: "Dismiss" },
+      ],
+    })
   )
 })
 
-// Background sync for offline actions
-self.addEventListener("sync", (event) => {
-  console.log("Background sync triggered:", event.tag)
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close()
+  if (event.action === "dismiss") return
 
+  const url = event.notification.data?.url || "/"
+  event.waitUntil(
+    self.clients.matchAll({ type: "window" }).then((clients) => {
+      // Focus existing window if available
+      for (const client of clients) {
+        if (client.url.includes(self.location.origin) && "focus" in client) {
+          client.focus()
+          if ("navigate" in client) client.navigate(url)
+          return
+        }
+      }
+      // Open new window
+      if (self.clients.openWindow) return self.clients.openWindow(url)
+    })
+  )
+})
+
+// ─── Background Sync ───────────────────────────────────────────────
+self.addEventListener("sync", (event) => {
   if (event.tag === "background-sync") {
-    event.waitUntil(performBackgroundSync())
-  } else if (event.tag === "quest-completion") {
-    event.waitUntil(syncQuestCompletions())
-  } else if (event.tag === "coin-transactions") {
-    event.waitUntil(syncCoinTransactions())
+    event.waitUntil(syncPendingActions())
   }
 })
 
-// Perform background sync operations
-async function performBackgroundSync() {
+async function syncPendingActions() {
   try {
-    console.log("Performing background sync...")
-
     // Sync pending operations from IndexedDB
-    const pendingOperations = await getPendingOperations()
+    const db = await openDB()
+    if (!db) return
 
-    for (const operation of pendingOperations) {
-      try {
-        await fetch(operation.url, {
-          method: operation.method,
-          headers: operation.headers,
-          body: operation.body,
-        })
+    const tx = db.transaction("pending", "readwrite")
+    const store = tx.objectStore("pending")
+    const request = store.getAll()
 
-        // Remove successful operation from pending list
-        await removePendingOperation(operation.id)
-      } catch (error) {
-        console.log("Failed to sync operation:", operation.id, error)
+    request.onsuccess = async () => {
+      const operations = request.result || []
+      for (const op of operations) {
+        try {
+          await fetch(op.url, {
+            method: op.method,
+            headers: op.headers,
+            body: op.body,
+          })
+          store.delete(op.id)
+        } catch (err) {
+          console.warn("[SW] Failed to sync:", op.id)
+        }
       }
     }
-
-    console.log("Background sync completed")
-  } catch (error) {
-    console.error("Background sync failed:", error)
+  } catch (err) {
+    console.error("[SW] Background sync failed:", err)
   }
 }
 
-// Sync quest completions when back online
-async function syncQuestCompletions() {
-  try {
-    const response = await fetch("/api/quests/sync", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    })
-
-    if (response.ok) {
-      console.log("Quest completions synced successfully")
+function openDB() {
+  return new Promise((resolve) => {
+    const request = indexedDB.open("loop-offline", 1)
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result
+      if (!db.objectStoreNames.contains("pending")) {
+        db.createObjectStore("pending", { keyPath: "id" })
+      }
     }
-  } catch (error) {
-    console.error("Failed to sync quest completions:", error)
-  }
-}
-
-// Sync coin transactions when back online
-async function syncCoinTransactions() {
-  try {
-    const response = await fetch("/api/coins/sync", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    })
-
-    if (response.ok) {
-      console.log("Coin transactions synced successfully")
-    }
-  } catch (error) {
-    console.error("Failed to sync coin transactions:", error)
-  }
-}
-
-// Helper functions for IndexedDB operations
-async function getPendingOperations() {
-  // Implementation would use IndexedDB to store/retrieve pending operations
-  return []
-}
-
-async function removePendingOperation(id) {
-  // Implementation would remove operation from IndexedDB
-  console.log("Removing pending operation:", id)
-}
-
-// Handle periodic background sync (if supported)
-self.addEventListener("periodicsync", (event) => {
-  if (event.tag === "content-sync") {
-    event.waitUntil(syncContent())
-  }
-})
-
-async function syncContent() {
-  try {
-    // Sync latest content in background
-    await fetch("/api/sync/content", { method: "POST" })
-    console.log("Content sync completed")
-  } catch (error) {
-    console.error("Content sync failed:", error)
-  }
-}
-
-// Handle share target
-self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url)
-
-  if (url.pathname === "/share" && event.request.method === "POST") {
-    event.respondWith(handleShareTarget(event.request))
-  }
-})
-
-async function handleShareTarget(request) {
-  try {
-    const formData = await request.formData()
-    const title = formData.get("title") || ""
-    const text = formData.get("text") || ""
-    const url = formData.get("url") || ""
-    const files = formData.getAll("files")
-
-    // Store shared data for the app to process
-    const shareData = { title, text, url, files: files.length }
-
-    // Redirect to share page with data
-    const shareUrl = `/share?data=${encodeURIComponent(JSON.stringify(shareData))}`
-
-    return Response.redirect(shareUrl, 302)
-  } catch (error) {
-    console.error("Error handling share target:", error)
-    return Response.redirect("/", 302)
-  }
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => resolve(null)
+  })
 }

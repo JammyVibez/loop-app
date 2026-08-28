@@ -69,6 +69,7 @@ import { SaveToDevice } from "@/components/download/save-to-device"
 import { MediaProtection, ProtectedMedia } from "@/components/media-protection";
 import { ShareToCircleModal } from "@/components/messages/share-to-circle-modal";
 import { ShareAsImageModal } from "@/components/engagement/share-as-image-modal";
+import { EnhancedShareSheet } from "@/components/engagement/enhanced-share-sheet"
 import { isCodeLoop } from "@/lib/pro-features";
 import { RichContent } from "@/components/content/rich-content";
 import { useLoginGate } from "@/hooks/use-login-gate";
@@ -180,6 +181,7 @@ export const LoopCard = memo(function LoopCard({
   const [shareDmOpen, setShareDmOpen] = useState(false);
   const [shareCircleOpen, setShareCircleOpen] = useState(false);
   const [shareImageOpen, setShareImageOpen] = useState(false);
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [boostCoinsCurrent, setBoostCoinsCurrent] = useState<number>(rawLoop?.boost_coins_current || 0);
   const [isBoosted, setIsBoosted] = useState<boolean>(rawLoop?.is_boosted || false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -1388,11 +1390,11 @@ export const LoopCard = memo(function LoopCard({
                       <span>Share in a Circle</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={handleShare}
+                      onClick={() => setShareSheetOpen(true)}
                       className="cursor-pointer flex items-center gap-2 py-2 text-xs"
                     >
                       <Share className="h-4 w-4 text-blue-500" />
-                      <span>Copy Link / Share</span>
+                      <span>Share</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => setShareImageOpen(true)}
@@ -1709,6 +1711,24 @@ export const LoopCard = memo(function LoopCard({
             shares_count: Number(loop.stats?.shares_count || 0),
           },
         }}
+      />
+
+      {/* Enhanced Share Sheet */}
+      <EnhancedShareSheet
+        open={shareSheetOpen}
+        onOpenChange={setShareSheetOpen}
+        item={{
+          id: loop.id,
+          type: "loop",
+          title: content.slice(0, 80),
+          text: content,
+          authorName: loop.author?.display_name || loop.author?.username,
+          mediaUrl: loop.media_urls?.[0] || loop.media_url || undefined,
+          mediaType: loop.media_type || undefined,
+          sharePath: `/loop/${loop.id}`,
+        }}
+        onDmShare={() => setShareDmOpen(true)}
+        onCircleShare={() => setShareCircleOpen(true)}
       />
     </>
   );
