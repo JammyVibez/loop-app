@@ -100,10 +100,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (parentCommentId) {
       const { data: parent } = await supabase
         .from("reel_comments")
-        .select("id, reel_id")
+        .select("id")
         .eq("id", parentCommentId)
+        .eq("reel_id", reelId)
         .maybeSingle()
-      if (!parent || parent.reel_id !== reelId) {
+      if (!parent) {
         return NextResponse.json({ error: "Parent comment not found" }, { status: 404 })
       }
     }
