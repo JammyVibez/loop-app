@@ -310,31 +310,50 @@ export function MessagesWorkspace() {
     }
   }
 
-  const loadMessages = async (conversationId: string) => {
+  const [hasMoreMessages, setHasMoreMessages] = useState(true)
+  const [loadingOlder, setLoadingOlder] = useState(false)
+  const MESSAGE_PAGE_SIZE = 80
+
+  const loadMessages = async (conversationId: string, older = false) => {
     if (!user) return
     const req = ++loadReq.current
-    setMessagesLoading(true)
+    if (older) {
+      setLoadingOlder(true)
+    } else {
+      setMessagesLoading(true)
+      setHasMoreMessages(true)
+    }
     try {
-      const response = await fetch(`/api/messages?conversation_id=${conversationId}`, {
-        headers: getAuthHeader(),
-      })
+      const offset = older ? messages.length : 0
+      const response = await fetch(
+        `/api/messages?conversation_id=${conversationId}&limit=${MESSAGE_PAGE_SIZE}&offset=${offset}`,
+        { headers: getAuthHeader() },
+      )
       const data = await response.json()
       if (req !== loadReq.current || selectedIdRef.current !== conversationId) return
       if (!response.ok) throw new Error(data.error || "Failed to load messages")
       const list: ChatMessage[] = data.messages || []
       const byId = new Map(list.map((m) => [m.id, m]))
-      setMessages(
-        list.map((m) => ({
-          ...m,
-          reply_to: m.reply_to || (m.reply_to_id ? byId.get(m.reply_to_id) || null : null),
-          reactions: Array.isArray(m.reactions) ? m.reactions : [],
-        })),
-      )
+      const mapped = list.map((m) => ({
+        ...m,
+        reply_to: m.reply_to || (m.reply_to_id ? byId.get(m.reply_to_id) || null : null),
+        reactions: Array.isArray(m.reactions) ? m.reactions : [],
+      }))
+      if (older) {
+        setMessages((prev) => [...mapped, ...prev])
+        setHasMoreMessages(list.length >= MESSAGE_PAGE_SIZE)
+      } else {
+        setMessages(mapped)
+        setHasMoreMessages(list.length >= MESSAGE_PAGE_SIZE)
+      }
     } catch (error: any) {
       if (req !== loadReq.current) return
       toast({ title: "Messages unavailable", description: error.message, variant: "destructive" })
     } finally {
-      if (req === loadReq.current) setMessagesLoading(false)
+      if (req === loadReq.current) {
+        setMessagesLoading(false)
+        setLoadingOlder(false)
+      }
     }
   }
 
@@ -1999,6 +2018,24 @@ export function MessagesWorkspace() {
           </div>
         )}
         <div ref={bottomRef} />
+        {/* Load older messages */}
+        {hasMoreMessages && !messagesLoading && messages.length >= MESSAGE_PAGE_SIZE && (
+          <div className="flex justify-center py-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs rounded-full"
+              disabled={loadingOlder}
+              onClick={() => selectedId && void loadMessages(selectedId, true)}
+            >
+              {loadingOlder ? (
+                <><Loader2 className="h-3 w-3 animate-spin mr-1.5" /> Loading older messages...</>
+              ) : (
+                "Load older messages"
+              )}
+            </Button>
+          </div>
+        )}
       </div>
 
       {replyTo && (

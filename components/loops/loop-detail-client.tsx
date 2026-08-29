@@ -36,6 +36,8 @@ import { PollCardWidget } from "@/components/polls/poll-card-widget"
 import { LoopDuelCard } from "@/components/duels/loop-duel-card"
 import { ClutchDuelCard } from "@/components/duels/clutch-duel-card"
 import { RichContent } from "@/components/content/rich-content"
+import { LoopDetailCodeBlock } from "@/components/loops/loop-detail-code-block"
+import { LoopDetailBoostBar } from "@/components/loops/loop-detail-boost-bar"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -96,6 +98,7 @@ interface LoopData {
   postType?: string
   poll?: any
   duel?: any
+  contentMetadata?: Record<string, any> | null
   codeSnippet?: {
     language: string
     code: string
@@ -179,6 +182,11 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
         postType: loopData.post_type,
         poll: loopData.poll,
         duel: loopData.duel,
+        contentMetadata: loopData.content_metadata || null,
+        codeSnippet:
+          loopData.content_metadata?.is_code && loopData.content_metadata?.code
+            ? { language: loopData.content_metadata.language || "text", code: loopData.content_metadata.code }
+            : undefined,
         isLiked: Boolean(loopData.user_interactions?.is_liked),
         isBookmarked: Boolean(loopData.user_interactions?.is_saved),
         isFollowing: false,
@@ -676,6 +684,85 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                   })}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Code Snippet Block */}
+          {loop.codeSnippet && (
+            <div className="pt-2">
+              <LoopDetailCodeBlock
+                language={loop.codeSnippet.language}
+                code={loop.codeSnippet.code}
+                title={loop.contentMetadata?.code_filename}
+              />
+            </div>
+          )}
+
+          {/* Boost / Funding Progress Bar */}
+          <LoopDetailBoostBar loopId={loop.id} />
+
+          {/* Reel Video Player */}
+          {loop.postType === "reel" && loop.mediaUrls.length > 0 && (
+            <div className="pt-2">
+              <div className="relative rounded-2xl overflow-hidden border border-border bg-black aspect-[9/16] max-h-[600px] mx-auto">
+                <video
+                  src={loop.mediaUrls[0]}
+                  controls
+                  playsInline
+                  className="h-full w-full object-contain"
+                  poster={loop.mediaUrls[1] || undefined}
+                />
+                <div className="absolute top-3 left-3">
+                  <Badge className="bg-rose-500/90 text-white text-[10px] font-bold px-2 py-0.5 backdrop-blur-sm">
+                    <Film className="h-3 w-3 mr-1" /> Reel
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Moment Card (disappearing content) */}
+          {loop.postType === "moment" && (
+            <div className="pt-2">
+              <div className="relative rounded-2xl overflow-hidden border border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-indigo-500/10 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge className="bg-purple-500/20 text-purple-400 text-[10px] font-bold px-2 py-0.5">
+                    Moment
+                  </Badge>
+                  <span className="text-[11px] text-muted-foreground">Temporary content</span>
+                </div>
+                <p className="text-xs text-muted-foreground italic">
+                  This is a moment — it may disappear after being viewed.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Co-Loop Invite Card */}
+          {loop.postType === "co_loop_invite" && (
+            <div className="pt-2">
+              <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/10 via-teal-500/5 to-indigo-500/10 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-cyan-500/20 p-3">
+                    <Users className="h-6 w-6 text-cyan-400" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm text-foreground">Co-Loop Invite</p>
+                    <p className="text-xs text-muted-foreground">Join this collaborative session</p>
+                  </div>
+                </div>
+                {loop.contentMetadata?.session_id && (
+                  <Button
+                    asChild
+                    size="sm"
+                    className="mt-3 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-bold text-xs"
+                  >
+                    <Link href={`/coloop?session=${loop.contentMetadata.session_id}`}>
+                      <Zap className="h-3.5 w-3.5 mr-1.5" /> Join Co-Loop Session
+                    </Link>
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 
