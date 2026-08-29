@@ -111,10 +111,15 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
   const [playbackRate, setPlaybackRate] = useState(1)
   const [progress, setProgress] = useState(0)
   const [heartBurst, setHeartBurst] = useState(false)
+  const [showSpeedPicker, setShowSpeedPicker] = useState(false)
+  const [pipActive, setPipActive] = useState(false)
+  const [showInfoPanel, setShowInfoPanel] = useState(false)
   const [duetReel, setDuetReel] = useState<Reel | null>(null)
   const [dueting, setDueting] = useState(false)
   const [dmShareOpen, setDmShareOpen] = useState(false)
   const [dmShareItem, setDmShareItem] = useState<{ id: string; type: "reel" | "loop"; title?: string; text?: string; authorName?: string; mediaUrl?: string; mediaType?: string } | null>(null)
+  const [stitchClipStart, setStitchClipStart] = useState(0)
+  const [stitchClipEnd, setStitchClipEnd] = useState(15)
   const [editReel, setEditReel] = useState<Reel | null>(null)
   const [editTitle, setEditTitle] = useState("")
   const [editDescription, setEditDescription] = useState("")
@@ -323,6 +328,35 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
     const rates = [1, 1.25, 1.5, 2, 0.75]
     const next = rates[(rates.indexOf(playbackRate) + 1) % rates.length]
     setPlaybackRate(next)
+  }
+
+  const SPEED_OPTIONS = [
+    { value: 0.5, label: "0.5x" },
+    { value: 0.75, label: "0.75x" },
+    { value: 1, label: "Normal" },
+    { value: 1.25, label: "1.25x" },
+    { value: 1.5, label: "1.5x" },
+    { value: 2, label: "2x" },
+  ]
+
+  const togglePiP = async () => {
+    const active = reels[Math.min(activeIndex, Math.max(0, reels.length - 1))]
+    if (!active) return
+    const video = videoRefs.current.get(active.id)
+    if (!video) return
+
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture()
+        setPipActive(false)
+      } else if (document.pictureInPictureEnabled) {
+        await video.requestPictureInPicture()
+        setPipActive(true)
+      }
+    } catch (err) {
+      console.error("PiP failed:", err)
+      toast({ title: "Picture-in-Picture not available", variant: "destructive" })
+    }
   }
 
   const doubleTapLike = (reel: Reel) => {
@@ -668,15 +702,56 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
         <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs uppercase tracking-[0.2em]">Reels</span>
       </div>
       <div className="absolute right-3 top-3 z-30 flex gap-2 sm:right-4 sm:top-4">
-        <Button
-          size="sm"
-          variant="ghost"
-          className="rounded-full bg-black/40 px-3 text-white hover:bg-black/60"
-          onClick={cycleSpeed}
-        >
-          <Gauge className="mr-1 h-4 w-4" />
-          {playbackRate}x
-        </Button>
+        {/* Speed picker */}
+        <div className="relative">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="rounded-full bg-black/40 px-3 text-white hover:bg-black/60"
+            onClick={() => setShowSpeedPicker(!showSpeedPicker)}
+          >
+            <Gauge className="mr-1 h-4 w-4" />
+            {playbackRate}x
+          </Button>
+          {showSpeedPicker && (
+            <>
+              <button type="button" className="fixed inset-0 z-40" onClick={() => setShowSpeedPicker(false)} />
+              <div className="absolute right-0 top-full mt-2 z-50 rounded-2xl bg-black/90 backdrop-blur-xl border border-white/10 p-2 shadow-2xl">
+                {SPEED_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => { setPlaybackRate(opt.value); setShowSpeedPicker(false) }}
+                    className={cn(
+                      "w-full text-left px-4 py-2 text-sm rounded-xl transition",
+                      playbackRate === opt.value
+                        ? "bg-white/20 text-white font-semibold"
+                        : "text-white/70 hover:bg-white/10 hover:text-white",
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* PiP button */}
+        {typeof document !== "undefined" && document.pictureInPictureEnabled && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn("rounded-full bg-black/40 text-white hover:bg-black/60", pipActive && "text-cyan-400")}
+            onClick={togglePiP}
+            title="Picture in Picture"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" />
+              <rect x="11" y="9" width="9" height="7" rx="1" fill="currentColor" opacity="0.3" />
+            </svg>
+          </Button>
+        )}
         <Button
           size="icon"
           variant="ghost"
@@ -766,6 +841,51 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                 {!!reel.hashtags?.length && (
                   <p className="text-sm text-cyan-200">{reel.hashtags.map((t) => `#${t}`).join(" ")}</p>
                 )}
+
+                {/* Info panel toggle */}
+                <button
+                  type="button"
+                  className="pointer-events-auto flex items-center gap-1.5 text-xs text-white/50 hover:text-white/80 transition"
+                  onClick={() => setShowInfoPanel(showInfoPanel ? false : reel.id)}
+                >
+                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
+                  {showInfoPanel === reel.id ? "Less info" : "More info"}
+                </button>
+
+                {/* Expanded info panel */}
+                {showInfoPanel === reel.id && (
+                  <div className="pointer-events-auto rounded-2xl bg-black/60 backdrop-blur-xl border border-white/10 p-4 space-y-3 animate-in slide-in-from-bottom-2 fade-in duration-200">
+                    {reel.description && (
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Caption</p>
+                        <p className="text-sm text-white/90 leading-relaxed">{reel.description}</p>
+                      </div>
+                    )}
+                    {!!reel.hashtags?.length && (
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Hashtags</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {reel.hashtags.map((t) => (
+                            <span key={t} className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-cyan-300">#{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-4 text-[11px] text-white/50">
+                      <span>{(reel.view_count || 0).toLocaleString()} views</span>
+                      <span>{(reel.like_count || 0).toLocaleString()} likes</span>
+                      <span>{(reel.comment_count || 0).toLocaleString()} comments</span>
+                    </div>
+                    {reel.effects && reel.effects !== "none" && (
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Effect</p>
+                        <span className="rounded-full bg-violet-500/20 px-2.5 py-1 text-[11px] text-violet-300 capitalize">
+                          {typeof reel.effects === "string" ? reel.effects : reel.effects?.filter || "Custom"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="absolute bottom-28 right-3 z-20 flex flex-col items-center gap-3 sm:right-5">
@@ -817,7 +937,23 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                         }}
                       >
                         <GitBranch className="h-4 w-4 mr-2" />
-                        Duet this reel
+                        Duet this tree
+                      </DropdownMenuItem>
+                    )}
+                    {reel.source !== "loop" && reel.content_type === "video" && (
+                      <DropdownMenuItem
+                        onClick={() => {
+                          if (!user) {
+                            toast({ title: "Sign in to stitch" })
+                            return
+                          }
+                          setDuetReel({ ...reel, _stitch: true } as any)
+                          setCreateTitle("")
+                          setUploadFile(null)
+                        }}
+                      >
+                        <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" /></svg>
+                        Stitch this tree
                       </DropdownMenuItem>
                     )}
                     {user && reel.author?.id === user.id && reel.source !== "loop" && (
@@ -845,6 +981,20 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                           className="w-full justify-start gap-2 h-auto"
                           size="sm"
                         />
+                      </DropdownMenuItem>
+                    )}
+                    {reel.content_url && reel.content_type === "video" && (
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const a = document.createElement("a")
+                          a.href = reel.content_url
+                          a.download = `loop-tree-${reel.id}.mp4`
+                          a.click()
+                          toast({ title: "Downloading tree..." })
+                        }}
+                      >
+                        <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+                        Download with watermark
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
@@ -1085,6 +1235,64 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
             />
             <Button className="w-full rounded-full" disabled={dueting} onClick={createDuet}>
               {dueting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publish Duet"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stitch Dialog */}
+      <Dialog open={!!(duetReel as any)?._stitch} onOpenChange={(open) => !open && setDuetReel(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Stitch @{duetReel?.author?.username || "creator"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Clip a segment from this tree, then add your take. The original plays first, then yours.
+            </p>
+
+            {/* Clip range selector */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Clip: {stitchClipStart}s — {stitchClipEnd}s ({stitchClipEnd - stitchClipStart}s)</span>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-[10px] text-muted-foreground">Start (s)</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={stitchClipEnd - 1}
+                    value={stitchClipStart}
+                    onChange={(e) => setStitchClipStart(Number(e.target.value))}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] text-muted-foreground">End (s)</label>
+                  <Input
+                    type="number"
+                    min={stitchClipStart + 1}
+                    value={stitchClipEnd}
+                    onChange={(e) => setStitchClipEnd(Number(e.target.value))}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Input value={createTitle} onChange={(e) => setCreateTitle(e.target.value)} placeholder="Your take caption" />
+            <Input
+              type="file"
+              accept="video/*,image/*"
+              onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+            />
+            <Button
+              className="w-full rounded-full"
+              disabled={dueting || !uploadFile}
+              onClick={createDuet}
+            >
+              {dueting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publish Stitch"}
             </Button>
           </div>
         </DialogContent>
