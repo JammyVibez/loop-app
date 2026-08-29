@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest) {
       supabase.from("loops").select("id", { head: true, count: "exact" }).eq("visibility", "public"),
       supabase.from("circles").select("id", { head: true, count: "exact" }),
       supabase.from("co_loop_sessions").select("id", { head: true, count: "exact" }).eq("status", "active"),
-      Promise.resolve(supabase.from("loop_duels").select("id", { head: true, count: "exact" })).catch(() => ({ count: 0 })),
+      (async () => { try { return await supabase.from("loop_duels").select("id", { head: true, count: "exact" }); } catch { return { count: 0 } as any; } })(),
     ])
 
     const total_users = Number(usersRes?.count || 0)

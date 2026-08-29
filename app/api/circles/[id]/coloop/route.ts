@@ -91,20 +91,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     })
 
     // Update member stats
-    await supabase.rpc("increment_circle_stat" as any, {
-      p_circle_id: circleId,
-      p_user_id: user.id,
-      p_field: "posts_count",
-    }).catch(() => {
+    try {
+      await supabase.rpc("increment_circle_stat" as any, {
+        p_circle_id: circleId,
+        p_user_id: user.id,
+        p_field: "posts_count",
+      })
+    } catch {
       // Fallback: manual update
-      supabase.from("circle_member_stats").upsert({
+      await supabase.from("circle_member_stats").upsert({
         circle_id: circleId,
         user_id: user.id,
         posts_count: 1,
         total_contribution_score: 10,
         updated_at: new Date().toISOString(),
       }, { onConflict: "circle_id,user_id", ignoreDuplicates: false })
-    })
+    }
 
     return NextResponse.json({ success: true, session })
   } catch (error: any) {
