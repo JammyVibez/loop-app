@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
           {
             id: "event-creator-zone",
             title: "Content Creator Zone Spotlight",
-            description: "Showcase your short videos, reels, and digital art to the global community! Live feedback and featured promotion.",
+            description: "Showcase your short videos, trees, and digital art to the global community! Live feedback and featured promotion.",
             category: "Creator",
             banner_url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80",
             location_type: "Creator Stage",
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
             is_featured: true,
             is_active: true,
             rsvp_count: 518,
-            tags: ["Creators", "Reels", "Art", "Stream"]
+            tags: ["Creators", "Trees", "Art", "Stream"]
           }
         ]
       })

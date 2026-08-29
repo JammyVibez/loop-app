@@ -594,7 +594,7 @@ export default function OnboardingPage() {
                     <Link href="/co-loop/studio"><Rocket className="mr-1.5 h-3.5 w-3.5 text-cyan-400" /> Start a Co-Loop</Link>
                   </Button>
                   <Button asChild size="sm" variant="outline" className="rounded-full">
-                    <Link href="/create/reel"><Video className="mr-1.5 h-3.5 w-3.5" /> First Reel</Link>
+                    <Link href="/create/tree"><Video className="mr-1.5 h-3.5 w-3.5" /> First Reel</Link>
                   </Button>
                 </div>
               </div>

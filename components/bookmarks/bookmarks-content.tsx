@@ -20,7 +20,7 @@ interface Bookmark {
   branch_count?: number
 }
 
-const categories = ["All", "Reels", "Philosophy", "Music", "Art", "Technology", "Stories", "Tutorials"]
+const categories = ["All", "Trees", "Philosophy", "Music", "Art", "Technology", "Stories", "Tutorials"]
 
 export function BookmarksContent() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
@@ -97,7 +97,7 @@ export function BookmarksContent() {
     // Reels unsave via the reel interactions endpoint; loops via loop interactions.
     const endpoint =
       bookmark.type === "reel"
-        ? `/api/reels/${bookmark.loop.id}/interactions`
+        ? `/api/trees/${bookmark.loop.id}/interactions`
         : `/api/loops/${bookmark.loop.id}/interactions`
     const body =
       bookmark.type === "reel"
@@ -125,7 +125,7 @@ export function BookmarksContent() {
   const handleShare = (bookmark: any) => {
     const url =
       bookmark.type === "reel"
-        ? `${window.location.origin}/reels?focus=${bookmark.loop.id}`
+        ? `${window.location.origin}/trees?focus=${bookmark.loop.id}`
         : `${window.location.origin}/loop/${bookmark.loop.id}`
     navigator.clipboard.writeText(url)
     toast({

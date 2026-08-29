@@ -14,11 +14,11 @@ import { parseJsonResponse } from "@/lib/parse-json-response"
 
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024
 
-interface CreateReelFormProps {
-  onReelCreated?: (reelId: string | null) => void
+interface CreateTreeFormProps {
+  onTreeCreated?: (reelId: string | null) => void
 }
 
-export function CreateReelForm({ onReelCreated }: CreateReelFormProps) {
+export function CreateTreeForm({ onTreeCreated }: CreateTreeFormProps) {
   const { user, getAuthHeader } = useAuth()
   const { requireAuth, isGuest, LoginGateDialog } = useLoginGate()
   const { toast } = useToast()
@@ -38,13 +38,13 @@ export function CreateReelForm({ onReelCreated }: CreateReelFormProps) {
     if (!selected) return
 
     if (!selected.type.startsWith("video/")) {
-      toast({ title: "Video files only", description: "Reels support video uploads for now.", variant: "destructive" })
+      toast({ title: "Video files only", description: "Tree support video uploads for now.", variant: "destructive" })
       return
     }
     if (selected.size > MAX_VIDEO_BYTES) {
       toast({
         title: "File too large",
-        description: `Max reel size is ${Math.round(MAX_VIDEO_BYTES / 1024 / 1024)}MB.`,
+        description: `Max tree size is ${Math.round(MAX_VIDEO_BYTES / 1024 / 1024)}MB.`,
         variant: "destructive",
       })
       return
@@ -63,7 +63,7 @@ export function CreateReelForm({ onReelCreated }: CreateReelFormProps) {
   const handlePublish = async () => {
     if (!requireAuth("post")) return
     if (!file) {
-      toast({ title: "Add a video", description: "Pick a video clip to publish as a Reel.", variant: "destructive" })
+      toast({ title: "Add a video", description: "Pick a video clip to publish as a Tree.", variant: "destructive" })
       return
     }
     if (!title.trim()) {
@@ -92,7 +92,7 @@ export function CreateReelForm({ onReelCreated }: CreateReelFormProps) {
         .map((t) => t.trim().toLowerCase())
         .filter(Boolean)
 
-      const reelRes = await fetch("/api/reels", {
+      const treeRes = await fetch("/api/trees", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({
@@ -105,16 +105,16 @@ export function CreateReelForm({ onReelCreated }: CreateReelFormProps) {
           hashtags: tags,
         }),
       })
-      const { data: reelData } = await parseJsonResponse<any>(reelRes)
-      if (!reelRes.ok) throw new Error(reelData?.error || "Failed to publish reel")
+      const { data: treeData } = await parseJsonResponse<any>(treeRes)
+      if (!treeRes.ok) throw new Error(treeData?.error || "Failed to publish reel")
 
-      toast({ title: "Reel published! 🎬", description: "Your reel is live in the feed." })
+      toast({ title: "Tree published! 🎬", description: "Your reel is live in the feed." })
       setFile(null)
       setPreviewUrl(null)
       setTitle("")
       setDescription("")
       setHashtags("")
-      onReelCreated?.(reelData.data?.reel?.id || null)
+      onTreeCreated?.(treeData.data?.reel?.id || null)
     } catch (error: any) {
       toast({ title: "Couldn't publish reel", description: error.message || "Something went wrong", variant: "destructive" })
     } finally {
@@ -164,9 +164,9 @@ export function CreateReelForm({ onReelCreated }: CreateReelFormProps) {
         )}
 
         <div className="space-y-1.5">
-          <Label htmlFor="reel-title">Title</Label>
+          <Label htmlFor="tree-title">Title</Label>
           <Input
-            id="reel-title"
+            id="tree-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Give your reel a catchy title"
@@ -175,9 +175,9 @@ export function CreateReelForm({ onReelCreated }: CreateReelFormProps) {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="reel-desc">Description</Label>
+          <Label htmlFor="tree-desc">Description</Label>
           <Textarea
-            id="reel-desc"
+            id="tree-desc"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="What's this reel about?"
@@ -206,7 +206,7 @@ export function CreateReelForm({ onReelCreated }: CreateReelFormProps) {
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {uploadProgressLabel || "Publishing…"}
             </>
           ) : (
-            "Publish Reel"
+            "Publish Tree"
           )}
         </Button>
       </div>

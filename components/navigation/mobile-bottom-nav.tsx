@@ -62,14 +62,14 @@ export function MobileBottomNav() {
     ? [
         { href: "/", icon: Home, label: "Home" },
         { href: "/search", icon: Search, label: "Search" },
-        { href: "/reels", icon: Video, label: "Reels" },
+        { href: "/trees", icon: Video, label: "Trees" },
         { href: "/messages", icon: MessageCircle, label: "Chat", auth: true as const },
       ]
     : [
         { href: "/", icon: Home, label: "Home" },
         { href: "/search", icon: Search, label: "Search" },
         { href: "/explore", icon: Compass, label: "Explore" },
-        { href: "/reels", icon: Video, label: "Reels" },
+        { href: "/trees", icon: Video, label: "Trees" },
       ]
 
   return (

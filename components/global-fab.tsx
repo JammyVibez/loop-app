@@ -19,7 +19,7 @@ const EXCLUDED_PREFIXES = [
   "/create",
   "/co-loop",
   "/messages",
-  "/reels",
+  "/trees",
   "/circles",
   "/streams",
   "/settings",

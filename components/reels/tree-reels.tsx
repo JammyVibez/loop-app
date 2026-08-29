@@ -130,15 +130,15 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
   const fetchReels = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/reels?category=${category}&limit=30`, {
+      const response = await fetch(`/api/trees?category=${category}&limit=30`, {
         headers: user ? getAuthHeader() : undefined,
         cache: "no-store",
       })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "Failed to load reels")
+      if (!response.ok) throw new Error(data.error || "failed to load trees")
       setReels(data.data?.reels || [])
     } catch (error: any) {
-      toast({ title: "Reels unavailable", description: error.message, variant: "destructive" })
+      toast({ title: "trees unavailable", description: error.message, variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -148,7 +148,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
     fetchReels()
   }, [fetchReels])
 
-  // Deep-link focus: /reels?focus=<id>
+  // Deep-link focus: /trees?focus=<id>
   useEffect(() => {
     if (!reels.length || typeof window === "undefined") return
     const focusId = new URLSearchParams(window.location.search).get("focus")
@@ -260,7 +260,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
         void video.play().catch(() => null)
         if (!viewed.current.has(active.id) && active.source !== "loop") {
           viewed.current.add(active.id)
-          void fetch(`/api/reels/${active.id}/interactions`, {
+          void fetch(`/api/trees/${active.id}/interactions`, {
             method: "POST",
             headers: { "Content-Type": "application/json", ...(user ? getAuthHeader() : {}) },
             body: JSON.stringify({ type: "view", action: "add" }),
@@ -352,7 +352,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
       })
       const url = uploaded.url
 
-      const response = await fetch(`/api/reels/${duetReel.id}/branch`, {
+      const response = await fetch(`/api/trees/${duetReel.id}/branch`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({
@@ -365,7 +365,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
       })
       const { data } = await parseJsonResponse<any>(response)
       if (!response.ok) throw new Error(data.error || "Duet failed")
-      toast({ title: "Duet published" })
+      toast({ title: "Branch published" })
       setDuetReel(null)
       setUploadFile(null)
       setCreateTitle("")
@@ -383,7 +383,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
       return
     }
     if (reel.source === "loop") {
-      toast({ title: "Convert to a Reel to like this clip" })
+      toast({ title: "Convert to a Tree to like this clip" })
       return
     }
 
@@ -405,7 +405,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
       ),
     )
 
-    const response = await fetch(`/api/reels/${reel.id}/interactions`, {
+    const response = await fetch(`/api/trees/${reel.id}/interactions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeader() },
       body: JSON.stringify({
@@ -448,7 +448,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
     if (!editReel) return
     setSavingEdit(true)
     try {
-      const response = await fetch(`/api/reels/${editReel.id}`, {
+      const response = await fetch(`/api/trees/${editReel.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({
@@ -462,12 +462,12 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
         }),
       })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "Failed to edit reel")
+      if (!response.ok) throw new Error(data.error || "Failed to edit tree")
       const updated = data.data?.reel
       if (updated) {
         setReels((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated, type: updated.content_type } : r)))
       }
-      toast({ title: "Reel updated" })
+      toast({ title: "Tree updated" })
       setEditReel(null)
     } catch (error: any) {
       toast({ title: "Edit failed", description: error.message, variant: "destructive" })
@@ -477,18 +477,18 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
   }
 
   const deleteReel = async (reel: Reel) => {
-    if (!window.confirm("Delete this reel? This can't be undone.")) return
+    if (!window.confirm("Delete this tree? This can't be undone.")) return
     setDeleting(true)
     try {
-      const response = await fetch(`/api/reels/${reel.id}`, {
+      const response = await fetch(`/api/trees/${reel.id}`, {
         method: "DELETE",
         headers: getAuthHeader(),
       })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "Failed to delete reel")
+      if (!response.ok) throw new Error(data.error || "Failed to delete tree")
       setReels((prev) => prev.filter((r) => r.id !== reel.id))
       setActiveIndex((i) => Math.min(i, reels.length - 2))
-      toast({ title: "Reel deleted" })
+      toast({ title: "Tree deleted" })
     } catch (error: any) {
       toast({ title: "Delete failed", description: error.message, variant: "destructive" })
     } finally {
@@ -501,7 +501,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
     setComments([])
     setReplyTo(null)
     if (reel.source === "loop") return
-    const response = await fetch(`/api/reels/${reel.id}/comments`)
+    const response = await fetch(`/api/trees/${reel.id}/comments`)
     if (response.ok) {
       const data = await response.json()
       setComments(data.comments || data.data?.comments || [])
@@ -510,7 +510,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
 
   const sendComment = async () => {
     if (!user || !commentOpen || !commentText.trim()) return
-    const response = await fetch(`/api/reels/${commentOpen.id}/comments`, {
+    const response = await fetch(`/api/trees/${commentOpen.id}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeader() },
       body: JSON.stringify({
@@ -565,7 +565,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
     )
 
     try {
-      const res = await fetch(`/api/reels/${commentOpen.id}/comments/${comment.id}/like`, {
+      const res = await fetch(`/api/trees/${commentOpen.id}/comments/${comment.id}/like`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
       })
@@ -605,7 +605,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
       })
       const url = uploaded.url
 
-      const response = await fetch("/api/reels", {
+      const response = await fetch("/api/trees", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({
@@ -621,8 +621,8 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
         }),
       })
       const { data } = await parseJsonResponse<any>(response)
-      if (!response.ok) throw new Error(data.error || "Failed to create reel")
-      toast({ title: "Reel published" })
+      if (!response.ok) throw new Error(data.error || "Failed to create tree")
+      toast({ title: "Tree published" })
       setCreateOpen(false)
       setCreateTitle("")
       setCreateHashtags("")
@@ -652,7 +652,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
         <p className="max-w-sm text-sm text-white/70">Be the first to publish a vertical clip for the feed.</p>
         {user && (
           <Button className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500" onClick={() => setCreateOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Create Reel
+            <Plus className="mr-2 h-4 w-4" /> Create Tree
           </Button>
         )}
       </div>

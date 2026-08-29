@@ -188,7 +188,7 @@ export function NotificationDropdown() {
     if (data.conversation_id) return `/messages?c=${data.conversation_id}`
     if (data.loop_id) return `/loop/${data.loop_id}`
     if (data.circle_id) return `/circles/${data.circle_id}`
-    if (data.reel_id) return `/reels?id=${data.reel_id}`
+    if (data.reel_id) return `/trees?id=${data.reel_id}`
     if (data.username) return `/profile/${data.username}`
     if (data.actor_username) return `/profile/${data.actor_username}`
     if (n.type === "mention") return "/notifications?type=mention"

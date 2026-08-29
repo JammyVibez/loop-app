@@ -159,8 +159,8 @@ export function ShareToDmModal({ open, onOpenChange, item }: ShareToDmModalProps
         : `/${item.type === "reel" ? "reels?focus=" + item.id : "loop/" + item.id}`
 
       const shareText = customNote.trim()
-        ? `${customNote.trim()}\n\n📌 Shared ${item.type === "reel" ? "Reel" : "Loop"}: ${item.title || "Check this out!"}\n${shareUrl}`
-        : `📌 Shared ${item.type === "reel" ? "Reel" : "Loop"}: ${item.title || "Check this out!"}\n${shareUrl}`
+        ? `${customNote.trim()}\n\n📌 Shared ${item.type === "reel" ? "Tree" : "Loop"}: ${item.title || "Check this out!"}\n${shareUrl}`
+        : `📌 Shared ${item.type === "reel" ? "Tree" : "Loop"}: ${item.title || "Check this out!"}\n${shareUrl}`
 
       // Reels with media are sent as real video/image messages so the
       // recipient sees the inline player — not just a text link.
@@ -255,7 +255,7 @@ export function ShareToDmModal({ open, onOpenChange, item }: ShareToDmModalProps
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg font-bold">
             <Share2 className="h-5 w-5 text-violet-500" />
-            Share {item?.type === "reel" ? "Reel" : "Loop"} in DM
+            Share {item?.type === "reel" ? "Tree" : "Loop"} in DM
           </DialogTitle>
           <DialogDescription className="text-muted-foreground text-xs">
             Send this content directly to a friend or group chat.

@@ -110,8 +110,8 @@ export function ShareToCircleModal({ open, onOpenChange, item }: ShareToCircleMo
           : `/${item.type === "reel" ? "reels?focus=" + item.id : "loop/" + item.id}`
 
       const shareText = customNote.trim()
-        ? `${customNote.trim()}\n\n📌 Shared ${item.type === "reel" ? "Reel" : "Loop"}: ${item.title || "Check this out!"}\n${shareUrl}`
-        : `📌 Shared ${item.type === "reel" ? "Reel" : "Loop"}: ${item.title || "Check this out!"}\n${shareUrl}`
+        ? `${customNote.trim()}\n\n📌 Shared ${item.type === "reel" ? "Tree" : "Loop"}: ${item.title || "Check this out!"}\n${shareUrl}`
+        : `📌 Shared ${item.type === "reel" ? "Tree" : "Loop"}: ${item.title || "Check this out!"}\n${shareUrl}`
 
       const res = await fetch(`/api/circles/${selectedCircle.id}/posts`, {
         method: "POST",
@@ -161,7 +161,7 @@ export function ShareToCircleModal({ open, onOpenChange, item }: ShareToCircleMo
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg font-bold">
             <Share2 className="h-5 w-5 text-emerald-500" />
-            Share {item?.type === "reel" ? "Reel" : "Loop"} in a Circle
+            Share {item?.type === "reel" ? "Tree" : "Loop"} in a Circle
           </DialogTitle>
           <DialogDescription className="text-muted-foreground text-xs">
             Post this content to your circle&apos;s community feed so everyone can see it.

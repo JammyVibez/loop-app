@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { TreeReels } from "@/components/reels/tree-reels"
+import { TreeReels } from "@/components/trees/tree-reels"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { Clapperboard } from "lucide-react"
@@ -15,7 +15,7 @@ const FILTERS = [
 export default function ReelsPage() {
   const { user } = useAuth()
   const [category, setCategory] = useState("trending")
-  const filters = user ? [...FILTERS, { id: "mine", label: "My Reels" }] : FILTERS
+  const filters = user ? [...FILTERS, { id: "mine", label: "My Trees" }] : FILTERS
 
   return (
     <div className="relative min-h-[100dvh] bg-black">

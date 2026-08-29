@@ -93,11 +93,11 @@ export function HomePageClient() {
                   Search
                 </Link>
                 <Link
-                  href="/reels"
+                  href="/trees"
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
                 >
                   <Video className="h-3.5 w-3.5" />
-                  Reels
+                  Trees
                 </Link>
                 {!isGuest && (
                   <>

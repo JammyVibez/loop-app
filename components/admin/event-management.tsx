@@ -52,7 +52,7 @@ const TEMPLATES = [
     location_type: "Creator Stage",
     reward_coins: 2500,
     badge_reward: "Master Creator",
-    tags: ["Creators", "Reels", "Art"]
+    tags: ["Creators", "Trees", "Art"]
   },
   {
     title: "3D Art & World Design Championship",

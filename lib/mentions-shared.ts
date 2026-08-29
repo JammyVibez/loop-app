@@ -77,7 +77,7 @@ export function mentionHref(
       : `/circles/${ctx.circle_id}`
   }
   if (ctx.source === "reel_comment") {
-    return ctx.reel_id ? `/reels?focus=${ctx.reel_id}` : "/reels"
+    return ctx.reel_id ? `/trees?focus=${ctx.reel_id}` : "/trees"
   }
   if (ctx.source === "message" && ctx.conversation_id) {
     return `/messages?c=${ctx.conversation_id}`

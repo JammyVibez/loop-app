@@ -1,5 +1,5 @@
-import { CreatePageContent } from "@/components/create/create-page-content"
+import { CreatePageContent } from "../page"
 
-export default function CreateReelPage() {
-  return <CreatePageContent defaultTab="reel" />
+export default function CreateTreePage() {
+  return <CreatePageContent defaultTab="tree" />
 }

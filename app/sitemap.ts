@@ -30,7 +30,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
-      url: `${BASE_URL}/reels`,
+      url: `${BASE_URL}/trees`,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.8,

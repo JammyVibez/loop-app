@@ -1,7 +1,7 @@
 import { CreatePageContent } from "@/components/create/create-page-content"
 import type { CreateTab } from "@/components/create/create-hub"
 
-const VALID_TABS: CreateTab[] = ["loop", "reel", "moment", "live", "coloop"]
+const VALID_TABS: CreateTab[] = ["loop", "tree", "moment", "live", "coloop"]
 
 /**
  * /create?tab=moment (or reel/live) opens the create hub on that tab — used

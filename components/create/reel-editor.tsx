@@ -83,7 +83,7 @@ const TEXT_STYLES = [
 ]
 
 const ASPECT_RATIOS = [
-  { id: "9:16", label: "9:16", icon: RectangleVertical, w: 9, h: 16, desc: "Reels/TikTok" },
+  { id: "9:16", label: "9:16", icon: RectangleVertical, w: 9, h: 16, desc: "Trees/TikTok" },
   { id: "1:1", label: "1:1", icon: SquareIcon, w: 1, h: 1, desc: "Square" },
   { id: "16:9", label: "16:9", icon: RectangleHorizontal, w: 16, h: 9, desc: "Landscape" },
   { id: "4:5", label: "4:5", icon: Crop, w: 4, h: 5, desc: "Instagram" },
@@ -167,7 +167,7 @@ const DEFAULT_STATE: EditorState = {
 }
 
 // ─── Main Component ───────────────────────────────────────────────
-export function ReelEditor({ onReelCreated }: { onReelCreated?: (id: string | null) => void }) {
+export function TreeEditor({ onTreeCreated }: { onTreeCreated?: (id: string | null) => void }) {
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const { requireAuth, isGuest, LoginGateDialog } = useLoginGate()
@@ -276,7 +276,7 @@ export function ReelEditor({ onReelCreated }: { onReelCreated?: (id: string | nu
     mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
     mr.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: "video/webm" })
-      loadVideoFile(new File([blob], "reel.webm", { type: "video/webm" }))
+      loadVideoFile(new File([blob], "tree.webm", { type: "video/webm" }))
       stopCamera()
     }
     mediaRecorderRef.current = mr
@@ -502,7 +502,7 @@ export function ReelEditor({ onReelCreated }: { onReelCreated?: (id: string | nu
       const uploaded = await uploadMediaFile(videoFile, { type: "video", folder: "reels", authHeaders: getAuthHeader() })
       setUploadLabel("Publishing…")
       const tags = hashtags.split(/[ ,#]+/).map((t) => t.trim().toLowerCase()).filter(Boolean)
-      const reelRes = await fetch("/api/reels", {
+      const treeRes = await fetch("/api/trees", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({
@@ -511,9 +511,9 @@ export function ReelEditor({ onReelCreated }: { onReelCreated?: (id: string | nu
           duration: uploaded.duration || Math.round(videoDuration), hashtags: tags,
         }),
       })
-      const { data } = await parseJsonResponse<any>(reelRes)
-      if (!reelRes.ok) throw new Error(data?.error || "Failed")
-      toast({ title: "Reel published! 🎬" }); resetAll(); onReelCreated?.(data?.data?.reel?.id || null)
+      const { data } = await parseJsonResponse<any>(treeRes)
+      if (!treeRes.ok) throw new Error(data?.error || "Failed")
+      toast({ title: "Tree published! 🎬" }); resetAll(); onTreeCreated?.(data?.data?.reel?.id || null)
     } catch (err: any) {
       toast({ title: "Publish failed", description: err.message, variant: "destructive" })
     } finally { setUploading(false); setUploadLabel(null) }
@@ -535,7 +535,7 @@ export function ReelEditor({ onReelCreated }: { onReelCreated?: (id: string | nu
       {LoginGateDialog}
       <div className="rounded-2xl border border-dashed border-border p-8 text-center">
         <Video className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-        <p className="text-muted-foreground">Sign in to create a Reel</p>
+        <p className="text-muted-foreground">Sign in to create a Tree</p>
         <Button className="mt-4 rounded-full" onClick={() => requireAuth("post")}>Sign in</Button>
       </div>
     </>)
@@ -559,7 +559,7 @@ export function ReelEditor({ onReelCreated }: { onReelCreated?: (id: string | nu
         </button>
         <button onClick={() => cameraInputRef.current?.click()} className="flex w-full items-center gap-4 rounded-2xl border border-border bg-gradient-to-br from-emerald-500/10 to-teal-500/5 p-5 text-left transition-all hover:border-emerald-500/30">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500"><ImageIcon className="h-6 w-6 text-white" /></div>
-          <div><p className="font-semibold text-foreground">Photo to Reel</p><p className="text-sm text-muted-foreground">Turn a photo into a reel</p></div>
+          <div><p className="font-semibold text-foreground">Photo to Tree</p><p className="text-sm text-muted-foreground">Turn a photo into a tree</p></div>
           <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileUpload} />
         </button>
       </div>
@@ -978,14 +978,14 @@ export function ReelEditor({ onReelCreated }: { onReelCreated?: (id: string | nu
       {/* ═══════════════════════════════════════════════════ */}
       {showPublish && (
         <div className="space-y-4 rounded-2xl border border-border bg-card p-4">
-          <p className="text-sm font-semibold text-foreground">Publish Reel</p>
+          <p className="text-sm font-semibold text-foreground">Publish Tree</p>
           <div className="space-y-1.5">
-            <Label htmlFor="reel-title">Title *</Label>
-            <Input id="reel-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Catchy title" maxLength={100} />
+            <Label htmlFor="tree-title">Title *</Label>
+            <Input id="tree-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Catchy title" maxLength={100} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="reel-desc">Description</Label>
-            <Textarea id="reel-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What's this about?" className="min-h-[70px]" maxLength={500} />
+            <Label htmlFor="tree-desc">Description</Label>
+            <Textarea id="tree-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What's this about?" className="min-h-[70px]" maxLength={500} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="reel-tags">Hashtags</Label>
@@ -1010,7 +1010,7 @@ export function ReelEditor({ onReelCreated }: { onReelCreated?: (id: string | nu
             {state.doodlePaths.length > 0 && <Tag>✏️ {state.doodlePaths.length} doodles</Tag>}
           </div>
           <Button onClick={handlePublish} disabled={uploading || !videoFile} className="h-12 w-full rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-base font-bold">
-            {uploading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {uploadLabel || "Publishing…"}</> : "Publish Reel"}
+            {uploading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {uploadLabel || "Publishing…"}</> : "Publish Tree"}
           </Button>
         </div>
       )}

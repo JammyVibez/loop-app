@@ -5,12 +5,12 @@ import { useState } from "react"
 import { Home, Radio, Video, Lightbulb, CheckCircle2, Zap } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateLoopButton } from "@/components/create-loop-button"
-import { ReelEditor } from "@/components/create/reel-editor"
+import { ReelEditor } from "@/components/create/tree-editor"
 import { CreateStreamForm } from "@/components/create/create-stream-form"
 import { CreateMomentForm } from "@/components/create/create-moment-form"
 import { CreateOpenCoLoopForm } from "@/components/create/create-open-coloop-form"
 
-export type CreateTab = "loop" | "reel" | "live" | "moment" | "coloop"
+export type CreateTab = "loop" | "tree" | "live" | "moment" | "coloop"
 
 const TIPS = [
   {
@@ -46,7 +46,7 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
             <TabsTrigger value="loop" className="rounded-full">
               <Home className="mr-1.5 h-4 w-4" /> Loop
             </TabsTrigger>
-            <TabsTrigger value="reel" className="rounded-full">
+            <TabsTrigger value="tree" className="rounded-full">
               <Video className="mr-1.5 h-4 w-4" /> Reel
             </TabsTrigger>
             <TabsTrigger value="moment" className="rounded-full">
@@ -64,8 +64,8 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
             <CreateLoopButton defaultOpen onLoopCreated={() => router.push("/")} />
           </TabsContent>
 
-          <TabsContent value="reel" className="mt-5">
-            <ReelEditor onReelCreated={(reelId) => router.push(reelId ? `/reels?focus=${reelId}` : "/reels")} />
+          <TabsContent value="tree" className="mt-5">
+            <ReelEditor onReelCreated={(reelId) => router.push(reelId ? `/trees?focus=${reelId}` : "/trees")} />
           </TabsContent>
 
           <TabsContent value="moment" className="mt-5">

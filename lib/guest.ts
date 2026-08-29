@@ -15,7 +15,7 @@ export const GUEST_PUBLIC_PREFIXES = [
   "/loop",
   "/hashtag",
   "/search",
-  "/reels",
+  "/trees",
   "/marketplace",
   "/invite",
   "/offline",
