@@ -5,7 +5,7 @@ import { useState } from "react"
 import { Home, Radio, Video, Lightbulb, CheckCircle2, Zap } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateLoopButton } from "@/components/create-loop-button"
-import { ReelEditor } from "@/components/create/tree-editor"
+import { TreeEditor } from "@/components/create/reel-editor"
 import { CreateStreamForm } from "@/components/create/create-stream-form"
 import { CreateMomentForm } from "@/components/create/create-moment-form"
 import { CreateOpenCoLoopForm } from "@/components/create/create-open-coloop-form"
@@ -65,7 +65,7 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
           </TabsContent>
 
           <TabsContent value="tree" className="mt-5">
-            <ReelEditor onReelCreated={(reelId) => router.push(reelId ? `/trees?focus=${reelId}` : "/trees")} />
+            <TreeEditor onTreeCreated={(treeId) => router.push(treeId ? `/trees?focus=${treeId}` : "/trees")} />
           </TabsContent>
 
           <TabsContent value="moment" className="mt-5">

@@ -58,8 +58,8 @@ export async function GET(request: NextRequest) {
     const totalWithdrawals = (withdrawals.data || []).reduce((sum: number, w: any) => sum + Number(w.estimated_usd || 0), 0)
 
     const prevCoins = (prevCoinPurchases.data || []).reduce((sum: number, t: any) => sum + Math.abs(Number(t.amount || 0)), 0)
-    const prevGifts = (prevGifts.data || []).reduce((sum: number, g: any) => sum + Number(g.cost || 0), 0)
-    const prevTotal = prevCoins + prevGifts
+    const prevGiftsTotal = (prevGifts.data || []).reduce((sum: number, g: any) => sum + Number(g.cost || 0), 0)
+    const prevTotal = prevCoins + prevGiftsTotal
 
     const currentTotal = totalCoinsSold + totalGiftsValue
     const changePercent = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0

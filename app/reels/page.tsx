@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { TreeReels } from "@/components/trees/tree-reels"
+import { TreeReels } from "@/components/reels/tree-reels"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { Clapperboard } from "lucide-react"
