@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import {
   BadgeCheck,
   Ban,
+  BarChart3,
   Crown,
   Loader2,
   RefreshCw,
@@ -94,6 +95,7 @@ export function AdminDashboard() {
   const [filter, setFilter] = useState("all")
   const [live, setLive] = useState(false)
   const [section, setSection] = useState(initialTab)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
 
   const loadUsers = useCallback(async () => {
     if (!user?.is_admin) return
@@ -570,6 +572,8 @@ export function AdminDashboard() {
           <AdminFramesTab />
         </TabsContent>
       </Tabs>
+
+      <AdminCommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
     </div>
   )
 }
