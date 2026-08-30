@@ -111,8 +111,8 @@ export function middleware(request: NextRequest) {
   const ip = getClientIp(request)
   const isApi = pathname.startsWith("/api/")
 
-  // ── 1. Block dangerous input in URLs ──
-  if (containsDangerousInput(pathname) || containsDangerousInput(request.nextUrl.search)) {
+  // ── 1. Block dangerous input in URLs (skip for API routes — they return JSON, not HTML) ──
+  if (!isApi && (containsDangerousInput(pathname) || containsDangerousInput(request.nextUrl.search))) {
     return new NextResponse("Forbidden", { status: 403 })
   }
 

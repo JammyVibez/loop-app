@@ -18,6 +18,7 @@ import {
   Pencil,
   Trash2,
   Clock3,
+  BadgeCheck,
   Send,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -830,7 +831,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                     <AvatarFallback>{(reel.author?.display_name || "U").charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-semibold">@{reel.author?.username || "creator"}</p>
+                    <p className="font-semibold inline-flex items-center gap-1">@{reel.author?.username || "creator"}{reel.author?.is_verified && <BadgeCheck className="h-3.5 w-3.5 text-blue-400 fill-blue-400/20" />}</p>
                     <p className="text-xs text-white/70">{reel.author?.display_name}</p>
                   </div>
                 </Link>
