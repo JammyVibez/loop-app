@@ -11,8 +11,8 @@ import { useToast } from "@/hooks/use-toast"
 interface BoostLoopDialogProps {
   loopId: string
   loopTitle?: string
-  currentCoins: number
-  targetCoins: number
+  currentCoins?: number
+  targetCoins?: number
   open: boolean
   onOpenChange: (open: boolean) => void
   onBoostSuccess?: (newCurrent: number, isBoosted: boolean) => void
@@ -37,7 +37,7 @@ export function BoostLoopDialog({
   const { toast } = useToast()
 
   const amountToContribute = customAmount ? Number(customAmount) : selectedAmount
-  const percent = Math.min(100, Math.round(((currentCoins + amountToContribute) / targetCoins) * 100))
+  const percent = Math.min(100, Math.round((((currentCoins ?? 0) + amountToContribute) / (targetCoins ?? 1)) * 100))
   const walletBalance = Number(user?.loop_coins || 0)
   const insufficientFunds = amountToContribute > walletBalance
 
@@ -115,7 +115,7 @@ export function BoostLoopDialog({
             <div className="flex items-center justify-between text-xs font-bold text-foreground">
               <span className="flex items-center gap-1 text-cyan-700 dark:text-cyan-300">
                 <Coins className="h-4 w-4 text-amber-400" />
-                {currentCoins + amountToContribute} / {targetCoins} Coins
+                {(currentCoins ?? 0) + amountToContribute} / {targetCoins ?? 0} Coins
               </span>
               <span className="text-cyan-600 dark:text-cyan-400">{percent}% Funded</span>
             </div>
