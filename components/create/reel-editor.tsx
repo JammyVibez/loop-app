@@ -8,7 +8,7 @@ import {
   Undo2, Redo2, Crop, RotateCw, FlipHorizontal, FlipVertical,
   Sun, Contrast, Droplets, Frame, Mic, CircleDot, RectangleHorizontal,
   RectangleVertical, SquareIcon, Sparkles, Sliders, Wand2, Paintbrush,
-  LayoutTemplate, Repeat, Timer, Layers
+  LayoutTemplate, Repeat, Timer, Layers, Check, Tag
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"

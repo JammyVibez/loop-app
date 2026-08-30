@@ -54,6 +54,7 @@ import {
   Link2,
   ArrowLeft,
   Tag,
+  Search,
   Settings2,
   Reply,
 } from "lucide-react"

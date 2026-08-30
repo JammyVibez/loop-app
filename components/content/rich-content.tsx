@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ExternalLink, Users } from "lucide-react"
+import { ExternalLink, Users, Tag } from "lucide-react"
 import { MENTION_RE } from "@/lib/mentions-shared"
 import { cn } from "@/lib/utils"
 import { UrlPreviewCard } from "./url-preview-card"

@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VideoAvatar } from "@/components/cosmetics/video-avatar";
-import { Users, Settings, Crown, Shield, MessageCircle, Calendar, UserPlus, UserMinus, Lock, Globe, Plus, Video, Mic, Share, Pin, Search, Filter, Edit, Trash2, Eye, Check, X, AlertTriangle, UserCheck, Ban, TrendingUp, Upload, Power, Loader2, ArrowLeft } from "lucide-react";
+import { Users, Settings, Crown, Shield, MessageCircle, Calendar, UserPlus, UserMinus, Lock, Globe, Plus, Video, Mic, Share, Pin, Search, Filter, Edit, Trash2, Eye, Check, X, AlertTriangle, UserCheck, Ban, TrendingUp, Upload, Power, Loader2, ArrowLeft, Circle } from "lucide-react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
