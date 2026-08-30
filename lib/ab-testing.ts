@@ -173,8 +173,8 @@ export function trackConversion(
   if (!result) return
 
   // Send to analytics
-  if (typeof window !== "undefined" && window.gtag) {
-    window.gtag("event", "experiment_conversion", {
+  if (typeof window !== "undefined" && (window as any).gtag) {
+    (window as any).gtag("event", "experiment_conversion", {
       experiment_id: experimentId,
       variant_id: result.variant.id,
       event_name: eventName,
