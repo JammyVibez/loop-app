@@ -691,7 +691,7 @@ export default function WalletPage() {
               {/* Advanced Transaction Filter */}
               <TransactionFilter
                 transactions={transactions}
-                onFiltered={(filtered) => setFilteredTransactions(filtered)}
+                onFiltered={(filtered) => setFilteredTransactions(filtered as Transaction[])}
               />
 
               {loading ? (
