@@ -19,8 +19,7 @@ export async function GET(request: NextRequest) {
     .select(
       `
         *,
-        user:profiles!user_id(id, username, display_name, avatar_url, loop_coins),
-        wallet_transactions:wallet_transactions!wallet_tx_id(id, amount_usd, coins_amount, type, description, created_at, status, payment_method, payment_intent_id)
+        user:profiles!user_id(id, username, display_name, avatar_url, loop_coins)
       `,
     )
     .order("created_at", { ascending: false })

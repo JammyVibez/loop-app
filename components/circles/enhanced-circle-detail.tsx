@@ -1866,6 +1866,32 @@ export function EnhancedCircleDetail({ circleId }: EnhancedCircleDetailProps) {
           <CircleActivityFeed circleId={circleId} />
         </TabsContent>
 
+        <TabsContent value="chat" className="mt-4 space-y-4 sm:mt-6 sm:space-y-6">
+          {(() => {
+            const defaultChatRoom = rooms.find(r => r.type === "text") || rooms[0]
+            if (!defaultChatRoom) {
+              return (
+                <Card className="border-border/60 bg-card/60">
+                  <CardContent className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+                    <MessageCircle className="h-10 w-10 text-muted-foreground/50" />
+                    <h3 className="text-lg font-semibold">No chat rooms yet</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Create a room in the Rooms tab to start chatting with members.
+                    </p>
+                  </CardContent>
+                </Card>
+              )
+            }
+            return (
+              <RealtimeCircleChat
+                circleId={circleId}
+                roomId={defaultChatRoom.id}
+                roomName={defaultChatRoom.name}
+              />
+            )
+          })()}
+        </TabsContent>
+
         <TabsContent value="coloop" className="mt-4 space-y-4 sm:mt-6 sm:space-y-6">
           <CircleColoop circleId={circleId} isMember={isJoined} />
         </TabsContent>

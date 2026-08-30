@@ -69,6 +69,14 @@ const nextConfig = {
     }
     return config
   },
+  async rewrites() {
+    return [
+      {
+        source: "/api/trees/:path*",
+        destination: "/api/reels/:path*",
+      },
+    ]
+  },
   async headers() {
     return [
       {

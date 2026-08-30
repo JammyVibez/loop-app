@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { VideoAvatar } from "@/components/cosmetics/video-avatar"
+
 import { useAuth } from "@/hooks/use-auth"
 import {
   Sparkles,
@@ -129,7 +129,7 @@ export function ContentRecommendations({
     )
   }
 
-  if (trendingTags.length === 0 && suggestedCreators.length === 0) return null
+  if (trendingTags.length === 0) return null
 
   return (
     <div className="space-y-4 mt-6">
@@ -152,51 +152,6 @@ export function ContentRecommendations({
           Refresh
         </Button>
       </div>
-
-      {/* Suggested Creators */}
-      {suggestedCreators.length > 0 && (
-        <Card className="overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Users className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold">People to follow</span>
-            </div>
-            <div className="space-y-3">
-              {suggestedCreators.map((creator) => (
-                <Link
-                  key={creator.id}
-                  href={`/profile/${creator.username}`}
-                  className="flex items-center gap-3 group"
-                >
-                  <VideoAvatar
-                    src={creator.avatar_url}
-                    className="h-10 w-10 shrink-0"
-                    fallback={creator.display_name?.charAt(0) || "U"}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold truncate group-hover:text-primary transition-colors">
-                      {creator.display_name}
-                      {creator.is_verified && (
-                        <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] text-primary-foreground">✓</span>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      @{creator.username}
-                      {creator.follower_count ? ` · ${creator.follower_count} followers` : ""}
-                    </p>
-                    {creator.bio && (
-                      <p className="text-xs text-muted-foreground/70 truncate mt-0.5">{creator.bio}</p>
-                    )}
-                  </div>
-                  <Button size="sm" variant="outline" className="shrink-0 rounded-full text-xs">
-                    Follow
-                  </Button>
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Trending Hashtags */}
       {trendingTags.length > 0 && (

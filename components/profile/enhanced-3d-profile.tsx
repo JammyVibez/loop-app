@@ -64,6 +64,7 @@ interface UserProfile {
   branches_count: number
   comments_count?: number
   likes_received: number
+  views_received?: number
   level: number
   xp_points: number
   loop_coins: number
@@ -884,7 +885,17 @@ export function Enhanced3DProfile({ username }: { username: string }) {
 
           {/* About Tab Content */}
           <ProfileAboutTab
-            profile={profile}
+            profile={{
+              ...profile,
+              stats: {
+                loops_count: profile.loops_count ?? 0,
+                branches_count: profile.branches_count ?? 0,
+                followers_count: profile.followers_count ?? 0,
+                following_count: profile.following_count ?? 0,
+                likes_received: profile.likes_received ?? 0,
+                views_received: (profile as any).views_received ?? 0,
+              },
+            }}
             isOwnProfile={isOwnProfile}
             onEdit={() => window.location.href = "/settings?tab=profile"}
           />

@@ -248,6 +248,11 @@ export async function GET(request: NextRequest) {
       return sum + Number(stats?.likes_count || 0)
     }, 0)
 
+    const viewsReceived = (recentLoops || []).reduce((sum, loop: any) => {
+      const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats
+      return sum + Number(stats?.views_count || 0)
+    }, 0)
+
     const { cosmeticsFromInventory } = await import("@/lib/cosmetics")
     const derivedCosmetics = cosmeticsFromInventory(activeItems || [])
 
@@ -259,6 +264,7 @@ export async function GET(request: NextRequest) {
       branches_count: branchesCount ?? profile.branches_count ?? 0,
       comments_count: commentsCount ?? profile.comments_count ?? 0,
       likes_received: likesReceived,
+      views_received: viewsReceived,
       level: profile.level ?? 1,
       xp_points: profile.xp_points ?? 0,
       achievements: profile.achievements ?? [],
