@@ -1,68 +1,102 @@
 "use client"
 
 /**
- * Better-auth client with fully lazy initialization.
+ * Auth client that talks directly to Better Auth's HTTP API endpoints.
  *
- * All `better-auth` and `@better-auth/stripe` packages contain internal
- * circular dependencies that cause "Cannot access 'a' before initialization"
- * TDZ errors when bundled by webpack/Next.js in production mode.
+ * The `better-auth/react` and `@better-auth/stripe/client` packages contain
+ * internal circular module dependencies that cause "Cannot access 'a' before
+ * initialization" TDZ errors in production webpack/Next.js builds. No amount
+ * of `import()`, `require()`, or proxy tricks can fix this because the
+ * circular deps are INSIDE those packages' own modules.
  *
- * Using dynamic `import()` (instead of static `import` or `require`) creates
- * async boundaries that prevent webpack from eagerly evaluating these modules
- * during bundle initialization. The client is created once on first use and
- * cached for subsequent calls.
+ * Instead, we call Better Auth's REST API directly — the same endpoints that
+ * `createAuthClient()` would call internally. The catch-all route handler at
+ * `/api/auth/[...all]` forwards every request to the server-side `betterAuth`
+ * instance, so the behavior is identical.
  */
 
-let _clientPromise: Promise<any> | null = null
+const AUTH_BASE = "/api/auth"
 
-function ensureClient(): Promise<any> {
-  if (_clientPromise) return _clientPromise
+interface AuthResult {
+  data: any
+  error: any
+}
 
-  _clientPromise = (async () => {
-    const [{ createAuthClient }, { stripeClient }] = await Promise.all([
-      import("better-auth/react"),
-      import("@better-auth/stripe/client"),
-    ])
-
-    return createAuthClient({
-      baseURL:
-        typeof window !== "undefined"
-          ? window.location.origin
-          : process.env.NEXT_PUBLIC_APP_URL || "",
-      plugins: [
-        stripeClient({
-          subscription: true,
-        }),
-      ],
+async function authFetch(
+  path: string,
+  init?: RequestInit,
+): Promise<AuthResult> {
+  try {
+    const res = await fetch(`${AUTH_BASE}${path}`, {
+      credentials: "include",
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...init?.headers,
+      },
     })
-  })()
-
-  return _clientPromise
+    const body = await res.json().catch(() => null)
+    if (!res.ok) {
+      return { data: null, error: body || { message: `HTTP ${res.status}` } }
+    }
+    return { data: body, error: null }
+  } catch (err: any) {
+    return { data: null, error: { message: err?.message || "Network error" } }
+  }
 }
 
 /**
- * Lazy proxy — every property access triggers the async client load
- * on first call, then delegates directly to the real client.
- * All callers already `await` the results (getSession, signOut, signIn.social, etc.).
+ * Thin wrapper around Better Auth's HTTP endpoints.
+ * Matches the API surface used by hooks/use-auth.tsx, lib/supabase.ts,
+ * and app/reset-password/page.tsx.
  */
-export const authClient: any = new Proxy({} as any, {
-  get(_target, prop, receiver) {
-    // Allow non-function property access to pass through (e.g. Symbol checks)
-    if (typeof prop === "symbol") return undefined
+export const authClient: any = {
+  getSession: () =>
+    authFetch("/get-session"),
 
-    // Return a function that lazily loads the real client then calls the method
-    return (...args: any[]) =>
-      ensureClient().then((client: any) => {
-        const method = client[prop]
-        if (typeof method === "function") {
-          return method.apply(client, args)
-        }
-        return method
-      })
+  signOut: () =>
+    authFetch("/sign-out", { method: "POST" }),
+
+  signIn: {
+    social: async ({
+      provider,
+      callbackURL,
+    }: {
+      provider: string
+      callbackURL?: string
+    }) => {
+      const params = new URLSearchParams({ provider })
+      if (callbackURL) params.set("callbackURL", callbackURL)
+      // This redirects the browser to the OAuth provider
+      window.location.href = `${AUTH_BASE}/sign-in/social?${params.toString()}`
+    },
   },
-})
 
-export function getAuthClient(): any {
-  // Return a thenable that resolves to the real client
-  return ensureClient()
+  requestPasswordReset: ({
+    email,
+    redirectTo,
+  }: {
+    email: string
+    redirectTo?: string
+  }) =>
+    authFetch("/request-password-reset", {
+      method: "POST",
+      body: JSON.stringify({ email, redirectTo }),
+    }),
+
+  resetPassword: ({
+    newPassword,
+    token,
+  }: {
+    newPassword: string
+    token: string
+  }) =>
+    authFetch("/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ newPassword, token }),
+    }),
+}
+
+export function getAuthClient(): typeof authClient {
+  return authClient
 }
