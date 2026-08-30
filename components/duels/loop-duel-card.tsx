@@ -116,13 +116,14 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
   useEffect(() => {
     if (!duel?.expires_at) return
     const endsAt = new Date(duel.expires_at).getTime()
+    let interval: ReturnType<typeof setInterval>
     const tick = () => {
       const left = Math.max(0, Math.floor((endsAt - Date.now()) / 1000))
       setSecondsLeft(left)
       if (left <= 0) clearInterval(interval)
     }
     tick()
-    const interval = setInterval(tick, 1000)
+    interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
   }, [duel?.expires_at])
 

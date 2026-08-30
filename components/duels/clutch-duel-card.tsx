@@ -185,6 +185,7 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
       return
     }
 
+    let interval: ReturnType<typeof setInterval>
     const tick = () => {
       const left = Math.max(0, Math.floor((endsAt - Date.now()) / 1000))
       setSecondsLeft(left)
@@ -194,7 +195,7 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
       }
     }
     tick()
-    const interval = setInterval(tick, 1000)
+    interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [duel?.betting_ends_at, duel?.outcome_revealed, enterRevealBeat])
