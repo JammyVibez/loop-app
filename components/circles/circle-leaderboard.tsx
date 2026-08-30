@@ -215,7 +215,7 @@ export function CircleLeaderboard({ circleId, members }: LeaderboardProps) {
                         />
                       </Link>
                       <p className="text-xs font-bold mt-2 truncate">{profile?.display_name || "Member"}</p>
-                      <p className="text-[10px] text-muted-foreground">{formatScore(stat[sortBy] || 0)} pts</p>
+                      <p className="text-[10px] text-muted-foreground">{formatScore((stat as any)[sortBy] || 0)} pts</p>
                     </CardContent>
                   </Card>
                 )
@@ -258,7 +258,7 @@ export function CircleLeaderboard({ circleId, members }: LeaderboardProps) {
                       )}
                     </div>
                   </Link>
-                  <span className="text-xs font-black text-cyan-400 shrink-0">{formatScore(stat[sortBy] || 0)}</span>
+                  <span className="text-xs font-black text-cyan-400 shrink-0">{formatScore((stat as any)[sortBy] || 0)}</span>
                 </div>
               )
             })}
