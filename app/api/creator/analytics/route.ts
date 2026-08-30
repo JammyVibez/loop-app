@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         loopIds.length > 0
           ? supabase
               .from("loop_stats")
-              .select("views_count, likes_count, comments_count")
+              .select("loop_id, views_count, likes_count, comments_count")
               .in("loop_id", loopIds)
           : { data: [], error: null },
         // Total likes received
