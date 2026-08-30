@@ -40,6 +40,7 @@ const nextConfig = {
   // consumes the standalone server bundle.
   // Keep Node-only packages out of the client/Edge bundles.
   serverExternalPackages: ["stripe", "web-push", "https-proxy-agent", "agent-base"],
+  productionBrowserSourceMaps: true,
   eslint: {
     ignoreDuringBuilds: true,
   },

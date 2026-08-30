@@ -20,6 +20,12 @@ export default function Error({
       <p className="text-sm text-muted-foreground mb-4">
         {error.message || "An unexpected error occurred."}
       </p>
+      {error.digest && (
+        <p className="text-xs text-muted-foreground mb-2">Error: {error.digest}</p>
+      )}
+      {error.stack && (
+        <pre className="text-xs text-left text-muted-foreground max-w-lg overflow-auto mb-4 bg-muted p-2 rounded">{error.stack}</pre>
+      )}
       <Button onClick={() => reset()} className="rounded-full">
         Try again
       </Button>
