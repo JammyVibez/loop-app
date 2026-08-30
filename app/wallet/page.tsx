@@ -119,7 +119,6 @@ export default function WalletPage() {
       setActiveTab(tab)
     }
   }, [searchParams])
-  const [filterType, setFilterType] = useState("all")
 
   useEffect(() => {
     fetchWalletData()
@@ -513,13 +512,7 @@ export default function WalletPage() {
     }
   }
 
-  const filteredTransactions = transactions.filter((tx) => {
-    if (filterType === "all") return true
-    if (filterType === "deposits") return tx.type === "deposit"
-    if (filterType === "gifts") return tx.type.includes("gift")
-    if (filterType === "purchases") return tx.type === "shop_purchase"
-    return true
-  })
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([])
 
   return (
     <div className="container max-w-6xl mx-auto px-4 py-6 sm:py-8 space-y-6">
