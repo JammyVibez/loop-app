@@ -75,6 +75,18 @@ const nextConfig = {
         source: "/api/trees/:path*",
         destination: "/api/reels/:path*",
       },
+      // Redirect /co-loop/{sessionId} (missing /join/) to /co-loop/join/{sessionId}
+      {
+        source: "/co-loop/:session",
+        destination: "/co-loop/join/:session",
+        has: [
+          {
+            type: "header",
+            key: "accept",
+            value: ".*text/html.*",
+          },
+        ],
+      },
     ]
   },
   async headers() {
