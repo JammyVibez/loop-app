@@ -16,6 +16,7 @@ interface BoostLoopDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onBoostSuccess?: (newCurrent: number, isBoosted: boolean) => void
+  onBoosted?: () => Promise<void> | void
 }
 
 export function BoostLoopDialog({
@@ -26,6 +27,7 @@ export function BoostLoopDialog({
   open,
   onOpenChange,
   onBoostSuccess,
+  onBoosted,
 }: BoostLoopDialogProps) {
   const [selectedAmount, setSelectedAmount] = useState<number>(50)
   const [customAmount, setCustomAmount] = useState<string>("")
@@ -78,6 +80,7 @@ export function BoostLoopDialog({
         if (onBoostSuccess) {
           onBoostSuccess(data.boost.current, data.boost.isBoosted)
         }
+        onBoosted?.()
         onOpenChange(false)
       } else {
         toast({ title: "Boost failed", description: data.error || "Could not contribute coins", variant: "destructive" })
