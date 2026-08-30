@@ -13,10 +13,10 @@ import { getDiceBearUrl } from "@/lib/dicebear";
  * DiceBear, Gravatar, data URIs, blobs, and local paths are passed through
  * directly — they're either CORS-friendly or don't need proxying.
  */
-function proxyImg(url: string | Blob | null | undefined): string | Blob | undefined {
+function proxyImg(url: string | Blob | null | undefined): string | undefined {
   if (!url) return undefined;
-  // Blobs and non-string types pass through unchanged
-  if (typeof url !== "string") return url;
+  // Blobs are not supported by avatar components, return undefined
+  if (typeof url !== "string") return undefined;
   if (
     url.startsWith("data:") ||
     url.startsWith("blob:") ||

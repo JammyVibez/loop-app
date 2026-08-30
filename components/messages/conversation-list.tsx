@@ -170,7 +170,7 @@ export function ConversationList({
                   <div className="relative shrink-0">
                     {(other as any)?.video_avatar_url ? (
                       <VideoAvatar
-                        src={other.avatar_url}
+                        src={other?.avatar_url}
                         videoSrc={(other as any).video_avatar_url}
                         alt={displayName}
                         fallback={displayName.charAt(0)}
