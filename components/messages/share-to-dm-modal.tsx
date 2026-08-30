@@ -133,7 +133,7 @@ export function ShareToDmModal({ open, onOpenChange, item }: ShareToDmModalProps
 
     setSending(true)
     try {
-      let targetConversationId = selectedConversation.id
+      let targetConversationId = String(selectedConversation.id || "")
 
       // If this is a new conversation target created from search
       if (targetConversationId.startsWith("new-") && selectedConversation.other_user_id) {
