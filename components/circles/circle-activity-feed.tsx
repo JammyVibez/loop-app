@@ -202,7 +202,6 @@ export function CircleActivityFeed({ circleId }: ActivityFeedProps) {
                         src={activity.actor.avatar_url}
                         className="h-6 w-6"
                         fallback={activity.actor.display_name?.charAt(0) || "?"}
-                        fallbackClassName="text-[10px]"
                       />
                       <Link
                         href={`/profile/${activity.actor.username}`}

@@ -212,7 +212,6 @@ export function CircleLeaderboard({ circleId, members }: LeaderboardProps) {
                           videoSrc={profile?.video_avatar_url}
                           className={`mx-auto border-2 ${isTop ? "h-14 w-14 border-amber-400" : "h-11 w-11 border-border"}`}
                           fallback={profile?.display_name?.charAt(0) || "?"}
-                          fallbackClassName={isTop ? "text-lg" : ""}
                         />
                       </Link>
                       <p className="text-xs font-bold mt-2 truncate">{profile?.display_name || "Member"}</p>
@@ -245,7 +244,6 @@ export function CircleLeaderboard({ circleId, members }: LeaderboardProps) {
                       videoSrc={profile?.video_avatar_url}
                       className="h-8 w-8"
                       fallback={profile?.display_name?.charAt(0) || "?"}
-                      fallbackClassName="text-[10px]"
                     />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1">

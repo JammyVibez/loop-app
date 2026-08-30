@@ -201,7 +201,6 @@ export function CircleColoop({ circleId, isMember }: CircleColoopProps) {
                 src={session.creator.avatar_url}
                 className="h-8 w-8 opacity-70"
                 fallback={session.creator.display_name?.charAt(0) || "?"}
-                fallbackClassName="text-[10px]"
               />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold truncate">{session.title}</p>

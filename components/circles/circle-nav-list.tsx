@@ -140,7 +140,6 @@ export function CircleNavList({
           videoSrc={circle?.video_avatar_url}
           className="h-16 w-16 border-2 border-cyan-500/30"
           fallback={circle?.name?.charAt(0) || "C"}
-          fallbackClassName="text-xl font-bold"
         />
         <div className="flex-1 min-w-0">
           <h2 className="text-lg font-extrabold text-foreground truncate">{circle?.name || "Circle"}</h2>
