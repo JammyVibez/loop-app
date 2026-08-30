@@ -39,7 +39,7 @@ const nextConfig = {
   // incompatible with standalone output). There is no Docker/VPS target that
   // consumes the standalone server bundle.
   // Keep Node-only packages out of the client/Edge bundles.
-  serverExternalPackages: ["stripe", "web-push", "https-proxy-agent", "agent-base"],
+  serverExternalPackages: ["stripe", "web-push", "https-proxy-agent", "agent-base", "better-auth", "@better-auth/stripe"],
   eslint: {
     ignoreDuringBuilds: true,
   },

@@ -1,62 +1,68 @@
 "use client"
 
-let _authClient: any = null
+/**
+ * Better-auth client with fully lazy initialization.
+ *
+ * All `better-auth` and `@better-auth/stripe` packages contain internal
+ * circular dependencies that cause "Cannot access 'a' before initialization"
+ * TDZ errors when bundled by webpack/Next.js in production mode.
+ *
+ * Using dynamic `import()` (instead of static `import` or `require`) creates
+ * async boundaries that prevent webpack from eagerly evaluating these modules
+ * during bundle initialization. The client is created once on first use and
+ * cached for subsequent calls.
+ */
 
-export function getAuthClient(): any {
-  if (_authClient) return _authClient
+let _clientPromise: Promise<any> | null = null
 
-  // Dynamic imports break the circular dependency chain inside better-auth
-  // that causes "Cannot access 'a' before initialization" in production builds.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createAuthClient } = require("better-auth/react")
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { stripeClient } = require("@better-auth/stripe/client")
+function ensureClient(): Promise<any> {
+  if (_clientPromise) return _clientPromise
 
-  _authClient = createAuthClient({
-    baseURL: typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || "",
-    plugins: [
-      stripeClient({
-        subscription: true,
-      }),
-    ],
-  })
+  _clientPromise = (async () => {
+    const [{ createAuthClient }, { stripeClient }] = await Promise.all([
+      import("better-auth/react"),
+      import("@better-auth/stripe/client"),
+    ])
 
-  return _authClient
+    return createAuthClient({
+      baseURL:
+        typeof window !== "undefined"
+          ? window.location.origin
+          : process.env.NEXT_PUBLIC_APP_URL || "",
+      plugins: [
+        stripeClient({
+          subscription: true,
+        }),
+      ],
+    })
+  })()
+
+  return _clientPromise
 }
 
 /**
- * Lazy proxy — every property access delegates to the real client,
- * so better-auth modules are never evaluated during bundle initialization.
+ * Lazy proxy — every property access triggers the async client load
+ * on first call, then delegates directly to the real client.
+ * All callers already `await` the results (getSession, signOut, signIn.social, etc.).
  */
 export const authClient: any = new Proxy({} as any, {
-  get(_target, prop) {
-    return (getAuthClient() as any)[prop]
+  get(_target, prop, receiver) {
+    // Allow non-function property access to pass through (e.g. Symbol checks)
+    if (typeof prop === "symbol") return undefined
+
+    // Return a function that lazily loads the real client then calls the method
+    return (...args: any[]) =>
+      ensureClient().then((client: any) => {
+        const method = client[prop]
+        if (typeof method === "function") {
+          return method.apply(client, args)
+        }
+        return method
+      })
   },
 })
 
-export const signIn = new Proxy({} as any, {
-  get(_target, prop) {
-    return (getAuthClient().signIn as any)[prop]
-  },
-})
-
-export const signUp = new Proxy({} as any, {
-  get(_target, prop) {
-    return (getAuthClient().signUp as any)[prop]
-  },
-})
-
-export const signOut = new Proxy({} as any, {
-  get(_target, prop) {
-    return (getAuthClient().signOut as any)[prop]
-  },
-})
-
-/** Hook — call as useSession() in a React component. */
-export const useSession: any = (...args: any[]) => {
-  return (getAuthClient() as any).useSession(...args)
-}
-
-export const getSession: any = (...args: any[]) => {
-  return (getAuthClient() as any).getSession(...args)
+export function getAuthClient(): any {
+  // Return a thenable that resolves to the real client
+  return ensureClient()
 }
