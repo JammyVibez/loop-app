@@ -73,7 +73,7 @@ export function useFeedShortcuts(handlers: {
     ...(handlers.like ? [{ key: "l", description: "Like post", handler: handlers.like }] : []),
     ...(handlers.save ? [{ key: "s", description: "Save post", handler: handlers.save }] : []),
     ...(handlers.comment ? [{ key: "c", description: "Comment", handler: handlers.comment }] : []),
-    ...(handlers.share ? [{ key: "shift+s", key: "S", shift: true, description: "Share", handler: handlers.share }] : []),
+    ...(handlers.share ? [{ key: "s", shift: true, description: "Share", handler: handlers.share }] : []),
     ...(handlers.nextPost ? [{ key: "j", description: "Next post", handler: handlers.nextPost }] : []),
     ...(handlers.prevPost ? [{ key: "k", description: "Previous post", handler: handlers.prevPost }] : []),
     ...(handlers.newPost ? [{ key: "n", description: "New post", handler: handlers.newPost }] : []),
