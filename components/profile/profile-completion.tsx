@@ -24,7 +24,7 @@ interface ProfileCompletionProps {
     location?: string
     website?: string
     banner_url?: string
-    tagged_circles?: string[]
+    tagged_circles?: Array<{ id: string; name: string; avatar_url?: string | null }>
     achievements?: any[]
     loops_count?: number
   }

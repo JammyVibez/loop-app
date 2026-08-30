@@ -45,7 +45,7 @@ interface ProfileAboutProps {
     organization_name?: string
     loop_coins?: number
     level?: number
-    tagged_circles?: string[]
+    tagged_circles?: Array<{ id: string; name: string; avatar_url?: string | null }>
     achievements?: Array<{
       id: string
       name: string
@@ -232,8 +232,8 @@ export function ProfileAboutTab({ profile, isOwnProfile, onEdit }: ProfileAboutP
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">Communities</h3>
           <div className="flex flex-wrap gap-1.5">
             {profile.tagged_circles.map((circle) => (
-              <Badge key={circle} variant="secondary" className="text-xs">
-                {circle}
+              <Badge key={circle.id} variant="secondary" className="text-xs">
+                {circle.name}
               </Badge>
             ))}
           </div>

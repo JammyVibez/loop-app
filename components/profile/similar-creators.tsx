@@ -11,7 +11,7 @@ import { Users, Check, ArrowRight, Sparkles } from "lucide-react"
 
 interface SimilarCreatorsProps {
   currentUserId: string
-  circles?: string[]
+  circles?: Array<{ id: string; name: string; avatar_url?: string | null }>
 }
 
 interface Creator {
@@ -41,7 +41,7 @@ export function SimilarCreators({ currentUserId, circles = [] }: SimilarCreators
     try {
       const params = new URLSearchParams({ limit: "5" })
       if (circles.length > 0) {
-        params.set("circles", circles.slice(0, 3).join(","))
+        params.set("circles", circles.slice(0, 3).map(c => c.name).join(","))
       }
 
       const res = await fetch(`/api/users/similar?${params}`, {
