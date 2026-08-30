@@ -223,7 +223,7 @@ export function ContentRecommendations({
                         {tag.count > 1000 ? `${(tag.count / 1000).toFixed(1)}k` : tag.count}
                       </span>
                     )}
-                    {tag.growth > 0 && (
+                    {(tag.growth ?? 0) > 0 && (
                       <span className="text-[10px] text-emerald-500">
                         +{tag.growth}%
                       </span>
