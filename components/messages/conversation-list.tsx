@@ -18,6 +18,7 @@ interface Conversation {
     username?: string
     display_name?: string
     avatar_url?: string
+    video_avatar_url?: string
     active_cosmetics?: any
     cosmetics?: any
   } | null
