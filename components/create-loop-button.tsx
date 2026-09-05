@@ -260,7 +260,6 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
           },
           body: JSON.stringify({
             content_text: content,
-            content_title: content.slice(0, 80) || "",
             content_type: resolvedMediaType,
             hashtags: tags,
             media_url: uploadResults[0]?.url,
@@ -277,10 +276,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
           },
           body: JSON.stringify({
             content_text: content,
-            content_title:
-              mediaType === "code"
-                ? codeTitle.trim() || content.split("\n")[0]?.slice(0, 80) || "Code loop"
-                : content.slice(0, 80) || null,
+            content_title: mediaType === "code" ? codeTitle.trim() || null : null,
             content_type: mediaType === "poll" ? "poll" : mediaType,
             post_type: mediaType === "poll" ? "poll" : "standard",
             category: mediaType === "code" ? "code" : mediaType === "poll" ? "poll" : "general",

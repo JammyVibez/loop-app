@@ -37,7 +37,10 @@ export async function GET(request: NextRequest) {
     const { data: settings } = await supabase.from("ad_settings").select("*").eq("id", "default").maybeSingle()
     const enabled = Boolean(settings?.enabled)
     const surfaces = settings?.surfaces || {}
-    const surfaceOn = surface === "home" ? Boolean(surfaces.home) : Boolean(surfaces[surface])
+    // Surfaces are opt-OUT: when ad_settings has no key for a surface it is
+    // on by default (admins can disable any surface explicitly). Home remains
+    // the canonical default for anything legacy that didn't pass a surface.
+    const surfaceOn = surface === "home" ? surfaces.home !== false : surfaces[surface] !== false
 
     return NextResponse.json({
       success: true,

@@ -202,7 +202,7 @@ export async function GET(request: NextRequest) {
         .select(`
           *,
           author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, is_organization, organization_badge_url, organization_name, equipped_frame_id, level, active_cosmetics, cosmetics, badge_id),
-          parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url)),
+          parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url, is_verified)),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .or("visibility.eq.public,visibility.is.null")
@@ -232,7 +232,7 @@ export async function GET(request: NextRequest) {
           .select(`
             *,
             author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, is_organization, organization_badge_url, organization_name, equipped_frame_id, active_cosmetics, cosmetics, badge_id),
-            parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url)),
+            parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url, is_verified)),
             loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
           `)
           .eq("visibility", "public")
@@ -321,7 +321,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, is_organization, organization_badge_url, organization_name, level, active_cosmetics, cosmetics, badge_id),
-        parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url)),
+        parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url, is_verified)),
         loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
       .eq("visibility", "public")
@@ -340,7 +340,7 @@ export async function GET(request: NextRequest) {
         .select(`
           *,
           author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, is_organization, organization_badge_url, organization_name, equipped_frame_id, active_cosmetics, cosmetics, badge_id),
-          parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url)),
+          parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url, is_verified)),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .eq("visibility", "public")
@@ -373,7 +373,7 @@ export async function GET(request: NextRequest) {
         .select(`
           *,
           author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, is_organization, organization_badge_url, organization_name, equipped_frame_id, level, active_cosmetics, cosmetics, badge_id),
-          parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url)),
+          parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url, is_verified)),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .eq("author_id", user.id)

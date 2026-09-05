@@ -73,7 +73,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
     { href: "/developers", label: "Developer Hub", icon: Code2 },
     { href: "/streams", label: "Live Streams", icon: Radio, badge: "LIVE" },
     { href: "/events", label: "Events Stage", icon: Calendar },
-    { href: "/circles", label: "Circles & Communities", icon: Users },
+    { href: "/communities", label: "Communities", icon: Users },
     { href: "/co-loop/studio", label: "Co-Loop Studio", icon: Zap, badge: "NEW" },
     { href: "/earnings", label: "Creator Studio", icon: DollarSign },
     { href: "/wallet", label: "Wallet & Gifts", icon: Coins },
@@ -191,7 +191,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
                 trendingCircles.slice(0, 4).map((c) => (
                   <Link
                     key={c.id}
-                    href={`/circles/${c.id}`}
+                    href={`/communities/${c.id}`}
                     onClick={onLinkClick}
                     className="flex items-center justify-between rounded-xl px-3 py-2 text-xs transition-all hover:bg-muted"
                   >

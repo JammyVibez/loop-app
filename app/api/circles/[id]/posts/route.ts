@@ -24,9 +24,23 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const currentUser = await getUserFromRequest(request)
+    const spaceFilter = searchParams.get("space_id")
+
+    // Staff see everything (including pending), everyone else sees published.
+    let viewerRole: string | null = null
+    if (currentUser) {
+      const { data: vMem } = await supabase
+        .from("circle_members")
+        .select("role")
+        .eq("circle_id", circleId)
+        .eq("user_id", currentUser.id)
+        .maybeSingle()
+      viewerRole = vMem?.role || null
+    }
+    const isStaff = ["owner", "admin", "moderator"].includes(viewerRole || "")
 
     // Fetch posts with author info
-    const { data: posts, error } = await supabase
+    let query = supabase
       .from("circle_posts")
       .select(`
         *,
@@ -35,6 +49,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .eq("circle_id", circleId)
       .order(sortBy, { ascending: order === "asc" })
       .range(offset, offset + limit - 1)
+
+    if (!isStaff) {
+      query = query.or("status.is.null,status.eq.published")
+    }
+
+    if (spaceFilter && spaceFilter !== "all") {
+      query = query.eq("space_id", Number(spaceFilter))
+    } else if (spaceFilter === "all") {
+      query = query.not("space_id", "is", null)
+    }
+
+    const { data: posts, error } = await query
 
     if (error) {
       console.error("Database error:", error)
@@ -198,6 +224,44 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Poll requires a question and at least 2 options" }, { status: 400 })
     }
 
+    // Moderation: blocked words + approval mode are enforced server-side.
+    let postStatus = "published"
+    let blockedHit: string | null = null
+    let approvalOn = false
+    if (!isCircleStaff) {
+      const { data: modRow } = await supabase
+        .from("circles")
+        .select("moderation_settings")
+        .eq("id", circleId)
+        .maybeSingle()
+      const modSettings = (modRow as any)?.moderation_settings || {}
+      const blocked: string[] = Array.isArray(modSettings.blocked_words) ? modSettings.blocked_words : []
+      if (blocked.length) {
+        const lower = String(content || "").toLowerCase()
+        blockedHit = blocked.find((w) => w && lower.includes(String(w).toLowerCase())) || null
+      }
+      approvalOn = Boolean(modSettings.post_approval)
+      if (blockedHit) {
+        return NextResponse.json(
+          { error: `Your post contains a word blocked by this community (${blockedHit}).` },
+          { status: 403 }
+        )
+      }
+      if (approvalOn) postStatus = "pending"
+    }
+
+    // Optional space scoping — validate the space belongs to this circle
+    let spaceId: number | null = null
+    if (body.space_id) {
+      const { data: space } = await supabase
+        .from("community_spaces")
+        .select("id")
+        .eq("id", body.space_id)
+        .eq("circle_id", circleId)
+        .maybeSingle()
+      if (space) spaceId = space.id
+    }
+
     // Create post
     const { data: post, error: insertError } = await supabase
       .from("circle_posts")
@@ -210,6 +274,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         media_type: mediaUrls.length ? media_type || "image" : null,
         hashtags: hashtags || [],
         tags: validTags,
+        space_id: spaceId,
+        status: postStatus,
+        moderation_note: postStatus === "pending" ? "Awaiting moderator approval" : null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -246,9 +313,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       createdPoll = pollRow
     }
 
-    // Update circle post count + this author's leaderboard score
-    await supabase.rpc('increment_circle_post_count', { circle_id: circleId })
-    await supabase.rpc('increment_circle_contribution', { p_circle_id: circleId, p_user_id: user.id, p_amount: 5 })
+    // Update circle post count + this author's leaderboard score (published only)
+    if (postStatus === "published") {
+      await supabase.rpc('increment_circle_post_count', { circle_id: circleId })
+      await supabase.rpc('increment_circle_contribution', { p_circle_id: circleId, p_user_id: user.id, p_amount: 5 })
+    }
+
+    if (postStatus === "pending") {
+      try {
+        await supabase.from("community_moderation_logs").insert({
+          circle_id: circleId,
+          moderator_id: null,
+          action: "post_awaiting_approval",
+          target_user_id: user.id,
+          target_type: "post",
+          target_id: String(post.id),
+          reason: "Auto-flagged by approval mode",
+        })
+      } catch { /* log best-effort */ }
+    }
 
     try {
       const { processMentions, extractMentions, attachMentionsColumn } = await import("@/lib/mentions")

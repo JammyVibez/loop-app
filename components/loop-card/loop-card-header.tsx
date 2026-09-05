@@ -13,6 +13,7 @@ import {
   PinOff,
   Users,
   Rocket,
+  BadgeCheck,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -85,11 +86,11 @@ export function LoopCardHeader({
           <GitBranch className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
           <span className="truncate">
             Branch from{" "}
-            <span className="font-semibold text-foreground">
-              {loop.parent_loop?.author?.username ||
-              loop.parent_loop?.author?.display_name
-                ? `@${loop.parent_loop.author.username || loop.parent_loop.author.display_name}`
-                : "original post"}
+            <span className="inline-flex items-center gap-1 align-baseline font-semibold text-foreground">
+              @{loop.parent_loop?.author?.username || loop.parent_loop?.author?.display_name || "original post"}
+              {loop.parent_loop?.author?.username && loop.parent_loop?.author?.is_verified && (
+                <BadgeCheck className="h-3 w-3 shrink-0 text-blue-500" />
+              )}
             </span>
             {loop.parent_loop?.content ? (
               <span className="text-muted-foreground">

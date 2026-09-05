@@ -14,7 +14,7 @@ async function getLoopWithRelations(loopId: string, userId?: string) {
     .select(`
       *,
       author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, active_cosmetics, cosmetics, badge_id),
-      parent_loop:loops!parent_loop_id(id, content_text, content_title, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url)),
+      parent_loop:loops!parent_loop_id(id, content_text, content_title, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url, is_verified)),
       loop_stats(likes_count, comments_count, branches_count, shares_count, views_count),
       loop_polls(*),
       loop_duels(*)
@@ -48,7 +48,7 @@ async function getLoopWithRelations(loopId: string, userId?: string) {
   if (loop.parent_loop_id) {
     const { data: parentData } = await supabase
       .from("loops")
-      .select(`id, content_title, author:profiles!author_id(username, display_name)`)
+      .select(`id, content_title, author:profiles!author_id(username, display_name, is_verified)`)
       .eq("id", loop.parent_loop_id)
       .maybeSingle()
     if (parentData) {
@@ -57,6 +57,7 @@ async function getLoopWithRelations(loopId: string, userId?: string) {
         id: parentData.id,
         title: parentData.content_title || "Untitled Loop",
         author: parentAuthor?.username || parentAuthor?.display_name || "",
+        author_verified: Boolean(parentAuthor?.is_verified),
       }
     }
   }

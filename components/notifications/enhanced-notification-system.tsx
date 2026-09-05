@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { NotificationQuickReply } from "@/components/notifications/notification-quick-reply";
 
 interface Notification {
   id: string
@@ -471,6 +472,10 @@ export function EnhancedNotificationSystem() {
                       <p className="text-xs text-gray-400 mt-1">
                         {new Date(notification.created_at).toLocaleString()}
                       </p>
+                      {/* Reply straight from the notification (DM / comment) */}
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <NotificationQuickReply notification={notification} compact />
+                      </div>
                     </div>
                   </div>
                 </div>

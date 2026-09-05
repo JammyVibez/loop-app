@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
-        parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url)),
+        parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url, is_verified)),
         loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
       .eq("visibility", "public")
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
       author_id: user.id,
       content: textContent || (mediaUrl ? `Shared a ${mediaType}` : ""),
       content_text: textContent || null,
-      content_title: contentTitle || textContent.slice(0, 80) || null,
+      content_title: (contentTitle && contentTitle.trim()) || null,
       content_media_url: mediaUrl,
       media_url: mediaUrl,
       media_urls: mediaUrls.length > 0 ? mediaUrls : undefined,

@@ -17,6 +17,8 @@ import { formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
 import { Header } from "@/components/header"
 import { mentionHref } from "@/lib/mentions-shared"
+import { NotificationQuickReply } from "@/components/notifications/notification-quick-reply"
+import { AdSlot } from "@/components/ads/ad-slot"
 
 type Notification = {
   id: string
@@ -425,6 +427,9 @@ function NotificationsContent() {
             </TabsContent>
           </Tabs>
         </div>
+
+        {/* Tasteful sponsored slot (server-gated; never for Pro/Sponsor) */}
+        <AdSlot surface="notifications" />
       </main>
     </div>
   )
@@ -474,6 +479,10 @@ function NotifRow({
             <p className="mt-1 text-[11px] text-muted-foreground">
               {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
             </p>
+            {/* Reply straight from the notification (DM / comment) */}
+            <div onClick={(e) => e.stopPropagation()}>
+              <NotificationQuickReply notification={n} compact />
+            </div>
           </div>
 
           {/* Unread indicator */}

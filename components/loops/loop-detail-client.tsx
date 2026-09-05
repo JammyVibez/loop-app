@@ -81,6 +81,7 @@ interface LoopData {
     id: string
     title: string
     author: string
+    author_verified?: boolean
   }
   branches: Array<{
     id: string
@@ -149,7 +150,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
 
       setLoop({
         id: loopData.id,
-        title: loopData.content_title || "Untitled Loop",
+        title: loopData.content_title || "",
         content: loopData.content || "",
         author: {
           id: loopData.author?.id || "",
@@ -512,6 +513,23 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
             </div>
           )}
 
+          {/* Branch origin banner — who did you branch from? */}
+          {loop.parentLoop && (
+            <Link
+              href={`/loop/${loop.parentLoop.id}`}
+              className="mb-3 flex w-fit max-w-full items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-[11px] text-muted-foreground transition hover:border-emerald-500/60 hover:bg-emerald-500/10 hover:text-foreground"
+            >
+              <GitBranch className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+              <span className="truncate">
+                Branch from <span className="font-bold text-foreground">@{loop.parentLoop.author || "original post"}</span>
+                {loop.parentLoop.author_verified && <span className="ml-1 font-bold text-blue-500">✓</span>}
+                {loop.parentLoop.title && loop.parentLoop.title !== "Untitled Loop" ? (
+                  <span className="text-muted-foreground"> · &ldquo;{(loop.parentLoop.title || "").slice(0, 40)}&rdquo;</span>
+                ) : null}
+              </span>
+            </Link>
+          )}
+
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               {loop.isCoLoop ? (
@@ -612,7 +630,9 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
         </CardHeader>
 
         <CardContent className="p-6 space-y-6">
-          <h1 className="text-2xl font-extrabold text-foreground leading-tight">{loop.title}</h1>
+          {loop.title ? (
+            <h1 className="text-2xl font-extrabold text-foreground leading-tight">{loop.title}</h1>
+          ) : null}
           <RichContent text={loop.content} className="text-base text-foreground leading-relaxed" />
 
           {/* Full Media Set Carousel */}

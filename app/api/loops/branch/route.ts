@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       author_id: user.id,
       content: textContent || (mediaUrl ? `Shared a ${mediaType}` : ""),
       content_text: textContent || null,
-      content_title: title || textContent.slice(0, 80) || null,
+      content_title: title.trim() || null,
       content_media_url: mediaUrl,
       media_url: mediaUrl,
       content_type: mediaType,

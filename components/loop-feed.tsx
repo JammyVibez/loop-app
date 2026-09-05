@@ -785,9 +785,9 @@ export function LoopFeed({
 
       <div
         className={cn(
-          viewMode === "cards" && "grid gap-4 sm:grid-cols-2",
-          viewMode === "articles" && "space-y-6",
-          viewMode === "stream" && "space-y-4 sm:space-y-6"
+          viewMode === "cards" && "grid gap-3 sm:grid-cols-2",
+          viewMode === "articles" && "space-y-4",
+          viewMode === "stream" && "space-y-3 sm:space-y-4"
         )}
       >
         {filteredLoops.map((loop, idx) => {
