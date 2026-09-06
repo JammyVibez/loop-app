@@ -47,11 +47,11 @@ interface CommunityItem {
 }
 
 const SORTS = [
-  { id: "trending", label: "🔥 Trending", icon: Flame },
-  { id: "growing", label: "📈 Growing", icon: TrendingUp },
-  { id: "new", label: "🆕 New", icon: Sparkles },
-  { id: "active", label: "⚡ Active Now", icon: Activity },
-  { id: "recommended", label: "✨ For You", icon: Zap },
+  { id: "trending", label: "Trending", icon: Flame },
+  { id: "growing", label: "Growing", icon: TrendingUp },
+  { id: "new", label: "New", icon: Sparkles },
+  { id: "active", label: "Active Now", icon: Activity },
+  { id: "recommended", label: "For You", icon: Zap },
 ] as const
 
 const PULSE_STYLES: Record<string, string> = {
@@ -239,7 +239,7 @@ export function DiscoverCommunities() {
                   )}
                   <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
                     <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${pulseStyle}`}>
-                      {c.pulse === "quiet" ? "🌙" : c.pulse === "growing" ? "🌱" : c.pulse === "active" ? "💫" : c.pulse === "very_active" ? "⚡" : "🔥"}{" "}
+                      {c.pulse === "quiet" ? "Quiet" : c.pulse === "growing" ? "Growing" : c.pulse === "active" ? "Active" : c.pulse === "very_active" ? "Hot" : "Trending"}{" "}
                       {c.pulse === "very_active" ? "very active" : c.pulse}
                     </span>
                   </div>

@@ -45,6 +45,7 @@ import {
   Check,
   Loader2,
   Menu,
+  Sprout,
   Home,
   ExternalLink,
   X,
@@ -52,11 +53,11 @@ import {
 import Link from "next/link"
 
 const PULSE_EMOJI: Record<string, string> = {
-  quiet: "🌙",
-  growing: "🌱",
-  active: "💫",
-  very_active: "⚡",
-  exploding: "🔥",
+  quiet: "Moon",
+  growing: "Sprout",
+  active: "Zap",
+  very_active: "Zap",
+  exploding: "Flame",
 }
 
 interface FocusTarget {
@@ -357,7 +358,7 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
               <Flame className="h-3 w-3 text-orange-500" /> Community pulse
             </p>
             <p className="mt-1 text-lg font-extrabold">
-              {PULSE_EMOJI[pulse.state] || "💫"} {pulse.label || "Quiet"}
+              {pulse.label || "Quiet"}
             </p>
           </div>
           <button
@@ -591,11 +592,11 @@ function WorldOverview({
   const welcome = bundle.community?.welcome_message
 
   const dnaBars = [
-    { key: "creativity", label: "Creativity", emoji: "🎨", value: dna.creativity || 0 },
-    { key: "debate", label: "Debate", emoji: "💬", value: dna.debate || 0 },
-    { key: "humor", label: "Humor", emoji: "😂", value: dna.humor || 0 },
-    { key: "knowledge", label: "Knowledge", emoji: "🧠", value: dna.knowledge || 0 },
-    { key: "collaboration", label: "Collaboration", emoji: "🤝", value: dna.collaboration || 0 },
+    { key: "creativity", label: "Creativity", value: dna.creativity || 0 },
+    { key: "debate", label: "Debate", value: dna.debate || 0 },
+    { key: "humor", label: "Humor", value: dna.humor || 0 },
+    { key: "knowledge", label: "Knowledge", value: dna.knowledge || 0 },
+    { key: "collaboration", label: "Collaboration", value: dna.collaboration || 0 },
   ]
 
   return (
@@ -623,7 +624,7 @@ function WorldOverview({
           </div>
           {happening.length === 0 ? (
             <div className="text-center py-8 text-sm text-muted-foreground">
-              <p className="text-2xl mb-2">🌱</p>
+              <Sprout className="h-8 w-8 text-muted-foreground mb-2" />
               This world is just waking up. Post something to spark the first discussion!
             </div>
           ) : (
@@ -659,7 +660,7 @@ function WorldOverview({
                   onClick={() => onOpenItem(m)}
                   className="w-full flex items-start gap-3 rounded-xl border border-border/60 bg-muted/20 p-3 text-left transition hover:border-fuchsia-500/40 hover:bg-fuchsia-500/5"
                 >
-                  <span className="text-lg">{m.emoji || "✨"}</span>
+                  <Sparkles className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold">{m.title}</p>
                     <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{m.description}</p>
@@ -683,7 +684,7 @@ function WorldOverview({
             {dnaBars.map((d) => (
               <div key={d.key}>
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="font-medium">{d.emoji} {d.label}</span>
+                  <span className="font-medium">{d.label}</span>
                   <span className="font-bold">{d.value}%</span>
                 </div>
                 <div className="h-2 rounded-full bg-muted overflow-hidden">
