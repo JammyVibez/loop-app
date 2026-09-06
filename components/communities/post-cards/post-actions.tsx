@@ -4,11 +4,11 @@ import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { timeAgo } from "@/lib/community-engine"
 import {
@@ -85,6 +85,7 @@ interface PostActionsProps {
   onPin?: (id: number) => void
   onDelete?: (id: number) => void
   onReport?: (id: number) => void
+  onEdit?: (id: number, content: string) => void
   liking?: boolean
 }
 
@@ -100,10 +101,44 @@ export function PostActions({
   onPin,
   onDelete,
   onReport,
+  onEdit,
   liking,
 }: PostActionsProps) {
   const isAuthor = currentUserId === post.author?.id
   const canModerate = isModerator || isAuthor
+  const [editing, setEditing] = useState(false)
+  const [editContent, setEditContent] = useState(post.content)
+
+  if (editing) {
+    return (
+      <div className="mt-3 space-y-2">
+        <Textarea
+          value={editContent}
+          onChange={(e) => setEditContent(e.target.value)}
+          className="min-h-[80px] text-sm rounded-xl resize-none"
+          autoFocus
+        />
+        <div className="flex gap-2 justify-end">
+          <Button size="sm" variant="ghost" className="rounded-full text-xs" onClick={() => setEditing(false)}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            className="rounded-full text-xs"
+            onClick={() => {
+              if (onEdit && editContent.trim()) {
+                onEdit(post.id, editContent.trim())
+                setEditing(false)
+              }
+            }}
+            disabled={!editContent.trim()}
+          >
+            Save
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex items-center gap-1 mt-3">
@@ -174,8 +209,8 @@ export function PostActions({
                 {post.is_pinned ? "Unpin" : "Pin"}
               </DropdownMenuItem>
             )}
-            {isAuthor && (
-              <DropdownMenuItem onClick={() => onReport?.(post.id)}>
+            {isAuthor && onEdit && (
+              <DropdownMenuItem onClick={() => setEditing(true)}>
                 <Pencil className="h-3.5 w-3.5 mr-2" />
                 Edit
               </DropdownMenuItem>

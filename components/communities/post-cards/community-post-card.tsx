@@ -11,6 +11,7 @@ import { timeAgo } from "@/lib/community-engine"
 import { PostActions, type CommunityPost } from "./post-actions"
 import { PollCard } from "./poll-card"
 import { CommentThread } from "./comment-thread"
+import { ReportModal } from "./report-modal"
 import {
   BadgeCheck,
   Clock,
@@ -57,6 +58,7 @@ interface CommunityPostCardProps {
   onPin?: (id: number) => void
   onDelete?: (id: number) => void
   onReport?: (id: number) => void
+  onEdit?: (id: number, content: string) => void
   liking?: number | null
   flashId?: number | null
 }
@@ -74,11 +76,13 @@ export function CommunityPostCard({
   onPin,
   onDelete,
   onReport,
+  onEdit,
   liking,
   flashId,
 }: CommunityPostCardProps) {
   const [showComments, setShowComments] = useState(false)
   const [voting, setVoting] = useState(false)
+  const [showReport, setShowReport] = useState(false)
 
   const author = post.author
   const postType = (post.post_type || "discussion").toLowerCase()
@@ -224,8 +228,17 @@ export function CommunityPostCard({
           onShare={onShare}
           onPin={onPin}
           onDelete={onDelete}
-          onReport={onReport}
+          onReport={() => setShowReport(true)}
+          onEdit={onEdit}
           liking={liking != null && liking === post.id ? true : undefined}
+        />
+
+        {/* Report Modal */}
+        <ReportModal
+          open={showReport}
+          onOpenChange={setShowReport}
+          postId={post.id}
+          communityId={communityId}
         />
 
         {/* Comments */}

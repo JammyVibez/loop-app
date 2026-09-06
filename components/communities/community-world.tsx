@@ -615,6 +615,25 @@ function WorldOverview({
           </div>
         )}
 
+        {bundle.community?.rules?.rules && bundle.community.rules.rules.length > 0 && (
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+            <h2 className="font-bold flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4 text-emerald-500" /> Community Rules
+            </h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">Please follow these guidelines</p>
+            <ol className="space-y-2">
+              {bundle.community.rules.rules.map((rule: string, i: number) => (
+                <li key={i} className="flex items-start gap-2 text-sm">
+                  <span className="shrink-0 flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
+                    {i + 1}
+                  </span>
+                  <span>{rule}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
         <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold">What's happening</h2>

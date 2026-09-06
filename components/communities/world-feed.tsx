@@ -143,6 +143,8 @@ export function WorldFeed({
   const [showComposerPoll, setShowComposerPoll] = useState(false)
   const [pollQuestion, setPollQuestion] = useState("")
   const [pollOptions, setPollOptions] = useState(["", ""])
+  const [mediaFiles, setMediaFiles] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
   const loadingMore = useRef(false)
 
   const load = useCallback(
@@ -153,8 +155,13 @@ export function WorldFeed({
         const params = new URLSearchParams({ limit: "20", offset: reset ? "0" : String(offset), sort: sortBy })
         if (spaceId !== "general") params.set("space_id", spaceId)
         const res = await fetch(`/api/circles/${communityId}/posts?${params}`)
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "")
+          let errMsg = "Failed to load posts"
+          try { errMsg = JSON.parse(errText).error || errMsg } catch {}
+          throw new Error(errMsg)
+        }
         const data = await res.json()
-        if (!res.ok) throw new Error(data.error || "Failed to load posts")
         setPosts((prev) => (reset ? data.posts || [] : [...prev, ...(data.posts || [])]))
         setHasMore(Boolean(data.hasMore))
         setOffset((data.posts || []).length)
@@ -212,6 +219,26 @@ export function WorldFeed({
     load(false)
   }
 
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    setUploading(true)
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData()
+        formData.append("file", file)
+        formData.append("type", "loop_media")
+        const res = await fetch("/api/upload", { method: "POST", body: formData })
+        const data = await res.json()
+        if (data.success && data.data?.url) {
+          setMediaFiles((prev) => [...prev, data.data.url])
+        }
+      }
+    } catch {}
+    setUploading(false)
+    e.target.value = ""
+  }
+
   const createPost = async () => {
     if (!composer.trim()) return
     setPosting(true)
@@ -221,6 +248,7 @@ export function WorldFeed({
       const payload: any = {
         content: composer.trim(),
         space_id: spaceId !== "general" ? spaceId : undefined,
+        media_urls: mediaFiles.length > 0 ? mediaFiles : undefined,
       }
       if (showComposerPoll && pollQuestion.trim() && pollOptions.filter((o) => o.trim()).length >= 2) {
         payload.poll = {
@@ -239,6 +267,7 @@ export function WorldFeed({
       setShowComposerPoll(false)
       setPollQuestion("")
       setPollOptions(["", ""])
+      setMediaFiles([])
       if (data.post?.status === "pending") {
         setNotice("Your post was submitted and is awaiting moderator review.")
       } else {
@@ -294,6 +323,20 @@ export function WorldFeed({
       })
       if (res.ok) {
         setPosts((prev) => prev.filter((p) => p.id !== postId))
+      }
+    } catch {}
+  }
+
+  const editPost = async (postId: number, content: string) => {
+    try {
+      const res = await fetch(`/api/circles/${communityId}/posts`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId, content }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, content, ...data.post } : p)))
       }
     } catch {}
   }
@@ -385,11 +428,33 @@ export function WorldFeed({
               </div>
             )}
 
+            {/* Media preview */}
+            {mediaFiles.length > 0 && (
+              <div className="mt-2 ml-12 flex flex-wrap gap-2">
+                {mediaFiles.map((url, i) => (
+                  <div key={i} className="relative h-16 w-16 rounded-lg overflow-hidden bg-muted">
+                    <Image src={url} alt="" fill className="object-cover" unoptimized />
+                    <button
+                      onClick={() => setMediaFiles((prev) => prev.filter((_, j) => j !== i))}
+                      className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-black/60 text-white flex items-center justify-center text-[10px]"
+                    >
+                      x
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="mt-2 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-muted-foreground">
                   Posting to <strong>{visibleSpaces.find((s) => String(s.id) === spaceId)?.name || "General"}</strong>
                 </span>
+                <label className="flex items-center gap-1 h-7 px-2 text-[11px] rounded-full border border-border bg-card text-muted-foreground cursor-pointer hover:text-foreground transition">
+                  <ImageIcon className="h-3 w-3" />
+                  {uploading ? "Uploading..." : "Media"}
+                  <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleMediaUpload} disabled={uploading} />
+                </label>
                 <Button
                   size="sm"
                   variant={showComposerPoll ? "secondary" : "ghost"}
@@ -473,6 +538,7 @@ export function WorldFeed({
                 onSave={toggleSave}
                 onDelete={deletePost}
                 onPin={togglePin}
+                onEdit={editPost}
                 liking={liking}
                 flashId={flashId}
               />
