@@ -8,29 +8,99 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Badge } from "@/components/ui/badge"
-import { formatNumber, timeAgo } from "@/lib/community-engine"
-import { Heart, MessageSquare, Send, Loader2, Lock, BadgeCheck, Globe2, Hourglass, ShieldCheck } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
+import { timeAgo } from "@/lib/community-engine"
+import { CommunityPostCard } from "./post-cards"
+import type { CommunityPost } from "./post-cards"
+import {
+  BadgeCheck,
+  BarChart3,
+  Image as ImageIcon,
+  Loader2,
+  Lock,
+  Globe2,
+  Hourglass,
+  ShieldCheck,
+  Send,
+  Clock,
+  TrendingUp,
+  MessageSquare,
+  Hash,
+  Flame,
+  BookOpen,
+  Lightbulb,
+  Palette,
+  Swords,
+  Trophy,
+  Calendar,
+  Users,
+  Gamepad2,
+  Compass,
+  Library,
+  Star,
+  Vote,
+  LayoutGrid,
+  Crown,
+  FolderOpen,
+  Sparkles,
+  Radio,
+  Music,
+  MapPin,
+  Briefcase,
+  Building2,
+  HelpCircle,
+  Handshake,
+  Camera,
+  LayoutList,
+  Wand2,
+  Newspaper,
+  ListOrdered,
+} from "lucide-react"
 
-interface Post {
-  id: number
-  content: string
-  media_urls?: string[] | null
-  media_url?: string | null
-  media_type?: string | null
-  like_count: number
-  comment_count: number
-  is_liked?: boolean
-  space_id?: number | null
-  status?: string | null
-  author?: {
-    id: string
-    username: string
-    display_name?: string
-    avatar_url?: string | null
-    is_verified?: boolean
-  }
-  created_at: string
+const SPACE_ICONS: Record<string, typeof MessageSquare> = {
+  home: Globe2,
+  "message-circle": MessageSquare,
+  "messages-square": MessageSquare,
+  hash: Hash,
+  flame: Flame,
+  image: ImageIcon,
+  "book-open": BookOpen,
+  lightbulb: Lightbulb,
+  palette: Palette,
+  swords: Swords,
+  trophy: Trophy,
+  calendar: Calendar,
+  users: Users,
+  "gamepad-2": Gamepad2,
+  compass: Compass,
+  library: Library,
+  star: Star,
+  vote: Vote,
+  "layout-grid": LayoutGrid,
+  crown: Crown,
+  folder: FolderOpen,
+  sparkles: Sparkles,
+  radio: Radio,
+  "list-music": Music,
+  "map-pin": MapPin,
+  briefcase: Briefcase,
+  "building-2": Building2,
+  "help-circle": HelpCircle,
+  "trending-up": TrendingUp,
+  handshake: Handshake,
+  camera: Camera,
+  "layout-list": LayoutList,
+  "wand-2": Wand2,
+  newspaper: Newspaper,
+  "list-ordered": ListOrdered,
+  "bar-chart-3": BarChart3,
+  clock: Clock,
+}
+
+function SpaceIcon({ icon, className }: { icon: string; className?: string }) {
+  const Icon = SPACE_ICONS[icon] || MessageSquare
+  return <Icon className={className} />
 }
 
 export function WorldFeed({
@@ -56,7 +126,8 @@ export function WorldFeed({
 }) {
   const { user } = useAuth()
   const [spaceId, setSpaceId] = useState<string>("general")
-  const [posts, setPosts] = useState<Post[]>([])
+  const [posts, setPosts] = useState<CommunityPost[]>([])
+  const [sortBy, setSortBy] = useState("latest")
 
   const visibleSpaces = [{ id: "general", name: "General", icon: "home", type: "discussion" }, ...spaces]
 
@@ -69,6 +140,9 @@ export function WorldFeed({
   const [hasMore, setHasMore] = useState(false)
   const [offset, setOffset] = useState(0)
   const [flashId, setFlashId] = useState<number | null>(null)
+  const [showComposerPoll, setShowComposerPoll] = useState(false)
+  const [pollQuestion, setPollQuestion] = useState("")
+  const [pollOptions, setPollOptions] = useState(["", ""])
   const loadingMore = useRef(false)
 
   const load = useCallback(
@@ -76,7 +150,7 @@ export function WorldFeed({
       if (reset) setLoading(true)
       setError("")
       try {
-        const params = new URLSearchParams({ limit: "20", offset: reset ? "0" : String(offset) })
+        const params = new URLSearchParams({ limit: "20", offset: reset ? "0" : String(offset), sort: sortBy })
         if (spaceId !== "general") params.set("space_id", spaceId)
         const res = await fetch(`/api/circles/${communityId}/posts?${params}`)
         const data = await res.json()
@@ -91,7 +165,7 @@ export function WorldFeed({
         loadingMore.current = false
       }
     },
-    [communityId, spaceId, offset]
+    [communityId, spaceId, offset, sortBy],
   )
 
   useEffect(() => {
@@ -99,9 +173,8 @@ export function WorldFeed({
     setOffset(0)
     load(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [communityId, spaceId])
+  }, [communityId, spaceId, sortBy])
 
-  // Space jump from the mobile sheet.
   useEffect(() => {
     if (spaceRequest && spaceRequest.id !== spaceId) {
       setSpaceId(spaceRequest.id)
@@ -110,7 +183,6 @@ export function WorldFeed({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spaceRequest?.token])
 
-  // Deep-link: scroll a specific post into view and flash a ring around it.
   useEffect(() => {
     if (!focusId) return
     let attempts = 0
@@ -146,19 +218,29 @@ export function WorldFeed({
     setError("")
     setNotice("")
     try {
+      const payload: any = {
+        content: composer.trim(),
+        space_id: spaceId !== "general" ? spaceId : undefined,
+      }
+      if (showComposerPoll && pollQuestion.trim() && pollOptions.filter((o) => o.trim()).length >= 2) {
+        payload.poll = {
+          question: pollQuestion.trim(),
+          options: pollOptions.filter((o) => o.trim()),
+        }
+      }
       const res = await fetch(`/api/circles/${communityId}/posts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: composer.trim(),
-          space_id: spaceId !== "general" ? spaceId : undefined,
-        }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to post")
       setComposer("")
+      setShowComposerPoll(false)
+      setPollQuestion("")
+      setPollOptions(["", ""])
       if (data.post?.status === "pending") {
-        setNotice("Your post was submitted and is awaiting a moderator's review. ✨")
+        setNotice("Your post was submitted and is awaiting moderator review.")
       } else {
         setPosts((prev) => [data.post, ...prev])
       }
@@ -184,18 +266,53 @@ export function WorldFeed({
         prev.map((p) =>
           p.id === postId
             ? { ...p, is_liked: data.is_liked, like_count: Math.max(0, p.like_count + (data.is_liked ? 1 : -1)) }
-            : p
-        )
+            : p,
+        ),
       )
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setLiking(null)
-    }
+    } catch {}
+    setLiking(null)
+  }
+
+  const toggleSave = async (postId: number) => {
+    if (!user) return
+    try {
+      const res = await fetch(`/api/circles/${communityId}/posts/${postId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "save" }),
+      })
+      const data = await res.json()
+      if (!res.ok) return
+      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, is_saved: data.is_active } : p)))
+    } catch {}
+  }
+
+  const deletePost = async (postId: number) => {
+    try {
+      const res = await fetch(`/api/circles/${communityId}/posts/${communityId}?postId=${postId}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        setPosts((prev) => prev.filter((p) => p.id !== postId))
+      }
+    } catch {}
+  }
+
+  const togglePin = async (postId: number) => {
+    try {
+      const post = posts.find((p) => p.id === postId)
+      const res = await fetch(`/api/circles/${communityId}/posts`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId, is_pinned: !post?.is_pinned }),
+      })
+      if (res.ok) {
+        setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, is_pinned: !p.is_pinned } : p)))
+      }
+    } catch {}
   }
 
   const approvalOn = Boolean(moderationSettings?.post_approval) && !isModerator
-  const blockedWords: string[] = Array.isArray(moderationSettings?.blocked_words) ? moderationSettings.blocked_words : []
   const pendingCount = posts.filter((p) => p.status === "pending").length
 
   return (
@@ -206,7 +323,7 @@ export function WorldFeed({
           <div className="rounded-2xl border border-border bg-card p-4">
             {approvalOn && (
               <p className="mb-2 flex items-center gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                <Hourglass className="h-3 w-3" /> New posts are reviewed by moderators before they appear.
+                <Hourglass className="h-3 w-3" /> Posts are reviewed by moderators before they appear.
               </p>
             )}
             <div className="flex gap-3">
@@ -217,15 +334,72 @@ export function WorldFeed({
               <Textarea
                 value={composer}
                 onChange={(e) => setComposer(e.target.value)}
-                placeholder="Share something with the world…"
+                placeholder="Share something with the community..."
                 className="min-h-[80px] rounded-xl resize-none"
                 maxLength={2000}
               />
             </div>
+
+            {showComposerPoll && (
+              <div className="mt-3 ml-12 space-y-2 p-3 rounded-xl border border-border bg-muted/30">
+                <Input
+                  value={pollQuestion}
+                  onChange={(e) => setPollQuestion(e.target.value)}
+                  placeholder="Poll question"
+                  className="h-9 text-sm rounded-lg"
+                />
+                {pollOptions.map((opt, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Input
+                      value={opt}
+                      onChange={(e) => {
+                        const next = [...pollOptions]
+                        next[i] = e.target.value
+                        setPollOptions(next)
+                      }}
+                      placeholder={`Option ${i + 1}`}
+                      className="h-9 text-sm rounded-lg"
+                    />
+                    {i >= 2 && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="shrink-0 h-9 w-9 p-0 text-muted-foreground"
+                        onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}
+                      >
+                        x
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {pollOptions.length < 6 && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-xs"
+                    onClick={() => setPollOptions([...pollOptions, ""])}
+                  >
+                    + Add option
+                  </Button>
+                )}
+              </div>
+            )}
+
             <div className="mt-2 flex items-center justify-between">
-              <span className="text-[11px] text-muted-foreground">
-                Posting to <strong>{visibleSpaces.find((s) => String(s.id) === spaceId)?.name || "General"}</strong>
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-muted-foreground">
+                  Posting to <strong>{visibleSpaces.find((s) => String(s.id) === spaceId)?.name || "General"}</strong>
+                </span>
+                <Button
+                  size="sm"
+                  variant={showComposerPoll ? "secondary" : "ghost"}
+                  className="h-7 px-2 text-[11px] rounded-full"
+                  onClick={() => setShowComposerPoll(!showComposerPoll)}
+                >
+                  <BarChart3 className="h-3 w-3 mr-1" />
+                  Poll
+                </Button>
+              </div>
               <Button size="sm" className="rounded-full" onClick={createPost} disabled={posting || !composer.trim()}>
                 {posting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
                 Post
@@ -241,6 +415,29 @@ export function WorldFeed({
           </div>
         )}
 
+        {/* Sort bar */}
+        <div className="flex items-center gap-2">
+          {[
+            { id: "latest", label: "Latest", icon: Clock },
+            { id: "top", label: "Top", icon: TrendingUp },
+          ].map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setSortBy(s.id)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition",
+                sortBy === s.id
+                  ? "bg-foreground text-background"
+                  : "border border-border bg-card text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <s.icon className="h-3 w-3" />
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Posts */}
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -264,66 +461,21 @@ export function WorldFeed({
         ) : (
           <div className="space-y-3">
             {posts.map((p) => (
-              <div
+              <CommunityPostCard
                 key={p.id}
-                id={`world-post-${p.id}`}
-                className={`rounded-2xl border bg-card p-4 scroll-mt-24 transition-all duration-500 ${
-                  flashId === p.id ? "border-indigo-500 ring-2 ring-indigo-500/40 shadow-lg shadow-indigo-900/20" : "border-border"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Link href={`/profile/${p.author?.username}`}>
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={p.author?.avatar_url || ""} alt="" />
-                      <AvatarFallback>{(p.author?.display_name || p.author?.username || "U").slice(0, 1).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                  </Link>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <Link href={`/profile/${p.author?.username}`} className="text-sm font-semibold truncate hover:underline">
-                        {p.author?.display_name || p.author?.username}
-                      </Link>
-                      {p.author?.is_verified && <BadgeCheck className="h-3.5 w-3.5 text-blue-500 shrink-0" />}
-                      <span className="text-[11px] text-muted-foreground truncate">@{p.author?.username}</span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">{timeAgo(p.created_at)}</p>
-                  </div>
-                  {p.status === "pending" && (
-                    <Badge className="gap-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-[9px] font-bold">
-                      <Hourglass className="h-2.5 w-2.5" /> Pending review
-                    </Badge>
-                  )}
-                </div>
-                <p className="mt-3 text-sm whitespace-pre-wrap">{p.content}</p>
-                {p.media_urls && p.media_urls.length > 0 && (
-                  <div className={`mt-3 grid gap-2 ${p.media_urls.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
-                    {p.media_urls.map((url, i) => (
-                      <div key={i} className="relative aspect-video overflow-hidden rounded-xl bg-muted">
-                        <Image src={url} alt="" fill className="object-cover" unoptimized />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div className="mt-3 flex items-center gap-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="rounded-full text-xs"
-                    onClick={() => toggleLike(p.id)}
-                    disabled={liking === p.id || !user || !isMember || p.status === "pending"}
-                  >
-                    <Heart className={`h-3.5 w-3.5 mr-1.5 ${p.is_liked ? "fill-red-500 text-red-500" : ""}`} />
-                    {p.like_count || 0}
-                  </Button>
-                  <Button size="sm" variant="ghost" className="rounded-full text-xs" disabled>
-                    <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-                    {p.comment_count || 0}
-                  </Button>
-                  <span className="ml-auto text-[10px] text-muted-foreground">
-                    {p.space_id ? (spaces.find((s) => String(s.id) === String(p.space_id))?.name || "Space") : "General"}
-                  </span>
-                </div>
-              </div>
+                post={p}
+                communityId={communityId}
+                spaces={spaces}
+                isMember={isMember}
+                isModerator={isModerator}
+                currentUserId={user?.id}
+                onLike={toggleLike}
+                onSave={toggleSave}
+                onDelete={deletePost}
+                onPin={togglePin}
+                liking={liking}
+                flashId={flashId}
+              />
             ))}
             {hasMore && (
               <div className="text-center pt-2">
@@ -339,75 +491,32 @@ export function WorldFeed({
 
       {/* Space filter rail */}
       <div className="space-y-2">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-1">
-          Spaces {blockedWords.length > 0 && isModerator ? "· filtered" : ""}
-        </p>
+        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-1">Spaces</p>
         {visibleSpaces.map((s: any) => (
           <button
             key={s.id}
             onClick={() => setSpaceId(String(s.id))}
-            className={`w-full flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition ${
+            className={cn(
+              "w-full flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition",
               String(s.id) === spaceId
                 ? "border-indigo-500/50 bg-indigo-500/10"
-                : "border-border bg-card hover:border-indigo-500/30"
-            }`}
+                : "border-border bg-card hover:border-indigo-500/30",
+            )}
           >
-            <span className="text-base">{s.icon === "home" ? "🏠" : iconForSpace(s.icon)}</span>
+            <SpaceIcon icon={s.icon || "home"} className="h-4 w-4 text-muted-foreground shrink-0" />
             <div className="min-w-0">
               <p className="text-xs font-semibold truncate">{s.name}</p>
               <p className="text-[10px] text-muted-foreground truncate">{s.type}</p>
             </div>
           </button>
         ))}
-        {isModerator && approvalOn === false && (
+        {isModerator && (
           <p className="flex items-center gap-1 px-1 pt-1 text-[10px] text-muted-foreground">
-            <ShieldCheck className="h-3 w-3 text-emerald-500" /> You're a moderator — {pendingCount > 0 ? `${pendingCount} post${pendingCount === 1 ? "" : "s"} pending` : "no pending posts"}
+            <ShieldCheck className="h-3 w-3 text-emerald-500" /> Moderator
+            {pendingCount > 0 && ` - ${pendingCount} pending`}
           </p>
         )}
       </div>
     </div>
   )
-}
-
-function iconForSpace(icon: string) {
-  const map: Record<string, string> = {
-    "message-circle": "💬",
-    "messages-square": "💬",
-    hash: "#️⃣",
-    flame: "🔥",
-    image: "🖼️",
-    "book-open": "📖",
-    lightbulb: "💡",
-    palette: "🎨",
-    swords: "⚔️",
-    trophy: "🏆",
-    calendar: "📅",
-    users: "👥",
-    "gamepad-2": "🎮",
-    compass: "🧭",
-    library: "📚",
-    star: "⭐",
-    vote: "🗳️",
-    "layout-grid": "🔲",
-    crown: "👑",
-    home: "🏠",
-    folder: "📁",
-    sparkles: "✨",
-    radio: "📻",
-    "list-music": "🎵",
-    "map-pin": "📍",
-    briefcase: "💼",
-    "building-2": "🏢",
-    "help-circle": "❓",
-    "trending-up": "📈",
-    handshake: "🤝",
-    camera: "📷",
-    "layout-list": "📋",
-    "wand-2": "🪄",
-    newspaper: "📰",
-    "list-ordered": "🔢",
-    "bar-chart-3": "📊",
-    clock: "⏰",
-  }
-  return map[icon] || "💬"
 }
