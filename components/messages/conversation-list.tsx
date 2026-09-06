@@ -171,8 +171,8 @@ export function ConversationList({
                   <div className="relative shrink-0">
                     {other?.video_avatar_url ? (
                       <VideoAvatar
-                        src={other.avatar_url}
-                        videoSrc={other.video_avatar_url}
+                        src={other?.avatar_url}
+                        videoSrc={other?.video_avatar_url}
                         alt={displayName}
                         fallback={displayName.charAt(0)}
                         size="md"
@@ -180,7 +180,7 @@ export function ConversationList({
                       />
                     ) : (
                       <Avatar className="h-12 w-12">
-                        <AvatarImage src={other.avatar_url} />
+                        <AvatarImage src={other?.avatar_url} />
                         <AvatarFallback className="text-sm font-bold">
                           {displayName.charAt(0)}
                         </AvatarFallback>
