@@ -1,29 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/server-auth';
 import { createClient } from '@supabase/supabase-js';
-import { authDbPool } from '@/lib/auth';
+import { auth, authDbPool } from '@/lib/auth';
+import { randomBytes } from 'crypto';
 
 /**
- * Look up a user's current active session token directly from Better Auth's
- * session table. This avoids the stale-cookie problem: Better Auth rotates
- * tokens on each use, so any previously stored Set-Cookie header becomes
- * invalid after the first account switch.
+ * POST /api/accounts/switch
+ * Switch the active session to a linked account (or back to the primary one).
  *
- * Returns the raw session token (not a Set-Cookie header), which we use
- * to construct a fresh cookie below.
+ * Why we mint a FRESH session instead of replaying a stored cookie:
+ * Better Auth rotates session tokens on every authenticated use, so any
+ * token stored at link time is dead by the time the user wants to switch —
+ * the browser would send an invalid cookie and every request would 401,
+ * which looked like "switching logs me out completely".
+ *
+ * Instead we create a brand-new session row for the target user in Better
+ * Auth's session table and set its token as the session cookie. The new
+ * token is live from the moment it's issued, so the switch always works.
+ *
+ * Body: { targetUserId: string } — "primary" switches back to the owner.
  */
-async function getActiveSessionToken(userId: string): Promise<string | null> {
-  const res = await authDbPool.query(
-    'SELECT token FROM "session" WHERE "userId" = $1 AND "expiresAt" > NOW() ORDER BY "createdAt" DESC LIMIT 1;',
-    [userId]
-  );
-  return res.rows[0]?.token || null;
+function generateSessionToken(): string {
+  return randomBytes(32).toString('base64url');
 }
 
-/**
- * Build a Set-Cookie header string for the Better Auth session token.
- * Detects the __Secure- prefix from the current request's cookies.
- */
 function buildSessionCookie(req: NextRequest, token: string): string {
   const rawCookieHeader = req.headers.get('cookie') || '';
   const prefixMatch = rawCookieHeader.match(/(__Secure-)?better-auth\.session_token/);
@@ -34,13 +34,25 @@ function buildSessionCookie(req: NextRequest, token: string): string {
   return `${prefix}better-auth.session_token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secureFlag}`;
 }
 
-/**
- * POST /api/accounts/switch
- * Switch to a linked account by looking up the target user's current
- * active session from Better Auth's session table.
- * Body: { targetUserId: string }
- * When targetUserId === "primary", switches back to the primary account.
- */
+async function mintFreshSession(userId: string): Promise<{ token: string; expiresAt: Date } | null> {
+  // Confirm the target user actually exists.
+  const userRes = await authDbPool.query('SELECT id FROM "user" WHERE id = $1 LIMIT 1;', [userId]);
+  if (!userRes.rows[0]) return null;
+
+  const token = generateSessionToken();
+  // Match Better Auth's default session lifetime (7 days) unless configured.
+  const expiresInDays = Number(process.env.BETTER_AUTH_SESSION_EXPIRES_DAYS || 7);
+  const expiresAt = new Date(Date.now() + expiresInDays * 24 * 3600 * 1000);
+
+  await authDbPool.query(
+    `INSERT INTO "session" ("id", "token", "userId", "expiresAt", "createdAt", "updatedAt", "ipAddress", "userAgent")
+     VALUES (gen_random_uuid(), $1, $2, $3, NOW(), NOW(), NULL, 'account-switch')`,
+    [token, userId, expiresAt.toISOString()]
+  );
+
+  return { token, expiresAt };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const user = await getUserFromRequest(req);
@@ -55,11 +67,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'targetUserId is required' }, { status: 400 });
     }
 
-    // Use service-role client to bypass RLS on linked_accounts
+    // Service-role client to bypass RLS on linked_accounts.
     const admin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
+
+    // Resolve which account we're switching TO.
+    let resolvedUserId: string;
 
     if (targetUserId === 'primary') {
       // === SWITCH BACK TO PRIMARY ===
@@ -73,63 +88,58 @@ export async function POST(req: NextRequest) {
       if (linkError || !link) {
         return NextResponse.json({ error: 'No linked account found' }, { status: 404 });
       }
-
-      // Look up the primary user's LIVE session from Better Auth
-      const primaryToken = await getActiveSessionToken(link.owner_id);
-      if (!primaryToken) {
-        return NextResponse.json(
-          { error: 'Primary account has no active session. Please log in again.' },
-          { status: 400 }
-        );
-      }
-
-      await admin
+      resolvedUserId = link.owner_id;
+    } else {
+      // === SWITCH TO LINKED ACCOUNT ===
+      // The requester must be the owner (or a linked user of the same owner).
+      const { data: asLinked } = await admin
         .from('linked_accounts')
-        .update({ last_used_at: new Date().toISOString() })
-        .eq('linked_user_id', currentUserId);
+        .select('owner_id')
+        .eq('linked_user_id', currentUserId)
+        .limit(1)
+        .maybeSingle();
 
-      const response = NextResponse.json({
-        success: true,
-        userId: link.owner_id,
-      });
-      response.headers.set('set-cookie', buildSessionCookie(req, primaryToken));
-      return response;
+      const ownerId = asLinked?.owner_id || currentUserId;
+
+      const { data: linkCheck, error: checkError } = await admin
+        .from('linked_accounts')
+        .select('id')
+        .eq('owner_id', ownerId)
+        .eq('linked_user_id', targetUserId)
+        .limit(1)
+        .maybeSingle();
+
+      if (checkError || !linkCheck) {
+        return NextResponse.json({ error: 'Account not linked' }, { status: 404 });
+      }
+      resolvedUserId = targetUserId;
     }
 
-    // === SWITCH TO LINKED ACCOUNT ===
-    const { data: linkCheck, error: checkError } = await admin
-      .from('linked_accounts')
-      .select('id')
-      .eq('owner_id', currentUserId)
-      .eq('linked_user_id', targetUserId)
-      .limit(1)
-      .maybeSingle();
-
-    if (checkError || !linkCheck) {
-      return NextResponse.json({ error: 'Account not linked' }, { status: 404 });
+    if (resolvedUserId === currentUserId) {
+      return NextResponse.json({ success: true, userId: currentUserId, message: 'Already active' });
     }
 
-    // Look up the linked user's LIVE session from Better Auth
-    const linkedToken = await getActiveSessionToken(targetUserId);
-    if (!linkedToken) {
-      return NextResponse.json(
-        { error: 'Linked account has no active session. Please re-link this account.' },
-        { status: 400 }
-      );
+    // Mint a guaranteed-live session for the target account.
+    const session = await mintFreshSession(resolvedUserId);
+    if (!session) {
+      return NextResponse.json({ error: 'Target account not found' }, { status: 404 });
     }
 
     await admin
       .from('linked_accounts')
       .update({ last_used_at: new Date().toISOString() })
-      .eq('owner_id', currentUserId)
-      .eq('linked_user_id', targetUserId);
+      .or(
+        targetUserId === 'primary'
+          ? `linked_user_id.eq.${currentUserId}`
+          : `and(owner_id.eq.${currentUserId},linked_user_id.eq.${targetUserId})`
+      );
 
-      const response = NextResponse.json({
-        success: true,
-        userId: targetUserId,
-      });
-      response.headers.set('set-cookie', buildSessionCookie(req, linkedToken));
-      return response;
+    const response = NextResponse.json({
+      success: true,
+      userId: resolvedUserId,
+    });
+    response.headers.set('set-cookie', buildSessionCookie(req, session.token));
+    return response;
   } catch (error: any) {
     console.error('Account switch error:', error);
     return NextResponse.json({ error: error.message || 'Failed to switch account' }, { status: 500 });

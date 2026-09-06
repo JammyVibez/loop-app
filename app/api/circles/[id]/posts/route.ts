@@ -11,8 +11,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { searchParams } = new URL(request.url)
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
-    const sortBy = searchParams.get("sort") || "created_at"
-    const order = searchParams.get("order") || "desc"
+    // UI sends "latest" | "top"; map to real column + order. Before this
+    // mapping, "latest" was passed to .order() as a column name and Postgres
+    // rejected it — the feed showed "Failed to fetch posts".
+    const sortMode = searchParams.get("sort") || "latest"
+    const sortBy = sortMode === "top" ? "like_count" : "created_at"
+    const order = searchParams.get("order") || (sortMode === "top" ? "desc" : "desc")
 
     const { id: circleId } = await params
 

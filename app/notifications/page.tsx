@@ -449,9 +449,13 @@ function NotifRow({
 
   return (
     <li className="group relative flex items-center justify-between">
+      {/* Main tap target (title + message + time). Interactive extras
+          (quick reply, delete) live OUTSIDE this anchor — a button nested
+          inside an <a> is invalid HTML and makes the click bubble into a
+          full navigation, which is what made quick reply "refresh" the app. */}
       <Link
         href={href}
-        className={cn("flex-1 px-4 py-3 hover:bg-muted/50", !n.is_read && "bg-sky-500/5")}
+        className={cn("min-w-0 flex-1 px-4 py-3 hover:bg-muted/50", !n.is_read && "bg-sky-500/5")}
       >
         <div className="flex items-start gap-3">
           {/* Actor avatar with type icon badge */}
@@ -479,16 +483,17 @@ function NotifRow({
             <p className="mt-1 text-[11px] text-muted-foreground">
               {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
             </p>
-            {/* Reply straight from the notification (DM / comment) */}
-            <div onClick={(e) => e.stopPropagation()}>
-              <NotificationQuickReply notification={n} compact />
-            </div>
           </div>
 
           {/* Unread indicator */}
           {!n.is_read ? <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-sky-500" /> : null}
         </div>
       </Link>
+
+      {/* Quick reply + delete — siblings of the link, not children of it */}
+      <div className="absolute inset-y-0 right-10 flex items-center">
+        <NotificationQuickReply notification={n} compact />
+      </div>
       {onDelete && (
         <Button
           size="icon"

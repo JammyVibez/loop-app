@@ -182,7 +182,8 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
         return
       }
       if (ref === "event") {
-        router.push(`/circles/${communityId}`)
+        // The legacy /circles/[id] page was removed — events surface in the feed.
+        openTab({ tab: "feed" })
         return
       }
       const tabFor =
@@ -335,7 +336,7 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
           <div className="flex items-center gap-2 pt-2 sm:pt-0 w-full sm:w-auto">
             <div className="flex flex-1 sm:flex-none items-center gap-2">
               {bundle.is_member ? (
-                <Button variant="outline" className="rounded-full flex-1 sm:flex-none" onClick={() => router.push(`/circles/${communityId}`)}>
+                <Button variant="outline" className="rounded-full flex-1 sm:flex-none" onClick={() => openTab({ tab: "feed" })}>
                   <Check className="h-4 w-4 mr-1.5 text-emerald-500" /> Joined
                 </Button>
               ) : (
@@ -496,8 +497,8 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
                 {joining ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Users className="h-3.5 w-3.5 mr-1" />} Join world
               </Button>
             ) : (
-              <Button size="sm" variant="outline" className="flex-1 rounded-full" onClick={() => router.push(`/circles/${communityId}`)}>
-                <MessageSquare className="h-3.5 w-3.5 mr-1" /> Open community chat
+              <Button size="sm" variant="outline" className="flex-1 rounded-full" onClick={() => openTab({ tab: "feed" })}>
+                <MessageSquare className="h-3.5 w-3.5 mr-1" /> Open community feed
               </Button>
             )}
             <Button size="sm" variant="outline" className="rounded-full" onClick={share}>

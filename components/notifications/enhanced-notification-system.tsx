@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -60,6 +61,7 @@ interface Gift {
 }
 
 export function EnhancedNotificationSystem() {
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [pendingGifts, setPendingGifts] = useState<Gift[]>([])
   const [pendingFollowRequests, setPendingFollowRequests] = useState<any[]>([])
@@ -449,7 +451,10 @@ export function EnhancedNotificationSystem() {
                       markAsRead(notification.id)
                     }
                     if (notification.action_url) {
-                      window.location.href = notification.action_url
+                      // SPA navigation — a full page reload here also destroyed
+                      // any in-progress quick reply state.
+                      router.push(notification.action_url)
+                      setOpen(false)
                     }
                   }}
                 >

@@ -1,0 +1,66 @@
+import { type NextRequest, NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/server-auth"
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder",
+)
+
+/**
+ * GET /api/circles/[id]/bookmarks
+ * Posts the current user saved inside this community
+ * (circle_post_interactions where interaction_type = "save").
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const { id: circleId } = await params
+
+    const { data: saves, error } = await supabase
+      .from("circle_post_interactions")
+      .select(`
+        id,
+        created_at,
+        post:circle_posts!post_id(
+          *,
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium)
+        )
+      `)
+      .eq("user_id", user.id)
+      .eq("interaction_type", "save")
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      console.error("Community bookmarks fetch error:", error)
+      return NextResponse.json({ error: "Failed to load bookmarks" }, { status: 500 })
+    }
+
+    const bookmarks = (saves || [])
+      .map((save: any) => {
+        const post = Array.isArray(save.post) ? save.post[0] : save.post
+        if (!post || post.circle_id !== circleId) return null
+        return {
+          id: post.id,
+          content: post.content,
+          post_type: post.post_type || "discussion",
+          created_at: post.created_at,
+          author: post.author,
+          like_count: post.like_count || 0,
+          comment_count: post.comment_count || 0,
+          saved_at: save.created_at,
+        }
+      })
+      .filter(Boolean)
+
+    return NextResponse.json({ success: true, bookmarks })
+  } catch (error: any) {
+    console.error("Community bookmarks error:", error)
+    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 })
+  }
+}
