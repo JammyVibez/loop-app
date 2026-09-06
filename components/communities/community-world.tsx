@@ -20,6 +20,7 @@ import { WorldModeration } from "@/components/communities/world-moderation"
 import { WorldSettings } from "@/components/communities/world-settings"
 import { WorldLoop } from "@/components/communities/world-loop"
 import { WelcomeOnboarding } from "@/components/communities/welcome-onboarding"
+import { CommunityBookmarks } from "@/components/communities/community-bookmarks"
 import { iconForSpace } from "@/components/communities/world-spaces"
 import { AdSlot } from "@/components/ads/ad-slot"
 import {
@@ -49,6 +50,7 @@ import {
   Home,
   ExternalLink,
   X,
+  Bookmark,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -203,6 +205,7 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
       { id: "memory", label: "Memory", icon: History },
       { id: "members", label: "Members", icon: UsersRound },
     ]
+    if (bundle.is_member) items.push({ id: "bookmarks", label: "Saved", icon: Bookmark })
     if (bundle.is_moderator) items.push({ id: "moderation", label: "Moderation", icon: ShieldCheck })
     if (bundle.is_admin) items.push({ id: "settings", label: "Settings", icon: Settings })
     return items
@@ -463,6 +466,9 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
           )}
           {tab === "members" && (
             <WorldMembers communityId={communityId} initial={bundle.recent_members || []} viewerRole={bundle.role} viewerId={bundle.viewer} />
+          )}
+          {tab === "bookmarks" && (
+            <CommunityBookmarks communityId={communityId} />
           )}
           {tab === "moderation" && <WorldModeration communityId={communityId} />}
           {tab === "settings" && <WorldSettings communityId={communityId} bundle={bundle} onSaved={() => setRefreshKey((k) => k + 1)} />}

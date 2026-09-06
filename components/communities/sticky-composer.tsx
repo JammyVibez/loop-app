@@ -1,0 +1,248 @@
+"use client"
+
+import { useState, useRef } from "react"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { cn } from "@/lib/utils"
+import {
+  Send,
+  Image as ImageIcon,
+  BarChart3,
+  X,
+  Loader2,
+  Paperclip,
+} from "lucide-react"
+
+interface StickyComposerProps {
+  communityId: string
+  spaces: Array<{ id: string | number; name: string; icon?: string }>
+  currentUser?: {
+    avatar_url?: string
+    display_name?: string
+    username?: string
+  }
+  onPostCreated?: (post: any) => void
+}
+
+export function StickyComposer({
+  communityId,
+  spaces,
+  currentUser,
+  onPostCreated,
+}: StickyComposerProps) {
+  const [expanded, setExpanded] = useState(false)
+  const [content, setContent] = useState("")
+  const [spaceId, setSpaceId] = useState<string>("")
+  const [posting, setPosting] = useState(false)
+  const [showPoll, setShowPoll] = useState(false)
+  const [pollOptions, setPollOptions] = useState<string[]>(["", ""])
+  const [mediaPreview, setMediaPreview] = useState<string | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const handlePost = async () => {
+    if (!content.trim() || posting) return
+    setPosting(true)
+    try {
+      const payload: any = {
+        content: content.trim(),
+        space_id: spaceId || undefined,
+        post_type: showPoll ? "poll" : "discussion",
+      }
+
+      if (showPoll) {
+        const validOptions = pollOptions.filter((o) => o.trim())
+        if (validOptions.length >= 2) {
+          payload.poll = {
+            question: content.trim(),
+            options: validOptions.map((text) => ({ text })),
+          }
+        }
+      }
+
+      const res = await fetch(`/api/circles/${communityId}/posts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+
+      if (res.ok) {
+        const post = await res.json()
+        setContent("")
+        setSpaceId("")
+        setShowPoll(false)
+        setPollOptions(["", ""])
+        setMediaPreview(null)
+        setExpanded(false)
+        onPostCreated?.(post)
+      }
+    } catch {}
+    setPosting(false)
+  }
+
+  const addPollOption = () => {
+    if (pollOptions.length < 6) {
+      setPollOptions([...pollOptions, ""])
+    }
+  }
+
+  const removePollOption = (index: number) => {
+    if (pollOptions.length > 2) {
+      setPollOptions(pollOptions.filter((_, i) => i !== index))
+    }
+  }
+
+  return (
+    <div
+      className={cn(
+        "sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all",
+        expanded && "shadow-lg"
+      )}
+    >
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          <Avatar className="h-9 w-9 shrink-0">
+            <AvatarImage src={currentUser?.avatar_url || ""} alt="" />
+            <AvatarFallback className="text-xs font-bold">
+              {(currentUser?.display_name || currentUser?.username || "U").slice(0, 1).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+
+          <div className="flex-1 min-w-0">
+            <Textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onFocus={() => setExpanded(true)}
+              placeholder="Share something with the community..."
+              className="min-h-[44px] max-h-40 resize-none border-0 bg-muted/50 px-4 py-3 text-sm focus-visible:ring-1 focus-visible:ring-indigo-500 rounded-2xl"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault()
+                  handlePost()
+                }
+              }}
+            />
+
+            {expanded && (
+              <div className="mt-3 space-y-3">
+                {/* Space selector */}
+                {spaces.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Space:</span>
+                    <select
+                      value={spaceId}
+                      onChange={(e) => setSpaceId(e.target.value)}
+                      className="h-7 rounded-lg border border-input bg-background px-2 text-[11px]"
+                    >
+                      <option value="">No specific space</option>
+                      {spaces.map((s) => (
+                        <option key={s.id} value={String(s.id)}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Poll options */}
+                {showPoll && (
+                  <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold">Poll Options</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-[10px]"
+                        onClick={() => setShowPoll(false)}
+                      >
+                        <X className="h-3 w-3 mr-1" /> Remove poll
+                      </Button>
+                    </div>
+                    {pollOptions.map((opt, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-[10px] text-muted-foreground w-4">{i + 1}.</span>
+                        <input
+                          value={opt}
+                          onChange={(e) => {
+                            const next = [...pollOptions]
+                            next[i] = e.target.value
+                            setPollOptions(next)
+                          }}
+                          placeholder={`Option ${i + 1}`}
+                          className="flex-1 h-8 rounded-lg border border-input bg-background px-2.5 text-xs"
+                        />
+                        {pollOptions.length > 2 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => removePollOption(i)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    {pollOptions.length < 6 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-[11px] text-muted-foreground"
+                        onClick={addPollOption}
+                      >
+                        + Add option
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn("h-8 w-8", showPoll && "text-amber-500 bg-amber-500/10")}
+                      onClick={() => setShowPoll(!showPoll)}
+                      title="Add poll"
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Attach media"
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground">
+                      {navigator.platform?.includes("Mac") ? "Cmd" : "Ctrl"}+Enter to post
+                    </span>
+                    <Button
+                      size="sm"
+                      className="rounded-full h-8 px-4"
+                      disabled={!content.trim() || posting}
+                      onClick={handlePost}
+                    >
+                      {posting ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                      ) : (
+                        <Send className="h-3.5 w-3.5 mr-1" />
+                      )}
+                      Post
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

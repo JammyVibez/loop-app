@@ -12,6 +12,7 @@ import { PostActions, type CommunityPost } from "./post-actions"
 import { PollCard } from "./poll-card"
 import { CommentThread } from "./comment-thread"
 import { ReportModal } from "./report-modal"
+import { PostReactions } from "./post-reactions"
 import {
   BadgeCheck,
   Clock,
@@ -83,6 +84,7 @@ export function CommunityPostCard({
   const [showComments, setShowComments] = useState(false)
   const [voting, setVoting] = useState(false)
   const [showReport, setShowReport] = useState(false)
+  const [reactions, setReactions] = useState<Array<{type: string; count: number; reacted: boolean}>>([])
 
   const author = post.author
   const postType = (post.post_type || "discussion").toLowerCase()
@@ -91,6 +93,26 @@ export function CommunityPostCard({
   const spaceName = post.space_id
     ? spaces.find((s) => String(s.id) === String(post.space_id))?.name || null
     : null
+
+  const handleReact = async (postId: number, type: string) => {
+    try {
+      const res = await fetch(`/api/circles/${communityId}/posts/${postId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "react", reaction_type: type }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setReactions((prev) => {
+          const existing = prev.find((r) => r.type === type)
+          if (existing) {
+            return prev.map((r) => r.type === type ? { ...r, count: r.count + (data.reacted ? 1 : -1), reacted: data.reacted } : r)
+          }
+          return [...prev, { type, count: 1, reacted: true }]
+        })
+      }
+    } catch {}
+  }
 
   const handleVote = async (pollId: number, optionId: string) => {
     if (voting) return
@@ -215,6 +237,16 @@ export function CommunityPostCard({
             ))}
           </div>
         )}
+
+        {/* Reactions */}
+        <PostReactions
+          postId={post.id}
+          reactions={reactions.length > 0 ? reactions : [
+            { type: "like", count: post.like_count || 0, reacted: post.is_liked || false },
+          ]}
+          onReact={handleReact}
+          isMember={isMember}
+        />
 
         {/* Actions */}
         <PostActions

@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { timeAgo } from "@/lib/community-engine"
 import { CommunityPostCard } from "./post-cards"
 import type { CommunityPost } from "./post-cards"
+import { StickyComposer } from "./sticky-composer"
 import {
   BadgeCheck,
   BarChart3,
@@ -132,19 +133,12 @@ export function WorldFeed({
   const visibleSpaces = [{ id: "general", name: "General", icon: "home", type: "discussion" }, ...spaces]
 
   const [loading, setLoading] = useState(true)
-  const [composer, setComposer] = useState("")
-  const [posting, setPosting] = useState(false)
   const [liking, setLiking] = useState<number | null>(null)
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   const [hasMore, setHasMore] = useState(false)
   const [offset, setOffset] = useState(0)
   const [flashId, setFlashId] = useState<number | null>(null)
-  const [showComposerPoll, setShowComposerPoll] = useState(false)
-  const [pollQuestion, setPollQuestion] = useState("")
-  const [pollOptions, setPollOptions] = useState(["", ""])
-  const [mediaFiles, setMediaFiles] = useState<string[]>([])
-  const [uploading, setUploading] = useState(false)
   const loadingMore = useRef(false)
 
   const load = useCallback(
@@ -219,64 +213,11 @@ export function WorldFeed({
     load(false)
   }
 
-  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
-    setUploading(true)
-    try {
-      for (const file of Array.from(files)) {
-        const formData = new FormData()
-        formData.append("file", file)
-        formData.append("type", "loop_media")
-        const res = await fetch("/api/upload", { method: "POST", body: formData })
-        const data = await res.json()
-        if (data.success && data.data?.url) {
-          setMediaFiles((prev) => [...prev, data.data.url])
-        }
-      }
-    } catch {}
-    setUploading(false)
-    e.target.value = ""
-  }
-
-  const createPost = async () => {
-    if (!composer.trim()) return
-    setPosting(true)
-    setError("")
-    setNotice("")
-    try {
-      const payload: any = {
-        content: composer.trim(),
-        space_id: spaceId !== "general" ? spaceId : undefined,
-        media_urls: mediaFiles.length > 0 ? mediaFiles : undefined,
-      }
-      if (showComposerPoll && pollQuestion.trim() && pollOptions.filter((o) => o.trim()).length >= 2) {
-        payload.poll = {
-          question: pollQuestion.trim(),
-          options: pollOptions.filter((o) => o.trim()),
-        }
-      }
-      const res = await fetch(`/api/circles/${communityId}/posts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to post")
-      setComposer("")
-      setShowComposerPoll(false)
-      setPollQuestion("")
-      setPollOptions(["", ""])
-      setMediaFiles([])
-      if (data.post?.status === "pending") {
-        setNotice("Your post was submitted and is awaiting moderator review.")
-      } else {
-        setPosts((prev) => [data.post, ...prev])
-      }
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setPosting(false)
+  const handlePostCreated = (post: any) => {
+    if (post?.status === "pending") {
+      setNotice("Your post was submitted and is awaiting moderator review.")
+    } else {
+      setPosts((prev) => [post, ...prev])
     }
   }
 
@@ -318,9 +259,7 @@ export function WorldFeed({
 
   const deletePost = async (postId: number) => {
     try {
-      const res = await fetch(`/api/circles/${communityId}/posts/${communityId}?postId=${postId}`, {
-        method: "DELETE",
-      })
+      const res = await fetch(`/api/circles/${communityId}/posts/${postId}`, { method: "DELETE" })
       if (res.ok) {
         setPosts((prev) => prev.filter((p) => p.id !== postId))
       }
@@ -361,122 +300,29 @@ export function WorldFeed({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 space-y-4">
-        {/* Composer */}
+        {/* Sticky Composer */}
         {isMember ? (
-          <div className="rounded-2xl border border-border bg-card p-4">
-            {approvalOn && (
-              <p className="mb-2 flex items-center gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                <Hourglass className="h-3 w-3" /> Posts are reviewed by moderators before they appear.
-              </p>
-            )}
-            <div className="flex gap-3">
-              <Avatar className="h-9 w-9">
-                <AvatarImage src={user?.avatar_url || ""} alt="" />
-                <AvatarFallback>{(user?.display_name || user?.username || "U").slice(0, 1).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <Textarea
-                value={composer}
-                onChange={(e) => setComposer(e.target.value)}
-                placeholder="Share something with the community..."
-                className="min-h-[80px] rounded-xl resize-none"
-                maxLength={2000}
-              />
-            </div>
-
-            {showComposerPoll && (
-              <div className="mt-3 ml-12 space-y-2 p-3 rounded-xl border border-border bg-muted/30">
-                <Input
-                  value={pollQuestion}
-                  onChange={(e) => setPollQuestion(e.target.value)}
-                  placeholder="Poll question"
-                  className="h-9 text-sm rounded-lg"
-                />
-                {pollOptions.map((opt, i) => (
-                  <div key={i} className="flex gap-2">
-                    <Input
-                      value={opt}
-                      onChange={(e) => {
-                        const next = [...pollOptions]
-                        next[i] = e.target.value
-                        setPollOptions(next)
-                      }}
-                      placeholder={`Option ${i + 1}`}
-                      className="h-9 text-sm rounded-lg"
-                    />
-                    {i >= 2 && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="shrink-0 h-9 w-9 p-0 text-muted-foreground"
-                        onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}
-                      >
-                        x
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                {pollOptions.length < 6 && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-xs"
-                    onClick={() => setPollOptions([...pollOptions, ""])}
-                  >
-                    + Add option
-                  </Button>
-                )}
-              </div>
-            )}
-
-            {/* Media preview */}
-            {mediaFiles.length > 0 && (
-              <div className="mt-2 ml-12 flex flex-wrap gap-2">
-                {mediaFiles.map((url, i) => (
-                  <div key={i} className="relative h-16 w-16 rounded-lg overflow-hidden bg-muted">
-                    <Image src={url} alt="" fill className="object-cover" unoptimized />
-                    <button
-                      onClick={() => setMediaFiles((prev) => prev.filter((_, j) => j !== i))}
-                      className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-black/60 text-white flex items-center justify-center text-[10px]"
-                    >
-                      x
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="mt-2 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-muted-foreground">
-                  Posting to <strong>{visibleSpaces.find((s) => String(s.id) === spaceId)?.name || "General"}</strong>
-                </span>
-                <label className="flex items-center gap-1 h-7 px-2 text-[11px] rounded-full border border-border bg-card text-muted-foreground cursor-pointer hover:text-foreground transition">
-                  <ImageIcon className="h-3 w-3" />
-                  {uploading ? "Uploading..." : "Media"}
-                  <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleMediaUpload} disabled={uploading} />
-                </label>
-                <Button
-                  size="sm"
-                  variant={showComposerPoll ? "secondary" : "ghost"}
-                  className="h-7 px-2 text-[11px] rounded-full"
-                  onClick={() => setShowComposerPoll(!showComposerPoll)}
-                >
-                  <BarChart3 className="h-3 w-3 mr-1" />
-                  Poll
-                </Button>
-              </div>
-              <Button size="sm" className="rounded-full" onClick={createPost} disabled={posting || !composer.trim()}>
-                {posting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
-                Post
-              </Button>
-            </div>
-            {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
-            {notice && <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">{notice}</p>}
-          </div>
+          <StickyComposer
+            communityId={communityId}
+            spaces={spaces}
+            currentUser={user ? {
+              avatar_url: user.avatar_url,
+              display_name: user.display_name,
+              username: user.username,
+            } : undefined}
+            onPostCreated={handlePostCreated}
+          />
         ) : (
           <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
             <Lock className="mx-auto h-5 w-5 mb-2" />
             Join the community to post and interact.
+          </div>
+        )}
+
+        {/* Approval notice */}
+        {approvalOn && (
+          <div className="flex items-center gap-1.5 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+            <Hourglass className="h-3 w-3" /> Posts are reviewed by moderators before they appear.
           </div>
         )}
 
@@ -501,6 +347,10 @@ export function WorldFeed({
             </button>
           ))}
         </div>
+
+        {/* Error/Notice */}
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        {notice && <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{notice}</p>}
 
         {/* Posts */}
         {loading ? (

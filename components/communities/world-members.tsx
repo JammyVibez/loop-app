@@ -9,22 +9,23 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatNumber, timeAgo } from "@/lib/community-engine"
-import { Users, Search, BadgeCheck, Loader2, Shield, Crown, Star, Megaphone, Handshake, Brain, Palette, Flame } from "lucide-react"
+import { MemberReputation } from "./member-reputation"
+import { Users, Search, BadgeCheck, Loader2, Shield, Crown, Star, Award, Handshake, Brain, Palette, Flame } from "lucide-react"
 
-const ROLE_BADGE: Record<string, { label: string; className: string }> = {
-  owner: { label: "👑 Founder", className: "bg-amber-500/10 text-amber-600 border-amber-500/30" },
-  admin: { label: "🛡️ Admin", className: "bg-indigo-500/10 text-indigo-600 border-indigo-500/30" },
-  moderator: { label: "🔨 Moderator", className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" },
-  member: { label: "Member", className: "bg-muted text-muted-foreground border-border" },
+const ROLE_BADGE: Record<string, { label: string; className: string; icon: typeof Shield }> = {
+  owner: { label: "Founder", className: "bg-amber-500/10 text-amber-600 border-amber-500/30", icon: Crown },
+  admin: { label: "Admin", className: "bg-indigo-500/10 text-indigo-600 border-indigo-500/30", icon: Shield },
+  moderator: { label: "Moderator", className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30", icon: Shield },
+  member: { label: "Member", className: "bg-muted text-muted-foreground border-border", icon: Users },
 }
 
 const RECOGNITIONS = [
-  { kind: "knowledge_keeper", label: "🧠 Knowledge Keeper" },
-  { kind: "creator", label: "🎨 Creator" },
-  { kind: "connector", label: "🤝 Connector" },
-  { kind: "conversation_starter", label: "💬 Conversation Starter" },
-  { kind: "organizer", label: "🧭 Organizer" },
-  { kind: "top_contributor", label: "🔥 Top Contributor" },
+  { kind: "knowledge_keeper", label: "Knowledge Keeper", icon: Brain },
+  { kind: "creator", label: "Creator", icon: Palette },
+  { kind: "connector", label: "Connector", icon: Handshake },
+  { kind: "conversation_starter", label: "Conversation Starter", icon: Star },
+  { kind: "organizer", label: "Organizer", icon: Award },
+  { kind: "top_contributor", label: "Top Contributor", icon: Flame },
 ]
 
 export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { communityId: string; initial: any[]; viewerRole?: string | null; viewerId?: string | null }) {
@@ -108,7 +109,7 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-52">
             <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search members…" className="pl-9 rounded-xl h-9 text-sm" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search members..." className="pl-9 rounded-xl h-9 text-sm" />
           </div>
           <select
             value={roleFilter}
@@ -140,6 +141,7 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
         <div className="space-y-2">
           {members.map((m) => {
             const roleBadge = ROLE_BADGE[m.role] || ROLE_BADGE.member
+            const RoleIcon = roleBadge.icon
             return (
               <div key={m.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
                 <Link href={`/profile/${m.user?.username}`}>
@@ -154,11 +156,19 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
                       {m.user?.display_name || m.user?.username}
                     </Link>
                     {m.user?.is_verified && <BadgeCheck className="h-3.5 w-3.5 text-blue-500 shrink-0" />}
-                    <Badge className={`text-[9px] ${roleBadge.className}`}>{roleBadge.label}</Badge>
+                    <Badge className={`text-[9px] gap-1 ${roleBadge.className}`}>
+                      <RoleIcon className="h-2.5 w-2.5" /> {roleBadge.label}
+                    </Badge>
                   </div>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
-                    <span className="font-semibold text-foreground">⭐ {formatNumber(m.contribution_score)} rep</span>
-                    {m.recognition_count > 0 && <span>🎖️ {m.recognition_count} recognitions</span>}
+                    <span className="font-semibold text-foreground flex items-center gap-1">
+                      <Star className="h-3 w-3" /> {formatNumber(m.contribution_score)} rep
+                    </span>
+                    {m.recognition_count > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Award className="h-3 w-3" /> {m.recognition_count} recognitions
+                      </span>
+                    )}
                     {m.last_active && <span>active {timeAgo(m.last_active)}</span>}
                   </div>
                 </div>
@@ -197,17 +207,21 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-2 py-2">
-            <p className="text-[11px] text-muted-foreground">Recognitions are community badges of appreciation — they don't grant admin powers.</p>
-            {RECOGNITIONS.map((r) => (
-              <button
-                key={r.kind}
-                onClick={() => recognize(r.kind)}
-                disabled={recognizing}
-                className="w-full rounded-xl border border-border bg-card p-3 text-left text-sm font-medium transition hover:border-indigo-500/50 hover:bg-indigo-500/5"
-              >
-                {r.label}
-              </button>
-            ))}
+            <p className="text-[11px] text-muted-foreground">Recognitions are community badges of appreciation - they don't grant admin powers.</p>
+            {RECOGNITIONS.map((r) => {
+              const Icon = r.icon
+              return (
+                <button
+                  key={r.kind}
+                  onClick={() => recognize(r.kind)}
+                  disabled={recognizing}
+                  className="w-full flex items-center gap-2 rounded-xl border border-border bg-card p-3 text-left text-sm font-medium transition hover:border-indigo-500/50 hover:bg-indigo-500/5"
+                >
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                  {r.label}
+                </button>
+              )
+            })}
             {error && <p className="text-xs text-red-500">{error}</p>}
           </div>
         </DialogContent>
