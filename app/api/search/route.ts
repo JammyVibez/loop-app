@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { normalizeLoops } from "@/lib/normalize-loop"
+import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 import { applyRealCommentCounts } from "@/lib/loop-stats"
 import { getUserFromRequest } from "@/lib/server-auth";
 
@@ -193,7 +194,9 @@ export async function GET(request: NextRequest) {
       }
 
       const visibleLoops = (await filterPrivateLoops(loops || [])) || []
-      results.loops = normalizeLoops(await applyRealCommentCounts(supabase, visibleLoops))
+      results.loops = normalizeLoops(
+        await applyRealCommentCounts(supabase, await enrichLoopsWithPollsAndDuels(supabase, visibleLoops)),
+      )
     }
 
     if (wantUsers) {

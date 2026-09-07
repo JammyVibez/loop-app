@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
@@ -11,19 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { formatNumber } from "@/lib/community-engine"
-import {
-  Plus,
-  FolderOpen,
-  Users,
-  CheckCircle2,
-  Circle,
-  Loader2,
-  Trash2,
-  Pencil,
-  Lock,
-  ArrowLeft,
-  Link as LinkIcon,
-} from "lucide-react"
+import { Plus, FolderOpen, Users, CheckCircle2, Circle, Loader2, Trash2, Lock } from "lucide-react"
+import { DeviceMediaPicker, type PickedMedia } from "./device-media-picker"
 
 interface Project {
   id: number
@@ -62,6 +51,8 @@ export function WorldProjects({
   const [description, setDescription] = useState("")
   const [tags, setTags] = useState("")
   const [cover, setCover] = useState("")
+  const [coverUpload, setCoverUpload] = useState<PickedMedia[]>([])
+  const uploadedCoverRef = useRef<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [active, setActive] = useState<Project | null>(null)
@@ -112,10 +103,23 @@ export function WorldProjects({
       setDescription("")
       setTags("")
       setCover("")
+      setCoverUpload([])
+      uploadedCoverRef.current = null
     } catch (e: any) {
       setError(e.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleCoverUpload = (items: PickedMedia[]) => {
+    setCoverUpload(items)
+    if (items[0]) {
+      uploadedCoverRef.current = items[0].url
+      setCover(items[0].url)
+    } else if (uploadedCoverRef.current && cover === uploadedCoverRef.current) {
+      setCover("")
+      uploadedCoverRef.current = null
     }
   }
 
@@ -263,8 +267,18 @@ export function WorldProjects({
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 rounded-xl text-sm min-h-[80px]" maxLength={3000} />
             </div>
             <div>
-              <label className="text-xs font-medium">Cover URL</label>
-              <Input value={cover} onChange={(e) => setCover(e.target.value)} className="mt-1 rounded-xl" placeholder="https://… (optional)" />
+              <label className="text-xs font-medium">Cover</label>
+              <Input value={cover} onChange={(e) => setCover(e.target.value)} className="mt-1 rounded-xl" placeholder="https://… or upload one below (optional)" />
+              <div className="mt-1.5">
+                <DeviceMediaPicker
+                  items={coverUpload}
+                  onChange={handleCoverUpload}
+                  maxItems={1}
+                  folder="community-projects"
+                  accept="image/*"
+                  compact
+                />
+              </div>
             </div>
             <div>
               <label className="text-xs font-medium">Tags</label>

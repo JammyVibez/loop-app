@@ -156,9 +156,10 @@ export function WorldFeed({
           throw new Error(errMsg)
         }
         const data = await res.json()
-        setPosts((prev) => (reset ? data.posts || [] : [...prev, ...(data.posts || [])]))
+        const batch = data.posts || []
+        setPosts((prev) => (reset ? batch : [...prev, ...batch]))
         setHasMore(Boolean(data.hasMore))
-        setOffset((data.posts || []).length)
+        setOffset(reset ? batch.length : offset + batch.length)
       } catch (e: any) {
         setError(e.message)
       } finally {

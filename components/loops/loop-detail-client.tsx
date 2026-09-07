@@ -521,8 +521,15 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
             >
               <GitBranch className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
               <span className="truncate">
-                Branch from <span className="font-bold text-foreground">@{loop.parentLoop.author || "original post"}</span>
-                {loop.parentLoop.author_verified && <span className="ml-1 font-bold text-blue-500">✓</span>}
+                Branch from{" "}
+                {loop.parentLoop.author ? (
+                  <span className="inline-flex items-center gap-1 font-bold text-foreground">
+                    @{loop.parentLoop.author}
+                    {loop.parentLoop.author_verified && <span className="font-bold text-blue-500">✓</span>}
+                  </span>
+                ) : (
+                  <span className="font-bold text-foreground">a branched post</span>
+                )}
                 {loop.parentLoop.title && loop.parentLoop.title !== "Untitled Loop" ? (
                   <span className="text-muted-foreground"> · &ldquo;{(loop.parentLoop.title || "").slice(0, 40)}&rdquo;</span>
                 ) : null}

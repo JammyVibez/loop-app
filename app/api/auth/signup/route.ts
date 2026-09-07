@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase"
 import { ECONOMY_DEFAULTS } from "@/lib/economy"
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
+import { getRateLimitSettings } from "@/lib/rate-limit-settings"
 
 export const dynamic = "force-dynamic"
 
@@ -11,20 +13,48 @@ function normalizeUsername(username: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, username, display_name, invited_via_coloop, invited_by_username } = await request.json()
-    const cleanUsername = normalizeUsername(username || "")
-    const displayName = String(display_name || "").trim()
+    const body = await request.json().catch(() => ({}))
+    const email = String(body.email || "").trim().toLowerCase()
+    const password = String(body.password || "")
+    const cleanUsername = normalizeUsername(body.username || "")
+    const displayName = String(body.display_name || "").trim()
+    const invitedViaColoop = Boolean(body.invited_via_coloop)
+    const invitedByUsername = body.invited_by_username ? String(body.invited_by_username).toLowerCase().trim() : null
 
     if (!email || !password || !cleanUsername || !displayName) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    }
+
+    // Anti-abuse: tight per-IP window (spam-account factories hit this first)
+    // plus a per-email/hour cap so the same address can't mint accounts in a
+    // loop. Failures count too — no point letting bots probe taken emails.
+    // Limits are admin-tuneable via the rate-limits panel; when the master
+    // switch is off, signups relax to a permissive floor instead of vanishing
+    // entirely so spam waves can still be dampened.
+    const policy = await getRateLimitSettings(createServerClient())
+    const ipMax = policy.enabled ? policy.signup_ip_max : 20
+    const emailMax = policy.enabled ? policy.signup_email_max : 10
+    const ipCheck = checkRateLimit(`signup-ip:${getClientIp(request)}`, { maxRequests: ipMax, windowMs: 60_000 })
+    if (!ipCheck.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests", message: `Slow down — try again in ${ipCheck.retryAfter} seconds.`, retryAfter: ipCheck.retryAfter },
+        { status: 429, headers: { "Retry-After": String(ipCheck.retryAfter) } },
+      )
+    }
+    const emailCheck = checkRateLimit(`signup-email:${email}`, { maxRequests: emailMax, windowMs: 60 * 60 * 1000 })
+    if (!emailCheck.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests", message: "Too many signup attempts for this email. Try again later.", retryAfter: emailCheck.retryAfter },
+        { status: 429, headers: { "Retry-After": String(emailCheck.retryAfter) } },
+      )
     }
 
     if (cleanUsername.length < 3) {
       return NextResponse.json({ error: "Username must be at least 3 characters" }, { status: 400 })
     }
 
-    if (password.length < 6) {
-      return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 })
+    if (password.length < 8) {
+      return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 })
     }
 
     const supabase = createServerClient()
@@ -84,8 +114,8 @@ export async function POST(request: NextRequest) {
       privacy_settings: { profile_visibility: "public", message_privacy: "everyone" },
       notification_settings: { email: true, push: true, in_app: true },
       onboarding_completed: false,
-      invited_via_coloop: Boolean(invited_via_coloop),
-      invited_by_username: invited_by_username ? String(invited_by_username).toLowerCase().trim() : null,
+      invited_via_coloop: invitedViaColoop,
+      invited_by_username: invitedByUsername,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }

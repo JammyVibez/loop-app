@@ -21,6 +21,10 @@ export type NormalizedLoop = {
       username?: string
       display_name?: string
       avatar_url?: string
+      video_avatar_url?: string | null
+      is_verified?: boolean
+      is_premium?: boolean
+      is_team_member?: boolean
     } | null
   } | null
   author: {
@@ -132,10 +136,13 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
         content: parent?.content_text ?? parent?.content ?? parent?.text ?? null,
         author: {
           id: parentAuthor?.id || parent?.author_id || "",
-          username: parentAuthor?.username || "unknown",
-          display_name: parentAuthor?.display_name || parentAuthor?.username || "someone",
+          username: parentAuthor?.username || "",
+          display_name: parentAuthor?.display_name || parentAuthor?.username || "",
           avatar_url: parentAuthor?.avatar_url || undefined,
           video_avatar_url: parentAuthor?.video_avatar_url || null,
+          is_verified: Boolean(parentAuthor?.is_verified),
+          is_premium: Boolean(parentAuthor?.is_premium),
+          is_team_member: Boolean(parentAuthor?.is_team_member),
         },
       }
     })(),

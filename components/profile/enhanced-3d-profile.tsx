@@ -80,6 +80,7 @@ interface UserProfile {
   is_organization?: boolean
   organization_name?: string
   organization_badge_url?: string
+  pronouns?: string | null
   organization_config?: {
     coin_rate_multiplier?: number
     custom_boost_discount?: number
@@ -607,6 +608,13 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               )}
             </div>
             <p className="text-muted-foreground">@{profile.username}</p>
+            {profile.pronouns && (
+              <div className="mt-1.5">
+                <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/40 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                  {profile.pronouns}
+                </span>
+              </div>
+            )}
           </div>
 
           {profile.bio ? (

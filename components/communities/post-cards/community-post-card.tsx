@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -31,7 +31,10 @@ import {
   BookOpen,
   Flame,
   FileText,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
+import { isVideoUrl } from "@/components/communities/device-media-picker"
 
 const POST_TYPE_CONFIG: Record<string, { label: string; icon: typeof FileText; color: string }> = {
   discussion: { label: "Discussion", icon: MessageCircle, color: "text-indigo-500" },
@@ -85,6 +88,8 @@ export function CommunityPostCard({
   const [voting, setVoting] = useState(false)
   const [showReport, setShowReport] = useState(false)
   const [reactions, setReactions] = useState<Array<{type: string; count: number; reacted: boolean}>>([])
+  const [mediaIndex, setMediaIndex] = useState(0)
+  const touchStartX = useRef<number | null>(null)
 
   const author = post.author
   const postType = (post.post_type || "discussion").toLowerCase()
@@ -127,11 +132,28 @@ export function CommunityPostCard({
     setVoting(false)
   }
 
-  const mediaUrls = post.media_urls && post.media_urls.length > 0
-    ? post.media_urls
-    : post.media_url
-    ? [post.media_url]
-    : []
+  // ---- Defensive normalization -------------------------------------------------
+  // Legacy/oddly-shaped rows must never crash the feed render: some older writers
+  // stored media_urls / hashtags / poll options as JSON strings instead of arrays.
+  const toArray = (v: unknown): any[] => {
+    if (Array.isArray(v)) return v
+    if (typeof v === "string" && v.trim()) {
+      try {
+        const parsed = JSON.parse(v)
+        return Array.isArray(parsed) ? parsed : []
+      } catch {
+        return []
+      }
+    }
+    return []
+  }
+  const mediaUrls = (toArray(post.media_urls).length > 0 ? toArray(post.media_urls) : toArray(post.media_url)).filter(Boolean)
+  const hashtags = toArray(post.hashtags).filter(Boolean)
+  const pollOptions = post.poll ? toArray((post.poll as any).options).map((o: any, i: number) =>
+    typeof o === "object" && o !== null
+      ? { id: String(o.id ?? i), text: String(o.text ?? o.label ?? ""), votes: Number(o.votes || 0) }
+      : { id: String(i), text: String(o), votes: 0 },
+  ) : []
 
   return (
     <div
@@ -202,24 +224,81 @@ export function CommunityPostCard({
           <p className="mt-3 text-sm whitespace-pre-wrap leading-relaxed">{post.content}</p>
         )}
 
-        {/* Media */}
-        {mediaUrls.length > 0 && (
-          <div className={cn("mt-3 grid gap-2", mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
-            {mediaUrls.map((url, i) => (
-              <div key={i} className="relative aspect-video overflow-hidden rounded-xl bg-muted">
-                <Image src={url} alt="" fill className="object-cover" unoptimized />
+        {/* Media — carousel with arrows (swipe on touch) so multi-media posts are browsable */}
+        {mediaUrls.length > 0 && (() => {
+          const idx = Math.min(mediaIndex, mediaUrls.length - 1)
+          const activeUrl = mediaUrls[idx]
+          const isVideo = isVideoUrl(activeUrl)
+          const step = (dir: 1 | -1) => {
+            setMediaIndex((prev) => (prev + dir + mediaUrls.length) % mediaUrls.length)
+          }
+          return (
+            <div className="mt-3">
+              <div
+                className={cn("relative aspect-video overflow-hidden rounded-xl bg-muted select-none", mediaUrls.length > 1 && "cursor-grab")}
+                onTouchStart={(e) => {
+                  touchStartX.current = e.touches[0]?.clientX ?? null
+                }}
+                onTouchEnd={(e) => {
+                  if (touchStartX.current === null) return
+                  const dx = (e.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current
+                  touchStartX.current = null
+                  if (Math.abs(dx) > 48) step(dx < 0 ? 1 : -1)
+                }}
+              >
+                {isVideo ? (
+                  <video src={activeUrl} controls playsInline className="h-full w-full bg-black object-contain" />
+                ) : (
+                  <Image src={activeUrl} alt="" fill className="object-cover" unoptimized />
+                )}
+                {mediaUrls.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => step(-1)}
+                      aria-label="Previous media"
+                      className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/50 text-white backdrop-blur transition hover:bg-black/70"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => step(1)}
+                      aria-label="Next media"
+                      className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/50 text-white backdrop-blur transition hover:bg-black/70"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                    <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">
+                      {idx + 1} / {mediaUrls.length}
+                    </span>
+                  </>
+                )}
               </div>
-            ))}
-          </div>
-        )}
+              {mediaUrls.length > 1 && (
+                <div className="mt-2 flex items-center justify-center gap-1.5">
+                  {mediaUrls.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setMediaIndex(i)}
+                      aria-label={`Go to media ${i + 1}`}
+                      className={cn(
+                        "h-1.5 rounded-full transition-all",
+                        i === idx ? "w-5 bg-indigo-500" : "w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/60"
+                      )}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {/* Poll */}
-        {post.poll && (
+        {post.poll && pollOptions.length >= 2 && (
           <PollCard
             pollId={post.poll.id}
             question={post.poll.question}
-            options={post.poll.options}
-            totalVotes={post.poll.total_votes}
+            options={pollOptions}
+            totalVotes={Number(post.poll.total_votes || 0)}
             expiresAt={post.poll.expires_at}
             isMember={isMember}
             onVote={handleVote}
@@ -228,9 +307,9 @@ export function CommunityPostCard({
         )}
 
         {/* Tags */}
-        {post.hashtags && post.hashtags.length > 0 && (
+        {hashtags.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {post.hashtags.map((tag, i) => (
+            {hashtags.map((tag, i) => (
               <span key={i} className="text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                 #{tag}
               </span>

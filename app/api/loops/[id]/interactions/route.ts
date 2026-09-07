@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { enforceUserRateLimit } from "@/lib/rate-limit-settings"
 
 export async function POST(
   request: NextRequest,
@@ -12,6 +13,19 @@ export async function POST(
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Admin-tuneable interaction throttle (likes/saves/shares/views).
+    const guard = await enforceUserRateLimit(createServerClient(), "interaction", user.id)
+    if (!guard.ok) {
+      return NextResponse.json(
+        {
+          error: "Slow down",
+          message: `Too many actions. Try again in ${guard.retryAfter} seconds.`,
+          retryAfter: guard.retryAfter,
+        },
+        { status: 429, headers: { "Retry-After": String(guard.retryAfter) } },
+      )
     }
 
     const body = await request.json().catch(() => ({}))

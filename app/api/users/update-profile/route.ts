@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
       website,
       location,
       phone,
+      pronouns,
       privacy_settings,
       notification_settings,
       tagged_circles,
@@ -179,6 +180,12 @@ export async function POST(request: NextRequest) {
       website: website === undefined ? undefined : website || null,
       location: location === undefined ? undefined : location || null,
       phone: phone === undefined ? undefined : phone || null,
+      // Pronouns — e.g. "she/her", "he/him", "they/them". Cleared when the
+      // field is sent as null or an empty string.
+      pronouns:
+        pronouns === undefined
+          ? undefined
+          : String(pronouns).trim().toLowerCase().slice(0, 60) || null,
       privacy_settings,
       notification_settings,
       tagged_circles: sanitizedTags,
@@ -199,7 +206,7 @@ export async function POST(request: NextRequest) {
       .select("*")
       .maybeSingle()
 
-    for (const optionalColumn of ["theme_preferences", "theme_data", "interests", "phone", "privacy_settings", "notification_settings", "banner_url", "tagged_circles"]) {
+    for (const optionalColumn of ["theme_preferences", "theme_data", "interests", "phone", "privacy_settings", "notification_settings", "banner_url", "tagged_circles", "pronouns"]) {
       if (profileError?.code === "PGRST204" && optionalColumn in payload) {
         delete payload[optionalColumn]
         ;({ data: profile, error: profileError } = await supabase

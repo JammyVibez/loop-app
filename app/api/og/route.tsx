@@ -110,7 +110,47 @@ export async function GET(request: NextRequest) {
     return new Response(buf, { headers: CACHE_HEADERS })
   } catch (error) {
     console.error("OG image generation failed:", error)
-    return new Response("OG image generation failed", { status: 500 })
+
+    // Crawlers cache failure responses aggressively — a hard 500 here is why
+    // shares sometimes show no preview even after the route is fixed. Render a
+    // simple branded fallback instead of erroring so every share still gets an
+    // image. Font-free on purpose: the full template run already failed, so
+    // keep the fallback dependency-light.
+    try {
+      const { searchParams } = new URL(request.url)
+      const fallbackTitle = (searchParams.get("title") || "Loop — Build Together").slice(0, 80)
+      const fallback = new ImageResponse(
+        (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "linear-gradient(160deg, #0a0819 0%, #141033 38%, #1c1248 64%, #0c0a24 100%)",
+              color: "#ffffff",
+              fontFamily: "system-ui, sans-serif",
+              textAlign: "center",
+              padding: 64,
+            }}
+          >
+            <div style={{ fontSize: 28, color: "#67e8f9", marginBottom: 24 }}>loopapp.me</div>
+            <div style={{ fontSize: 52, fontWeight: 700, maxWidth: 900 }}>{fallbackTitle}</div>
+            <div style={{ fontSize: 22, color: "rgba(255,255,255,0.65)", marginTop: 24 }}>
+              Build together — not just post into the void.
+            </div>
+          </div>
+        ),
+        { width: 1200, height: 630 },
+      )
+      const fallbackBuf = await fallback.arrayBuffer()
+      return new Response(fallbackBuf, { headers: CACHE_HEADERS })
+    } catch (fallbackError) {
+      console.error("OG fallback image also failed:", fallbackError)
+      return new Response("OG image generation failed", { status: 500 })
+    }
   }
 }
 

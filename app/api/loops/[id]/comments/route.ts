@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { getUserFromRequest } from "@/lib/server-auth";
+import { enforceUserRateLimit } from "@/lib/rate-limit-settings";
 
 export async function GET(
   request: NextRequest,
@@ -104,6 +105,19 @@ export async function POST(
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Admin-tuneable comment throttle (see /admin → Rate limits).
+    const guard = await enforceUserRateLimit(createServerClient(), "comment", user.id)
+    if (!guard.ok) {
+      return NextResponse.json(
+        {
+          error: "Slow down — you're commenting too fast",
+          message: `You've hit the comment limit. Try again in ${guard.retryAfter} seconds.`,
+          retryAfter: guard.retryAfter,
+        },
+        { status: 429, headers: { "Retry-After": String(guard.retryAfter) } },
+      )
     }
 
     const { content, parent_comment_id, media_url } = await request.json()

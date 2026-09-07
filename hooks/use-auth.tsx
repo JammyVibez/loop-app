@@ -37,6 +37,7 @@ interface User {
   phone?: string
   website?: string
   location?: string
+  pronouns?: string | null
   profile_theme?: any
   privacy_settings?: Record<string, unknown>
   notification_settings?: Record<string, unknown>
@@ -157,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       phone: profileData.phone ?? previous?.phone,
       website: profileData.website ?? previous?.website,
       location: profileData.location ?? previous?.location,
+      pronouns: profileData.pronouns ?? previous?.pronouns ?? null,
       privacy_settings: profileData.privacy_settings ?? previous?.privacy_settings,
       notification_settings: profileData.notification_settings ?? previous?.notification_settings,
       cosmetics: profileData.cosmetics ?? previous?.cosmetics ?? null,
@@ -412,6 +414,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nextThemePrefs = (profile.theme_preferences as any) ?? prev.theme_preferences
       const nextLocation = (profile.location as string | undefined) ?? prev.location
       const nextWebsite = (profile.website as string | undefined) ?? prev.website
+      const nextPronouns = (profile.pronouns as string | null | undefined) ?? prev.pronouns ?? null
       const nextOnboarding =
         typeof profile.onboarding_completed === "boolean"
           ? profile.onboarding_completed
@@ -442,6 +445,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         nextAdmin === prev.is_admin &&
         nextLocation === prev.location &&
         nextWebsite === prev.website &&
+        nextPronouns === prev.pronouns &&
         nextOnboarding === prev.onboarding_completed &&
         nextThemePrefs === prev.theme_preferences &&
         nextPrivacy === prev.privacy_settings &&
@@ -471,6 +475,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         theme_preferences: nextThemePrefs,
         location: nextLocation,
         website: nextWebsite,
+        pronouns: nextPronouns,
         privacy_settings: nextPrivacy,
         notification_settings: nextNotification,
         onboarding_completed: nextOnboarding,

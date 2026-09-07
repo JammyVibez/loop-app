@@ -21,6 +21,7 @@ import { LeftSidebar } from "@/components/left-sidebar"
 import { GiftNotificationSystem } from "@/components/gifting/gift-notification"
 import { CosmeticFontLoader } from "@/components/cosmetics/cosmetic-font-loader"
 import { GlobalFab } from "@/components/global-fab"
+import { InAppBrowserHost } from "@/components/in-app-browser/in-app-browser"
 import { PushAutoSubscribe } from "@/components/pwa/push-auto-subscribe"
 import { NotificationAutoPrompt } from "@/components/pwa/notification-auto-prompt"
 import { NativeShell } from "@/components/pwa/native-shell"
@@ -247,6 +248,7 @@ export default function RootLayout({
                         <AppChrome>{children}</AppChrome>
                       </div>
                       <GlobalFab />
+                      <InAppBrowserHost />
                       <GiftNotificationSystem />
         <CosmeticFontLoader />
                       <PushAutoSubscribe />

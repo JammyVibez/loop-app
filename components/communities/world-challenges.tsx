@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Badge } from "@/components/ui/badge"
 import { formatNumber, timeAgo } from "@/lib/community-engine"
 import { Trophy, Plus, Users, Loader2, Flame, CheckCircle2, Heart, Lock } from "lucide-react"
+import { DeviceMediaPicker, isVideoUrl, type PickedMedia } from "./device-media-picker"
 
 interface Challenge {
   id: number
@@ -53,7 +54,7 @@ export function WorldChallenges({
   const [entries, setEntries] = useState<any[]>([])
   const [entriesLoading, setEntriesLoading] = useState(false)
   const [submitContent, setSubmitContent] = useState("")
-  const [submitMedia, setSubmitMedia] = useState("")
+  const [submitMediaItems, setSubmitMediaItems] = useState<PickedMedia[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [voting, setVoting] = useState<number | null>(null)
   const [flashId, setFlashId] = useState<number | null>(null)
@@ -128,19 +129,19 @@ export function WorldChallenges({
   }
 
   const submitEntry = async () => {
-    if (!active || (!submitContent.trim() && !submitMedia.trim())) return
+    if (!active || (!submitContent.trim() && submitMediaItems.length === 0)) return
     setSubmitting(true)
     setError("")
     try {
       const res = await fetch(`/api/communities/${communityId}/challenges/${active.id}/entries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: submitContent, media_url: submitMedia || undefined }),
+        body: JSON.stringify({ content: submitContent, media_url: submitMediaItems[0]?.url || undefined }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to submit")
       setSubmitContent("")
-      setSubmitMedia("")
+      setSubmitMediaItems([])
       openChallenge(active)
       setChallenges((prev) =>
         prev.map((c) => (c.id === active.id ? { ...c, entry_count: c.entry_count + 1, participant_count: c.participant_count + 1 } : c))
@@ -286,12 +287,19 @@ export function WorldChallenges({
               {active.description && <p className="text-sm text-muted-foreground -mt-1">{active.description}</p>}
 
               {isMember ? (
-                <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
-                  <Textarea value={submitContent} onChange={(e) => setSubmitContent(e.target.value)} placeholder="Submit your entry…" className="rounded-xl text-sm min-h-[60px]" maxLength={2000} />
-                  <div className="flex gap-2">
-                    <Input value={submitMedia} onChange={(e) => setSubmitMedia(e.target.value)} placeholder="Media URL (optional)" className="rounded-xl h-9 text-sm" />
-                    <Button size="sm" className="rounded-full bg-amber-600 hover:bg-amber-500 h-9" onClick={submitEntry} disabled={submitting || (!submitContent.trim() && !submitMedia.trim())}>
-                      {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2.5">
+                  <Textarea value={submitContent} onChange={(e) => setSubmitContent(e.target.value)} placeholder="Write about your entry (or just upload media)…" className="rounded-xl text-sm min-h-[60px]" maxLength={2000} />
+                  <DeviceMediaPicker
+                    items={submitMediaItems}
+                    onChange={setSubmitMediaItems}
+                    maxItems={1}
+                    folder="community-challenges"
+                    compact
+                  />
+                  <div className="flex justify-end pt-0.5">
+                    <Button size="sm" className="rounded-full bg-amber-600 hover:bg-amber-500 h-8 text-[11px]" onClick={submitEntry} disabled={submitting || (!submitContent.trim() && submitMediaItems.length === 0)}>
+                      {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
+                      Submit entry
                     </Button>
                   </div>
                 </div>
@@ -318,11 +326,15 @@ export function WorldChallenges({
                         <span className="ml-auto text-[10px] text-muted-foreground">{timeAgo(e.created_at)}</span>
                       </div>
                       {e.content && <p className="mt-2 text-xs">{e.content}</p>}
-                      {e.media_url && (
+                      {e.media_url && isVideoUrl(e.media_url) ? (
+                        <div className="mt-2 relative aspect-video overflow-hidden rounded-lg bg-muted">
+                          <video src={e.media_url} controls playsInline className="h-full w-full object-contain" />
+                        </div>
+                      ) : e.media_url ? (
                         <div className="mt-2 relative aspect-video overflow-hidden rounded-lg bg-muted">
                           <Image src={e.media_url} alt="" fill className="object-cover" unoptimized />
                         </div>
-                      )}
+                      ) : null}
                       <div className="mt-2 flex items-center gap-2">
                         <Button size="sm" variant={e.has_voted ? "default" : "outline"} className="rounded-full h-7 text-[11px]" disabled={voting === e.id || !user || !isMember} onClick={() => vote(e.id)}>
                           <Heart className={`h-3 w-3 mr-1 ${e.has_voted ? "fill-white" : ""}`} />

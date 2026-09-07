@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { ExternalLink, Globe } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { openInAppBrowser } from "@/components/in-app-browser/in-app-browser"
 
 interface UrlMetadata {
   url: string
@@ -112,7 +113,16 @@ export function UrlPreviewCard({ url }: { url: string }) {
       href={url.startsWith("http") ? url : `https://${url}`}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation()
+        // Preview in the in-app browser (Jump-out available there). Plain
+        // middle/ctrl/cmd clicks keep the native new-tab fallback.
+        const fullUrl = url.startsWith("http") ? url : `https://${url}`
+        if (e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+          e.preventDefault()
+          openInAppBrowser(fullUrl)
+        }
+      }}
       className="group my-2 flex flex-col sm:flex-row overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-card to-muted/30 hover:border-sky-500/50 hover:bg-muted/50 transition-all shadow-sm duration-200"
     >
       {image && (

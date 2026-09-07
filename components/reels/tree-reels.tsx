@@ -59,6 +59,131 @@ function timeAgo(iso?: string) {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" })
 }
 
+/** Quick emoji/sticker row for the tree comment composer. */
+const EMOJI_STICKERS = ["🔥", "❤️", "😂", "😍", "👏", "😮", "💯", "🥳", "😭", "😎", "🙌", "✨"]
+
+interface CommentItemProps {
+  comment: any
+  isOwn: boolean
+  editingId: string | null
+  editingText: string
+  deletingId: string | null
+  onStartEdit: (comment: any) => void
+  onCancelEdit: () => void
+  onEditingTextChange: (value: string) => void
+  onSaveEdit: (comment: any) => void
+  onDelete: (comment: any) => void
+  onReply: (comment: any) => void
+  onToggleLike: (comment: any) => void
+}
+
+function CommentItem({
+  comment,
+  isOwn,
+  editingId,
+  editingText,
+  deletingId,
+  onStartEdit,
+  onCancelEdit,
+  onEditingTextChange,
+  onSaveEdit,
+  onDelete,
+  onReply,
+  onToggleLike,
+}: CommentItemProps) {
+  const author = comment.author || comment.user || {}
+  const editing = editingId === comment.id
+  const deleting = deletingId === comment.id
+  return (
+    <div className="flex gap-3">
+      <Avatar className="h-9 w-9 shrink-0">
+        <AvatarImage src={author.avatar_url} />
+        <AvatarFallback>{(author.username || "U").charAt(0).toUpperCase()}</AvatarFallback>
+      </Avatar>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className="text-sm font-semibold">{author.display_name || author.username || "user"}</span>
+          <span className="text-xs text-muted-foreground">@{author.username || "user"}</span>
+          <span className="text-xs text-muted-foreground/70">· {timeAgo(comment.created_at)}</span>
+          {comment.edited_at && (
+            <span className="text-[10px] text-muted-foreground/60">(edited)</span>
+          )}
+        </div>
+        {editing ? (
+          <div className="mt-1.5 space-y-1.5">
+            <MentionTextarea
+              value={editingText}
+              onChange={onEditingTextChange}
+              rows={2}
+              className="min-h-[64px] rounded-xl border-border/60 bg-background text-sm"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="rounded-full bg-violet-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-violet-500"
+                onClick={() => onSaveEdit(comment)}
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
+                onClick={onCancelEdit}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-0.5 text-sm leading-relaxed">
+            <RichContent text={comment.content} as="p" />
+          </div>
+        )}
+        <div className="mt-1 flex items-center gap-3">
+          <button
+            type="button"
+            className="text-xs font-semibold text-violet-500 transition hover:text-violet-400"
+            onClick={() => onReply(comment)}
+          >
+            Reply
+          </button>
+          <button
+            type="button"
+            className={cn(
+              "flex items-center gap-1 text-xs font-medium transition",
+              comment.is_liked ? "text-rose-500" : "text-muted-foreground hover:text-rose-400",
+            )}
+            onClick={() => onToggleLike(comment)}
+            title={comment.is_liked ? "Unlike comment" : "Like comment"}
+          >
+            <Heart className={cn("h-3.5 w-3.5", comment.is_liked && "fill-current")} />
+            {Number(comment.like_count || 0) > 0 && comment.like_count}
+          </button>
+          {isOwn && !editing && (
+            <>
+              <button
+                type="button"
+                className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-violet-400"
+                onClick={() => onStartEdit(comment)}
+              >
+                <Pencil className="h-3 w-3" /> Edit
+              </button>
+              <button
+                type="button"
+                className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-rose-400"
+                onClick={() => onDelete(comment)}
+                disabled={deleting}
+              >
+                {deleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />} Delete
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface ReelAuthor {
   id: string
   username: string
@@ -128,6 +253,9 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
   const [editEffect, setEditEffect] = useState("none")
   const [savingEdit, setSavingEdit] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
+  const [editingCommentText, setEditingCommentText] = useState("")
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   const viewed = useRef<Set<string>>(new Set())
@@ -625,6 +753,140 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
     }
   }
 
+  // ── Comment edit / delete (top-level and replies) ──
+  const mapCommentTree = (list: any[], id: string, fn: (c: any) => any): any[] =>
+    list.map((c) => (c.id === id ? fn(c) : { ...c, replies: mapCommentTree(c.replies || [], id, fn) }))
+
+  const filterCommentTree = (list: any[], id: string): any[] =>
+    list.filter((c) => c.id !== id).map((c) => ({ ...c, replies: filterCommentTree(c.replies || [], id) }))
+
+  const startEditComment = (comment: any) => {
+    setReplyTo(null)
+    setEditingCommentId(comment.id)
+    setEditingCommentText(String(comment.content || ""))
+  }
+
+  const saveEditedComment = async (comment: any) => {
+    if (!user || !commentOpen || !editingCommentText.trim()) return
+    if (editingCommentText.trim() === String(comment.content || "")) {
+      setEditingCommentId(null)
+      return
+    }
+    try {
+      const response = await fetch(`/api/trees/${commentOpen.id}/comments/${comment.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ content: editingCommentText.trim() }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to edit comment")
+      const updated = data.comment || data.data?.comment
+      if (updated) {
+        setComments((prev) =>
+          mapCommentTree(prev, comment.id, (old) => ({ ...old, ...updated, replies: old.replies || [] })),
+        )
+      }
+      setEditingCommentId(null)
+      toast({ title: "Comment updated" })
+    } catch (error: any) {
+      toast({ title: "Edit failed", description: error.message, variant: "destructive" })
+    }
+  }
+
+  const deleteComment = async (comment: any) => {
+    if (!user || !commentOpen) return
+    if (!window.confirm("Delete this comment? This can't be undone.")) return
+    setDeletingCommentId(comment.id)
+    try {
+      const response = await fetch(`/api/trees/${commentOpen.id}/comments/${comment.id}`, {
+        method: "DELETE",
+        headers: getAuthHeader(),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to delete comment")
+      setComments((prev) => filterCommentTree(prev, comment.id))
+      setEditingCommentId((prev) => (prev === comment.id ? null : prev))
+      // Keep the header + feed counters in sync with the authoritative server count.
+      if (typeof data.comment_count === "number") {
+        setReels((prev) => prev.map((r) => (r.id === commentOpen.id ? { ...r, comment_count: data.comment_count } : r)))
+        setCommentOpen((prev) => (prev ? { ...prev, comment_count: data.comment_count } : prev))
+      }
+      toast({ title: "Comment deleted" })
+    } catch (error: any) {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" })
+    } finally {
+      setDeletingCommentId(null)
+    }
+  }
+
+  /** Append an emoji/sticker to the comment being typed. */
+  const addSticker = (emoji: string) => {
+    setCommentText((prev) => `${prev || ""}${emoji} `)
+  }
+
+  /**
+   * Reliable “Download with watermark”: a plain <a download> is silently
+   * ignored by browsers for cross-origin media, so we fetch the bytes and
+   * save a blob. Images get a real @handle + app watermark painted on via
+   * canvas; video is saved client-side (browsers can't paint on video).
+   */
+  const downloadWithWatermark = async (reel: Reel) => {
+    const mediaUrl = reel.content_url
+    if (!mediaUrl) {
+      toast({ title: "No media to download", variant: "destructive" })
+      return
+    }
+    toast({ title: "Preparing download…" })
+    try {
+      const response = await fetch(mediaUrl, { mode: "cors" })
+      if (!response.ok) throw new Error("Couldn't fetch the media")
+      const blob = await response.blob()
+      const isImage = reel.content_type === "image" && blob.type.startsWith("image/")
+      const ext = isImage ? "jpg" : "mp4"
+      const downloadBlob = async (b: Blob, name: string) => {
+        const url = URL.createObjectURL(b)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = name
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        window.setTimeout(() => URL.revokeObjectURL(url), 4000)
+      }
+
+      if (isImage) {
+        const bitmap = await createImageBitmap(blob)
+        const canvas = document.createElement("canvas")
+        canvas.width = bitmap.width
+        canvas.height = bitmap.height
+        const ctx = canvas.getContext("2d")
+        if (!ctx) throw new Error("Canvas not supported")
+        ctx.drawImage(bitmap, 0, 0)
+        const handle = reel.author?.username || "loop"
+        ctx.font = `600 ${Math.max(20, Math.round(canvas.width * 0.03))}px system-ui, sans-serif`
+        ctx.textAlign = "center"
+        ctx.shadowColor = "rgba(0,0,0,0.6)"
+        ctx.shadowBlur = 8
+        ctx.fillStyle = "rgba(255,255,255,0.92)"
+        const label = `@${handle} · loopapp.me`
+        ctx.fillText(label, canvas.width / 2, canvas.height - Math.max(28, Math.round(canvas.height * 0.05)))
+        ctx.shadowBlur = 0
+        ctx.fillStyle = "rgba(139,92,246,0.85)"
+        ctx.fillText(label, canvas.width / 2, canvas.height - Math.max(26, Math.round(canvas.height * 0.05) - 2))
+        const out = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92),
+        )
+        if (out) await downloadBlob(out, `loop-tree-${reel.id}.${ext}`)
+      } else {
+        await downloadBlob(blob, `loop-tree-${reel.id}.${ext}`)
+      }
+      toast({ title: "Download started" })
+    } catch (error: any) {
+      console.error("Watermark download failed:", error)
+      toast({ title: "Download failed", description: error.message, variant: "destructive" })
+    }
+  }
+
   const createReel = async () => {
     if (!user || !uploadFile || !createTitle.trim()) {
       toast({ title: "Title and media required", variant: "destructive" })
@@ -923,7 +1185,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                       className={cn(reel.is_saved && "text-amber-300")}
                     >
                       <Bookmark className={cn("h-4 w-4 mr-2", reel.is_saved && "fill-current")} />
-                      {reel.is_saved ? "Saved" : "Save reel"}
+                      {reel.is_saved ? "Saved" : "Save tree"}
                     </DropdownMenuItem>
                     {reel.source !== "loop" && (
                       <DropdownMenuItem
@@ -961,7 +1223,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                       <>
                         <DropdownMenuItem onClick={() => openEdit(reel)}>
                           <Pencil className="h-4 w-4 mr-2" />
-                          Edit reel
+                          Edit tree
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-rose-400"
@@ -969,7 +1231,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                           disabled={deleting}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
-                          Delete reel
+                          Delete tree
                         </DropdownMenuItem>
                       </>
                     )}
@@ -985,15 +1247,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                       </DropdownMenuItem>
                     )}
                     {reel.content_url && reel.content_type === "video" && (
-                      <DropdownMenuItem
-                        onClick={() => {
-                          const a = document.createElement("a")
-                          a.href = reel.content_url
-                          a.download = `loop-tree-${reel.id}.mp4`
-                          a.click()
-                          toast({ title: "Downloading tree..." })
-                        }}
-                      >
+                      <DropdownMenuItem onClick={() => void downloadWithWatermark(reel)}>
                         <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
                         Download with watermark
                       </DropdownMenuItem>
@@ -1043,106 +1297,42 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
               </div>
             )}
             {comments.map((comment: any) => {
-              const author = comment.author || comment.user || {}
+              const isOwn = Boolean(user && (comment.author?.id || comment.user?.id) === user.id)
               return (
-                <div key={comment.id || comment.created_at}>
-                  <div className="flex gap-3">
-                    <Avatar className="h-9 w-9 shrink-0">
-                      <AvatarImage src={author.avatar_url} />
-                      <AvatarFallback>{(author.username || "U").charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                        <span className="text-sm font-semibold">
-                          {author.display_name || author.username || "user"}
-                        </span>
-                        <span className="text-xs text-muted-foreground">@{author.username || "user"}</span>
-                        <span className="text-xs text-muted-foreground/70">· {timeAgo(comment.created_at)}</span>
-                      </div>
-                      <div className="mt-0.5 text-sm leading-relaxed">
-                        <RichContent text={comment.content} as="p" />
-                      </div>
-                      <div className="mt-1 flex items-center gap-3">
-                        <button
-                          type="button"
-                          className="text-xs font-semibold text-violet-500 transition hover:text-violet-400"
-                          onClick={() =>
-                            setReplyTo({
-                              id: comment.id,
-                              username: author.username,
-                            })
-                          }
-                        >
-                          Reply
-                        </button>
-                        <button
-                          type="button"
-                          className={cn(
-                            "flex items-center gap-1 text-xs font-medium transition",
-                            comment.is_liked ? "text-rose-500" : "text-muted-foreground hover:text-rose-400",
-                          )}
-                          onClick={() => void toggleCommentLike(comment)}
-                          title={comment.is_liked ? "Unlike comment" : "Like comment"}
-                        >
-                          <Heart className={cn("h-3.5 w-3.5", comment.is_liked && "fill-current")} />
-                          {Number(comment.like_count || 0) > 0 && comment.like_count}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Nested replies */}
+                <div key={comment.id || comment.created_at} className="space-y-3">
+                  <CommentItem
+                    comment={comment}
+                    isOwn={isOwn}
+                    editingId={editingCommentId}
+                    editingText={editingCommentText}
+                    deletingId={deletingCommentId}
+                    onStartEdit={startEditComment}
+                    onCancelEdit={() => setEditingCommentId(null)}
+                    onEditingTextChange={setEditingCommentText}
+                    onSaveEdit={(c) => void saveEditedComment(c)}
+                    onDelete={(c) => void deleteComment(c)}
+                    onReply={(c) => setReplyTo({ id: c.id, username: (c.author || c.user || {}).username })}
+                    onToggleLike={(c) => void toggleCommentLike(c)}
+                  />
                   {(comment.replies || []).length > 0 && (
-                    <div className="mt-3 space-y-3 border-l-2 border-border/60 pl-4 ml-[18px]">
-                      {(comment.replies || []).map((reply: any) => {
-                        const rAuthor = reply.author || reply.user || {}
-                        return (
-                          <div key={reply.id} className="flex gap-3">
-                            <Avatar className="h-7 w-7 shrink-0">
-                              <AvatarImage src={rAuthor.avatar_url} />
-                              <AvatarFallback>{(rAuthor.username || "U").charAt(0).toUpperCase()}</AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                                <span className="text-sm font-semibold">
-                                  {rAuthor.display_name || rAuthor.username || "user"}
-                                </span>
-                                <span className="text-xs text-muted-foreground">@{rAuthor.username || "user"}</span>
-                                <span className="text-xs text-muted-foreground/70">· {timeAgo(reply.created_at)}</span>
-                              </div>
-                              <div className="mt-0.5 text-sm leading-relaxed">
-                                <RichContent text={reply.content} as="p" />
-                              </div>
-                              <div className="mt-1 flex items-center gap-3">
-                                <button
-                                  type="button"
-                                  className="text-xs font-semibold text-violet-500 transition hover:text-violet-400"
-                                  onClick={() =>
-                                    setReplyTo({
-                                      id: reply.id,
-                                      username: rAuthor.username,
-                                    })
-                                  }
-                                >
-                                  Reply
-                                </button>
-                                <button
-                                  type="button"
-                                  className={cn(
-                                    "flex items-center gap-1 text-xs font-medium transition",
-                                    reply.is_liked ? "text-rose-500" : "text-muted-foreground hover:text-rose-400",
-                                  )}
-                                  onClick={() => void toggleCommentLike(reply)}
-                                  title={reply.is_liked ? "Unlike comment" : "Like comment"}
-                                >
-                                  <Heart className={cn("h-3.5 w-3.5", reply.is_liked && "fill-current")} />
-                                  {Number(reply.like_count || 0) > 0 && reply.like_count}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
+                    <div className="ml-[18px] space-y-3 border-l-2 border-border/60 pl-4">
+                      {(comment.replies || []).map((reply: any) => (
+                        <CommentItem
+                          key={reply.id || reply.created_at}
+                          comment={reply}
+                          isOwn={Boolean(user && (reply.author?.id || reply.user?.id) === user.id)}
+                          editingId={editingCommentId}
+                          editingText={editingCommentText}
+                          deletingId={deletingCommentId}
+                          onStartEdit={startEditComment}
+                          onCancelEdit={() => setEditingCommentId(null)}
+                          onEditingTextChange={setEditingCommentText}
+                          onSaveEdit={(c) => void saveEditedComment(c)}
+                          onDelete={(c) => void deleteComment(c)}
+                          onReply={(c) => setReplyTo({ id: c.id, username: (c.author || c.user || {}).username })}
+                          onToggleLike={(c) => void toggleCommentLike(c)}
+                        />
+                      ))}
                     </div>
                   )}
                 </div>
@@ -1160,6 +1350,21 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                 </button>
               </div>
             )}
+            {/* Stickers / emoji quick row */}
+            <div className="mb-2 flex items-center gap-1 overflow-x-auto scrollbar-none pb-1">
+              <span className="mr-1 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">React</span>
+              {EMOJI_STICKERS.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/50 bg-background text-lg transition hover:scale-110 hover:border-violet-400/60 hover:bg-violet-500/10"
+                  onClick={() => addSticker(emoji)}
+                  title={`Add ${emoji}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
             <div className="flex items-end gap-2">
               <MentionTextarea
                 value={commentText}
@@ -1187,10 +1392,51 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Tree dialog */}
+      <Dialog open={!!editReel} onOpenChange={(open) => !open && setEditReel(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit tree</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Caption / title" />
+            <MentionTextarea
+              value={editDescription}
+              onChange={setEditDescription}
+              rows={3}
+              className="rounded-xl border-border/60 bg-background"
+              placeholder="Add a longer description… (optional)"
+            />
+            <Input
+              value={editHashtags}
+              onChange={(e) => setEditHashtags(e.target.value)}
+              placeholder="hashtags (music vibe travel)"
+            />
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={editEffect}
+              onChange={(e) => setEditEffect(e.target.value)}
+            >
+              <option value="none">No filter</option>
+              <option value="vivid">Vivid</option>
+              <option value="noir">Noir</option>
+              <option value="warm">Warm</option>
+            </select>
+            <Button
+              className="w-full rounded-full bg-gradient-to-r from-violet-600 to-cyan-500"
+              disabled={savingEdit || !editTitle.trim()}
+              onClick={saveEdit}
+            >
+              {savingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save changes"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create a Reel</DialogTitle>
+            <DialogTitle>Create a Tree</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <Input value={createTitle} onChange={(e) => setCreateTitle(e.target.value)} placeholder="Caption / title" />
@@ -1215,7 +1461,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
               onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
             />
             <Button className="w-full rounded-full" disabled={creating} onClick={createReel}>
-              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publish Reel"}
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publish Tree"}
             </Button>
           </div>
         </DialogContent>

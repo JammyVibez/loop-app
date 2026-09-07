@@ -23,6 +23,11 @@ Allow: /
 
 # Disallow sensitive paths
 Disallow: /api/
+# BUT the dynamic Open Graph images live under /api/og — crawlers (Twitter/X,
+# Discord, Facebook, iMessage) must be able to fetch them or shared links show
+# no preview image. robots.txt picks the most specific rule, so this Allow wins
+# over Disallow: /api/ for og URLs only.
+Allow: /api/og
 Disallow: /admin/
 Disallow: /settings/
 Disallow: /auth

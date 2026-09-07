@@ -6,6 +6,7 @@ import { MENTION_RE } from "@/lib/mentions-shared"
 import { cn } from "@/lib/utils"
 import { UrlPreviewCard } from "./url-preview-card"
 import { MarkdownContent } from "./markdown-content"
+import { openInAppBrowser } from "@/components/in-app-browser/in-app-browser"
 
 const HASHTAG_RE = /#([a-zA-Z0-9_]{1,50})\b/g
 const URL_RE = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/g
@@ -191,7 +192,16 @@ export function RichContent({
                 href={fullUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  // Preview links inside Loop first — users can jump to their
+                  // real browser from the sheet. Middle-click / cmd-click still
+                  // opens a new tab (native fallback via href).
+                  if (e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+                    e.preventDefault()
+                    openInAppBrowser(fullUrl)
+                  }
+                }}
                 className="inline-flex items-center gap-0.5 font-medium text-sky-500 hover:text-sky-400 underline underline-offset-2 transition-colors break-all"
               >
                 <span>{rawUrl}</span>

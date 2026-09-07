@@ -42,6 +42,8 @@ import {
   Building2,
   Gift,
   Sparkles,
+  Trash2,
+  AtSign,
 } from "lucide-react"
 import { OrganizationSettings } from "@/components/settings/organization-settings"
 import { ReferralsSettings } from "@/components/settings/referrals-settings"
@@ -50,6 +52,8 @@ import { SecuritySessions } from "@/components/settings/security-sessions"
 import { VideoMediaSettings } from "@/components/cosmetics/video-media-settings"
 import { AccountSwitcher } from "@/components/accounts/account-switcher"
 import { cn } from "@/lib/utils"
+
+const PRONOUN_CHOICES = ["she/her", "he/him", "they/them", "she/they", "he/they", "any/all"]
 
 const themeOptions = [
   { id: "light", name: "Light", icon: Sun, description: "Bright surfaces and dark text" },
@@ -79,6 +83,7 @@ export function EnhancedSettings() {
     email: "",
     website: "",
     location: "",
+    pronouns: "",
     privacy: {
       profile_visibility: "public",
       show_email: false,
@@ -185,6 +190,7 @@ export function EnhancedSettings() {
       email: user.email || "",
       website: user.website || "",
       location: user.location || "",
+      pronouns: (user as any).pronouns || "",
       privacy: {
         profile_visibility: privacy.profile_visibility || "public",
         show_email: Boolean(privacy.show_email),
@@ -282,6 +288,7 @@ export function EnhancedSettings() {
           bio: formData.bio,
           website: formData.website,
           location: formData.location,
+          pronouns: formData.pronouns,
           tagged_circles: taggedCircles,
           privacy_settings: {
             profile_visibility: formData.privacy.profile_visibility,
@@ -617,6 +624,52 @@ export function EnhancedSettings() {
                   className="min-h-[110px]"
                 />
                 <p className="text-xs text-muted-foreground">{formData.bio.length}/500</p>
+              </div>
+
+              {/* Pronouns — e.g. she/her, he/him, they/them */}
+              <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
+                <div className="flex items-center gap-2">
+                  <AtSign className="h-4 w-4 text-primary" />
+                  <div>
+                    <Label className="font-semibold">Pronouns</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Shown next to your name on your profile so people know how to refer to you.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {PRONOUN_CHOICES.map((p) => {
+                    const active = (formData.pronouns || "").toLowerCase() === p
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, pronouns: active ? "" : p }))}
+                        className={
+                          "rounded-full border px-3 py-1.5 text-xs font-semibold transition " +
+                          (active
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-card text-muted-foreground hover:border-primary/40")
+                        }
+                      >
+                        {p}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="pronouns">Or write your own</Label>
+                  <Input
+                    id="pronouns"
+                    value={formData.pronouns}
+                    maxLength={60}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, pronouns: e.target.value }))}
+                    placeholder="e.g. she/her, he/him, they/them"
+                  />
+                  <p className="text-[10px] text-muted-foreground">Leave empty to remove pronouns from your profile.</p>
+                </div>
               </div>
 
               <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">

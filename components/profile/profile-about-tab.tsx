@@ -24,6 +24,7 @@ import {
   Edit3,
   Clock,
   Award,
+  AtSign,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -45,6 +46,7 @@ interface ProfileAboutProps {
     organization_name?: string
     loop_coins?: number
     level?: number
+    pronouns?: string | null
     tagged_circles?: Array<{ id: string; name: string; avatar_url?: string | null }>
     achievements?: Array<{
       id: string
@@ -181,6 +183,14 @@ export function ProfileAboutTab({ profile, isOwnProfile, onEdit }: ProfileAboutP
               {profile.website.replace(/^https?:\/\//, "")}
               <ExternalLink className="h-3 w-3" />
             </a>
+          </div>
+        )}
+
+        {/* Pronouns */}
+        {profile.pronouns && (
+          <div className="flex items-center gap-3 text-sm">
+            <AtSign className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span>{profile.pronouns}</span>
           </div>
         )}
 

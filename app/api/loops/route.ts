@@ -7,6 +7,7 @@ import { isCloudinaryConfigured } from "@/lib/env-check"
 import { filterPrivateContent, getFollowingIds } from "@/lib/privacy"
 import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats"
 import { getUserFromRequest } from "@/lib/server-auth";
+import { enforceUserRateLimit } from "@/lib/rate-limit-settings"
 
 
 function parseHashtags(value: unknown) {
@@ -79,6 +80,20 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Admin-tuneable posting throttle (see /admin → Rate limits).
+    const rlSupabase = createServerClient()
+    const guard = await enforceUserRateLimit(rlSupabase, "post", user.id)
+    if (!guard.ok) {
+      return NextResponse.json(
+        {
+          error: "Slow down — you're posting too fast",
+          message: `You've hit the posting limit. Try again in ${guard.retryAfter} seconds.`,
+          retryAfter: guard.retryAfter,
+        },
+        { status: 429, headers: { "Retry-After": String(guard.retryAfter) } },
+      )
     }
 
     const headerContentType = request.headers.get("content-type") || ""

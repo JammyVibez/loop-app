@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
 import { checkCirclePrivateAccess } from "@/lib/circle-access";
 import { getUserFromRequest } from "@/lib/server-auth";
+import { getMediaLimit } from "@/lib/circle-limits";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
 
@@ -203,15 +204,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
     }
 
-    // Free members: 1 media file. Verified: 4. Pro (is_premium): up to 10 —
-    // same tiers as loop posts (components/create-loop-button.tsx getMaxFiles).
+    // Server-side media cap: Free: 2 · Verified: 4 · Pro: up to 10. Read from
+    // the user's real account state — never trust a client-sent Pro flag.
     if (mediaUrls.length > 1) {
       const { data: authorProfile } = await supabase
         .from("profiles")
         .select("is_premium, is_verified")
         .eq("id", user.id)
         .maybeSingle()
-      const maxFiles = authorProfile?.is_premium ? 10 : authorProfile?.is_verified ? 4 : 1
+      const maxFiles = getMediaLimit(authorProfile?.is_premium, authorProfile?.is_verified)
       if (mediaUrls.length > maxFiles) {
         return NextResponse.json(
           { error: `Up to ${maxFiles} media files allowed on your account. Upgrade to Pro for up to 10.` },

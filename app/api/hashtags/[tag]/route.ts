@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase"
 import { normalizeLoops } from "@/lib/normalize-loop"
 import { smartEngagementScore } from "@/lib/feed-ranking"
 import { filterPrivateContent, getFollowingIds } from "@/lib/privacy"
-import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats" 
+import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats"
+import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 
 function createServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -78,6 +79,7 @@ export async function GET(
     // Hashtag pages are public — private profiles' loops don't surface here
     // (the viewer is anonymous on this route, so private content is dropped).
     rows = await filterPrivateContent(supabase, rows, null, new Set())
+    rows = await enrichLoopsWithPollsAndDuels(supabase, rows)
     rows = await applyRealCommentCounts(supabase, rows)
     rows = await applyRealBranchCounts(supabase, rows)
 

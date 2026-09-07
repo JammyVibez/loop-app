@@ -4,6 +4,7 @@ import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import {
   Send,
@@ -11,8 +12,9 @@ import {
   BarChart3,
   X,
   Loader2,
-  Paperclip,
 } from "lucide-react"
+import { DeviceMediaPicker, type PickedMedia } from "@/components/communities/device-media-picker"
+import { getMediaLimit } from "@/lib/circle-limits"
 
 interface StickyComposerProps {
   communityId: string
@@ -31,23 +33,48 @@ export function StickyComposer({
   currentUser,
   onPostCreated,
 }: StickyComposerProps) {
+  const { user } = useAuth()
   const [expanded, setExpanded] = useState(false)
   const [content, setContent] = useState("")
   const [spaceId, setSpaceId] = useState<string>("")
   const [posting, setPosting] = useState(false)
   const [showPoll, setShowPoll] = useState(false)
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""])
-  const [mediaPreview, setMediaPreview] = useState<string | null>(null)
+  const [mediaItems, setMediaItems] = useState<PickedMedia[]>([])
+  const [mediaPanelOpen, setMediaPanelOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  // Mirror of the server-side caps (Free: 2 · Verified: 4 · Pro: 10).
+  const maxMedia = getMediaLimit(user?.is_premium ?? false, user?.is_verified ?? false)
+
+  const toggleMedia = () => {
+    if (showPoll) {
+      setShowPoll(false)
+    }
+    setMediaPanelOpen((v) => !v)
+  }
+
+  const togglePoll = () => {
+    if (mediaItems.length > 0 || mediaPanelOpen) {
+      setMediaPanelOpen(false)
+    }
+    setShowPoll((v) => !v)
+  }
+
   const handlePost = async () => {
-    if (!content.trim() || posting) return
+    if ((!content.trim() && mediaItems.length === 0) || posting) return
     setPosting(true)
     try {
       const payload: any = {
         content: content.trim(),
         space_id: spaceId || undefined,
         post_type: showPoll ? "poll" : "discussion",
+        media_urls: mediaItems.map((m) => m.url),
+        media_type: mediaItems.some((m) => m.kind === "video")
+          ? "video"
+          : mediaItems.length
+            ? "image"
+            : undefined,
       }
 
       if (showPoll) {
@@ -58,6 +85,8 @@ export function StickyComposer({
             options: validOptions.map((text) => ({ text })),
           }
         }
+        delete payload.media_urls
+        delete payload.media_type
       }
 
       const res = await fetch(`/api/circles/${communityId}/posts`, {
@@ -72,7 +101,8 @@ export function StickyComposer({
         setSpaceId("")
         setShowPoll(false)
         setPollOptions(["", ""])
-        setMediaPreview(null)
+        setMediaItems([])
+        setMediaPanelOpen(false)
         setExpanded(false)
         onPostCreated?.(post)
       }
@@ -145,6 +175,36 @@ export function StickyComposer({
                   </div>
                 )}
 
+                {/* Media upload — pick from device, preview, reorder, remove */}
+                {(mediaItems.length > 0 || mediaPanelOpen) && !showPoll && (
+                  <div className="rounded-xl border border-border bg-card p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-semibold flex items-center gap-1.5">
+                        <ImageIcon className="h-3.5 w-3.5 text-fuchsia-500" /> Media
+                      </span>
+                      {mediaItems.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-[10px]"
+                          onClick={() => {
+                            setMediaItems([])
+                            setMediaPanelOpen(false)
+                          }}
+                        >
+                          <X className="h-3 w-3 mr-1" /> Remove all
+                        </Button>
+                      )}
+                    </div>
+                    <DeviceMediaPicker
+                      items={mediaItems}
+                      onChange={setMediaItems}
+                      maxItems={maxMedia}
+                      folder="community-posts"
+                    />
+                  </div>
+                )}
+
                 {/* Poll options */}
                 {showPoll && (
                   <div className="rounded-xl border border-border bg-card p-3 space-y-2">
@@ -204,7 +264,7 @@ export function StickyComposer({
                       variant="ghost"
                       size="icon"
                       className={cn("h-8 w-8", showPoll && "text-amber-500 bg-amber-500/10")}
-                      onClick={() => setShowPoll(!showPoll)}
+                      onClick={togglePoll}
                       title="Add poll"
                     >
                       <BarChart3 className="h-4 w-4" />
@@ -212,21 +272,25 @@ export function StickyComposer({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
-                      title="Attach media"
+                      className={cn(
+                        "h-8 w-8",
+                        (mediaItems.length > 0 || mediaPanelOpen) && "text-fuchsia-500 bg-fuchsia-500/10"
+                      )}
+                      onClick={toggleMedia}
+                      title="Upload images or video from your device"
                     >
                       <ImageIcon className="h-4 w-4" />
                     </Button>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-muted-foreground">
-                      {navigator.platform?.includes("Mac") ? "Cmd" : "Ctrl"}+Enter to post
+                    <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                      {typeof navigator !== "undefined" && navigator.platform?.includes("Mac") ? "Cmd" : "Ctrl"}+Enter to post
                     </span>
                     <Button
                       size="sm"
                       className="rounded-full h-8 px-4"
-                      disabled={!content.trim() || posting}
+                      disabled={(!content.trim() && mediaItems.length === 0) || posting}
                       onClick={handlePost}
                     >
                       {posting ? (

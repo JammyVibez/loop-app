@@ -2,7 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { normalizeLoop } from "@/lib/normalize-loop"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats" 
+import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats"
+import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 
 export const dynamic = "force-dynamic"
 
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
     const loopRows = (saves || [])
       .map((save: any) => (Array.isArray(save.loop) ? save.loop[0] : save.loop))
       .filter(Boolean)
+    await enrichLoopsWithPollsAndDuels(supabase, loopRows)
     await applyRealCommentCounts(supabase, loopRows)
     await applyRealBranchCounts(supabase, loopRows)
 

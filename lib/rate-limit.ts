@@ -39,6 +39,69 @@ export interface RateLimitResult {
   retryAfter?: number
 }
 
+// ─── Failed-attempt lockout (brute-force / credential stuffing) ───────
+// Separate from the generic sliding window: failures accumulate against a
+// key (usually the normalized email or a user id) and only reset after a
+// successful attempt or a long cooldown. This stops dictionary attacks even
+// when the attacker rotates IPs, and never locks out a legit user who
+// simply mistypes once.
+
+interface AuthAttemptEntry {
+  fails: number
+  lockedUntil: number
+}
+
+const authStore = new Map<string, AuthAttemptEntry>()
+
+if (typeof setInterval !== "undefined") {
+  setInterval(() => {
+    const now = Date.now()
+    for (const [key, entry] of authStore) {
+      if (entry.lockedUntil < now) authStore.delete(key)
+    }
+  }, 10 * 60 * 1000)
+}
+
+/**
+ * Record a failed attempt for a key and return whether it is now locked.
+ * The lock duration grows with consecutive failures (5, then 15, then 30 min)
+ * so repeated attacks stay locked out longer.
+ */
+export function recordFailedAuthAttempt(
+  key: string,
+  maxFails = 5,
+  baseLockMs = 5 * 60 * 1000,
+): { locked: boolean; retryAfter: number } {
+  const now = Date.now()
+  const entry = authStore.get(key)
+  const fails = (entry?.fails || 0) + 1
+  // Escalating lockout: base lock doubles every tier of failures beyond the max.
+  const tiers = Math.max(0, Math.ceil((fails - maxFails) / maxFails))
+  const lockMs = Math.min(60 * 60 * 1000, baseLockMs * Math.pow(2, tiers))
+  authStore.set(key, { fails, lockedUntil: now + lockMs })
+  return { locked: fails > maxFails, retryAfter: Math.ceil(lockMs / 1000) }
+}
+
+/** Clear failed-attempt state after a successful login. */
+export function clearFailedAuthAttempts(key: string) {
+  authStore.delete(key)
+}
+
+/**
+ * Returns true when the key is inside its lockout window (used to reject
+ * attempts before they even hit the password verifier).
+ */
+export function isAuthLocked(key: string): { locked: boolean; retryAfter?: number } {
+  const entry = authStore.get(key)
+  if (!entry) return { locked: false }
+  const remaining = entry.lockedUntil - Date.now()
+  if (remaining <= 0) {
+    authStore.delete(key)
+    return { locked: false }
+  }
+  return { locked: true, retryAfter: Math.ceil(remaining / 1000) }
+}
+
 /**
  * Check rate limit for a given key
  */

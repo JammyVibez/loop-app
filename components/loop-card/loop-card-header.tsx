@@ -72,11 +72,18 @@ export function LoopCardHeader({
     ? verificationBadges[loop.author.badge_id] || null
     : null
 
+  // The original loop this card branched from — prefer the real handle so the
+  // banner reads “Branch from @handle” (with a verified badge) instead of a
+  // generic placeholder when the author is present.
+  const parentAuthor = loop.parent_loop?.author || null
+  const parentAuthorName =
+    parentAuthor?.username?.trim() || parentAuthor?.display_name?.trim() || ""
+
   return (
     <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6">
       {LoginGateDialog}
 
-      {/* Branch origin banner */}
+      {/* Branch origin banner — always name the author we branched from (@username + badge when verified) */}
       {loop.parent_loop_id && (
         <Link
           href={`/loop/${loop.parent_loop?.id || loop.parent_loop_id}`}
@@ -86,12 +93,14 @@ export function LoopCardHeader({
           <GitBranch className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
           <span className="truncate">
             Branch from{" "}
-            <span className="inline-flex items-center gap-1 align-baseline font-semibold text-foreground">
-              @{loop.parent_loop?.author?.username || loop.parent_loop?.author?.display_name || "original post"}
-              {loop.parent_loop?.author?.username && loop.parent_loop?.author?.is_verified && (
-                <BadgeCheck className="h-3 w-3 shrink-0 text-blue-500" />
-              )}
-            </span>
+            {parentAuthorName ? (
+              <span className="inline-flex items-center gap-1 align-baseline font-semibold text-foreground">
+                @{parentAuthorName}
+                {parentAuthor?.is_verified && <BadgeCheck className="h-3 w-3 shrink-0 text-blue-500" />}
+              </span>
+            ) : (
+              <span className="font-semibold text-foreground">a branched post</span>
+            )}
             {loop.parent_loop?.content ? (
               <span className="text-muted-foreground">
                 : &ldquo;{loop.parent_loop.content.slice(0, 64)}

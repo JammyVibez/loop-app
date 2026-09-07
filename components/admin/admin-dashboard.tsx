@@ -37,6 +37,7 @@ import { AdminEmojisPanel } from "@/components/admin/admin-emojis-panel"
 import { AdminFeaturedPanel } from "@/components/admin/admin-featured-panel"
 import { ContentModerationControl } from "@/components/admin/content-moderation-control"
 import { EconomyControl } from "@/components/admin/economy-control"
+import { RateLimitControl } from "@/components/admin/rate-limit-control"
 import { WithdrawalsControl } from "@/components/admin/withdrawals-control"
 import { RefundsControl } from "@/components/admin/refunds-control"
 import { SettingsTabContent } from "@/components/admin/settings-tab-content"
@@ -243,6 +244,7 @@ export function AdminDashboard() {
           {/* Secondary Tabs (collapsed by default on mobile) */}
           <TabsList className="flex h-auto w-full flex-wrap gap-1">
             <TabsTrigger value="economy" className="text-xs">Economy</TabsTrigger>
+            <TabsTrigger value="rate-limits" className="text-xs">Rate limits</TabsTrigger>
             <TabsTrigger value="payouts" className="text-xs">Payouts</TabsTrigger>
             <TabsTrigger value="catalog" className="text-xs">Themes</TabsTrigger>
             <TabsTrigger value="featured" className="text-xs">Featured</TabsTrigger>
@@ -505,6 +507,10 @@ export function AdminDashboard() {
         <TabsContent value="economy" className="mt-6 space-y-6">
           <EconomyControl />
           <SettingsTabContent />
+        </TabsContent>
+
+        <TabsContent value="rate-limits" className="mt-6">
+          <RateLimitControl />
         </TabsContent>
 
         <TabsContent value="payouts" className="mt-6">

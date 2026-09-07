@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { createServerClient } from "@/lib/supabase"
 import { smartEngagementScore, organizationRankingBoost } from "@/lib/feed-ranking"
-import { applyRealCommentCounts } from "@/lib/loop-stats"
+import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats"
+import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"
@@ -70,7 +71,7 @@ export async function GET(req: NextRequest) {
       .select(`
         *,
         author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, is_organization, organization_badge_url, organization_name, level, active_cosmetics, cosmetics, badge_id),
-        parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url)),
+        parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url, is_verified)),
         loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
       `)
       .or("visibility.eq.public,visibility.is.null")
@@ -82,6 +83,10 @@ export async function GET(req: NextRequest) {
     }
 
     const loops = candidateLoops || []
+
+    // Attach poll / duel / clutch-duel payloads (they live in side tables) so
+    // the For You tab renders their interactive widgets instead of plain text.
+    await enrichLoopsWithPollsAndDuels(createServerClient(), loops)
 
     // 3. Compute Database ML Recommendation Score
     const scoredLoops = loops.map((loop) => {
@@ -140,9 +145,10 @@ export async function GET(req: NextRequest) {
     // Sort by ML score descending
     scoredLoops.sort((a, b) => b.ml_score - a.ml_score)
 
-    // True comment counts from the comments table (service-role client so
+    // True comment/branch counts from their tables (service-role client so
     // RLS never hides rows the denormalized counter missed).
     await applyRealCommentCounts(createServerClient(), scoredLoops)
+    await applyRealBranchCounts(createServerClient(), scoredLoops)
 
     return NextResponse.json({
       success: true,
