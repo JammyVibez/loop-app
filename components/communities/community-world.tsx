@@ -22,7 +22,7 @@ import { WorldLoop } from "@/components/communities/world-loop"
 import { WelcomeOnboarding } from "@/components/communities/welcome-onboarding"
 import { CommunityBookmarks } from "@/components/communities/community-bookmarks"
 import { WorldBots } from "@/components/communities/world-bots"
-import { iconForSpace } from "@/components/communities/world-spaces"
+import { iconForSpace, spaceIcon } from "@/components/communities/world-spaces"
 import { AdSlot } from "@/components/ads/ad-slot"
 import {
   Users,
@@ -63,6 +63,40 @@ const PULSE_EMOJI: Record<string, string> = {
   very_active: "Zap",
   exploding: "Flame",
 }
+
+/** Map the category/happening emoji tokens to real Lucide icons (no emoji in UI). */
+function emojiToIcon(emoji?: string | null) {
+  const map: Record<string, typeof Sparkles> = {
+    "🌸": Palette,
+    "🎮": Gamepad2,
+    "💻": Code2,
+    "📚": BookOpen,
+    "🎨": Paintbrush,
+    "⚽": Trophy,
+    "🎬": Clapperboard,
+    "🎵": Music,
+    "📖": BookOpen,
+    "💬": MessageSquare,
+    "🔥": Flame,
+    "✨": Sparkles,
+    "🚀": Rocket,
+    "⭐": Star,
+    "❤️": Heart,
+    "🧠": Brain,
+    "💡": Lightbulb,
+    "🗳️": Vote,
+    "🛠️": Wrench,
+    "🤝": Handshake,
+    "🏆": Trophy,
+    "👾": Gamepad2,
+    "🖥️": Monitor,
+    "📰": Newspaper,
+    "🌍": Globe2,
+  }
+  return map[emoji || ""] || Sparkles
+}
+
+import { Gamepad2, Code2, BookOpen, Paintbrush, Clapperboard, Music, Rocket, Star, Heart, Brain, Lightbulb, Wrench, Handshake, Monitor, Newspaper } from "lucide-react"
 
 interface FocusTarget {
   tab: string
@@ -318,9 +352,15 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
                   <BadgeCheck className="h-3 w-3" /> OFFICIAL
                 </span>
               )}
-              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-0.5 text-[11px] font-semibold">
-                {cfg.emoji} {cfg.label}
-              </span>
+              {(() => {
+                const CatIcon = emojiToIcon(cfg.emoji)
+                return (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-semibold">
+                    <CatIcon className="h-3.5 w-3.5" style={{ color: cfg.accent }} />
+                    {cfg.label}
+                  </span>
+                )
+              })()}
             </div>
             <p className="mt-1 text-sm text-muted-foreground line-clamp-2 max-w-2xl">{c.description}</p>
             <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
@@ -358,43 +398,64 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
           </div>
         </div>
 
-        {/* Pulse strip */}
-        <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          <div className="rounded-2xl border border-border bg-card p-3.5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-              <Flame className="h-3 w-3 text-orange-500" /> Community pulse
-            </p>
-            <p className="mt-1 text-lg font-extrabold">
-              {pulse.label || "Quiet"}
-            </p>
-          </div>
-          <button
-            onClick={() => openTab({ tab: "feed" })}
-            className="rounded-2xl border border-border bg-card p-3.5 text-left transition hover:border-indigo-500/40"
-          >
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-              <MessageSquare className="h-3 w-3 text-indigo-500" /> Discussing
-            </p>
-            <p className="mt-1 text-lg font-extrabold">{pulse.discussing || 0}</p>
-          </button>
-          <button
-            onClick={() => openTab({ tab: "feed" })}
-            className="rounded-2xl border border-border bg-card p-3.5 text-left transition hover:border-fuchsia-500/40"
-          >
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-              <Palette className="h-3 w-3 text-fuchsia-500" /> Creating
-            </p>
-            <p className="mt-1 text-lg font-extrabold">{pulse.creating || 0}</p>
-          </button>
-          <button
-            onClick={() => openTab({ tab: "feed" })}
-            className="rounded-2xl border border-border bg-card p-3.5 text-left transition hover:border-amber-500/40"
-          >
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-              <Vote className="h-3 w-3 text-amber-500" /> Voting
-            </p>
-            <p className="mt-1 text-lg font-extrabold">{pulse.voting || 0}</p>
-          </button>
+        {/* Pulse strip — living stat tiles with per-metric accents */}
+        <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+          {[
+            {
+              label: "Community pulse",
+              value: pulse.label || "Quiet",
+              icon: Flame,
+              accent: "#f97316",
+              tint: "from-orange-500/15",
+              onClick: null as null | (() => void),
+            },
+            {
+              label: "Discussing",
+              value: String(pulse.discussing || 0),
+              icon: MessageSquare,
+              accent: "#8b5cf6",
+              tint: "from-violet-500/15",
+              onClick: () => openTab({ tab: "feed" }),
+            },
+            {
+              label: "Creating",
+              value: String(pulse.creating || 0),
+              icon: Palette,
+              accent: "#ec4899",
+              tint: "from-pink-500/15",
+              onClick: () => openTab({ tab: "feed" }),
+            },
+            {
+              label: "Voting",
+              value: String(pulse.voting || 0),
+              icon: Vote,
+              accent: "#f59e0b",
+              tint: "from-amber-500/15",
+              onClick: () => openTab({ tab: "feed" }),
+            },
+          ].map((t) => (
+            <div
+              key={t.label}
+              role={t.onClick ? "button" : undefined}
+              tabIndex={t.onClick ? 0 : undefined}
+              onClick={t.onClick || undefined}
+              onKeyDown={t.onClick ? (e) => { if (e.key === "Enter") t.onClick?.() } : undefined}
+              className={`group relative overflow-hidden rounded-2xl border border-border bg-card p-3.5 transition-all duration-300 ${t.onClick ? "cursor-pointer hover:border-transparent hover:shadow-lg" : ""}`}
+              style={t.onClick ? { ["--tile-accent" as any]: t.accent } : undefined}
+            >
+              {t.onClick && (
+                <>
+                  <span className="pointer-events-none absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-300 group-hover:opacity-100 ${t.tint} to-transparent" />
+                  <span className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-30" style={{ background: t.accent }} />
+                </>
+              )}
+              <p className="relative flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <t.icon className="h-3 w-3" style={{ color: t.accent }} />
+                {t.label}
+              </p>
+              <p className="relative mt-1 text-lg font-extrabold">{t.value}</p>
+            </div>
+          ))}
         </div>
 
         {/* Tabs */}
@@ -545,7 +606,8 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
                       }}
                       className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[11px] font-semibold text-muted-foreground transition hover:border-indigo-500/50 hover:text-foreground"
                     >
-                      <span>{iconForSpace(s.icon)}</span> {s.name}
+                      {(() => { const SIcon = spaceIcon(s.icon); return <SIcon className="h-3.5 w-3.5 text-indigo-400" /> })()}
+                      {s.name}
                     </button>
                   ))}
               </div>
@@ -603,12 +665,13 @@ function WorldOverview({
   const welcome = bundle.community?.welcome_message
 
   const dnaBars = [
-    { key: "creativity", label: "Creativity", value: dna.creativity || 0 },
-    { key: "debate", label: "Debate", value: dna.debate || 0 },
-    { key: "humor", label: "Humor", value: dna.humor || 0 },
-    { key: "knowledge", label: "Knowledge", value: dna.knowledge || 0 },
-    { key: "collaboration", label: "Collaboration", value: dna.collaboration || 0 },
+    { key: "creativity", label: "Creativity", value: dna.creativity || 0, color: "#a78bfa" },
+    { key: "debate", label: "Debate", value: dna.debate || 0, color: "#f472b6" },
+    { key: "humor", label: "Humor", value: dna.humor || 0, color: "#fbbf24" },
+    { key: "knowledge", label: "Knowledge", value: dna.knowledge || 0, color: "#22d3ee" },
+    { key: "collaboration", label: "Collaboration", value: dna.collaboration || 0, color: "#34d399" },
   ]
+  const dnaAvg = Math.min(100, Math.round(dnaBars.reduce((s, d) => s + d.value, 0) / dnaBars.length))
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -659,20 +722,25 @@ function WorldOverview({
             </div>
           ) : (
             <div className="space-y-2.5">
-              {happening.map((h: any, i: number) => (
-                <button
-                  key={i}
-                  onClick={() => onOpenItem(h)}
-                  className="w-full flex items-start gap-3 rounded-xl border border-border/60 bg-muted/20 p-3 text-left transition hover:border-indigo-500/40 hover:bg-indigo-500/5"
-                >
-                  <span className="text-lg">{h.emoji}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold">{h.title}</p>
-                    <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{h.description}</p>
-                  </div>
-                  <ExternalLink className="h-3.5 w-3.5 shrink-0 self-center text-muted-foreground/60" />
-                </button>
-              ))}
+              {happening.map((h: any, i: number) => {
+                const HIcon = emojiToIcon(h.emoji)
+                return (
+                  <button
+                    key={i}
+                    onClick={() => onOpenItem(h)}
+                    className="group w-full flex items-start gap-3 rounded-xl border border-border/60 bg-muted/20 p-3 text-left transition-all duration-300 hover:border-indigo-500/40 hover:bg-indigo-500/5 hover:shadow-lg hover:shadow-indigo-500/5"
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500/15 to-fuchsia-500/15 text-indigo-500 transition-transform duration-300 group-hover:scale-110">
+                      <HIcon className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold">{h.title}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{h.description}</p>
+                    </div>
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0 self-center text-muted-foreground/40 transition-colors group-hover:text-indigo-400" />
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
@@ -688,14 +756,16 @@ function WorldOverview({
                 <button
                   key={i}
                   onClick={() => onOpenItem(m)}
-                  className="w-full flex items-start gap-3 rounded-xl border border-border/60 bg-muted/20 p-3 text-left transition hover:border-fuchsia-500/40 hover:bg-fuchsia-500/5"
+                  className="group w-full flex items-start gap-3 rounded-xl border border-border/60 border-l-2 border-l-fuchsia-500/60 bg-gradient-to-r from-fuchsia-500/5 to-transparent p-3 text-left transition-all duration-300 hover:border-l-fuchsia-500 hover:shadow-lg hover:shadow-fuchsia-500/5"
                 >
-                  <Sparkles className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-fuchsia-500/15 to-violet-500/15 text-fuchsia-500 transition-transform duration-300 group-hover:scale-110">
+                    <Sparkles className="h-4 w-4" />
+                  </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold">{m.title}</p>
                     <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{m.description}</p>
                   </div>
-                  <ExternalLink className="h-3.5 w-3.5 shrink-0 self-center text-muted-foreground/60" />
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 self-center text-muted-foreground/40 transition-colors group-hover:text-fuchsia-400" />
                 </button>
               ))}
             </div>
@@ -706,21 +776,47 @@ function WorldOverview({
       {/* Right column: DNA + evolution + ads */}
       <div className="space-y-4">
         <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-          <h2 className="font-bold flex items-center gap-1.5">
-            <Sparkles className="h-4 w-4 text-fuchsia-500" /> Community DNA
-          </h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5 mb-4">Measured from real member activity this week</p>
-          <div className="space-y-3">
+          <div className="flex items-center gap-4">
+            <div className="relative h-20 w-20 shrink-0">
+              <svg viewBox="0 0 80 80" className="h-20 w-20 -rotate-90">
+                <circle cx="40" cy="40" r="34" fill="none" stroke="var(--border)" strokeWidth="7" />
+                <circle
+                  cx="40" cy="40" r="34" fill="none"
+                  stroke="url(#dnaGrad)" strokeWidth="7" strokeLinecap="round"
+                  strokeDasharray={`${dnaAvg * 2.13} 214`}
+                  className="transition-all duration-1000"
+                />
+                <defs>
+                  <linearGradient id="dnaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#8b5cf6" />
+                    <stop offset="55%" stopColor="#ec4899" />
+                    <stop offset="100%" stopColor="#22d3ee" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-base font-extrabold leading-none">{dnaAvg}</span>
+                <span className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground mt-0.5">DNA</span>
+              </div>
+            </div>
+            <div>
+              <h2 className="font-bold flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-fuchsia-500" /> Community DNA
+              </h2>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Measured from real member activity this week</p>
+            </div>
+          </div>
+          <div className="mt-4 space-y-3">
             {dnaBars.map((d) => (
               <div key={d.key}>
                 <div className="flex items-center justify-between text-xs mb-1">
                   <span className="font-medium">{d.label}</span>
-                  <span className="font-bold">{d.value}%</span>
+                  <span className="font-bold" style={{ color: d.color }}>{d.value}%</span>
                 </div>
                 <div className="h-2 rounded-full bg-muted overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 transition-all"
-                    style={{ width: `${d.value}%` }}
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{ width: `${d.value}%`, background: `linear-gradient(90deg, ${d.color}99, ${d.color})` }}
                   />
                 </div>
               </div>
@@ -781,33 +877,33 @@ function WorldOverview({
           </div>
         )}
 
-        {/* Quick stats */}
-        <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-2 text-sm">
-          <button
-            onClick={() => onOpenTab({ tab: "projects" })}
-            className="flex w-full justify-between rounded-lg p-1 text-left transition hover:bg-muted/50"
-          >
-            <span className="text-muted-foreground">Active projects</span>
-            <strong>{bundle.projects?.filter((p: any) => p.status === "active").length || 0}</strong>
-          </button>
-          <button
-            onClick={() => onOpenTab({ tab: "challenges" })}
-            className="flex w-full justify-between rounded-lg p-1 text-left transition hover:bg-muted/50"
-          >
-            <span className="text-muted-foreground">Live challenges</span>
-            <strong>{bundle.challenges?.filter((ch: any) => ch.status === "active").length || 0}</strong>
-          </button>
-          <button onClick={() => onOpenTab({ tab: "members" })} className="flex w-full justify-between rounded-lg p-1 text-left transition hover:bg-muted/50">
-            <span className="text-muted-foreground">Spaces</span>
-            <strong>{bundle.spaces?.length || 0}</strong>
-          </button>
-          <button onClick={() => onOpenTab({ tab: "feed" })} className="flex w-full justify-between rounded-lg p-1 text-left transition hover:bg-muted/50">
+        {/* Quick stats — compact tiles */}
+        <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+            <Activity className="h-3 w-3 text-emerald-500" /> At a glance
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: "Active projects", value: bundle.projects?.filter((p: any) => p.status === "active").length || 0, icon: FolderOpen, accent: "#8b5cf6", tab: "projects" as const },
+              { label: "Live challenges", value: bundle.challenges?.filter((ch: any) => ch.status === "active").length || 0, icon: Trophy, accent: "#f59e0b", tab: "challenges" as const },
+              { label: "Spaces", value: bundle.spaces?.length || 0, icon: Globe2, accent: "#22d3ee", tab: "members" as const },
+              { label: "New members", value: bundle.pulse?.new_members_24h || 0, icon: Users, accent: "#34d399", tab: "members" as const },
+            ].map((s) => (
+              <button
+                key={s.label}
+                onClick={() => onOpenTab({ tab: s.tab })}
+                className="group rounded-xl border border-border/60 bg-muted/20 p-3 text-left transition-all duration-300 hover:border-transparent hover:shadow-md"
+                style={{ ["--stat-accent" as any]: s.accent }}
+              >
+                <s.icon className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" style={{ color: s.accent }} />
+                <p className="mt-1.5 text-lg font-extrabold leading-none">{s.value}</p>
+                <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{s.label}</p>
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-xs">
             <span className="text-muted-foreground">Messages (24h)</span>
-            <strong>{bundle.pulse?.messages_24h || 0}</strong>
-          </button>
-          <div className="flex justify-between rounded-lg p-1">
-            <span className="text-muted-foreground">New members (24h)</span>
-            <strong>{bundle.pulse?.new_members_24h || 0}</strong>
+            <strong className="flex items-center gap-1"><MessageSquare className="h-3 w-3 text-indigo-500" /> {bundle.pulse?.messages_24h || 0}</strong>
           </div>
         </div>
 

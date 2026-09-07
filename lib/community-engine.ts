@@ -852,6 +852,31 @@ export async function getWorldBundle(sb: SB, circleId: number | string, viewerId
     ])
 
   const spacesData = spaces.data || []
+
+  // Per-space activity stats (post count + last activity) for richer cards
+  if (spacesData.length > 0) {
+    const { data: spacePosts } = await sb
+      .from("circle_posts")
+      .select("space_id, created_at")
+      .in(
+        "space_id",
+        spacesData.map((s: any) => s.id),
+      )
+    const bySpace: Record<string, { count: number; last: string | null }> = {}
+    for (const p of spacePosts || []) {
+      const k = String(p.space_id)
+      const cur = bySpace[k] || { count: 0, last: null }
+      cur.count += 1
+      if (!cur.last || (p.created_at && p.created_at > cur.last)) cur.last = p.created_at
+      bySpace[k] = cur
+    }
+    for (const s of spacesData) {
+      const stat = bySpace[String(s.id)] || { count: 0, last: null }
+      ;(s as any).post_count = stat.count
+      ;(s as any).last_activity_at = stat.last
+    }
+  }
+
   const evolutionData = await computeEvolution(sb, id, (circle.enabled_features as any) || {}, spacesData.map((s: any) => s.name.toLowerCase()))
 
   // Pending recommendations from DB (persisted)

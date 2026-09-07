@@ -76,13 +76,14 @@ export function AvatarWithFrame({
         )}
       </div>
 
-      {/* Frame overlay — custom image */}
+      {/* Frame overlay — custom image, masked to a circle so the equipped
+          frame renders as a ring around the PFP (never a square box) */}
       {hasCustomFrame && (
         <img
           src={frame.image_url.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(frame.image_url)}` : frame.image_url}
           alt=""
-          className="absolute inset-0 pointer-events-none object-contain"
-          style={{ width: size, height: size }}
+          className="absolute inset-0 pointer-events-none rounded-full object-contain"
+          style={{ width: size, height: size, borderRadius: "50%" }}
           draggable={false}
         />
       )}
