@@ -10,7 +10,20 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { formatNumber, timeAgo } from "@/lib/community-engine"
-import { Trophy, Plus, Users, Loader2, Flame, CheckCircle2, Heart, Lock } from "lucide-react"
+import {
+  Trophy,
+  Plus,
+  Users,
+  Loader2,
+  Flame,
+  CheckCircle2,
+  Heart,
+  Lock,
+  Coins,
+  Clock,
+  Crown,
+  User,
+} from "lucide-react"
 import { DeviceMediaPicker, isVideoUrl, type PickedMedia } from "./device-media-picker"
 
 interface Challenge {
@@ -23,7 +36,8 @@ interface Challenge {
   status: string
   entry_count: number
   participant_count: number
-  creator?: { username?: string; display_name?: string; avatar_url?: string | null }
+  reward_coins?: number
+  creator?: { username?: string; display_name?: string; avatar_url?: string | null; is_verified?: boolean }
 }
 
 export function WorldChallenges({
@@ -48,6 +62,7 @@ export function WorldChallenges({
   const [description, setDescription] = useState("")
   const [challengeType, setChallengeType] = useState("standard")
   const [durationDays, setDurationDays] = useState("7")
+  const [rewardCoins, setRewardCoins] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [active, setActive] = useState<Challenge | null>(null)
@@ -71,6 +86,7 @@ export function WorldChallenges({
           title,
           description,
           challenge_type: challengeType,
+          reward_coins: Math.max(0, Number(rewardCoins) || 0),
           ends_at: new Date(Date.now() + Number(durationDays) * 86400000).toISOString(),
         }),
       })
@@ -80,6 +96,7 @@ export function WorldChallenges({
       setChallenges((prev) => [data.challenge, ...prev])
       setTitle("")
       setDescription("")
+      setRewardCoins("")
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -175,6 +192,9 @@ export function WorldChallenges({
     }
   }
 
+  const rankedEntries = [...entries].sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0))
+  const challengeDone = active?.status === "completed"
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -193,7 +213,12 @@ export function WorldChallenges({
         <div className="rounded-2xl border border-dashed border-border p-10 text-center">
           <Trophy className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
           <p className="text-sm font-semibold">No challenges yet</p>
-          <p className="text-xs text-muted-foreground mt-1">Challenges turn community energy into creations.</p>
+          <p className="text-xs text-muted-foreground mt-1">Give the community something to do — launch the first challenge.</p>
+          {isMember && (
+            <Button size="sm" variant="outline" className="mt-4 rounded-full" onClick={() => setOpen(true)}>
+              <Plus className="h-3.5 w-3.5 mr-1.5" /> Create Challenge
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -210,13 +235,32 @@ export function WorldChallenges({
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/15 to-orange-500/15">
                   <Flame className="h-5 w-5 text-amber-500" />
                 </div>
-                <Badge className="text-[9px] bg-amber-500/10 text-amber-600 border-amber-500/30">
-                  {c.status === "active" ? `⏳ ${timeAgo(c.ends_at, true)}` : c.status}
-                </Badge>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge className="text-[9px] bg-amber-500/10 text-amber-600 border-amber-500/30">
+                    {c.status === "active" ? (
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-2.5 w-2.5" /> {timeAgo(c.ends_at, true)}
+                      </span>
+                    ) : (
+                      c.status
+                    )}
+                  </Badge>
+                  {Number(c.reward_coins || 0) > 0 && (
+                    <Badge className="text-[9px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                      <Coins className="h-2.5 w-2.5 mr-0.5" /> {formatNumber(Number(c.reward_coins))} prize
+                    </Badge>
+                  )}
+                </div>
               </div>
               <p className="mt-2 font-bold text-sm truncate group-hover:text-amber-500 transition-colors">{c.title}</p>
               {c.description && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{c.description}</p>}
-              <div className="mt-3 flex items-center gap-3 text-[11px] text-muted-foreground">
+              {c.creator?.username && (
+                <p className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <User className="h-3 w-3" /> by {c.creator.display_name || c.creator.username}
+                  {c.creator.is_verified && <span className="text-blue-500 font-bold">✓</span>}
+                </p>
+              )}
+              <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
                 <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {c.participant_count || c.entry_count || 0} participants</span>
                 <span className="flex items-center gap-1"><Trophy className="h-3 w-3" /> {c.entry_count || 0} entries</span>
               </div>
@@ -237,8 +281,8 @@ export function WorldChallenges({
               <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 rounded-xl" maxLength={120} placeholder='e.g. "Weekend Meme Battle"' />
             </div>
             <div>
-              <label className="text-xs font-medium">Description</label>
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 rounded-xl text-sm min-h-[80px]" maxLength={2000} />
+              <label className="text-xs font-medium">Description / rules</label>
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 rounded-xl text-sm min-h-[80px]" maxLength={2000} placeholder="What should the community create? Any rules to follow?" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -258,6 +302,20 @@ export function WorldChallenges({
               <div>
                 <label className="text-xs font-medium">Duration (days)</label>
                 <Input type="number" value={durationDays} onChange={(e) => setDurationDays(e.target.value)} className="mt-1 rounded-xl h-9" min={1} max={30} />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium">Prize (Loop Coins) — optional</label>
+              <div className="relative mt-1">
+                <Coins className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="number"
+                  value={rewardCoins}
+                  onChange={(e) => setRewardCoins(e.target.value)}
+                  className="rounded-xl pl-9 h-9"
+                  min={0}
+                  placeholder="0 — no prize"
+                />
               </div>
             </div>
             {error && <p className="text-xs text-red-500">{error}</p>}
@@ -280,11 +338,43 @@ export function WorldChallenges({
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Flame className="h-5 w-5 text-amber-500" /> {active.title}
-                  <Badge className="text-[9px] bg-amber-500/10 text-amber-600 border-amber-500/30">⏳ {timeAgo(active.ends_at, true)}</Badge>
+                  <Badge className="text-[9px] bg-amber-500/10 text-amber-600 border-amber-500/30">
+                    {active.status === "active" ? (
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-2.5 w-2.5" /> {timeAgo(active.ends_at, true)}
+                      </span>
+                    ) : (
+                      active.status
+                    )}
+                  </Badge>
                 </DialogTitle>
               </DialogHeader>
 
               {active.description && <p className="text-sm text-muted-foreground -mt-1">{active.description}</p>}
+
+              {/* Challenge meta row — creator, prize, participants */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-[11px] text-muted-foreground">
+                {active.creator?.username && (
+                  <span className="flex items-center gap-1.5">
+                    <Avatar className="h-5 w-5">
+                      <AvatarImage src={active.creator.avatar_url || ""} alt="" />
+                      <AvatarFallback className="text-[8px]">{(active.creator.display_name || active.creator.username).slice(0, 1).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    Hosted by {active.creator.display_name || active.creator.username}
+                  </span>
+                )}
+                {Number(active.reward_coins || 0) > 0 && (
+                  <span className="flex items-center gap-1 font-semibold text-emerald-600">
+                    <Coins className="h-3 w-3" /> {formatNumber(Number(active.reward_coins))} prize
+                  </span>
+                )}
+                <span className="flex items-center gap-1">
+                  <Users className="h-3 w-3" /> {active.participant_count || 0} participants
+                </span>
+                <span className="flex items-center gap-1">
+                  <Trophy className="h-3 w-3" /> {active.entry_count || 0} entries
+                </span>
+              </div>
 
               {isMember ? (
                 <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2.5">
@@ -315,35 +405,48 @@ export function WorldChallenges({
                 <p className="text-xs text-muted-foreground text-center py-8">No entries yet — be the first!</p>
               ) : (
                 <div className="space-y-2.5">
-                  {entries.map((e) => (
-                    <div key={e.id} className="rounded-xl border border-border bg-card p-3">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-7 w-7">
-                          <AvatarImage src={e.author?.avatar_url || ""} alt="" />
-                          <AvatarFallback className="text-[10px]">{(e.author?.display_name || e.author?.username || "U").slice(0, 1).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs font-semibold">{e.author?.display_name || e.author?.username}</span>
-                        <span className="ml-auto text-[10px] text-muted-foreground">{timeAgo(e.created_at)}</span>
-                      </div>
-                      {e.content && <p className="mt-2 text-xs">{e.content}</p>}
-                      {e.media_url && isVideoUrl(e.media_url) ? (
-                        <div className="mt-2 relative aspect-video overflow-hidden rounded-lg bg-muted">
-                          <video src={e.media_url} controls playsInline className="h-full w-full object-contain" />
+                  {rankedEntries.map((e, idx) => {
+                    const isWinner = challengeDone && idx === 0 && (e.vote_count || 0) > 0
+                    return (
+                      <div key={e.id} className={`rounded-xl border bg-card p-3 ${isWinner ? "border-amber-500/50 bg-amber-500/[0.04]" : "border-border"}`}>
+                        <div className="flex items-center gap-2">
+                          <div className="relative">
+                            <Avatar className="h-7 w-7">
+                              <AvatarImage src={e.author?.avatar_url || ""} alt="" />
+                              <AvatarFallback className="text-[10px]">{(e.author?.display_name || e.author?.username || "U").slice(0, 1).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            {challengeDone && idx === 0 && (e.vote_count || 0) > 0 && (
+                              <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-white">
+                                <Crown className="h-2.5 w-2.5" />
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs font-semibold">{e.author?.display_name || e.author?.username}</span>
+                          <span className="ml-auto text-[10px] text-muted-foreground">{timeAgo(e.created_at)}</span>
                         </div>
-                      ) : e.media_url ? (
-                        <div className="mt-2 relative aspect-video overflow-hidden rounded-lg bg-muted">
-                          <Image src={e.media_url} alt="" fill className="object-cover" unoptimized />
+                        {e.content && <p className="mt-2 text-xs">{e.content}</p>}
+                        {e.media_url && isVideoUrl(e.media_url) ? (
+                          <div className="mt-2 relative aspect-video overflow-hidden rounded-lg bg-muted">
+                            <video src={e.media_url} controls playsInline className="h-full w-full object-contain" />
+                          </div>
+                        ) : e.media_url ? (
+                          <div className="mt-2 relative aspect-video overflow-hidden rounded-lg bg-muted">
+                            <Image src={e.media_url} alt="" fill className="object-cover" unoptimized />
+                          </div>
+                        ) : null}
+                        <div className="mt-2 flex items-center gap-2">
+                          <Button size="sm" variant={e.has_voted ? "default" : "outline"} className="rounded-full h-7 text-[11px]" disabled={voting === e.id || !user || !isMember} onClick={() => vote(e.id)}>
+                            <Heart className={`h-3 w-3 mr-1 ${e.has_voted ? "fill-white" : ""}`} />
+                            {e.vote_count || 0}
+                          </Button>
+                          {e.has_voted && <span className="text-[10px] text-muted-foreground">You voted</span>}
+                          {challengeDone && idx === 0 && (e.vote_count || 0) > 0 && (
+                            <span className="ml-auto text-[10px] font-bold text-amber-600">Winner</span>
+                          )}
                         </div>
-                      ) : null}
-                      <div className="mt-2 flex items-center gap-2">
-                        <Button size="sm" variant={e.has_voted ? "default" : "outline"} className="rounded-full h-7 text-[11px]" disabled={voting === e.id || !user || !isMember} onClick={() => vote(e.id)}>
-                          <Heart className={`h-3 w-3 mr-1 ${e.has_voted ? "fill-white" : ""}`} />
-                          {e.vote_count || 0}
-                        </Button>
-                        {e.has_voted && <span className="text-[10px] text-muted-foreground">You voted</span>}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </>

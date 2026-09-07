@@ -81,11 +81,40 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const actorRole = actorMembership?.role
 
     const body = await request.json()
-    const { user_id, role } = body
+    const { user_id, role, status } = body
     if (!user_id) return NextResponse.json({ error: "Missing member" }, { status: 400 })
 
-    const { data: target } = await sb.from("circle_members").select("role, user_id").eq("circle_id", id).eq("user_id", user_id).maybeSingle()
+    const { data: target } = await sb.from("circle_members").select("role, user_id, status").eq("circle_id", id).eq("user_id", user_id).maybeSingle()
     if (!target) return NextResponse.json({ error: "Member not found" }, { status: 404 })
+
+    // Join-request handling: moderators can approve pending requests; only
+    // admins/owner can reject (delete) a pending member. Server-side only —
+    // the UI never decides who gets in.
+    if (status && status !== target.status) {
+      if (status === "active" || status === "rejected") {
+        if (!canModerate(actorRole)) {
+          return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
+        }
+        if (status === "rejected" && !canAdmin(actorRole)) {
+          return NextResponse.json({ error: "Only admins can reject join requests" }, { status: 403 })
+        }
+        if (status === "active") {
+          const { error } = await sb
+            .from("circle_members")
+            .update({ status: "active", joined_at: new Date().toISOString() })
+            .eq("circle_id", id)
+            .eq("user_id", user_id)
+          if (error) return NextResponse.json({ error: "Failed to approve member" }, { status: 500 })
+          await logCommunityActivity(sb, id, actor.id, "join_request_approved", "member", user_id)
+          return NextResponse.json({ success: true, status: "active" })
+        }
+        const { error: delError } = await sb.from("circle_members").delete().eq("circle_id", id).eq("user_id", user_id)
+        if (delError) return NextResponse.json({ error: "Failed to reject request" }, { status: 500 })
+        await logCommunityActivity(sb, id, actor.id, "join_request_rejected", "member", user_id)
+        return NextResponse.json({ success: true, status: "rejected" })
+      }
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 })
+    }
 
     // Role changes: owner only for owner/admin changes; admins can promote to moderator
     if (role && role !== target.role) {

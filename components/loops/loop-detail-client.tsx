@@ -7,26 +7,24 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ProxyImg } from "@/components/ui/proxy-img"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
+import { cn } from "@/lib/utils"
 import {
   Heart,
   MessageCircle,
   Share2,
   Bookmark,
   MoreHorizontal,
-  TreePine,
   GitBranch,
   Eye,
-  Tag,
-  Flag,
-  Copy,
-  ExternalLink,
   Zap,
   Users,
   ChevronLeft,
   ChevronRight,
   Film,
+  BadgeCheck,
+  Copy,
 } from "lucide-react"
 import { CommentsSection } from "@/components/comments/comments-section"
 import { CreateBranchDialog } from "@/components/create-branch-dialog"
@@ -66,6 +64,7 @@ interface LoopData {
     videoAvatarUrl?: string | null
     verified: boolean
     premium: boolean
+    equippedFrameId?: string | number | null
   }
   createdAt: string
   updatedAt: string
@@ -116,6 +115,12 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 )
 
+const formatCompact = (n: number) => {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K`
+  return `${n}`
+}
+
 export function LoopDetailClient({ loopId }: { loopId: string }) {
   const [loop, setLoop] = useState<LoopData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -160,6 +165,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           videoAvatarUrl: loopData.author?.video_avatar_url || null,
           verified: Boolean(loopData.author?.is_verified),
           premium: Boolean(loopData.author?.is_premium),
+          equippedFrameId: loopData.author?.equipped_frame_id || null,
         },
         createdAt: loopData.created_at,
         updatedAt: loopData.updated_at || loopData.created_at,
@@ -466,18 +472,22 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
     }
   }
 
+  const handleCommentClick = () => {
+    document.getElementById("comments")?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl space-y-6 p-4">
-        <div className="h-64 animate-pulse rounded-2xl bg-muted" />
-        <div className="h-32 animate-pulse rounded-2xl bg-muted" />
+      <div className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6">
+        <div className="h-72 animate-pulse rounded-3xl bg-muted/60" />
+        <div className="h-40 animate-pulse rounded-3xl bg-muted/40" />
       </div>
     )
   }
 
   if (!loop) {
     return (
-      <div className="mx-auto max-w-4xl p-8 text-center text-muted-foreground space-y-4">
+      <div className="mx-auto w-full max-w-3xl p-8 text-center text-muted-foreground space-y-4">
         <h2 className="text-2xl font-bold">Loop Not Found</h2>
         <p className="text-sm text-muted-foreground">This loop may have been deleted or is private.</p>
         <Button asChild>
@@ -487,28 +497,49 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
     )
   }
 
+  const postTypePill = (() => {
+    switch (loop.postType) {
+      case "reel":
+        return { label: "Reel", className: "border-rose-500/30 bg-rose-500/10 text-rose-400" }
+      case "poll":
+        return { label: "Poll", className: "border-violet-500/30 bg-violet-500/10 text-violet-400" }
+      case "duel":
+        return {
+          label: loop.duel?.duel_type === "clutch" ? "Clutch Duel" : "Duel",
+          className: "border-amber-500/30 bg-amber-500/10 text-amber-400",
+        }
+      case "moment":
+        return { label: "Moment", className: "border-purple-500/30 bg-purple-500/10 text-purple-400" }
+      case "co_loop_invite":
+        return { label: "Co-Loop", className: "border-cyan-500/30 bg-cyan-500/10 text-cyan-400" }
+      case "clip":
+        return { label: "Clip", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" }
+      default:
+        return null
+    }
+  })()
+
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 text-foreground">
+    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:py-10">
       {/* Loop Container */}
-      <Card
-        className={`border bg-card/80 backdrop-blur-md shadow-2xl rounded-2xl overflow-hidden ${
-          loop.isCoLoop ? "border-cyan-500/40" : "border-border"
-        }`}
-      >
-        <CardHeader className="p-6 border-b border-border">
+      <Card className="relative overflow-hidden rounded-3xl border-border/60 bg-card/70 shadow-[0_20px_60px_-24px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+        {/* Top accent line */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-500/70 to-transparent" />
+
+        <CardHeader className="border-b border-border/50 p-5 sm:p-7">
           {loop.isCoLoop && (
-            <div className="mb-3 flex items-center justify-between">
-              <Badge className="bg-gradient-to-r from-cyan-500 via-teal-500 to-indigo-600 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-md shadow-cyan-500/20 border border-cyan-400/40 flex items-center gap-1">
-                <Zap className="h-3 w-3 animate-pulse text-cyan-200" />
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <Badge className="flex items-center gap-1 border-cyan-400/30 bg-gradient-to-r from-cyan-500/15 to-indigo-500/15 px-2.5 py-1 text-[10px] font-bold text-cyan-300">
+                <Zap className="h-3 w-3" />
                 Co-Loop Studio Collaboration
               </Badge>
               <button
                 type="button"
                 onClick={() => setRosterOpen(true)}
-                className="text-[11px] font-semibold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1"
+                className="flex items-center gap-1 text-[11px] font-semibold text-cyan-400 transition hover:text-cyan-300"
               >
-                <Users className="h-3 w-3" />
-                View {loop.coAuthors.length + 1} Co-Authors
+                <Users className="h-3.5 w-3.5" />
+                View {loop.coAuthors.length + 1} co-authors
               </button>
             </div>
           )}
@@ -517,7 +548,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           {loop.parentLoop && (
             <Link
               href={`/loop/${loop.parentLoop.id}`}
-              className="mb-3 flex w-fit max-w-full items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-[11px] text-muted-foreground transition hover:border-emerald-500/60 hover:bg-emerald-500/10 hover:text-foreground"
+              className="mb-4 flex w-fit max-w-full items-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] px-3 py-1.5 text-[11px] text-muted-foreground transition hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-foreground"
             >
               <GitBranch className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
               <span className="truncate">
@@ -525,135 +556,156 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                 {loop.parentLoop.author ? (
                   <span className="inline-flex items-center gap-1 font-bold text-foreground">
                     @{loop.parentLoop.author}
-                    {loop.parentLoop.author_verified && <span className="font-bold text-blue-500">✓</span>}
+                    {loop.parentLoop.author_verified && <BadgeCheck className="h-3.5 w-3.5 fill-sky-500 text-background" />}
                   </span>
                 ) : (
                   <span className="font-bold text-foreground">a branched post</span>
                 )}
-                {loop.parentLoop.title && loop.parentLoop.title !== "Untitled Loop" ? (
-                  <span className="text-muted-foreground"> · &ldquo;{(loop.parentLoop.title || "").slice(0, 40)}&rdquo;</span>
-                ) : null}
               </span>
             </Link>
           )}
 
           <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3.5">
               {loop.isCoLoop ? (
                 <div
                   onClick={() => setRosterOpen(true)}
-                  className="flex items-center cursor-pointer group flex-shrink-0"
+                  className="flex cursor-pointer items-center"
                   title="Click to view Co-Authors roster"
                 >
                   <div className="relative z-10">
-                    <VideoAvatar
-                      src={loop.author.avatar}
-                      videoSrc={loop.author.videoAvatarUrl}
+                    <AvatarWithFrame
+                      avatarUrl={loop.author.avatar}
+                      videoAvatarUrl={loop.author.videoAvatarUrl}
+                      frameId={loop.author.equippedFrameId}
+                      seed={loop.author.username}
                       alt={loop.author.displayName}
-                      fallback={loop.author.displayName.charAt(0)}
-                      size="lg"
-                      className="ring-2 ring-cyan-500 ring-offset-2 ring-offset-background group-hover:scale-105 transition-transform"
+                      size={48}
+                      className="rounded-full ring-2 ring-cyan-400/60 ring-offset-2 ring-offset-background transition-transform group-hover:scale-105"
                     />
                   </div>
                   {loop.coAuthors.slice(0, 3).map((ca, i) => (
-                    <div key={ca.id || i} className="-ml-3 relative z-[9] transition-transform group-hover:scale-105" style={{ zIndex: 8 - i }}>
+                    <div key={ca.id || i} className="-ml-3 relative z-[9]" style={{ zIndex: 8 - i }}>
                       <VideoAvatar
                         src={ca.avatar_url}
                         videoSrc={(ca as any).video_avatar_url}
                         alt={ca.display_name || ca.username}
                         fallback={(ca.display_name || ca.username || "C").charAt(0)}
                         size="lg"
-                        className="ring-2 ring-cyan-400 ring-offset-2 ring-offset-background"
+                        className="ring-2 ring-cyan-400/60 ring-offset-2 ring-offset-background"
                       />
                     </div>
                   ))}
                   {loop.coAuthors.length > 3 && (
-                    <div className="-ml-3 relative z-0 flex h-12 w-12 items-center justify-center rounded-full bg-cyan-950 text-xs font-bold text-cyan-300 ring-2 ring-cyan-400">
+                    <div className="-ml-3 relative z-0 flex h-12 w-12 items-center justify-center rounded-full bg-cyan-950 text-xs font-bold text-cyan-300 ring-2 ring-cyan-400/60">
                       +{loop.coAuthors.length - 3}
                     </div>
                   )}
                 </div>
               ) : (
-                <Link href={`/profile/${loop.author.username}`} className="shrink-0">
-                  <VideoAvatar
-                    src={loop.author.avatar}
-                    videoSrc={loop.author.videoAvatarUrl}
+                <Link href={`/profile/${loop.author.username}`} className="shrink-0 transition-opacity hover:opacity-90">
+                  <AvatarWithFrame
+                    avatarUrl={loop.author.avatar}
+                    videoAvatarUrl={loop.author.videoAvatarUrl}
+                    frameId={loop.author.equippedFrameId}
+                    seed={loop.author.username}
                     alt={loop.author.displayName}
-                    fallback={loop.author.displayName.charAt(0)}
-                    size="lg"
-                    className="border-2 border-cyan-500/40"
+                    size={48}
+                    className="rounded-full ring-1 ring-white/10"
                   />
                 </Link>
               )}
-              <div>
-                <div className="flex items-center gap-2">
-                  <Link href={`/profile/${loop.author.username}`} className="font-bold text-lg text-foreground hover:underline">
+
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                  <Link
+                    href={`/profile/${loop.author.username}`}
+                    className="truncate text-[15px] font-bold text-foreground transition hover:underline"
+                  >
                     {loop.author.displayName}
                   </Link>
+                  {loop.author.verified && (
+                    <BadgeCheck className="h-4 w-4 shrink-0 fill-sky-500 text-background" />
+                  )}
+                  {loop.author.premium && (
+                    <span className="inline-flex items-center rounded-full bg-gradient-to-r from-amber-300 to-yellow-500 px-1.5 py-px text-[9px] font-extrabold tracking-wider text-black">
+                      PRO
+                    </span>
+                  )}
                   {loop.isCoLoop && loop.coAuthors.length > 0 && (
-                    <span className="text-muted-foreground font-normal text-sm">
-                      {" "}
+                    <span className="text-xs text-muted-foreground">
                       ×{" "}
                       {loop.coAuthors.map((ca, i) => (
                         <span key={ca.id || ca.username}>
                           {i > 0 ? " × " : null}
-                          <Link href={`/profile/${ca.username}`} className="hover:underline text-primary">
+                          <Link href={`/profile/${ca.username}`} className="font-semibold text-primary hover:underline">
                             @{ca.username}
                           </Link>
                         </span>
                       ))}
                     </span>
                   )}
-                  {loop.author.verified && (
-                    <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 text-[10px]">
-                      Verified
-                    </Badge>
-                  )}
                 </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Link href={`/profile/${loop.author.username}`} className="hover:underline">@{loop.author.username}</Link>
-                  <span>•</span>
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                  <Link href={`/profile/${loop.author.username}`} className="hover:underline">
+                    @{loop.author.username}
+                  </Link>
+                  <span className="text-border-foreground/30">·</span>
                   <FreshnessTimestamp date={loop.createdAt} showIcon />
-                  <span className="inline-flex items-center gap-1 text-cyan-600 dark:text-cyan-400 text-[10px]">
-                    <Zap className="h-3 w-3" /> Real-time active
+                  <span className="inline-flex items-center gap-1">
+                    <Eye className="h-3 w-3" />
+                    {formatCompact(loop.stats.views)} views
                   </span>
                 </div>
               </div>
             </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                  <MoreHorizontal className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover border-border text-foreground">
-                <DropdownMenuItem onClick={handleBookmark}>
-                  <Bookmark className="h-4 w-4 mr-2" /> {loop.isBookmarked ? "Remove Bookmark" : "Save Bookmark"}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {postTypePill && (
+                <Badge
+                  variant="outline"
+                  className={cn("px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide", postTypePill.className)}
+                >
+                  {postTypePill.label}
+                </Badge>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground">
+                    <MoreHorizontal className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="border-border bg-popover text-foreground">
+                  <DropdownMenuItem onClick={handleBookmark} className="cursor-pointer">
+                    <Bookmark className="h-4 w-4 mr-2" /> {loop.isBookmarked ? "Remove Bookmark" : "Save Bookmark"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleCopyLink} className="cursor-pointer">
+                    <Copy className="h-4 w-4 mr-2" /> Copy Link
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </CardHeader>
 
-        <CardContent className="p-6 space-y-6">
+        <CardContent className="space-y-6 p-5 sm:p-7">
           {loop.title ? (
-            <h1 className="text-2xl font-extrabold text-foreground leading-tight">{loop.title}</h1>
+            <h1 className="text-xl font-bold leading-tight tracking-tight text-foreground sm:text-2xl">{loop.title}</h1>
           ) : null}
-          <RichContent text={loop.content} className="text-base text-foreground leading-relaxed" />
+          <RichContent text={loop.content} className="text-[15px] leading-relaxed text-foreground/90" />
 
           {/* Full Media Set Carousel */}
           {loop.mediaUrls && loop.mediaUrls.length > 0 && (
             <div className="space-y-3">
-              <div className="relative rounded-2xl overflow-hidden border border-border bg-black/60 group max-h-[520px] flex items-center justify-center">
+              <div className="group relative flex max-h-[520px] items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-black/70">
                 {loop.mediaUrls[activeMediaIndex]?.match(/\.(mp4|webm|ogg|mov)$/i) ? (
-                  <ProtectedMedia type="video" src={loop.mediaUrls[activeMediaIndex]} className="w-full max-h-[520px] object-contain" />
+                  <ProtectedMedia type="video" src={loop.mediaUrls[activeMediaIndex]} className="max-h-[520px] w-full object-contain" />
                 ) : (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={loop.mediaUrls[activeMediaIndex]}
                     alt={`${loop.title} - Media ${activeMediaIndex + 1}`}
-                    className="w-full max-h-[520px] object-contain"
+                    className="max-h-[520px] w-full object-contain"
                   />
                 )}
 
@@ -662,20 +714,20 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                     <button
                       type="button"
                       onClick={() => setActiveMediaIndex((prev) => (prev > 0 ? prev - 1 : loop.mediaUrls.length - 1))}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/60 text-white p-2 hover:bg-black/80 transition-all opacity-80 group-hover:opacity-100"
-                      aria-label="Previous image"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-white/10 p-2 text-white opacity-0 backdrop-blur-md transition-all hover:bg-white/20 group-hover:opacity-100"
+                      aria-label="Previous media"
                     >
                       <ChevronLeft className="h-5 w-5" />
                     </button>
                     <button
                       type="button"
                       onClick={() => setActiveMediaIndex((prev) => (prev < loop.mediaUrls.length - 1 ? prev + 1 : 0))}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-black/60 text-white p-2 hover:bg-black/80 transition-all opacity-80 group-hover:opacity-100"
-                      aria-label="Next image"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-white/10 p-2 text-white opacity-0 backdrop-blur-md transition-all hover:bg-white/20 group-hover:opacity-100"
+                      aria-label="Next media"
                     >
                       <ChevronRight className="h-5 w-5" />
                     </button>
-                    <div className="absolute bottom-3 right-3 rounded-full bg-black/70 px-3 py-1 text-xs font-bold text-white backdrop-blur-md border border-white/20">
+                    <div className="absolute bottom-3 right-3 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs font-bold text-white backdrop-blur-md">
                       {activeMediaIndex + 1} / {loop.mediaUrls.length}
                     </div>
                   </>
@@ -692,14 +744,15 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                         key={url + idx}
                         type="button"
                         onClick={() => setActiveMediaIndex(idx)}
-                        className={`relative rounded-xl overflow-hidden border-2 h-16 w-16 shrink-0 transition-all ${
+                        className={cn(
+                          "relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 transition-all",
                           activeMediaIndex === idx
-                            ? "border-cyan-500 scale-105 shadow-md shadow-cyan-500/30 ring-2 ring-cyan-500/50"
-                            : "border-border opacity-60 hover:opacity-100"
-                        }`}
+                            ? "scale-105 border-violet-500/70 shadow-md shadow-violet-500/20"
+                            : "border-border/60 opacity-60 hover:opacity-100"
+                        )}
                       >
                         {isVid ? (
-                          <div className="flex h-full w-full items-center justify-center bg-slate-900 text-cyan-400">
+                          <div className="flex h-full w-full items-center justify-center bg-slate-900 text-violet-400">
                             <Film className="h-5 w-5" />
                           </div>
                         ) : (
@@ -731,7 +784,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           {/* Reel Video Player */}
           {loop.postType === "reel" && loop.mediaUrls.length > 0 && (
             <div className="pt-2">
-              <div className="relative rounded-2xl overflow-hidden border border-border bg-black aspect-[9/16] max-h-[600px] mx-auto">
+              <div className="relative mx-auto aspect-[9/16] max-h-[600px] overflow-hidden rounded-2xl border border-border/60 bg-black">
                 <video
                   src={loop.mediaUrls[0]}
                   controls
@@ -739,8 +792,8 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                   className="h-full w-full object-contain"
                   poster={loop.mediaUrls[1] || undefined}
                 />
-                <div className="absolute top-3 left-3">
-                  <Badge className="bg-rose-500/90 text-white text-[10px] font-bold px-2 py-0.5 backdrop-blur-sm">
+                <div className="absolute left-3 top-3">
+                  <Badge className="bg-rose-500/90 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
                     <Film className="h-3 w-3 mr-1" /> Reel
                   </Badge>
                 </div>
@@ -751,16 +804,12 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           {/* Moment Card (disappearing content) */}
           {loop.postType === "moment" && (
             <div className="pt-2">
-              <div className="relative rounded-2xl overflow-hidden border border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-indigo-500/10 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge className="bg-purple-500/20 text-purple-400 text-[10px] font-bold px-2 py-0.5">
-                    Moment
-                  </Badge>
+              <div className="rounded-2xl border border-purple-500/25 bg-gradient-to-br from-purple-500/[0.08] via-transparent to-indigo-500/[0.08] p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <Badge className="bg-purple-500/15 px-2 py-0.5 text-[10px] font-bold text-purple-400">Moment</Badge>
                   <span className="text-[11px] text-muted-foreground">Temporary content</span>
                 </div>
-                <p className="text-xs text-muted-foreground italic">
-                  This is a moment — it may disappear after being viewed.
-                </p>
+                <p className="text-xs italic text-muted-foreground">This is a moment — it may disappear after being viewed.</p>
               </div>
             </div>
           )}
@@ -768,13 +817,13 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           {/* Co-Loop Invite Card */}
           {loop.postType === "co_loop_invite" && (
             <div className="pt-2">
-              <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/10 via-teal-500/5 to-indigo-500/10 p-4">
+              <div className="rounded-2xl border border-cyan-500/25 bg-gradient-to-br from-cyan-500/[0.08] via-transparent to-indigo-500/[0.08] p-4">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-xl bg-cyan-500/20 p-3">
+                  <div className="rounded-xl bg-cyan-500/15 p-3">
                     <Users className="h-6 w-6 text-cyan-400" />
                   </div>
                   <div>
-                    <p className="font-bold text-sm text-foreground">Co-Loop Invite</p>
+                    <p className="text-sm font-bold text-foreground">Co-Loop Invite</p>
                     <p className="text-xs text-muted-foreground">Join this collaborative session</p>
                   </div>
                 </div>
@@ -782,7 +831,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                   <Button
                     asChild
                     size="sm"
-                    className="mt-3 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-bold text-xs"
+                    className="mt-3 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 text-xs font-bold text-white"
                   >
                     <Link href={`/coloop?session=${loop.contentMetadata.session_id}`}>
                       <Zap className="h-3.5 w-3.5 mr-1.5" /> Join Co-Loop Session
@@ -814,87 +863,102 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
 
           {/* Tags */}
           {loop.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 pt-2">
+            <div className="flex flex-wrap gap-2 pt-1">
               {loop.tags.map((tag) => (
-                <Badge key={tag} variant="outline" className="border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10">
+                <Link
+                  key={tag}
+                  href={`/explore?q=%23${encodeURIComponent(tag)}`}
+                  className="rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-foreground"
+                >
                   #{tag}
-                </Badge>
+                </Link>
               ))}
             </div>
           )}
 
           {/* Interactive Reactions */}
-          <div className="flex items-center gap-2 pt-2 border-t border-border/60">
-            <span className="text-xs text-muted-foreground font-medium mr-2">Quick React:</span>
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-border/50 pt-4">
+            <span className="mr-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">React</span>
             {["🔥", "❤️", "🚀", "💡", "👏", "💯"].map((emoji) => (
               <button
                 key={emoji}
                 type="button"
                 onClick={() => handleReaction(emoji)}
-                className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-all ${
+                className={cn(
+                  "flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm transition-all hover:scale-105",
                   activeReaction === emoji
-                    ? "bg-primary/15 border-primary/40 text-foreground"
-                    : "bg-muted border-border hover:bg-primary/10 hover:border-primary/30"
-                }`}
+                    ? "border-violet-500/50 bg-violet-500/15"
+                    : "border-border/60 bg-muted/40 hover:border-violet-500/30 hover:bg-violet-500/10"
+                )}
               >
                 <span>{emoji}</span>
                 {reactions[emoji] ? (
-                  <span className="text-[10px] font-bold text-primary">{reactions[emoji]}</span>
+                  <span className="text-[10px] font-bold text-primary">{formatCompact(reactions[emoji])}</span>
                 ) : null}
               </button>
             ))}
           </div>
 
-          {/* Stats & Actions */}
-          <div className="flex items-center justify-between pt-4 border-t border-border">
-            <div className="flex items-center gap-2 sm:gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLike}
-                className={`gap-2 ${loop.isLiked ? "text-rose-500 bg-rose-500/10" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <Heart className={`h-4 w-4 ${loop.isLiked ? "fill-rose-500" : ""}`} />
-                <span className="font-semibold">{loop.stats.likes}</span>
-              </Button>
+          {/* Stats & Actions — segmented social bar */}
+          <div className="grid grid-cols-5 divide-x divide-border/60 overflow-hidden rounded-2xl border border-border/60 bg-muted/20">
+            <button
+              type="button"
+              onClick={handleLike}
+              className={cn(
+                "flex items-center justify-center gap-1.5 py-3 text-sm transition-colors",
+                loop.isLiked ? "bg-rose-500/10 text-rose-500" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              )}
+            >
+              <Heart className={cn("h-4 w-4", loop.isLiked && "fill-rose-500")} />
+              <span className="font-semibold">{formatCompact(loop.stats.likes)}</span>
+            </button>
 
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <MessageCircle className="h-4 w-4" />
-                <span className="font-semibold">{loop.stats.comments}</span>
-              </div>
+            <button
+              type="button"
+              onClick={handleCommentClick}
+              className="flex items-center justify-center gap-1.5 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            >
+              <MessageCircle className="h-4 w-4" />
+              <span className="font-semibold">{formatCompact(loop.stats.comments)}</span>
+            </button>
 
-              <Button variant="ghost" size="sm" onClick={handleShare} className="gap-2 text-muted-foreground hover:text-foreground">
-                <Share2 className="h-4 w-4" />
-                <span>{loop.stats.shares}</span>
-              </Button>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="flex items-center justify-center gap-1.5 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            >
+              <Share2 className="h-4 w-4" />
+              <span className="font-semibold">{formatCompact(loop.stats.shares)}</span>
+            </button>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBookmark}
-                className={`gap-2 ${loop.isBookmarked ? "text-sky-600 dark:text-sky-400" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <Bookmark className={`h-4 w-4 ${loop.isBookmarked ? "fill-current" : ""}`} />
-                <span className="hidden sm:inline">{loop.isBookmarked ? "Saved" : "Save"}</span>
-              </Button>
-            </div>
+            <button
+              type="button"
+              onClick={handleBookmark}
+              className={cn(
+                "flex items-center justify-center gap-1.5 py-3 text-sm transition-colors",
+                loop.isBookmarked
+                  ? "bg-sky-500/10 text-sky-500"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              )}
+            >
+              <Bookmark className={cn("h-4 w-4", loop.isBookmarked && "fill-current")} />
+            </button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/20 rounded-xl text-xs gap-1.5 font-bold"
+                <button
+                  type="button"
+                  className="flex items-center justify-center gap-1.5 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                 >
-                  <GitBranch className="h-3.5 w-3.5" /> Branch / Chain
-                </Button>
+                  <GitBranch className="h-4 w-4" />
+                </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover border-border text-foreground">
+              <DropdownMenuContent align="end" className="border-border bg-popover text-foreground">
                 <DropdownMenuItem onClick={() => setBranchOpen(true)} className="cursor-pointer hover:bg-muted">
-                  <GitBranch className="h-4 w-4 mr-2 text-green-400" /> Branch this Loop
+                  <GitBranch className="h-4 w-4 mr-2 text-emerald-400" /> Branch this Loop
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setChainOpen(true)} className="cursor-pointer hover:bg-muted">
-                  <Zap className="h-4 w-4 mr-2 text-cyan-400" /> View Loop Chain Map
+                  <Zap className="h-4 w-4 mr-2 text-violet-400" /> View Loop Chain Map
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -903,7 +967,9 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
       </Card>
 
       {/* Real-time Comments Section */}
-      <CommentsSection loopId={loop.id} />
+      <section id="comments" className="mt-8 scroll-mt-24">
+        <CommentsSection loopId={loop.id} />
+      </section>
 
       {/* Branch Loop Dialog */}
       <CreateBranchDialog
@@ -922,7 +988,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
       {/* Co-Loop Contributors Roster Dialog */}
       {loop.isCoLoop && (
         <Dialog open={rosterOpen} onOpenChange={setRosterOpen}>
-          <DialogContent className="border-border/60 bg-card text-foreground sm:max-w-md rounded-2xl p-5">
+          <DialogContent className="rounded-3xl border-border/60 bg-card p-5 text-foreground sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-base font-bold">
                 <Zap className="h-5 w-5 text-cyan-400" />
@@ -930,25 +996,26 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-3 py-2">
-              <div className="flex items-center justify-between rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3">
+              <div className="flex items-center justify-between rounded-2xl border border-cyan-500/25 bg-cyan-500/[0.08] p-3">
                 <div className="flex items-center gap-3">
-                  <VideoAvatar
-                    src={loop.author.avatar}
-                    videoSrc={loop.author.videoAvatarUrl}
+                  <AvatarWithFrame
+                    avatarUrl={loop.author.avatar}
+                    videoAvatarUrl={loop.author.videoAvatarUrl}
+                    frameId={loop.author.equippedFrameId}
+                    seed={loop.author.username}
                     alt={loop.author.displayName}
-                    fallback={loop.author.displayName.charAt(0) || "A"}
-                    size="md"
-                    className="ring-2 ring-cyan-500"
+                    size={40}
+                    className="rounded-full ring-2 ring-cyan-400/60"
                   />
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <p className="font-bold text-xs sm:text-sm">{loop.author.displayName}</p>
-                      <Badge className="bg-cyan-500 text-[9px] font-bold px-1.5 py-0 text-black">CREATOR</Badge>
+                      <p className="text-xs font-bold sm:text-sm">{loop.author.displayName}</p>
+                      <Badge className="bg-cyan-500 px-1.5 py-0 text-[9px] font-bold text-black">CREATOR</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">@{loop.author.username}</p>
                   </div>
                 </div>
-                <Button asChild size="sm" variant="outline" className="rounded-xl text-xs h-8">
+                <Button asChild size="sm" variant="outline" className="h-8 rounded-xl text-xs">
                   <Link href={`/profile/${loop.author.username}`}>Profile</Link>
                 </Button>
               </div>
@@ -956,7 +1023,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
               {loop.coAuthors.map((ca, idx) => (
                 <div
                   key={ca.id || idx}
-                  className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 p-3"
+                  className="flex items-center justify-between rounded-2xl border border-border/60 bg-muted/40 p-3"
                 >
                   <div className="flex items-center gap-3">
                     <VideoAvatar
@@ -965,19 +1032,19 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                       alt={ca.display_name || ca.username}
                       fallback={(ca.display_name || ca.username)?.charAt(0) || "C"}
                       size="md"
-                      className="ring-2 ring-purple-500"
+                      className="ring-2 ring-violet-500/60"
                     />
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <p className="font-bold text-xs sm:text-sm">{ca.display_name || ca.username}</p>
-                        <Badge variant="secondary" className="text-[9px] font-bold px-1.5 py-0">
+                        <p className="text-xs font-bold sm:text-sm">{ca.display_name || ca.username}</p>
+                        <Badge variant="secondary" className="px-1.5 py-0 text-[9px] font-bold">
                           {ca.role || "CO-AUTHOR"}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">@{ca.username}</p>
                     </div>
                   </div>
-                  <Button asChild size="sm" variant="outline" className="rounded-xl text-xs h-8">
+                  <Button asChild size="sm" variant="outline" className="h-8 rounded-xl text-xs">
                     <Link href={`/profile/${ca.username}`}>Profile</Link>
                   </Button>
                 </div>

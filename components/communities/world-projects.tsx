@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { formatNumber } from "@/lib/community-engine"
-import { Plus, FolderOpen, Users, CheckCircle2, Circle, Loader2, Trash2, Lock } from "lucide-react"
+import { Plus, FolderOpen, Users, CheckCircle2, Circle, Loader2, Trash2, Lock, CalendarDays, Flag } from "lucide-react"
 import { DeviceMediaPicker, type PickedMedia } from "./device-media-picker"
 
 interface Project {
@@ -60,6 +60,8 @@ export function WorldProjects({
   const [flashId, setFlashId] = useState<number | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [newTask, setNewTask] = useState("")
+  const [newTaskPriority, setNewTaskPriority] = useState("medium")
+  const [newTaskDue, setNewTaskDue] = useState("")
 
   // Deep-link focus from What's Happening / Community Loop
   useEffect(() => {
@@ -159,7 +161,11 @@ export function WorldProjects({
     const res = await fetch(`/api/communities/${communityId}/projects/${active.id}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newTask.trim() }),
+      body: JSON.stringify({
+        title: newTask.trim(),
+        priority: newTaskPriority,
+        due_date: newTaskDue ? new Date(newTaskDue).toISOString() : null,
+      }),
     })
     const data = await res.json()
     if (!res.ok) {
@@ -167,6 +173,8 @@ export function WorldProjects({
       return
     }
     setNewTask("")
+    setNewTaskPriority("medium")
+    setNewTaskDue("")
     openProject(active)
   }
 
@@ -365,11 +373,37 @@ export function WorldProjects({
                   </span>
                 </div>
                 {(detail.is_contributor || isModerator) && (
-                  <div className="flex gap-2 mb-3">
-                    <Input value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder="Add a task…" className="rounded-xl h-9 text-sm" onKeyDown={(e) => e.key === "Enter" && addTask()} />
-                    <Button size="sm" className="rounded-full h-9" onClick={addTask} disabled={!newTask.trim()}>
-                      <Plus className="h-3.5 w-3.5" />
-                    </Button>
+                  <div className="mb-3 space-y-2">
+                    <div className="flex gap-2">
+                      <Input value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder="Add a task…" className="rounded-xl h-9 text-sm flex-1" onKeyDown={(e) => e.key === "Enter" && addTask()} />
+                      <Button size="sm" className="rounded-full h-9" onClick={addTask} disabled={!newTask.trim()}>
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <Flag className="h-3.5 w-3.5 text-muted-foreground" />
+                        <select
+                          value={newTaskPriority}
+                          onChange={(e) => setNewTaskPriority(e.target.value)}
+                          className="h-8 rounded-lg border border-input bg-background px-2 text-[11px]"
+                        >
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                          <option value="urgent">Urgent</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                        <input
+                          type="date"
+                          value={newTaskDue}
+                          onChange={(e) => setNewTaskDue(e.target.value)}
+                          className="h-8 rounded-lg border border-input bg-background px-2 text-[11px]"
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
                 {(detail.project?.tasks || []).length === 0 ? (
@@ -388,6 +422,31 @@ export function WorldProjects({
                           </button>
                         )}
                         <span className={`text-xs flex-1 ${t.status === "done" ? "line-through text-muted-foreground" : ""}`}>{t.title}</span>
+                        {t.priority && t.priority !== "medium" && (
+                          <span
+                            className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+                              t.priority === "urgent"
+                                ? "bg-red-500/15 text-red-500"
+                                : t.priority === "high"
+                                ? "bg-amber-500/15 text-amber-600"
+                                : "bg-slate-500/15 text-slate-400"
+                            }`}
+                          >
+                            {t.priority}
+                          </span>
+                        )}
+                        {t.due_date && (
+                          <span
+                            className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${
+                              t.status !== "done" && new Date(t.due_date).getTime() < Date.now()
+                                ? "bg-red-500/15 text-red-500"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            <CalendarDays className="h-2.5 w-2.5" />
+                            {new Date(t.due_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                          </span>
+                        )}
                         {t.assignee && (
                           <Avatar className="h-5 w-5">
                             <AvatarImage src={t.assignee.avatar_url || ""} alt="" />

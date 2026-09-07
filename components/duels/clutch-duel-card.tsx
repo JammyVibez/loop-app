@@ -75,7 +75,7 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
       return
     }
     if (loopId) {
-      fetch(`/api/duels?loop_id=${loopId}`)
+      fetch(`/api/duels?loop_id=${loopId}&status=all`)
         .then((res) => res.json())
         .then((data) => {
           if (data.duels && data.duels[0]) setDuel(data.duels[0])

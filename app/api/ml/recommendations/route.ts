@@ -113,10 +113,12 @@ export async function GET(req: NextRequest) {
 
     // Attach poll / duel / clutch-duel payloads (they live in side tables) so
     // the For You tab renders their interactive widgets instead of plain text.
-    await enrichLoopsWithPollsAndDuels(createServerClient(), loops)
+    // enrichLoopsWithPollsAndDuels returns a NEW array — using the return
+    // value is required or the duel/poll payloads never reach the client.
+    const enrichedLoops = await enrichLoopsWithPollsAndDuels(createServerClient(), loops)
 
     // 3. Compute Database ML Recommendation Score
-    const scoredLoops = loops.map((loop) => {
+    const scoredLoops = enrichedLoops.map((loop) => {
       const baseEngagement = smartEngagementScore(loop) * recencyWeight
       const author = Array.isArray(loop.author) ? loop.author[0] : loop.author
 
@@ -181,7 +183,7 @@ export async function GET(req: NextRequest) {
       success: true,
       loops: scoredLoops.slice(0, limit),
       ml_metadata: {
-        total_candidates: loops.length,
+        total_candidates: enrichedLoops.length,
         user_top_interests: Array.from(userHashtagCounts.entries())
           .sort((a, b) => b[1] - a[1])
           .slice(0, 5)

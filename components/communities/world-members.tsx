@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatNumber, timeAgo } from "@/lib/community-engine"
 import { MemberReputation } from "./member-reputation"
-import { Users, Search, BadgeCheck, Loader2, Shield, Crown, Star, Award, Handshake, Brain, Palette, Flame } from "lucide-react"
+import { Users, Search, BadgeCheck, Loader2, Shield, Crown, Star, Award, Handshake, Brain, Palette, Flame, UserPlus, Check, X } from "lucide-react"
 
 const ROLE_BADGE: Record<string, { label: string; className: string; icon: typeof Shield }> = {
   owner: { label: "Founder", className: "bg-amber-500/10 text-amber-600 border-amber-500/30", icon: Crown },
@@ -37,6 +37,7 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
   const [error, setError] = useState("")
   const [activeMember, setActiveMember] = useState<any>(null)
   const [recognizing, setRecognizing] = useState(false)
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   const isAdmin = viewerRole === "owner" || viewerRole === "admin"
   const isMod = isAdmin || viewerRole === "moderator"
@@ -77,6 +78,47 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
     }
     load()
   }
+
+  const approveJoin = async (member: any) => {
+    setBusyId(member.user_id)
+    setError("")
+    try {
+      const res = await fetch(`/api/communities/${communityId}/members`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: member.user_id, status: "active" }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to approve")
+      setMembers((prev) => prev.filter((m) => m.user_id !== member.user_id))
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const rejectJoin = async (member: any) => {
+    setBusyId(member.user_id)
+    setError("")
+    try {
+      const res = await fetch(`/api/communities/${communityId}/members`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: member.user_id, status: "rejected" }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to reject")
+      setMembers((prev) => prev.filter((m) => m.user_id !== member.user_id))
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const pendingRequests = members.filter((m) => m.status === "pending")
+  const activeMembers = members.filter((m) => m.status !== "pending")
 
   const recognize = async (kind: string) => {
     if (!activeMember) return
@@ -127,19 +169,66 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
+      {/* Join requests — moderators approve/reject pending members */}
+      {isMod && pendingRequests.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.04] p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <UserPlus className="h-4 w-4 text-amber-600" />
+            <h3 className="text-sm font-bold">Join requests</h3>
+            <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[9px]">{pendingRequests.length} pending</Badge>
+          </div>
+          <div className="space-y-2">
+            {pendingRequests.map((m) => (
+              <div key={m.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+                <Avatar className="h-9 w-9">
+                  <AvatarImage src={m.user?.avatar_url || ""} alt="" />
+                  <AvatarFallback>{(m.user?.display_name || m.user?.username || "U").slice(0, 1).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate">{m.user?.display_name || m.user?.username}</p>
+                  <p className="text-[10px] text-muted-foreground">@{m.user?.username} · requested {m.joined_at ? timeAgo(m.joined_at) : "recently"}</p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    size="sm"
+                    className="rounded-full h-8 text-[11px] bg-emerald-600 hover:bg-emerald-500"
+                    onClick={() => approveJoin(m)}
+                    disabled={busyId === m.user_id}
+                  >
+                    {busyId === m.user_id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full h-8 text-[11px] text-red-500 border-red-500/30 hover:bg-red-500/10"
+                    onClick={() => rejectJoin(m)}
+                    disabled={busyId === m.user_id || !isAdmin}
+                    title={!isAdmin ? "Only admins can reject requests" : "Reject request"}
+                  >
+                    {busyId === m.user_id ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3 mr-1" />}
+                    Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="h-14 rounded-xl border border-border bg-card animate-pulse" />
           ))}
         </div>
-      ) : members.length === 0 ? (
+      ) : activeMembers.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          No members found.
+          {pendingRequests.length > 0 ? "No approved members yet." : "No members found."}
         </div>
       ) : (
         <div className="space-y-2">
-          {members.map((m) => {
+          {activeMembers.map((m) => {
             const roleBadge = ROLE_BADGE[m.role] || ROLE_BADGE.member
             const RoleIcon = roleBadge.icon
             return (

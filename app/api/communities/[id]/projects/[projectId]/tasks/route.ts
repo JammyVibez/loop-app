@@ -46,8 +46,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (action === "update") {
       const { task_id, ...updates } = body
       const allowed: Record<string, any> = {}
-      for (const key of ["title", "description", "assigned_to", "status", "sort_order"]) {
+      for (const key of ["title", "description", "assigned_to", "status", "sort_order", "priority", "due_date"]) {
         if (updates[key] !== undefined) allowed[key] = updates[key]
+      }
+      // Validate priority if provided (server-side, never trust the client)
+      if (allowed.priority !== undefined) {
+        const validPriorities = ["low", "medium", "high", "urgent"]
+        allowed.priority = validPriorities.includes(allowed.priority) ? allowed.priority : "medium"
+      }
+      if (allowed.due_date !== undefined) {
+        allowed.due_date = allowed.due_date ? new Date(allowed.due_date).toISOString() : null
       }
       if (allowed.status === "done") allowed.completed_at = new Date().toISOString()
       if (allowed.status && allowed.status !== "done") allowed.completed_at = null
@@ -77,6 +85,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Default: create
     if (!title || !title.trim()) return NextResponse.json({ error: "Task needs a title" }, { status: 400 })
     const { count } = await sb.from("community_project_tasks").select("id", { count: "exact", head: true }).eq("project_id", projectId)
+    const validPriorities = ["low", "medium", "high", "urgent"]
+    const priority = validPriorities.includes(body.priority) ? body.priority : "medium"
+    const due_date = body.due_date ? new Date(body.due_date).toISOString() : null
     const { data: task, error } = await sb
       .from("community_project_tasks")
       .insert({
@@ -85,6 +96,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         description: description.slice(0, 1000),
         assigned_to: assigned_to || null,
         status: status || "todo",
+        priority,
+        due_date,
         created_by: user.id,
         sort_order: count || 0,
       })

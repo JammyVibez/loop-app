@@ -34,6 +34,7 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
+  X,
 } from "lucide-react"
 import { isVideoUrl } from "@/components/communities/device-media-picker"
 
@@ -91,7 +92,10 @@ export function CommunityPostCard({
   const [reactions, setReactions] = useState<Array<{type: string; count: number; reacted: boolean}>>([])
   const [mediaIndex, setMediaIndex] = useState(0)
   const [extraComments, setExtraComments] = useState(0)
+  const [viewerOpen, setViewerOpen] = useState(false)
+  const [viewerIndex, setViewerIndex] = useState(0)
   const touchStartX = useRef<number | null>(null)
+  const viewerTouchStartX = useRef<number | null>(null)
 
   const author = post.author
   const postType = (post.post_type || "discussion").toLowerCase()
@@ -253,7 +257,11 @@ export function CommunityPostCard({
           return (
             <div className="mt-3">
               <div
-                className={cn("relative aspect-video overflow-hidden rounded-xl bg-muted select-none", mediaUrls.length > 1 && "cursor-grab")}
+                className={cn("group relative aspect-video overflow-hidden rounded-xl bg-muted select-none", mediaUrls.length > 1 && "cursor-grab")}
+                onClick={() => {
+                  setViewerIndex(idx)
+                  setViewerOpen(true)
+                }}
                 onTouchStart={(e) => {
                   touchStartX.current = e.touches[0]?.clientX ?? null
                 }}
@@ -264,6 +272,9 @@ export function CommunityPostCard({
                   if (Math.abs(dx) > 48) step(dx < 0 ? 1 : -1)
                 }}
               >
+                <span className="absolute right-2 top-2 z-10 rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-bold text-white opacity-0 backdrop-blur transition group-hover:opacity-100">
+                  View full screen
+                </span>
                 {isVideo ? (
                   <video src={activeUrl} controls playsInline className="h-full w-full bg-black object-contain" />
                 ) : (
@@ -370,6 +381,119 @@ export function CommunityPostCard({
           postId={post.id}
           communityId={communityId}
         />
+
+        {/* Full-screen media viewer (lightbox) */}
+        {viewerOpen && mediaUrls.length > 0 && (() => {
+          const vIdx = Math.min(viewerIndex, mediaUrls.length - 1)
+          const vUrl = mediaUrls[vIdx]
+          const vIsVideo = isVideoUrl(vUrl)
+          const vStep = (dir: 1 | -1) => {
+            setViewerIndex((prev) => (prev + dir + mediaUrls.length) % mediaUrls.length)
+          }
+          return (
+            <div
+              className="fixed inset-0 z-[120] flex flex-col bg-black/95 backdrop-blur-sm"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Media viewer"
+              onClick={() => setViewerOpen(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setViewerOpen(false)
+                if (e.key === "ArrowLeft") vStep(-1)
+                if (e.key === "ArrowRight") vStep(1)
+              }}
+              tabIndex={-1}
+              onTouchStart={(e) => {
+                viewerTouchStartX.current = e.touches[0]?.clientX ?? null
+              }}
+              onTouchEnd={(e) => {
+                if (viewerTouchStartX.current === null) return
+                const dx = (e.changedTouches[0]?.clientX ?? viewerTouchStartX.current) - viewerTouchStartX.current
+                viewerTouchStartX.current = null
+                if (Math.abs(dx) > 48) vStep(dx < 0 ? 1 : -1)
+              }}
+            >
+              {/* Top bar */}
+              <div className="flex items-center justify-between p-4 text-white" onClick={(e) => e.stopPropagation()}>
+                <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-bold backdrop-blur">
+                  {vIdx + 1} / {mediaUrls.length}
+                </span>
+                <button
+                  onClick={() => setViewerOpen(false)}
+                  aria-label="Close viewer"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 backdrop-blur transition hover:bg-white/20"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Media */}
+              <div
+                className="relative flex min-h-0 flex-1 items-center justify-center p-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {vIsVideo ? (
+                  <video
+                    src={vUrl}
+                    controls
+                    autoPlay
+                    playsInline
+                    className="max-h-full max-w-full rounded-lg object-contain"
+                  />
+                ) : (
+                  <Image src={vUrl} alt="" fill className="object-contain" unoptimized />
+                )}
+
+                {mediaUrls.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => vStep(-1)}
+                      aria-label="Previous media"
+                      className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur transition hover:bg-white/20"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => vStep(1)}
+                      aria-label="Next media"
+                      className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur transition hover:bg-white/20"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Thumbnails */}
+              {mediaUrls.length > 1 && (
+                <div
+                  className="flex items-center justify-center gap-2 p-4"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {mediaUrls.map((u, i) => (
+                    <button
+                      key={u + i}
+                      onClick={() => setViewerIndex(i)}
+                      aria-label={`Go to media ${i + 1}`}
+                      className={cn(
+                        "relative h-12 w-12 overflow-hidden rounded-lg border-2 transition",
+                        i === vIdx ? "border-indigo-500" : "border-white/10 opacity-50 hover:opacity-100"
+                      )}
+                    >
+                      {isVideoUrl(u) ? (
+                        <span className="flex h-full w-full items-center justify-center bg-slate-800 text-[9px] font-bold text-white">
+                          VID
+                        </span>
+                      ) : (
+                        <Image src={u} alt="" fill className="object-cover" unoptimized />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {/* Comments */}
         {showComments && (

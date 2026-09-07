@@ -12,7 +12,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .select(`
         *,
         entries:community_challenge_entries(count),
-        participants:community_challenge_entries(user_id)
+        participants:community_challenge_entries(user_id),
+        creator:profiles!created_by(id, username, display_name, avatar_url, is_verified)
       `)
       .eq("circle_id", id)
       .order("created_at", { ascending: false })
