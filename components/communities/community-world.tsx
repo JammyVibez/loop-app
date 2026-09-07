@@ -21,6 +21,7 @@ import { WorldSettings } from "@/components/communities/world-settings"
 import { WorldLoop } from "@/components/communities/world-loop"
 import { WelcomeOnboarding } from "@/components/communities/welcome-onboarding"
 import { CommunityBookmarks } from "@/components/communities/community-bookmarks"
+import { WorldBots } from "@/components/communities/world-bots"
 import { iconForSpace } from "@/components/communities/world-spaces"
 import { AdSlot } from "@/components/ads/ad-slot"
 import {
@@ -51,6 +52,7 @@ import {
   ExternalLink,
   X,
   Bookmark,
+  Bot,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -205,6 +207,7 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
       { id: "challenges", label: "Challenges", icon: Trophy },
       { id: "memory", label: "Memory", icon: History },
       { id: "members", label: "Members", icon: UsersRound },
+      { id: "bots", label: "Bots", icon: Bot },
     ]
     if (bundle.is_member) items.push({ id: "bookmarks", label: "Saved", icon: Bookmark })
     if (bundle.is_moderator) items.push({ id: "moderation", label: "Moderation", icon: ShieldCheck })
@@ -468,6 +471,7 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
           {tab === "members" && (
             <WorldMembers communityId={communityId} initial={bundle.recent_members || []} viewerRole={bundle.role} viewerId={bundle.viewer} />
           )}
+          {tab === "bots" && <WorldBots communityId={communityId} isMember={bundle.is_member} />}
           {tab === "bookmarks" && (
             <CommunityBookmarks communityId={communityId} />
           )}

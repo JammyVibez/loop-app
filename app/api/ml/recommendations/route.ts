@@ -66,20 +66,47 @@ export async function GET(req: NextRequest) {
     // 2. Query candidate loops from Supabase database.
     // Branches (parent_loop_id != null) are included with their parent loop
     // joined, so the For You tab surfaces branched conversations too.
-    const { data: candidateLoops, error } = await supabase
-      .from("loops")
-      .select(`
+    const LOOP_SELECT = `
         *,
         author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, is_organization, organization_badge_url, organization_name, level, active_cosmetics, cosmetics, badge_id),
         parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url, is_verified)),
         loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
-      `)
+      `
+    let { data: candidateLoops, error } = await supabase
+      .from("loops")
+      .select(LOOP_SELECT)
       .or("visibility.eq.public,visibility.is.null")
       .order("created_at", { ascending: false })
       .limit(100)
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    }
+
+    // 2b. Live duels / clutch-duels ALWAYS belong in For You. Pull them by
+    // their loop rows explicitly so they surface even when they fall outside
+    // the 100-row recency window above.
+    try {
+      const { data: activeDuels } = await supabase
+        .from("loop_duels")
+        .select("loop_id")
+        .in("status", ["active", "open"])
+        .limit(50)
+      const duelLoopIds = [...new Set((activeDuels || []).map((d: any) => d.loop_id).filter(Boolean))]
+      const existingIds = new Set((candidateLoops || []).map((l: any) => l.id))
+      const missingIds = duelLoopIds.filter((id) => !existingIds.has(id))
+      if (missingIds.length > 0) {
+        const { data: duelRows } = await supabase
+          .from("loops")
+          .select(LOOP_SELECT)
+          .in("id", missingIds)
+        if (duelRows && duelRows.length > 0) {
+          candidateLoops = [...duelRows, ...(candidateLoops || [])]
+        }
+      }
+    } catch (err) {
+      // Duels are a nice-to-have — never break For You over them.
+      console.error("duel merge error:", err)
     }
 
     const loops = candidateLoops || []

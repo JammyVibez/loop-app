@@ -509,10 +509,11 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               className="border-4 border-background"
             />
             {profileFrame && profileFrame.image_url && (
+              /* Mask the equipped frame to the circular avatar — frames render as a ring around the PFP, never as a box. */
               <img
                 src={profileFrame.image_url.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(profileFrame.image_url)}` : profileFrame.image_url}
                 alt=""
-                className="absolute inset-0 pointer-events-none object-contain"
+                className="absolute inset-0 pointer-events-none rounded-full object-contain"
                 style={{ width: "100%", height: "100%" }}
                 draggable={false}
               />

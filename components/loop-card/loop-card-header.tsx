@@ -99,14 +99,8 @@ export function LoopCardHeader({
                 {parentAuthor?.is_verified && <BadgeCheck className="h-3 w-3 shrink-0 text-blue-500" />}
               </span>
             ) : (
-              <span className="font-semibold text-foreground">a branched post</span>
+              <span className="font-semibold text-foreground">the original post</span>
             )}
-            {loop.parent_loop?.content ? (
-              <span className="text-muted-foreground">
-                : &ldquo;{loop.parent_loop.content.slice(0, 64)}
-                {loop.parent_loop.content.length > 64 ? "..." : ""}&rdquo;
-              </span>
-            ) : null}
           </span>
           <span className="ml-auto shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 font-semibold text-emerald-500">
             View original

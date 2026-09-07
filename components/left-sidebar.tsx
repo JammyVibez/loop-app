@@ -30,6 +30,7 @@ import {
   UserPlus,
   Lock,
   Building2,
+  Bot,
 } from "lucide-react"
 import { UserBadges } from "@/components/user-badge"
 
@@ -74,6 +75,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
     { href: "/streams", label: "Live Streams", icon: Radio, badge: "LIVE" },
     { href: "/events", label: "Events Stage", icon: Calendar },
     { href: "/communities", label: "Communities", icon: Users },
+    { href: "/marketplace/bots", label: "Bot Marketplace", icon: Bot },
     { href: "/co-loop/studio", label: "Co-Loop Studio", icon: Zap, badge: "NEW" },
     { href: "/earnings", label: "Creator Studio", icon: DollarSign },
     { href: "/wallet", label: "Wallet & Gifts", icon: Coins },

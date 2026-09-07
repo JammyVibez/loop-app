@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
     const userId = user.id
     const body = await req.json()
-    const { prompt, opponentUsername, stakeCoins = 50, durationHours = 24, creatorContent = "", sideA_label = null, sideB_label = null } = body
+    const { prompt, opponentUsername, stakeCoins = 50, durationHours = 24, creatorContent = "", creatorMediaUrl = null, sideA_label = null, sideB_label = null } = body
 
     if (!prompt || !creatorContent) {
       return NextResponse.json({ error: "Prompt and your argument content are required" }, { status: 400 })
@@ -118,13 +118,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: duelErr?.message || "Failed to create duel" }, { status: 500 })
     }
 
-    // 3. Insert Side A entry for creator
+    // 3. Insert Side A entry for creator (media_url supports image/video duels)
     await supabase.from("loop_duel_entries").insert({
       duel_id: duel.id,
       user_id: userId,
       side: "A",
       title: "Challenger Take",
       content: creatorContent,
+      media_url: creatorMediaUrl || null,
       votes_count: 0,
     })
 

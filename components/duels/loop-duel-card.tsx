@@ -143,6 +143,18 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
   const entryA = duel.entries?.find((e) => e.side === "A")
   const entryB = duel.entries?.find((e) => e.side === "B")
 
+  /** Image/video duel entry media — renders the attached proof clip/take. */
+  const EntryMedia = ({ url }: { url: string }) => {
+    const isVideo = /\.(mp4|webm|mov|m4v|ogv|m3u8)(\?|#|$)/i.test(url) || /video\//.test(url)
+    if (isVideo) {
+      return (
+        <video src={url} controls playsInline preload="metadata" className="mt-2 aspect-video w-full rounded-xl bg-black object-contain" />
+      )
+    }
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={url} alt="Duel entry media" className="mt-2 aspect-video w-full rounded-xl bg-muted object-cover" />
+  }
+
   const votesA = entryA?.votes_count || 0
   const votesB = entryB?.votes_count || 0
   const totalVotes = votesA + votesB
@@ -301,6 +313,7 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
                 </div>
               </div>
               <p className="text-sm text-slate-200 whitespace-pre-wrap">{entryA?.content || "No take posted yet."}</p>
+              {entryA?.media_url && <EntryMedia url={entryA.media_url} />}
             </div>
 
             <Button
@@ -340,6 +353,7 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
                     </div>
                   </div>
                   <p className="text-sm text-slate-200 whitespace-pre-wrap">{entryB.content}</p>
+                  {entryB.media_url && <EntryMedia url={entryB.media_url} />}
                 </div>
 
                 <Button

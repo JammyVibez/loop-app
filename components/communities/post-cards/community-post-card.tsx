@@ -4,10 +4,11 @@ import { useState, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { timeAgo } from "@/lib/community-engine"
+import { RichContent } from "@/components/content/rich-content"
 import { PostActions, type CommunityPost } from "./post-actions"
 import { PollCard } from "./poll-card"
 import { CommentThread } from "./comment-thread"
@@ -89,6 +90,7 @@ export function CommunityPostCard({
   const [showReport, setShowReport] = useState(false)
   const [reactions, setReactions] = useState<Array<{type: string; count: number; reacted: boolean}>>([])
   const [mediaIndex, setMediaIndex] = useState(0)
+  const [extraComments, setExtraComments] = useState(0)
   const touchStartX = useRef<number | null>(null)
 
   const author = post.author
@@ -148,11 +150,25 @@ export function CommunityPostCard({
     return []
   }
   const mediaUrls = (toArray(post.media_urls).length > 0 ? toArray(post.media_urls) : toArray(post.media_url)).filter(Boolean)
-  const hashtags = toArray(post.hashtags).filter(Boolean)
+  // Hashtags must ALWAYS be plain strings — rows written by older flows stored them as
+  // objects like { text: "x" }, and rendering an object as a React child is what caused
+  // the "object with keys {text}" feed crash.
+  const hashtags = toArray(post.hashtags)
+    .map((t: any) =>
+      typeof t === "object" && t !== null
+        ? String(t.text ?? t.value ?? t.name ?? "")
+        : String(t ?? ""),
+    )
+    .filter(Boolean)
   const pollOptions = post.poll ? toArray((post.poll as any).options).map((o: any, i: number) =>
     typeof o === "object" && o !== null
-      ? { id: String(o.id ?? i), text: String(o.text ?? o.label ?? ""), votes: Number(o.votes || 0) }
-      : { id: String(i), text: String(o), votes: 0 },
+      ? {
+          id: String(o.id ?? i),
+          text: String(o.text ?? o.label ?? ""),
+          votes: Number(o.votes || 0),
+          image_url: o.image_url ? String(o.image_url) : null,
+        }
+      : { id: String(i), text: String(o), votes: 0, image_url: null },
   ) : []
 
   return (
@@ -176,13 +192,14 @@ export function CommunityPostCard({
       <div className="p-4">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <Link href={`/profile/${author?.username}`}>
-            <Avatar className="h-9 w-9">
-              <AvatarImage src={author?.avatar_url || ""} alt="" />
-              <AvatarFallback className="text-xs font-bold">
-                {(author?.display_name || author?.username || "U").slice(0, 1).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+          <Link href={`/profile/${author?.username}`} className="shrink-0">
+            <AvatarWithFrame
+              avatarUrl={author?.avatar_url}
+              videoAvatarUrl={author?.video_avatar_url || null}
+              frameId={author?.equipped_frame_id ?? null}
+              size={36}
+              alt={author?.display_name || author?.username || ""}
+            />
           </Link>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -219,9 +236,10 @@ export function CommunityPostCard({
           )}
         </div>
 
-        {/* Content */}
+        {/* Content — rich rendering: #hashtags, @mentions, stickers/GIFs and
+            auto link-preview cards, matching the main loop feed (#20) */}
         {post.content && (
-          <p className="mt-3 text-sm whitespace-pre-wrap leading-relaxed">{post.content}</p>
+          <RichContent text={post.content} showPreviewCard className="text-sm leading-relaxed" />
         )}
 
         {/* Media — carousel with arrows (swipe on touch) so multi-media posts are browsable */}
@@ -342,6 +360,7 @@ export function CommunityPostCard({
           onReport={() => setShowReport(true)}
           onEdit={onEdit}
           liking={liking != null && liking === post.id ? true : undefined}
+          commentCount={(post.comment_count || 0) + extraComments}
         />
 
         {/* Report Modal */}
@@ -361,6 +380,7 @@ export function CommunityPostCard({
             currentUserId={currentUserId}
             isModerator={isModerator}
             initialCommentCount={post.comment_count}
+            onCommented={() => setExtraComments((c) => c + 1)}
           />
         )}
       </div>

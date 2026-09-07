@@ -4,6 +4,7 @@ import { Header } from "@/components/header"
 import { createClient } from "@/lib/supabase"
 import { getAbsoluteAppUrl } from "@/lib/app-url"
 import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
+import { profileStatus } from "@/lib/user-status"
 
 export const dynamic = "force-dynamic"
 
@@ -29,9 +30,20 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
   try {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("display_name, bio, avatar_url, is_verified, followers_count")
+      .select("display_name, bio, avatar_url, is_verified, followers_count, is_deleted, deletion_executed_at, is_banned")
       .eq("username", username)
       .single()
+
+    // Deleted / suspended accounts are 200-by-design (the client renders a
+    // masked profile) — tell crawlers not to index them instead of soft-404s.
+    const status = profileStatus(profile as any)
+    if (status !== "active") {
+      return {
+        title: status === "deleted" ? "Account deleted — loopapp.me" : "Account suspended — loopapp.me",
+        description: "This account is no longer available.",
+        robots: { index: false, follow: false } as const,
+      }
+    }
 
     if (profile) {
       const name = profile.display_name || username

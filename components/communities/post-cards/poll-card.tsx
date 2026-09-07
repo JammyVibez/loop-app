@@ -9,6 +9,7 @@ interface PollOption {
   id: string
   text: string
   votes: number
+  image_url?: string | null
 }
 
 interface PollCardProps {
@@ -77,7 +78,7 @@ export function PollCard({
             }}
             disabled={showResults || !isMember || isExpired}
             className={cn(
-              "w-full relative rounded-xl border p-3 text-left transition-all",
+              "w-full relative overflow-hidden rounded-xl border p-3 text-left transition-all",
               showResults
                 ? "border-border"
                 : isSelected
@@ -91,17 +92,26 @@ export function PollCard({
                 style={{ width: `${pct}%` }}
               />
             )}
-            <div className="relative flex items-center justify-between gap-2">
-              <span className="text-sm font-medium truncate">{opt.text}</span>
-              <div className="flex items-center gap-2 shrink-0">
-                {isSelected && !showResults && (
-                  <Check className="h-3.5 w-3.5 text-primary" />
-                )}
-                {showResults && (
-                  <span className="text-xs font-semibold text-muted-foreground">
-                    {optVotes} ({pct}%)
-                  </span>
-                )}
+            <div className="relative">
+              {/* Image polls: option image above the label */}
+              {opt.image_url && (
+                <div className="relative mb-2 aspect-video w-full overflow-hidden rounded-lg bg-muted">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={opt.image_url} alt={opt.text || "Poll option"} className="h-full w-full object-cover" />
+                </div>
+              )}
+              <div className="relative flex items-center justify-between gap-2">
+                <span className="text-sm font-medium truncate">{opt.text}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {isSelected && !showResults && (
+                    <Check className="h-3.5 w-3.5 text-primary" />
+                  )}
+                  {showResults && (
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {optVotes} ({pct}%)
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </button>

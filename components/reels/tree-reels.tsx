@@ -1352,7 +1352,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
             )}
             {/* Stickers / emoji quick row */}
             <div className="mb-2 flex items-center gap-1 overflow-x-auto scrollbar-none pb-1">
-              <span className="mr-1 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">React</span>
+              <span className="mr-1 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Stickers</span>
               {EMOJI_STICKERS.map((emoji) => (
                 <button
                   key={emoji}

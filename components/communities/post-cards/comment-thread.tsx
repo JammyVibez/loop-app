@@ -45,6 +45,7 @@ interface CommentThreadProps {
   currentUserId?: string
   isModerator?: boolean
   initialCommentCount?: number
+  onCommented?: () => void
 }
 
 export function CommentThread({
@@ -54,6 +55,7 @@ export function CommentThread({
   currentUserId,
   isModerator,
   initialCommentCount,
+  onCommented,
 }: CommentThreadProps) {
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
@@ -114,6 +116,7 @@ export function CommentThread({
         setComments((prev) => [...prev, data.comment])
         setNewComment("")
         setReplyTo(null)
+        onCommented?.()
       }
     } catch (e: any) {
       setError(e.message)

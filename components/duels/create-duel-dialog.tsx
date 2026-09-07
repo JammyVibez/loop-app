@@ -8,6 +8,7 @@ import { Swords, Coins, Clock, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
+import { DeviceMediaPicker, type PickedMedia } from "@/components/communities/device-media-picker"
 
 interface CreateDuelDialogProps {
   open: boolean
@@ -19,6 +20,7 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
   const [prompt, setPrompt] = useState("")
   const [opponent, setOpponent] = useState("")
   const [creatorContent, setCreatorContent] = useState("")
+  const [creatorMedia, setCreatorMedia] = useState<PickedMedia[]>([])
   const [stakeCoins, setStakeCoins] = useState(50)
   const [durationHours, setDurationHours] = useState(24)
   const [durationMinutes, setDurationMinutes] = useState(0)
@@ -48,6 +50,7 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
           stakeCoins,
           durationHours: durationHours + durationMinutes / 60,
           creatorContent,
+          creatorMediaUrl: creatorMedia[0]?.url || null,
         }),
       })
 
@@ -58,6 +61,7 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
         setPrompt("")
         setOpponent("")
         setCreatorContent("")
+        setCreatorMedia([])
         if (onDuelCreated) onDuelCreated()
         else window.location.reload()
       } else {
@@ -115,6 +119,13 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
               rows={4}
               className="bg-background dark:bg-slate-900 border-input text-foreground dark:text-white placeholder:text-muted-foreground rounded-xl min-h-[100px]"
             />
+            {/* Image/video duel: attach media to Side A */}
+            <div className="mt-2">
+              <label className="text-xs font-semibold text-foreground dark:text-slate-300">Attach media to your take (optional)</label>
+              <div className="mt-1">
+                <DeviceMediaPicker items={creatorMedia} onChange={setCreatorMedia} maxItems={1} compact folder="duel-media" />
+              </div>
+            </div>
           </div>
 
           {/* Coins Stake & Duration */}

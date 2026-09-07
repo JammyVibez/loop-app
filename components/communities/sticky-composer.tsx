@@ -39,7 +39,8 @@ export function StickyComposer({
   const [spaceId, setSpaceId] = useState<string>("")
   const [posting, setPosting] = useState(false)
   const [showPoll, setShowPoll] = useState(false)
-  const [pollOptions, setPollOptions] = useState<string[]>(["", ""])
+  // Image polls: each option is { text, image_url? } — images upload from device.
+  const [pollOptions, setPollOptions] = useState<Array<{ text: string; image_url?: string }>>([{ text: "" }, { text: "" }])
   const [mediaItems, setMediaItems] = useState<PickedMedia[]>([])
   const [mediaPanelOpen, setMediaPanelOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -78,11 +79,11 @@ export function StickyComposer({
       }
 
       if (showPoll) {
-        const validOptions = pollOptions.filter((o) => o.trim())
+        const validOptions = pollOptions.filter((o) => o.text.trim())
         if (validOptions.length >= 2) {
           payload.poll = {
             question: content.trim(),
-            options: validOptions.map((text) => ({ text })),
+            options: validOptions.map((o) => ({ text: o.text.trim(), image_url: o.image_url || null })),
           }
         }
         delete payload.media_urls
@@ -100,7 +101,7 @@ export function StickyComposer({
         setContent("")
         setSpaceId("")
         setShowPoll(false)
-        setPollOptions(["", ""])
+        setPollOptions([{ text: "" }, { text: "" }])
         setMediaItems([])
         setMediaPanelOpen(false)
         setExpanded(false)
@@ -112,7 +113,7 @@ export function StickyComposer({
 
   const addPollOption = () => {
     if (pollOptions.length < 6) {
-      setPollOptions([...pollOptions, ""])
+      setPollOptions([...pollOptions, { text: "" }])
     }
   }
 
@@ -220,28 +221,43 @@ export function StickyComposer({
                       </Button>
                     </div>
                     {pollOptions.map((opt, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <span className="text-[10px] text-muted-foreground w-4">{i + 1}.</span>
-                        <input
-                          value={opt}
-                          onChange={(e) => {
+                      <div key={i} className="space-y-1.5 rounded-lg border border-border/70 bg-muted/20 p-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground w-4">{i + 1}.</span>
+                          <input
+                            value={opt.text}
+                            onChange={(e) => {
+                              const next = [...pollOptions]
+                              next[i] = { ...next[i], text: e.target.value }
+                              setPollOptions(next)
+                            }}
+                            placeholder={`Option ${i + 1}`}
+                            className="flex-1 h-8 rounded-lg border border-input bg-background px-2.5 text-xs"
+                          />
+                          {pollOptions.length > 2 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => removePollOption(i)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                        {/* Image polls: attach an image to this option */}
+                        <DeviceMediaPicker
+                          items={opt.image_url ? [{ url: opt.image_url, kind: "image" }] : []}
+                          onChange={(items) => {
                             const next = [...pollOptions]
-                            next[i] = e.target.value
+                            next[i] = { ...next[i], image_url: items[0]?.url || undefined }
                             setPollOptions(next)
                           }}
-                          placeholder={`Option ${i + 1}`}
-                          className="flex-1 h-8 rounded-lg border border-input bg-background px-2.5 text-xs"
+                          maxItems={1}
+                          accept="image/*"
+                          compact
+                          folder="community-poll-media"
                         />
-                        {pollOptions.length > 2 && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => removePollOption(i)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        )}
                       </div>
                     ))}
                     {pollOptions.length < 6 && (

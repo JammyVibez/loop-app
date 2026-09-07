@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
 import { COMMUNITY_CATEGORIES, getCategoryConfig, LAYOUT_PRESETS } from "@/lib/community-categories"
+import { DeviceMediaPicker, type PickedMedia } from "@/components/communities/device-media-picker"
 import {
   ArrowLeft,
   ArrowRight,
@@ -40,6 +41,8 @@ export function CreateCommunityWizard() {
   const [description, setDescription] = useState("")
   const [icon, setIcon] = useState("")
   const [banner, setBanner] = useState("")
+  const [iconItems, setIconItems] = useState<PickedMedia[]>([])
+  const [bannerItems, setBannerItems] = useState<PickedMedia[]>([])
   const [accent, setAccent] = useState("")
   const [tags, setTags] = useState("")
   const [isPrivate, setIsPrivate] = useState(false)
@@ -209,13 +212,35 @@ export function CreateCommunityWizard() {
                 <Textarea id="cdesc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What will members build together here?" className="mt-1.5 rounded-xl min-h-[90px]" maxLength={2000} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label>Icon URL</Label>
-                  <Input value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="https://… (optional)" className="mt-1.5 h-11 rounded-xl" />
+                <div className="space-y-2">
+                  <Label>Community icon</Label>
+                  <DeviceMediaPicker
+                    items={iconItems}
+                    onChange={(items) => {
+                      setIconItems(items)
+                      setIcon(items[0]?.url || "")
+                    }}
+                    maxItems={1}
+                    accept="image/*"
+                    compact
+                    folder="community-assets"
+                  />
+                  <Input value={icon} onChange={(e) => { setIcon(e.target.value); setIconItems([]) }} placeholder="or paste an image URL (optional)" className="mt-1 h-10 rounded-xl text-xs" />
                 </div>
-                <div>
-                  <Label>Banner URL</Label>
-                  <Input value={banner} onChange={(e) => setBanner(e.target.value)} placeholder="https://… (optional)" className="mt-1.5 h-11 rounded-xl" />
+                <div className="space-y-2">
+                  <Label>Banner image</Label>
+                  <DeviceMediaPicker
+                    items={bannerItems}
+                    onChange={(items) => {
+                      setBannerItems(items)
+                      setBanner(items[0]?.url || "")
+                    }}
+                    maxItems={1}
+                    accept="image/*"
+                    compact
+                    folder="community-assets"
+                  />
+                  <Input value={banner} onChange={(e) => { setBanner(e.target.value); setBannerItems([]) }} placeholder="or paste an image URL (optional)" className="mt-1 h-10 rounded-xl text-xs" />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -42,6 +42,7 @@ export interface PostAuthor {
   is_sponsor?: boolean
   is_premium?: boolean
   badge_id?: string | null
+  equipped_frame_id?: string | number | null
 }
 
 export interface PostPoll {
@@ -87,6 +88,7 @@ interface PostActionsProps {
   onReport?: (id: number) => void
   onEdit?: (id: number, content: string) => void
   liking?: boolean
+  commentCount?: number
 }
 
 export function PostActions({
@@ -103,6 +105,7 @@ export function PostActions({
   onReport,
   onEdit,
   liking,
+  commentCount,
 }: PostActionsProps) {
   const isAuthor = currentUserId === post.author?.id
   const canModerate = isModerator || isAuthor
@@ -165,7 +168,7 @@ export function PostActions({
           disabled={!isMember || post.status === "pending"}
         >
           <MessageSquare className="h-3.5 w-3.5 mr-1" />
-          {post.comment_count || 0}
+          {commentCount ?? (post.comment_count || 0)}
         </Button>
       )}
 

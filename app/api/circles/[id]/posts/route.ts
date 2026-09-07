@@ -49,7 +49,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .from("circle_posts")
       .select(`
         *,
-        author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id)
+        author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id, equipped_frame_id)
       `)
       .eq("circle_id", circleId)
       .order(sortBy, { ascending: order === "asc" })
@@ -287,7 +287,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       })
       .select(`
         *,
-        author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id)
+        author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id, equipped_frame_id)
       `)
       .single()
 
@@ -298,11 +298,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     let createdPoll: any = null
     if (poll?.question) {
-      const formattedOptions = poll.options.map((opt: string, idx: number) => ({
-        id: `opt_${idx + 1}`,
-        text: opt,
-        votes: 0,
-      }))
+      // Options arrive as strings (legacy writers) OR objects { text, image_url }
+      // (image polls). Never stringify an object into "[object Object]" — that
+      // was the community poll bug where options rendered as objects.
+      const formattedOptions = (poll.options || []).map((opt: any, idx: number) => {
+        const isObj = typeof opt === "object" && opt !== null
+        return {
+          id: isObj && opt.id ? String(opt.id) : `opt_${idx + 1}`,
+          text: String(isObj ? (opt.text ?? opt.label ?? "") : opt).slice(0, 140),
+          votes: Number(isObj ? opt.votes || 0 : 0),
+          image_url: isObj && opt.image_url ? String(opt.image_url).slice(0, 1000) : null,
+        }
+      }).filter((o: any) => o.text.trim())
       const { data: pollRow } = await supabase
         .from("circle_post_polls")
         .insert({
@@ -426,7 +433,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         .eq("id", postId)
         .select(`
           *,
-          author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id)
+          author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id, equipped_frame_id)
         `)
         .single()
 
@@ -477,7 +484,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       .eq("id", postId)
       .select(`
         *,
-        author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id)
+        author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id, equipped_frame_id)
       `)
       .single()
 
