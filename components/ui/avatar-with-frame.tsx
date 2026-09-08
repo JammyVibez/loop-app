@@ -83,7 +83,14 @@ export function AvatarWithFrame({
           src={frame.image_url.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(frame.image_url)}` : frame.image_url}
           alt=""
           className="absolute inset-0 pointer-events-none rounded-full object-contain"
-          style={{ width: size, height: size, borderRadius: "50%" }}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: "50%",
+            // Guarantee a circle even in webviews that mishandle border-radius
+            // clipping on replaced elements (the historic "square frame" look).
+            clipPath: "circle(50% at 50% 50%)",
+          }}
           draggable={false}
         />
       )}

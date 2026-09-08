@@ -31,8 +31,33 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 )
 
+/**
+ * Normalize poll options into { id, text, votes } primitives.
+ * Legacy writers stored options as strings AND as nested objects like
+ * { text: { text: "x" } } — rendering/editing those raw produced the
+ * "[object Object]" option labels and NaN vote counts.
+ */
+function normalizeOptions(raw: any[] | undefined): PollOption[] {
+  return (Array.isArray(raw) ? raw : []).map((o: any, i: number) => {
+    if (o && typeof o === "object") {
+      const val = o.text ?? o.label ?? o.name ?? ""
+      const text = val && typeof val === "object" ? String(val.text ?? val.value ?? val.label ?? "") : String(val ?? "")
+      return {
+        id: String(o.id ?? `opt_${i + 1}`),
+        text,
+        votes: Number(o.votes || 0) || 0,
+      }
+    }
+    return { id: `opt_${i + 1}`, text: String(o ?? ""), votes: 0 }
+  })
+}
+
+function normalizePoll(p: PollData): PollData {
+  return { ...p, options: normalizeOptions(p?.options as any) }
+}
+
 export function PollCardWidget({ poll: initialPoll, loopId, creatorId }: { poll?: PollData; loopId?: string; creatorId?: string }) {
-  const [poll, setPoll] = useState<PollData | null>(initialPoll || null)
+  const [poll, setPoll] = useState<PollData | null>(initialPoll ? normalizePoll(initialPoll) : null)
   const [userVotedOptionId, setUserVotedOptionId] = useState<string | null>(null)
   const [isVoting, setIsVoting] = useState<boolean>(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -46,14 +71,14 @@ export function PollCardWidget({ poll: initialPoll, loopId, creatorId }: { poll?
 
   useEffect(() => {
     if (initialPoll) {
-      setPoll(initialPoll)
+      setPoll(normalizePoll(initialPoll))
       return
     }
     if (loopId) {
       fetch(`/api/polls?loop_id=${loopId}`)
         .then((res) => res.json())
         .then((data) => {
-          if (data.poll) setPoll(data.poll)
+          if (data.poll) setPoll(normalizePoll(data.poll))
         })
         .catch(() => {})
     }
@@ -96,7 +121,7 @@ export function PollCardWidget({ poll: initialPoll, loopId, creatorId }: { poll?
               if (!prev) return null
               return {
                 ...prev,
-                options: updated.options || prev.options,
+                options: updated.options ? normalizeOptions(updated.options) : prev.options,
                 total_votes: updated.total_votes ?? prev.total_votes,
               }
             })

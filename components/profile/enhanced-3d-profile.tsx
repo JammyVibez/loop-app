@@ -514,7 +514,12 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 src={profileFrame.image_url.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(profileFrame.image_url)}` : profileFrame.image_url}
                 alt=""
                 className="absolute inset-0 pointer-events-none rounded-full object-contain"
-                style={{ width: "100%", height: "100%" }}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  borderRadius: "50%",
+                  clipPath: "circle(50% at 50% 50%)",
+                }}
                 draggable={false}
               />
             )}
