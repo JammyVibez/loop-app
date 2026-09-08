@@ -108,6 +108,17 @@ function containsDangerousInput(url: string): boolean {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // ── 0. Canonical domain: www.loopapp.me → loopapp.me (301) ──────────────
+  // Keeps Google from treating www and apex as duplicate sites; every page
+  // ends up with one canonical URL.
+  const host = (request.headers.get("host") || "").toLowerCase()
+  if (host.startsWith("www.")) {
+    const canonical = new URL(request.url)
+    canonical.host = host.replace(/^www\./, "")
+    return NextResponse.redirect(canonical, 301)
+  }
+
   const ip = getClientIp(request)
   const isApi = pathname.startsWith("/api/")
 

@@ -32,7 +32,10 @@ export async function GET(
           is_verified,
           is_premium,
           active_cosmetics,
-          cosmetics
+          cosmetics,
+          equipped_frame_id,
+          level,
+          badge_id
         )
       `)
       .eq('loop_id', loopId)
@@ -150,7 +153,10 @@ export async function POST(
           is_verified,
           is_premium,
           active_cosmetics,
-          cosmetics
+          cosmetics,
+          equipped_frame_id,
+          level,
+          badge_id
         )
       `)
       .single()

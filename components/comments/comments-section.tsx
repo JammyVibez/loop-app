@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { VideoAvatar } from "@/components/cosmetics/video-avatar"
+import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Heart, MoreHorizontal, Pencil, Reply, Trash2 } from "lucide-react"
@@ -250,13 +250,13 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
       <div key={comment.id} className={`space-y-3 ${isReply ? "ml-4 sm:ml-6 border-l-2 border-cyan-500/20 pl-3 sm:pl-4" : ""}`}>
         <div className="flex gap-3">
           <Link href={`/profile/${comment.author?.username || ""}`} className="shrink-0">
-            <VideoAvatar
-              src={comment.author?.avatar_url}
-              videoSrc={comment.author?.video_avatar_url}
+            <AvatarWithFrame
+              avatarUrl={comment.author?.avatar_url}
+              videoAvatarUrl={comment.author?.video_avatar_url || null}
+              frameId={(comment.author as any)?.equipped_frame_id ?? null}
+              seed={comment.author?.username}
+              size={32}
               alt={comment.author?.display_name || ""}
-              fallback={comment.author?.display_name || "?"}
-              size="sm"
-              cosmetics={comment.author?.active_cosmetics || comment.author?.cosmetics || null}
             />
           </Link>
           <div className="min-w-0 flex-1">

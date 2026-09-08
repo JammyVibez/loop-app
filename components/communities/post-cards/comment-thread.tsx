@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
 import { cn } from "@/lib/utils"
 import { timeAgo } from "@/lib/community-engine"
 import {
@@ -34,7 +34,9 @@ interface Comment {
     username: string
     display_name?: string
     avatar_url?: string | null
+    video_avatar_url?: string | null
     is_verified?: boolean
+    equipped_frame_id?: string | number | null
   }
 }
 
@@ -163,12 +165,15 @@ export function CommentThread({
       <div className={cn("py-2.5", depth > 0 && "ml-8 border-l-2 border-border pl-4")}>
         <div className="flex items-start gap-2.5">
           <Link href={`/profile/${comment.author?.username}`}>
-            <Avatar className="h-7 w-7 shrink-0">
-              <AvatarImage src={comment.author?.avatar_url || ""} />
-              <AvatarFallback className="text-[10px]">
-                {(comment.author?.display_name || comment.author?.username || "?")[0].toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <AvatarWithFrame
+              avatarUrl={comment.author?.avatar_url}
+              videoAvatarUrl={comment.author?.video_avatar_url || null}
+              frameId={comment.author?.equipped_frame_id ?? null}
+              seed={comment.author?.username}
+              size={28}
+              alt={comment.author?.display_name || comment.author?.username || ""}
+              className="shrink-0"
+            />
           </Link>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">

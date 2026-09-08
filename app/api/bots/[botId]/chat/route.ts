@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { getBot, isCommunityMember, canModerateCommunity, logBotActivity } from "@/lib/bot-helpers"
+import { runBotSkill } from "@/lib/bot-skills"
 
 export const dynamic = "force-dynamic"
 
@@ -113,7 +114,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
     }
 
-    // 2) Built-in reply fallback (bots without hosting still feel alive).
+    // 2) Built-in skills — real commands without needing external hosting.
+    //    Moderation bots log actions; store/reward bots read + grant coins.
+    if (!reply) {
+      reply = await runBotSkill(
+        {
+          bot,
+          supabase,
+          user,
+          communityId: bot.community_id,
+        },
+        content,
+      )
+    }
+
+    // 3) Generic auto-reply fallback (default personality when no skill matched).
     if (!reply && bot.auto_reply) {
       reply = bot.auto_reply.slice(0, 1000)
     }
