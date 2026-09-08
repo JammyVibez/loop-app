@@ -1,666 +1,458 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { VideoAvatar } from "@/components/cosmetics/video-avatar";
-import { TreePine, Camera, Palette, Users, Zap, ArrowRight, Check, UserPlus, Home, Video, Swords, Rocket } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { uploadMediaFile } from "@/lib/client-media-upload";
-import { getDiceBearUrl } from "@/lib/dicebear";
+"use client"
 
-interface SuggestedUser {
+import { useCallback, useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
+import { PageLoading } from "@/components/loading-states"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Check, ChevronLeft, ChevronRight, Loader2, Sparkles, Tags, UserPlus, UserRound } from "lucide-react"
+
+const STEPS = [
+  { id: 1, label: "Profile", icon: UserRound },
+  { id: 2, label: "Interests", icon: Tags },
+  { id: 3, label: "Follow", icon: UserPlus },
+]
+
+const INTEREST_OPTIONS = [
+  "Gaming",
+  "Tech",
+  "Art & Design",
+  "Music",
+  "Sports",
+  "Memes",
+  "Anime",
+  "Fitness",
+  "Food",
+  "Travel",
+  "Fashion",
+  "Coding",
+  "Crypto & Web3",
+  "Photography",
+  "Books",
+  "Films & TV",
+]
+
+const PRONOUN_OPTIONS = ["he/him", "she/her", "they/them", "she/they", "he/they", "ze/zir"]
+
+interface Suggestion {
   id: string
   username: string
-  display_name: string
-  avatar_url?: string
+  display_name?: string | null
+  avatar_url?: string | null
   is_verified?: boolean
+  is_admin?: boolean
   reason?: string
 }
 
-interface SuggestedCircle {
-  id: string
-  name: string
-  description?: string
-  member_count?: number
-  avatar_url?: string
-}
-
-const INTERESTS = [
-  "Art & Design",
-  "Technology",
-  "Writing",
-  "Music",
-  "Photography",
-  "Gaming",
-  "Science",
-  "Business",
-  "Education",
-  "Health",
-  "Travel",
-  "Food",
-  "Fashion",
-  "Sports",
-  "Movies",
-  "Books",
-  "Nature",
-  "DIY",
-]
-
-// Interest -> circle category mapping so onboarding can drop the user into
-// circles that actually match the topics they picked.
-const INTEREST_TO_CATEGORY: Record<string, string[]> = {
-  "Art & Design": ["Creative & Art"],
-  "Photography": ["Creative & Art"],
-  "Fashion": ["Creative & Art"],
-  "Technology": ["Tech & AI"],
-  "Science": ["Tech & AI", "General"],
-  "Gaming": ["Gaming"],
-  "Music": ["Music & Audio"],
-  "Business": ["Business & Startup"],
-  "Writing": ["General", "Creative & Art"],
-  "Books": ["General", "Creative & Art"],
-  "Movies": ["General"],
-  "Food": ["General"],
-  "Travel": ["General"],
-  "Health": ["General"],
-  "Education": ["General", "Tech & AI"],
-  "Sports": ["General"],
-  "Nature": ["General"],
-  "DIY": ["General", "Creative & Art"],
-}
-
-async function autoJoinInterestCircles(interests: string[], getAuthHeader: () => Record<string, string>) {
-  if (!interests.length) return 0
-  const wanted = new Set(interests.flatMap((i) => INTEREST_TO_CATEGORY[i] || ["General"]))
-  try {
-    const res = await fetch("/api/circles?limit=40", { headers: getAuthHeader() })
-    if (!res.ok) return 0
-    const data = await res.json()
-    const circles: any[] = data.circles || []
-    const matches = circles
-      .filter((c) => !c.is_premium_only && !c.is_private && wanted.has(c.category) && !c.is_member)
-      .sort((a, b) => (b.member_count || 0) - (a.member_count || 0))
-      .slice(0, 2)
-    let joined = 0
-    for (const circle of matches) {
-      try {
-        const joinRes = await fetch(`/api/circles/${circle.id}/join`, {
-          method: "POST",
-          headers: getAuthHeader(),
-        })
-        if (joinRes.ok) joined++
-      } catch {
-        /* non-blocking */
-      }
-    }
-    return joined
-  } catch {
-    return 0
-  }
-}
-
-const THEMES = [
-  {
-    name: "Purple Dream",
-    primary: "#8B5CF6",
-    secondary: "#06B6D4",
-    preview: "bg-gradient-to-r from-purple-500 to-blue-500",
-  },
-  {
-    name: "Ocean Breeze",
-    primary: "#0EA5E9",
-    secondary: "#10B981",
-    preview: "bg-gradient-to-r from-blue-500 to-emerald-500",
-  },
-  {
-    name: "Sunset Glow",
-    primary: "#F59E0B",
-    secondary: "#EF4444",
-    preview: "bg-gradient-to-r from-amber-500 to-red-500",
-  },
-  {
-    name: "Forest Green",
-    primary: "#10B981",
-    secondary: "#059669",
-    preview: "bg-gradient-to-r from-emerald-500 to-green-600",
-  },
-  {
-    name: "Rose Gold",
-    primary: "#EC4899",
-    secondary: "#F97316",
-    preview: "bg-gradient-to-r from-pink-500 to-orange-500",
-  },
-  {
-    name: "Midnight",
-    primary: "#6366F1",
-    secondary: "#8B5CF6",
-    preview: "bg-gradient-to-r from-indigo-500 to-purple-500",
-  },
-]
-
 export default function OnboardingPage() {
-  const [step, setStep] = useState(1)
-  const [profileData, setProfileData] = useState({
-    bio: "",
-    interests: [] as string[],
-    theme: THEMES[0],
-    avatar_url: "",
-    goals: [] as string[],
-  })
-  const { user, refreshUser, getAuthHeader, applyServerProfile } = useAuth()
   const router = useRouter()
+  const { user, loading, refreshUser } = useAuth()
+
+  const [step, setStep] = useState(1)
+  const [displayName, setDisplayName] = useState("")
+  const [username, setUsername] = useState("")
+  const [bio, setBio] = useState("")
+  const [pronouns, setPronouns] = useState("")
+  const [interests, setInterests] = useState<string[]>([])
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+  const [following, setFollowing] = useState<Set<string>>(new Set())
+  const [requested, setRequested] = useState<Set<string>>(new Set())
+  const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [finishing, setFinishing] = useState(false)
 
-  // "First win" data for the final step — real suggestions seeded from the
-  // interests just picked, not canned/mock accounts.
-  const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([])
-  const [suggestedCircles, setSuggestedCircles] = useState<SuggestedCircle[]>([])
-  const [followedIds, setFollowedIds] = useState<Set<string>>(new Set())
-  const [joinedCircleIds, setJoinedCircleIds] = useState<Set<string>>(new Set())
-  const [loadingFirstWin, setLoadingFirstWin] = useState(false)
-
+  // Prefill from the session profile once loaded
   useEffect(() => {
-    if (step !== 5 || !user) return
-    setLoadingFirstWin(true)
-    Promise.all([
-      fetch("/api/users/suggestions?limit=4", { headers: { ...getAuthHeader() } })
-        .then((r) => (r.ok ? r.json() : { suggestions: [] }))
-        .catch(() => ({ suggestions: [] })),
-      fetch("/api/circles?limit=3", { headers: { ...getAuthHeader() } })
-        .then((r) => (r.ok ? r.json() : { circles: [] }))
-        .catch(() => ({ circles: [] })),
-    ]).then(([usersData, circlesData]) => {
-      setSuggestedUsers(usersData.suggestions || [])
-      setSuggestedCircles(circlesData.circles || [])
-      setLoadingFirstWin(false)
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, user])
+    if (!user) return
+    const prefillName = user.display_name || ""
+    const prefillUsername = user.username || ""
+    const prefillBio = typeof user.bio === "string" ? user.bio : ""
+    const prefillPronouns = typeof user.pronouns === "string" ? user.pronouns : ""
+    const prefillInterests = Array.isArray(user.interests) ? user.interests.map(String) : []
+    if (prefillName) setDisplayName((prev) => prev || prefillName)
+    if (prefillUsername) setUsername((prev) => prev || prefillUsername)
+    if (prefillBio) setBio((prev) => prev || prefillBio)
+    if (prefillPronouns) setPronouns((prev) => prev || prefillPronouns)
+    if (prefillInterests.length > 0) setInterests((prev) => (prev.length ? prev : prefillInterests))
+  }, [user])
 
-  const handleFollow = async (targetId: string) => {
-    try {
-      const res = await fetch("/api/users/follow", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ target_user_id: targetId, action: "follow" }),
-      })
-      if (res.ok) setFollowedIds((prev) => new Set(prev).add(targetId))
-    } catch {
-      /* non-blocking */
+  // Already onboarded? Go home.
+  useEffect(() => {
+    if (!loading && user && user.onboarding_completed === true) {
+      router.replace("/")
     }
-  }
+  }, [loading, user, router])
 
-  const handleJoinCircle = async (circleId: string) => {
-    try {
-      const res = await fetch(`/api/circles/${circleId}/join`, {
-        method: "POST",
-        headers: { ...getAuthHeader() },
+  // Load follow suggestions when reaching the last step
+  useEffect(() => {
+    if (step !== 3 || suggestions.length > 0) return
+    let cancelled = false
+    fetch("/api/users/suggestions?limit=6")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setSuggestions(data?.suggestions || [])
       })
-      if (res.ok) setJoinedCircleIds((prev) => new Set(prev).add(circleId))
-    } catch {
-      /* non-blocking */
-    }
-  }
-
-  const handleInterestToggle = (interest: string) => {
-    setProfileData((prev) => ({
-      ...prev,
-      interests: prev.interests.includes(interest)
-        ? prev.interests.filter((i) => i !== interest)
-        : [...prev.interests, interest],
-    }))
-  }
-
-  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    try {
-      const uploaded = await uploadMediaFile(file, {
-        type: "image",
-        folder: "avatars",
-        authHeaders: getAuthHeader(),
+      .catch(() => {
+        if (!cancelled) setSuggestions([])
       })
-      setProfileData(prev => ({ ...prev, avatar_url: uploaded.url }))
-    } catch (error) {
-      console.error("Avatar upload failed:", error)
+    return () => {
+      cancelled = true
     }
-  }
+  }, [step, suggestions.length])
 
-  const finishOnboarding = async (payload: Record<string, unknown>, awardBonus: boolean) => {
+  const toggleInterest = useCallback((tag: string) => {
+    setInterests((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
+  }, [])
+
+  const handleSaveProfile = useCallback(async () => {
+    setError(null)
+    const cleanName = displayName.trim()
+    const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, "")
+    if (!cleanName) {
+      setError("Add a display name so people know who you are.")
+      return
+    }
+    if (cleanUsername.length < 3 || cleanUsername.length > 20) {
+      setError("Username must be 3–20 characters (letters, numbers, underscores).")
+      return
+    }
     setSaving(true)
-    setErrors({})
-
     try {
-      const response = await fetch("/api/users/update-profile", {
+      const res = await fetch("/api/users/update-profile", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...payload,
-          onboarding_completed: true,
+          display_name: cleanName,
+          username: cleanUsername,
+          bio: bio.trim() || null,
+          pronouns: pronouns || null,
         }),
       })
-
-      try {
-        localStorage.setItem(
-          "loop-onboarding-personalization",
-          JSON.stringify({ interests: profileData.interests, goals: profileData.goals }),
-        )
-      } catch {}
-
-      if (!response.ok) {
-        throw new Error("Failed to save profile")
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data?.error || "Couldn't save your profile — try again.")
+        return
       }
-
-      const result = await response.json()
-
-      if (result.profile) {
-        applyServerProfile({ ...result.profile, onboarding_completed: true })
-      } else {
-        applyServerProfile({ onboarding_completed: true })
-      }
-
-      if (awardBonus) {
-        await fetch("/api/users/coins/weekly", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...getAuthHeader(),
-          },
-          body: JSON.stringify({
-            type: "onboarding_bonus",
-          }),
-        }).catch(() => null)
-      }
-
-      // Phase 4: drop the new user straight into circles that match the
-      // interests they picked — first-session participation, not empty feed.
-      const joinedCount = await autoJoinInterestCircles(profileData.interests, getAuthHeader)
-      if (joinedCount > 0) {
-        try {
-          sessionStorage.setItem("loop-onboarding-joined", String(joinedCount))
-        } catch {}
-      }
-
-      await refreshUser()
-      router.replace("/")
-    } catch (error) {
-      console.error("Failed to complete onboarding:", error)
-      setErrors({ general: "Failed to complete onboarding. Please try again." })
+      setStep(2)
+    } catch {
+      setError("Network error — check your connection and try again.")
     } finally {
       setSaving(false)
     }
-  }
+  }, [displayName, username, bio, pronouns])
 
-  const handleSkip = async () => {
-    await finishOnboarding({}, false)
-  }
+  const handleFollow = useCallback(
+    async (target: Suggestion) => {
+      if (following.has(target.id) || requested.has(target.id)) return
+      try {
+        const res = await fetch("/api/users/follow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target_user_id: target.id, action: "follow" }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (data?.requires_approval) {
+          setRequested((prev) => new Set(prev).add(target.id))
+        } else {
+          setFollowing((prev) => new Set(prev).add(target.id))
+        }
+      } catch {
+        // Non-fatal — user can still finish onboarding
+      }
+    },
+    [following, requested],
+  )
 
-  const handleComplete = async () => {
-    if (!profileData.bio.trim()) {
-      setErrors({ bio: "Bio is required" })
-      return
+  const handleFinish = useCallback(async () => {
+    setError(null)
+    setFinishing(true)
+    try {
+      const res = await fetch("/api/users/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          interests: interests.slice(0, 8),
+          onboarding_completed: true,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data?.error || "Couldn't finish setup — try again.")
+        setFinishing(false)
+        return
+      }
+      await refreshUser().catch(() => {})
+      router.push("/")
+    } catch {
+      setError("Network error — check your connection and try again.")
+      setFinishing(false)
     }
+  }, [interests, refreshUser, router])
 
-    await finishOnboarding(
-      {
-        bio: profileData.bio,
-        interests: profileData.interests,
-        avatar_url: profileData.avatar_url,
-        profile_theme: {
-          primary_color: profileData.theme.primary,
-          secondary_color: profileData.theme.secondary,
-          animation: "pulse-glow",
-        },
-      },
-      true,
-    )
+  if (loading) {
+    return <PageLoading message="Setting things up..." />
   }
 
+  const stepLabel = STEPS[step - 1]
 
-  const renderStep = () => {
-    switch (step) {
-      case 1:
-        return (
-          <Card className="w-full max-w-2xl landing-card-3d border-border bg-card text-foreground shadow-2xl shadow-violet-950/10 dark:shadow-violet-950/30 backdrop-blur-xl">
-            <CardHeader className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <TreePine className="text-white w-8 h-8" />
-              </div>
-              <CardTitle className="text-3xl">Welcome to loopapp.me!</CardTitle>
-              <CardDescription className="text-lg">
-                Let's set up your profile to help you connect with the right community
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="text-center">
-                <div className="relative inline-block">
-                  <VideoAvatar src={profileData.avatar_url || user?.avatar_url || getDiceBearUrl(user?.username)} className="w-24 h-24" fallback={user?.display_name?.charAt(0) || "U"} />
-                  <Button 
-                    size="icon" 
-                    className="absolute -bottom-2 -right-2 rounded-full w-8 h-8" 
-                    variant="secondary"
-                    onClick={() => document.getElementById('onboarding-avatar-upload')?.click()}
-                  >
-                    <Camera className="w-4 h-4" />
-                  </Button>
-                  <input
-                    id="onboarding-avatar-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarUpload}
-                  />
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#0B0F19] px-4 py-10 relative overflow-hidden">
+      {/* ambient glows */}
+      <div className="pointer-events-none absolute -top-32 -right-24 h-[480px] w-[480px] rounded-full bg-violet-600/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -left-24 h-[480px] w-[480px] rounded-full bg-cyan-500/15 blur-3xl" />
+      <div className="pointer-events-none absolute top-1/3 left-1/2 h-[360px] w-[360px] -translate-x-1/2 rounded-full bg-pink-600/10 blur-3xl" />
+
+      <div className="relative w-full max-w-xl">
+        {/* brand */}
+        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-pink-500 text-xl font-extrabold text-white shadow-lg shadow-violet-500/30">
+            L
+          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">
+            Welcome to <span className="bg-gradient-to-r from-violet-400 to-cyan-300 bg-clip-text text-transparent">Loop</span>
+          </h1>
+          <p className="text-sm text-slate-400">Set up your profile in a minute — the feed is waiting.</p>
+        </div>
+
+        {/* step progress */}
+        <div className="mb-6 flex items-center justify-center gap-2">
+          {STEPS.map((s) => {
+            const done = step > s.id
+            const active = step === s.id
+            return (
+              <div key={s.id} className="flex items-center gap-2">
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold transition-all ${
+                    done
+                      ? "border-emerald-400 bg-emerald-400/15 text-emerald-300"
+                      : active
+                        ? "border-violet-400 bg-violet-500/20 text-violet-200 shadow-lg shadow-violet-500/20"
+                        : "border-slate-700 bg-slate-900/60 text-slate-500"
+                  }`}
+                >
+                  {done ? <Check className="h-4 w-4" /> : <s.icon className="h-4 w-4" />}
                 </div>
-                <h3 className="text-xl font-semibold mt-4">{user?.display_name}</h3>
-                <p className="text-muted-foreground">@{user?.username}</p>
+                <span className={`text-xs font-medium ${active ? "text-slate-200" : "text-slate-500"}`}>{s.label}</span>
+                {s.id < STEPS.length && <div className={`h-px w-6 ${step > s.id ? "bg-emerald-400/50" : "bg-slate-700"}`} />}
               </div>
+            )
+          })}
+        </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="bio">Tell us about yourself</Label>
-                <Textarea
-                  id="bio"
-                  placeholder="Share what inspires you, your creative interests, or what you hope to discover on loopapp.me..."
-                  value={profileData.bio}
-                  onChange={(e) => setProfileData((prev) => ({ ...prev, bio: e.target.value }))}
-                  className="min-h-[100px]"
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-8 shadow-2xl shadow-black/40 backdrop-blur-xl">
+          {error && (
+            <div className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {error}
+            </div>
+          )}
+
+          {/* Step 1 — profile */}
+          {step === 1 && (
+            <div className="space-y-5">
+              <div>
+                <Label htmlFor="display-name" className="text-sm font-medium text-slate-300">
+                  Display name
+                </Label>
+                <Input
+                  id="display-name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Your name"
+                  maxLength={50}
+                  className="mt-1.5 border-white/10 bg-slate-900/60 text-white placeholder:text-slate-500"
                 />
               </div>
-
-              <Button onClick={() => setStep(2)} className="w-full" size="lg">
-                Continue <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </CardContent>
-          </Card>
-        )
-
-      case 2:
-        return (
-          <Card className="w-full max-w-2xl landing-card-3d border-border bg-card text-foreground shadow-2xl shadow-violet-950/10 dark:shadow-violet-950/30 backdrop-blur-xl">
-            <CardHeader className="text-center">
-              <Users className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-              <CardTitle className="text-2xl">What interests you?</CardTitle>
-              <CardDescription>
-                Select topics you're passionate about to discover relevant loops and communities
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {INTERESTS.map((interest) => (
-                  <Badge
-                    key={interest}
-                    variant={profileData.interests.includes(interest) ? "default" : "outline"}
-                    className={`cursor-pointer p-3 text-center justify-center transition-all ${
-                      profileData.interests.includes(interest)
-                        ? "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700" :"hover:bg-gray-100 dark:hover:bg-gray-800"
-                    }`}
-                    onClick={() => handleInterestToggle(interest)}
-                  >
-                    {profileData.interests.includes(interest) && <Check className="w-3 h-3 mr-1" />}
-                    {interest}
-                  </Badge>
-                ))}
+              <div>
+                <Label htmlFor="username" className="text-sm font-medium text-slate-300">
+                  Username
+                </Label>
+                <Input
+                  id="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                  placeholder="your_handle"
+                  maxLength={20}
+                  className="mt-1.5 border-white/10 bg-slate-900/60 text-white placeholder:text-slate-500"
+                />
+                <p className="mt-1 text-xs text-slate-500">3–20 characters. Lowercase letters, numbers, underscores.</p>
               </div>
-
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
-                  Back
-                </Button>
-                <Button onClick={() => setStep(3)} className="flex-1" disabled={profileData.interests.length === 0}>
-                  Continue <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
+              <div>
+                <Label htmlFor="bio" className="text-sm font-medium text-slate-300">
+                  Bio <span className="text-slate-500">(optional)</span>
+                </Label>
+                <Textarea
+                  id="bio"
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="What are you about?"
+                  maxLength={220}
+                  rows={3}
+                  className="mt-1.5 resize-none border-white/10 bg-slate-900/60 text-white placeholder:text-slate-500"
+                />
               </div>
-            </CardContent>
-          </Card>
-        )
-
-      case 3:
-        return (
-          <Card className="w-full max-w-2xl landing-card-3d border-border bg-card text-foreground shadow-2xl shadow-violet-950/10 dark:shadow-violet-950/30 backdrop-blur-xl">
-            <CardHeader className="text-center">
-              <Palette className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-              <CardTitle className="text-2xl">Choose your theme</CardTitle>
-              <CardDescription>Personalize your profile with a color theme that represents you</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {THEMES.map((theme) => (
-                  <div
-                    key={theme.name}
-                    className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
-                      profileData.theme.name === theme.name
-                        ? "border-purple-500 ring-2 ring-purple-200 dark:ring-purple-800" :"border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                    }`}
-                    onClick={() => setProfileData((prev) => ({ ...prev, theme }))}
-                  >
-                    <div className={`w-full h-16 rounded-md ${theme.preview} mb-3`} />
-                    <p className="font-medium text-center">{theme.name}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
-                  Back
-                </Button>
-                <Button onClick={() => setStep(4)} className="flex-1">
-                  Continue <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )
-
-      case 4:
-        return (
-          <Card className="w-full max-w-2xl landing-card-3d border-border bg-card text-foreground shadow-2xl shadow-violet-950/10 dark:shadow-violet-950/30 backdrop-blur-xl">
-            <CardHeader className="text-center">
-              <Zap className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-              <CardTitle className="text-2xl">Personalize your start</CardTitle>
-              <CardDescription>Tell loopapp.me what you want to do first so we can tune your feed.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {["Discover creators", "Share stories", "Join circles", "Collaborate on trees", "Watch reels", "Host events"].map((goal) => {
-                  const active = profileData.goals.includes(goal)
-                  return (
-                    <Badge
-                      key={goal}
-                      variant={active ? "default" : "outline"}
-                      className={`cursor-pointer justify-center p-3 ${active ? "bg-gradient-to-r from-violet-600 to-cyan-500" : ""}`}
-                      onClick={() =>
-                        setProfileData((prev) => ({
-                          ...prev,
-                          goals: active ? prev.goals.filter((g) => g !== goal) : [...prev.goals, goal],
-                        }))
-                      }
+              <div>
+                <Label className="text-sm font-medium text-slate-300">Pronouns <span className="text-slate-500">(optional)</span></Label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {PRONOUN_OPTIONS.map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPronouns(pronouns === p ? "" : p)}
+                      className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all ${
+                        pronouns === p
+                          ? "border-violet-400 bg-violet-500/20 text-violet-200"
+                          : "border-white/10 bg-slate-900/50 text-slate-400 hover:border-white/25 hover:text-slate-200"
+                      }`}
                     >
-                      {active && <Check className="mr-1 h-3 w-3" />}
-                      {goal}
-                    </Badge>
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2 — interests */}
+          {step === 2 && (
+            <div className="space-y-5">
+              <p className="text-sm text-slate-400">
+                Pick a few things you like — Loop uses them to shape your feed and suggest people.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {INTEREST_OPTIONS.map((tag) => {
+                  const on = interests.includes(tag)
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => toggleInterest(tag)}
+                      className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-all ${
+                        on
+                          ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-200 shadow-md shadow-cyan-500/10"
+                          : "border-white/10 bg-slate-900/50 text-slate-400 hover:border-white/25 hover:text-slate-200"
+                      }`}
+                    >
+                      {on && <Check className="h-3.5 w-3.5" />}
+                      {tag}
+                    </button>
                   )
                 })}
               </div>
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setStep(3)} className="flex-1">Back</Button>
-                <Button onClick={() => setStep(5)} className="flex-1" disabled={profileData.goals.length === 0}>
-                  Continue <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )
+              <p className="text-xs text-slate-500">
+                {interests.length === 0 ? "No interests selected yet — you can skip this." : `${interests.length} selected`}
+              </p>
+            </div>
+          )}
 
-      case 5:
-        return (
-          <Card className="w-full max-w-2xl landing-card-3d border-border bg-card text-foreground shadow-2xl shadow-violet-950/10 dark:shadow-violet-950/30 backdrop-blur-xl">
-            <CardHeader className="text-center">
-              <Zap className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-              <CardTitle className="text-2xl">You're all set!</CardTitle>
-              <CardDescription>Get your first win in — follow a few creators and join a circle.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              {loadingFirstWin ? (
-                <p className="text-center text-sm text-muted-foreground">Finding people and circles for you…</p>
+          {/* Step 3 — follow people */}
+          {step === 3 && (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-400">Follow a few people to fill your feed. You can always change this later.</p>
+              {suggestions.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-white/10 py-10 text-center">
+                  <Sparkles className="h-6 w-6 text-violet-400" />
+                  <p className="text-sm text-slate-400">Nothing to suggest yet — that's fine.</p>
+                </div>
               ) : (
-                <>
-                  {suggestedUsers.length > 0 && (
-                    <div>
-                      <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                        <UserPlus className="h-4 w-4 text-violet-400" /> Creators picked for you
-                      </h3>
-                      <div className="space-y-2">
-                        {suggestedUsers.map((u) => (
-                          <div
-                            key={u.id}
-                            className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/50 p-2.5"
-                          >
-                            <div className="flex min-w-0 items-center gap-2.5">
-                              <VideoAvatar src={u.avatar_url} className="h-9 w-9" fallback={(u.display_name || u.username).charAt(0).toUpperCase()} />
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-medium">{u.display_name || u.username}</p>
-                                <p className="truncate text-xs text-muted-foreground">{u.reason || `@${u.username}`}</p>
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant={followedIds.has(u.id) ? "secondary" : "outline"}
-                              className="shrink-0 rounded-full"
-                              disabled={followedIds.has(u.id)}
-                              onClick={() => handleFollow(u.id)}
-                            >
-                              {followedIds.has(u.id) ? <Check className="h-3.5 w-3.5" /> : "Follow"}
-                            </Button>
+                <div className="space-y-2.5">
+                  {suggestions.map((s) => {
+                    const isFollowing = following.has(s.id)
+                    const isRequested = requested.has(s.id)
+                    const name = s.display_name || s.username
+                    return (
+                      <div
+                        key={s.id}
+                        className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/50 p-3 transition-colors hover:border-white/20"
+                      >
+                        <Avatar className="h-10 w-10 border border-white/10">
+                          <AvatarImage src={s.avatar_url || undefined} alt={name} />
+                          <AvatarFallback className="bg-violet-500/30 text-sm font-bold text-violet-100">
+                            {name.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <p className="truncate text-sm font-semibold text-white">{name}</p>
+                            {s.is_verified && (
+                              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[10px] text-white">
+                                ✓
+                              </span>
+                            )}
                           </div>
-                        ))}
+                          <p className="truncate text-xs text-slate-500">@{s.username}</p>
+                          {s.reason && <p className="mt-0.5 text-[11px] text-violet-300/80">{s.reason}</p>}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={isFollowing || isRequested ? "outline" : "default"}
+                          disabled={isFollowing || isRequested}
+                          onClick={() => handleFollow(s)}
+                          className={
+                            isFollowing
+                              ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300"
+                              : isRequested
+                                ? "border-amber-400/40 bg-amber-500/10 text-amber-300"
+                                : "bg-violet-500 hover:bg-violet-400 text-white"
+                          }
+                        >
+                          {isFollowing ? (
+                            <>
+                              <Check className="mr-1 h-3.5 w-3.5" /> Following
+                            </>
+                          ) : isRequested ? (
+                            "Requested"
+                          ) : (
+                            "Follow"
+                          )}
+                        </Button>
                       </div>
-                    </div>
-                  )}
-
-                  {suggestedCircles.length > 0 && (
-                    <div>
-                      <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                        <Users className="h-4 w-4 text-cyan-400" /> Join a circle
-                      </h3>
-                      <div className="space-y-2">
-                        {suggestedCircles.slice(0, 2).map((c) => (
-                          <div
-                            key={c.id}
-                            className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/50 p-2.5"
-                          >
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">{c.name}</p>
-                              <p className="truncate text-xs text-muted-foreground">
-                                {c.member_count ? `${c.member_count} members` : c.description || "Community circle"}
-                              </p>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant={joinedCircleIds.has(c.id) ? "secondary" : "outline"}
-                              className="shrink-0 rounded-full"
-                              disabled={joinedCircleIds.has(c.id)}
-                              onClick={() => handleJoinCircle(c.id)}
-                            >
-                              {joinedCircleIds.has(c.id) ? <Check className="h-3.5 w-3.5" /> : "Join"}
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              <div className="rounded-2xl border border-dashed border-violet-500/30 bg-violet-500/[0.06] p-4 text-center">
-                <p className="text-sm font-medium text-foreground">Ready to participate?</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Start something or jump into the action — your first move lands in the feed instantly.</p>
-                <div className="mt-3 flex flex-wrap justify-center gap-2">
-                  <Button asChild size="sm" variant="outline" className="rounded-full">
-                    <Link href="/create/loop"><Home className="mr-1.5 h-3.5 w-3.5" /> First Loop</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline" className="rounded-full">
-                    <Link href="/create/loop"><Swords className="mr-1.5 h-3.5 w-3.5 text-amber-400" /> Start a Duel</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline" className="rounded-full">
-                    <Link href="/co-loop/studio"><Rocket className="mr-1.5 h-3.5 w-3.5 text-cyan-400" /> Start a Co-Loop</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline" className="rounded-full">
-                    <Link href="/create/tree"><Video className="mr-1.5 h-3.5 w-3.5" /> First Reel</Link>
-                  </Button>
+                    )
+                  })}
                 </div>
-              </div>
-
-              {errors.general && (
-                <div className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">
-                  {errors.general}
-                </div>
-              )}
-
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setStep(4)} className="flex-1">Back</Button>
-                <Button onClick={handleComplete} className="flex-1 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500" disabled={saving}>
-                  {saving ? "Saving..." : "Enter loopapp.me"} <Zap className="w-4 h-4 ml-2" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )
-
-      default:
-        return null
-    }
-  }
-
-  return (
-    <div className="relative min-h-screen overflow-hidden bg-background text-foreground flex items-center justify-center p-4">
-      <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-[0.04] dark:block hidden" />
-      <div className="pointer-events-none absolute -top-32 -left-32 h-64 w-64 rounded-full bg-violet-600/[0.06] dark:block hidden" />
-      <div className="pointer-events-none absolute -bottom-32 -right-32 h-64 w-64 rounded-full bg-cyan-600/[0.05] dark:block hidden" />
-      <div className="relative z-10 w-full flex flex-col items-center">
-        {/* Progress indicator */}
-        <div className="flex items-center space-x-2 mb-8">
-          {[1, 2, 3, 4, 5].map((stepNumber) => (
-            <div key={stepNumber} className="flex items-center">
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  step >= stepNumber
-                    ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white" :"bg-muted text-muted-foreground"
-                }`}
-              >
-                {step > stepNumber ? <Check className="w-4 h-4" /> : stepNumber}
-              </div>
-              {stepNumber < 5 && (
-                <div
-                  className={`w-8 h-0.5 sm:w-12 ${
-                    step > stepNumber ? "bg-gradient-to-r from-purple-600 to-blue-600" : "bg-muted"
-                  }`}
-                />
               )}
             </div>
-          ))}
+          )}
+
+          {/* nav */}
+          <div className="mt-7 flex items-center justify-between gap-3 border-t border-white/5 pt-5">
+            <Button
+              variant="ghost"
+              onClick={() => setStep((s) => Math.max(1, s - 1))}
+              disabled={step === 1 || saving || finishing}
+              className="text-slate-400 hover:text-white"
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" /> Back
+            </Button>
+
+            {step < 3 ? (
+              <Button
+                onClick={handleSaveProfile}
+                disabled={saving}
+                className="bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-lg shadow-violet-500/25 hover:from-violet-400 hover:to-pink-400"
+              >
+                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Continue <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                onClick={handleFinish}
+                disabled={finishing}
+                className="bg-gradient-to-r from-violet-500 to-cyan-400 text-white shadow-lg shadow-cyan-500/20 hover:from-violet-400 hover:to-cyan-300"
+              >
+                {finishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {finishing ? "Finishing..." : "Enter Loop"}
+              </Button>
+            )}
+          </div>
         </div>
 
-        {renderStep()}
-
-        <div className="mt-6 flex w-full max-w-2xl justify-center">
-          <Button
-            variant="ghost"
-            className="text-muted-foreground hover:text-foreground"
-            onClick={handleSkip}
-            disabled={saving}
-          >
-            Skip for now — enter loopapp.me
-          </Button>
-        </div>
+        <p className="mt-5 text-center text-xs text-slate-600">
+          Step {step} of 3 · {stepLabel?.label}
+        </p>
       </div>
     </div>
   )

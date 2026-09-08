@@ -60,6 +60,10 @@
     {
       "path": "/api/cron/trending-notification",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/pro-expiry",
+      "schedule": "0 2 * * *"
     }
   ],
   "installCommand": "npm install --legacy-peer-deps"
