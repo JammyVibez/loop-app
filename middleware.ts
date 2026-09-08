@@ -109,24 +109,10 @@ function containsDangerousInput(url: string): boolean {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // ── 0. Canonical domain: www.loopapp.me → loopapp.me (301) ──────────────
-  // Keeps Google from treating www and apex as duplicate sites; every page
-  // ends up with one canonical URL.
-  //
-  // Safety: only fire on a bare www host with NO explicit port. Sandbox /
-  // preview traffic reaches us with a port in the Host header (e.g.
-  // www.loopapp.me:10000) — redirecting there would leak the preview URL
-  // into the address bar, so those requests pass through untouched. The
-  // redirect target is always built without a port.
-  const host = (request.headers.get("host") || "").toLowerCase()
-  const hostname = host.split(":")[0]
-  const hasExplicitPort = host.includes(":")
-  if (hostname.startsWith("www.") && !hasExplicitPort) {
-    const canonical = request.nextUrl.clone()
-    canonical.hostname = hostname.replace(/^www\./, "")
-    canonical.port = ""
-    return NextResponse.redirect(canonical, 301)
-  }
+  // NOTE: no www → apex 301 here. That redirect previously broke domain
+  // access (it leaked the preview port into the target). Canonicalization
+  // is handled safely via the <link rel="canonical"> tag in app/layout.tsx,
+  // which tells search engines the canonical URL without redirecting users.
 
   const ip = getClientIp(request)
   const isApi = pathname.startsWith("/api/")
