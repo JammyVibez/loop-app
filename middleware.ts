@@ -112,10 +112,19 @@ export function middleware(request: NextRequest) {
   // ── 0. Canonical domain: www.loopapp.me → loopapp.me (301) ──────────────
   // Keeps Google from treating www and apex as duplicate sites; every page
   // ends up with one canonical URL.
+  //
+  // Safety: only fire on a bare www host with NO explicit port. Sandbox /
+  // preview traffic reaches us with a port in the Host header (e.g.
+  // www.loopapp.me:10000) — redirecting there would leak the preview URL
+  // into the address bar, so those requests pass through untouched. The
+  // redirect target is always built without a port.
   const host = (request.headers.get("host") || "").toLowerCase()
-  if (host.startsWith("www.")) {
-    const canonical = new URL(request.url)
-    canonical.host = host.replace(/^www\./, "")
+  const hostname = host.split(":")[0]
+  const hasExplicitPort = host.includes(":")
+  if (hostname.startsWith("www.") && !hasExplicitPort) {
+    const canonical = request.nextUrl.clone()
+    canonical.hostname = hostname.replace(/^www\./, "")
+    canonical.port = ""
     return NextResponse.redirect(canonical, 301)
   }
 
