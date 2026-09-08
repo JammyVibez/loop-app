@@ -239,8 +239,8 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
   }
 
   return (
-    <Card className="border border-cyan-500/30 bg-gradient-to-b from-[#0b142c]/90 to-[#070d1e]/90 shadow-2xl rounded-3xl overflow-hidden my-6">
-      <CardHeader className="p-5 border-b border-white/10 bg-cyan-950/20">
+    <Card className="border border-cyan-500/30 bg-gradient-to-b from-card to-background shadow-2xl rounded-3xl overflow-hidden my-6">
+      <CardHeader className="p-5 border-b border-border bg-cyan-500/5">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <Badge className="bg-gradient-to-r from-amber-500 to-rose-500 text-slate-950 font-bold px-3 py-1 flex items-center gap-1.5 shadow-md">
@@ -251,17 +251,17 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
             </Badge>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-slate-400">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Timer className="h-3.5 w-3.5 text-cyan-400" />
             {secondsLeft !== null && secondsLeft > 0 ? (
-              <span className="font-mono font-bold text-cyan-300">⏱ {fmtTime(secondsLeft)}</span>
+              <span className="font-mono font-bold text-cyan-600 dark:text-cyan-300">⏱ {fmtTime(secondsLeft)}</span>
             ) : (
-              <><span className="text-rose-400 font-semibold">Ended</span> <FreshnessTimestamp date={duel.expires_at} /></>
+              <><span className="text-rose-600 dark:text-rose-400 font-semibold">Ended</span> <FreshnessTimestamp date={duel.expires_at} /></>
             )}
           </div>
         </div>
 
-        <h3 className="text-xl font-extrabold text-white mt-3 leading-snug tracking-tight">
+        <h3 className="text-xl font-extrabold text-foreground mt-3 leading-snug tracking-tight">
           &ldquo;{duel.prompt}&rdquo;
         </h3>
       </CardHeader>
@@ -269,16 +269,16 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
       <CardContent className="p-6 space-y-6">
         {/* Voting Percentage Bar */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-300">
-            <span className="text-rose-400 flex items-center gap-1">
+          <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+            <span className="text-rose-600 dark:text-rose-400 flex items-center gap-1">
               {labelA} ({percentA}%) — {votesA} votes
             </span>
-            <span className="text-cyan-400 flex items-center gap-1">
+            <span className="text-cyan-600 dark:text-cyan-400 flex items-center gap-1">
               {labelB} ({percentB}%) — {votesB} votes
             </span>
           </div>
 
-          <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden flex p-0.5 border border-white/10">
+          <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex p-0.5 border border-border">
             <div
               className="h-full bg-gradient-to-r from-rose-500 to-amber-500 rounded-l-full transition-all duration-500"
               style={{ width: `${percentA}%` }}
@@ -293,12 +293,12 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
         {/* Versus Side-by-Side Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative">
           {/* VS Badge */}
-          <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-slate-900 border-2 border-amber-400 items-center justify-center font-black text-amber-400 shadow-xl text-xs">
+          <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-background border-2 border-amber-400 items-center justify-center font-black text-amber-400 shadow-xl text-xs">
             VS
           </div>
 
           {/* SIDE A */}
-          <div className="border border-rose-500/30 bg-rose-950/20 p-5 rounded-2xl flex flex-col justify-between space-y-4">
+          <div className="border border-rose-500/30 bg-rose-500/5 p-5 rounded-2xl flex flex-col justify-between space-y-4">
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10 border border-rose-400">
@@ -306,13 +306,13 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
                   <AvatarFallback>{duel.creator?.display_name?.charAt(0) || "A"}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <span className="font-bold text-white text-sm block">
+                  <span className="font-bold text-foreground text-sm block">
                     {duel.creator?.display_name || "Challenger"}
                   </span>
-                  <span className="text-xs text-rose-300 font-semibold">@{labelA}</span>
+                  <span className="text-xs text-rose-600 dark:text-rose-300 font-semibold">@{labelA}</span>
                 </div>
               </div>
-              <p className="text-sm text-slate-200 whitespace-pre-wrap">{entryA?.content || "No take posted yet."}</p>
+              <p className="text-sm text-foreground/80 whitespace-pre-wrap">{entryA?.content || "No take posted yet."}</p>
               {entryA?.media_url && <EntryMedia url={entryA.media_url} />}
             </div>
 
@@ -321,7 +321,7 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
               disabled={hasVoted === "A"}
               className={`w-full font-bold rounded-xl transition-all ${
                 hasVoted === "A"
-                  ? "bg-rose-500/30 text-rose-200 border border-rose-500/50"
+                  ? "bg-rose-500/30 text-rose-700 dark:text-rose-200 border border-rose-500/50"
                   : "bg-rose-600 hover:bg-rose-500 text-white shadow-lg"
               }`}
             >
@@ -336,7 +336,7 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
           </div>
 
           {/* SIDE B */}
-          <div className="border border-cyan-500/30 bg-cyan-950/20 p-5 rounded-2xl flex flex-col justify-between space-y-4">
+          <div className="border border-cyan-500/30 bg-cyan-500/5 p-5 rounded-2xl flex flex-col justify-between space-y-4">
             {entryB ? (
               <>
                 <div className="space-y-3">
@@ -346,13 +346,13 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
                       <AvatarFallback>{duel.opponent?.display_name?.charAt(0) || "B"}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <span className="font-bold text-white text-sm block">
+                      <span className="font-bold text-foreground text-sm block">
                         {duel.opponent?.display_name || "Opponent"}
                       </span>
-                      <span className="text-xs text-cyan-300 font-semibold">@{labelB}</span>
+                      <span className="text-xs text-cyan-600 dark:text-cyan-300 font-semibold">@{labelB}</span>
                     </div>
                   </div>
-                  <p className="text-sm text-slate-200 whitespace-pre-wrap">{entryB.content}</p>
+                  <p className="text-sm text-foreground/80 whitespace-pre-wrap">{entryB.content}</p>
                   {entryB.media_url && <EntryMedia url={entryB.media_url} />}
                 </div>
 
@@ -361,7 +361,7 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
                   disabled={hasVoted === "B"}
                   className={`w-full font-bold rounded-xl transition-all ${
                     hasVoted === "B"
-                      ? "bg-cyan-500/30 text-cyan-200 border border-cyan-500/50"
+                      ? "bg-cyan-500/30 text-cyan-700 dark:text-cyan-200 border border-cyan-500/50"
                       : "bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg"
                   }`}
                 >
@@ -378,10 +378,10 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
               /* Open Duel Response Form */
               <div className="space-y-3 flex flex-col justify-between h-full">
                 <div>
-                  <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider block">
+                  <span className="text-xs font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider block">
                     ⚔️ Open Counter Challenge
                   </span>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     This duel is waiting for Side B! Accept the challenge and post your counter argument.
                   </p>
                 </div>
@@ -391,7 +391,7 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
                     value={userSideBContent}
                     onChange={(e) => setUserSideBContent(e.target.value)}
                     placeholder="Write your counter take..."
-                    className="w-full h-24 bg-slate-900/80 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                    className="w-full h-24 bg-background/80 border border-border rounded-xl p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-cyan-400"
                   />
                   <Button
                     onClick={handleJoinDuel}

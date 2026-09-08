@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Check, ChevronLeft, ChevronRight, Loader2, Sparkles, Tags, UserPlus, UserRound } from "lucide-react"
+import { AppLogo } from "@/components/brand/app-logo"
 
 const STEPS = [
   { id: 1, label: "Profile", icon: UserRound },
@@ -209,11 +210,15 @@ export default function OnboardingPage() {
       <div className="relative w-full max-w-xl">
         {/* brand */}
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-pink-500 text-xl font-extrabold text-white shadow-lg shadow-violet-500/30">
-            L
+          <div className="flex items-center gap-3">
+            <AppLogo className="h-11 w-11 rounded-2xl shadow-lg shadow-violet-500/20" />
+            <div className="text-left">
+              <p className="text-lg font-extrabold leading-none tracking-tight text-white">loopapp.me</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.22em] text-violet-400">Social OS</p>
+            </div>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">
-            Welcome to <span className="bg-gradient-to-r from-violet-400 to-cyan-300 bg-clip-text text-transparent">Loop</span>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-white">
+            Welcome to <span className="bg-gradient-to-r from-violet-400 to-cyan-300 bg-clip-text text-transparent">loopapp.me</span>
           </h1>
           <p className="text-sm text-slate-400">Set up your profile in a minute — the feed is waiting.</p>
         </div>
@@ -430,7 +435,7 @@ export default function OnboardingPage() {
 
             {step < 3 ? (
               <Button
-                onClick={handleSaveProfile}
+                onClick={step === 1 ? handleSaveProfile : () => setStep(3)}
                 disabled={saving}
                 className="bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-lg shadow-violet-500/25 hover:from-violet-400 hover:to-pink-400"
               >
