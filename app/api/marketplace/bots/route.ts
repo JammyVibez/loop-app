@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
     const search = searchParams.get("search")
+    const viewer = await getUserFromRequest(request)
 
     const supabase = createServerClient()
     let query = supabase
@@ -30,6 +31,35 @@ export async function GET(request: NextRequest) {
     const { data: bots, error } = await query.limit(60)
     if (error) return NextResponse.json({ error: "Failed to load marketplace" }, { status: 500 })
 
+    // What has this viewer already bought / installed? Lets the UI swap the
+    // "Buy" button for "Install in a community" after a purchase.
+    const purchased = new Map<string, { types: string[]; installed: boolean }>()
+    const ids = (bots || []).map((b: any) => b.id)
+    if (viewer && ids.length > 0) {
+      const { data: myPurchases } = await supabase
+        .from("bot_marketplace_purchases")
+        .select("bot_id, purchase_type")
+        .eq("buyer_id", viewer.id)
+        .in("bot_id", ids)
+      for (const p of myPurchases || []) {
+        const cur = purchased.get(p.bot_id) || { types: [], installed: false }
+        if (!cur.types.includes(p.purchase_type)) cur.types.push(p.purchase_type)
+        purchased.set(p.bot_id, cur)
+      }
+      if (purchased.size > 0) {
+        const { data: myInstalls } = await supabase
+          .from("community_bots")
+          .select("marketplace_source_id")
+          .eq("owner_id", viewer.id)
+          .in("marketplace_source_id", ids)
+          .not("marketplace_source_id", "is", null)
+        for (const row of myInstalls || []) {
+          const cur = purchased.get(row.marketplace_source_id)
+          if (cur) cur.installed = true
+        }
+      }
+    }
+
     // Pull community name for each bot.
     const communityIds = [...new Set((bots || []).map((b: any) => b.community_id))]
     const { data: communities } = await supabase
@@ -43,6 +73,8 @@ export async function GET(request: NextRequest) {
       secret_token: undefined,
       community_name: communityName.get(b.community_id) || null,
       rating_avg: b.rating_count > 0 ? Math.round((b.rating_sum / b.rating_count) * 10) / 10 : 0,
+      purchased_types: purchased.get(b.id)?.types || [],
+      installed: Boolean(purchased.get(b.id)?.installed),
     }))
 
     return NextResponse.json({ success: true, bots: safe })

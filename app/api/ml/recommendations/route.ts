@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { createServerClient } from "@/lib/supabase"
 import { smartEngagementScore, organizationRankingBoost } from "@/lib/feed-ranking"
-import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats"
+import { applyRealCommentCounts, applyRealBranchCounts, attachParentAuthors } from "@/lib/loop-stats"
 import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 import { getUserFromRequest } from "@/lib/server-auth";
 
@@ -110,6 +110,11 @@ export async function GET(req: NextRequest) {
     }
 
     const loops = candidateLoops || []
+
+    // The PostgREST parent_loop embed resolves to [] for self-FK rows, so
+    // resolve parent authors explicitly or feed cards can't name who a post
+    // was branched from.
+    await attachParentAuthors(createServerClient(), loops)
 
     // Attach poll / duel / clutch-duel payloads (they live in side tables) so
     // the For You tab renders their interactive widgets instead of plain text.

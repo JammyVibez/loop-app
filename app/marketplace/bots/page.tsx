@@ -60,6 +60,8 @@ interface MarketplaceBot {
   rating_avg: number
   rating_count: number
   purchase_count: number
+  purchased_types?: string[]
+  installed?: boolean
   owner?: { id: string; username: string; display_name?: string; avatar_url?: string | null; is_verified?: boolean } | null
 }
 
@@ -101,6 +103,13 @@ export default function BotMarketplacePage() {
   const [rateBot, setRateBot] = useState<MarketplaceBot | null>(null)
   const [rateValue, setRateValue] = useState(0)
   const [ratingSent, setRatingSent] = useState(false)
+  const [installBot, setInstallBot] = useState<MarketplaceBot | null>(null)
+  const [communities, setCommunities] = useState<Array<{ id: string; name: string; user_role?: string }>>([])
+  const [communityId, setCommunityId] = useState("")
+  const [loadingCommunities, setLoadingCommunities] = useState(false)
+  const [installing, setInstalling] = useState(false)
+  const [installError, setInstallError] = useState("")
+  const [installDone, setInstallDone] = useState<{ communityId: string; communityName?: string } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -126,6 +135,50 @@ export default function BotMarketplacePage() {
   }, [load])
 
   const categories = useMemo(() => ["all", ...Object.keys(CATEGORY_META)], [])
+
+  const openInstall = async (bot: MarketplaceBot) => {
+    setInstallBot(bot)
+    setInstallDone(null)
+    setInstallError("")
+    setCommunityId("")
+    setBuyBot(null)
+    setResult(null)
+    setLoadingCommunities(true)
+    try {
+      const res = await fetch("/api/circles?mine=true&limit=50", { cache: "no-store" })
+      const data = await res.json().catch(() => ({}))
+      const list = (data.communities || data.circles || [])
+        .map((c: any) => ({ id: String(c.id), name: c.name || c.handle || "Untitled community", user_role: c.user_role }))
+      setCommunities(list)
+    } catch {
+      setCommunities([])
+    } finally {
+      setLoadingCommunities(false)
+    }
+  }
+
+  const runInstall = async () => {
+    if (!installBot) return
+    if (!communityId) return setInstallError("Pick a community to install into")
+    setInstalling(true)
+    setInstallError("")
+    try {
+      const res = await fetch(`/api/marketplace/bots/${installBot.id}/install`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ community_id: communityId }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Install failed")
+      const target = communities.find((c) => String(c.id) === String(communityId))
+      setInstallDone({ communityId, communityName: target?.name })
+      load()
+    } catch (e: any) {
+      setInstallError(e.message)
+    } finally {
+      setInstalling(false)
+    }
+  }
 
   const buy = async () => {
     if (!user) {
@@ -302,13 +355,27 @@ export default function BotMarketplacePage() {
                     <span className="flex items-center gap-1.5 text-sm font-extrabold text-amber-500">
                       <Coins className="h-4 w-4" /> {bot.price_coins.toLocaleString()}
                     </span>
-                    <Button
-                      size="sm"
-                      className="h-8 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 text-xs text-white hover:from-indigo-400 hover:to-fuchsia-400"
-                      onClick={() => { setPurchaseType(bot.allows_hosted ? "hosted" : "source"); setBuyBot(bot); setResult(null) }}
-                    >
-                      <Zap className="h-3.5 w-3.5 mr-1" /> Buy with Coins
-                    </Button>
+                    {bot.installed ? (
+                      <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 text-xs font-bold text-emerald-500">
+                        <Check className="h-3.5 w-3.5" /> Installed
+                      </span>
+                    ) : bot.purchased_types && bot.purchased_types.length > 0 ? (
+                      <Button
+                        size="sm"
+                        className="h-8 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 text-xs font-bold text-emerald-500 hover:bg-emerald-500/20"
+                        onClick={() => openInstall(bot)}
+                      >
+                        <Zap className="h-3.5 w-3.5 mr-1" /> Install in a community
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="h-8 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 text-xs text-white hover:from-indigo-400 hover:to-fuchsia-400"
+                        onClick={() => { setPurchaseType(bot.allows_hosted ? "hosted" : "source"); setBuyBot(bot); setResult(null) }}
+                      >
+                        <Zap className="h-3.5 w-3.5 mr-1" /> Buy with Coins
+                      </Button>
+                    )}
                   </div>
                 </div>
               )
@@ -344,6 +411,19 @@ export default function BotMarketplacePage() {
                 >
                   {copied ? <Check className="h-3.5 w-3.5 text-emerald-500 mr-1.5" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
                   {copied ? "Copied" : "Copy delivery info"}
+                </Button>
+              </div>
+              <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3">
+                <p className="text-xs font-semibold text-emerald-500">Ready to use it?</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Install {buyBot?.name} into one of your communities — it becomes live in its Bots tab instantly.
+                </p>
+                <Button
+                  size="sm"
+                  className="mt-2.5 w-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-white hover:from-emerald-400 hover:to-cyan-400"
+                  onClick={() => buyBot && openInstall(buyBot)}
+                >
+                  <Zap className="h-3.5 w-3.5 mr-1.5" /> Install now
                 </Button>
               </div>
               <DialogFooter>
@@ -442,6 +522,105 @@ export default function BotMarketplacePage() {
               Submit rating
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Install dialog — pick a community for the purchased bot */}
+      <Dialog open={Boolean(installBot)} onOpenChange={(o) => { if (!o) { setInstallBot(null); setInstallDone(null); setCommunities([]) } }}>
+        <DialogContent className="max-w-md">
+          {installDone ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-emerald-500">
+                  <Check className="h-5 w-5" /> {installBot?.name} is live!
+                </DialogTitle>
+                <DialogDescription>
+                  Installed into <b>{installDone.communityName || "your community"}</b>. Members can find it in the Bots tab.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2">
+                <Button asChild className="rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white">
+                  <Link href={`/communities/${installDone.communityId}?tab=bots`}>
+                    <Bot className="h-4 w-4 mr-1.5" /> Open community Bots
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => { setInstallBot(null); setInstallDone(null); setCommunities([]); load() }}
+                >
+                  Done
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-emerald-500" /> Install {installBot?.name}
+                </DialogTitle>
+                <DialogDescription>
+                  Pick one of your communities. {installBot?.name} will go live in its Bots tab right away — the original
+                  listing and its creator keep full ownership.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2">
+                {loadingCommunities ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : communities.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border bg-muted/20 p-5 text-center">
+                    <Bot className="mx-auto h-6 w-6 text-muted-foreground" />
+                    <p className="mt-2 text-xs font-bold">No communities to install into</p>
+                    <p className="mx-auto mt-1 max-w-[240px] text-[11px] text-muted-foreground">
+                      You need to own or moderate a community first — create one, then come back to install.
+                    </p>
+                    <Button asChild size="sm" variant="outline" className="mt-3 rounded-full">
+                      <Link href="/communities/create" onClick={() => setInstallBot(null)}>
+                        <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Create a community
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
+                    {communities.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => setCommunityId(String(c.id))}
+                        className={cn(
+                          "flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left transition",
+                          String(c.id) === String(communityId)
+                            ? "border-emerald-500/50 bg-emerald-500/10"
+                            : "border-border hover:border-emerald-500/30",
+                        )}
+                      >
+                        <span className="min-w-0 truncate text-xs font-bold">{c.name}</span>
+                        <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {c.user_role === "owner" ? "Owner" : c.user_role === "admin" ? "Admin" : "Mod"}
+                          {String(c.id) === String(communityId) && <Check className="h-3.5 w-3.5 text-emerald-500" />}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {installError && <p className="text-xs text-red-500">{installError}</p>}
+              <DialogFooter>
+                <Button variant="outline" className="rounded-full" onClick={() => setInstallBot(null)} disabled={installing}>
+                  Cancel
+                </Button>
+                <Button
+                  className="rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-white"
+                  onClick={runInstall}
+                  disabled={installing || !communityId || communities.length === 0}
+                >
+                  {installing ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Zap className="h-4 w-4 mr-1.5" />}
+                  Install bot
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 

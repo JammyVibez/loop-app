@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
@@ -107,6 +107,7 @@ interface FocusTarget {
 export function CommunityWorld({ communityId }: { communityId: string }) {
   const { user } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [bundle, setBundle] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -120,6 +121,15 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [focus, setFocus] = useState<FocusTarget | null>(null)
   const [spaceRequest, setSpaceRequest] = useState<{ id: string; token: number } | null>(null)
+
+  // Support deep links like /communities/[id]?tab=bots so external CTAs
+  // (e.g. marketplace install success) can land users directly on a tab.
+  const VALID_TABS = ["overview", "feed", "spaces", "projects", "challenges", "memory", "members", "bots", "bookmarks", "moderation", "settings"]
+  useEffect(() => {
+    const t = searchParams?.get("tab") || ""
+    if (t && VALID_TABS.includes(t)) setTab(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, communityId])
 
   const load = useCallback(async () => {
     setLoading(true)

@@ -8,7 +8,7 @@ import {
 } from "@/lib/feed-ranking"
 import { calculateBoostInfo, isBoostRelevantToUser, capBoostedPostsInFeed } from "@/lib/boost"
 import { cosmeticsFromInventory } from "@/lib/cosmetics"
-import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats"
+import { applyRealCommentCounts, applyRealBranchCounts, attachParentAuthors } from "@/lib/loop-stats"
 import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 import { getUserFromRequest } from "@/lib/server-auth";
 
@@ -216,6 +216,7 @@ export async function GET(request: NextRequest) {
 
       let loops = data || []
       loops = await filterPrivateAuthorLoops(supabase, loops, user?.id || null, followingIds)
+      loops = await attachParentAuthors(supabase, loops)
       loops = await enrichLoopsWithPollsAndDuels(supabase, loops)
       loops = await applyRealCommentCounts(supabase, loops)
       loops = await applyRealBranchCounts(supabase, loops)
@@ -467,6 +468,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    loops = await attachParentAuthors(supabase, loops)
     loops = await enrichLoopsWithPollsAndDuels(supabase, loops)
     loops = await applyRealCommentCounts(supabase, loops)
     loops = await applyRealBranchCounts(supabase, loops)

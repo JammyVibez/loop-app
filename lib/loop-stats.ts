@@ -107,6 +107,73 @@ export async function realBranchCounts(
 }
 
 /**
+ * Attaches the real parent-loop payload to every loop that was branched from
+ * another loop.
+ *
+ * PostgREST's self-referencing `loops!parent_loop_id` embed silently resolves
+ * to an empty array for self-FK relationships, so feed responses used to ship
+ * branches without any parent info — making every card render the generic
+ * "Branch from the original post" fallback instead of naming the author.
+ *
+ * This does what the embed should have done, in one batched query, and sets
+ * `loop.parent_loop` in the exact shape normalizeLoop expects
+ * ({ id, content_text, author: { username, display_name, is_verified, ... } }).
+ * Rows that already carry a usable parent are left untouched.
+ */
+export async function attachParentAuthors(supabase: any, loops: any[]): Promise<any[]> {
+  if (!Array.isArray(loops) || loops.length === 0) return loops
+
+  // Only request parents for rows that have no usable parent payload yet
+  // (the PostgREST embed returns [] for self-FK rows, so treat empty as missing).
+  const missing = loops.filter(
+    (l) => l?.parent_loop_id && !(l?.parent_loop && (Array.isArray(l.parent_loop) ? l.parent_loop.length : true)),
+  )
+  const parentIds = [...new Set(missing.map((l) => l.parent_loop_id).filter(Boolean))]
+  if (parentIds.length === 0) return loops
+
+  const CHUNK = 200
+  const parents = new Map<string, any>()
+  for (let i = 0; i < parentIds.length; i += CHUNK) {
+    const chunk = parentIds.slice(i, i + CHUNK)
+    const { data, error } = await supabase
+      .from("loops")
+      .select(`
+        id, content_text, content_title, author_id,
+        author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium, is_team_member)
+      `)
+      .in("id", chunk)
+    if (error) {
+      console.error("attachParentAuthors error:", error.message)
+      continue
+    }
+    for (const row of data || []) {
+      const parentAuthor = Array.isArray(row.author) ? row.author[0] : row.author
+      parents.set(row.id, {
+        id: row.id,
+        content_text: row.content_text,
+        content_title: row.content_title,
+        author_id: row.author_id,
+        author: parentAuthor || null,
+      })
+    }
+  }
+  if (parents.size === 0) return loops
+
+  for (const loop of loops) {
+    if (!loop?.parent_loop_id) continue
+    // Skip rows that already carry a resolved parent object (or a non-empty array).
+    const existing = loop.parent_loop
+    if (existing && typeof existing === "object") {
+      if (!Array.isArray(existing) && (existing.author || existing.id)) continue
+      if (Array.isArray(existing) && existing.length > 0) continue
+    }
+    const parent = parents.get(loop.parent_loop_id)
+    if (parent) loop.parent_loop = parent
+  }
+  return loops
+}
+
+/**
  * Overwrites the `branches_count` inside each loop's `loop_stats` with the
  * true count from the `loops` table (posts where parent_loop_id = loop.id).
  */

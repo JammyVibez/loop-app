@@ -164,15 +164,25 @@ export function CommunityPostCard({
         : String(t ?? ""),
     )
     .filter(Boolean)
+  // Poll option text must ALWAYS end up a plain string: legacy writers stored
+  // options as { text: "x" } objects AND nested { text: { text: "x" } } shapes,
+  // and String()-ing an object produces the old "[object Object]" option bug.
+  const optionText = (o: any): string => {
+    const raw = o && typeof o === "object" ? (o.text ?? o.label ?? o.name ?? "") : o
+    if (raw && typeof raw === "object") {
+      return String(raw.text ?? raw.value ?? raw.label ?? raw.name ?? "")
+    }
+    return String(raw ?? "")
+  }
   const pollOptions = post.poll ? toArray((post.poll as any).options).map((o: any, i: number) =>
     typeof o === "object" && o !== null
       ? {
           id: String(o.id ?? i),
-          text: String(o.text ?? o.label ?? ""),
+          text: optionText(o),
           votes: Number(o.votes || 0),
-          image_url: o.image_url ? String(o.image_url) : null,
+          image_url: o.image_url || o.media_url ? String(o.image_url || o.media_url) : null,
         }
-      : { id: String(i), text: String(o), votes: 0, image_url: null },
+      : { id: String(i), text: String(o ?? ""), votes: 0, image_url: null },
   ) : []
 
   return (

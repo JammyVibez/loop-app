@@ -5,7 +5,7 @@ import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { isProUser } from "@/lib/pro-features"
 import { maskProfile, profileStatus } from "@/lib/user-status"
-import { applyRealCommentCounts } from "@/lib/loop-stats"
+import { applyRealCommentCounts, attachParentAuthors } from "@/lib/loop-stats"
 
 export async function GET(request: NextRequest) {
   try {
@@ -235,6 +235,13 @@ export async function GET(request: NextRequest) {
     const recentLoops = await enrichLoopsWithPollsAndDuels(supabase, combinedRecentLoops)
     const recentBranches = await enrichLoopsWithPollsAndDuels(supabase, rawRecentBranches || [])
     const mediaLoops = await enrichLoopsWithPollsAndDuels(supabase, rawMediaLoops || [])
+    // Branched posts also carry a parent — fetch the real parent author so
+    // branch banners can say "Branch from @username" here too.
+    await Promise.all([
+      attachParentAuthors(supabase, recentLoops),
+      attachParentAuthors(supabase, recentBranches),
+      attachParentAuthors(supabase, mediaLoops),
+    ])
 
     // True comment counts from the comments table for every loop surface.
     await Promise.all([

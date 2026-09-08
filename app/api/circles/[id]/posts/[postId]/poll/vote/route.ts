@@ -61,8 +61,30 @@ export async function POST(
       return NextResponse.json({ error: voteError.message || "Failed to record vote" }, { status: 500 })
     }
 
-    const nextOptions = (poll.options || []).map((opt: any) =>
-      opt.id === optionId ? { ...opt, votes: Number(opt.votes || 0) + 1 } : opt,
+    // Normalize options deterministically (same rule as the frontend) so votes
+    // match even for legacy rows whose options lack ids or store text objects.
+    const optionText = (raw: any): string => {
+      const val = raw && typeof raw === "object" ? (raw.text ?? raw.label ?? raw.name ?? "") : raw
+      if (val && typeof val === "object") return String(val.text ?? val.value ?? val.label ?? "")
+      return String(val ?? "")
+    }
+    const normalized = (poll.options || []).map((opt: any, i: number) => {
+      if (opt && typeof opt === "object") {
+        return {
+          id: String(opt.id ?? i),
+          text: optionText(opt),
+          votes: Number(opt.votes || 0),
+          image_url: opt.image_url || opt.media_url ? String(opt.image_url || opt.media_url) : null,
+        }
+      }
+      return { id: String(i), text: String(opt ?? ""), votes: 0, image_url: null }
+    })
+    const targetIndex = normalized.findIndex((o: any) => o.id === optionId)
+    if (targetIndex === -1) {
+      return NextResponse.json({ error: "Invalid option" }, { status: 400 })
+    }
+    const nextOptions = normalized.map((o: any, i: number) =>
+      i === targetIndex ? { ...o, votes: Number(o.votes || 0) + 1 } : o,
     )
     const nextTotal = Number(poll.total_votes || 0) + 1
 
