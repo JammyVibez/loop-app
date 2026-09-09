@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { Coins, Zap, ThumbsUp, ThumbsDown, Timer, Play, Trophy, Flame, Pencil, Plus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ProtectedMedia } from "@/components/media-protection"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 
@@ -48,9 +49,7 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
   const [editPrediction, setEditPrediction] = useState("")
   const [savingEdit, setSavingEdit] = useState(false)
   const [revealing, setRevealing] = useState(false)
-  const [videoPlaying, setVideoPlaying] = useState(false)
   const [myResult, setMyResult] = useState<{ kind: "win" | "loss" | "refund" | null; amount?: number } | null>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -206,17 +205,6 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
     if (userPick.side === duel.correct_side) setMyResult({ kind: "win" })
     else setMyResult({ kind: "loss" })
   }, [phase, duel?.correct_side, userPick])
-
-  // Once the anticipation beat ends, kick the clip off automatically so the
-  // outcome "plays" itself — with the overlay as a fallback if autoplay is
-  // blocked by the browser.
-  useEffect(() => {
-    if (phase !== "revealed" || !duel?.clip_url) return
-    const t = window.setTimeout(() => {
-      void videoRef.current?.play().catch(() => setVideoPlaying(false))
-    }, 120)
-    return () => window.clearTimeout(t)
-  }, [phase, duel?.clip_url])
 
   const yesLabel = duel?.side_a_label || "YES"
   const noLabel = duel?.side_b_label || "NO"
@@ -405,37 +393,18 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
           ) : (
             <div className="relative aspect-video w-full">
               {duel.clip_url ? (
-                <video
-                  ref={videoRef}
-                  src={duel.clip_url}
-                  controls
-                  playsInline
-                  preload="metadata"
-                  autoPlay={false}
-                  controlsList="nodownload"
-                  onContextMenu={(e) => e.preventDefault()}
-                  onDragStart={(e) => e.preventDefault()}
-                  className="h-full w-full rounded-2xl object-contain"
-                  onPlay={() => setVideoPlaying(true)}
-                  onPause={() => setVideoPlaying(false)}
-                />
+                // ProtectedMedia replaces native controls (no download option),
+                // blocks right-click/drag, and never autoplays on its own.
+                <div className="h-full w-full [&_video]:h-full [&_video]:w-full [&_video]:object-contain">
+                  <ProtectedMedia
+                    type="video"
+                    src={duel.clip_url}
+                    className="h-full w-full"
+                    showControls
+                  />
+                </div>
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Clip unavailable</div>
-              )}
-              {!videoPlaying && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    void videoRef.current?.play()
-                  }}
-                  className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/40"
-                  aria-label="Play the clip to see the outcome"
-                >
-                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 shadow-xl shadow-violet-500/40 transition hover:scale-110">
-                    <Play className="ml-0.5 h-6 w-6 fill-white text-white" />
-                  </span>
-                  <span className="text-xs font-bold text-white drop-shadow">Watch the outcome</span>
-                </button>
               )}
             </div>
           )}
