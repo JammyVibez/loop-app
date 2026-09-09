@@ -35,6 +35,37 @@ async function tryStatsRpc(
   }
 }
 
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = createServerClient()
+    const { searchParams } = new URL(request.url)
+    const targetUserId = searchParams.get("target_user_id") || searchParams.get("user_id")
+    if (!targetUserId) {
+      return NextResponse.json({ error: "target_user_id is required" }, { status: 400 })
+    }
+
+    const user = await getUserFromRequest(request)
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { data, error } = await supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", user.id)
+      .eq("following_id", targetUserId)
+      .maybeSingle()
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ is_following: Boolean(data) })
+  } catch (error: any) {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient()

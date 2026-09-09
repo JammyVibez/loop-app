@@ -133,6 +133,8 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
   const [rosterOpen, setRosterOpen] = useState(false)
   const [activeMediaIndex, setActiveMediaIndex] = useState(0)
   const [reactions, setReactions] = useState<{ [emoji: string]: number }>({})
+  const [isFollowingAuthor, setIsFollowingAuthor] = useState(false)
+  const [followLoading, setFollowLoading] = useState(false)
   const [activeReaction, setActiveReaction] = useState<string | null>(null)
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
@@ -231,6 +233,59 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
   useEffect(() => {
     if (loopId) void fetchLoop()
   }, [loopId, fetchLoop])
+
+  // Follow state — fetch once the author is known (skipped for own posts).
+  useEffect(() => {
+    if (!loop || !user || loop.author.id === user.id) {
+      setIsFollowingAuthor(false)
+      return
+    }
+    let cancelled = false
+    const check = async () => {
+      try {
+        const res = await fetch(`/api/users/follow?target_user_id=${loop.author.id}`, {
+          headers: { ...getAuthHeader() },
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        if (!cancelled) setIsFollowingAuthor(Boolean(data.is_following))
+      } catch {}
+    }
+    void check()
+    return () => {
+      cancelled = true
+    }
+  }, [loop?.author.id, user?.id])
+
+  const handleFollowToggle = async () => {
+    if (!user || !loop || followLoading) return
+    if (loop.author.id === user.id) return
+    setFollowLoading(true)
+    const next = !isFollowingAuthor
+    // Optimistic flip
+    setIsFollowingAuthor(next)
+    try {
+      const res = await fetch("/api/users/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ target_user_id: loop.author.id, action: next ? "follow" : "unfollow" }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed")
+      setIsFollowingAuthor(Boolean(data.is_following))
+      toast({
+        title: data.requires_approval ? "Request sent" : next ? "Following" : "Unfollowed",
+        description: data.requires_approval
+          ? `We'll notify you when @${loop.author.username} approves.`
+          : undefined,
+      })
+    } catch (err: any) {
+      setIsFollowingAuthor(!next)
+      toast({ title: "Action failed", description: err.message, variant: "destructive" })
+    } finally {
+      setFollowLoading(false)
+    }
+  }
 
   // Real-time Supabase subscription for live likes, comments, & reactions
   useEffect(() => {
@@ -680,6 +735,21 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
             </div>
 
             <div className="flex shrink-0 items-center gap-1.5">
+              {user && loop.author.id !== user.id && (
+                <Button
+                  size="sm"
+                  disabled={followLoading}
+                  onClick={handleFollowToggle}
+                  className={cn(
+                    "h-8 rounded-full px-3.5 text-xs font-bold transition-all",
+                    isFollowingAuthor
+                      ? "border border-border bg-transparent text-foreground hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-400"
+                      : "bg-foreground text-background hover:bg-foreground/90",
+                  )}
+                >
+                  {followLoading ? "..." : isFollowingAuthor ? "Following" : "Follow"}
+                </Button>
+              )}
               {postTypePill && (
                 <Badge
                   variant="outline"
