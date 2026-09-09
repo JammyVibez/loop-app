@@ -21,6 +21,10 @@ type Props = {
   showPreviewCard?: boolean
 }
 
+// Attribution footer appended by rebranch: renders smaller + muted so the
+// quote and original post keep visual hierarchy (never full post size).
+const REBRANCH_ATTRIBUTION_RE = /\n?— Rebranched from @[a-zA-Z0-9_]{3,30}\s*$/
+
 /**
  * Checks if a URL or alt tag corresponds to a sticker or GIF asset.
  */
@@ -52,7 +56,13 @@ export function RichContent({
   const content = String(text || "")
   if (!content) return null
 
-  const parts = content.split(COMBINED_RE)
+  // Split off the rebranch attribution footer so it renders in its own
+  // smaller, muted line instead of full post text size.
+  const attributionMatch = content.match(REBRANCH_ATTRIBUTION_RE)
+  const bodyText = attributionMatch ? content.slice(0, content.length - attributionMatch[0].length) : content
+  const attribution = attributionMatch ? attributionMatch[0].replace(/^\n+/, "").trim() : null
+
+  const parts = bodyText.split(COMBINED_RE)
   const detectedUrls: string[] = []
 
   // Route remote images through the image-proxy so browsers don't fetch unknown hosts directly.
@@ -60,7 +70,7 @@ export function RichContent({
     src && src.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(src)}` : src || undefined
 
   return (
-    <div className="space-y-1.5 min-w-0">
+    <div className="space-y-1 min-w-0">
       <Tag className={cn("whitespace-pre-wrap break-words", className)}>
         {parts.map((part, i) => {
           if (!part) return null
@@ -218,6 +228,11 @@ export function RichContent({
           return <span key={`${i}-${part}`}>{part}</span>
         })}
       </Tag>
+
+      {/* Rebranch attribution — small, muted, sits tight under the post body */}
+      {attribution && (
+        <p className="text-xs text-muted-foreground mt-0.5">{attribution}</p>
+      )}
 
       {/* Render URL preview expansion card ONLY for non-sticker detected URLs */}
       {showPreviewCard && detectedUrls.length > 0 && (
