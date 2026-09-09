@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Heart, MoreHorizontal, Pencil, Reply, Trash2 } from "lucide-react"
+import { Heart, Lock, MoreHorizontal, Pencil, Reply, Trash2 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -57,7 +57,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 )
 
-export function CommentsSection({ loopId }: { loopId: string; comments?: Comment[] }) {
+export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; comments?: Comment[]; commentsDisabled?: boolean }) {
   const [commentsData, setCommentsData] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState("")
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
@@ -367,7 +367,12 @@ export function CommentsSection({ loopId }: { loopId: string; comments?: Comment
         </h3>
       </div>
 
-      {user ? (
+      {commentsDisabled ? (
+        <div className="rounded-xl border border-dashed border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-600 dark:text-amber-400 flex items-center gap-2">
+          <Lock className="h-4 w-4 shrink-0" />
+          <span>Comments are locked by the author.</span>
+        </div>
+      ) : user ? (
         <div className="space-y-2">
           <div className="relative">
             <MentionTextarea

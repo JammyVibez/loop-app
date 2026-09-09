@@ -98,6 +98,7 @@ interface LoopData {
   mediaUrls: string[]
   mediaType?: string
   postType?: string
+  commentsDisabled?: boolean
   poll?: any
   duel?: any
   contentMetadata?: Record<string, any> | null
@@ -190,6 +191,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
         mediaUrls: mediaUrlsList,
         mediaType: loopData.media_type || undefined,
         postType: loopData.post_type,
+        commentsDisabled: Boolean((loopData as any).comments_disabled),
         poll: loopData.poll,
         duel: loopData.duel,
         contentMetadata: loopData.content_metadata || null,
@@ -999,7 +1001,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
 
       {/* Real-time Comments Section */}
       <section id="comments" className="mt-8 scroll-mt-24">
-        <CommentsSection loopId={loop.id} />
+        <CommentsSection loopId={loop.id} commentsDisabled={loop.commentsDisabled} />
       </section>
 
       {/* Branch Loop Dialog */}

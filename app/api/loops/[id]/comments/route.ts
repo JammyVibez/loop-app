@@ -132,6 +132,17 @@ export async function POST(
 
     const supabase = createServerClient()
 
+    // Check if comments are disabled on this loop
+    const { data: loopRow } = await supabase
+      .from("loops")
+      .select("author_id, comments_disabled")
+      .eq("id", loopId)
+      .maybeSingle()
+
+    if ((loopRow as any)?.comments_disabled && user.id !== (loopRow as any)?.author_id) {
+      return NextResponse.json({ error: "Comments are locked for this post" }, { status: 403 })
+    }
+
     // Create comment
     const { data: comment, error } = await supabase
       .from('comments')

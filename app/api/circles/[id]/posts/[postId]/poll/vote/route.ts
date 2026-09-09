@@ -18,8 +18,8 @@ export async function POST(
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
 
     const { id: circleId, postId } = await params
-    const { optionId } = await request.json()
-    if (!optionId) return NextResponse.json({ error: "optionId is required" }, { status: 400 })
+    const { optionId, optionIndex } = await request.json()
+    if (!optionId && optionIndex === undefined) return NextResponse.json({ error: "optionId or optionIndex is required" }, { status: 400 })
 
     const { data: member } = await supabase
       .from("circle_members")
@@ -52,15 +52,6 @@ export async function POST(
       return NextResponse.json({ error: "You already voted on this poll" }, { status: 400 })
     }
 
-    const { error: voteError } = await supabase.from("circle_post_poll_votes").insert({
-      poll_id: poll.id,
-      user_id: user.id,
-      option_id: optionId,
-    })
-    if (voteError) {
-      return NextResponse.json({ error: voteError.message || "Failed to record vote" }, { status: 500 })
-    }
-
     // Normalize options deterministically (same rule as the frontend) so votes
     // match even for legacy rows whose options lack ids or store text objects.
     const optionText = (raw: any): string => {
@@ -71,7 +62,7 @@ export async function POST(
     const normalized = (poll.options || []).map((opt: any, i: number) => {
       if (opt && typeof opt === "object") {
         return {
-          id: String(opt.id ?? i),
+          id: String(opt.id ?? `opt_${i + 1}`),
           text: optionText(opt),
           votes: Number(opt.votes || 0),
           image_url: opt.image_url || opt.media_url ? String(opt.image_url || opt.media_url) : null,
@@ -79,9 +70,27 @@ export async function POST(
       }
       return { id: String(i), text: String(opt ?? ""), votes: 0, image_url: null }
     })
-    const targetIndex = normalized.findIndex((o: any) => o.id === optionId)
+
+    // Resolve target index: accept numeric index or string ID
+    let targetIndex = -1
+    if (typeof optionIndex === "number" && optionIndex >= 0 && optionIndex < normalized.length) {
+      targetIndex = optionIndex
+    } else if (optionId) {
+      targetIndex = normalized.findIndex((o: any) => o.id === String(optionId))
+    }
     if (targetIndex === -1) {
       return NextResponse.json({ error: "Invalid option" }, { status: 400 })
+    }
+
+    const resolvedOptionId = normalized[targetIndex].id
+
+    const { error: voteError } = await supabase.from("circle_post_poll_votes").insert({
+      poll_id: poll.id,
+      user_id: user.id,
+      option_id: resolvedOptionId,
+    } as any)
+    if (voteError) {
+      return NextResponse.json({ error: voteError.message || "Failed to record vote" }, { status: 500 })
     }
     const nextOptions = normalized.map((o: any, i: number) =>
       i === targetIndex ? { ...o, votes: Number(o.votes || 0) + 1 } : o,

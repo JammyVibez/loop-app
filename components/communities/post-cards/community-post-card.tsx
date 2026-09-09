@@ -129,10 +129,11 @@ export function CommunityPostCard({
     if (voting) return
     setVoting(true)
     try {
+      const optIdx = (post.poll?.options || []).findIndex((o: any) => String(o.id) === String(optionId))
       await fetch(`/api/circles/${communityId}/posts/${post.id}/poll/vote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ option_id: optionId }),
+        body: JSON.stringify({ optionId, optionIndex: optIdx >= 0 ? optIdx : undefined }),
       })
     } catch {}
     setVoting(false)

@@ -171,7 +171,7 @@ export function PollCardWidget({ poll: initialPoll, loopId, creatorId }: { poll?
     }
   }
 
-  const handleVote = async (optionId: string) => {
+  const handleVote = async (optionId: string, optionIndex: number) => {
     if (!user) {
       toast({ title: "Sign in required", description: "Please sign in to vote!" })
       return
@@ -198,7 +198,7 @@ export function PollCardWidget({ poll: initialPoll, loopId, creatorId }: { poll?
           "Content-Type": "application/json",
           ...getAuthHeader(),
         },
-        body: JSON.stringify({ optionId }),
+        body: JSON.stringify({ optionId, optionIndex }),
       })
 
       const data = await res.json()
@@ -246,7 +246,7 @@ export function PollCardWidget({ poll: initialPoll, loopId, creatorId }: { poll?
 
       {/* Options list */}
       <div className="space-y-2.5 pt-1">
-        {poll.options.map((option) => {
+        {poll.options.map((option, idx) => {
           const votesCount = option.votes || 0
           const percent = totalVotes > 0 ? Math.round((votesCount / totalVotes) * 100) : 0
           const isUserChoice = option.id === userVotedOptionId
@@ -287,7 +287,7 @@ export function PollCardWidget({ poll: initialPoll, loopId, creatorId }: { poll?
                 <button
                   type="button"
                   disabled={isVoting}
-                  onClick={() => handleVote(option.id)}
+                  onClick={() => handleVote(option.id, idx)}
                   className="w-full text-left p-3 rounded-xl border border-border bg-muted hover:bg-cyan-500/10 hover:border-cyan-500/50 text-xs font-semibold text-foreground hover:text-cyan-600 dark:hover:text-cyan-300 transition-all duration-200 flex items-center justify-between group shadow-sm"
                 >
                   <span className="truncate pr-2">{option.text}</span>

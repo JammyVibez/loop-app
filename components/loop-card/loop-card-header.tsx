@@ -11,6 +11,8 @@ import {
   Trash2,
   Pin,
   PinOff,
+  Lock,
+  Unlock,
   Users,
   Rocket,
   BadgeCheck,
@@ -316,6 +318,24 @@ export function LoopCardHeader({
                     <Pin className="h-4 w-4 mr-2" />
                   )}
                   {loop.is_pinned ? "Unpin from Profile" : "Pin to Profile"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/loops/${loop.id}/toggle-comments`, { method: "POST" })
+                      const data = await res.json()
+                      if (data.success) {
+                        // Update local state
+                        loop.comments_disabled = data.comments_disabled
+                      }
+                    } catch {}
+                  }}
+                >
+                  {loop.comments_disabled ? (
+                    <><Unlock className="h-4 w-4 mr-2" /> Unlock Comments</>
+                  ) : (
+                    <><Lock className="h-4 w-4 mr-2" /> Lock Comments</>
+                  )}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={onDelete}

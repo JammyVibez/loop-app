@@ -19,11 +19,36 @@ export async function POST(
     }
 
     const userId = user.id
-    const { optionId } = await req.json()
+    const { optionId, optionIndex } = await req.json()
 
-    if (!optionId) {
-      return NextResponse.json({ error: "Option ID is required" }, { status: 400 })
+    // Fetch current poll
+    const { data: poll, error: pollErr } = await supabase
+      .from("loop_polls")
+      .select("*")
+      .eq("id", pollId)
+      .single()
+
+    if (pollErr || !poll) {
+      return NextResponse.json({ error: "Poll not found" }, { status: 404 })
     }
+
+    const options = Array.isArray(poll.options) ? poll.options : []
+
+    // Resolve option: accept index (number) or string ID
+    let resolvedIndex = -1
+    if (typeof optionIndex === "number" && optionIndex >= 0 && optionIndex < options.length) {
+      resolvedIndex = optionIndex
+    } else if (optionId) {
+      const idx = options.findIndex((o: any) => String(o.id) === String(optionId))
+      if (idx >= 0) resolvedIndex = idx
+    }
+
+    if (resolvedIndex < 0) {
+      return NextResponse.json({ error: "Invalid option" }, { status: 400 })
+    }
+
+    const selectedOption = options[resolvedIndex]
+    const resolvedOptionId = selectedOption?.id || `opt_${resolvedIndex + 1}`
 
     // Check if user already voted in this poll
     const { data: existingVote } = await supabase
@@ -37,33 +62,21 @@ export async function POST(
       return NextResponse.json({ error: "You have already voted in this poll" }, { status: 400 })
     }
 
-    // Fetch current poll
-    const { data: poll, error: pollErr } = await supabase
-      .from("loop_polls")
-      .select("*")
-      .eq("id", pollId)
-      .single()
-
-    if (pollErr || !poll) {
-      return NextResponse.json({ error: "Poll not found" }, { status: 404 })
-    }
-
-    // Insert user vote
+    // Insert user vote — use text cast so non-UUID option IDs work
     const { error: voteErr } = await supabase.from("loop_poll_votes").insert({
       poll_id: pollId,
       loop_id: poll.loop_id,
       user_id: userId,
-      option_id: optionId,
-    })
+      option_id: resolvedOptionId,
+    } as any)
 
     if (voteErr) {
       return NextResponse.json({ error: voteErr.message }, { status: 400 })
     }
 
     // Update poll option vote count & total_votes
-    const options = Array.isArray(poll.options) ? poll.options : []
-    const updatedOptions = options.map((opt: any) =>
-      opt.id === optionId ? { ...opt, votes: (opt.votes || 0) + 1 } : opt
+    const updatedOptions = options.map((opt: any, i: number) =>
+      i === resolvedIndex ? { ...opt, votes: (opt.votes || 0) + 1 } : opt
     )
 
     const newTotalVotes = (poll.total_votes || 0) + 1
@@ -85,7 +98,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       poll: updatedPoll || { ...poll, options: updatedOptions, total_votes: newTotalVotes },
-      userVotedOptionId: optionId,
+      userVotedOptionId: resolvedOptionId,
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
