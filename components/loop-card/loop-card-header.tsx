@@ -69,6 +69,7 @@ export function LoopCardHeader({
 }: LoopCardHeaderProps) {
   const { user: currentUser } = useAuth()
   const { requireAuth, LoginGateDialog } = useLoginGate()
+  const isAuthor = (user: any, loop: any) => user?.id === loop?.author_id
   const verificationBadges = useVerificationBadges()
   const authorBadge = loop.author?.badge_id
     ? verificationBadges[loop.author.badge_id] || null
@@ -251,6 +252,11 @@ export function LoopCardHeader({
               <span className="truncate max-w-[80px] sm:max-w-none">@{loop.author.username}</span>
               <span>&middot;</span>
               <FreshnessTimestamp date={loop.created_at} showIcon />
+              {loop.comments_disabled && (
+                <span className="inline-flex items-center gap-0.5 text-amber-500" title="Comments locked">
+                  <Lock className="h-3 w-3" />
+                </span>
+              )}
               {loop.engagement_score && loop.engagement_score > 80 && (
                 <>
                   <span>&middot;</span>
@@ -325,7 +331,6 @@ export function LoopCardHeader({
                       const res = await fetch(`/api/loops/${loop.id}/toggle-comments`, { method: "POST" })
                       const data = await res.json()
                       if (data.success) {
-                        // Update local state
                         loop.comments_disabled = data.comments_disabled
                       }
                     } catch {}
@@ -345,6 +350,26 @@ export function LoopCardHeader({
                   Delete Loop
                 </DropdownMenuItem>
               </>
+            )}
+            {/* Admin/moderator override — visible even on other users' posts */}
+            {currentUser && !isAuthor(currentUser, loop) && (currentUser.is_admin || currentUser.is_team_member) && (
+              <DropdownMenuItem
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`/api/loops/${loop.id}/toggle-comments`, { method: "POST" })
+                    const data = await res.json()
+                    if (data.success) {
+                      loop.comments_disabled = data.comments_disabled
+                    }
+                  } catch {}
+                }}
+              >
+                {loop.comments_disabled ? (
+                  <><Unlock className="h-4 w-4 mr-2" /> Admin: Unlock Comments</>
+                ) : (
+                  <><Lock className="h-4 w-4 mr-2" /> Admin: Lock Comments</>
+                )}
+              </DropdownMenuItem>
             )}
             <DropdownMenuItem
               onClick={() => {

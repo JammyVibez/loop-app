@@ -6,14 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, Check, Loader2, Settings, Heart, MessageCircle, UserPlus, GitBranch, AtSign, Gift, Mail, BellRing, ChevronRight } from "lucide-react"
+import { Bell, Check, Loader2, Settings, Heart, MessageCircle, UserPlus, GitBranch, AtSign, Gift, Mail, BellRing, ChevronRight, Lock } from "lucide-react"
 import { NotificationQuickReply } from "@/components/notifications/notification-quick-reply";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp";
 import { CoLoopInviteCard } from "@/components/invitations/co-loop-invite-card";
 import { supabase } from "@/lib/supabase";
-import { getDiceBearUrl } from "@/lib/dicebear";
 
 interface Actor {
   id: string
@@ -42,12 +41,15 @@ interface Notification {
 const TYPE_CONFIG: Record<string, { icon: typeof Heart; color: string; bg: string; label: string }> = {
   like: { icon: Heart, color: "text-rose-500", bg: "bg-rose-500/10", label: "Like" },
   comment: { icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-500/10", label: "Comment" },
+  reply: { icon: MessageCircle, color: "text-blue-400", bg: "bg-blue-400/10", label: "Reply" },
   follow: { icon: UserPlus, color: "text-violet-500", bg: "bg-violet-500/10", label: "Follow" },
   branch: { icon: GitBranch, color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Branch" },
   mention: { icon: AtSign, color: "text-amber-500", bg: "bg-amber-500/10", label: "Mention" },
   gift: { icon: Gift, color: "text-pink-500", bg: "bg-pink-500/10", label: "Gift" },
   message: { icon: Mail, color: "text-cyan-500", bg: "bg-cyan-500/10", label: "Message" },
   system: { icon: BellRing, color: "text-sky-500", bg: "bg-sky-500/10", label: "System" },
+  co_loop_invite: { icon: GitBranch, color: "text-cyan-400", bg: "bg-cyan-400/10", label: "Co-Loop" },
+  clutch_duel_result: { icon: Heart, color: "text-orange-500", bg: "bg-orange-500/10", label: "Duel" },
 }
 
 function getTypeConfig(type: string) {
@@ -55,7 +57,7 @@ function getTypeConfig(type: string) {
 }
 
 // ── Time grouping helper ──────────────────────────────────────────
-function groupNotifications(notifications: Notification[]): { label: string; items: Notification[] }[] {
+function groupByTime(notifications: Notification[]): { label: string; items: Notification[] }[] {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const yesterday = new Date(today.getTime() - 86400000)
@@ -192,7 +194,7 @@ export function NotificationDropdown() {
     if (data.url) return data.url
     if (data.conversation_id) return `/messages?c=${data.conversation_id}`
     if (data.loop_id) return `/loop/${data.loop_id}`
-    if (data.circle_id) return `/circles/${data.circle_id}`
+    if (data.circle_id) return `/communities/${data.circle_id}`
     if (data.reel_id) return `/trees?id=${data.reel_id}`
     if (data.username) return `/profile/${data.username}`
     if (data.actor_username) return `/profile/${data.actor_username}`
@@ -200,73 +202,91 @@ export function NotificationDropdown() {
     return "/notifications"
   }
 
-  const groups = useMemo(() => groupNotifications(notifications), [notifications])
+  const groups = useMemo(() => groupByTime(notifications), [notifications])
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
-          <Bell className="h-4 w-4 text-muted-foreground" />
+        <button
+          type="button"
+          className="relative flex items-center justify-center h-9 w-9 rounded-full hover:bg-muted/60 transition-colors"
+        >
+          <Bell className="h-[18px] w-[18px] text-muted-foreground" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-background">
-              {unreadCount > 9 ? "9+" : unreadCount}
+            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-background">
+              {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
-        </Button>
+        </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-[380px] max-w-[calc(100vw-2rem)] p-0" align="end" forceMount>
+      <DropdownMenuContent
+        className="w-[360px] max-w-[calc(100vw-1.5rem)] p-0 overflow-hidden rounded-xl border-border/60 shadow-xl"
+        align="end"
+        sideOffset={8}
+        forceMount
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
           <div className="flex items-center gap-2">
-            <h4 className="text-sm font-semibold">Notifications</h4>
+            <h3 className="text-sm font-bold text-foreground">Notifications</h3>
             {unreadCount > 0 && (
-              <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold">
+              <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold bg-rose-500/10 text-rose-500 border-0">
                 {unreadCount}
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             {unreadCount > 0 && (
-              <Button variant="ghost" size="sm" onClick={markAllAsRead} className="h-7 text-xs text-muted-foreground hover:text-foreground">
-                <Check className="h-3 w-3 mr-1" />
+              <button
+                type="button"
+                onClick={markAllAsRead}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              >
+                <Check className="h-3 w-3" />
                 Mark all read
-              </Button>
+              </button>
             )}
             <Link href="/settings">
-              <Button variant="ghost" size="icon" className="h-7 w-7">
-                <Settings className="h-3.5 w-3.5 text-muted-foreground" />
-              </Button>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              >
+                <Settings className="h-3.5 w-3.5" />
+              </button>
             </Link>
           </div>
         </div>
 
         {/* Notification list */}
-        <ScrollArea className="h-[420px]">
+        <ScrollArea className="h-[400px]">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : notifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
-                <Bell className="h-6 w-6 opacity-50" />
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <div className="h-10 w-10 rounded-full bg-muted/60 flex items-center justify-center mb-3">
+                <Bell className="h-5 w-5 opacity-40" />
               </div>
               <p className="text-sm font-medium">No notifications yet</p>
-              <p className="text-xs mt-1">When someone interacts with you, it will show up here</p>
+              <p className="text-[11px] mt-1 text-muted-foreground/70">When someone interacts with you, it will appear here</p>
             </div>
           ) : (
-            <div>
+            <div className="divide-y divide-border/30">
               {groups.map((group) => (
                 <div key={group.label}>
-                  <div className="px-4 py-2 bg-muted/30">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{group.label}</p>
+                  {/* Time group header */}
+                  <div className="px-4 py-1.5 bg-muted/20 sticky top-0 z-10">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{group.label}</p>
                   </div>
+
                   {group.items.map((notification) => {
                     const href = notificationHref(notification)
                     const config = getTypeConfig(notification.type)
                     const Icon = config.icon
                     const actor = notification.actor
 
+                    // Co-Loop invite special card
                     const isCoLoopInvite =
                       notification.type === "co_loop" ||
                       notification.type === "co_loop_invite" ||
@@ -280,7 +300,7 @@ export function NotificationDropdown() {
                         notification.message?.split(" invited")[0] ||
                         "A Collaborator"
                       return (
-                        <div key={notification.id} className="p-2 border-b border-border/40">
+                        <div key={notification.id} className="px-3 py-2">
                           <CoLoopInviteCard
                             sessionId={inviteSessionId}
                             inviterName={inviterDisplayName}
@@ -290,99 +310,97 @@ export function NotificationDropdown() {
                       )
                     }
 
-                    // Grouped notification — show stacked actor avatars
+                    // Grouped notification
                     const groupedActors = (notification as any).actors || []
                     const groupCount = (notification as any).count || 1
                     const isGrouped = groupCount > 1 && groupedActors.length > 1
+                    const isUnread = !notification.is_read
+
+                    const actorName = isGrouped
+                      ? groupedActors[0]?.display_name || groupedActors[0]?.username || ""
+                      : actor?.display_name || actor?.username || ""
+
+                    const actionText = isGrouped
+                      ? groupCount === 2
+                        ? ` and ${groupedActors[1]?.display_name || groupedActors[1]?.username || "someone"} `
+                        : ` and ${groupCount - 1} others `
+                      : ""
+
+                    const verb = notification.type === "like" ? "liked"
+                      : notification.type === "follow" ? "followed"
+                      : notification.type === "boost" ? "boosted"
+                      : notification.type === "branch" ? "branched"
+                      : notification.type === "comment" ? "commented on"
+                      : notification.type === "reply" ? "replied to"
+                      : notification.type === "message" ? "sent you a message about"
+                      : notification.type === "gift" ? "sent you a gift"
+                      : notification.type === "mention" ? "mentioned you in"
+                      : "interacted with"
+
+                    const targetText = notification.type === "comment" || notification.type === "reply"
+                      ? " your post"
+                      : notification.type === "message"
+                      ? ""
+                      : " your post"
 
                     return (
                       <button
                         key={notification.id}
                         type="button"
-                        className={`w-full text-left px-4 py-3 flex items-start gap-3 border-b border-border/40 last:border-0 transition-colors hover:bg-muted/50 ${
-                          !notification.is_read ? "bg-primary/5" : ""
+                        className={`w-full text-left px-3 py-2.5 flex items-start gap-2.5 transition-colors hover:bg-muted/40 ${
+                          isUnread ? "bg-primary/[0.03]" : ""
                         }`}
                         onClick={() => {
-                          if (!notification.is_read) void markAsRead(notification.id)
+                          if (isUnread) void markAsRead(notification.id)
                           if (href) window.location.href = href
                         }}
                       >
-                        {/* Actor avatar(s) — stacked for grouped, single for normal */}
-                        <div className="relative shrink-0">
+                        {/* Actor avatar(s) */}
+                        <div className="relative shrink-0 mt-0.5">
                           {isGrouped ? (
-                            <div className="relative h-10 w-10">
-                              {/* Stacked avatars — top 3 */}
+                            <div className="relative h-9 w-9">
                               {groupedActors.slice(0, 3).map((a: any, i: number) => (
                                 <Avatar
                                   key={a.id || i}
-                                  className="absolute h-8 w-8 border-2 border-background"
-                                  style={{ top: i * 4, left: i * 4, zIndex: 3 - i }}
+                                  className="absolute h-7 w-7 border-2 border-background"
+                                  style={{ top: i * 3, left: i * 3, zIndex: 3 - i }}
                                 >
                                   <AvatarImage src={a.avatar_url || undefined} alt={a.display_name || a.username} />
-                                  <AvatarFallback className="text-[10px]">
+                                  <AvatarFallback className="text-[9px]">
                                     {(a.display_name || a.username || "?").charAt(0)}
                                   </AvatarFallback>
                                 </Avatar>
                               ))}
                             </div>
                           ) : (
-                            <Avatar className="h-10 w-10">
+                            <Avatar className="h-9 w-9">
                               <AvatarImage
                                 src={actor?.avatar_url || undefined}
                                 alt={actor?.display_name || actor?.username || "user"}
-                                fallbackSeed={actor?.username}
                               />
-                              <AvatarFallback className="text-xs">
+                              <AvatarFallback className="text-[10px] font-semibold">
                                 {actor?.display_name?.charAt(0) || actor?.username?.charAt(0) || "?"}
                               </AvatarFallback>
                             </Avatar>
                           )}
-                          {/* Type icon badge overlay */}
-                          <div className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full ${config.bg} flex items-center justify-center ring-2 ring-background`}>
-                            <Icon className={`h-2.5 w-2.5 ${config.color}`} />
+                          {/* Type icon badge */}
+                          <div className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full ${config.bg} flex items-center justify-center ring-[1.5px] ring-background`}>
+                            <Icon className={`h-2 w-2 ${config.color}`} />
                           </div>
-                          {isGrouped && groupCount > 3 && (
-                            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[8px] font-bold text-primary-foreground ring-2 ring-background z-10">
-                              +{groupCount - 3}
-                            </span>
-                          )}
                         </div>
 
                         {/* Content */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm leading-snug">
-                            {isGrouped ? (
-                              <>
-                                <span className="font-semibold">
-                                  {groupedActors[0]?.display_name || groupedActors[0]?.username || ""}
-                                </span>
-                                <span className="text-muted-foreground">
-                                  {groupCount === 2
-                                    ? ` and ${groupedActors[1]?.display_name || groupedActors[1]?.username || "someone"} `
-                                    : ` and ${groupCount - 1} others `}
-                                </span>
-                                <span className="text-muted-foreground">
-                                  {notification.type === "like" ? "liked" : notification.type === "follow" ? "followed" : notification.type === "boost" ? "boosted" : "interacted with"} your post
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                <span className="font-semibold">
-                                  {actor?.display_name || actor?.username || ""}
-                                </span>
-                                {actor && <span className="text-muted-foreground"> </span>}
-                                <span className="text-muted-foreground">
-                                  {notification.title}
-                                </span>
-                              </>
-                            )}
+                          <p className="text-[13px] leading-snug text-foreground">
+                            <span className="font-semibold">{actorName}</span>
+                            <span className="text-muted-foreground">{actionText}{verb}{targetText}</span>
                           </p>
                           {notification.message && notification.message !== notification.title && !isGrouped && (
-                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{notification.message}</p>
+                            <p className="text-[11px] text-muted-foreground/80 mt-0.5 line-clamp-1">{notification.message}</p>
                           )}
-                          <div className="mt-1 flex items-center gap-2">
+                          <div className="flex items-center gap-1.5 mt-1">
                             <FreshnessTimestamp date={notification.updated_at || notification.created_at} showIcon />
-                            {!notification.is_read && (
+                            {isUnread && (
                               <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
                             )}
                           </div>
@@ -393,7 +411,7 @@ export function NotificationDropdown() {
                         </div>
 
                         {/* Arrow */}
-                        <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0 mt-2" />
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0 mt-2" />
                       </button>
                     )
                   })}
@@ -404,11 +422,14 @@ export function NotificationDropdown() {
         </ScrollArea>
 
         {/* Footer */}
-        <div className="border-t border-border/60 p-2">
-          <Link href="/notifications" className="block">
-            <Button variant="ghost" className="w-full justify-center text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setIsOpen(false)}>
+        <div className="border-t border-border/40 px-2 py-1.5">
+          <Link href="/notifications" className="block" onClick={() => setIsOpen(false)}>
+            <button
+              type="button"
+              className="w-full rounded-lg py-1.5 text-center text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+            >
               See all notifications
-            </Button>
+            </button>
           </Link>
         </div>
       </DropdownMenuContent>

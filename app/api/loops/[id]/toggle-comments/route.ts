@@ -15,7 +15,7 @@ export async function POST(
     const { id: loopId } = await params
     const supabase = createServerClient()
 
-    // Fetch the loop to verify ownership
+    // Fetch the loop
     const { data: loop, error: loopErr } = await supabase
       .from("loops")
       .select("author_id, comments_disabled")
@@ -26,8 +26,21 @@ export async function POST(
       return NextResponse.json({ error: "Loop not found" }, { status: 404 })
     }
 
-    if (loop.author_id !== user.id) {
-      return NextResponse.json({ error: "Only the author can toggle comments" }, { status: 403 })
+    // Check permissions: author OR admin/moderator
+    const isAuthor = loop.author_id === user.id
+    let isAdmin = false
+
+    if (!isAuthor) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_admin, is_team_member")
+        .eq("id", user.id)
+        .single()
+      isAdmin = Boolean(profile?.is_admin || profile?.is_team_member)
+    }
+
+    if (!isAuthor && !isAdmin) {
+      return NextResponse.json({ error: "Only the author or an admin can toggle comments" }, { status: 403 })
     }
 
     const newDisabled = !loop.comments_disabled
@@ -38,7 +51,6 @@ export async function POST(
       .eq("id", loopId)
 
     if (updateErr) {
-      // Column might not exist yet — return a clear error instead of crashing
       if (updateErr.message?.includes("column") || updateErr.code === "42703") {
         return NextResponse.json({
           error: "Comments lock feature needs a database column. Run: ALTER TABLE loops ADD COLUMN IF NOT EXISTS comments_disabled BOOLEAN DEFAULT FALSE;",
@@ -51,6 +63,7 @@ export async function POST(
       success: true,
       comments_disabled: newDisabled,
       message: newDisabled ? "Comments locked" : "Comments unlocked",
+      locked_by: isAdmin && !isAuthor ? "admin" : "author",
     })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 })

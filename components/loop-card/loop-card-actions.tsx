@@ -14,6 +14,7 @@ import {
   Gift,
   Coins,
   Users,
+  Lock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -120,7 +121,11 @@ export function LoopCardActions({
               size="sm"
               className="rounded-full px-2 sm:px-2.5 transition-all duration-200 hover:text-sky-500 hover:bg-sky-500/10"
             >
-              <MessageCircle className="h-4 w-4" />
+              {loop.comments_disabled ? (
+                <Lock className="h-3.5 w-3.5 text-amber-500 mr-0.5" />
+              ) : (
+                <MessageCircle className="h-4 w-4" />
+              )}
               <span className="font-semibold text-xs">{commentsCount}</span>
             </Button>
           </Link>
