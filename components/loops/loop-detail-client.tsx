@@ -714,6 +714,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                         </div>
                         <audio
                           controls
+                          controlsList="nodownload"
                           className="w-full max-w-md rounded-xl"
                           src={currentUrl}
                           preload="metadata"

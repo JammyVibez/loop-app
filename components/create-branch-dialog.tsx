@@ -52,6 +52,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
   const [createdBranchId, setCreatedBranchId] = useState<string | null>(null)
   /** Branch mode: "new" = write your own take, "rebranch" = repost the same content */
   const [branchMode, setBranchMode] = useState<"new" | "rebranch" | null>(null)
+  const [rebranchQuote, setRebranchQuote] = useState("")
   const { toast } = useToast()
   const { user, getAuthHeader } = useAuth()
 
@@ -62,6 +63,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
     setActiveTab("text")
     setCreatedBranchId(null)
     setBranchMode(null)
+    setRebranchQuote("")
   }
 
   const handleOpenChange = (next: boolean) => {
@@ -174,11 +176,45 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
     }
     setIsSubmitting(true)
     try {
+      // Copy ALL content from parent: media, audio, duels, polls, links, etc.
+      const parentContent = parentContentText(parentLoop) || ""
+      const rebranchText = rebranchQuote.trim()
+        ? `${rebranchQuote.trim()}\n\n---\nRebranched from @${author?.username || "someone"}`
+        : parentContent
+      const parentMediaUrl = parentLoop?.media_url || parentLoop?.media_urls?.[0] || parentLoop?.content_media_url || ""
+      const parentMediaType = parentLoop?.media_type || parentLoop?.content_type || "text"
+
       const formData = new FormData()
-      formData.append("content", parentContentText(parentLoop) || "")
-      formData.append("title", "")
-      formData.append("type", "text")
+      formData.append("content", rebranchText)
+      formData.append("title", parentLoop?.content_title || "")
+      formData.append("type", parentMediaType)
       formData.append("parent_id", parentLoop.id)
+
+      // If parent has media, pass it through so the API can reference it
+      if (parentMediaUrl) {
+        formData.append("parent_media_url", parentMediaUrl)
+        formData.append("parent_media_type", parentMediaType)
+      }
+      // Multi-media passthrough
+      const parentMediaUrls = parentLoop?.media_urls || (parentMediaUrl ? [parentMediaUrl] : [])
+      if (parentMediaUrls.length > 1) {
+        formData.append("parent_media_urls", JSON.stringify(parentMediaUrls))
+      }
+
+      // Pass through duels, polls, and other metadata
+      if (parentLoop?.duel) {
+        formData.append("parent_duel", JSON.stringify(parentLoop.duel))
+      }
+      if (parentLoop?.poll) {
+        formData.append("parent_poll", JSON.stringify(parentLoop.poll))
+      }
+      if (parentLoop?.hashtags?.length) {
+        formData.append("hashtags", parentLoop.hashtags.join(","))
+      }
+      if (parentLoop?.content_metadata) {
+        formData.append("content_metadata", JSON.stringify(parentLoop.content_metadata))
+      }
+
       const response = await fetch("/api/loops/branch", {
         method: "POST",
         body: formData,
@@ -313,13 +349,41 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
                   </div>
                   <div>
                     <p className="text-sm font-bold text-foreground">Rebranch this loop</p>
-                    <p className="text-xs text-muted-foreground">This will repost the loop to your feed — credited to {authorName}</p>
+                    <p className="text-xs text-muted-foreground">Reposts everything — media, audio, duels, polls, links — credited to {authorName}</p>
                   </div>
                 </div>
               </div>
+
+              {/* Parent media preview */}
+              {parentMedia && (
+                <div className="overflow-hidden rounded-xl border border-border/70 bg-black/40">
+                  {parentMediaIsVideo ? (
+                    <video src={parentMedia} className="max-h-40 w-full object-contain" muted playsInline preload="metadata" />
+                  ) : (
+                    <img src={parentMedia} alt="Original media" className="max-h-40 w-full object-contain" loading="lazy" />
+                  )}
+                </div>
+              )}
+
+              {/* Parent content preview */}
               <div className="rounded-xl border border-border/70 bg-muted/30 p-3">
                 <p className="line-clamp-4 text-xs text-foreground/80">{parentPreview || "(media post)"}</p>
               </div>
+
+              {/* Quote textarea */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground">Add a quote (optional)</Label>
+                <Textarea
+                  value={rebranchQuote}
+                  onChange={(e) => setRebranchQuote(e.target.value)}
+                  placeholder="Add your take, reaction, or comment to this rebranch…"
+                  rows={3}
+                  maxLength={500}
+                  className="resize-none bg-background border-border text-foreground placeholder:text-muted-foreground text-sm"
+                />
+                <p className="text-[10px] text-muted-foreground text-right">{rebranchQuote.length}/500</p>
+              </div>
+
               <Button
                 onClick={() => void handleRebranch()}
                 disabled={isSubmitting}

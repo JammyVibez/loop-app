@@ -85,6 +85,7 @@ export function LoopCardMedia({
                 <p className="font-medium">Audio Loop</p>
                 <audio
                   controls
+                  controlsList="nodownload"
                   className="w-full mt-2"
                   src={url}
                   preload="metadata"

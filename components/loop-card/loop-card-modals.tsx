@@ -194,10 +194,22 @@ export function LoopCardModals({
                     </div>
                     <audio
                       controls
+                      controlsList="nodownload"
                       className="w-full max-w-lg rounded-xl"
                       src={url}
                       preload="metadata"
                       onContextMenu={(e) => e.preventDefault()}
+                      onPlay={(e) => {
+                        // Remove download button from shadow DOM after play
+                        const audio = e.currentTarget as HTMLAudioElement
+                        try {
+                          const shadow = audio.shadowRoot
+                          if (shadow) {
+                            const dlBtn = shadow.querySelector("[aria-label=\"Download\"]")
+                            if (dlBtn) dlBtn.remove()
+                          }
+                        } catch {}
+                      }}
                     />
                   </div>
                 )

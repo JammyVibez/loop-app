@@ -52,6 +52,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Maximum branch depth reached" }, { status: 400 })
     }
 
+    // Rebranch passthrough: if parent has media, carry it forward
+    const parentMediaUrl = String(formData.get("parent_media_url") || "")
+    const parentMediaType = String(formData.get("parent_media_type") || "")
+    const parentDuelRaw = String(formData.get("parent_duel") || "")
+    const parentPollRaw = String(formData.get("parent_poll") || "")
+    const parentMetadataRaw = String(formData.get("content_metadata") || "")
+
     let mediaUrl: string | null = null
     let mediaType = type || "text"
 
@@ -78,7 +85,26 @@ export async function POST(request: NextRequest) {
     }
 
     const textContent = content.trim()
-    const payload = {
+
+    // For rebranches, use parent media if no new file uploaded
+    if (!mediaUrl && parentMediaUrl) {
+      mediaUrl = parentMediaUrl
+      mediaType = parentMediaType || type || "text"
+    }
+
+    // Multi-media: check if parent had media_urls
+    let mediaUrls: string[] | null = null
+    try {
+      const parentMediaUrlsRaw = String(formData.get("parent_media_urls") || "")
+      if (parentMediaUrlsRaw) mediaUrls = JSON.parse(parentMediaUrlsRaw)
+    } catch {}
+    if (!mediaUrls && mediaUrl) mediaUrls = [mediaUrl]
+
+    // Parse optional parent metadata
+    let contentMetadata: Record<string, any> = {}
+    try { if (parentMetadataRaw) contentMetadata = JSON.parse(parentMetadataRaw) } catch {}
+
+    const payload: Record<string, any> = {
       author_id: user.id,
       content: textContent || (mediaUrl ? `Shared a ${mediaType}` : ""),
       content_text: textContent || null,
@@ -91,7 +117,8 @@ export async function POST(request: NextRequest) {
       tree_depth: parentDepth + 1,
       visibility: "public",
       hashtags: [] as string[],
-      content_metadata: {},
+      content_metadata: contentMetadata,
+      ...(mediaUrls && mediaUrls.length > 1 ? { media_urls: mediaUrls } : {}),
     }
 
     const { data: branch, error: insertError } = await supabase

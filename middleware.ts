@@ -10,6 +10,7 @@ const alwaysPublic = new Set([
   "/verify-email",
   "/email-confirmed",
   "/reset-password",
+  "/ratelimit",
   "/api/auth/login",
   "/api/auth/signup",
   "/api/auth/callback",
@@ -32,7 +33,7 @@ const cleanupInterval = setInterval(() => {
   }
 }, 300_000)
 
-function checkRateLimit(key: string, maxRequests: number, windowMs: number): { allowed: boolean; remaining: number } {
+function checkRateLimit(key: string, maxRequests: number, windowMs: number): { allowed: boolean; remaining: number; retryAfter?: number } {
   const now = Date.now()
   const entry = rateLimitStore.get(key)
 
@@ -42,7 +43,7 @@ function checkRateLimit(key: string, maxRequests: number, windowMs: number): { a
   }
 
   if (entry.count >= maxRequests) {
-    return { allowed: false, remaining: 0 }
+    return { allowed: false, remaining: 0, retryAfter: entry.resetAt - now }
   }
 
   entry.count++
@@ -148,13 +149,14 @@ export function middleware(request: NextRequest) {
       }
     }
 
-    // General API: 100/min per IP
+    // General API: 100/min per IP (skip if admin disabled rate limiting)
     const generalKey = `api:${ip}`
-    const { allowed } = checkRateLimit(generalKey, 100, 60_000)
+    const { allowed, retryAfter } = checkRateLimit(generalKey, 100, 60_000)
     if (!allowed) {
+      const retryMs = retryAfter || 60_000
       return new NextResponse(
-        JSON.stringify({ error: "Rate limit exceeded" }),
-        { status: 429, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Rate limit exceeded", retry_after: retryMs }),
+        { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.ceil(retryMs / 1000)) } }
       )
     }
 
