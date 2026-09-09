@@ -886,6 +886,34 @@ export function EnhancedSettings() {
         <TabsContent value="privacy" className="space-y-4">
           <Card>
             <CardHeader>
+              <CardTitle>Video Playback</CardTitle>
+              <CardDescription>Control how videos play across the app.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Autoplay videos</Label>
+                  <p className="text-xs text-muted-foreground">Videos will automatically play as you scroll through the feed</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={typeof window !== "undefined" && localStorage.getItem("loop-autoplay-videos") === "true"}
+                  onClick={() => {
+                    const current = localStorage.getItem("loop-autoplay-videos") === "true"
+                    localStorage.setItem("loop-autoplay-videos", String(!current))
+                    // Force re-render by toggling a state
+                    setFormData((prev) => ({ ...prev }))
+                  }}
+                  className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
+                >
+                  <span className="pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0" style={{ transform: typeof window !== "undefined" && localStorage.getItem("loop-autoplay-videos") === "true" ? "translateX(20px)" : "translateX(0)" }} />
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
               <CardTitle>Privacy</CardTitle>
               <CardDescription>Control who can see and contact you.</CardDescription>
             </CardHeader>

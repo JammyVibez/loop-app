@@ -76,7 +76,7 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl bg-card text-card-foreground dark:bg-[#0b1329] dark:text-white border border-border/80 rounded-3xl p-6 shadow-2xl">
+      <DialogContent className="max-w-xl w-[calc(100vw-2rem)] max-h-[90dvh] overflow-y-auto bg-card text-card-foreground dark:bg-[#0b1329] dark:text-white border border-border/80 rounded-3xl p-4 sm:p-6 shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold flex items-center gap-2 text-cyan-600 dark:text-cyan-300">
             <Swords className="h-6 w-6 text-amber-500 dark:text-amber-400" /> Launch Loop Duel

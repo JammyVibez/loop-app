@@ -115,8 +115,8 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
   }
 
   const handleSwitchAccount = async (account: LinkedAccount) => {
-    if (account.is_primary) {
-      toast({ title: "Already active", description: "You're already using this account" })
+    if (account.is_primary || switching !== null) {
+      if (account.is_primary) toast({ title: "Already active", description: "You're already using this account" })
       return
     }
 

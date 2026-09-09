@@ -236,7 +236,7 @@ export function Header() {
               <DropdownMenuSeparator />
 
               <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                <Link href={`/profile/${user.username}`} className="flex items-center gap-2">
+                <Link href={`/profile/${user.username || user.id}`} className="flex items-center gap-2">
                   <User className="h-4 w-4 text-muted-foreground" />
                   <span className="text-xs font-medium">Your Profile</span>
                 </Link>

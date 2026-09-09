@@ -137,7 +137,7 @@ export function CreateClutchDuelDialog({ open, onOpenChange, onDuelCreated }: Cr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl border-violet-500/30 bg-card text-card-foreground dark:bg-[#0d0a1e] dark:text-white p-6 shadow-2xl rounded-3xl">
+      <DialogContent className="max-w-xl w-[calc(100vw-2rem)] max-h-[90dvh] overflow-y-auto border-violet-500/30 bg-card text-card-foreground dark:bg-[#0d0a1e] dark:text-white p-4 sm:p-6 shadow-2xl rounded-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-black text-amber-400">
             <Zap className="h-6 w-6 fill-amber-400" /> Launch a Clutch Duel
@@ -303,7 +303,7 @@ export function CreateClutchDuelDialog({ open, onOpenChange, onDuelCreated }: Cr
             </Button>
             <Button
               type="submit"
-              disabled={loading || uploading || !question.trim()}
+              disabled={loading || !question.trim()}
               className={cn(
                 "bg-gradient-to-r from-amber-500 to-orange-500 font-black text-slate-950 shadow-lg shadow-amber-900/40",
                 "hover:from-amber-400 hover:to-orange-400",

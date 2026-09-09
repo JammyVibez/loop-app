@@ -19,7 +19,7 @@ type ProtectedMediaProps = {
   onClick?: () => void
   /** Whether to show custom video controls */
   showControls?: boolean
-  /** Whether to autoplay video (default true for social feed) */
+  /** Whether to autoplay video (default respects user preference, off by default) */
   autoPlay?: boolean
   /** External ref to the <video> element (for parent playback control) */
   videoRef?: Ref<HTMLVideoElement>
@@ -44,12 +44,19 @@ export function ProtectedMedia({
   poster,
   onClick,
   showControls = true,
-  autoPlay = true,
+  autoPlay,
   videoRef: externalRef,
   children,
 }: ProtectedMediaProps) {
   const internalRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  // Read autoplay preference from localStorage (default: false)
+  const [autoplayEnabled] = useState(() => {
+    if (typeof window === "undefined") return false
+    return localStorage.getItem("loop-autoplay-videos") === "true"
+  })
+  const effectiveAutoPlay = autoPlay !== undefined ? autoPlay : autoplayEnabled
+
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(true)
   const [progress, setProgress] = useState(0)
@@ -135,7 +142,7 @@ export function ProtectedMedia({
   // Intersection Observer: play when visible, pause when not (TikTok-style)
   // Only runs when autoPlay is true AND no external ref is managing the video
   useEffect(() => {
-    if (type !== "video" || !autoPlay || externalRef) return
+    if (type !== "video" || !effectiveAutoPlay || externalRef) return
     const v = internalRef.current
     if (!v) return
 

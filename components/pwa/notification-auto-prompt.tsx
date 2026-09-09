@@ -30,7 +30,8 @@ export function NotificationAutoPrompt() {
     // Already granted or denied — nothing to prompt
     if (Notification.permission !== "default") return
 
-    // Already dismissed or enabled before — check notification_settings
+    // Already dismissed or enabled before — check localStorage + DB settings
+    if (localStorage.getItem("notif-prompt-dismissed") === "true") return
     const settings = (user as any)?.notification_settings || {}
     if (settings.push_prompt_dismissed || settings.push_prompt_enabled) return
 
@@ -83,6 +84,8 @@ export function NotificationAutoPrompt() {
 
   const handleDismiss = async () => {
     setShow(false)
+    // Persist locally so it never re-shows even if DB write fails
+    localStorage.setItem("notif-prompt-dismissed", "true")
     try {
       const nextSettings = {
         ...(user as any)?.notification_settings || {},

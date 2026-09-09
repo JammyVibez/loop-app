@@ -580,7 +580,7 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
     </div>
 
       <Dialog open={isEditing} onOpenChange={setIsEditing}>
-        <DialogContent className="max-w-md bg-background border-violet-500/30">
+        <DialogContent className="max-w-md w-[calc(100vw-2rem)] max-h-[85dvh] overflow-y-auto bg-background border-violet-500/30">
           <DialogHeader><DialogTitle className="text-foreground">Edit Duel</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">

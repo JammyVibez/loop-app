@@ -76,31 +76,21 @@ export async function POST(req: NextRequest) {
     // Resolve which account we're switching TO.
     let resolvedUserId: string;
 
+    // First, figure out who owns this group of accounts.
+    const { data: asLinked } = await admin
+      .from('linked_accounts')
+      .select('owner_id')
+      .eq('linked_user_id', currentUserId)
+      .limit(1)
+      .maybeSingle();
+
+    const ownerId = asLinked?.owner_id || currentUserId;
+
     if (targetUserId === 'primary') {
       // === SWITCH BACK TO PRIMARY ===
-      const { data: link, error: linkError } = await admin
-        .from('linked_accounts')
-        .select('owner_id')
-        .eq('linked_user_id', currentUserId)
-        .limit(1)
-        .maybeSingle();
-
-      if (linkError || !link) {
-        return NextResponse.json({ error: 'No linked account found' }, { status: 404 });
-      }
-      resolvedUserId = link.owner_id;
+      resolvedUserId = ownerId;
     } else {
       // === SWITCH TO LINKED ACCOUNT ===
-      // The requester must be the owner (or a linked user of the same owner).
-      const { data: asLinked } = await admin
-        .from('linked_accounts')
-        .select('owner_id')
-        .eq('linked_user_id', currentUserId)
-        .limit(1)
-        .maybeSingle();
-
-      const ownerId = asLinked?.owner_id || currentUserId;
-
       const { data: linkCheck, error: checkError } = await admin
         .from('linked_accounts')
         .select('id')
@@ -131,7 +121,7 @@ export async function POST(req: NextRequest) {
       .or(
         targetUserId === 'primary'
           ? `linked_user_id.eq.${currentUserId}`
-          : `and(owner_id.eq.${currentUserId},linked_user_id.eq.${targetUserId})`
+          : `and(owner_id.eq.${ownerId},linked_user_id.eq.${targetUserId})`
       );
 
     const response = NextResponse.json({

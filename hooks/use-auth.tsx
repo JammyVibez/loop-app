@@ -89,13 +89,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   const buildFallbackProfile = (sessionUser: { id: string; email?: string; name?: string; image?: string | null }) => {
-    const emailUsername = sessionUser.email?.split("@")[0] || "user"
     const previous = userRef.current?.id === sessionUser.id ? userRef.current : null
 
     return {
       email: sessionUser.email,
-      username: previous?.username || emailUsername,
-      display_name: sessionUser.name || previous?.display_name || emailUsername,
+      username: previous?.username || "",
+      display_name: sessionUser.name || previous?.display_name || "",
+      id: sessionUser.id,
       avatar_url: sessionUser.image || previous?.avatar_url,
       banner_url: undefined,
       bio: undefined,

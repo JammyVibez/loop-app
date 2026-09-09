@@ -95,7 +95,7 @@ export function BoostLoopDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-card border-cyan-500/30 text-foreground rounded-3xl p-6 shadow-2xl">
+      <DialogContent className="max-w-md w-[calc(100vw-2rem)] max-h-[85dvh] overflow-y-auto bg-card border-cyan-500/30 text-foreground rounded-3xl p-4 sm:p-6 shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-xl font-extrabold flex items-center gap-2 text-cyan-700 dark:text-cyan-300">
             <Rocket className="h-6 w-6 text-cyan-600 dark:text-cyan-400 animate-bounce" /> Crowd-Fund Feed Boost
