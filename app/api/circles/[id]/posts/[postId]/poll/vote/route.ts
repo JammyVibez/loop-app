@@ -84,10 +84,22 @@ export async function POST(
 
     const resolvedOptionId = normalized[targetIndex].id
 
+    // Generate deterministic UUID for option_id (column may be UUID in production)
+    const voteOptionId = (() => {
+      const crypto = require("crypto")
+      const hash = crypto.createHash("sha1")
+      hash.update(`${poll.id}:${targetIndex}`)
+      const hex = hash.digest("hex")
+      return [
+        hex.slice(0, 8), hex.slice(8, 12), "5" + hex.slice(13, 16),
+        "8" + hex.slice(17, 20), hex.slice(20, 32),
+      ].join("-")
+    })()
+
     const { error: voteError } = await supabase.from("circle_post_poll_votes").insert({
       poll_id: poll.id,
       user_id: user.id,
-      option_id: resolvedOptionId,
+      option_id: voteOptionId,
     } as any)
     if (voteError) {
       return NextResponse.json({ error: voteError.message || "Failed to record vote" }, { status: 500 })

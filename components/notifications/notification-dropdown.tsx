@@ -220,7 +220,7 @@ export function NotificationDropdown() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-[360px] max-w-[calc(100vw-1.5rem)] p-0 overflow-hidden rounded-xl border-border/60 shadow-xl"
+        className="w-[360px] max-w-[calc(100vw-1.5rem)] p-0 overflow-hidden rounded-xl border border-border/60"
         align="end"
         sideOffset={8}
         forceMount
@@ -352,7 +352,7 @@ export function NotificationDropdown() {
                         }`}
                         onClick={() => {
                           if (isUnread) void markAsRead(notification.id)
-                          if (href) window.location.href = href
+                          if (href) window.location.assign(href)
                         }}
                       >
                         {/* Actor avatar(s) */}
@@ -384,7 +384,7 @@ export function NotificationDropdown() {
                             </Avatar>
                           )}
                           {/* Type icon badge */}
-                          <div className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full ${config.bg} flex items-center justify-center ring-[1.5px] ring-background`}>
+                          <div className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full ${config.bg} flex items-center justify-center border border-background`}>
                             <Icon className={`h-2 w-2 ${config.color}`} />
                           </div>
                         </div>

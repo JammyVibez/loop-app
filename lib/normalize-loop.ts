@@ -66,6 +66,7 @@ export type NormalizedLoop = {
   duel?: any
   is_featured?: boolean
   is_pinned?: boolean
+  comments_disabled?: boolean
   engagement_score?: number
   gifts_received?: number
   total_gift_value?: number
@@ -185,6 +186,7 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
     duel: row?.duel ?? (Array.isArray(row?.loop_duels) ? row?.loop_duels[0] : row?.loop_duels) ?? undefined,
     is_featured: row?.is_featured,
     is_pinned: Boolean(row?.is_pinned),
+    comments_disabled: Boolean(row?.comments_disabled),
     engagement_score: Number(
       row?.engagement_score ??
         (Number(stats?.likes_count ?? 0) * 3 + Number(stats?.comments_count ?? 0) * 4 + Number(stats?.branches_count ?? 0) * 5 + Number(stats?.views_count ?? 0)),

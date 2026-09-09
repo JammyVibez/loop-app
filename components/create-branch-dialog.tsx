@@ -179,7 +179,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
       // Copy ALL content from parent: media, audio, duels, polls, links, etc.
       const parentContent = parentContentText(parentLoop) || ""
       const rebranchText = rebranchQuote.trim()
-        ? `${rebranchQuote.trim()}\n${parentContent ? `\n${parentContent}` : ""}\n\n— Rebranched from @${author?.username || "someone"}`
+        ? `${rebranchQuote.trim()}\n${parentContent ? `\n${parentContent}` : ""}\n— Rebranched from @${author?.username || "someone"}`
         : parentContent || `Rebranched from @${author?.username || "someone"}`
       const parentMediaUrl = parentLoop?.media_url || parentLoop?.media_urls?.[0] || parentLoop?.content_media_url || ""
       const parentMediaType = parentLoop?.media_type || parentLoop?.content_type || "text"

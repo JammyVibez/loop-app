@@ -62,12 +62,23 @@ export async function POST(
       return NextResponse.json({ error: "You have already voted in this poll" }, { status: 400 })
     }
 
-    // Insert user vote — use text cast so non-UUID option IDs work
+    // option_id column is UUID in production — generate a deterministic UUID from poll+index
+    const voteOptionId = (() => {
+      // Simple deterministic UUID v5-like: sha1(pollId + optionIndex)
+      const hash = require("crypto").createHash("sha1")
+      hash.update(`${pollId}:${resolvedIndex}`)
+      const hex = hash.digest("hex")
+      return [
+        hex.slice(0, 8), hex.slice(8, 12), "5" + hex.slice(13, 16),
+        "8" + hex.slice(17, 20), hex.slice(20, 32),
+      ].join("-")
+    })()
+
     const { error: voteErr } = await supabase.from("loop_poll_votes").insert({
       poll_id: pollId,
       loop_id: poll.loop_id,
       user_id: userId,
-      option_id: resolvedOptionId,
+      option_id: voteOptionId,
     } as any)
 
     if (voteErr) {
