@@ -233,6 +233,7 @@ export async function POST(
           actionUrl: `/loop/${loopId}`,
           data: { loop_id: loopId, comment_id: comment.id, user_id: user.id },
           pushCategory: "social",
+          priority: "high",
         })
       } catch (notifyErr) {
         console.warn("Comment notify failed:", notifyErr)
@@ -259,6 +260,7 @@ export async function POST(
             actionUrl: `/loop/${loopId}`,
             data: { loop_id: loopId, comment_id: comment.id, parent_comment_id, user_id: user.id },
             pushCategory: "social",
+            priority: "high",
           })
         } catch (notifyErr) {
           console.warn("Reply notify failed:", notifyErr)

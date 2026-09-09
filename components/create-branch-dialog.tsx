@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { VideoAvatar } from "@/components/cosmetics/video-avatar";
-import { GitBranch, Type, ImageIcon, Video, Music, FileText, Upload, X, Loader2, CheckCircle2, ArrowUpRight } from "lucide-react";
+import { GitBranch, Type, ImageIcon, Video, Music, FileText, Upload, X, Loader2, CheckCircle2, ArrowUpRight, Zap, Flame, Vote } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -179,8 +179,8 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
       // Copy ALL content from parent: media, audio, duels, polls, links, etc.
       const parentContent = parentContentText(parentLoop) || ""
       const rebranchText = rebranchQuote.trim()
-        ? `${rebranchQuote.trim()}\n\n---\nRebranched from @${author?.username || "someone"}`
-        : parentContent
+        ? `${rebranchQuote.trim()}\n${parentContent ? `\n${parentContent}` : ""}\n\n— Rebranched from @${author?.username || "someone"}`
+        : parentContent || `Rebranched from @${author?.username || "someone"}`
       const parentMediaUrl = parentLoop?.media_url || parentLoop?.media_urls?.[0] || parentLoop?.content_media_url || ""
       const parentMediaType = parentLoop?.media_type || parentLoop?.content_type || "text"
 
@@ -365,19 +365,52 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
                 </div>
               )}
 
-              {/* Parent content preview */}
-              <div className="rounded-xl border border-border/70 bg-muted/30 p-3">
-                <p className="line-clamp-4 text-xs text-foreground/80">{parentPreview || "(media post)"}</p>
+              {/* Parent content preview — text + any media/duels/clutch/polls */}
+              <div className="rounded-xl border border-border/70 bg-muted/30 p-3 space-y-2">
+                {parentPreview && (
+                  <p className="text-xs text-foreground/80">{parentPreview}</p>
+                )}
+                {!parentPreview && !parentMedia && (
+                  <p className="text-xs text-muted-foreground italic">(no text content)</p>
+                )}
+                {/* Duel preview */}
+                {parentLoop?.duel && (
+                  <div className="flex items-center gap-2 rounded-lg bg-rose-500/10 border border-rose-500/20 px-3 py-2">
+                    <Zap className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+                    <span className="text-[11px] font-semibold text-rose-300">Duel: {parentLoop.duel.title || parentLoop.duel.question || "Creative challenge"}</span>
+                  </div>
+                )}
+                {/* Clutch Duel preview */}
+                {parentLoop?.clutch_duel && (
+                  <div className="flex items-center gap-2 rounded-lg bg-orange-500/10 border border-orange-500/20 px-3 py-2">
+                    <Flame className="h-3.5 w-3.5 text-orange-400 shrink-0" />
+                    <span className="text-[11px] font-semibold text-orange-300">Clutch Duel: {parentLoop.clutch_duel.prompt || "Quick prediction"}</span>
+                  </div>
+                )}
+                {/* Poll preview */}
+                {parentLoop?.poll && (
+                  <div className="flex items-center gap-2 rounded-lg bg-violet-500/10 border border-violet-500/20 px-3 py-2">
+                    <Vote className="h-3.5 w-3.5 text-violet-400 shrink-0" />
+                    <span className="text-[11px] font-semibold text-violet-300">Poll: {parentLoop.poll.question || "Vote now"}</span>
+                  </div>
+                )}
+                {/* Link preview */}
+                {parentLoop?.content_metadata?.link_url && (
+                  <div className="flex items-center gap-2 rounded-lg bg-sky-500/10 border border-sky-500/20 px-3 py-2">
+                    <ArrowUpRight className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+                    <span className="text-[11px] font-semibold text-sky-300 truncate">{parentLoop.content_metadata.link_url}</span>
+                  </div>
+                )}
               </div>
 
-              {/* Quote textarea */}
-              <div className="space-y-1.5">
+              {/* Quote textarea — tight spacing */}
+              <div className="space-y-1">
                 <Label className="text-xs font-semibold text-foreground">Add a quote (optional)</Label>
                 <Textarea
                   value={rebranchQuote}
                   onChange={(e) => setRebranchQuote(e.target.value)}
                   placeholder="Add your take, reaction, or comment to this rebranch…"
-                  rows={3}
+                  rows={2}
                   maxLength={500}
                   className="resize-none bg-background border-border text-foreground placeholder:text-muted-foreground text-sm"
                 />

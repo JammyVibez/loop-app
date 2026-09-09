@@ -183,6 +183,8 @@ export async function POST(
                 interaction_type,
               },
               pushCategory: "social",
+              // Likes/saves are low-priority (batched), shares are high
+              priority: interaction_type === "share" ? "high" : "low",
             })
           } catch (notifyErr) {
             console.warn("Loop interaction notify failed:", notifyErr)

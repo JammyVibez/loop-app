@@ -132,6 +132,7 @@ export async function POST(
           actorId: userId,
           pushCategory: "social",
           data: { duelId, loopId: duel.loop_id },
+          priority: "high",
         })
       }
     } catch (notifyErr) {

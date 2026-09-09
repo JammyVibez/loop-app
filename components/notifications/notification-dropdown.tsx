@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, Check, Loader2, Settings, Heart, MessageCircle, UserPlus, GitBranch, AtSign, Gift, Mail, BellRing, ChevronRight } from "lucide-react";
+import { Bell, Check, Loader2, Settings, Heart, MessageCircle, UserPlus, GitBranch, AtSign, Gift, Mail, BellRing, ChevronRight } from "lucide-react"
+import { NotificationQuickReply } from "@/components/notifications/notification-quick-reply";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp";
@@ -30,7 +31,11 @@ interface Notification {
   data?: any
   is_read: boolean
   created_at: string
+  updated_at?: string
   actor?: Actor | null
+  actors?: Actor[]
+  count?: number
+  actor_ids?: string[]
 }
 
 // ── Notification type → icon + color ──────────────────────────────
@@ -285,6 +290,11 @@ export function NotificationDropdown() {
                       )
                     }
 
+                    // Grouped notification — show stacked actor avatars
+                    const groupedActors = (notification as any).actors || []
+                    const groupCount = (notification as any).count || 1
+                    const isGrouped = groupCount > 1 && groupedActors.length > 1
+
                     return (
                       <button
                         key={notification.id}
@@ -297,44 +307,89 @@ export function NotificationDropdown() {
                           if (href) window.location.href = href
                         }}
                       >
-                        {/* Actor avatar with type badge */}
+                        {/* Actor avatar(s) — stacked for grouped, single for normal */}
                         <div className="relative shrink-0">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage
-                              src={actor?.avatar_url || undefined}
-                              alt={actor?.display_name || actor?.username || "user"}
-                              fallbackSeed={actor?.username}
-                            />
-                            <AvatarFallback className="text-xs">
-                              {actor?.display_name?.charAt(0) || actor?.username?.charAt(0) || "?"}
-                            </AvatarFallback>
-                          </Avatar>
+                          {isGrouped ? (
+                            <div className="relative h-10 w-10">
+                              {/* Stacked avatars — top 3 */}
+                              {groupedActors.slice(0, 3).map((a: any, i: number) => (
+                                <Avatar
+                                  key={a.id || i}
+                                  className="absolute h-8 w-8 border-2 border-background"
+                                  style={{ top: i * 4, left: i * 4, zIndex: 3 - i }}
+                                >
+                                  <AvatarImage src={a.avatar_url || undefined} alt={a.display_name || a.username} />
+                                  <AvatarFallback className="text-[10px]">
+                                    {(a.display_name || a.username || "?").charAt(0)}
+                                  </AvatarFallback>
+                                </Avatar>
+                              ))}
+                            </div>
+                          ) : (
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage
+                                src={actor?.avatar_url || undefined}
+                                alt={actor?.display_name || actor?.username || "user"}
+                                fallbackSeed={actor?.username}
+                              />
+                              <AvatarFallback className="text-xs">
+                                {actor?.display_name?.charAt(0) || actor?.username?.charAt(0) || "?"}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
                           {/* Type icon badge overlay */}
                           <div className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full ${config.bg} flex items-center justify-center ring-2 ring-background`}>
                             <Icon className={`h-2.5 w-2.5 ${config.color}`} />
                           </div>
+                          {isGrouped && groupCount > 3 && (
+                            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[8px] font-bold text-primary-foreground ring-2 ring-background z-10">
+                              +{groupCount - 3}
+                            </span>
+                          )}
                         </div>
 
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm leading-snug">
-                            <span className="font-semibold">
-                              {actor?.display_name || actor?.username || ""}
-                            </span>
-                            {actor && <span className="text-muted-foreground"> </span>}
-                            <span className="text-muted-foreground">
-                              {notification.title}
-                            </span>
+                            {isGrouped ? (
+                              <>
+                                <span className="font-semibold">
+                                  {groupedActors[0]?.display_name || groupedActors[0]?.username || ""}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  {groupCount === 2
+                                    ? ` and ${groupedActors[1]?.display_name || groupedActors[1]?.username || "someone"} `
+                                    : ` and ${groupCount - 1} others `}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  {notification.type === "like" ? "liked" : notification.type === "follow" ? "followed" : notification.type === "boost" ? "boosted" : "interacted with"} your post
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="font-semibold">
+                                  {actor?.display_name || actor?.username || ""}
+                                </span>
+                                {actor && <span className="text-muted-foreground"> </span>}
+                                <span className="text-muted-foreground">
+                                  {notification.title}
+                                </span>
+                              </>
+                            )}
                           </p>
-                          {notification.message && notification.message !== notification.title && (
+                          {notification.message && notification.message !== notification.title && !isGrouped && (
                             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{notification.message}</p>
                           )}
                           <div className="mt-1 flex items-center gap-2">
-                            <FreshnessTimestamp date={notification.created_at} showIcon />
+                            <FreshnessTimestamp date={notification.updated_at || notification.created_at} showIcon />
                             {!notification.is_read && (
                               <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
                             )}
                           </div>
+                          {/* Quick reply for DMs and comments */}
+                          {!isGrouped && (notification.type === "message" || notification.type === "comment" || notification.type === "reply") && (
+                            <NotificationQuickReply notification={notification} compact />
+                          )}
                         </div>
 
                         {/* Arrow */}

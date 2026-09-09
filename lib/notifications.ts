@@ -17,6 +17,8 @@ export type NotifyInput = {
   pushOnly?: boolean
   /** Skip web push (in-app only) */
   inAppOnly?: boolean
+  /** Priority: "high" pushes immediately, "low" batches (default: "high") */
+  priority?: "high" | "low"
 }
 
 /**
@@ -70,20 +72,38 @@ export async function notifyUser(
       }
     }
 
-    if (!input.inAppOnly) {
+    // Priority-based push delivery:
+    // High (default): always push immediately — mentions, replies, DMs, duels, coloop invites
+    // Low: skip push, in-app only — generic likes, follows, boosts
+    if (!input.inAppOnly && input.priority !== "low") {
       const payload: PushPayload = {
         title: input.title,
         body: input.message,
         url: input.actionUrl || "/",
         tag: `${input.type}-${input.userId}`,
-        data: input.data,
+        data: {
+          ...input.data,
+          priority: input.priority || "high",
+          // Add action buttons for interactive notifications
+          ...(input.type === "comment" || input.type === "reply" || input.type === "message" ? {
+            actions: [
+              { action: "reply", title: "Reply", type: "text" },
+              { action: "open", title: "Open" },
+            ],
+            reply_placeholder: input.type === "message" ? "Type a message…" : "Type a reply…",
+          } : {}),
+          ...(input.type === "like" ? {
+            actions: [
+              { action: "like_back", title: "❤️ Like back" },
+            ],
+          } : {}),
+        },
       }
       const result = await sendWebPushToUser(input.userId, payload, {
         category: input.pushCategory || "system",
       })
       pushDelivered = result.delivered
       // Native Capacitor shells receive the same notification via FCM.
-      // No-op until Firebase env vars are configured (see lib/fcm.ts).
       await sendFcmToUser(supabase, input.userId, {
         title: input.title,
         body: input.message,

@@ -410,7 +410,11 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
                   src={duel.clip_url}
                   controls
                   playsInline
-                  preload="auto"
+                  preload="metadata"
+                  autoPlay={false}
+                  controlsList="nodownload"
+                  onContextMenu={(e) => e.preventDefault()}
+                  onDragStart={(e) => e.preventDefault()}
                   className="h-full w-full rounded-2xl object-contain"
                   onPlay={() => setVideoPlaying(true)}
                   onPause={() => setVideoPlaying(false)}

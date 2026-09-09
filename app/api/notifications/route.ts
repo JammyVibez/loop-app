@@ -78,9 +78,73 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // ── Grouped notifications (X/Facebook style) ──
+    // Group same-type notifications targeting the same content within a 24h window.
+    // High-priority types (dm, mention, reply, coloop_invite, coloop_join, duel_result) are never grouped.
+    // Low-priority types (like, follow, boost) are grouped by type + content_id.
+    const GROUPABLE_TYPES = new Set(["like", "follow", "boost", "branch"])
+    const NEVER_GROUP_TYPES = new Set(["message", "mention", "comment", "reply", "coloop_invite", "coloop_join", "duel_result"])
+    const GROUP_WINDOW_MS = 24 * 60 * 60 * 1000 // 24 hours
+
+    const grouped: typeof enriched = []
+    const groupMap = new Map<string, typeof enriched[0] & { actor_ids: string[]; count: number; actors: any[] }>()
+    const now = Date.now()
+
+    for (const n of enriched) {
+      const d = n.data || {}
+      const targetId = d.loop_id || d.post_id || d.circle_id || ""
+      const groupKey = NEVER_GROUP_TYPES.has(n.type) ? n.id : `${n.type}:${targetId}`
+      const withinWindow = now - new Date(n.created_at).getTime() < GROUP_WINDOW_MS
+
+      if (NEVER_GROUP_TYPES.has(n.type) || !GROUPABLE_TYPES.has(n.type) || !withinWindow || !targetId) {
+        grouped.push(n)
+        continue
+      }
+
+      const existing = groupMap.get(groupKey)
+      if (existing) {
+        existing.count += 1
+        existing.updated_at = n.created_at // bump to newest
+        const actorId = d.user_id || d.sender_id || d.actor_id
+        if (actorId && !existing.actor_ids.includes(actorId)) {
+          existing.actor_ids.push(actorId)
+          const actor = actorId ? actorMap[actorId] : null
+          if (actor) existing.actors.push(actor)
+        }
+        // Update title/message with count
+        const firstActor = existing.actors[0]?.display_name || existing.actors[0]?.username || "Someone"
+        if (existing.count === 2) {
+          const secondActor = existing.actors[1]?.display_name || existing.actors[1]?.username || "Someone"
+          existing.title = `${firstActor} and ${secondActor} ${n.type === "like" ? "liked" : n.type === "follow" ? "followed" : n.type === "boost" ? "boosted" : "branched"} your post`
+        } else if (existing.count > 2) {
+          existing.title = `${firstActor} and ${existing.count - 1} others ${n.type === "like" ? "liked" : n.type === "follow" ? "followed" : n.type === "boost" ? "boosted" : "branched"} your post`
+        }
+        // Keep top 3 actor avatars for display
+        existing.actor_ids = existing.actor_ids.slice(0, 10)
+        existing.actors = existing.actors.slice(0, 10)
+      } else {
+        const actorId = d.user_id || d.sender_id || d.actor_id
+        const actor = actorId ? actorMap[actorId] : null
+        groupMap.set(groupKey, {
+          ...n,
+          actor_ids: actorId ? [actorId] : [],
+          count: 1,
+          actors: actor ? [actor] : [],
+        })
+      }
+    }
+
+    // Add grouped items back in order (newest first)
+    for (const g of groupMap.values()) {
+      grouped.push(g)
+    }
+
+    // Sort by updated_at descending
+    grouped.sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())
+
     return NextResponse.json({
       success: true,
-      notifications: enriched,
+      notifications: grouped,
       hasMore: notifications?.length === limit,
     })
   } catch (error) {

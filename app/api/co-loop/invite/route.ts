@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
           action_url: joinUrl,
         },
         pushCategory: "circleInvites",
+        priority: "high",
       })
     } catch (notifyErr) {
       console.warn("Co-loop invite notify failed:", notifyErr)
