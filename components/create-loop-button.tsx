@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
@@ -51,6 +52,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const { requireAuth, isGuest, LoginGateDialog } = useLoginGate()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(defaultOpen)
   const [content, setContent] = useState("")
   const [hashtags, setHashtags] = useState("")
@@ -329,8 +331,9 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
       setIsOpen(false)
       clearDraft()
       toast({ title: "Loop created", description: "Your loop is live on the feed." })
+      window.dispatchEvent(new Event("loop-created"))
       if (onLoopCreated) onLoopCreated()
-      else window.location.reload()
+      else router.refresh()
     } catch (err: any) {
       toast({ title: "Failed to create loop", description: err.message || "Something went wrong", variant: "destructive" })
     } finally {
@@ -857,7 +860,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
         onOpenChange={setDuelDialogOpen}
         onDuelCreated={() => {
           if (onLoopCreated) onLoopCreated()
-          else window.location.reload()
+          else router.refresh()
         }}
       />
 
@@ -866,7 +869,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
         onOpenChange={setClutchDuelDialogOpen}
         onDuelCreated={() => {
           if (onLoopCreated) onLoopCreated()
-          else window.location.reload()
+          else router.refresh()
         }}
       />
     </Card>

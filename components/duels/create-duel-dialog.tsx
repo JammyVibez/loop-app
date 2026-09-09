@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +18,7 @@ interface CreateDuelDialogProps {
 }
 
 export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDuelDialogProps) {
+  const router = useRouter()
   const [prompt, setPrompt] = useState("")
   const [opponent, setOpponent] = useState("")
   const [creatorContent, setCreatorContent] = useState("")
@@ -62,8 +64,9 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
         setOpponent("")
         setCreatorContent("")
         setCreatorMedia([])
+        window.dispatchEvent(new Event("loop-created"))
         if (onDuelCreated) onDuelCreated()
-        else window.location.reload()
+        else router.refresh()
       } else {
         toast({ title: "Failed to create duel", description: data.error || "Unknown error" })
       }

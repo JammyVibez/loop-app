@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,6 +27,7 @@ const WINDOW_OPTIONS = [
 ]
 
 export function CreateClutchDuelDialog({ open, onOpenChange, onDuelCreated }: CreateClutchDuelDialogProps) {
+  const router = useRouter()
   const [question, setQuestion] = useState("")
   const [clipFile, setClipFile] = useState<File | null>(null)
   const [clipUrl, setClipUrl] = useState("")
@@ -122,8 +124,9 @@ export function CreateClutchDuelDialog({ open, onOpenChange, onDuelCreated }: Cr
         setYesLabel("")
         setNoLabel("")
         setCustomWindowMinutes(0)
+        window.dispatchEvent(new Event("loop-created"))
         if (onDuelCreated) onDuelCreated()
-        else window.location.reload()
+        else router.refresh()
       } else {
         toast({ title: "Failed to launch", description: data.error || "Unknown error", variant: "destructive" })
       }
