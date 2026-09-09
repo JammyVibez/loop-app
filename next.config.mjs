@@ -106,6 +106,13 @@ const nextConfig = {
           { key: "Content-Type", value: "image/jpeg" },
         ],
       },
+      {
+        source: "/api/download/apk",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400" },
+          { key: "Content-Type", value: "application/vnd.android.package-archive" },
+        ],
+      },
     ]
   },
 }

@@ -13,8 +13,8 @@ import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt"
 import { AppDownloadBadges } from "@/components/app-download-badges"
 import { DailyPulse } from "@/components/engagement/daily-pulse"
 import { Button } from "@/components/ui/button"
-import { Compass, Users, Video, Plus, Bookmark, LogIn, Search } from "lucide-react"
-import { useEffect, useState } from "react"
+import { Compass, Users, Video, Plus, Bookmark, LogIn, Search, Smartphone, ArrowRight, Download, CheckCircle } from "lucide-react"
+import { useEffect, useState, useCallback } from "react"
 
 export function HomePageClient() {
   const { user } = useAuth()
@@ -165,6 +165,9 @@ export function HomePageClient() {
                   </Button>
                 </div>
               ) : null}
+              {isGuest && (
+                <DownloadCard />
+              )}
               <TrendingSidebar />
               {!isGuest && <UserSuggestions title="Who to follow" limit={5} compact />}
             </div>
@@ -260,4 +263,96 @@ function StatsBlock() {
   }
 
   return <p className="mt-3 text-sm text-muted-foreground">Join free to start building with others.</p>
+}
+
+function DownloadCard() {
+  const [downloadState, setDownloadState] = useState<"idle" | "downloading" | "done" | "error">("idle")
+  const [progress, setProgress] = useState(0)
+
+  const handleDownload = useCallback(async () => {
+    if (downloadState === "downloading") return
+    setDownloadState("downloading")
+    setProgress(0)
+    try {
+      const res = await fetch("/api/download/apk")
+      if (!res.ok) throw new Error("Not available")
+      const contentLength = Number(res.headers.get("content-length")) || 0
+      const reader = res.body?.getReader()
+      if (!reader) throw new Error("No stream")
+      let received = 0
+      const chunks: Uint8Array[] = []
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        chunks.push(value)
+        received += value.length
+        if (contentLength > 0) setProgress(Math.round((received / contentLength) * 100))
+      }
+      const totalLength = chunks.reduce((acc, c) => acc + c.length, 0)
+      const merged = new Uint8Array(totalLength)
+      let offset = 0
+      for (const chunk of chunks) {
+        merged.set(chunk, offset)
+        offset += chunk.length
+      }
+      const blob = new Blob([merged.buffer], { type: "application/vnd.android.package-archive" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "loop.apk"
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      setProgress(100)
+      setDownloadState("done")
+    } catch {
+      setDownloadState("error")
+    }
+  }, [downloadState])
+
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card/50 p-4">
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10">
+          <Smartphone className="h-4 w-4 text-emerald-500" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">Get the app</p>
+          <p className="text-xs text-muted-foreground">Android available now</p>
+        </div>
+      </div>
+
+      {downloadState === "idle" && (
+        <Button onClick={handleDownload} className="mt-3 w-full rounded-xl" size="sm">
+          <Download className="mr-1.5 h-3.5 w-3.5" />
+          Download for Android
+        </Button>
+      )}
+      {downloadState === "downloading" && (
+        <div className="mt-3 space-y-1.5">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${progress}%` }} />
+          </div>
+          <p className="text-center text-[11px] text-muted-foreground">{progress}%</p>
+        </div>
+      )}
+      {downloadState === "done" && (
+        <div className="mt-3 flex items-center gap-1.5 rounded-lg bg-emerald-500/10 p-2 text-xs text-emerald-500">
+          <CheckCircle className="h-3.5 w-3.5" />
+          Downloaded!
+        </div>
+      )}
+      {downloadState === "error" && (
+        <Button onClick={handleDownload} variant="outline" className="mt-3 w-full rounded-xl" size="sm">
+          Try again
+        </Button>
+      )}
+
+      <Link href="/download" className="mt-2 flex items-center justify-center gap-1 text-xs text-primary hover:underline">
+        Learn more
+        <ArrowRight className="h-3 w-3" />
+      </Link>
+    </div>
+  )
 }
