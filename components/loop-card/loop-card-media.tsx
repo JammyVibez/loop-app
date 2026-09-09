@@ -83,7 +83,14 @@ export function LoopCardMedia({
               </div>
               <div className="flex-1">
                 <p className="font-medium">Audio Loop</p>
-                <audio controls className="w-full mt-2" src={url} preload="metadata">
+                <audio
+                  controls
+                  className="w-full mt-2"
+                  src={url}
+                  preload="metadata"
+                  onContextMenu={(e) => e.preventDefault()}
+                  onDragStart={(e) => e.preventDefault()}
+                >
                   Your browser does not support audio playback.
                 </audio>
               </div>

@@ -4,7 +4,7 @@ import { TreePine, Home, Search } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center space-y-6 p-8">
         {/* Logo */}
         <div className="flex justify-center">
@@ -19,7 +19,7 @@ export default function NotFound() {
             404
           </h1>
           <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Page Not Found</h2>
-          <p className="text-gray-600 dark:text-gray-400 max-w-md">
+          <p className="text-muted-foreground max-w-md">
             Looks like this loop got lost in the tree. The page you're looking for doesn't exist or has been moved.
           </p>
         </div>
@@ -45,7 +45,7 @@ export default function NotFound() {
 
         {/* Helpful Links */}
         <div className="pt-8 border-t border-gray-200 dark:border-gray-700">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Looking for something specific?</p>
+          <p className="text-sm text-muted-foreground mb-4">Looking for something specific?</p>
           <div className="flex flex-wrap justify-center gap-4 text-sm">
             <Link href="/trending" className="text-purple-600 hover:text-purple-500 dark:text-purple-400">
               Trending

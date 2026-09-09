@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Zap, Users, ChevronLeft, ChevronRight } from "lucide-react"
+import { Zap, Users, ChevronLeft, ChevronRight, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
@@ -186,6 +186,22 @@ export function LoopCardModals({
             {(() => {
               const url = mediaUrls[currentMediaIndex]
               if (!url) return null
+              if (loop.media_type === "audio") {
+                return (
+                  <div className="flex flex-col items-center gap-6 p-8">
+                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-violet-500/30 to-cyan-500/30 ring-2 ring-violet-500/40">
+                      <Volume2 className="h-12 w-12 text-violet-300" />
+                    </div>
+                    <audio
+                      controls
+                      className="w-full max-w-lg rounded-xl"
+                      src={url}
+                      preload="metadata"
+                      onContextMenu={(e) => e.preventDefault()}
+                    />
+                  </div>
+                )
+              }
               if (loop.media_type === "video") {
                 return (
                   <ProtectedMedia

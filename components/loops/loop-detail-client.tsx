@@ -25,6 +25,7 @@ import {
   Film,
   BadgeCheck,
   Copy,
+  Volume2,
 } from "lucide-react"
 import { CommentsSection } from "@/components/comments/comments-section"
 import { CreateBranchDialog } from "@/components/create-branch-dialog"
@@ -90,11 +91,12 @@ interface LoopData {
     createdAt: string
   }>
   media?: {
-    type: "image" | "video" | "gif"
+    type: "image" | "video" | "audio" | "gif"
     url: string
     thumbnail?: string
   }
   mediaUrls: string[]
+  mediaType?: string
   postType?: string
   poll?: any
   duel?: any
@@ -181,11 +183,12 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
         branches: Array.isArray(data.branches) ? data.branches : [],
         media: loopData.media_url
           ? {
-              type: (loopData.media_type === "video" ? "video" : "image") as "image" | "video",
+              type: (loopData.media_type === "audio" ? "audio" : loopData.media_type === "video" ? "video" : "image") as "image" | "video" | "audio",
               url: loopData.media_url,
             }
           : undefined,
         mediaUrls: mediaUrlsList,
+        mediaType: loopData.media_type || undefined,
         postType: loopData.post_type,
         poll: loopData.poll,
         duel: loopData.duel,
@@ -698,16 +701,43 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           {loop.mediaUrls && loop.mediaUrls.length > 0 && (
             <div className="space-y-3">
               <div className="group relative flex max-h-[520px] items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-black/70">
-                {loop.mediaUrls[activeMediaIndex]?.match(/\.(mp4|webm|ogg|mov)$/i) ? (
-                  <ProtectedMedia type="video" src={loop.mediaUrls[activeMediaIndex]} className="max-h-[520px] w-full object-contain" />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={loop.mediaUrls[activeMediaIndex]}
-                    alt={`${loop.title} - Media ${activeMediaIndex + 1}`}
-                    className="max-h-[520px] w-full object-contain"
-                  />
-                )}
+                {(() => {
+                  const currentUrl = loop.mediaUrls[activeMediaIndex] || ""
+                  const isVideo = /\.(mp4|webm|ogg|mov|m4v|m3u8)$/i.test(currentUrl) || /video/.test(loop.mediaType || "")
+                  const isAudio = /\.(mp3|wav|m4a|aac|flac|ogg)$/i.test(currentUrl) || loop.mediaType === "audio"
+
+                  if (isAudio) {
+                    return (
+                      <div className="flex w-full flex-col items-center gap-4 p-8">
+                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-violet-500/30 to-cyan-500/30 ring-2 ring-violet-500/40">
+                          <Volume2 className="h-10 w-10 text-violet-300" />
+                        </div>
+                        <audio
+                          controls
+                          className="w-full max-w-md rounded-xl"
+                          src={currentUrl}
+                          preload="metadata"
+                          onContextMenu={(e) => e.preventDefault()}
+                        >
+                          Your browser does not support audio playback.
+                        </audio>
+                      </div>
+                    )
+                  }
+
+                  if (isVideo) {
+                    return <ProtectedMedia type="video" src={currentUrl} className="max-h-[520px] w-full object-contain" />
+                  }
+
+                  return (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={currentUrl}
+                      alt={`${loop.title} - Media ${activeMediaIndex + 1}`}
+                      className="max-h-[520px] w-full object-contain"
+                    />
+                  )
+                })()}
 
                 {loop.mediaUrls.length > 1 && (
                   <>

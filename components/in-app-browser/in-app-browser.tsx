@@ -94,7 +94,9 @@ export function InAppBrowserHost() {
   const [request, setRequest] = useState<InAppBrowserRequest | null>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [iframeBlocked, setIframeBlocked] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const blockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Subscribe once — the opener helper notifies this (single) host.
   useEffect(() => {
@@ -102,6 +104,7 @@ export function InAppBrowserHost() {
       setRequest(req)
       setLoading(true)
       setCopied(false)
+      setIframeBlocked(false)
       setOpen(true)
     }
     listeners.add(listener)
@@ -109,6 +112,21 @@ export function InAppBrowserHost() {
       listeners.delete(listener)
     }
   }, [])
+
+  // Detect iframe being blocked: if onLoad doesn't fire within 6 seconds,
+  // the site likely sent X-Frame-Options or CSP frame-ancestors.
+  useEffect(() => {
+    if (!open || !request) return
+    blockTimerRef.current = setTimeout(() => {
+      if (loading) {
+        setIframeBlocked(true)
+        setLoading(false)
+      }
+    }, 6000)
+    return () => {
+      if (blockTimerRef.current) clearTimeout(blockTimerRef.current)
+    }
+  }, [open, request?.url])
 
   const close = useCallback(() => {
     setOpen(false)
@@ -222,6 +240,24 @@ export function InAppBrowserHost() {
             </Button>
 
             <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 rounded-full"
+              onClick={() => {
+                if (!request) return
+                const shareData = { title: request.title || domain, url: request.url }
+                if (navigator.share) {
+                  navigator.share(shareData).catch(() => {}) 
+                } else {
+                  void copyLink()
+                }
+              }}
+              title="Share"
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            </Button>
+
+            <Button
               size="sm"
               className="h-8 shrink-0 rounded-full bg-gradient-to-r from-sky-600 to-violet-600 px-3 text-xs font-bold text-white shadow-sm hover:from-sky-500 hover:to-violet-500"
               onClick={() => request && openExternally(request.url)}
@@ -234,10 +270,40 @@ export function InAppBrowserHost() {
 
         {/* Embedded page */}
         <div className="relative min-h-0 flex-1 bg-background">
-          {loading && (
+          {loading && !iframeBlocked && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/80 text-muted-foreground backdrop-blur-[1px]">
               <Loader2 className="h-6 w-6 animate-spin text-sky-500" />
               <p className="text-xs">Loading {domain}…</p>
+            </div>
+          )}
+
+          {/* Blocked / failed fallback */}
+          {iframeBlocked && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-background/95 p-6 text-center backdrop-blur-sm">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                <ShieldAlert className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-sm font-bold text-foreground">This site can't be previewed here</p>
+                <p className="max-w-sm text-xs text-muted-foreground">{domain} blocks in-app previews. Open it in your browser for the full experience.</p>
+              </div>
+              <div className="flex gap-2.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 rounded-full border-border text-foreground"
+                  onClick={() => request && openExternally(request.url)}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Open in browser
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1.5 rounded-full bg-gradient-to-r from-sky-600 to-violet-600 px-4 text-xs font-bold text-white"
+                  onClick={() => { setIframeBlocked(false); setLoading(true); reload() }}
+                >
+                  <RotateCw className="h-3.5 w-3.5" /> Try again
+                </Button>
+              </div>
             </div>
           )}
           {request && (
@@ -249,7 +315,11 @@ export function InAppBrowserHost() {
               className="h-full w-full border-0"
               sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-downloads allow-modals"
               referrerPolicy="no-referrer-when-downgrade"
-              onLoad={() => setLoading(false)}
+              onLoad={() => {
+                if (blockTimerRef.current) clearTimeout(blockTimerRef.current)
+                setLoading(false)
+                setIframeBlocked(false)
+              }}
             />
           )}
         </div>

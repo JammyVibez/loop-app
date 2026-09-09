@@ -50,6 +50,8 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
   const [isSubmitting, setIsSubmitting] = useState(false)
   /** Set after a successful post — the dialog flips to a confirmation step. */
   const [createdBranchId, setCreatedBranchId] = useState<string | null>(null)
+  /** Branch mode: "new" = write your own take, "rebranch" = repost the same content */
+  const [branchMode, setBranchMode] = useState<"new" | "rebranch" | null>(null)
   const { toast } = useToast()
   const { user, getAuthHeader } = useAuth()
 
@@ -59,6 +61,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
     setSelectedFile(null)
     setActiveTab("text")
     setCreatedBranchId(null)
+    setBranchMode(null)
   }
 
   const handleOpenChange = (next: boolean) => {
@@ -160,6 +163,44 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
 
   const mediaTab = activeTab === "image" || activeTab === "video" || activeTab === "audio" || activeTab === "file"
 
+  const handleRebranch = async () => {
+    if (atMaxDepth) {
+      toast({ title: "Branch limit reached", description: "This loop's tree is already 10 levels deep.", variant: "destructive" })
+      return
+    }
+    if (!user) {
+      window.location.href = "/login"
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      const formData = new FormData()
+      formData.append("content", parentContentText(parentLoop) || "")
+      formData.append("title", "")
+      formData.append("type", "text")
+      formData.append("parent_id", parentLoop.id)
+      const response = await fetch("/api/loops/branch", {
+        method: "POST",
+        body: formData,
+        headers: { ...getAuthHeader() },
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || "Failed to rebranch")
+      toast({ title: "Rebranched!", description: "This loop is now on your feed." })
+      const branchId = result.branch?.id
+      if (branchId) {
+        setCreatedBranchId(branchId)
+      } else {
+        resetForm()
+        onOpenChange(false)
+      }
+    } catch (error: any) {
+      toast({ title: "Couldn't rebranch", description: error?.message || "Try again.", variant: "destructive" })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const viewCreatedBranch = () => {
     if (!createdBranchId) return
     if (onBranchCreated) {
@@ -227,6 +268,79 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
           </div>
         ) : (
         <div className="space-y-5 px-5 py-4 sm:px-6">
+          {/* Branch Mode Selector — choose Rebranch or Branch New */}
+          {!branchMode && (
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-foreground">How do you want to branch?</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBranchMode("rebranch")}
+                  className="group flex flex-col items-center gap-2.5 rounded-2xl border-2 border-border/60 bg-muted/30 p-5 text-center transition-all hover:border-amber-500/50 hover:bg-amber-500/5"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/15 transition group-hover:bg-amber-500/25">
+                    <svg className="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Rebranch</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">Repost this loop to your followers with your support</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBranchMode("new")}
+                  className="group flex flex-col items-center gap-2.5 rounded-2xl border-2 border-border/60 bg-muted/30 p-5 text-center transition-all hover:border-emerald-500/50 hover:bg-emerald-500/5"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 transition group-hover:bg-emerald-500/25">
+                    <GitBranch className="h-6 w-6 text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Branch New Take</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">Add your own perspective, reply, or creative take</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Rebranch Confirmation View */}
+          {branchMode === "rebranch" && !createdBranchId && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/15">
+                    <svg className="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Rebranch this loop</p>
+                    <p className="text-xs text-muted-foreground">This will repost the loop to your feed — credited to {authorName}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-muted/30 p-3">
+                <p className="line-clamp-4 text-xs text-foreground/80">{parentPreview || "(media post)"}</p>
+              </div>
+              <Button
+                onClick={() => void handleRebranch()}
+                disabled={isSubmitting}
+                className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold"
+              >
+                {isSubmitting ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Rebranching…</>
+                ) : (
+                  <><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Rebranch</>
+                )}
+              </Button>
+              <button type="button" onClick={() => setBranchMode(null)} className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition">
+                ← Back to options
+              </button>
+            </div>
+          )}
+
+          {/* New Branch Content Editor (shown only in "new" mode) */}
+          {branchMode === "new" && (
+          <>
+          <div className="space-y-5">
           {/* Parent Loop Preview — author + media + text */}
           <div className="overflow-hidden rounded-xl border border-border/70 bg-muted/40">
             <div className="flex items-center gap-2.5 border-b border-border/60 bg-background/40 px-3.5 py-2.5">
@@ -388,6 +502,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
               </TabsContent>
             )}
           </Tabs>
+          </div>
 
           {/* Branch Info */}
           <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3.5">
@@ -403,11 +518,8 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
               <li>• You get credit when others interact with your branch</li>
             </ul>
           </div>
-        </div>
-        )}
 
-        {/* Action Buttons — sticky footer (hidden on the success step) */}
-        {!createdBranchId && (
+          {/* Action Buttons — sticky footer */}
           <div className="sticky bottom-0 flex gap-2.5 border-t border-border/70 bg-card/95 px-5 py-3.5 backdrop-blur sm:px-6">
             <Button
               variant="outline"
@@ -433,6 +545,10 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
               )}
             </Button>
           </div>
+          </>
+          )}
+
+        </div>
         )}
       </DialogContent>
     </Dialog>
