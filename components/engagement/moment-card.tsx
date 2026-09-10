@@ -7,6 +7,7 @@ import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Button } from "@/components/ui/button"
 import { Eye, Loader2, MessageCircle, Pencil, Send, Trash2, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
 export interface MomentCardMoment {
@@ -118,10 +119,12 @@ export function MomentCard({
     if (next && comments.length === 0) void fetchComments()
   }, [commentsOpen, comments.length, fetchComments])
 
+  const { toast } = useToast()
+
   const postComment = useCallback(
     async (content: string, parentId?: string) => {
       if (!user) {
-        window.location.href = "/login"
+        toast({ title: "Sign in required", description: "Please sign in to comment." })
         return
       }
       setPosting(true)

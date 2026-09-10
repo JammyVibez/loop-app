@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { GitBranch, Type, ImageIcon, Video, Music, FileText, Upload, X, Loader2, CheckCircle2, ArrowUpRight, Zap, Flame, Vote } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +56,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
   const [rebranchQuote, setRebranchQuote] = useState("")
   const { toast } = useToast()
   const { user, getAuthHeader } = useAuth()
+  const router = useRouter()
 
   const resetForm = () => {
     setContent("")
@@ -113,7 +115,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
       return
     }
     if (!user) {
-      window.location.href = "/login"
+      toast({ title: "Sign in required", description: "Please sign in to branch." })
       return
     }
 
@@ -171,7 +173,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
       return
     }
     if (!user) {
-      window.location.href = "/login"
+      toast({ title: "Sign in required", description: "Please sign in to rebranch." })
       return
     }
     setIsSubmitting(true)

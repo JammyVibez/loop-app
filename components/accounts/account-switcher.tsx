@@ -134,8 +134,10 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
         // The Set-Cookie header from the response sets the Better Auth session cookie.
         // No need to manually set cookies — the browser applies them automatically.
         toast({ title: "Switched!", description: `Now using ${account.display_name || account.username}` })
-        // Full page reload to reinitialize auth state with the new session
-        window.location.href = "/"
+        // Reinitialize auth state with the new session cookie
+        await refreshUser()
+        router.refresh()
+        router.push("/")
       } else {
         toast({ title: "Switch failed", description: data.error || "Could not switch account", variant: "destructive" })
       }

@@ -247,7 +247,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
 
   const handleFollow = async () => {
     if (!profile || !user) {
-      window.location.href = "/login"
+      toast({ title: "Sign in required", description: "Please sign in to continue." })
       return
     }
     const nextAction = isFollowing ? "unfollow" : "follow"
@@ -334,7 +334,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
 
   const handleMessage = async () => {
     if (!user || !profile) {
-      window.location.href = "/login"
+      toast({ title: "Sign in required", description: "Please sign in to continue." })
       return
     }
     try {
@@ -566,7 +566,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 <Button
                   onClick={() => {
                     if (!user) {
-                      window.location.href = "/login"
+                      toast({ title: "Sign in required", description: "Please sign in to continue." })
                       return
                     }
                     void handleFollow()
@@ -849,7 +849,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               <Button
                 onClick={() => {
                   if (!user) {
-                    window.location.href = "/login"
+                    toast({ title: "Sign in required", description: "Please sign in to continue." })
                     return
                   }
                   void handleFollow()

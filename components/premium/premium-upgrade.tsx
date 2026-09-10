@@ -58,7 +58,7 @@ export function PremiumUpgrade() {
 
   const activate = async (plan: ProPlanId, method: "coins" | "stripe" = "coins") => {
     if (!user) {
-      window.location.href = "/login"
+      toast({ title: "Sign in required", description: "Please sign in to upgrade." })
       return
     }
     setBusy(true)

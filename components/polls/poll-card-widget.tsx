@@ -59,6 +59,7 @@ function normalizePoll(p: PollData): PollData {
 export function PollCardWidget({ poll: initialPoll, loopId, creatorId }: { poll?: PollData; loopId?: string; creatorId?: string }) {
   const [poll, setPoll] = useState<PollData | null>(initialPoll ? normalizePoll(initialPoll) : null)
   const [userVotedOptionId, setUserVotedOptionId] = useState<string | null>(null)
+  const [userVotedIndex, setUserVotedIndex] = useState<number | null>(null)
   const [isVoting, setIsVoting] = useState<boolean>(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editQuestion, setEditQuestion] = useState("")
@@ -86,9 +87,9 @@ export function PollCardWidget({ poll: initialPoll, loopId, creatorId }: { poll?
 
   const pollId = poll?.id
 
-  // Check if current user voted
+  // Check if current user voted.
   useEffect(() => {
-    if (!user || !pollId) return
+    if (!user || !pollId || !poll) return
 
     const checkVote = async () => {
       const { data } = await supabase
@@ -100,10 +101,17 @@ export function PollCardWidget({ poll: initialPoll, loopId, creatorId }: { poll?
 
       if (data?.option_id) {
         setUserVotedOptionId(data.option_id)
+        // The stored option_id is a deterministic UUID, so we can't directly
+        // map it to an option index client-side.  But we can still show results
+        // mode — the specific highlight is less critical than showing the user
+        // they've already voted and preventing double-voting.
+        // Try a quick match against known option ids first
+        const idx = poll.options.findIndex(o => o.id === data.option_id)
+        if (idx >= 0) setUserVotedIndex(idx)
       }
     }
     void checkVote()
-  }, [pollId, user])
+  }, [pollId, user, poll])
 
   // Real-time Supabase subscription for live poll vote counts
   useEffect(() => {
@@ -180,13 +188,15 @@ export function PollCardWidget({ poll: initialPoll, loopId, creatorId }: { poll?
     if (userVotedOptionId || isExpired) return
 
     setIsVoting(true)
+    // Optimistically mark voted — use the option id for UI highlight
     setUserVotedOptionId(optionId)
+    setUserVotedIndex(optionIndex)
 
     // Optimistic update
     setPoll((prev) => {
       if (!prev) return null
-      const updatedOptions = (prev.options || []).map((opt) =>
-        opt.id === optionId ? { ...opt, votes: opt.votes + 1 } : opt
+      const updatedOptions = (prev.options || []).map((opt, i) =>
+        i === optionIndex ? { ...opt, votes: opt.votes + 1 } : opt
       )
       return { ...prev, options: updatedOptions, total_votes: (prev.total_votes || 0) + 1 }
     })
@@ -198,17 +208,36 @@ export function PollCardWidget({ poll: initialPoll, loopId, creatorId }: { poll?
           "Content-Type": "application/json",
           ...getAuthHeader(),
         },
-        body: JSON.stringify({ optionId, optionIndex }),
+        body: JSON.stringify({ optionIndex }),
       })
 
       const data = await res.json()
       if (!res.ok) {
+        // Rollback optimistic update on failure
+        setPoll((prev) => {
+          if (!prev) return null
+          const updatedOptions = (prev.options || []).map((opt, i) =>
+            i === optionIndex ? { ...opt, votes: Math.max(0, (opt.votes || 0) - 1) } : opt
+          )
+          return { ...prev, options: updatedOptions, total_votes: Math.max(0, (prev.total_votes || 0) - 1) }
+        })
+        setUserVotedOptionId(null)
+        setUserVotedIndex(null)
         toast({ title: "Vote failed", description: data.error || "Could not record vote" })
       } else {
+        // Use the server-returned id so the highlight works with the UUID stored in DB
+        if (data.userVotedOptionId) {
+          setUserVotedOptionId(data.userVotedOptionId)
+        }
+        if (typeof data.userVotedIndex === "number") {
+          setUserVotedIndex(data.userVotedIndex)
+        }
         toast({ title: "Vote recorded!", description: "Thanks for participating in the poll!" })
       }
     } catch (err) {
       console.error("Failed to cast poll vote:", err)
+      setUserVotedOptionId(null)
+      setUserVotedIndex(null)
     } finally {
       setIsVoting(false)
     }
@@ -249,7 +278,7 @@ export function PollCardWidget({ poll: initialPoll, loopId, creatorId }: { poll?
         {poll.options.map((option, idx) => {
           const votesCount = option.votes || 0
           const percent = totalVotes > 0 ? Math.round((votesCount / totalVotes) * 100) : 0
-          const isUserChoice = option.id === userVotedOptionId
+          const isUserChoice = userVotedIndex !== null ? idx === userVotedIndex : option.id === userVotedOptionId
 
           return (
             <div key={option.id} className="relative">

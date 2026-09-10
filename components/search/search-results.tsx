@@ -83,7 +83,7 @@ export function SearchResults({ query }: SearchResultsProps) {
 
   const handleFollow = async (userId: string) => {
     if (!user) {
-      window.location.href = "/login"
+      toast({ title: "Sign in required", description: "Please sign in to follow." })
       return
     }
     const wasFollowing = followedUsers.has(userId)

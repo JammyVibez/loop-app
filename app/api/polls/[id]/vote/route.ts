@@ -7,15 +7,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder"
 )
 
-// The production schema drifted from scripts/loops-duels-boosts-polls.sql:
-// loop_poll_votes.option_id may be UUID (rejecting "opt_1" / probe strings)
-// or TEXT (accepts anything). We insert with a TEXT-safe id first; when the
-// column is UUID-typed we retry with a deterministic UUID derived from the
-// poll id + option index so votes always persist on either schema.
+/** Generate a deterministic UUID from a seed string. */
 function deterministicUuid(seed: string): string {
   const { createHash } = require("crypto") as typeof import("crypto")
   const hex = createHash("sha1").update(seed).digest("hex")
-  // RFC-4122-flavoured version/variant nibbles so Postgres accepts it as uuid.
   return [
     hex.slice(0, 8),
     hex.slice(8, 12),
@@ -37,7 +32,9 @@ export async function POST(
     }
 
     const userId = user.id
-    const { optionId, optionIndex } = await req.json().catch(() => ({} as any))
+    const body = await req.json().catch(() => ({} as any))
+    const optionIndex: number | undefined = body.optionIndex
+    const optionId: string | undefined = body.optionId
 
     // Fetch current poll
     const { data: poll, error: pollErr } = await supabase
@@ -52,12 +49,11 @@ export async function POST(
 
     const options = Array.isArray(poll.options) ? poll.options : []
 
-    // Resolve option: accept index (number) or string ID
+    // Resolve by index first (most reliable), then fall back to optionId matching
     let resolvedIndex = -1
     if (typeof optionIndex === "number" && optionIndex >= 0 && optionIndex < options.length) {
       resolvedIndex = optionIndex
     } else if (optionId !== undefined && optionId !== null) {
-      // Normalize legacy object-shaped options too ({ text: {...} })
       const norm = (o: any) => {
         if (o && typeof o === "object") {
           const val = o.text ?? o.label ?? o.name ?? ""
@@ -69,16 +65,18 @@ export async function POST(
       if (resolvedIndex < 0) {
         resolvedIndex = options.findIndex((o: any) => String((o as any)?.id ?? "") === String(optionId))
       }
+      // Also try matching by numeric index string
+      if (resolvedIndex < 0 && !isNaN(Number(optionId))) {
+        const idx = Number(optionId)
+        if (idx >= 0 && idx < options.length) resolvedIndex = idx
+      }
     }
 
     if (resolvedIndex < 0) {
       return NextResponse.json({ error: "Invalid option" }, { status: 400 })
     }
 
-    const selectedOption = options[resolvedIndex]
-    const resolvedOptionId = String(selectedOption?.id ?? `opt_${resolvedIndex + 1}`)
-
-    // Check if user already voted in this poll
+    // Check if user already voted
     const { data: existingVote } = await supabase
       .from("loop_poll_votes")
       .select("id, option_id")
@@ -90,38 +88,21 @@ export async function POST(
       return NextResponse.json({ error: "You have already voted in this poll" }, { status: 400 })
     }
 
-    const textOptionId = resolvedOptionId
+    // Always use a deterministic UUID — works on both UUID-typed and TEXT columns
     const uuidOptionId = deterministicUuid(`${pollId}:${resolvedIndex}`)
 
-    // Try the readable TEXT id first; on a UUID-typed column Postgres throws
-    // 22P02 and we retry with the deterministic UUID.
-    let voteErr: any = null
-    let usedOptionId = textOptionId
-    {
-      const { error } = await supabase.from("loop_poll_votes").insert({
-        poll_id: pollId,
-        loop_id: poll.loop_id,
-        user_id: userId,
-        option_id: textOptionId,
-      } as any)
-      voteErr = error
-      if (voteErr && (voteErr.code === "22P02" || /invalid input syntax for type uuid/i.test(voteErr.message || ""))) {
-        usedOptionId = uuidOptionId
-        const retry = await supabase.from("loop_poll_votes").insert({
-          poll_id: pollId,
-          loop_id: poll.loop_id,
-          user_id: userId,
-          option_id: uuidOptionId,
-        } as any)
-        voteErr = retry.error
-      }
-    }
+    const { error: voteErr } = await supabase.from("loop_poll_votes").insert({
+      poll_id: pollId,
+      loop_id: poll.loop_id,
+      user_id: userId,
+      option_id: uuidOptionId,
+    } as any)
 
     if (voteErr) {
       return NextResponse.json({ error: voteErr.message }, { status: 400 })
     }
 
-    // Update poll option vote count & total_votes
+    // Update poll option vote counts
     const updatedOptions = options.map((opt: any, i: number) => {
       const base = opt && typeof opt === "object" ? opt : { id: `opt_${i + 1}`, text: String(opt ?? ""), votes: 0 }
       return i === resolvedIndex ? { ...base, votes: (base.votes || 0) + 1 } : base
@@ -146,7 +127,8 @@ export async function POST(
     return NextResponse.json({
       success: true,
       poll: updatedPoll || { ...poll, options: updatedOptions, total_votes: newTotalVotes },
-      userVotedOptionId: usedOptionId,
+      userVotedOptionId: uuidOptionId,
+      userVotedIndex: resolvedIndex,
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })

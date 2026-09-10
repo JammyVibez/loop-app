@@ -3,6 +3,7 @@
 import { ProtectedMedia } from "@/components/media-protection"
 
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -138,6 +139,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
   const [activeReaction, setActiveReaction] = useState<string | null>(null)
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
+  const router = useRouter()
 
   const fetchLoop = useCallback(async () => {
     try {
@@ -588,7 +590,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           if (typeof window !== "undefined" && window.history.length > 1) {
             window.history.back()
           } else {
-            window.location.href = "/"
+            router.push("/")
           }
         }}
         className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
