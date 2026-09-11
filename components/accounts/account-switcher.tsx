@@ -132,10 +132,14 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
       const data = await res.json()
       if (data.success) {
         // The Set-Cookie header from the response sets the Better Auth session cookie.
-        // No need to manually set cookies — the browser applies them automatically.
         toast({ title: "Switched!", description: `Now using ${account.display_name || account.username}` })
-        // Reinitialize auth state with the new session cookie
+        // Reinitialize auth state with the new session cookie.
+        // We must await refreshUser() so the browser has time to apply the
+        // Set-Cookie header before we navigate — otherwise the middleware
+        // reads the OLD cookie, sees no valid session, and redirects to /login.
         await refreshUser()
+        // Small delay to ensure the browser has committed the new cookie
+        await new Promise((r) => setTimeout(r, 150))
         router.refresh()
         router.push("/")
       } else {

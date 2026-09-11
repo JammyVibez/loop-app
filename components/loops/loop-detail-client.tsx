@@ -1,6 +1,6 @@
 "use client"
 
-import { ProtectedMedia } from "@/components/media-protection"
+import { ProtectedMedia, SpoilerMedia } from "@/components/media-protection"
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
@@ -102,6 +102,7 @@ interface LoopData {
   commentsDisabled?: boolean
   poll?: any
   duel?: any
+  isSpoiler?: boolean
   contentMetadata?: Record<string, any> | null
   codeSnippet?: {
     language: string
@@ -196,6 +197,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
         mediaType: loopData.media_type || undefined,
         postType: loopData.post_type,
         commentsDisabled: Boolean((loopData as any).comments_disabled),
+        isSpoiler: Boolean(loopData.is_spoiler ?? loopData.content_metadata?.is_spoiler),
         poll: loopData.poll,
         duel: loopData.duel,
         contentMetadata: loopData.content_metadata || null,
@@ -788,6 +790,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           {/* Full Media Set Carousel */}
           {loop.mediaUrls && loop.mediaUrls.length > 0 && (
             <div className="space-y-3">
+              <SpoilerMedia active={Boolean(loop.isSpoiler)} hiddenFallback={<div className="flex h-48 items-center justify-center rounded-2xl bg-black/80 text-sm text-white/60" />}> 
               <div className="group relative flex max-h-[520px] items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-black/70">
                 {(() => {
                   const currentUrl = loop.mediaUrls[activeMediaIndex] || ""
@@ -852,6 +855,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                   </>
                 )}
               </div>
+              </SpoilerMedia>
 
               {/* Thumbnail Strip */}
               {loop.mediaUrls.length > 1 && (

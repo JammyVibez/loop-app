@@ -63,6 +63,7 @@ export interface LoopData {
   boost_coins_target?: number
   is_boosted?: boolean
   is_clutch?: boolean
+  is_spoiler?: boolean
 }
 
 export interface LoopCardProps {

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useTheme3D } from "../../providers/theme-3d-provider"
 import { optimizeImageUrl } from "@/lib/optimize-image"
-import { ProtectedMedia } from "@/components/media-protection"
+import { ProtectedMedia, SpoilerMedia } from "@/components/media-protection"
 
 interface LoopCardMediaProps {
   mediaType: string
@@ -15,6 +15,7 @@ interface LoopCardMediaProps {
   doubleTapHeart: boolean
   onDoubleTapLike: () => void
   onOpenViewer: () => void
+  isSpoiler?: boolean
 }
 
 export function LoopCardMedia({
@@ -24,6 +25,7 @@ export function LoopCardMedia({
   doubleTapHeart,
   onDoubleTapLike,
   onOpenViewer,
+  isSpoiler = false,
 }: LoopCardMediaProps) {
   const { currentTheme } = useTheme3D()
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -53,49 +55,55 @@ export function LoopCardMedia({
       case "image":
         return (
           <div className={`mt-3 overflow-hidden rounded-xl bg-muted ring-1 ring-black/5 ${mediaContainerStyle}`}>
-            <ProtectedMedia
-              type="image"
-              src={optimizeImageUrl(url, 900) || "/placeholder.svg"}
-              alt="Loop media"
-              onClick={onOpenViewer}
-              className="w-full h-auto max-h-96 cursor-zoom-in object-cover transition-transform duration-300 hover:scale-105"
-            />
+            <SpoilerMedia active={isSpoiler}>
+              <ProtectedMedia
+                type="image"
+                src={optimizeImageUrl(url, 900) || "/placeholder.svg"}
+                alt="Loop media"
+                onClick={onOpenViewer}
+                className="w-full h-auto max-h-96 cursor-zoom-in object-cover transition-transform duration-300 hover:scale-105"
+              />
+            </SpoilerMedia>
           </div>
         )
       case "video":
         return (
           <div className={`mt-3 overflow-hidden rounded-xl bg-black relative ${mediaContainerStyle}`}>
-            <ProtectedMedia
-              type="video"
-              src={url}
-              poster="/placeholder.svg?height=300&width=500"
-              className="w-full h-auto max-h-96"
-              onClick={onOpenViewer}
-            />
+            <SpoilerMedia active={isSpoiler} hiddenFallback={<div className="flex h-48 items-center justify-center bg-black/80 text-xs text-white/60" />}> 
+              <ProtectedMedia
+                type="video"
+                src={url}
+                poster="/placeholder.svg?height=300&width=500"
+                className="w-full h-auto max-h-96"
+                onClick={onOpenViewer}
+              />
+            </SpoilerMedia>
           </div>
         )
       case "audio":
         return (
           <div className={`mt-3 p-4 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg ${mediaContainerStyle}`}>
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-purple-600 rounded-full">
-                <Volume2 className="h-4 w-4 text-white" />
+            <SpoilerMedia active={isSpoiler} hiddenFallback={<div className="flex h-16 items-center justify-center text-xs text-muted-foreground">Spoiler — tap to reveal</div>}>
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-purple-600 rounded-full">
+                  <Volume2 className="h-4 w-4 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium">Audio Loop</p>
+                  <audio
+                    controls
+                    controlsList="nodownload"
+                    className="w-full mt-2"
+                    src={url}
+                    preload="metadata"
+                    onContextMenu={(e) => e.preventDefault()}
+                    onDragStart={(e) => e.preventDefault()}
+                  >
+                    Your browser does not support audio playback.
+                  </audio>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="font-medium">Audio Loop</p>
-                <audio
-                  controls
-                  controlsList="nodownload"
-                  className="w-full mt-2"
-                  src={url}
-                  preload="metadata"
-                  onContextMenu={(e) => e.preventDefault()}
-                  onDragStart={(e) => e.preventDefault()}
-                >
-                  Your browser does not support audio playback.
-                </audio>
-              </div>
-            </div>
+            </SpoilerMedia>
           </div>
         )
       default:

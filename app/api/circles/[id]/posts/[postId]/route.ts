@@ -39,12 +39,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const likes = interactions?.filter(i => i.interaction_type === "like").length || 0
     const shares = interactions?.filter(i => i.interaction_type === "share").length || 0
 
+    // Increment view count (fire-and-forget)
+    void Promise.resolve(
+      supabase
+        .from("circle_posts")
+        .update({ view_count: (post.view_count || 0) + 1 })
+        .eq("id", postId)
+    ).catch(() => {})
+
     return NextResponse.json({
       success: true,
       post: {
         ...post,
         like_count: likes,
         share_count: shares,
+        view_count: (post.view_count || 0) + 1,
       },
     })
   } catch (error) {

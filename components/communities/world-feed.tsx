@@ -14,6 +14,7 @@ import { timeAgo } from "@/lib/community-engine"
 import { CommunityPostCard } from "./post-cards"
 import type { CommunityPost } from "./post-cards"
 import { StickyComposer } from "./sticky-composer"
+import { shareContent, absoluteAppUrl } from "@/lib/share"
 import {
   BadgeCheck,
   BarChart3,
@@ -214,8 +215,11 @@ export function WorldFeed({
     load(false)
   }
 
-  const handlePostCreated = (post: any) => {
-    if (post?.status === "pending") {
+  const handlePostCreated = (response: any) => {
+    // The API returns { success, post, message }. Extract the real post object.
+    const post = response?.post || response
+    if (!post?.id) return
+    if (post.status === "pending") {
       setNotice("Your post was submitted and is awaiting moderator review.")
     } else {
       setPosts((prev) => [post, ...prev])
@@ -293,6 +297,21 @@ export function WorldFeed({
         setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, is_pinned: !p.is_pinned } : p)))
       }
     } catch {}
+  }
+
+  const sharePost = async (postId: number) => {
+    const url = absoluteAppUrl(`/communities/${communityId}?tab=feed`)
+    const result = await shareContent({
+      title: "Community Post",
+      text: "Check out this post in the community",
+      url,
+    })
+    // Track the share in the database (fire-and-forget)
+    fetch(`/api/circles/${communityId}/posts/${postId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "share" }),
+    }).catch(() => {})
   }
 
   const approvalOn = Boolean(moderationSettings?.post_approval) && !isModerator
@@ -387,6 +406,7 @@ export function WorldFeed({
                 currentUserId={user?.id}
                 onLike={toggleLike}
                 onSave={toggleSave}
+                onShare={sharePost}
                 onDelete={deletePost}
                 onPin={togglePin}
                 onEdit={editPost}

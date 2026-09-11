@@ -80,6 +80,7 @@ export type NormalizedLoop = {
     role?: string
   }>
   content_metadata?: Record<string, any> | null
+  is_spoiler?: boolean
   /** ML recommendation engine extras (For You tab) */
   recommendation_reason?: string
   match_percentage?: number
@@ -204,6 +205,9 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
       : Array.isArray(row?.content_metadata?.co_authors)
       ? row.content_metadata.co_authors
       : [],
+    is_spoiler: Boolean(
+      row?.is_spoiler ?? row?.content_metadata?.is_spoiler ?? false
+    ),
     content_metadata:
       row?.content_metadata && typeof row.content_metadata === "object" ? row.content_metadata : null,
   }

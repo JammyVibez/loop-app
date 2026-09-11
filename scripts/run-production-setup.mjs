@@ -79,6 +79,16 @@ const files = [
   // open_co_loop_participants table (see /api/co-loop/open-invite).
   "scripts/open-co-loop-invites-schema.sql",
   "scripts/curated-emojis-schema.sql",
+  // Spoiler media: is_spoiler column on loops (see SpoilerMedia component).
+  "scripts/add-is-spoiler-column.sql",
+  // Fix duel votes type: loop_duel_votes.duel_id was UUID but loop_duels.id is BIGSERIAL.
+  "scripts/fix-duel-votes-type.sql",
+  // Fix poll option_id type: change from UUID to TEXT for string option IDs.
+  "scripts/fix-poll-option-id-type.sql",
+  // Community chat: add missing columns to messages table.
+  "scripts/community-chat-schema.sql",
+  // Community post enhancements: view_count column.
+  "scripts/community-post-enhancements.sql",
 ]
 
 const ignorable = [

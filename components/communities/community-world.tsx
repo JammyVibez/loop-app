@@ -22,6 +22,8 @@ import { WorldLoop } from "@/components/communities/world-loop"
 import { WelcomeOnboarding } from "@/components/communities/welcome-onboarding"
 import { CommunityBookmarks } from "@/components/communities/community-bookmarks"
 import { WorldBots } from "@/components/communities/world-bots"
+import { CommunityChat } from "@/components/communities/community-chat"
+import { CommunityAdminModal } from "@/components/communities/community-admin-modal"
 import { iconForSpace, spaceIcon } from "@/components/communities/world-spaces"
 import { AdSlot } from "@/components/ads/ad-slot"
 import {
@@ -53,6 +55,8 @@ import {
   X,
   Bookmark,
   Bot,
+  Crown,
+  MessageCircle,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -121,10 +125,11 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [focus, setFocus] = useState<FocusTarget | null>(null)
   const [spaceRequest, setSpaceRequest] = useState<{ id: string; token: number } | null>(null)
+  const [adminOpen, setAdminOpen] = useState(false)
 
   // Support deep links like /communities/[id]?tab=bots so external CTAs
   // (e.g. marketplace install success) can land users directly on a tab.
-  const VALID_TABS = ["overview", "feed", "spaces", "projects", "challenges", "memory", "members", "bots", "bookmarks", "moderation", "settings"]
+  const VALID_TABS = ["overview", "feed", "spaces", "chat", "projects", "challenges", "memory", "members", "bots", "bookmarks", "moderation", "settings"]
   useEffect(() => {
     const t = searchParams?.get("tab") || ""
     if (t && VALID_TABS.includes(t)) setTab(t)
@@ -247,6 +252,7 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
       { id: "overview", label: "Overview", icon: Home },
       { id: "feed", label: "Feed", icon: MessageSquare },
       { id: "spaces", label: "Spaces", icon: Globe2 },
+      { id: "chat", label: "Chat", icon: MessageCircle },
       { id: "projects", label: "Projects", icon: FolderOpen },
       { id: "challenges", label: "Challenges", icon: Trophy },
       { id: "memory", label: "Memory", icon: History },
@@ -401,6 +407,11 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
               <Button variant="outline" size="icon" className="rounded-full" onClick={share} title="Share">
                 {shared ? <Check className="h-4 w-4 text-emerald-500" /> : <Share2 className="h-4 w-4" />}
               </Button>
+              {bundle.is_admin && (
+                <Button variant="outline" size="icon" className="rounded-full" onClick={() => setAdminOpen(true)} title="Admin Panel">
+                  <Crown className="h-4 w-4 text-amber-500" />
+                </Button>
+              )}
               <Button variant="outline" size="icon" className="rounded-full md:hidden" onClick={() => setMenuOpen(true)} title="More">
                 <Menu className="h-4 w-4" />
               </Button>
@@ -510,6 +521,20 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
             />
           )}
           {tab === "spaces" && <WorldSpaces communityId={communityId} spaces={bundle.spaces || []} canModerate={bundle.is_moderator} onChanged={() => setRefreshKey((k) => k + 1)} />}
+          {tab === "chat" && bundle.is_member && (
+            <CommunityChat
+              communityId={communityId}
+              spaces={bundle.spaces || []}
+              canModerate={bundle.is_moderator}
+            />
+          )}
+          {tab === "chat" && !bundle.is_member && (
+            <div className="text-center py-12">
+              <MessageCircle className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
+              <p className="text-sm font-semibold">Join this community to chat</p>
+              <p className="text-xs text-muted-foreground mt-1">You must be a member to participate in chat.</p>
+            </div>
+          )}
           {tab === "projects" && (
             <WorldProjects
               communityId={communityId}
@@ -646,6 +671,14 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
           }}
         />
       )}
+
+      {/* Admin Panel Modal */}
+      <CommunityAdminModal
+        open={adminOpen}
+        onOpenChange={setAdminOpen}
+        communityId={communityId}
+        communityName={c.name || ""}
+      />
     </div>
   )
 }

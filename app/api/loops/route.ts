@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
     // resulting URLs rather than re-uploading files here).
     let preUploadedMediaUrl: string | null = null
     let preUploadedMediaUrls: string[] = []
+    let isSpoiler = false
 
     const isMultipart = headerContentType.includes("multipart/form-data")
     let formDataObj: FormData | null = null
@@ -128,6 +129,7 @@ export async function POST(request: NextRequest) {
       visibility = String(formData.get("visibility") || (formData.get("is_public") === "false" ? "private" : "public"))
       const rawMeta = formData.get("media_metadata") || formData.get("content_metadata")
       mediaMetadata = rawMeta ? JSON.parse(String(rawMeta)) : null
+      isSpoiler = formData.get("is_spoiler") === "true"
     } else {
       const body = await request.json().catch(() => ({}))
       contentText = String(body.content_text ?? body.content ?? "")
@@ -138,6 +140,7 @@ export async function POST(request: NextRequest) {
       parentLoopId = body.parent_loop_id ?? null
       visibility = body.visibility ?? (body.is_public === false ? "private" : "public")
       mediaMetadata = body.content_metadata ?? body.media_metadata ?? null
+      isSpoiler = Boolean(body.is_spoiler)
 
       if (Array.isArray(body.media_urls)) {
         preUploadedMediaUrls = body.media_urls.filter((u: unknown): u is string => typeof u === "string" && u.length > 0)
@@ -258,6 +261,7 @@ export async function POST(request: NextRequest) {
       visibility,
       tree_depth: treeDepth,
       content_metadata: mergedMetadata,
+      is_spoiler: isSpoiler || undefined,
     }
 
     let { data: loop, error } = await supabase
@@ -281,7 +285,7 @@ export async function POST(request: NextRequest) {
           is_code: true,
         }
       }
-      const optional = ["category", "content_metadata", "media_url", "media_type", "visibility"]
+      const optional = ["category", "content_metadata", "media_url", "media_type", "visibility", "is_spoiler"]
       for (const col of optional) {
         if (error?.code === "PGRST204" && String(error.message || "").includes(col)) {
           delete payload[col]

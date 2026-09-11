@@ -525,6 +525,7 @@ export const LoopCard = memo(function LoopCard({
               doubleTapHeart={doubleTapHeart}
               onDoubleTapLike={() => handleLike({ fromDoubleTap: true })}
               onOpenViewer={() => setViewerOpen(true)}
+              isSpoiler={Boolean(loop.is_spoiler)}
             />
 
             {/* Gift indicators */}

@@ -190,7 +190,7 @@ export function CommunityPostCard({
     <div
       id={`world-post-${post.id}`}
       className={cn(
-        "rounded-2xl border bg-card overflow-hidden scroll-mt-24 transition-all duration-500",
+        "rounded-2xl border bg-card overflow-hidden scroll-mt-24 transition-all duration-500 hover:shadow-md hover:border-border/80",
         flashId === post.id
           ? "border-indigo-500 ring-2 ring-indigo-500/40 shadow-lg shadow-indigo-900/20"
           : "border-border",
@@ -228,8 +228,7 @@ export function CommunityPostCard({
                 </span>
               )}
               <span className="text-[11px] text-muted-foreground">@{author?.username}</span>
-            </div>
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            </div>              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <Clock className="h-3 w-3" />
               {timeAgo(post.created_at)}
               <span className={cn("flex items-center gap-1", typeConfig.color)}>
@@ -239,6 +238,11 @@ export function CommunityPostCard({
               {spaceName && (
                 <span className="flex items-center gap-1">
                   in {spaceName}
+                </span>
+              )}
+              {(post as any).view_count > 0 && (
+                <span className="flex items-center gap-0.5">
+                  <Eye className="h-3 w-3" /> {(post as any).view_count}
                 </span>
               )}
             </div>

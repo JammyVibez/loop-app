@@ -61,6 +61,8 @@ export interface CommunityPost {
   media_type?: string | null
   like_count: number
   comment_count: number
+  share_count?: number
+  view_count?: number
   is_liked?: boolean
   is_saved?: boolean
   is_pinned?: boolean
@@ -172,6 +174,20 @@ export function PostActions({
         </Button>
       )}
 
+      {onShare && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="rounded-full text-xs h-8 px-3"
+          onClick={() => onShare(post.id)}
+        >
+          <Share2 className="h-3.5 w-3.5" />
+          {(post as any).share_count > 0 && (
+            <span className="ml-1">{(post as any).share_count}</span>
+          )}
+        </Button>
+      )}
+
       {onSave && (
         <Button
           size="sm"
@@ -184,17 +200,6 @@ export function PostActions({
           disabled={!isMember}
         >
           <Bookmark className={cn("h-3.5 w-3.5", post.is_saved && "fill-current")} />
-        </Button>
-      )}
-
-      {onShare && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="rounded-full text-xs h-8 px-3"
-          onClick={() => onShare(post.id)}
-        >
-          <Share2 className="h-3.5 w-3.5" />
         </Button>
       )}
 
