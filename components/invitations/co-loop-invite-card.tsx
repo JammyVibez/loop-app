@@ -4,11 +4,12 @@ import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Zap, Check, X, Loader2, Users } from "lucide-react"
+import { Zap, Check, X, Users } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface CoLoopInviteCardProps {
   inviteId?: string
@@ -121,8 +122,8 @@ export function CoLoopInviteCard({
     } catch (error) {
       console.error("Failed to respond to Co-Loop invite:", error)
       toast({
-        title: "Error",
-        description: "Failed to update invitation status",
+        title: "Couldn't update the invite",
+        description: "Your response wasn't saved — try again.",
         variant: "destructive",
       })
     } finally {
@@ -162,7 +163,7 @@ export function CoLoopInviteCard({
         <div className="space-y-2">
           {isSender ? (
             <div className="rounded-xl border border-dashed border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-center text-xs text-cyan-300 flex items-center justify-center gap-2">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Waiting for response...
+              <Spinner className="h-3.5 w-3.5" /> Waiting for response...
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -174,7 +175,7 @@ export function CoLoopInviteCard({
                 className="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 font-bold text-white hover:from-cyan-400 hover:to-indigo-500 shadow-lg shadow-cyan-500/25 transition-all text-xs"
               >
                 {loadingAction === "accept" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  <Spinner className="h-3.5 w-3.5 mr-1.5" />
                 ) : (
                   <Check className="h-3.5 w-3.5 mr-1.5" />
                 )}
@@ -189,7 +190,7 @@ export function CoLoopInviteCard({
                 className="rounded-xl border-rose-500/40 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200 text-xs px-3"
               >
                 {loadingAction === "decline" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Spinner className="h-3.5 w-3.5" />
                 ) : (
                   <X className="h-3.5 w-3.5 mr-1" />
                 )}

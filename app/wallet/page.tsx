@@ -12,11 +12,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
-import { Coins, ArrowDownLeft, ArrowUpRight, Gift, PlusCircle, CreditCard, ShieldCheck, RefreshCw, History, Zap, Check, Package, User, Heart, DollarSign, Building2, Wallet as WalletIcon, AlertCircle, RotateCcw, Loader2 } from "lucide-react"
+import { Coins, ArrowDownLeft, ArrowUpRight, Gift, PlusCircle, CreditCard, ShieldCheck, RefreshCw, History, Zap, Check, Package, User, Heart, DollarSign, Building2, Wallet as WalletIcon, AlertCircle, RotateCcw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { TransactionFilter } from "@/components/wallet/transaction-filter"
+import { Spinner } from "@/components/ui/skeletons"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 interface Transaction {
   id: string
@@ -640,7 +642,7 @@ export default function WalletPage() {
           <div className="pt-3 border-t border-border/50 flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Verified Creator Status</span>
             <Badge variant="secondary" className="font-semibold bg-emerald-500/10 text-emerald-500 border-emerald-500/30">
-              {user?.is_verified ? "✓ Verified Creator" : "Verification Eligible"}
+              {user?.is_verified ? "Verified Creator" : "Verification Eligible"}
             </Badge>
           </div>
         </Card>
@@ -1182,7 +1184,7 @@ export default function WalletPage() {
               disabled={refunding}
               className="rounded-xl bg-amber-500 text-white hover:bg-amber-400"
             >
-              {refunding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+              {refunding ? <Spinner className="mr-2 h-4 w-4" /> : <RotateCcw className="mr-2 h-4 w-4" />}
               Submit refund request
             </Button>
           </DialogFooter>

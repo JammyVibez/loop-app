@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Header } from "@/components/header"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 type Person = {
   id: string
@@ -149,7 +150,7 @@ export default function FollowersPage() {
                 <div className="min-w-0 flex-1">
                   <Link href={`/profile/${person.username}`} className="flex items-center gap-1 font-semibold hover:underline">
                     <span className="truncate">{person.display_name || person.username}</span>
-                    {person.is_verified && <Badge className="h-4 rounded-full bg-sky-500 px-1 text-[10px] text-white">✓</Badge>}
+                    {person.is_verified && <VerifiedSeal size={16} title="Verified Creator" />}
                   </Link>
                   <p className="truncate text-sm text-muted-foreground">@{person.username}</p>
                 </div>

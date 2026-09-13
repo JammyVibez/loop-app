@@ -1,12 +1,13 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Database, Loader2, RefreshCw, Trash2 } from "lucide-react"
+import { Database, RefreshCw, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface CacheEntry {
   id: string
@@ -77,7 +78,7 @@ export function CacheManagementPanel() {
       <CardContent>
         {loading ? (
           <p className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading caches…
+            <Spinner className="h-4 w-4" /> Loading caches…
           </p>
         ) : caches.length === 0 ? (
           <p className="py-6 text-sm text-muted-foreground">No caches registered.</p>
@@ -112,7 +113,7 @@ export function CacheManagementPanel() {
                   disabled={clearingId === cache.id}
                 >
                   {clearingId === cache.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Spinner className="h-3.5 w-3.5" />
                   ) : (
                     <Trash2 className="h-3.5 w-3.5" />
                   )}

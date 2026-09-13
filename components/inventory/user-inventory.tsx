@@ -103,8 +103,8 @@ export function UserInventory() {
       })
     } catch (err) {
       toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to apply item",
+        title: "Couldn't apply item",
+        description: err instanceof Error ? err.message : "Take it off and try once more.",
         variant: "destructive",
       })
     }
@@ -141,8 +141,8 @@ export function UserInventory() {
       toast({ description: "Item deactivated." })
     } catch (err) {
       toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to remove item",
+        title: "Couldn't remove item",
+        description: err instanceof Error ? err.message : "Give it another go.",
         variant: "destructive",
       })
     }

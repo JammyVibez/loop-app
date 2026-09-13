@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { AlertCircle, Ban, Loader2, ShieldAlert, Trash2 } from "lucide-react"
+import { AlertCircle, Ban, ShieldAlert, Trash2 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface AppealStatus {
   status: "pending" | "approved" | "denied"
@@ -130,7 +131,7 @@ export function AccountStatusScreen({ status, username, isSelf, banReason }: Pro
                 maxLength={2000}
               />
               <Button className="w-full" onClick={submitAppeal} disabled={submitting || loading}>
-                {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {submitting ? <Spinner className="mr-2 h-4 w-4" /> : null}
                 Submit appeal
               </Button>
             </CardContent>

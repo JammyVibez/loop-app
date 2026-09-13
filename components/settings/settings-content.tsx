@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { useTheme } from "next-themes"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 export function SettingsContent() {
   const { user, getAuthHeader, refreshUser, applyServerProfile } = useAuth()
@@ -252,8 +253,8 @@ export function SettingsContent() {
       })
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to update notifications.",
+        title: "Notification settings didn't save",
+        description: "Toggle it again to retry — nothing was lost.",
         variant: "destructive",
       })
     }
@@ -305,7 +306,7 @@ export function SettingsContent() {
         variant: "destructive",
       })
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" })
+      toast({ title: "Couldn't delete your account", description: err.message || "Try again — or contact support if it keeps failing.", variant: "destructive" })
     } finally {
       setDeleting(false)
     }
@@ -324,7 +325,7 @@ export function SettingsContent() {
       setDeletionExecuteAfter(null)
       toast({ title: "Deletion cancelled", description: "Your account is safe." })
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" })
+      toast({ title: "Couldn't cancel", description: err.message || "Your plan is still active — try again.", variant: "destructive" })
     } finally {
       setCancelling(false)
     }
@@ -505,15 +506,10 @@ export function SettingsContent() {
                   <div className="flex items-center space-x-2">
                     <span>Verification Status:</span>
                     {user?.is_verified ? (
-                      <Badge
-                        className={
-                          user.verification_level === "root"
-                            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                            : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-                        }
-                      >
-                        {user.verification_level === "root" ? "🌱 Root Verified" : "⭐ Influencer Verified"}
-                      </Badge>
+                      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-600 dark:text-sky-400">
+                        <VerifiedSeal size={15} variant={user.verification_level === "root" ? "emerald" : "verified"} title={user.verification_level === "root" ? "Root Verified" : "Influencer Verified"} />
+                        {user.verification_level === "root" ? "Root Verified" : "Influencer Verified"}
+                      </span>
                     ) : (
                       <Badge variant="outline">Not Verified</Badge>
                     )}

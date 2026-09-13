@@ -20,9 +20,10 @@ import {
   Check,
   Clock,
   MapPin,
-  Loader2,
+  
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface Session {
   id: string
@@ -184,7 +185,7 @@ export function SecuritySessions({ activeTab }: SecuritySessionsProps) {
         <CardContent className="space-y-2">
           {loading ? (
             <div className="flex items-center justify-center py-6">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <Spinner className="h-5 w-5 text-muted-foreground" />
             </div>
           ) : sessions.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-4">No active sessions</p>
@@ -282,7 +283,7 @@ export function SecuritySessions({ activeTab }: SecuritySessionsProps) {
             disabled={exporting}
           >
             {exporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Spinner className="h-4 w-4" />
             ) : (
               <Download className="h-4 w-4" />
             )}
@@ -350,7 +351,7 @@ export function SecuritySessions({ activeTab }: SecuritySessionsProps) {
               disabled={deleteConfirm !== user?.username || deleting}
               onClick={handleDeleteAccount}
             >
-              {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {deleting ? <Spinner className="h-4 w-4 mr-2" /> : null}
               Permanently Delete
             </Button>
           </DialogFooter>

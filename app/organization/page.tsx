@@ -7,12 +7,13 @@ import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Building2, Users, Coins, Calendar, TrendingUp, ExternalLink, Zap, Loader2, Settings2, Plus } from "lucide-react"
+import { Building2, Users, Coins, Calendar, TrendingUp, ExternalLink, Zap, Settings2, Plus } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { PageLoading } from "@/components/loading-states"
 import { LoopCard } from "@/components/loop-card"
 import type { NormalizedLoop } from "@/lib/normalize-loop"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface OrgStatus {
   threshold: number
@@ -101,7 +102,7 @@ export default function OrganizationDashboardPage() {
 
         {loadingStatus ? (
           <div className="flex items-center gap-2 py-16 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading organization dashboard…
+            <Spinner className="h-4 w-4" /> Loading organization dashboard…
           </div>
         ) : !isOrg ? (
           <Card className="border-dashed py-16 text-center">

@@ -113,7 +113,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         event: "reel:commented",
         payload: { reel_id: reelId, comment_count, deleted_comment_id: commentId },
       })
-    } catch {}
+    } catch { /* intentionally silent */ }
 
     return NextResponse.json({ success: true, deleted_comment_id: commentId, comment_count })
   } catch (error: any) {

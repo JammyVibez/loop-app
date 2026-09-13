@@ -6,7 +6,8 @@ import { useAuth } from "@/hooks/use-auth"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { ImagePlus, Loader2, X, ChevronLeft, ChevronRight, Film } from "lucide-react"
+import { ImagePlus, X, ChevronLeft, ChevronRight, Film } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 export type PickedMedia = {
   url: string
@@ -186,7 +187,7 @@ export function DeviceMediaPicker({
           disabled={!canAdd}
           onClick={() => inputRef.current?.click()}
         >
-          {uploading ? <Loader2 className="h-3 w-3 animate-spin mr-1.5" /> : <ImagePlus className="h-3.5 w-3.5 mr-1.5" />}
+          {uploading ? <Spinner className="h-3 w-3 mr-1.5" /> : <ImagePlus className="h-3.5 w-3.5 mr-1.5" />}
           {uploading ? `Uploading ${uploadName.slice(0, 18)}…` : items.length === 0 ? "Upload from device" : "Add media"}
         </Button>
         {maxItems > 1 && items.length > 0 && (

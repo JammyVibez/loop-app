@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
-import { Check, Copy, Gift, Link2, Loader2, Zap, Users } from "lucide-react"
+import { Check, Copy, Gift, Link2, Zap, Users } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface ReferralRow {
   id: string
@@ -140,7 +141,7 @@ export function ReferralsSettings() {
         <CardContent>
           {loading ? (
             <div className="flex justify-center py-8 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <Spinner className="h-5 w-5" />
             </div>
           ) : stats.referred.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">

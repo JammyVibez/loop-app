@@ -24,7 +24,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Film,
-  BadgeCheck,
   Copy,
   Volume2,
 } from "lucide-react"
@@ -37,6 +36,7 @@ import { LoopDuelCard } from "@/components/duels/loop-duel-card"
 import { ClutchDuelCard } from "@/components/duels/clutch-duel-card"
 import { RichContent } from "@/components/content/rich-content"
 import { LoopDetailCodeBlock } from "@/components/loops/loop-detail-code-block"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { LoopDetailBoostBar } from "@/components/loops/loop-detail-boost-bar"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -253,7 +253,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
         if (!res.ok) return
         const data = await res.json()
         if (!cancelled) setIsFollowingAuthor(Boolean(data.is_following))
-      } catch {}
+      } catch { /* intentionally silent */ }
     }
     void check()
     return () => {
@@ -634,7 +634,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                 {loop.parentLoop.author ? (
                   <span className="inline-flex items-center gap-1 font-bold text-foreground">
                     @{loop.parentLoop.author}
-                    {loop.parentLoop.author_verified && <BadgeCheck className="h-3.5 w-3.5 fill-sky-500 text-background" />}
+                    {loop.parentLoop.author_verified && <VerifiedSeal size={14} title="Verified Creator" className="-mt-px" />}
                   </span>
                 ) : (
                   <span className="font-bold text-foreground">a branched post</span>
@@ -703,7 +703,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                     {loop.author.displayName}
                   </Link>
                   {loop.author.verified && (
-                    <BadgeCheck className="h-4 w-4 shrink-0 fill-sky-500 text-background" />
+                    <VerifiedSeal size={18} title="Verified Creator" />
                   )}
                   {loop.author.premium && (
                     <span className="inline-flex items-center rounded-full bg-gradient-to-r from-amber-300 to-yellow-500 px-1.5 py-px text-[9px] font-extrabold tracking-wider text-black">

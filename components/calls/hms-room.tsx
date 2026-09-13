@@ -14,7 +14,7 @@ import {
   selectDominantSpeaker,
 } from "@100mslive/react-sdk"
 import {
-  Loader2,
+  
   Mic,
   MicOff,
   MonitorUp,
@@ -28,6 +28,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { cn } from "@/lib/utils"
 import { unlockAudio } from "@/lib/audio-unlock"
+import { Spinner } from "@/components/ui/skeletons"
 
 export type HmsRoomLayout = "grid" | "stage"
 
@@ -173,7 +174,7 @@ function HmsRoomInner({
   if (!isConnected || !localJoined) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black text-white">
-        <Loader2 className="h-8 w-8 animate-spin text-rose-500" />
+        <Spinner className="h-8 w-8 text-rose-500" />
         <p className="text-sm text-white/70">Joining{audioOnly ? " voice" : ""} call…</p>
       </div>
     )
@@ -269,7 +270,7 @@ function StageView({ peerId }: { peerId: string }) {
       {!hasVideo && (
         <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
           <Avatar className="h-24 w-24">
-            <AvatarFallback className="bg-gradient-to-br from-violet-600 to-cyan-500 text-3xl font-bold">
+            <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-3xl font-bold">
               {peer.name?.charAt(0)?.toUpperCase() || "?"}
             </AvatarFallback>
           </Avatar>
@@ -304,7 +305,7 @@ function PeerTile({ peerId, audioOnly }: { peerId: string; audioOnly: boolean })
       ) : (
         <div className="flex h-full w-full items-center justify-center">
           <Avatar className="h-16 w-16 sm:h-20 sm:w-20">
-            <AvatarFallback className="bg-gradient-to-br from-violet-600 to-cyan-500 text-xl font-bold sm:text-2xl">
+            <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-xl font-bold sm:text-2xl">
               {peer.name?.charAt(0)?.toUpperCase() || "?"}
             </AvatarFallback>
           </Avatar>

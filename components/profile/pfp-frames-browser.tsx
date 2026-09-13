@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
-import { Loader2, Check, Lock, Sparkles, Crown, X } from "lucide-react"
+import { Check, Lock, Sparkles, Crown, X } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface PfpFrame {
   id: string | number
@@ -146,7 +147,7 @@ export function PfpFramesBrowser({ open, onOpenChange, currentAvatarUrl, onFrame
       setCoins((c) => c - frame.price_coins)
       fetchFrames()
     } catch {
-      toast({ title: "Error", description: "Something went wrong", variant: "destructive" })
+      toast({ title: "Couldn't get this frame", description: "Check your coin balance and try again.", variant: "destructive" })
     } finally {
       setAcquiring(null)
     }
@@ -175,7 +176,7 @@ export function PfpFramesBrowser({ open, onOpenChange, currentAvatarUrl, onFrame
       onFrameEquipped?.(action === "equip" ? frame.id : null)
       fetchFrames()
     } catch {
-      toast({ title: "Error", description: "Something went wrong", variant: "destructive" })
+      toast({ title: "Couldn't equip frame", description: "Try selecting it again.", variant: "destructive" })
     } finally {
       setEquipping(null)
     }
@@ -197,7 +198,7 @@ export function PfpFramesBrowser({ open, onOpenChange, currentAvatarUrl, onFrame
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Spinner className="h-6 w-6 text-muted-foreground" />
           </div>
         ) : (
           <div className="overflow-y-auto flex-1 p-4">
@@ -287,7 +288,7 @@ export function PfpFramesBrowser({ open, onOpenChange, currentAvatarUrl, onFrame
                 disabled={equipping === previewFrame.id}
               >
                 {equipping === previewFrame.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                  <Spinner className="h-4 w-4 mr-1.5" />
                 ) : previewFrame.equipped ? (
                   <Check className="h-4 w-4 mr-1.5" />
                 ) : null}
@@ -301,7 +302,7 @@ export function PfpFramesBrowser({ open, onOpenChange, currentAvatarUrl, onFrame
                 disabled={equipping === previewFrame.id}
               >
                 {equipping === previewFrame.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                  <Spinner className="h-4 w-4 mr-1.5" />
                 ) : previewFrame.equipped ? (
                   <Check className="h-4 w-4 mr-1.5" />
                 ) : null}
@@ -314,7 +315,7 @@ export function PfpFramesBrowser({ open, onOpenChange, currentAvatarUrl, onFrame
                 disabled={acquiring === previewFrame.id || coins < previewFrame.price_coins}
               >
                 {acquiring === previewFrame.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                  <Spinner className="h-4 w-4 mr-1.5" />
                 ) : previewFrame.price_coins > 0 ? (
                   <Crown className="h-4 w-4 mr-1.5" />
                 ) : (

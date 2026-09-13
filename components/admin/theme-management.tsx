@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash2 } from "lucide-react";
+import { Spinner } from "@/components/ui/skeletons"
 
 interface Theme {
   id: string;
@@ -184,7 +186,7 @@ export function ThemeManagement() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading themes…
+        <Spinner className="mr-2 h-5 w-5" /> Loading themes…
       </div>
     );
   }
@@ -204,14 +206,12 @@ export function ThemeManagement() {
       </div>
 
       {themes.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <div className="mb-4 text-4xl">🎨</div>
-            <h3 className="mb-2 text-xl font-semibold">No themes yet</h3>
-            <p className="mb-4 text-sm text-muted-foreground">Create your first theme — it appears in the shop immediately.</p>
-            <Button onClick={openCreate}>Create First Theme</Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          title="The shop shelves are bare"
+          description="Create a theme and it goes live in the shop the moment you save."
+          actionLabel="Create the first theme"
+          onAction={openCreate}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {themes.map((theme) => (
@@ -361,7 +361,7 @@ export function ThemeManagement() {
           <div className="mt-4 flex justify-end gap-2">
             <Button variant="outline" onClick={() => { setShowCreateDialog(false); setEditingTheme(null); }}>Cancel</Button>
             <Button onClick={() => void submit()} disabled={!form.name.trim() || saving}>
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {saving ? <Spinner className="mr-2 h-4 w-4" /> : null}
               {editingTheme ? "Save Changes" : "Create Theme"}
             </Button>
           </div>

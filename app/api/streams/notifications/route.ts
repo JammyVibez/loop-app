@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       // Best-effort is_live column for older schemas
       try {
         await supabase.from("live_streams").update({ is_live: true }).eq("id", streamId)
-      } catch {}
+      } catch { /* intentionally silent */ }
 
       const { data: followers } = await supabase
         .from("follows")
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     try {
       await supabase.from("live_streams").update({ is_live: false }).eq("id", streamId)
-    } catch {}
+    } catch { /* intentionally silent */ }
 
     return NextResponse.json({ success: true, message: "Stream ended" })
   } catch (error: any) {

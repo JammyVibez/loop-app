@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import {
   Users,
-  Loader2,
+  
   CheckCircle2,
   Zap,
   ExternalLink,
@@ -30,6 +30,8 @@ import {
   Clock,
 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface OpenCoLoopInviteCardProps {
   post: {
@@ -106,7 +108,7 @@ function CommentThread({ comment, user, onReply, depth = 0 }: { comment: Comment
               {comment.author?.display_name || comment.author?.username}
             </span>
             {comment.author?.is_verified && (
-              <CheckCircle2 className="h-2.5 w-2.5 text-cyan-400 fill-cyan-400/20" />
+              <VerifiedSeal size={12} title="Verified Creator" />
             )}
             <span className="text-[10px] text-muted-foreground">
               {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
@@ -500,7 +502,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
         className="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 font-bold text-white hover:from-cyan-400 hover:to-indigo-500 shadow-lg shadow-cyan-500/25 text-sm transition-all"
       >
         {joining ? (
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          <Spinner className="h-4 w-4 mr-2" />
         ) : (
           <Zap className="h-4 w-4 mr-2" />
         )}
@@ -606,7 +608,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
                   {author.display_name || author.username}
                 </span>
                 {author.is_verified && (
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-cyan-400 fill-cyan-400/20" />
+                  <VerifiedSeal size={14} title="Verified Creator" />
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground truncate">
@@ -719,7 +721,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
           <div className="border-t border-white/5 pt-3 space-y-3">
             {commentsLoading ? (
               <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <Spinner className="h-5 w-5 text-muted-foreground" />
               </div>
             ) : comments.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-2">
@@ -784,7 +786,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
                     disabled={!commentText.trim() || submittingComment}
                   >
                     {submittingComment ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <Spinner className="h-3.5 w-3.5" />
                     ) : (
                       <Send className="h-3.5 w-3.5" />
                     )}

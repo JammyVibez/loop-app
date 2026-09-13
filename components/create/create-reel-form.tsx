@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { Loader2, Upload, Video, X } from "lucide-react"
+import { Upload, Video, X } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { useLoginGate } from "@/hooks/use-login-gate"
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { parseJsonResponse } from "@/lib/parse-json-response"
+import { Spinner } from "@/components/ui/skeletons"
 
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024
 
@@ -203,7 +204,7 @@ export function CreateTreeForm({ onTreeCreated }: CreateTreeFormProps) {
         >
           {uploading ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {uploadProgressLabel || "Publishing…"}
+              <Spinner className="mr-2 h-4 w-4" /> {uploadProgressLabel || "Publishing…"}
             </>
           ) : (
             "Publish Tree"

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { COMMUNITY_CATEGORIES, getCategoryConfig } from "@/lib/community-categories"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 import {
   Search,
   Users,
@@ -256,7 +257,9 @@ export function DiscoverCommunities() {
                           </AvatarFallback>
                         </Avatar>
                         {c.is_verified && (
-                          <BadgeCheck className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-background text-blue-500" />
+                          <span className="absolute -bottom-1 -right-1 rounded-full bg-background p-0.5">
+                            <VerifiedSeal size={14} variant="emerald" title="Official Community" />
+                          </span>
                         )}
                       </div>
                       <div className="min-w-0">

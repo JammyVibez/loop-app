@@ -26,6 +26,7 @@ import { CommunityChat } from "@/components/communities/community-chat"
 import { CommunityAdminModal } from "@/components/communities/community-admin-modal"
 import { iconForSpace, spaceIcon } from "@/components/communities/world-spaces"
 import { AdSlot } from "@/components/ads/ad-slot"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   Users,
   Share2,
@@ -47,7 +48,7 @@ import {
   Settings,
   Link as LinkIcon,
   Check,
-  Loader2,
+  
   Menu,
   Sprout,
   Home,
@@ -59,6 +60,7 @@ import {
   MessageCircle,
 } from "lucide-react"
 import Link from "next/link"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 const PULSE_EMOJI: Record<string, string> = {
   quiet: "Moon",
@@ -297,7 +299,7 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
             This community is invitation-only. Join requests are approved by the community team.
           </p>
           <Button onClick={join} disabled={joining} className="rounded-full">
-            {joining ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+            {joining ? <Spinner className="h-4 w-4 mr-1.5" /> : null}
             Request to join
           </Button>
           {error && <p className="text-sm text-red-500">{error}</p>}
@@ -355,7 +357,9 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
               </AvatarFallback>
             </Avatar>
             {c.is_verified && (
-              <BadgeCheck className="absolute -bottom-1.5 -right-1.5 h-7 w-7 rounded-full bg-background p-0.5 text-blue-500" />
+              <span className="absolute -bottom-1.5 -right-1.5 rounded-full bg-background p-0.5">
+                <VerifiedSeal size={24} variant="emerald" title="Official Community" />
+              </span>
             )}
           </div>
 
@@ -365,7 +369,7 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
               {c.is_private && <Lock className="h-4 w-4 text-muted-foreground" />}
               {c.is_verified && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold text-blue-500 border border-blue-500/30">
-                  <BadgeCheck className="h-3 w-3" /> OFFICIAL
+                  <VerifiedSeal size={12} variant="emerald" title="Official Community" /> OFFICIAL
                 </span>
               )}
               {(() => {
@@ -400,7 +404,7 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
                 </Button>
               ) : (
                 <Button className="rounded-full bg-indigo-600 hover:bg-indigo-500 flex-1 sm:flex-none" onClick={join} disabled={joining}>
-                  {joining ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Users className="h-4 w-4 mr-1.5" />}
+                  {joining ? <Spinner className="h-4 w-4 mr-1.5" /> : <Users className="h-4 w-4 mr-1.5" />}
                   {c.is_private ? "Request to join" : "Join world"}
                 </Button>
               )}
@@ -594,7 +598,7 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
           <div className="mt-4 flex flex-wrap gap-2">
             {!bundle.is_member ? (
               <Button size="sm" className="flex-1 rounded-full" onClick={join} disabled={joining}>
-                {joining ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Users className="h-3.5 w-3.5 mr-1" />} Join world
+                {joining ? <Spinner className="h-3.5 w-3.5 mr-1" /> : <Users className="h-3.5 w-3.5 mr-1" />} Join world
               </Button>
             ) : (
               <Button size="sm" variant="outline" className="flex-1 rounded-full" onClick={() => openTab({ tab: "feed" })}>

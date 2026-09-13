@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Code, Plus, Loader2, Search, BookOpen, LayoutTemplate, GitFork, Star, Boxes, RefreshCw, Zap, Terminal, UserRound, Target, Trophy } from "lucide-react"
+import { Code, Plus, Search, BookOpen, LayoutTemplate, GitFork, Star, Boxes, RefreshCw, Zap, Terminal, UserRound, Target, Trophy } from "lucide-react"
 import { CreateProjectDialog } from "@/components/developers/create-project-dialog"
 import { CodeLoopCard } from "@/components/developers/code-loop-card"
 import { DeveloperSnippets } from "@/components/developers/developer-snippets"
@@ -15,6 +15,7 @@ import { DeveloperQuests } from "@/components/developers/developer-quests"
 import { DeveloperLeaderboard } from "@/components/developers/developer-leaderboard"
 import { AdCard, type AdData } from "@/components/ads/ad-card"
 import { useAuth } from "@/hooks/use-auth"
+import { Spinner } from "@/components/ui/skeletons"
 
 function normalizeProject(row: any) {
   return {
@@ -312,7 +313,7 @@ export function DevelopersContent() {
             {/* Projects Grid */}
             {loading ? (
               <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading developer projects…
+                <Spinner className="h-4 w-4" /> Loading developer projects…
               </div>
             ) : error ? (
               <div className="flex flex-col items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center text-sm text-muted-foreground">

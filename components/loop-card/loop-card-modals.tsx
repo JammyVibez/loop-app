@@ -208,7 +208,7 @@ export function LoopCardModals({
                             const dlBtn = shadow.querySelector("[aria-label=\"Download\"]")
                             if (dlBtn) dlBtn.remove()
                           }
-                        } catch {}
+                        } catch { /* intentionally silent */ }
                       }}
                     />
                   </div>

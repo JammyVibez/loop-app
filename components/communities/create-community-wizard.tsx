@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
 import { COMMUNITY_CATEGORIES, getCategoryConfig, LAYOUT_PRESETS } from "@/lib/community-categories"
 import { DeviceMediaPicker, type PickedMedia } from "@/components/communities/device-media-picker"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   ArrowLeft,
   ArrowRight,
@@ -21,7 +22,7 @@ import {
   ImagePlus,
   Lock,
   Wand2,
-  Loader2,
+  
   Hash,
 } from "lucide-react"
 
@@ -362,7 +363,7 @@ export function CreateCommunityWizard() {
               <Button onClick={submit} disabled={submitting} className="min-w-[180px]">
                 {submitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> Building your world…
+                    <Spinner className="h-4 w-4 mr-1.5" /> Building your world…
                   </>
                 ) : (
                   <>

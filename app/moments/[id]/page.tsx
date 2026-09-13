@@ -1,17 +1,20 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Header } from "@/components/header"
 import { MomentCard, MomentGone } from "@/components/engagement/moment-card"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { Spinner } from "@/components/ui/skeletons"
 
 export default function MomentPage() {
+  const router = useRouter()
   const { id } = useParams<{ id: string }>()
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
@@ -72,7 +75,7 @@ export default function MomentPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to delete")
       toast({ title: "Moment deleted" })
-      window.location.href = "/"
+      router.push("/")
     } catch (error: any) {
       toast({ title: "Couldn't delete", description: error.message, variant: "destructive" })
       setDeleting(false)
@@ -87,7 +90,7 @@ export default function MomentPage() {
       <div className="min-h-screen bg-background text-foreground">
         <Header />
         <div className="flex h-[60vh] items-center justify-center text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading moment…
+          <Spinner className="mr-2 h-5 w-5" /> Loading moment…
         </div>
       </div>
     )
@@ -131,7 +134,7 @@ export default function MomentPage() {
                 />
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => void save()} disabled={saving}>
-                    {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : "Save"}
+                    {saving ? <Spinner className="mr-1.5 h-3.5 w-3.5" /> : "Save"}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
                     Cancel

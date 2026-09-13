@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { useTheme } from "next-themes"
@@ -62,6 +63,7 @@ const themeOptions = [
 ]
 
 export function EnhancedSettings() {
+  const router = useRouter()
   const { user, getAuthHeader, applyServerProfile, refreshUser } = useAuth()
   const { theme, setTheme, resolvedTheme } = useTheme()
   const { toast } = useToast()
@@ -323,7 +325,7 @@ export function EnhancedSettings() {
       toast({ title: "Settings saved", description: "Your preferences are up to date." })
       // If username changed, redirect to the new profile URL so links stay valid
       if (formData.username && formData.username !== user.username && data.profile?.username) {
-        window.location.href = `/profile/${data.profile.username}`
+        router.push(`/profile/${data.profile.username}`)
       }
     } catch (error: any) {
       toast({ title: "Could not save", description: error.message, variant: "destructive" })

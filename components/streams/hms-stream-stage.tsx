@@ -13,9 +13,10 @@ import {
   selectIsLocalVideoEnabled,
   selectDominantSpeaker,
 } from "@100mslive/react-sdk"
-import { Loader2 } from "lucide-react"
+import { } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { unlockAudio } from "@/lib/audio-unlock"
+import { Spinner } from "@/components/ui/skeletons"
 
 export interface HmsStreamStageHandle {
   toggleMic: () => void
@@ -180,7 +181,7 @@ const HmsStreamStageInner = forwardRef<HmsStreamStageHandle, HmsStreamStageProps
     if (!isConnected || !joined) {
       return (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <Loader2 className="h-8 w-8 animate-spin text-rose-400" />
+          <Spinner className="h-8 w-8 text-rose-400" />
         </div>
       )
     }

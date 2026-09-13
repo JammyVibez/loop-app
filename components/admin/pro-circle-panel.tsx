@@ -10,8 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Check, Crown, ExternalLink, Loader2, Plus, Users } from "lucide-react"
+import { Check, Crown, ExternalLink, Plus, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 export function ProCirclePanel() {
   const { getAuthHeader } = useAuth()
@@ -87,7 +88,7 @@ export function ProCirclePanel() {
   }
 
   if (loading) {
-    return <div className="flex justify-center py-16 text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Checking Pro community…</div>
+    return <div className="flex justify-center py-16 text-muted-foreground"><Spinner className="mr-2 h-5 w-5" /> Checking Pro community…</div>
   }
 
   return (
@@ -156,7 +157,7 @@ export function ProCirclePanel() {
                 />
               </div>
               <Button onClick={() => void create()} disabled={creating || !form.name.trim()} className={cn("w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-400 hover:to-orange-500")}>
-                {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                {creating ? <Spinner className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
                 Create Pro community
               </Button>
             </div>

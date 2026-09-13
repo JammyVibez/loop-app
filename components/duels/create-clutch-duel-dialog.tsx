@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Zap, Clapperboard, Timer, Coins, Upload, Loader2, Hash } from "lucide-react"
+import { Zap, Clapperboard, Timer, Coins, Upload, Hash } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface CreateClutchDuelDialogProps {
   open: boolean
@@ -314,11 +315,11 @@ export function CreateClutchDuelDialog({ open, onOpenChange, onDuelCreated }: Cr
             >
               {uploading ? (
                 <>
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Uploading clip…
+                  <Spinner className="mr-1.5 h-4 w-4" /> Uploading clip…
                 </>
               ) : loading ? (
                 <>
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Launching…
+                  <Spinner className="mr-1.5 h-4 w-4" /> Launching…
                 </>
               ) : (
                 <>

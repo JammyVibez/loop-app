@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Megaphone, Plus, Loader2, Save, Trash2, Power, Eye, MousePointerClick, ExternalLink, Upload, X } from "lucide-react"
+import { Megaphone, Plus, Save, Trash2, Power, Eye, MousePointerClick, ExternalLink, Upload, X } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { uploadMediaFile } from "@/lib/client-media-upload"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface AdSettings {
   enabled: boolean
@@ -203,7 +204,7 @@ export function AdsAdminPanel() {
     return (
       <Card>
         <CardContent className="flex justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Spinner className="h-6 w-6 text-muted-foreground" />
         </CardContent>
       </Card>
     )
@@ -288,7 +289,7 @@ export function AdsAdminPanel() {
           </div>
 
           <Button onClick={() => void saveSettings(settings)} disabled={saving} className="rounded-full">
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
             Save settings
           </Button>
         </CardContent>
@@ -354,7 +355,7 @@ export function AdsAdminPanel() {
                   onClick={() => adFileRef.current?.click()}
                 >
                   {uploadingMedia ? (
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    <Spinner className="h-5 w-5 text-muted-foreground" />
                   ) : (
                     <Upload className="h-5 w-5 text-violet-400" />
                   )}
@@ -379,7 +380,7 @@ export function AdsAdminPanel() {
           </div>
           <div className="flex items-end sm:col-span-2">
             <Button onClick={() => void createAd()} disabled={creating} className="rounded-full">
-              {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+              {creating ? <Spinner className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
               Create ad
             </Button>
           </div>
@@ -393,7 +394,7 @@ export function AdsAdminPanel() {
         </CardHeader>
         <CardContent className="space-y-3">
           {ads.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No ads yet — create your first one above.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">No ads in rotation yet. Add one above and it joins the live rotation instantly.</p>
           ) : (
             ads.map((ad) => {
               const ctr = ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) : "0.00"

@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
@@ -7,13 +8,14 @@ import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   Phone,
   PhoneIncoming,
   PhoneOutgoing,
   PhoneMissed,
   PhoneOff,
-  Loader2,
+  
   Clock,
   Video,
 } from "lucide-react"
@@ -92,6 +94,7 @@ function CallStatusIcon({ call }: { call: CallLogEntry }) {
 }
 
 export function CallLogs({ onCallBack }: CallLogsProps) {
+  const router = useRouter()
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const [calls, setCalls] = useState<CallLogEntry[]>([])
@@ -145,13 +148,13 @@ export function CallLogs({ onCallBack }: CallLogsProps) {
       return
     }
     // Fallback: navigate to the conversation
-    window.location.href = `/messages?c=${call.conversation_id}`
+    router.push(`/messages?c=${call.conversation_id}`)
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />
+        <Spinner className="h-5 w-5" />
       </div>
     )
   }
@@ -258,7 +261,7 @@ export function CallLogs({ onCallBack }: CallLogsProps) {
             disabled={loadingMore}
           >
             {loadingMore ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              <Spinner className="mr-1.5 h-3.5 w-3.5" />
             ) : null}
             Load more
           </Button>

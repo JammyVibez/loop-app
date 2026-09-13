@@ -62,7 +62,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         event: "message_edited",
         payload: { id: updated.id, content: updated.content, edited_at: updated.edited_at },
       })
-    } catch {}
+    } catch { /* intentionally silent */ }
 
     return NextResponse.json({ success: true, message: updated })
   } catch (err) {
@@ -106,7 +106,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         event: "message_deleted",
         payload: { id: messageId },
       })
-    } catch {}
+    } catch { /* intentionally silent */ }
 
     return NextResponse.json({ success: true, message: "Message deleted" })
   } catch (err) {

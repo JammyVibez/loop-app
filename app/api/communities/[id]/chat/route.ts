@@ -7,6 +7,9 @@ export const dynamic = "force-dynamic"
 /**
  * Community Space Chat API
  *
+ * Uses circle_room_messages (the actual community chat table)
+ * linked via circle_rooms (room_id → circle_rooms.id → circle_id → community)
+ *
  * GET  ?limit=80&offset=0&space_id=...  — fetch messages for this community
  * POST { content, space_id?, reply_to_id?, media_url?, media_type? }  — send a message
  */
@@ -36,38 +39,51 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const offset = Number(searchParams.get("offset") || "0")
     const spaceId = searchParams.get("space_id")
 
-    const query = supabase
-      .from("messages")
+    // If space_id is provided, find the room_id for that space
+    let roomIds: number[] | null = null
+    if (spaceId) {
+      const { data: room } = await supabase
+        .from("circle_rooms")
+        .select("id")
+        .eq("circle_id", communityId)
+        .eq("id", spaceId)
+        .maybeSingle()
+      if (room) roomIds = [room.id]
+    } else {
+      // Get all rooms for this community
+      const { data: rooms } = await supabase
+        .from("circle_rooms")
+        .select("id")
+        .eq("circle_id", communityId)
+      if (rooms) roomIds = rooms.map((r: any) => r.id)
+    }
+
+    if (!roomIds || roomIds.length === 0) {
+      return NextResponse.json({ success: true, messages: [] })
+    }
+
+    const { data: messages, error } = await supabase
+      .from("circle_room_messages")
       .select(`
         id,
         content,
         media_url,
         media_type,
-        message_type,
-        sender_id,
+        room_id,
         author_id,
-        circle_id,
         reply_to_id,
         reactions,
         is_edited,
-        edited_at,
-        is_deleted,
+        is_bot,
+        bot_name,
         created_at,
-        sender:profiles!messages_sender_id_fkey(
+        author:profiles!circle_room_messages_author_id_fkey(
           id, username, display_name, avatar_url, is_verified, is_premium
         )
       `)
-      .eq("circle_id", communityId)
-      .eq("is_deleted", false)
+      .in("room_id", roomIds)
       .order("created_at", { ascending: true })
       .range(offset, offset + limit - 1)
-
-    // Filter by space if provided (using metadata JSONB)
-    if (spaceId) {
-      query.contains("content_metadata", JSON.stringify({ space_id: spaceId }))
-    }
-
-    const { data: messages, error } = await query
 
     if (error) {
       console.error("Community chat fetch error:", error)
@@ -131,38 +147,69 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Message is too long (max 5000 characters)" }, { status: 400 })
     }
 
-    const contentMetadata: Record<string, any> = {}
-    if (spaceId) contentMetadata.space_id = spaceId
+    // Resolve room_id from space_id (or use the default "general" room)
+    let roomId: number | null = null
+    if (spaceId) {
+      const { data: room } = await supabase
+        .from("circle_rooms")
+        .select("id")
+        .eq("circle_id", communityId)
+        .eq("id", spaceId)
+        .maybeSingle()
+      if (room) roomId = room.id
+    }
+    if (!roomId) {
+      const { data: defaultRoom } = await supabase
+        .from("circle_rooms")
+        .select("id")
+        .eq("circle_id", communityId)
+        .eq("name", "general")
+        .maybeSingle()
+      if (defaultRoom) roomId = defaultRoom.id
+    }
+    if (!roomId) {
+      // Create a default general room if none exists
+      const { data: newRoom } = await supabase
+        .from("circle_rooms")
+        .insert({
+          circle_id: communityId,
+          name: "general",
+          type: "chat",
+          created_by: user.id,
+        })
+        .select("id")
+        .single()
+      if (newRoom) roomId = newRoom.id
+    }
+
+    if (!roomId) {
+      return NextResponse.json({ error: "Could not find or create a chat room" }, { status: 500 })
+    }
 
     const { data: message, error } = await supabase
-      .from("messages")
+      .from("circle_room_messages")
       .insert({
-        sender_id: user.id,
+        room_id: roomId,
         author_id: user.id,
-        circle_id: communityId,
         content: content || null,
         media_url: mediaUrl,
         media_type: mediaType,
-        message_type: mediaUrl ? (mediaType === "image" ? "image" : mediaType === "video" ? "image" : "file") : "text",
         reply_to_id: replyToId,
-        content_metadata: Object.keys(contentMetadata).length > 0 ? contentMetadata : null,
       })
       .select(`
         id,
         content,
         media_url,
         media_type,
-        message_type,
-        sender_id,
+        room_id,
         author_id,
-        circle_id,
         reply_to_id,
         reactions,
         is_edited,
-        edited_at,
-        is_deleted,
+        is_bot,
+        bot_name,
         created_at,
-        sender:profiles!messages_sender_id_fkey(
+        author:profiles!circle_room_messages_author_id_fkey(
           id, username, display_name, avatar_url, is_verified, is_premium
         )
       `)

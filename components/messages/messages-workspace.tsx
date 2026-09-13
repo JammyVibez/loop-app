@@ -19,6 +19,9 @@ import { CallSheet } from "@/components/calls/call-sheet"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
 import { ForwardDialog } from "@/components/messages/forward-dialog"
+import { WallpaperPicker } from "@/components/messages/wallpaper-picker"
+import { GifPicker } from "@/components/messages/gif-picker"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { VoiceRecorderWaves } from "@/components/messages/voice-recorder-waves"
 import { CallLogs } from "@/components/messages/call-logs"
 import { cn } from "@/lib/utils"
@@ -32,8 +35,7 @@ import {
   DEFAULT_CHAT_WALLPAPER,
   type ChatWallpaper,
 } from "@/lib/chat-wallpapers"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Slider } from "@/components/ui/slider"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   ArrowLeft,
   Bell,
@@ -47,7 +49,7 @@ import {
   GitBranch,
   Gift,
   MessageCircle,
-  Loader2,
+  
   Mic,
   MicOff,
   Pause,
@@ -93,6 +95,7 @@ interface Conversation {
     id: string
     username?: string
     display_name?: string
+    is_verified?: boolean
     avatar_url?: string
     active_cosmetics?: any
     cosmetics?: any
@@ -255,7 +258,6 @@ export function MessagesWorkspace() {
   const [wallpaperPickerOpen, setWallpaperPickerOpen] = useState(false)
   const [wallpaperSaving, setWallpaperSaving] = useState(false)
   const [wallpaperUploading, setWallpaperUploading] = useState(false)
-  const wallpaperFileRef = useRef<HTMLInputElement>(null)
   const wallpaperSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -928,7 +930,7 @@ export function MessagesWorkspace() {
       recorderRef.current?.pause()
       setRecordingPaused(true)
       if (recordingDurationRef.current) clearInterval(recordingDurationRef.current)
-    } catch {}
+    } catch { /* intentionally silent */ }
   }
 
   const resumeVoice = () => {
@@ -936,7 +938,7 @@ export function MessagesWorkspace() {
       recorderRef.current?.resume()
       setRecordingPaused(false)
       recordingDurationRef.current = setInterval(() => setRecordingDuration((d) => d + 1), 1000)
-    } catch {}
+    } catch { /* intentionally silent */ }
   }
 
   const loadGifs = async (query: string) => {
@@ -1331,7 +1333,7 @@ export function MessagesWorkspace() {
               disabled={pushToggling}
             >
               {pushToggling ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Spinner className="h-4 w-4" />
               ) : pushEnabled ? (
                 <Bell className="h-4 w-4 text-emerald-500" />
               ) : (
@@ -1403,7 +1405,7 @@ export function MessagesWorkspace() {
             size="icon"
             title="Start new chat"
           >
-            {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            {starting ? <Spinner className="h-4 w-4" /> : <Search className="h-4 w-4" />}
           </Button>
         </div>
       </div>
@@ -1415,7 +1417,7 @@ export function MessagesWorkspace() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center py-10 text-muted-foreground">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
+            <Spinner className="mr-2 h-4 w-4" /> Loading…
           </div>
         ) : conversations.length === 0 ? (
           <div className="flex flex-col items-center gap-2 p-8 text-center text-sm text-muted-foreground">
@@ -1465,7 +1467,12 @@ export function MessagesWorkspace() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-[15px] font-medium text-foreground">{displayName}</p>
+                    <p className="flex min-w-0 items-center gap-1 truncate text-[15px] font-medium text-foreground">
+                      <span className="truncate">{displayName}</span>
+                      {!conversation.is_group && conversation.other_user?.is_verified && (
+                        <VerifiedSeal size={13} title="Verified Creator" />
+                      )}
+                    </p>
                     <span className="shrink-0 text-[11px] text-muted-foreground">
                       {last?.created_at ? convoTime(last.created_at) : ""}
                     </span>
@@ -1520,8 +1527,11 @@ export function MessagesWorkspace() {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">
+          <p className="flex items-center gap-1 truncate text-sm font-semibold text-foreground">
             {selected.other_user?.display_name || selected.name || "Conversation"}
+            {!selected.is_group && selected.other_user?.is_verified && (
+              <VerifiedSeal size={13} title="Verified Creator" />
+            )}
           </p>
           <p className="truncate text-[11px]">
             {typingPeer ? (
@@ -1547,7 +1557,7 @@ export function MessagesWorkspace() {
           onClick={() => void startCall("audio")}
           disabled={Boolean(startingCall) || Boolean(outgoingCall)}
         >
-          {startingCall === "audio" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Phone className="h-5 w-5" />}
+          {startingCall === "audio" ? <Spinner className="h-5 w-5" /> : <Phone className="h-5 w-5" />}
         </Button>
         <Button
           variant="ghost"
@@ -1557,7 +1567,7 @@ export function MessagesWorkspace() {
           onClick={() => void startCall("video")}
           disabled={Boolean(startingCall) || Boolean(outgoingCall)}
         >
-          {startingCall === "video" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Video className="h-5 w-5" />}
+          {startingCall === "video" ? <Spinner className="h-5 w-5" /> : <Video className="h-5 w-5" />}
         </Button>
         {/* All chat actions live in one compact menu so the header stays
             clean on every screen size and never overflows on phones. */}
@@ -1594,7 +1604,7 @@ export function MessagesWorkspace() {
             <DropdownMenuItem onClick={() => setWallpaperPickerOpen(true)}>
               <Wallpaper className="mr-2 h-4 w-4 text-violet-500" />
               Chat wallpaper
-              {wallpaperSaving && <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+              {wallpaperSaving && <Spinner className="ml-auto h-3.5 w-3.5 text-muted-foreground" />}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setShowChatSearch((v) => !v)}>
               <Search className="mr-2 h-4 w-4" />
@@ -1632,106 +1642,14 @@ export function MessagesWorkspace() {
       </div>
 
       {/* Chat wallpaper picker — presets or your own image from the device. */}
-      <Dialog open={wallpaperPickerOpen} onOpenChange={setWallpaperPickerOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Wallpaper className="h-4 w-4 text-violet-500" /> Chat wallpaper
-            </DialogTitle>
-            <DialogDescription>
-              Pick a preset or upload your own image. Only you see this — it's saved to your account for this chat.
-            </DialogDescription>
-          </DialogHeader>
-          <input
-            ref={wallpaperFileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) void uploadWallpaper(file)
-              e.target.value = ""
-            }}
-          />
-          <div
-            className="relative flex h-28 items-end overflow-hidden rounded-xl border border-border"
-            style={chatWallpaperStyle(wallpaper)}
-          >
-            <div className="w-full bg-gradient-to-t from-black/50 to-transparent p-2">
-              <p className="text-[11px] font-medium text-white drop-shadow">
-                {wallpaper.image_url
-                  ? "Custom image"
-                  : wallpaper.preset
-                    ? CHAT_WALLPAPER_PRESETS.find((p) => p.id === wallpaper.preset)?.name || "Preset"
-                    : "Default background"}
-              </p>
-            </div>
-          </div>
-          <div>
-            <p className="mb-2 text-xs font-medium text-muted-foreground">Presets</p>
-            <div className="grid grid-cols-4 gap-2">
-              <button
-                type="button"
-                onClick={() => saveWallpaper(DEFAULT_CHAT_WALLPAPER)}
-                className={cn(
-                  "flex h-14 items-center justify-center rounded-lg border border-border bg-muted text-[10px] font-medium text-muted-foreground transition hover:border-violet-500/50",
-                  !wallpaper.preset && !wallpaper.image_url && "border-violet-500 ring-1 ring-violet-500/40",
-                )}
-                title="Default"
-              >
-                Default
-              </button>
-              {CHAT_WALLPAPER_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => saveWallpaper({ preset: preset.id, image_url: null, overlay: null })}
-                  className={cn(
-                    "h-14 rounded-lg border transition hover:scale-[1.03]",
-                    wallpaper.preset === preset.id && !wallpaper.image_url
-                      ? "border-violet-500 ring-2 ring-violet-500/40"
-                      : "border-border",
-                  )}
-                  style={{ background: preset.css }}
-                  title={preset.name}
-                />
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              disabled={wallpaperUploading}
-              onClick={() => wallpaperFileRef.current?.click()}
-            >
-              {wallpaperUploading ? (
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-              ) : (
-                <ImagePlus className="mr-1.5 h-4 w-4" />
-              )}
-              {wallpaper.image_url ? "Change image" : "Upload from device"}
-            </Button>
-            {wallpaper.image_url && (
-              <Button variant="ghost" onClick={() => saveWallpaper(DEFAULT_CHAT_WALLPAPER)}>
-                Reset
-              </Button>
-            )}
-          </div>
-          {wallpaper.image_url && (
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Darken image</p>
-              <Slider
-                value={[Math.round((wallpaper.overlay ?? 0.35) * 100)]}
-                min={0}
-                max={70}
-                step={5}
-                onValueChange={([v]) => saveWallpaper({ ...wallpaper, overlay: v / 100 })}
-              />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <WallpaperPicker
+        open={wallpaperPickerOpen}
+        onOpenChange={setWallpaperPickerOpen}
+        wallpaper={wallpaper}
+        onSave={saveWallpaper}
+        onUpload={(file) => void uploadWallpaper(file)}
+        uploading={wallpaperUploading}
+      />
 
       {showChatSearch && (
         <div className="border-b border-border bg-card px-3 py-2">
@@ -1779,7 +1697,7 @@ export function MessagesWorkspace() {
               disabled={publishingCoLoop}
               className="bg-amber-500 text-black hover:bg-amber-400"
             >
-              {publishingCoLoop ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GitBranch className="mr-2 h-4 w-4" />}
+              {publishingCoLoop ? <Spinner className="mr-2 h-4 w-4" /> : <GitBranch className="mr-2 h-4 w-4" />}
               Publish Co-Loop
             </Button>
           </div>
@@ -1789,7 +1707,7 @@ export function MessagesWorkspace() {
       <div className="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-6">
         {messagesLoading && messages.length === 0 ? (
           <div className="flex justify-center py-10 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Spinner className="h-5 w-5" />
           </div>
         ) : null}
         {filteredMessages.map((message, index) => {
@@ -2029,7 +1947,7 @@ export function MessagesWorkspace() {
               onClick={() => selectedId && void loadMessages(selectedId, true)}
             >
               {loadingOlder ? (
-                <><Loader2 className="h-3 w-3 animate-spin mr-1.5" /> Loading older messages...</>
+                <><Spinner className="h-3 w-3 mr-1.5" /> Loading older messages...</>
               ) : (
                 "Load older messages"
               )}
@@ -2081,7 +1999,7 @@ export function MessagesWorkspace() {
               disabled={savingEdit || !editDraft.trim()}
               className="shrink-0 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400"
             >
-              {savingEdit ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Check className="mr-1.5 h-3.5 w-3.5" />}
+              {savingEdit ? <Spinner className="mr-1.5 h-3.5 w-3.5" /> : <Check className="mr-1.5 h-3.5 w-3.5" />}
               Save
             </Button>
           </div>
@@ -2123,68 +2041,24 @@ export function MessagesWorkspace() {
           </>
         )}
 
-        {showGifPicker && (
-          <>
-            <button
-              type="button"
-              className="fixed inset-0 z-30 cursor-default"
-              aria-label="Close GIF picker"
-              onClick={() => setShowGifPicker(false)}
-            />
-            <div className="absolute bottom-full left-2 z-40 mb-2 w-[340px] max-w-[calc(100%-1rem)] overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
-              <div className="flex items-center gap-2 border-b border-border p-2">
-                <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <input
-                  value={gifSearch}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    setGifSearch(v)
-                    if (gifTimerRef.current) clearTimeout(gifTimerRef.current)
-                    const t = setTimeout(() => void loadGifs(v), 350)
-                    gifTimerRef.current = t
-                  }}
-                  placeholder="Search GIFs…"
-                  className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                />
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowGifPicker(false)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="grid max-h-64 grid-cols-3 gap-1 overflow-y-auto p-2">
-                {gifsLoading ? (
-                  <div className="col-span-3 flex items-center justify-center py-8 text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  </div>
-                ) : gifResults.length === 0 ? (
-                  <p className="col-span-3 py-8 text-center text-xs text-muted-foreground">
-                    No GIFs yet — an admin can add some from the admin panel.
-                  </p>
-                ) : (
-                  gifResults.map((gif) => (
-                    <button
-                      key={gif.id}
-                      type="button"
-                      className="group relative aspect-video overflow-hidden rounded-lg bg-muted"
-                      onClick={() => {
-                        void sendMessage({ content: "", media_url: gif.gif_url || gif.url, message_type: "gif" })
-                        setShowGifPicker(false)
-                        setGifSearch("")
-                      }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={gif.preview_url || gif.gif_url || gif.url}
-                        alt={gif.title || "GIF"}
-                        className="h-full w-full object-cover transition group-hover:scale-105"
-                        loading="lazy"
-                      />
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-          </>
-        )}
+        <GifPicker
+          open={showGifPicker}
+          onClose={() => setShowGifPicker(false)}
+          search={gifSearch}
+          onSearchChange={setGifSearch}
+          onSearchDebounced={(v) => {
+            if (gifTimerRef.current) clearTimeout(gifTimerRef.current)
+            const t = setTimeout(() => void loadGifs(v), 350)
+            gifTimerRef.current = t
+          }}
+          results={gifResults}
+          loading={gifsLoading}
+          onSelect={(gifUrl) => {
+            void sendMessage({ content: "", media_url: gifUrl, message_type: "gif" })
+            setShowGifPicker(false)
+            setGifSearch("")
+          }}
+        />
         <div className="flex items-end gap-2">
           <input
             ref={fileRef}
@@ -2223,7 +2097,7 @@ export function MessagesWorkspace() {
                 title="Add to message"
                 className="h-11 w-11 shrink-0 rounded-full border border-border/60 bg-foreground/[0.04] text-foreground/80 shadow-sm backdrop-blur transition hover:bg-foreground/10 hover:text-foreground"
               >
-                {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+                {uploading ? <Spinner className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" side="top" className="w-52">
@@ -2324,7 +2198,7 @@ export function MessagesWorkspace() {
                 title="Send"
                 className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-violet-600/25 transition hover:from-violet-500 hover:to-cyan-400 disabled:opacity-60"
               >
-                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {sending ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
               </button>
             ) : (
               <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
@@ -2397,7 +2271,7 @@ export function MessagesWorkspace() {
   ) : selectedId ? (
     <section className="flex h-full flex-col items-center justify-center bg-background px-6 text-center text-muted-foreground">
       {loading || messagesLoading ? (
-        <Loader2 className="h-6 w-6 animate-spin" />
+        <Spinner className="h-6 w-6" />
       ) : (
         <>
           <p className="text-lg font-medium text-foreground">Conversation unavailable</p>

@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Megaphone, Send, TrendingUp } from "lucide-react"
+import { Megaphone, Send, TrendingUp } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 export function AdminBroadcastPanel() {
   const { getAuthHeader } = useAuth()
@@ -144,7 +145,7 @@ export function AdminBroadcastPanel() {
                 onClick={() => void sendBroadcast("announcement")}
                 disabled={sending || !title.trim() || !message.trim()}
               >
-                {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                {sending ? <Spinner className="mr-2 h-4 w-4" /> : <Send className="mr-2 h-4 w-4" />}
                 Send announcement
               </Button>
               <Button

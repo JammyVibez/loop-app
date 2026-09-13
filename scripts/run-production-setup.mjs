@@ -81,10 +81,14 @@ const files = [
   "scripts/curated-emojis-schema.sql",
   // Spoiler media: is_spoiler column on loops (see SpoilerMedia component).
   "scripts/add-is-spoiler-column.sql",
+  // Explore Reels grid: composite indexes for the explore sourcing queries.
+  "scripts/explore-reels-indexes.sql",
   // Fix duel votes type: loop_duel_votes.duel_id was UUID but loop_duels.id is BIGSERIAL.
   "scripts/fix-duel-votes-type.sql",
   // Fix poll option_id type: change from UUID to TEXT for string option IDs.
   "scripts/fix-poll-option-id-type.sql",
+  // Fix poll votes poll_id: UUID → BIGINT for Snowflake IDs.
+  "scripts/fix-poll-votes-poll-id-type.sql",
   // Community chat: add missing columns to messages table.
   "scripts/community-chat-schema.sql",
   // Community post enhancements: view_count column.

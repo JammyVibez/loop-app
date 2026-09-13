@@ -73,8 +73,8 @@ export function RewardRedemption({ availableRewards, onRedemption }: RewardRedem
       }
     } catch (error) {
       toast({
-        title: "Error",
-        description: "An error occurred while redeeming the reward",
+        title: "Redemption didn't go through",
+        description: "Your coins weren't spent — try redeeming again.",
         variant: "destructive",
       })
     } finally {

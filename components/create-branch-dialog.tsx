@@ -11,11 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { VideoAvatar } from "@/components/cosmetics/video-avatar";
-import { GitBranch, Type, ImageIcon, Video, Music, FileText, Upload, X, Loader2, CheckCircle2, ArrowUpRight, Zap, Flame, Vote } from "lucide-react";
+import { GitBranch, Type, ImageIcon, Video, Music, FileText, Upload, X, CheckCircle2, ArrowUpRight, Zap, Flame, Vote } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
+import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { Spinner } from "@/components/ui/skeletons"
 
 const MAX_BRANCH_CHARS = 1000;
 const MAX_TREE_DEPTH = 10;
@@ -427,7 +429,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
                 className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold"
               >
                 {isSubmitting ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Rebranching…</>
+                  <><Spinner className="h-4 w-4" /> Rebranching…</>
                 ) : (
                   <><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Rebranch</>
                 )}
@@ -450,7 +452,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
                 <p className="flex items-center gap-1 truncate text-xs font-semibold text-foreground">
                   <span className="truncate">{authorName}</span>
                   {author?.is_verified && (
-                    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-sky-400 text-[9px] font-bold text-white">✓</span>
+                    <VerifiedSeal size={14} title="Verified Creator" />
                   )}
                 </p>
                 {authorHandle && <p className="truncate text-[10px] text-muted-foreground">{authorHandle}</p>}
@@ -637,7 +639,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Posting…
+                  <Spinner className="h-4 w-4" /> Posting…
                 </>
               ) : (
                 <>

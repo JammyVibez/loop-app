@@ -33,6 +33,7 @@ import {
   Crown,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 interface LinkedAccount {
   id: string
@@ -105,10 +106,10 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
         setNewPassword("")
         await fetchAccounts()
       } else {
-        toast({ title: "Failed", description: data.error || "Could not link account", variant: "destructive" })
+        toast({ title: "Couldn't link account", description: data.error || 'Check your credentials and try again.', variant: "destructive" })
       }
     } catch {
-      toast({ title: "Error", description: "Something went wrong", variant: "destructive" })
+      toast({ title: "Couldn't link account", description: 'Check your connection and try again.', variant: "destructive" })
     } finally {
       setAdding(false)
     }
@@ -146,7 +147,7 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
         toast({ title: "Switch failed", description: data.error || "Could not switch account", variant: "destructive" })
       }
     } catch {
-      toast({ title: "Error", description: "Something went wrong", variant: "destructive" })
+      toast({ title: "Couldn't switch account", description: 'Check your connection and try again.', variant: "destructive" })
     } finally {
       setSwitching(null)
     }
@@ -166,7 +167,7 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
         await fetchAccounts()
       }
     } catch {
-      toast({ title: "Error", description: "Failed to remove account", variant: "destructive" })
+      toast({ title: "Couldn't unlink account", description: 'Try again.', variant: "destructive" })
     }
   }
 
@@ -237,7 +238,7 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
                   <div className="flex items-center gap-2">
                     <span className="font-medium truncate">{account.display_name || account.username}</span>
                     {account.is_verified && (
-                      <Badge variant="secondary" className="text-xs px-1 py-0">✓</Badge>
+                      <VerifiedSeal size={14} title="Verified Creator" />
                     )}
                     {account.is_primary && (
                       <Badge variant="default" className="text-xs">Active</Badge>

@@ -15,10 +15,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { DeviceMediaPicker, type PickedMedia } from "@/components/communities/device-media-picker"
 import { timeAgo } from "@/lib/community-engine"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   Bot,
   BotMessageSquare,
-  Loader2,
+  
   Plus,
   Store,
   Activity,
@@ -554,7 +555,7 @@ function BotFormDialog({ communityId, onClose, onSaved }: { communityId: string;
         <DialogFooter className="gap-2">
           <Button variant="outline" className="rounded-full" onClick={onClose} disabled={submitting}>Cancel</Button>
           <Button className="rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white" onClick={submit} disabled={submitting}>
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Zap className="h-4 w-4 mr-1.5" />} Deploy bot
+            {submitting ? <Spinner className="h-4 w-4 mr-1.5" /> : <Zap className="h-4 w-4 mr-1.5" />} Deploy bot
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -787,7 +788,7 @@ function BotManageDialog({ bot, onClose, onSaved }: { bot: Bot; onClose: () => v
           </div>
 
           <Button className="w-full rounded-full" onClick={() => save()} disabled={submitting}>
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Check className="h-4 w-4 mr-1.5" />} Save changes
+            {submitting ? <Spinner className="h-4 w-4 mr-1.5" /> : <Check className="h-4 w-4 mr-1.5" />} Save changes
           </Button>
 
           {/* Marketplace */}
@@ -981,7 +982,7 @@ function BotChatDialog({ bot, onClose, isMember }: { bot: Bot; onClose: () => vo
         <div className="flex-1 space-y-2 overflow-y-auto p-4 min-h-[260px]">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <Spinner className="h-5 w-5 text-muted-foreground" />
             </div>
           ) : messages.length === 0 ? (
             <div className="py-8 text-center space-y-1.5">
@@ -1048,7 +1049,7 @@ function BotChatDialog({ bot, onClose, isMember }: { bot: Bot; onClose: () => vo
             onClick={send}
             disabled={!isMember || sending || !input.trim()}
           >
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {sending ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
       </DialogContent>

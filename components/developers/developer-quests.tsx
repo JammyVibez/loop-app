@@ -28,13 +28,14 @@ import { useToast } from "@/hooks/use-toast"
 import { useLoginGate } from "@/hooks/use-login-gate"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   Check,
   CheckCircle2,
   Coins,
   ExternalLink,
   Hourglass,
-  Loader2,
+  
   ShieldCheck,
   Target,
   Trophy,
@@ -248,7 +249,7 @@ export function DeveloperQuests() {
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading quests…
+        <Spinner className="h-4 w-4" /> Loading quests…
       </div>
     )
   }
@@ -371,7 +372,7 @@ export function DeveloperQuests() {
               <span className="text-xs text-muted-foreground">
                 · {adminSubs.filter((s) => s.status === "pending").length} pending
               </span>
-              {adminLoading && <Loader2 className="ml-auto h-4 w-4 animate-spin text-muted-foreground" />}
+              {adminLoading && <Spinner className="ml-auto h-4 w-4 text-muted-foreground" />}
             </div>
             {adminSubs.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-muted-foreground">
@@ -420,7 +421,7 @@ export function DeveloperQuests() {
                               onClick={() => void review(sub, "approved")}
                             >
                               {reviewingId === sub.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                <Spinner className="h-3.5 w-3.5" />
                               ) : (
                                 <Check className="h-3.5 w-3.5" />
                               )}
@@ -513,7 +514,7 @@ export function DeveloperQuests() {
                 disabled={submitting || (!draft.project_id && !draft.link.trim())}
                 className="rounded-full bg-gradient-to-r from-cyan-500 to-indigo-600 text-white"
               >
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4 mr-2" />}
+                {submitting ? <Spinner className="h-4 w-4" /> : <ExternalLink className="h-4 w-4 mr-2" />}
                 Submit entry
               </Button>
             </div>

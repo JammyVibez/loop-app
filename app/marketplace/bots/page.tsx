@@ -11,9 +11,10 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   Bot,
-  Loader2,
+  
   Search,
   Star,
   Coins,
@@ -493,7 +494,7 @@ export default function BotMarketplacePage() {
                   onClick={buy}
                   disabled={buying || !user}
                 >
-                  {buying ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Zap className="h-4 w-4 mr-1.5" />}
+                  {buying ? <Spinner className="h-4 w-4 mr-1.5" /> : <Zap className="h-4 w-4 mr-1.5" />}
                   {user ? "Confirm purchase" : "Sign in to buy"}
                 </Button>
               </DialogFooter>
@@ -567,7 +568,7 @@ export default function BotMarketplacePage() {
               <div className="space-y-2">
                 {loadingCommunities ? (
                   <div className="flex items-center justify-center py-6">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    <Spinner className="h-5 w-5 text-muted-foreground" />
                   </div>
                 ) : communities.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-border bg-muted/20 p-5 text-center">
@@ -615,7 +616,7 @@ export default function BotMarketplacePage() {
                   onClick={runInstall}
                   disabled={installing || !communityId || communities.length === 0}
                 >
-                  {installing ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Zap className="h-4 w-4 mr-1.5" />}
+                  {installing ? <Spinner className="h-4 w-4 mr-1.5" /> : <Zap className="h-4 w-4 mr-1.5" />}
                   Install bot
                 </Button>
               </DialogFooter>

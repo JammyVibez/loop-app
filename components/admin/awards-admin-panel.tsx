@@ -16,8 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Award, Loader2, Plus, RefreshCw, Search, Trash2, X } from "lucide-react"
+import { Award, Plus, RefreshCw, Search, Trash2, X, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface AwardDef {
   id: string
@@ -182,7 +183,7 @@ export function AwardsAdminPanel() {
   }
 
   if (loading) {
-    return <div className="flex justify-center py-16 text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading awards…</div>
+    return <div className="flex justify-center py-16 text-muted-foreground"><Spinner className="mr-2 h-5 w-5" /> Loading awards…</div>
   }
 
   return (
@@ -253,7 +254,7 @@ export function AwardsAdminPanel() {
                 />
               </div>
               <Button type="submit" disabled={saving || !form.name.trim()} className="w-full">
-                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
                 Create award
               </Button>
             </form>
@@ -344,7 +345,7 @@ export function AwardsAdminPanel() {
             </div>
 
             <Button onClick={() => void grant()} disabled={!grantAwardId || !grantUser || granting} className="w-full">
-              {granting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Award className="mr-2 h-4 w-4" />}
+              {granting ? <Spinner className="mr-2 h-4 w-4" /> : <Award className="mr-2 h-4 w-4" />}
               Grant award
             </Button>
           </CardContent>
@@ -366,7 +367,7 @@ export function AwardsAdminPanel() {
         <CardContent>
           {awards.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              No awards yet — create your first one on the left.
+              Nothing here yet. Define your first award with the form and it unlocks for creators right away.
             </p>
           ) : (
             <div className="grid gap-2 sm:grid-cols-2">

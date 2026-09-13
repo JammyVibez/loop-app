@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Check, ChevronLeft, ChevronRight, Loader2, Sparkles, Tags, UserPlus, UserRound } from "lucide-react"
+import { Check, ChevronLeft, ChevronRight, Sparkles, Tags, UserPlus, UserRound } from "lucide-react"
 import { AppLogo } from "@/components/brand/app-logo"
+import { Spinner } from "@/components/ui/skeletons"
 
 const STEPS = [
   { id: 1, label: "Profile", icon: UserRound },
@@ -439,7 +440,7 @@ export default function OnboardingPage() {
                 disabled={saving}
                 className="bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-lg shadow-violet-500/25 hover:from-violet-400 hover:to-pink-400"
               >
-                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {saving ? <Spinner className="mr-2 h-4 w-4" /> : null}
                 Continue <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
             ) : (
@@ -448,7 +449,7 @@ export default function OnboardingPage() {
                 disabled={finishing}
                 className="bg-gradient-to-r from-violet-500 to-cyan-400 text-white shadow-lg shadow-cyan-500/20 hover:from-violet-400 hover:to-cyan-300"
               >
-                {finishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {finishing ? <Spinner className="mr-2 h-4 w-4" /> : null}
                 {finishing ? "Finishing..." : "Enter Loop"}
               </Button>
             )}

@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
-import { MessageSquare, Loader2 } from "lucide-react"
+import { MessageSquare } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface ProLoungeSetting {
   discord_invite_url: string
@@ -66,7 +67,7 @@ export function ProLoungeSettings() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Spinner className="h-6 w-6 text-muted-foreground" />
       </div>
     )
   }
@@ -107,7 +108,7 @@ export function ProLoungeSettings() {
               disabled={saving}
             />
             <Button variant="outline" onClick={() => void save(setting)} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+              {saving ? <Spinner className="h-4 w-4" /> : "Save"}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -126,7 +127,7 @@ export function ProLoungeSettings() {
               disabled={saving}
             />
             <Button variant="outline" onClick={() => void save(setting)} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+              {saving ? <Spinner className="h-4 w-4" /> : "Save"}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">

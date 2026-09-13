@@ -18,7 +18,7 @@ import {
   Crown,
   Download,
   FileText,
-  Loader2,
+  
   LogOut,
   MessageCircle,
   Send,
@@ -30,6 +30,7 @@ import {
 } from "lucide-react"
 import { CodeLoopCard } from "@/components/developers/code-loop-card"
 import { ProjectRepoBrowser } from "@/components/developers/project-repo-browser"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface CommentAuthor {
   id: string
@@ -366,7 +367,7 @@ export function ProjectDetail({ project }: { project: any }) {
           <CardContent className="space-y-4">
             {collaboratorsLoading ? (
               <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading collaborators…
+                <Spinner className="h-4 w-4" /> Loading collaborators…
               </div>
             ) : collaborators.length === 0 ? (
               <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
@@ -493,7 +494,7 @@ export function ProjectDetail({ project }: { project: any }) {
                       disabled={inviting || !inviteUsername.trim()}
                       className="h-10 shrink-0 gap-1.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500"
                     >
-                      {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                      {inviting ? <Spinner className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
                       <span className="hidden sm:inline">Add</span>
                     </Button>
                   </div>
@@ -517,7 +518,7 @@ export function ProjectDetail({ project }: { project: any }) {
           <CardContent className="space-y-4">
             {commentsLoading ? (
               <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading comments…
+                <Spinner className="h-4 w-4" /> Loading comments…
               </div>
             ) : comments.length === 0 ? (
               <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
@@ -646,7 +647,7 @@ export function ProjectDetail({ project }: { project: any }) {
                   onClick={() => void postComment()}
                   disabled={!commentText.trim() || posting}
                 >
-                  {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {posting ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                 </Button>
               </div>
             </div>

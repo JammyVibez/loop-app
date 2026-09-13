@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Coins, Loader2, Save, ShoppingBag } from "lucide-react"
+import { Coins, Save, ShoppingBag } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Spinner } from "@/components/ui/skeletons"
 
 export function EconomyControl() {
   const { getAuthHeader } = useAuth()
@@ -69,7 +70,7 @@ export function EconomyControl() {
     return (
       <Card>
         <CardContent className="flex justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Spinner className="h-6 w-6 text-muted-foreground" />
         </CardContent>
       </Card>
     )
@@ -155,7 +156,7 @@ export function EconomyControl() {
 
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={() => void save()} disabled={saving} className="rounded-full">
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
               Save economy
             </Button>
             <Button variant="outline" className="rounded-full" asChild>

@@ -13,7 +13,7 @@ import {
   Download,
   Copy,
   Code,
-  Loader2,
+  
   Check,
   Paperclip,
   FileText,
@@ -40,6 +40,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLoginGate } from "@/hooks/use-login-gate";
 import { SyntaxHighlightedCode } from "@/components/loops/syntax-highlighted-code";
 import { absoluteAppUrl, shareContent } from "@/lib/share";
+import { Spinner } from "@/components/ui/skeletons"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 export type ProjectFile = {
   name: string
@@ -281,16 +283,10 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
   const getVerificationBadge = () => {
     if (!project.author.is_verified) return null
     return (
-      <Badge
-        variant="secondary"
-        className={`ml-2 ${
-          project.author.verification_level === "root"
-            ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30"
-            : "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30"
-        }`}
-      >
+      <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400">
+        <VerifiedSeal size={13} variant={project.author.verification_level === "root" ? "emerald" : "verified"} title={project.author.verification_level === "root" ? "Root Verified" : "Verified"} />
         {project.author.verification_level === "root" ? "Root" : "Verified"}
-      </Badge>
+      </span>
     )
   }
 
@@ -540,7 +536,7 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
               disabled={starring}
               className={`flex items-center space-x-2 px-2 ${isStarred ? "text-yellow-500" : "text-muted-foreground"}`}
             >
-              {starring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Star className={`w-4 h-4 ${isStarred ? "fill-current" : ""}`} />}
+              {starring ? <Spinner className="w-4 h-4" /> : <Star className={`w-4 h-4 ${isStarred ? "fill-current" : ""}`} />}
               <span>{formatNumber(starCount)}</span>
             </Button>
 
@@ -578,7 +574,7 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
             </Button>
             <Button variant="outline" size="sm" onClick={handleFork} disabled={forking || isForked || isOwner} className="min-w-0">
               {forking ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Spinner className="mr-2 h-4 w-4" />
               ) : isForked ? (
                 <Check className="mr-2 h-4 w-4 text-emerald-500" />
               ) : (

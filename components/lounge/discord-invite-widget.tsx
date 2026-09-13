@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
-import { MessageSquare, ExternalLink, Loader2 } from "lucide-react"
+import { MessageSquare, ExternalLink } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 export function DiscordInviteWidget() {
   const { getAuthHeader } = useAuth()
@@ -39,7 +40,7 @@ export function DiscordInviteWidget() {
     return (
       <Card className="border-indigo-500/30 bg-indigo-500/5">
         <CardContent className="flex items-center justify-center p-6">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <Spinner className="h-5 w-5 text-muted-foreground" />
         </CardContent>
       </Card>
     )

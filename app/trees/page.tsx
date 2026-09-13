@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { TreeReels } from "@/components/reels/tree-reels"
 import { useAuth } from "@/hooks/use-auth"
+import { Compass, Clapperboard } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Clapperboard } from "lucide-react"
 
 const FILTERS = [
   { id: "trending", label: "For You" },
@@ -34,6 +35,14 @@ export default function TreesPage() {
             {filter.label}
           </button>
         ))}
+        <Link
+          href="/explore/reels"
+          className="pointer-events-auto flex items-center gap-1 text-sm font-semibold text-white/60 transition hover:text-white"
+          title="Browse reels in a grid"
+        >
+          <Compass className="h-3.5 w-3.5" />
+          Explore
+        </Link>
       </div>
       <TreeReels category={category} />
     </div>

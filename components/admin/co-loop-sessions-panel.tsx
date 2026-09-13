@@ -6,7 +6,8 @@ import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Trash2, RefreshCw, Radio, Users, Globe, CheckCircle2, XCircle } from "lucide-react"
+import { Trash2, RefreshCw, Radio, Users, Globe, CheckCircle2, XCircle } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface CoLoopSession {
   session_id: string
@@ -145,7 +146,7 @@ export function CoLoopSessionsPanel() {
               disabled={bulkDeleting}
               className="gap-1.5"
             >
-              {bulkDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              {bulkDeleting ? <Spinner className="h-3.5 w-3.5" /> : <Trash2 className="h-3.5 w-3.5" />}
               Delete All Ended
             </Button>
           </div>
@@ -185,7 +186,7 @@ export function CoLoopSessionsPanel() {
       <CardContent>
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Spinner className="h-6 w-6 text-muted-foreground" />
           </div>
         ) : sessions.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-8">No sessions found</p>
@@ -236,7 +237,7 @@ export function CoLoopSessionsPanel() {
                     className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 shrink-0"
                   >
                     {deleting === session.session_id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Spinner className="h-4 w-4" />
                     ) : (
                       <Trash2 className="h-4 w-4" />
                     )}

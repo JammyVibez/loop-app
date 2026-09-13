@@ -10,7 +10,10 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatNumber, timeAgo } from "@/lib/community-engine"
 import { MemberReputation } from "./member-reputation"
-import { Users, Search, BadgeCheck, Loader2, Shield, Crown, Star, Award, Handshake, Brain, Palette, Flame, UserPlus, Check, X } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { Users, Search, Shield, Crown, Star, Award, Handshake, Brain, Palette, Flame, UserPlus, Check, X } from "lucide-react"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { Spinner } from "@/components/ui/skeletons"
 
 const ROLE_BADGE: Record<string, { label: string; className: string; icon: typeof Shield }> = {
   owner: { label: "Founder", className: "bg-amber-500/10 text-amber-600 border-amber-500/30", icon: Crown },
@@ -30,6 +33,7 @@ const RECOGNITIONS = [
 
 export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { communityId: string; initial: any[]; viewerRole?: string | null; viewerId?: string | null }) {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [members, setMembers] = useState<any[]>(initial)
   const [search, setSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState("")
@@ -73,7 +77,11 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
     })
     const data = await res.json()
     if (!res.ok) {
-      alert(data.error || "Failed")
+      toast({
+        title: "Couldn't update role",
+        description: data.error || "Check your permissions and try again.",
+        variant: "destructive",
+      })
       return
     }
     load()
@@ -195,7 +203,7 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
                     onClick={() => approveJoin(m)}
                     disabled={busyId === m.user_id}
                   >
-                    {busyId === m.user_id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
+                    {busyId === m.user_id ? <Spinner className="h-3 w-3" /> : <Check className="h-3 w-3 mr-1" />}
                     Approve
                   </Button>
                   <Button
@@ -206,7 +214,7 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
                     disabled={busyId === m.user_id || !isAdmin}
                     title={!isAdmin ? "Only admins can reject requests" : "Reject request"}
                   >
-                    {busyId === m.user_id ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3 mr-1" />}
+                    {busyId === m.user_id ? <Spinner className="h-3 w-3" /> : <X className="h-3 w-3 mr-1" />}
                     Reject
                   </Button>
                 </div>
@@ -244,7 +252,7 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
                     <Link href={`/profile/${m.user?.username}`} className="text-sm font-semibold truncate hover:underline">
                       {m.user?.display_name || m.user?.username}
                     </Link>
-                    {m.user?.is_verified && <BadgeCheck className="h-3.5 w-3.5 text-blue-500 shrink-0" />}
+                    {m.user?.is_verified && <VerifiedSeal size={14} title="Verified Creator" />}
                     <Badge className={`text-[9px] gap-1 ${roleBadge.className}`}>
                       <RoleIcon className="h-2.5 w-2.5" /> {roleBadge.label}
                     </Badge>

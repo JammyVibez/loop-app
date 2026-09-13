@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Loader2, Lock, Mail, ShieldCheck, KeyRound, CheckCircle2, AlertCircle, ExternalLink, Trash2 } from "lucide-react"
+import { Lock, Mail, ShieldCheck, KeyRound, CheckCircle2, AlertCircle, ExternalLink, Trash2 } from "lucide-react"
 import { TwoFactorSettings } from "@/components/settings/two-factor-settings"
+import { Spinner } from "@/components/ui/skeletons"
 
 export function SecuritySettings() {
   const { user, refreshUser, getAuthHeader } = useAuth()
@@ -136,7 +137,7 @@ export function SecuritySettings() {
         description: "Your account will be deleted in 3 days. You can cancel anytime before then.",
       })
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" })
+      toast({ title: "Couldn't sign out that session", description: err.message || "Refresh and try again.", variant: "destructive" })
     } finally {
       setDeleting(false)
     }
@@ -155,7 +156,7 @@ export function SecuritySettings() {
       setDeletionExecuteAfter(null)
       toast({ title: "Deletion cancelled", description: "Your account is safe." })
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" })
+      toast({ title: "Couldn't cancel that change", description: err.message || "Try again in a moment.", variant: "destructive" })
     } finally {
       setCancelling(false)
     }
@@ -241,7 +242,7 @@ export function SecuritySettings() {
               </p>
             )}
             <Button type="submit" disabled={emailBusy || !emailForm.email || !emailForm.password} className="rounded-full">
-              {emailBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+              {emailBusy ? <Spinner className="mr-2 h-4 w-4" /> : <Mail className="mr-2 h-4 w-4" />}
               Update email
             </Button>
           </form>
@@ -314,7 +315,7 @@ export function SecuritySettings() {
               disabled={pwBusy || !pwForm.current || !pwForm.next || pwForm.next !== pwForm.confirm}
               className="rounded-full"
             >
-              {pwBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Lock className="mr-2 h-4 w-4" />}
+              {pwBusy ? <Spinner className="mr-2 h-4 w-4" /> : <Lock className="mr-2 h-4 w-4" />}
               Change password
             </Button>
           </form>

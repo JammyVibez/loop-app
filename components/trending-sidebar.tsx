@@ -2,10 +2,12 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Hash, Loader2, Code2, Star, ArrowRight } from "lucide-react";
+import { TrendingUp, Hash, Code2, Star, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 import { UserSuggestions } from "@/components/users/user-suggestions";
+import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface TrendingHashtag {
   tag: string
@@ -87,7 +89,7 @@ export function TrendingSidebar() {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-4">
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Spinner className="h-4 w-4" />
             </div>
           ) : trendingHashtags.length === 0 ? (
             <p className="text-sm text-muted-foreground">No trending hashtags yet</p>
@@ -187,7 +189,9 @@ export function TrendingSidebar() {
             {user.is_verified && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Status</span>
-                <Badge variant="secondary">✓ Verified</Badge>
+                <Badge variant="secondary" className="gap-1 bg-gradient-to-r from-sky-500/15 to-indigo-500/15 text-sky-600 dark:text-sky-400">
+                  <VerifiedSeal size={13} title="Verified Creator" /> Verified
+                </Badge>
               </div>
             )}
           </div>

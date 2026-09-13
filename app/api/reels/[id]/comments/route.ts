@@ -157,7 +157,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         event: "reel:commented",
         payload: { reel_id: reelId, comment_count: nextCount, comment },
       })
-    } catch {}
+    } catch { /* intentionally silent */ }
 
     return NextResponse.json({
       success: true,

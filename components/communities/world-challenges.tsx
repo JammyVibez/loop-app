@@ -14,7 +14,7 @@ import {
   Trophy,
   Plus,
   Users,
-  Loader2,
+  
   Flame,
   CheckCircle2,
   Heart,
@@ -25,6 +25,8 @@ import {
   User,
 } from "lucide-react"
 import { DeviceMediaPicker, isVideoUrl, type PickedMedia } from "./device-media-picker"
+import { Spinner } from "@/components/ui/skeletons"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 interface Challenge {
   id: number
@@ -257,7 +259,7 @@ export function WorldChallenges({
               {c.creator?.username && (
                 <p className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
                   <User className="h-3 w-3" /> by {c.creator.display_name || c.creator.username}
-                  {c.creator.is_verified && <span className="text-blue-500 font-bold">✓</span>}
+                  {c.creator.is_verified && <VerifiedSeal size={12} title="Verified Creator" />}
                 </p>
               )}
               <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
@@ -323,7 +325,7 @@ export function WorldChallenges({
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={create} disabled={saving} className="rounded-full bg-amber-600 hover:bg-amber-500">
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Flame className="h-3.5 w-3.5 mr-1.5" />}
+              {saving ? <Spinner className="h-3.5 w-3.5 mr-1.5" /> : <Flame className="h-3.5 w-3.5 mr-1.5" />}
               Launch challenge
             </Button>
           </DialogFooter>
@@ -388,7 +390,7 @@ export function WorldChallenges({
                   />
                   <div className="flex justify-end pt-0.5">
                     <Button size="sm" className="rounded-full bg-amber-600 hover:bg-amber-500 h-8 text-[11px]" onClick={submitEntry} disabled={submitting || (!submitContent.trim() && submitMediaItems.length === 0)}>
-                      {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
+                      {submitting ? <Spinner className="h-3.5 w-3.5 mr-1.5" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
                       Submit entry
                     </Button>
                   </div>
@@ -399,10 +401,10 @@ export function WorldChallenges({
 
               {entriesLoading ? (
                 <div className="flex items-center justify-center py-10">
-                  <Loader2 className="h-5 w-5 animate-spin text-amber-500" />
+                  <Spinner className="h-5 w-5 text-amber-500" />
                 </div>
               ) : entries.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-8">No entries yet — be the first!</p>
+                <p className="text-xs text-muted-foreground text-center py-8">The stage is empty — enter now and claim the first spot.</p>
               ) : (
                 <div className="space-y-2.5">
                   {rankedEntries.map((e, idx) => {

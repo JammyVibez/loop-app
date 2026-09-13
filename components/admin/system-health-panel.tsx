@@ -7,7 +7,7 @@ import {
   Cloud,
   Database,
   Gauge,
-  Loader2,
+  
   RefreshCw,
   Rocket,
   Server,
@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface HealthMetric {
   key: string
@@ -247,7 +248,7 @@ export function SystemHealthPanel() {
           </p>
         </div>
         <Button variant="outline" size="sm" className="rounded-full" onClick={() => void load(true)} disabled={refreshing}>
-          {refreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+          {refreshing ? <Spinner className="mr-2 h-4 w-4" /> : <RefreshCw className="mr-2 h-4 w-4" />}
           Refresh
         </Button>
       </div>

@@ -27,6 +27,7 @@ import {
   AtSign,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 interface ProfileAboutProps {
   profile: {
@@ -214,8 +215,8 @@ export function ProfileAboutTab({ profile, isOwnProfile, onEdit }: ProfileAboutP
         {/* Badges */}
         <div className="flex flex-wrap items-center gap-2">
           {profile.is_verified && (
-            <Badge variant="outline" className="gap-1 text-xs border-blue-500/30 text-blue-500">
-              <Shield className="h-3 w-3" /> Verified
+            <Badge variant="outline" className="gap-1.5 border-sky-500/40 bg-gradient-to-r from-sky-500/10 to-indigo-500/10 text-xs font-semibold text-sky-500">
+              <VerifiedSeal size={14} title="Verified Creator" /> Verified Creator
             </Badge>
           )}
           {profile.is_premium && (

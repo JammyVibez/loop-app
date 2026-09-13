@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,6 +9,7 @@ import { Zap, X, Gift, Coins } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 
 export function WelcomeBanner() {
+  const router = useRouter()
   const [dismissed, setDismissed] = useState(false)
   const { user } = useAuth()
 
@@ -41,7 +43,7 @@ export function WelcomeBanner() {
               variant="outline"
               size="sm"
               className="rounded-full text-xs font-medium"
-              onClick={() => window.location.href = "/shop"}
+              onClick={() => router.push("/shop")}
             >
               <Gift className="w-3.5 h-3.5 mr-1.5" />
               Visit Shop

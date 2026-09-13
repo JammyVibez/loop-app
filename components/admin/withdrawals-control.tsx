@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { DollarSign, Loader2, RefreshCw, Check, X, CircleDollarSign } from "lucide-react"
+import { DollarSign, RefreshCw, Check, X, CircleDollarSign } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface WithdrawalRequest {
   id: string
@@ -105,7 +106,7 @@ export function WithdrawalsControl() {
       <CardContent>
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading requests…
+            <Spinner className="h-4 w-4" /> Loading requests…
           </div>
         ) : requests.length === 0 ? (
           <div className="py-10 text-center text-sm text-muted-foreground">No requests in this view.</div>

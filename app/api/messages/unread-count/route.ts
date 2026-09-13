@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
           event: "read",
           payload: { user_id: user.id, read_at: readAt },
         })
-      } catch {}
+      } catch { /* intentionally silent */ }
     }
 
     return NextResponse.json({ success: true })

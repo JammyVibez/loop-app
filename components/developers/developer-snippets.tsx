@@ -27,10 +27,11 @@ import { useToast } from "@/hooks/use-toast"
 import { useLoginGate } from "@/hooks/use-login-gate"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   Copy,
   Heart,
-  Loader2,
+  
   Plus,
   Search,
   Terminal,
@@ -301,7 +302,7 @@ export function DeveloperSnippets() {
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading snippets…
+          <Spinner className="h-4 w-4" /> Loading snippets…
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border p-12 text-center">
@@ -477,7 +478,7 @@ export function DeveloperSnippets() {
                 disabled={creating || !draft.title.trim() || !draft.code.trim()}
                 className="rounded-full bg-gradient-to-r from-cyan-500 to-indigo-600 text-white"
               >
-                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+                {creating ? <Spinner className="h-4 w-4" /> : <Plus className="h-4 w-4 mr-2" />}
                 Share snippet
               </Button>
             </div>

@@ -6,7 +6,8 @@ import { useAuth } from "@/hooks/use-auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import { Loader2, Reply, Send, MessageCircle, X } from "lucide-react"
+import { Reply, Send, MessageCircle, X } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 type QuickReplyTarget = { kind: "dm" | "comment"; key: string }
 
@@ -93,7 +94,7 @@ export function NotificationQuickReply({ notification, compact }: { notification
             }}
           />
           <Button size="icon" className="h-8 w-8 shrink-0 rounded-full" onClick={() => void send()} disabled={sending || !text.trim()} title="Send">
-            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            {sending ? <Spinner className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
           </Button>
           <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 rounded-full" onClick={() => setOpen(false)} title="Close">
             <X className="h-3.5 w-3.5" />

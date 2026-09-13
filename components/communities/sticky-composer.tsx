@@ -11,10 +11,11 @@ import {
   Image as ImageIcon,
   BarChart3,
   X,
-  Loader2,
+  
 } from "lucide-react"
 import { DeviceMediaPicker, type PickedMedia } from "@/components/communities/device-media-picker"
 import { getMediaLimit } from "@/lib/circle-limits"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface StickyComposerProps {
   communityId: string
@@ -107,7 +108,7 @@ export function StickyComposer({
         setExpanded(false)
         onPostCreated?.(post)
       }
-    } catch {}
+    } catch { /* intentionally silent */ }
     setPosting(false)
   }
 
@@ -310,7 +311,7 @@ export function StickyComposer({
                       onClick={handlePost}
                     >
                       {posting ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                        <Spinner className="h-3.5 w-3.5 mr-1" />
                       ) : (
                         <Send className="h-3.5 w-3.5 mr-1" />
                       )}

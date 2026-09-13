@@ -6,7 +6,7 @@ import {
   BellOff,
   BellRing,
   Gift,
-  Loader2,
+  
   MessageSquare,
   Radio,
   Send,
@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   subscribeToPush,
   subscriptionToJSON,
@@ -281,7 +282,7 @@ export function PushNotificationManager() {
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             {!subscribed ? (
               <Button onClick={handleEnablePush} disabled={loading || permission === "denied"} className="rounded-xl">
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bell className="mr-2 h-4 w-4" />}
+                {loading ? <Spinner className="mr-2 h-4 w-4" /> : <Bell className="mr-2 h-4 w-4" />}
                 Enable push
               </Button>
             ) : (
@@ -292,7 +293,7 @@ export function PushNotificationManager() {
                   variant="outline"
                   className="rounded-xl"
                 >
-                  {testing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                  {testing ? <Spinner className="mr-2 h-4 w-4" /> : <Send className="mr-2 h-4 w-4" />}
                   Send test
                 </Button>
                 <Button onClick={handleDisablePush} disabled={loading} variant="ghost" className="rounded-xl">
@@ -309,7 +310,7 @@ export function PushNotificationManager() {
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
               Alert preferences
             </h4>
-            {savingPrefs && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            {savingPrefs && <Spinner className="h-3.5 w-3.5 text-muted-foreground" />}
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <PrefRow

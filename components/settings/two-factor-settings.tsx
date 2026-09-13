@@ -24,11 +24,12 @@ import {
   Check,
   AlertTriangle,
   Download,
-  Loader2,
+  
   Smartphone,
   Lock,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 export function TwoFactorSettings() {
   const { user, getAuthHeader, refreshUser } = useAuth()
@@ -158,7 +159,7 @@ export function TwoFactorSettings() {
     return (
       <Card className="border-border/50">
         <CardContent className="p-4 flex items-center justify-center py-8">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <Spinner className="h-5 w-5 text-muted-foreground" />
         </CardContent>
       </Card>
     )
@@ -260,7 +261,7 @@ export function TwoFactorSettings() {
                 Back
               </Button>
               <Button onClick={handleVerify} disabled={busy || verifyCode.length !== 6} className="flex-1">
-                {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
+                {busy ? <Spinner className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
                 Verify & Enable
               </Button>
             </div>
@@ -333,7 +334,7 @@ export function TwoFactorSettings() {
               </li>
             </ul>
             <Button onClick={handleSetup} disabled={busy} className="w-full gap-2">
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
+              {busy ? <Spinner className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
               Enable Two-Factor Authentication
             </Button>
           </div>
@@ -366,7 +367,7 @@ export function TwoFactorSettings() {
                 disabled={!disablePassword || busy}
                 onClick={handleDisable}
               >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {busy ? <Spinner className="h-4 w-4 mr-2" /> : null}
                 Disable 2FA
               </Button>
             </DialogFooter>

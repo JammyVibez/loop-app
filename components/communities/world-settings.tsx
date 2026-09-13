@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { LAYOUT_PRESETS } from "@/lib/community-categories"
-import { Loader2, Trash2, Save, ShieldAlert, Palette, Sliders, Users, Star } from "lucide-react"
+import { Trash2, Save, ShieldAlert, Palette, Sliders, Users, Star } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 const FEATURES = [
   { key: "projects", label: "Projects", description: "Collaborative projects with tasks and contributors" },
@@ -152,7 +153,7 @@ export function WorldSettings({ communityId, bundle, onSaved }: { communityId: s
               <Switch checked={isPrivate} onCheckedChange={setIsPrivate} />
             </div>
             <Button className="rounded-full" disabled={saving} onClick={() => save({ name, description, handle, welcome_message: welcome, tags: tags.split(",").map((t) => t.trim()).filter(Boolean), is_private: isPrivate, is_public: !isPrivate, rules: rules.trim() ? { rules: rules.split("\n").filter(Boolean) } : {} })}>
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />} Save
+              {saving ? <Spinner className="h-3.5 w-3.5 mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />} Save
             </Button>
           </div>
         )}
@@ -183,7 +184,7 @@ export function WorldSettings({ communityId, bundle, onSaved }: { communityId: s
               </div>
             </div>
             <Button className="rounded-full" disabled={saving} onClick={() => save({ accent_color: accent, layout_preset: layout })}>
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />} Save appearance
+              {saving ? <Spinner className="h-3.5 w-3.5 mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />} Save appearance
             </Button>
           </div>
         )}
@@ -286,7 +287,7 @@ export function WorldSettings({ communityId, bundle, onSaved }: { communityId: s
               <Input value={confirmDelete} onChange={(e) => setConfirmDelete(e.target.value)} className="rounded-xl border-red-500/40" placeholder={c.name} />
             </div>
             <Button variant="destructive" className="rounded-full" disabled={deleting || confirmDelete !== c.name} onClick={deleteCommunity}>
-              {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Trash2 className="h-3.5 w-3.5 mr-1.5" />}
+              {deleting ? <Spinner className="h-3.5 w-3.5 mr-1.5" /> : <Trash2 className="h-3.5 w-3.5 mr-1.5" />}
               Permanently delete community
             </Button>
           </div>

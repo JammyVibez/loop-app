@@ -4,8 +4,9 @@ import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Loader2, Sparkles, Check } from "lucide-react"
+import { Sparkles, Check } from "lucide-react"
 import { iconForSpace } from "@/components/communities/world-spaces"
+import { Spinner } from "@/components/ui/skeletons"
 
 const INTEREST_CHIPS = [
   "Anime & Manga",
@@ -151,7 +152,7 @@ export function WelcomeOnboarding({
             Skip for now
           </Button>
           <Button className="rounded-full" onClick={() => save(true)} disabled={saving}>
-            {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+            {saving ? <Spinner className="mr-1.5 h-3.5 w-3.5" /> : null}
             Enter the world
           </Button>
         </div>

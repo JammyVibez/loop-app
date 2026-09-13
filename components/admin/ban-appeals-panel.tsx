@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Ban, CheckCircle2, Loader2, RefreshCw, ShieldAlert, XCircle } from "lucide-react"
+import { Ban, CheckCircle2, RefreshCw, ShieldAlert, XCircle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface Appeal {
   id: string
@@ -110,7 +111,7 @@ export function BanAppealsPanel() {
 
       {loading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading appeals…
+          <Spinner className="mr-2 h-5 w-5" /> Loading appeals…
         </div>
       ) : appeals.length === 0 ? (
         <Card>
@@ -173,7 +174,7 @@ export function BanAppealsPanel() {
                       disabled={busyId === appeal.id}
                       onClick={() => review(appeal.id, "approve")}
                     >
-                      {busyId === appeal.id ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-4 w-4" />}
+                      {busyId === appeal.id ? <Spinner className="mr-1.5 h-4 w-4" /> : <CheckCircle2 className="mr-1.5 h-4 w-4" />}
                       Approve & unban
                     </Button>
                     <Button

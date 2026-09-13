@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import {
   Users,
-  Loader2,
+  
   ExternalLink,
   Plus,
   ArrowLeft,
@@ -24,6 +24,7 @@ import {
   Globe,
 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface CoLoopSession {
   session_id: string
@@ -208,7 +209,7 @@ export default function CoLoopSessionsPage() {
         {/* Sessions List */}
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
+            <Spinner className="h-8 w-8 text-cyan-400" />
           </div>
         ) : sessions.length === 0 ? (
           <Card className="text-center p-12 border-dashed border-2">
@@ -339,7 +340,7 @@ export default function CoLoopSessionsPage() {
                               disabled={endingSession === session.session_id}
                             >
                               {endingSession === session.session_id ? (
-                                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                <Spinner className="h-3.5 w-3.5 mr-1" />
                               ) : (
                                 <StopCircle className="h-3.5 w-3.5 mr-1" />
                               )}

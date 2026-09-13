@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Loader2, AlertTriangle, Check } from "lucide-react"
+import { AlertTriangle, Check } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 const REPORT_REASONS = [
   { id: "spam", label: "Spam or misleading content" },
@@ -118,7 +119,7 @@ export function ReportModal({ open, onOpenChange, postId, communityId }: ReportM
                 onClick={handleSubmit}
                 disabled={!reason || submitting}
               >
-                {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+                {submitting ? <Spinner className="h-3.5 w-3.5 mr-1.5" /> : null}
                 Submit Report
               </Button>
             </div>

@@ -11,6 +11,7 @@ import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { UserPlus, Search, Users, Code, MessageCircle, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 interface InviteModalProps {
   isOpen: boolean
@@ -75,8 +76,8 @@ export function InviteModal({ isOpen, onClose, type, resourceId, resourceName }:
   const sendInvitations = async () => {
     if (selectedUsers.length === 0 && !searchQuery.trim()) {
       toast({
-        title: "Error",
-        description: "Please select users to invite",
+        title: "Pick someone first",
+        description: "Search and select at least one person to invite.",
         variant: "destructive",
       })
       return
@@ -133,8 +134,8 @@ export function InviteModal({ isOpen, onClose, type, resourceId, resourceName }:
       onClose()
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to send invitations",
+        title: "Invitations didn't send",
+        description: "Some or all invites failed — try again in a moment.",
         variant: "destructive",
       })
     } finally {
@@ -222,7 +223,7 @@ export function InviteModal({ isOpen, onClose, type, resourceId, resourceName }:
                       </div>
                     </div>
                     {result.is_verified && (
-                      <Badge variant="secondary" className="text-xs">Verified</Badge>
+                      <VerifiedSeal size={14} title="Verified Creator" />
                     )}
                   </div>
                 ))}

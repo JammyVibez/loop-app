@@ -4,7 +4,7 @@ import { ProtectedMedia } from "@/components/media-protection"
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Hourglass, Loader2, Plus, Trash2, X, Zap } from "lucide-react"
+import { Hourglass, Plus, Trash2, X, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { createClient } from "@/lib/supabase"
 import { MomentCard, type MomentCardMoment } from "@/components/engagement/moment-card"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface MomentAuthor {
   id: string
@@ -213,7 +214,7 @@ export function MomentsSection() {
 
         {loading ? (
           <div className="flex h-32 items-center justify-center text-muted-foreground">
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading moments…
+            <Spinner className="mr-2 h-5 w-5" /> Loading moments…
           </div>
         ) : liveMoments.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-amber-500/25 bg-background/40 px-6 py-8 text-center">
@@ -247,7 +248,7 @@ export function MomentsSection() {
                     aria-label="Delete moment"
                     title="Delete moment"
                   >
-                    {deletingId === moment.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    {deletingId === moment.id ? <Spinner className="h-3.5 w-3.5" /> : <Trash2 className="h-3.5 w-3.5" />}
                   </button>
                 )}
                 <MomentCard
@@ -354,7 +355,7 @@ export function MomentsSection() {
                 onClick={() => void createMoment()}
                 disabled={creating || uploading || (!mediaFile && !caption.trim())}
               >
-                {creating || uploading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Zap className="mr-1.5 h-4 w-4" />}
+                {creating || uploading ? <Spinner className="mr-1.5 h-4 w-4" /> : <Zap className="mr-1.5 h-4 w-4" />}
                 {uploading ? "Uploading…" : "Post moment"}
               </Button>
             </div>

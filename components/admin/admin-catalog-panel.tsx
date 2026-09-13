@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Loader2, Plus, RefreshCw, Zap } from "lucide-react"
+import { Plus, RefreshCw, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface CatalogItem {
   id: string
@@ -323,7 +324,7 @@ export function AdminCatalogPanel() {
           </div>
 
           <Button onClick={createItem} disabled={saving} className="rounded-full">
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
+            {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Zap className="mr-2 h-4 w-4" />}
             Create {form.category}
           </Button>
         </CardContent>
@@ -336,7 +337,7 @@ export function AdminCatalogPanel() {
         <CardContent className="space-y-3">
           {loading ? (
             <div className="flex items-center justify-center py-10 text-muted-foreground">
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…
+              <Spinner className="mr-2 h-5 w-5" /> Loading…
             </div>
           ) : items.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">No themes or effects yet.</p>

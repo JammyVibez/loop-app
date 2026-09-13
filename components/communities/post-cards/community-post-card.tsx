@@ -15,7 +15,6 @@ import { CommentThread } from "./comment-thread"
 import { ReportModal } from "./report-modal"
 import { PostReactions } from "./post-reactions"
 import {
-  BadgeCheck,
   Clock,
   Eye,
   Pin,
@@ -37,6 +36,7 @@ import {
   X,
 } from "lucide-react"
 import { isVideoUrl } from "@/components/communities/device-media-picker"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 const POST_TYPE_CONFIG: Record<string, { label: string; icon: typeof FileText; color: string }> = {
   discussion: { label: "Discussion", icon: MessageCircle, color: "text-indigo-500" },
@@ -122,7 +122,7 @@ export function CommunityPostCard({
           return [...prev, { type, count: 1, reacted: true }]
         })
       }
-    } catch {}
+    } catch { /* intentionally silent */ }
   }
 
   const handleVote = async (pollId: number, optionId: string) => {
@@ -135,7 +135,7 @@ export function CommunityPostCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ optionId, optionIndex: optIdx >= 0 ? optIdx : undefined }),
       })
-    } catch {}
+    } catch { /* intentionally silent */ }
     setVoting(false)
   }
 
@@ -221,7 +221,7 @@ export function CommunityPostCard({
               <Link href={`/profile/${author?.username}`} className="text-sm font-semibold truncate hover:underline">
                 {author?.display_name || author?.username}
               </Link>
-              {author?.is_verified && <BadgeCheck className="h-3.5 w-3.5 text-blue-500 shrink-0" />}
+              {author?.is_verified && <VerifiedSeal size={14} title="Verified Creator" />}
               {author?.is_premium && (
                 <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
                   PRO

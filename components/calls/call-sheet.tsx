@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Loader2, Phone, Video } from "lucide-react"
+import { Phone, Video } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -9,6 +9,7 @@ import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { HmsRoom } from "@/components/calls/hms-room"
 import { LivekitRoom } from "@/components/calls/livekit-room"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 export interface CallSheetProps {
   open: boolean
@@ -153,7 +154,7 @@ export function CallSheet({
                 <p className="text-2xl font-bold">{title}</p>
                 <p className="mt-1 text-sm text-white/60">{subtitle || (loading ? "Connecting…" : "Ringing…")}</p>
               </div>
-              {loading && <Loader2 className="h-8 w-8 animate-spin text-rose-500" />}
+              {loading && <Spinner className="h-8 w-8 text-rose-500" />}
               <div className="flex items-center gap-6">
                 <span
                   className={cn(

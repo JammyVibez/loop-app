@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { RotateCcw, Loader2, RefreshCw, Check, X } from "lucide-react"
+import { RotateCcw, RefreshCw, Check, X } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface RefundRequest {
   id: string
@@ -127,7 +128,7 @@ export function RefundsControl() {
       <CardContent>
         {loading ? (
           <div className="flex items-center justify-center py-10 text-muted-foreground">
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading refund requests…
+            <Spinner className="mr-2 h-5 w-5" /> Loading refund requests…
           </div>
         ) : requests.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">No {filter === "all" ? "" : `${filter} `}refund requests.</p>
@@ -174,7 +175,7 @@ export function RefundsControl() {
                         onClick={() => void decide(r.id, "approve")}
                         className="rounded-full bg-emerald-600 text-white hover:bg-emerald-500"
                       >
-                        {updating === r.id ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Check className="mr-1.5 h-3.5 w-3.5" />}
+                        {updating === r.id ? <Spinner className="mr-1.5 h-3.5 w-3.5" /> : <Check className="mr-1.5 h-3.5 w-3.5" />}
                         Refund
                       </Button>
                       <Button

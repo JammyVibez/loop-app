@@ -97,12 +97,12 @@ export async function POST(request: NextRequest) {
     try {
       const parentMediaUrlsRaw = String(formData.get("parent_media_urls") || "")
       if (parentMediaUrlsRaw) mediaUrls = JSON.parse(parentMediaUrlsRaw)
-    } catch {}
+    } catch { /* intentionally silent */ }
     if (!mediaUrls && mediaUrl) mediaUrls = [mediaUrl]
 
     // Parse optional parent metadata
     let contentMetadata: Record<string, any> = {}
-    try { if (parentMetadataRaw) contentMetadata = JSON.parse(parentMetadataRaw) } catch {}
+    try { if (parentMetadataRaw) contentMetadata = JSON.parse(parentMetadataRaw) } catch { /* intentionally silent */ }
 
     const payload: Record<string, any> = {
       author_id: user.id,

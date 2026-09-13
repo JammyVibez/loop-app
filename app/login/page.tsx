@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/hooks/use-auth"
-import { Loader2, Eye, EyeOff, ArrowRight, Zap, Users } from "lucide-react"
+import { Eye, EyeOff, ArrowRight, Zap, Users } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -183,7 +184,7 @@ export default function LoginPage() {
               disabled={loading}
             >
               {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Spinner className="mr-2 h-4 w-4" />
               ) : (
                 <>
                   Sign In

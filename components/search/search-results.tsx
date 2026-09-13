@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Hash, Users, GitBranch, Search, Loader2, Circle } from "lucide-react"
+import { Hash, Users, GitBranch, Search, Circle } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { UserBadges } from "@/components/user-badge"
@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { normalizeLoops } from "@/lib/normalize-loop"
 import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface SearchResultsProps {
   query: string
@@ -130,7 +131,7 @@ export function SearchResults({ query }: SearchResultsProps) {
   if (loading) {
     return (
       <div className="flex justify-center py-16 text-muted-foreground">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        <Spinner className="mr-2 h-5 w-5" />
         Searching…
       </div>
     )

@@ -13,7 +13,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/components/ui/use-toast"
-import { Zap, Users, UserPlus, LogIn, Coins, CheckCircle2, ShieldCheck, ArrowRight, Loader2, Rocket, Eye, EyeOff } from "lucide-react"
+import { Zap, Users, UserPlus, LogIn, Coins, CheckCircle2, ShieldCheck, ArrowRight, Rocket, Eye, EyeOff } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface CoLoopJoinLandingProps {
   sessionId: string
@@ -333,7 +334,7 @@ export function CoLoopJoinLanding({ sessionId, invitedByUsername }: CoLoopJoinLa
             >
               {submitting ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Spinner className="w-4 h-4 mr-2" />
                   {mode === "signup" ? "Creating Account..." : "Logging In..."}
                 </>
               ) : mode === "signup" ? (

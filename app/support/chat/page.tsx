@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2 as Spinner } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +9,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, Send, User, HeadphonesIcon, Clock, AlertCircle, ArrowLeft, Plus, Loader2, CheckCircle2, Circle, Hourglass } from "lucide-react";
+import { MessageCircle, Send, User, HeadphonesIcon, Clock, AlertCircle, ArrowLeft, Plus, CheckCircle2, Circle, Hourglass } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { formatDistanceToNow } from "date-fns";
+import { Spinner } from "@/components/ui/skeletons"
 
 interface SupportMessage {
   id: string
@@ -294,7 +294,7 @@ function SupportChatInner() {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
         <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
+          <Spinner className="h-5 w-5" />
           Loading support…
         </div>
       </div>
@@ -454,7 +454,7 @@ function SupportChatInner() {
                         className="h-11 w-11 rounded-full p-0"
                         size="icon"
                       >
-                        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                        {sending ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                       </Button>
                     </div>
                   </div>
@@ -533,7 +533,7 @@ function SupportChatInner() {
                   disabled={!newTicketForm.subject || !newTicketForm.message || creatingTicket}
                   className="flex-1"
                 >
-                  {creatingTicket ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                  {creatingTicket ? <Spinner className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
                   Create Ticket
                 </Button>
                 <Button variant="outline" onClick={() => setShowNewTicket(false)} className="flex-1">
@@ -554,7 +554,7 @@ export default function SupportChatPage() {
       fallback={
         <div className="flex min-h-dvh items-center justify-center bg-background">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Spinner className="h-5 w-5 animate-spin" />
+            <Spinner className="h-5 w-5" />
             Loading support…
           </div>
         </div>

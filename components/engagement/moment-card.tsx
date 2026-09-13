@@ -5,10 +5,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Button } from "@/components/ui/button"
-import { Eye, Loader2, MessageCircle, Pencil, Send, Trash2, Zap } from "lucide-react"
+import { Eye, MessageCircle, Pencil, Send, Trash2, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { Spinner } from "@/components/ui/skeletons"
 
 export interface MomentCardMoment {
   id: string
@@ -208,9 +210,7 @@ export function MomentCard({
           <p className="flex items-center gap-1 truncate text-sm font-semibold leading-tight">
             <span className="truncate">{displayName}</span>
             {author?.is_verified && (
-              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-sky-400 text-[10px] font-bold text-white">
-                ✓
-              </span>
+              <VerifiedSeal size={16} title="Verified Creator" />
             )}
           </p>
           <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -323,7 +323,7 @@ export function MomentCard({
         <div className="border-t border-dashed border-border/70 bg-background/40 px-3.5 py-3">
           {commentsLoading ? (
             <p className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading comments…
+              <Spinner className="h-3.5 w-3.5" /> Loading comments…
             </p>
           ) : rootComments.length === 0 ? (
             <p className="py-2 text-xs text-muted-foreground">No comments yet — be the first.</p>
@@ -393,7 +393,7 @@ export function MomentCard({
                 }}
                 disabled={posting || !commentText.trim()}
               >
-                {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {posting ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
           </div>
@@ -422,9 +422,7 @@ function CommentRow({
         <p className="flex items-center gap-1 text-xs font-semibold leading-tight">
           <span className="truncate">{name}</span>
           {comment.author?.is_verified && (
-            <span className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full bg-sky-400 text-[8px] font-bold text-white">
-              ✓
-            </span>
+            <VerifiedSeal size={12} title="Verified Creator" />
           )}
         </p>
         <p className="mt-0.5 whitespace-pre-wrap break-words text-[13px] leading-snug text-foreground">{comment.content}</p>
@@ -447,7 +445,7 @@ function CommentRow({
 export function MomentLoading() {
   return (
     <div className="flex h-64 items-center justify-center text-muted-foreground">
-      <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading moment…
+      <Spinner className="mr-2 h-5 w-5" /> Loading moment…
     </div>
   )
 }

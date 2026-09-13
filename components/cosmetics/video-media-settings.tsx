@@ -13,12 +13,13 @@ import {
   Image as ImageIcon,
   Upload,
   Trash2,
-  Loader2,
+  
   Play,
   X,
 } from "lucide-react"
 import { VideoAvatar } from "./video-avatar"
 import { VideoCover } from "./video-cover"
+import { Spinner } from "@/components/ui/skeletons"
 
 /**
  * VideoMediaSettings — Pro-only panel for uploading and managing
@@ -155,7 +156,7 @@ export function VideoMediaSettings() {
               />
               {(uploading === "avatar" || uploading === "cover") && (
                 <div className="absolute inset-0 flex items-center justify-center rounded-full bg-background/80">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <Spinner className="h-6 w-6 text-primary" />
                 </div>
               )}
             </div>
@@ -229,7 +230,7 @@ export function VideoMediaSettings() {
             />
             {(uploading === "cover") && (
               <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <Spinner className="h-6 w-6 text-primary" />
               </div>
             )}
           </div>

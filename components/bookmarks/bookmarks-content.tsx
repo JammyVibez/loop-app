@@ -53,8 +53,8 @@ export function BookmarksContent() {
       } catch (error) {
         console.error('Failed to load bookmarks:', error)
         toast({
-          title: "Error",
-          description: "Failed to load bookmarks",
+          title: "Couldn't load your bookmarks",
+          description: "Check your connection and try again.",
           variant: "destructive"
         })
       } finally {
@@ -114,7 +114,7 @@ export function BookmarksContent() {
     })
 
     if (!response.ok) {
-      toast({ title: "Error", description: "Failed to remove bookmark", variant: "destructive" })
+      toast({ title: "Couldn't remove bookmark", description: "The post stayed saved — try again.", variant: "destructive" })
       return
     }
 

@@ -18,12 +18,13 @@ import {
   Zap,
   TreePine,
   MessageCircle,
-  Loader2,
+  
   Palette,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { supabase } from "@/lib/supabase"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface GiftModalProps {
   open: boolean
@@ -192,7 +193,7 @@ export function GiftModal({ open, onOpenChange, recipient, context, onGiftSent }
             context,
           },
         })
-      } catch {}
+      } catch { /* intentionally silent */ }
 
       toast({
         title: "Gift sent",
@@ -274,7 +275,7 @@ export function GiftModal({ open, onOpenChange, recipient, context, onGiftSent }
 
           {loadingGifts ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              <Spinner className="mr-2 h-5 w-5" />
               Loading gifts…
             </div>
           ) : gifts.length === 0 ? (
@@ -392,7 +393,7 @@ export function GiftModal({ open, onOpenChange, recipient, context, onGiftSent }
                   >
                     {isProcessing ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Spinner className="mr-2 h-4 w-4" />
                         Sending…
                       </>
                     ) : (

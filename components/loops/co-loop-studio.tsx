@@ -27,7 +27,7 @@ import {
   MessageSquare,
   Plus,
   Trash2,
-  Loader2,
+  
   Radio,
   History,
   UserPlus,
@@ -56,6 +56,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { CoLoopVersionHistory, CoLoopVersion } from "./co-loop-version-history"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface Collaborator {
   id: string
@@ -1659,7 +1660,7 @@ export function CoLoopStudio() {
                   }`}
                 >
                   {uploadingMedia ? (
-                    <Loader2 className="h-5 w-5 animate-spin text-cyan-400" />
+                    <Spinner className="h-5 w-5 text-cyan-400" />
                   ) : dragActive ? (
                     <Upload className="h-5 w-5 text-cyan-300" />
                   ) : (
@@ -1831,7 +1832,7 @@ export function CoLoopStudio() {
                 >
                   {publishing ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Publishing...
+                      <Spinner className="mr-2 h-4 w-4" /> Publishing...
                     </>
                   ) : (
                     <>
@@ -1850,7 +1851,7 @@ export function CoLoopStudio() {
         <button
           type="button"
           onClick={() => setIsChatOpen(true)}
-          className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[990] flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 px-4 py-3 text-black font-extrabold shadow-2xl shadow-cyan-500/50 hover:scale-105 transition-transform"
+          className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-40 flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 px-4 py-3 text-black font-extrabold shadow-2xl shadow-cyan-500/50 hover:scale-105 transition-transform"
         >
           <MessageSquare className="h-5 w-5" />
           <span>In-Studio Chat</span>
@@ -1866,13 +1867,13 @@ export function CoLoopStudio() {
       {isChatOpen && (
         <div
           onClick={() => setIsChatOpen(false)}
-          className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-sm sm:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm sm:hidden transition-opacity"
         />
       )}
 
       {/* SLIDE-IN SIDE CHAT THREAD DRAWER */}
       <div
-        className={`fixed inset-y-0 right-0 z-[9999] w-full sm:w-96 border-l border-cyan-500/30 bg-card text-card-foreground backdrop-blur-2xl shadow-2xl p-4 flex flex-col h-full max-h-screen transition-transform duration-300 ease-in-out ${
+        className={`fixed inset-y-0 right-0 z-50 w-full sm:w-96 border-l border-cyan-500/30 bg-card text-card-foreground backdrop-blur-2xl shadow-2xl p-4 flex flex-col h-full max-h-screen transition-transform duration-300 ease-in-out ${
           isChatOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -2113,7 +2114,7 @@ export function CoLoopStudio() {
                             onClick={() => handleSendInviteToUser(u)}
                             className="rounded-lg bg-cyan-500 text-black font-bold text-[11px] h-7"
                           >
-                            {sendingInvite ? <Loader2 className="h-3 w-3 animate-spin" /> : "Send Invite"}
+                            {sendingInvite ? <Spinner className="h-3 w-3" /> : "Send Invite"}
                           </Button>
                         </div>
                       ))}

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Send, Check, MessageSquare, Loader2, Share2, Film, Zap, Link2, ExternalLink } from "lucide-react"
+import { Search, Send, Check, MessageSquare, Share2, Film, Zap, Link2, ExternalLink } from "lucide-react"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import {
   Dialog,
@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { parseJsonResponse } from "@/lib/parse-json-response"
+import { Spinner } from "@/components/ui/skeletons"
 
 export interface ShareToDmModalProps {
   open: boolean
@@ -342,7 +343,7 @@ export function ShareToDmModal({ open, onOpenChange, item }: ShareToDmModalProps
           <div className="max-h-48 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
             {loading ? (
               <div className="flex items-center justify-center py-6 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                <Spinner className="h-5 w-5 mr-2" />
                 <span className="text-xs">Loading chats...</span>
               </div>
             ) : displayList.length === 0 ? (
@@ -393,7 +394,7 @@ export function ShareToDmModal({ open, onOpenChange, item }: ShareToDmModalProps
           >
             {sending ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Spinner className="mr-2 h-4 w-4" />
                 Sending...
               </>
             ) : sentSuccess ? (

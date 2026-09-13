@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import {
   AtSign, Bell, CheckCheck, CheckCircle2, Heart, MessageCircle,
-  Loader2, Trash2, UserPlus, XCircle, Gift, Star, Repeat2,
+  Trash2, UserPlus, XCircle, Gift, Star, Repeat2,
   Shield, Award, TrendingUp, Users, Radio
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -19,6 +19,7 @@ import { Header } from "@/components/header"
 import { mentionHref } from "@/lib/mentions-shared"
 import { NotificationQuickReply } from "@/components/notifications/notification-quick-reply"
 import { AdSlot } from "@/components/ads/ad-slot"
+import { Spinner } from "@/components/ui/skeletons"
 
 type Notification = {
   id: string
@@ -140,7 +141,7 @@ export default function NotificationsPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-background">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Spinner className="h-6 w-6 text-muted-foreground" />
         </div>
       }
     >
@@ -331,7 +332,7 @@ function NotificationsContent() {
                         onClick={() => void handleFollowRequest(request.id, "accept")}
                       >
                         {processingRequest === request.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
                         )}
@@ -374,7 +375,7 @@ function NotificationsContent() {
             <TabsContent value="tagged" className="mt-0">
               {loading ? (
                 <div className="flex justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <Spinner className="h-6 w-6 text-muted-foreground" />
                 </div>
               ) : mentions.length === 0 ? (
                 <p className="px-4 py-12 text-center text-sm text-muted-foreground">
@@ -526,7 +527,7 @@ function NotifList({
   if (loading) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Spinner className="h-6 w-6 text-muted-foreground" />
       </div>
     )
   }

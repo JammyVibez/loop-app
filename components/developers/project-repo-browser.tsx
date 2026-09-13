@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { formatRepoBytes } from "@/lib/dev-project-zip"
 import { SyntaxHighlightedCode } from "@/components/loops/syntax-highlighted-code"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   Archive,
   Check,
@@ -22,7 +23,7 @@ import {
   FolderOpen,
   GitFork,
   Globe,
-  Loader2,
+  
   Lock,
   Play,
   Zap,
@@ -297,7 +298,7 @@ export function ProjectRepoBrowser({
               disabled={togglingVis}
             >
               {togglingVis ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Spinner className="h-3.5 w-3.5" />
               ) : isPublic ? (
                 <Lock className="h-3.5 w-3.5" />
               ) : (
@@ -391,7 +392,7 @@ export function ProjectRepoBrowser({
           <div className="min-h-[280px] flex-1 overflow-auto p-0">
             {fileLoading ? (
               <div className="flex h-full min-h-[280px] items-center justify-center text-muted-foreground">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Reading file…
+                <Spinner className="mr-2 h-4 w-4" /> Reading file…
               </div>
             ) : fileError ? (
               <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-3 p-8 text-center">

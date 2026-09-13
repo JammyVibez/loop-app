@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
         event: "profile_updated",
         payload: { user: updated, action },
       })
-    } catch {}
+    } catch { /* intentionally silent */ }
 
     return NextResponse.json({ success: true, user: updated })
   } catch (error) {

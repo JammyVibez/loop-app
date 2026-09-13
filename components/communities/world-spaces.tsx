@@ -15,7 +15,7 @@ import {
   Globe2,
   Lock,
   Shield,
-  Loader2,
+  
   MessageSquare,
   Hash,
   Flame,
@@ -55,6 +55,8 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useToast } from "@/hooks/use-toast"
+import { Spinner } from "@/components/ui/skeletons"
 
 function timeAgo(iso?: string | null) {
   if (!iso) return "No activity yet"
@@ -70,6 +72,7 @@ function timeAgo(iso?: string | null) {
 }
 
 export function WorldSpaces({ communityId, spaces, canModerate, onChanged }: { communityId: string; spaces: any[]; canModerate: boolean; onChanged: () => void }) {
+  const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
   const [type, setType] = useState("discussion")
@@ -137,7 +140,11 @@ export function WorldSpaces({ communityId, spaces, canModerate, onChanged }: { c
       if (!res.ok) throw new Error("Failed to archive")
       onChanged()
     } catch (e: any) {
-      alert(e.message)
+      toast({
+        title: "Couldn't archive space",
+        description: e.message || "Please try again in a moment.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -148,7 +155,11 @@ export function WorldSpaces({ communityId, spaces, canModerate, onChanged }: { c
       if (!res.ok) throw new Error("Failed to delete")
       onChanged()
     } catch (e: any) {
-      alert(e.message)
+      toast({
+        title: "Couldn't delete space",
+        description: e.message || "Please try again in a moment.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -285,7 +296,7 @@ export function WorldSpaces({ communityId, spaces, canModerate, onChanged }: { c
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={save} disabled={saving} className="rounded-full">
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+              {saving ? <Spinner className="h-3.5 w-3.5 mr-1.5" /> : null}
               {editing ? "Save changes" : "Create space"}
             </Button>
           </DialogFooter>

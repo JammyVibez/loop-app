@@ -22,7 +22,7 @@ import {
   Settings,
   Trash2,
   UserX,
-  Loader2,
+  
   Search,
   AlertTriangle,
   TrendingUp,
@@ -35,6 +35,7 @@ import {
   XCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface CommunityAdminProps {
   open: boolean
@@ -225,7 +226,7 @@ export function CommunityAdminModal({
         <div className="flex-1 overflow-y-auto py-4">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Spinner className="h-6 w-6 text-muted-foreground" />
             </div>
           ) : (
             <>
@@ -441,7 +442,7 @@ export function CommunityAdminModal({
                     </div>
                   </div>
                   <Button onClick={saveSettings} disabled={saving} className="rounded-full">
-                    {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+                    {saving ? <Spinner className="h-3.5 w-3.5 mr-1.5" /> : null}
                     Save Settings
                   </Button>
                 </div>

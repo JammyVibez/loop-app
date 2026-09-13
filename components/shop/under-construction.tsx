@@ -157,7 +157,7 @@ export function ShopUnderConstruction({
           </button>
         </Link>
         <a href="mailto:support@loopapp.me" target="_blank" rel="noopener noreferrer">
-          <button className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 transition-opacity text-sm font-medium">
+          <button className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-white hover:opacity-90 transition-opacity text-sm font-medium">
             <MessageCircle className="h-4 w-4" />
             Chat Support
           </button>

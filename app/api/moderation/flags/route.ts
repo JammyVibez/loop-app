@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
         message: `Your report for ${content_type} has been received and sent to administrators for real-time review.`,
         is_read: false,
       });
-    } catch {}
+    } catch { /* intentionally silent */ }
 
     return NextResponse.json({
       success: true,

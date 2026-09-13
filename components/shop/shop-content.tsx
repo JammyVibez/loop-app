@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coins, Palette, Zap, Crown, Star, Loader2, Eye, CreditCard } from "lucide-react";
+import { Coins, Palette, Zap, Crown, Star, Eye, CreditCard } from "lucide-react";
 import { LoopCoinsBalance } from "@/components/shop/loop-coins-balance";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -12,6 +12,7 @@ import { useInventoryRealtime } from "@/hooks/use-inventory-realtime";
 import { ShopItemMiniPreview, ShopItemPreviewDialog, type ShopPreviewItem } from "@/components/shop/shop-item-preview";
 import { CosmeticsShop } from "@/components/cosmetics/cosmetics-shop";
 import { Gem } from "lucide-react";
+import { Spinner } from "@/components/ui/skeletons"
 
 interface ShopItem {
   id: string
@@ -117,8 +118,8 @@ export function ShopContent() {
     } catch (error) {
       console.error("Error fetching shop items:", error)
       toast({
-        title: "Error",
-        description: "Failed to load shop items",
+        title: "Shop is unavailable right now",
+        description: "Pull to refresh or check back shortly.",
         variant: "destructive",
       })
     } finally {
@@ -313,7 +314,7 @@ export function ShopContent() {
           >
             {purchasing === item.id ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Spinner className="w-4 h-4 mr-2" />
                 Processing...
               </>
             ) : purchasedItems.has(item.id) ? (
@@ -353,7 +354,7 @@ export function ShopContent() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin" />
+        <Spinner className="w-8 h-8" />
         <span className="ml-2">Loading shop items...</span>
       </div>
     )

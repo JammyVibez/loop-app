@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { cn } from "@/lib/utils"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   Search,
   X,
@@ -16,7 +18,7 @@ import {
   Hash,
   Users,
   FileText,
-  Loader2,
+  
   Flame,
 } from "lucide-react"
 
@@ -58,7 +60,7 @@ export function ExploreSearchAutocomplete({ onSearch, className }: ExploreSearch
     try {
       const stored = localStorage.getItem(RECENT_KEY)
       if (stored) setRecentSearches(JSON.parse(stored))
-    } catch {}
+    } catch { /* intentionally silent */ }
   }, [])
 
   // Fetch trending on mount
@@ -152,7 +154,7 @@ export function ExploreSearchAutocomplete({ onSearch, className }: ExploreSearch
     setRecentSearches(updated)
     try {
       localStorage.setItem(RECENT_KEY, JSON.stringify(updated))
-    } catch {}
+    } catch { /* intentionally silent */ }
   }
 
   const handleSubmit = (q: string) => {
@@ -229,7 +231,7 @@ export function ExploreSearchAutocomplete({ onSearch, className }: ExploreSearch
             <>
               {loading && (
                 <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <Spinner className="h-4 w-4 text-muted-foreground" />
                 </div>
               )}
               {!loading && suggestions.length === 0 && (
@@ -268,7 +270,7 @@ export function ExploreSearchAutocomplete({ onSearch, className }: ExploreSearch
                         <p className="text-sm font-medium truncate flex items-center gap-1">
                           {item.title}
                           {item.is_verified && (
-                            <span className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-primary text-[7px] text-primary-foreground">✓</span>
+                            <VerifiedSeal size={12} title="Verified Creator" />
                           )}
                         </p>
                         {item.subtitle && (
@@ -296,7 +298,7 @@ export function ExploreSearchAutocomplete({ onSearch, className }: ExploreSearch
                     <button
                       onClick={() => {
                         setRecentSearches([])
-                        try { localStorage.removeItem(RECENT_KEY) } catch {}
+                        try { localStorage.removeItem(RECENT_KEY) } catch { /* intentionally silent */ }
                       }}
                       className="text-[10px] text-muted-foreground hover:text-foreground"
                     >

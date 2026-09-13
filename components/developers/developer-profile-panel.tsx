@@ -11,11 +11,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { useLoginGate } from "@/hooks/use-login-gate"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   Github,
   Globe,
   Linkedin,
-  Loader2,
+  
   Plus,
   Save,
   Zap,
@@ -148,7 +149,7 @@ export function DeveloperProfilePanel() {
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading your developer profile…
+        <Spinner className="h-4 w-4" /> Loading your developer profile…
       </div>
     )
   }
@@ -367,7 +368,7 @@ export function DeveloperProfilePanel() {
             disabled={saving}
             className="rounded-full px-6 bg-gradient-to-r from-cyan-500 to-indigo-600 text-white"
           >
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
             Save developer profile
           </Button>
         </div>

@@ -8,6 +8,7 @@ import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { Users, Check, ArrowRight, Sparkles } from "lucide-react"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 interface SimilarCreatorsProps {
   currentUserId: string
@@ -162,7 +163,7 @@ export function SimilarCreators({ currentUserId, circles = [] }: SimilarCreators
                 >
                   {creator.display_name}
                   {creator.is_verified && (
-                    <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[8px] text-primary-foreground">✓</span>
+                    <VerifiedSeal size={14} title="Verified Creator" />
                   )}
                 </Link>
                 <p className="text-xs text-muted-foreground truncate">

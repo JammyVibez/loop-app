@@ -10,8 +10,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { uploadMediaFile } from "@/lib/client-media-upload"
+import { Spinner } from "@/components/ui/skeletons"
 import {
-  Loader2,
+  
   Upload,
   Trash2,
   Image as ImageIcon,
@@ -334,7 +335,7 @@ export function AdminFramesTab() {
               className="w-full"
             >
               {uploading ? (
-                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                <Spinner className="h-4 w-4 mr-1.5" />
               ) : (
                 <Upload className="h-4 w-4 mr-1.5" />
               )}
@@ -347,7 +348,7 @@ export function AdminFramesTab() {
       {/* Frames grid */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Spinner className="h-6 w-6 text-muted-foreground" />
         </div>
       ) : frames.length === 0 ? (
         <Card>
@@ -425,7 +426,7 @@ export function AdminFramesTab() {
                     disabled={deleting === frame.id}
                   >
                     {deleting === frame.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                      <Spinner className="h-3.5 w-3.5 mr-1" />
                     ) : (
                       <Trash2 className="h-3.5 w-3.5 mr-1" />
                     )}

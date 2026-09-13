@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { formatDate } from "@/lib/community-engine"
-import { History, Plus, Loader2, Trophy, Star, Megaphone, Sparkles } from "lucide-react"
+import { History, Plus, Trophy, Star, Megaphone, Sparkles } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 const KIND_META: Record<string, { emoji: string; label: string }> = {
   milestone: { emoji: "🎉", label: "Milestone" },
@@ -174,7 +175,7 @@ export function WorldMemory({
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={save} disabled={saving} className="rounded-full">
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Star className="h-3.5 w-3.5 mr-1.5" />}
+              {saving ? <Spinner className="h-3.5 w-3.5 mr-1.5" /> : <Star className="h-3.5 w-3.5 mr-1.5" />}
               Record memory
             </Button>
           </DialogFooter>

@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Coins, Plus, Star, Loader2, Zap, Crown } from "lucide-react";
+import { Coins, Plus, Star, Zap, Crown } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { Spinner } from "@/components/ui/skeletons"
 
 interface LoopCoinsBalanceProps {
   showDetails?: boolean
@@ -55,7 +56,7 @@ export function LoopCoinsBalance({ showDetails = false }: LoopCoinsBalanceProps)
       }
     } catch (error) {
       console.error("Error fetching coin packages:", error)
-      toast({ title: "Error", description: "Failed to load coin packages", variant: "destructive" })
+      toast({ title: "Couldn't load coin packs", description: "Your balance is safe — refresh to retry.", variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -116,7 +117,7 @@ export function LoopCoinsBalance({ showDetails = false }: LoopCoinsBalanceProps)
           <div className="space-y-2 pt-2">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                <Spinner className="w-6 h-6 text-muted-foreground" />
               </div>
             ) : (
               sortedPackages.map((pkg) => {
@@ -158,7 +159,7 @@ export function LoopCoinsBalance({ showDetails = false }: LoopCoinsBalanceProps)
                           className="flex-shrink-0 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-semibold rounded-full px-4"
                         >
                           {purchasing === pkg.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <Spinner className="w-3.5 h-3.5" />
                           ) : (
                             `$${pkg.price_usd}`
                           )}

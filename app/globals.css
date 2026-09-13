@@ -254,6 +254,39 @@
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
+/* VerifiedSeal badge animations (components/ui/verified-seal.tsx) */
+@keyframes seal-glow {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes seal-shimmer {
+  0%,
+  55% {
+    transform: translateX(0);
+  }
+  85%,
+  100% {
+    transform: translateX(460%);
+  }
+}
+
+@keyframes seal-check {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 .gradient-shift {
   background-size: 200% 200%;
   animation: gradient-shift 3s ease infinite;

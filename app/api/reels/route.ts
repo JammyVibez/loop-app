@@ -41,6 +41,123 @@ export async function GET(request: NextRequest) {
       case "trending":
         query = query.order("like_count", { ascending: false }).order("view_count", { ascending: false })
         break
+      case "explore": {
+        // Explore grid: a mix of high-engagement and fresh reels. Engaging
+        // reels come from a wider window than "trending" (views + likes over
+        // the last ~2 weeks) so the grid isn't stuck on all-time hits, then
+        // fresh uploads fill the rest. Deterministic order (no shuffle) so the
+        // masonry grid doesn't jump between renders.
+        const poolSize = Math.max(limit * 4, 60)
+        const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
+
+        const { data: hot } = await supabase
+          .from("reels")
+          .select(`
+            *,
+            author:profiles!author_id (
+              id,
+              username,
+              display_name,
+              avatar_url, video_avatar_url,
+              is_verified,
+              is_premium
+            )
+          `)
+          .eq("visibility", "public")
+          .gte("created_at", since)
+          .order("view_count", { ascending: false })
+          .order("like_count", { ascending: false })
+          .limit(Math.ceil(poolSize * 0.6))
+
+        const { data: fresh } = await supabase
+          .from("reels")
+          .select(`
+            *,
+            author:profiles!author_id (
+              id,
+              username,
+              display_name,
+              avatar_url, video_avatar_url,
+              is_verified,
+              is_premium
+            )
+          `)
+          .eq("visibility", "public")
+          .order("created_at", { ascending: false })
+          .limit(Math.ceil(poolSize * 0.4))
+
+        // Merge, dedupe, then interleave so fresh clips surface between hits
+        // (pure "hot" ordering would push brand-new uploads to the bottom).
+        const seen = new Set<string>()
+        const merged: any[] = []
+        const hotList = hot || []
+        const freshList = (fresh || []).filter((r: any) => !hotList.some((h: any) => h.id === r.id))
+        const maxLen = Math.max(hotList.length, freshList.length)
+        // 2 hot : 1 fresh cadence
+        for (let i = 0; i < maxLen; i++) {
+          for (let j = 0; j < 2; j++) {
+            const reel = hotList[i * 2 + j]
+            if (reel && !seen.has(reel.id)) {
+              seen.add(reel.id)
+              merged.push(reel)
+            }
+          }
+          const reel = freshList[i]
+          if (reel && !seen.has(reel.id)) {
+            seen.add(reel.id)
+            merged.push(reel)
+          }
+        }
+
+        // Tail with anything not yet included so we always fill `limit`
+        for (const reel of [...hotList, ...freshList]) {
+          if (merged.length >= limit) break
+          if (!seen.has(reel.id)) {
+            seen.add(reel.id)
+            merged.push(reel)
+          }
+        }
+
+        let liked = new Set<string>()
+        let saved = new Set<string>()
+        if (user && merged.length) {
+          const { data: interactions } = await supabase
+            .from("reel_interactions")
+            .select("reel_id, interaction_type")
+            .eq("user_id", user.id)
+            .in(
+              "reel_id",
+              merged.map((r) => r.id),
+            )
+          for (const row of interactions || []) {
+            if (row.interaction_type === "like") liked.add(row.reel_id)
+            if (row.interaction_type === "save") saved.add(row.reel_id)
+          }
+        }
+
+        let exploreProcessed = merged
+          .slice(0, limit)
+          .map((reel: any) => ({
+            ...reel,
+            type: reel.content_type,
+            is_liked: liked.has(reel.id),
+            is_saved: saved.has(reel.id),
+          }))
+
+        // Private/followers-only profiles stay out of the explore grid
+        const exploreFollowing = await getFollowingIds(supabase, user?.id || null)
+        exploreProcessed = await filterPrivateContent(supabase, exploreProcessed, user?.id || null, exploreFollowing)
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            reels: exploreProcessed,
+            page,
+            limit,
+            has_more: merged.length > limit,
+          },
+        })
+      }
       case "following":
         if (user) {
           const { data: following } = await supabase
@@ -148,6 +265,47 @@ export async function GET(request: NextRequest) {
           }
         })
         .filter(Boolean) as any[]
+    }
+
+    // Guarantee the focus reel is present: it may come from a different
+    // surface (e.g. the Explore grid) and not be in this category's pool.
+    if (focusId && !processed.some((r) => r.id === focusId)) {
+      const { data: focusRow } = await supabase
+        .from("reels")
+        .select(`
+          *,
+          author:profiles!author_id (
+            id,
+            username,
+            display_name,
+            avatar_url, video_avatar_url,
+            is_verified,
+            is_premium
+          )
+        `)
+        .eq("id", focusId)
+        .eq("visibility", "public")
+        .maybeSingle()
+      if (focusRow) {
+        let focusLiked = false
+        let focusSaved = false
+        if (user) {
+          const { data: focusInteractions } = await supabase
+            .from("reel_interactions")
+            .select("interaction_type")
+            .eq("user_id", user.id)
+            .eq("reel_id", focusId)
+          for (const row of focusInteractions || []) {
+            if (row.interaction_type === "like") focusLiked = true
+            if (row.interaction_type === "save") focusSaved = true
+          }
+        }
+        processed = [
+          { ...focusRow, type: focusRow.content_type, is_liked: focusLiked, is_saved: focusSaved },
+          ...processed,
+        ]
+        processed = await filterPrivateContent(supabase, processed, user?.id || null, following)
+      }
     }
 
     // Shuffle & randomize sequence per session if requested
@@ -258,7 +416,7 @@ export async function POST(request: NextRequest) {
         event: "reel:created",
         payload: { reel: { ...reel, type: reel.content_type } },
       })
-    } catch {}
+    } catch { /* intentionally silent */ }
 
     return NextResponse.json({ success: true, data: { reel: { ...reel, type: reel.content_type } } })
   } catch (error) {

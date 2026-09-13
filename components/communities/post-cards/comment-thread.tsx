@@ -12,14 +12,15 @@ import {
   Heart,
   MessageSquare,
   Send,
-  Loader2,
-  BadgeCheck,
+  
   ChevronDown,
   ChevronUp,
   MoreHorizontal,
   Trash2,
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface Comment {
   id: string | number
@@ -133,7 +134,7 @@ export function CommentThread({
         method: "DELETE",
       })
       setComments((prev) => prev.filter((c) => c.id !== commentId))
-    } catch {}
+    } catch { /* intentionally silent */ }
   }
 
   const toggleLike = async (commentId: string | number) => {
@@ -153,7 +154,7 @@ export function CommentThread({
       await fetch(`/api/circles/${communityId}/posts/${postId}/comments?commentId=${commentId}&action=like`, {
         method: "POST",
       })
-    } catch {}
+    } catch { /* intentionally silent */ }
   }
 
   function CommentItem({ comment, depth = 0 }: { comment: Comment; depth?: number }) {
@@ -180,7 +181,7 @@ export function CommentThread({
               <Link href={`/profile/${comment.author?.username}`} className="text-xs font-semibold hover:underline">
                 {comment.author?.display_name || comment.author?.username}
               </Link>
-              {comment.author?.is_verified && <BadgeCheck className="h-3 w-3 text-blue-500" />}
+              {comment.author?.is_verified && <VerifiedSeal size={12} title="Verified Creator" />}
               <span className="text-[10px] text-muted-foreground">{timeAgo(comment.created_at)}</span>
             </div>
             <p className="text-sm mt-0.5 whitespace-pre-wrap">{comment.content}</p>
@@ -236,7 +237,7 @@ export function CommentThread({
                   onClick={() => submitComment(comment.id)}
                   disabled={submitting || !newComment.trim()}
                 >
-                  {submitting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                  {submitting ? <Spinner className="h-3 w-3" /> : <Send className="h-3 w-3" />}
                 </Button>
               </div>
             )}
@@ -335,7 +336,7 @@ export function CommentThread({
                 onClick={() => submitComment()}
                 disabled={submitting || !newComment.trim()}
               >
-                {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                {submitting ? <Spinner className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
               </Button>
             </div>
           )}

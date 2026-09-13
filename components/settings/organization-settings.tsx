@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { Building2, TrendingUp, Crown, Coins, Percent, Users, ExternalLink, CheckCircle2, Loader2 } from "lucide-react"
+import { Building2, TrendingUp, Crown, Coins, Percent, Users, ExternalLink, CheckCircle2 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface OrgStatus {
   threshold: number
@@ -136,7 +137,7 @@ export function OrganizationSettings() {
     return (
       <Card>
         <CardContent className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Checking organization eligibility…
+          <Spinner className="h-4 w-4" /> Checking organization eligibility…
         </CardContent>
       </Card>
     )

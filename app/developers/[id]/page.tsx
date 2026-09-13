@@ -6,7 +6,8 @@ import Link from "next/link"
 import { Header } from "@/components/header"
 import { ProjectDetail } from "@/components/developers/project-detail"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 function normalizeProject(row: any) {
   return {
@@ -80,7 +81,7 @@ export default function DeveloperProjectPage() {
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-20 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading project…
+            <Spinner className="h-4 w-4" /> Loading project…
           </div>
         ) : error || !project ? (
           <div className="rounded-xl border border-border bg-card p-10 text-center">

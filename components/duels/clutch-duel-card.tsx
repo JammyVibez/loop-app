@@ -241,7 +241,7 @@ export function ClutchDuelCard({ duel: initialDuel, loopId }: { duel?: ClutchDue
       void refreshSummary()
     } catch (err) {
       console.error("Predict error:", err)
-      toast({ title: "Error", description: "Could not stake coins", variant: "destructive" })
+      toast({ title: "Couldn't place your stake", description: "Check your coin balance and try again.", variant: "destructive" })
     } finally {
       setStaking(false)
     }

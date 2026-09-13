@@ -5,7 +5,7 @@ import Link from "next/link"
 import {
   Bot,
   Coins,
-  Loader2,
+  
   Palette,
   Plus,
   Search,
@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   Select,
   SelectContent,
@@ -299,7 +300,7 @@ export function CommunityMarketplace() {
             </Link>
           </Button>
           {user && (
-            <Button className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white" onClick={() => setSellOpen(true)}>
+            <Button className="rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-white" onClick={() => setSellOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Sell a pack
             </Button>
@@ -348,7 +349,7 @@ export function CommunityMarketplace() {
 
       {loading ? (
         <div className="flex items-center justify-center py-24 text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          <Spinner className="mr-2 h-5 w-5" />
           Loading marketplace...
         </div>
       ) : listings.length === 0 ? (
@@ -414,11 +415,11 @@ export function CommunityMarketplace() {
                       </Button>
                     ) : (
                       <Button
-                        className="flex-1 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white"
+                        className="flex-1 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-white"
                         disabled={busyId === listing.id}
                         onClick={() => purchase(listing)}
                       >
-                        {busyId === listing.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buy & unlock"}
+                        {busyId === listing.id ? <Spinner className="h-4 w-4" /> : "Buy & unlock"}
                       </Button>
                     )}
                   </div>
@@ -538,7 +539,7 @@ export function CommunityMarketplace() {
               Cancel
             </Button>
             <Button onClick={createListing} disabled={busyId === "create"}>
-              {busyId === "create" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publish pack"}
+              {busyId === "create" ? <Spinner className="h-4 w-4" /> : "Publish pack"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -572,7 +573,7 @@ export function CommunityMarketplace() {
               Cancel
             </Button>
             <Button onClick={install} disabled={!selectedCircle || busyId === installOpen?.id}>
-              {busyId === installOpen?.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Install"}
+              {busyId === installOpen?.id ? <Spinner className="h-4 w-4" /> : "Install"}
             </Button>
           </DialogFooter>
         </DialogContent>

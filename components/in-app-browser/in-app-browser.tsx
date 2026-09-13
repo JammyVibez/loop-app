@@ -10,11 +10,12 @@ import {
   Globe,
   RotateCw,
   ShieldAlert,
-  Loader2,
+  
 } from "lucide-react"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // In-app browser: preview a shared link without leaving Loop.
@@ -272,7 +273,7 @@ export function InAppBrowserHost() {
         <div className="relative min-h-0 flex-1 bg-background">
           {loading && !iframeBlocked && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/80 text-muted-foreground backdrop-blur-[1px]">
-              <Loader2 className="h-6 w-6 animate-spin text-sky-500" />
+              <Spinner className="h-6 w-6 text-sky-500" />
               <p className="text-xs">Loading {domain}…</p>
             </div>
           )}

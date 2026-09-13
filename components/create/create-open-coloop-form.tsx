@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/components/ui/use-toast"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   Zap,
   Users,
-  Loader2,
+  
   Radio,
   Globe,
   ArrowRight,
@@ -161,7 +162,7 @@ export function CreateOpenCoLoopForm({ onCreated }: CreateOpenCoLoopFormProps) {
           className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 font-bold text-white shadow-lg shadow-cyan-500/25 hover:from-cyan-400 hover:to-indigo-500 transition-all"
         >
           {creating ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            <Spinner className="h-4 w-4 mr-2" />
           ) : (
             <Radio className="h-4 w-4 mr-2 animate-pulse" />
           )}

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Calendar, Coins, Edit, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Pin, PinOff, Plus, Share2, Sparkles, Zap, Trophy, Upload, Users, Package, Building2, } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -109,6 +110,7 @@ function formatCount(value: number) {
 }
 
 export function Enhanced3DProfile({ username }: { username: string }) {
+  const router = useRouter()
   const { user, getAuthHeader, refreshUser, applyServerProfile } = useAuth()
   const { toast } = useToast()
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -345,9 +347,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Could not start chat")
-      window.location.href = `/messages?c=${data.conversation.id}`
+      router.push(`/messages?c=${data.conversation.id}`)
     } catch {
-      window.location.href = "/messages"
+      router.push("/messages")
     }
   }
 
@@ -911,7 +913,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               },
             }}
             isOwnProfile={isOwnProfile}
-            onEdit={() => window.location.href = "/settings?tab=profile"}
+            onEdit={() => router.push("/settings?tab=profile")}
           />
 
           {/* Activity Heatmap */}

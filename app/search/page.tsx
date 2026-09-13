@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Hash, Loader2, Search, TrendingUp, Users, X, Clock, ArrowRight, Flame, Sparkles, Zap } from "lucide-react"
+import { Hash, Search, TrendingUp, Users, X, Clock, ArrowRight, Flame, Sparkles, Zap } from "lucide-react"
 import { Header } from "@/components/header"
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav"
 import { Input } from "@/components/ui/input"
@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 type SuggestUser = {
   id: string
@@ -167,7 +168,7 @@ export default function SearchLandingPage() {
               <span className="inline-flex items-center gap-1">
                 <Users className="h-3.5 w-3.5" /> People
               </span>
-              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              {loading ? <Spinner className="h-3.5 w-3.5" /> : null}
             </div>
             {users.length === 0 && !loading ? (
               <p className="px-4 py-6 text-sm text-muted-foreground">No people match yet — press Search for full results.</p>

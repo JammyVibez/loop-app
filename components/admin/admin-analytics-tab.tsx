@@ -22,7 +22,7 @@ import {
   Eye,
   Radio,
   RefreshCw,
-  Loader2,
+  
   ArrowUp,
   ArrowDown,
   Globe,
@@ -38,6 +38,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
+import { Spinner } from "@/components/ui/skeletons"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 interface AnalyticsStats {
   total_users: number
@@ -148,7 +150,7 @@ export function AdminAnalyticsTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground">
-        <Loader2 className="mr-2 h-6 w-6 animate-spin" /> Loading analytics…
+        <Spinner className="mr-2 h-6 w-6" /> Loading analytics…
       </div>
     )
   }
@@ -291,7 +293,7 @@ export function AdminAnalyticsTab() {
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex gap-1">
-                            {u.is_verified && <Badge className="bg-sky-500 text-[10px]">Creator</Badge>}
+                            {u.is_verified && <VerifiedSeal size={13} title="Verified Creator" />}
                             {u.is_premium && <Badge className="bg-amber-500 text-[10px] text-slate-900">Pro</Badge>}
                           </div>
                         </td>

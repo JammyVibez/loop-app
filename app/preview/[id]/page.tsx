@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, ExternalLink, Loader2, Maximize2, Minimize2, RotateCcw, Lock, Database, AlertTriangle } from "lucide-react"
+import { ArrowLeft, ExternalLink, Maximize2, Minimize2, RotateCcw, Lock, Database, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
+import { Spinner } from "@/components/ui/skeletons"
 
 export default function PreviewPage() {
   const params = useParams()
@@ -75,7 +76,7 @@ export default function PreviewPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Spinner className="h-8 w-8 text-primary" />
           <p className="text-sm text-muted-foreground">Loading preview...</p>
         </div>
       </div>
@@ -104,7 +105,7 @@ export default function PreviewPage() {
           )}
           <div className="flex gap-3 justify-center">
             <Button onClick={runSetup} disabled={settingUp} className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-              {settingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+              {settingUp ? <Spinner className="mr-2 h-4 w-4" /> : <Database className="mr-2 h-4 w-4" />}
               {settingUp ? "Setting up..." : "Create Tables"}
             </Button>
             <Button asChild variant="outline">

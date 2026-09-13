@@ -67,8 +67,8 @@ export function VerificationRequest() {
       })
     } catch (error) {
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit verification request",
+        title: "Couldn't submit request",
+        description: error instanceof Error ? error.message : "Double-check your details and resubmit.",
         variant: "destructive",
       })
     } finally {

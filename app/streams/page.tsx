@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { Eye, Loader2, Radio, Search, Zap } from "lucide-react"
+import { Eye, Radio, Search, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
@@ -11,6 +11,7 @@ import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface Stream {
   id: string
@@ -225,7 +226,7 @@ export default function StreamsPage() {
 
         {loading ? (
           <div className="flex min-h-[40vh] items-center justify-center text-white/60">
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading lives…
+            <Spinner className="mr-2 h-5 w-5" /> Loading lives…
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-center">

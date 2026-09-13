@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { formatNumber } from "@/lib/community-engine"
-import { Plus, FolderOpen, Users, CheckCircle2, Circle, Loader2, Trash2, Lock, CalendarDays, Flag } from "lucide-react"
+import { Plus, FolderOpen, Users, CheckCircle2, Circle, Trash2, Lock, CalendarDays, Flag } from "lucide-react"
 import { DeviceMediaPicker, type PickedMedia } from "./device-media-picker"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface Project {
   id: number
@@ -297,7 +298,7 @@ export function WorldProjects({
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={create} disabled={saving} className="rounded-full">
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Plus className="h-3.5 w-3.5 mr-1.5" />}
+              {saving ? <Spinner className="h-3.5 w-3.5 mr-1.5" /> : <Plus className="h-3.5 w-3.5 mr-1.5" />}
               Create project
             </Button>
           </DialogFooter>
@@ -309,7 +310,7 @@ export function WorldProjects({
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           {detailLoading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+              <Spinner className="h-6 w-6 text-indigo-500" />
             </div>
           ) : detail && (
             <>

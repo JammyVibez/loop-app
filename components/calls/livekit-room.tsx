@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Room, RoomEvent, Track, type LocalParticipant, type Participant, type TrackPublication } from "livekit-client"
 import { playRemoteAudio, unlockAudio } from "@/lib/audio-unlock"
 import {
-  Loader2,
+  
   Mic,
   MicOff,
   MonitorUp,
@@ -17,6 +17,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 export type LivekitRoomLayout = "grid" | "stage"
 
@@ -289,7 +290,7 @@ function LivekitRoomInner({
   if (!connected) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black text-white">
-        <Loader2 className="h-8 w-8 animate-spin text-rose-500" />
+        <Spinner className="h-8 w-8 text-rose-500" />
         <p className="text-sm text-white/70">Joining{audioOnly ? " voice" : ""} call…</p>
       </div>
     )
@@ -395,7 +396,7 @@ function TileView({ tile, muted, audioOnly }: { tile: TileInfo; muted: boolean; 
       ) : (
         <div className="flex h-full w-full items-center justify-center">
           <Avatar className="h-16 w-16 sm:h-20 sm:w-20">
-            <AvatarFallback className="bg-gradient-to-br from-violet-600 to-cyan-500 text-xl font-bold sm:text-2xl">
+            <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-xl font-bold sm:text-2xl">
               {tile.name.charAt(0)?.toUpperCase() || "?"}
             </AvatarFallback>
           </Avatar>
@@ -422,7 +423,7 @@ function StageTile({ tile, muted }: { tile: TileInfo; muted: boolean }) {
       {!hasVideo && (
         <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
           <Avatar className="h-24 w-24">
-            <AvatarFallback className="bg-gradient-to-br from-violet-600 to-cyan-500 text-3xl font-bold">
+            <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-3xl font-bold">
               {tile.name.charAt(0)?.toUpperCase() || "?"}
             </AvatarFallback>
           </Avatar>

@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { formatDistanceToNow } from "date-fns";
 import { useTheme3D, useThemeColors } from "@/providers/theme-3d-provider";
 import { absoluteAppUrl, shareContent } from "@/lib/share";
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 interface ThemeColors {
   primary?: string
@@ -230,9 +231,7 @@ export function LoopCard3D({ loop, onLike, onBookmark, className = '', variant =
                   </span>
                 </Link>
                 {user.is_verified && (
-                  <Badge variant="secondary" className="h-4 w-4 p-0 bg-blue-500 hover:scale-110 transition-transform duration-300">
-                    <span className="text-white text-xs">✓</span>
-                  </Badge>
+                  <VerifiedSeal size={16} title="Verified Creator" />
                 )}
               </div>
               <div className="flex items-center space-x-2 text-sm opacity-70">

@@ -15,7 +15,6 @@ import {
   Unlock,
   Users,
   Rocket,
-  BadgeCheck,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -35,6 +34,7 @@ import { fontStyle, type ActiveCosmetics } from "@/lib/cosmetics"
 import { useAuth } from "@/hooks/use-auth"
 import { useLoginGate } from "@/hooks/use-login-gate"
 import { useVerificationBadges } from "@/hooks/use-verification-badges"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 interface LoopCardHeaderProps {
   loop: any
@@ -99,7 +99,7 @@ export function LoopCardHeader({
             {parentAuthorName ? (
               <span className="inline-flex items-center gap-1 align-baseline font-semibold text-foreground">
                 @{parentAuthorName}
-                {parentAuthor?.is_verified && <BadgeCheck className="h-3 w-3 shrink-0 text-blue-500" />}
+                {parentAuthor?.is_verified && <VerifiedSeal size={12} title="Verified Creator" />}
               </span>
             ) : (
               <span className="font-semibold text-foreground">the original post</span>
@@ -333,7 +333,7 @@ export function LoopCardHeader({
                       if (data.success) {
                         loop.comments_disabled = data.comments_disabled
                       }
-                    } catch {}
+                    } catch { /* intentionally silent */ }
                   }}
                 >
                   {loop.comments_disabled ? (
@@ -361,7 +361,7 @@ export function LoopCardHeader({
                     if (data.success) {
                       loop.comments_disabled = data.comments_disabled
                     }
-                  } catch {}
+                  } catch { /* intentionally silent */ }
                 }}
               >
                 {loop.comments_disabled ? (

@@ -8,9 +8,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   Send,
-  Loader2,
+  
   MessageSquare,
   Reply,
   X,
@@ -26,9 +28,7 @@ interface ChatMessage {
   media_url: string | null
   media_type: string | null
   message_type: string
-  sender_id: string
   author_id: string
-  circle_id: string
   reply_to_id: string | null
   reactions: any
   is_edited: boolean
@@ -219,7 +219,7 @@ export function CommunityChat({
       >
         {loading ? (
           <div className="flex items-center justify-center h-32">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <Spinner className="h-5 w-5 text-muted-foreground" />
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-center">
@@ -240,7 +240,7 @@ export function CommunityChat({
               </div>
 
               {group.messages.map((msg) => {
-                const isOwn = msg.sender_id === user?.id
+                const isOwn = msg.author_id === user?.id
                 const isMod = canModerate
                 const sender = msg.sender
 
@@ -263,9 +263,7 @@ export function CommunityChat({
                           {sender?.display_name || "Unknown"}
                         </span>
                         {sender?.is_verified && (
-                          <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 bg-blue-500/10 text-blue-500 border-0">
-                            ✓
-                          </Badge>
+                          <VerifiedSeal size={12} title="Verified Creator" />
                         )}
                         <span className="text-[10px] text-muted-foreground shrink-0">
                           {timeAgo(msg.created_at)}
@@ -377,7 +375,7 @@ export function CommunityChat({
             disabled={!input.trim() || sending}
             className="h-10 w-10 rounded-xl shrink-0 bg-indigo-500 hover:bg-indigo-600"
           >
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {sending ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
           </Button>
         </form>
       </div>

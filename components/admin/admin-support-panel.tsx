@@ -11,8 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import { formatDistanceToNow } from "date-fns"
+import { Spinner } from "@/components/ui/skeletons"
 import {
-  Loader2,
+  
   MessageCircle,
   Send,
   HeadphonesIcon,
@@ -223,7 +224,7 @@ export function AdminSupportPanel() {
           <div className="space-y-2 p-3">
             {loading ? (
               <div className="flex items-center justify-center py-12 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Spinner className="h-5 w-5" />
               </div>
             ) : tickets.length === 0 ? (
               <p className="py-12 text-center text-sm text-muted-foreground">No support tickets yet.</p>
@@ -354,7 +355,7 @@ export function AdminSupportPanel() {
                   size="icon"
                   className="h-11 w-11 rounded-full p-0"
                 >
-                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {sending ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                 </Button>
               </div>
             </div>

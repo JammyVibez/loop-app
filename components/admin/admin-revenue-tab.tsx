@@ -18,10 +18,11 @@ import {
   ArrowDownRight,
   Calendar,
   Zap,
-  Loader2,
+  
   Crown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface RevenueData {
   total_revenue_usd: number
@@ -191,7 +192,7 @@ export function AdminRevenueTab() {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <Spinner className="h-5 w-5 text-muted-foreground" />
             </div>
           ) : (
             <div className="space-y-2">

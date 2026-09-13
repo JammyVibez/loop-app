@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect, useCallback } from "react"
 import {
   Camera, Upload, X, Play, Pause, SkipBack, SkipForward,
-  Type, Palette, Zap, Scissors, Smile, Music, Loader2,
+  Type, Palette, Zap, Scissors, Smile, Music, 
   RotateCcw, Video, Image as ImageIcon,  Volume2, VolumeX,
   Undo2, Redo2, Crop, RotateCw, FlipHorizontal, FlipVertical,
   Sun, Contrast, Droplets, Frame, Mic, CircleDot, RectangleHorizontal,
@@ -21,6 +21,7 @@ import { Slider } from "@/components/ui/slider"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { parseJsonResponse } from "@/lib/parse-json-response"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024
 
@@ -549,7 +550,7 @@ export function TreeEditor({ onTreeCreated }: { onTreeCreated?: (id: string | nu
       {LoginGateDialog}
       <div className="space-y-3">
         <button onClick={startCamera} className="flex w-full items-center gap-4 rounded-2xl border border-border bg-gradient-to-br from-violet-500/10 to-cyan-500/5 p-5 text-left transition-all hover:border-violet-500/30">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-cyan-500"><Camera className="h-6 w-6 text-white" /></div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-fuchsia-500 to-orange-500"><Camera className="h-6 w-6 text-white" /></div>
           <div><p className="font-semibold text-foreground">Record Video</p><p className="text-sm text-muted-foreground">Use your camera to record</p></div>
         </button>
         <button onClick={() => fileInputRef.current?.click()} className="flex w-full items-center gap-4 rounded-2xl border border-border bg-gradient-to-br from-amber-500/10 to-orange-500/5 p-5 text-left transition-all hover:border-amber-500/30">
@@ -580,7 +581,7 @@ export function TreeEditor({ onTreeCreated }: { onTreeCreated?: (id: string | nu
           <Button variant="ghost" size="icon" onClick={redo} disabled={historyIdx >= history.length - 1} className="h-8 w-8"><Redo2 className="h-4 w-4" /></Button>
         </div>
         <span className="text-xs text-muted-foreground">{trimDuration.toFixed(1)}s {state.speed !== 1 && `· ${state.speed}×`} {state.aspectRatio !== "9:16" && `· ${state.aspectRatio}`}</span>
-        <Button size="sm" onClick={() => setShowPublish(!showPublish)} className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-4 font-bold">
+        <Button size="sm" onClick={() => setShowPublish(!showPublish)} className="rounded-full bg-gradient-to-r from-fuchsia-500 to-orange-500 px-4 font-bold">
           {showPublish ? "Edit" : "Next"}
         </Button>
       </div>
@@ -645,7 +646,7 @@ export function TreeEditor({ onTreeCreated }: { onTreeCreated?: (id: string | nu
       {/* ── Transport ───────────────────────────────────── */}
       <div className="flex items-center justify-center gap-4">
         <button onClick={() => seekRel(-5)} className="text-muted-foreground hover:text-foreground"><SkipBack className="h-5 w-5" /></button>
-        <button onClick={togglePlay} className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg">
+        <button onClick={togglePlay} className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-fuchsia-500 to-orange-500 text-white shadow-lg">
           {isPaused ? <Play className="h-5 w-5 fill-white" /> : <Pause className="h-5 w-5" />}
         </button>
         <button onClick={() => seekRel(5)} className="text-muted-foreground hover:text-foreground"><SkipForward className="h-5 w-5" /></button>
@@ -777,7 +778,7 @@ export function TreeEditor({ onTreeCreated }: { onTreeCreated?: (id: string | nu
             {SPEEDS.map((s) => (
               <button key={s.value} onClick={() => { update({ speed: s.value }); if (videoRef.current) videoRef.current.playbackRate = s.value }}
                 className={cn("flex flex-col items-center rounded-xl px-3 py-2 text-xs transition-all",
-                  state.speed === s.value ? "bg-gradient-to-r from-violet-600 to-cyan-500 text-white" : "bg-muted text-muted-foreground hover:bg-muted/80")}>
+                  state.speed === s.value ? "bg-gradient-to-r from-fuchsia-500 to-orange-500 text-white" : "bg-muted text-muted-foreground hover:bg-muted/80")}>
                 <span className="font-bold">{s.label}</span><span className="text-[9px] opacity-70">{s.desc}</span>
               </button>
             ))}
@@ -1009,8 +1010,8 @@ export function TreeEditor({ onTreeCreated }: { onTreeCreated?: (id: string | nu
             {state.chromaKey && <Tag>⚡ Chroma</Tag>}
             {state.doodlePaths.length > 0 && <Tag>✏️ {state.doodlePaths.length} doodles</Tag>}
           </div>
-          <Button onClick={handlePublish} disabled={uploading || !videoFile} className="h-12 w-full rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-base font-bold">
-            {uploading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {uploadLabel || "Publishing…"}</> : "Publish Tree"}
+          <Button onClick={handlePublish} disabled={uploading || !videoFile} className="h-12 w-full rounded-full bg-gradient-to-r from-fuchsia-500 to-orange-500 text-base font-bold">
+            {uploading ? <><Spinner className="mr-2 h-4 w-4" /> {uploadLabel || "Publishing…"}</> : "Publish Tree"}
           </Button>
         </div>
       )}

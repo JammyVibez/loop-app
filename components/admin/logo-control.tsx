@@ -1,13 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Image, Loader2, Save } from "lucide-react"
+import { Image, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { Spinner } from "@/components/ui/skeletons"
 
 export function LogoControl() {
   const { getAuthHeader } = useAuth()
@@ -103,7 +104,7 @@ export function LogoControl() {
             Reset
           </Button>
           <Button size="sm" onClick={() => void saveLogo()} disabled={saving || loading}>
-            {saving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
+            {saving ? <Spinner className="mr-1.5 h-4 w-4" /> : <Save className="mr-1.5 h-4 w-4" />}
             Save logo
           </Button>
         </div>

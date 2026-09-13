@@ -10,9 +10,10 @@ import { Switch } from "@/components/ui/switch"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { timeAgo } from "@/lib/community-engine"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   ShieldAlert,
-  Loader2,
+  
   CheckCircle2,
   XCircle,
   Ban,
@@ -279,7 +280,7 @@ export function WorldModeration({ communityId }: { communityId: string }) {
           </div>
 
           <Button className="rounded-full" onClick={saveSettings} disabled={savingSettings}>
-            {savingSettings ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+            {savingSettings ? <Spinner className="h-3.5 w-3.5 mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
             Save settings
           </Button>
           {savedSettings && (
@@ -332,7 +333,7 @@ export function WorldModeration({ communityId }: { communityId: string }) {
                     disabled={acting === `approve_post-${p.id}`}
                   >
                     {acting === `approve_post-${p.id}` ? (
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      <Spinner className="h-3 w-3 mr-1" />
                     ) : (
                       <CheckCircle2 className="h-3 w-3 mr-1" />
                     )}
@@ -345,7 +346,7 @@ export function WorldModeration({ communityId }: { communityId: string }) {
                     onClick={() => reviewPost("reject_post", p)}
                     disabled={acting === `reject_post-${p.id}`}
                   >
-                    {acting === `reject_post-${p.id}` ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+                    {acting === `reject_post-${p.id}` ? <Spinner className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
                     Reject
                   </Button>
                 </div>

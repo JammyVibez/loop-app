@@ -14,7 +14,7 @@ import {
   Eye,
   FileText,
   FolderTree,
-  Loader2,
+  
   Lock,
   Paperclip,
   Trash2,
@@ -33,6 +33,7 @@ import {
   type UploadedRepoFile,
 } from "@/lib/dev-project-zip";
 import { SyntaxHighlightedCode } from "@/components/loops/syntax-highlighted-code";
+import { Spinner } from "@/components/ui/skeletons"
 
 export type EditableProject = {
   id: string
@@ -465,7 +466,7 @@ export function CreateProjectDialog({
 
             {zipParsing && (
               <div className="mt-3 flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-4">
-                <Loader2 className="h-5 w-5 shrink-0 animate-spin text-cyan-500" />
+                <Spinner className="h-5 w-5 shrink-0 text-cyan-500" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{zipName}</p>
                   <p className="text-xs text-muted-foreground">
@@ -611,7 +612,7 @@ export function CreateProjectDialog({
                   className="h-8"
                 >
                   {uploadingFile ? (
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    <Spinner className="mr-1.5 h-3.5 w-3.5" />
                   ) : (
                     <Paperclip className="mr-1.5 h-3.5 w-3.5" />
                   )}

@@ -32,10 +32,11 @@ import {
   MessageSquare,
   ChevronDown,
   Download,
-  Loader2,
+  
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface AuditLogEntry {
   id: string
@@ -277,7 +278,7 @@ export function AuditLogPanel() {
         <CardContent className="p-0">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Spinner className="h-6 w-6 text-muted-foreground" />
             </div>
           ) : filteredLogs.length === 0 ? (
             <div className="py-12 text-center">

@@ -11,7 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { Spinner } from "@/components/ui/skeletons"
 import {
   Search,
   MessageCircle,
@@ -24,7 +26,7 @@ import {
   Video,
   Users,
   Zap,
-  Loader2,
+  
   MessagesSquare,
   ArrowRight,
 } from "lucide-react";
@@ -49,6 +51,7 @@ interface SupportTicket {
 
 export default function HelpPage() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [searchQuery, setSearchQuery] = useState("")
   const [supportForm, setSupportForm] = useState({
     subject: "",
@@ -178,7 +181,11 @@ export default function HelpPage() {
         priority: "medium",
       })
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to submit support ticket')
+      toast({
+        title: "Couldn't submit your ticket",
+        description: error instanceof Error ? error.message : "Check your connection and try again.",
+        variant: "destructive",
+      })
     } finally {
       setSubmitting(false)
     }
@@ -379,7 +386,7 @@ export default function HelpPage() {
                       />
                     </div>
                     <Button type="submit" className="w-full" disabled={submitting}>
-                      {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      {submitting ? <Spinner className="mr-2 h-4 w-4" /> : null}
                       Submit Ticket
                     </Button>
                   </form>
@@ -442,7 +449,7 @@ export default function HelpPage() {
                   </div>
                 ) : ticketsLoading && tickets.length === 0 ? (
                   <div className="flex items-center justify-center py-10 text-muted-foreground">
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading tickets…
+                    <Spinner className="mr-2 h-5 w-5" /> Loading tickets…
                   </div>
                 ) : tickets.length === 0 ? (
                   <div className="py-10 text-center">

@@ -1,12 +1,13 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Loader2, RefreshCw, Star } from "lucide-react"
+import { RefreshCw, Star } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Spinner } from "@/components/ui/skeletons"
 
 export function AdminFeaturedPanel() {
   const { getAuthHeader } = useAuth()
@@ -71,7 +72,7 @@ export function AdminFeaturedPanel() {
         <CardContent className="space-y-3">
           {loading ? (
             <div className="flex justify-center py-10 text-muted-foreground">
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…
+              <Spinner className="mr-2 h-5 w-5" /> Loading…
             </div>
           ) : loops.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">No loops found.</p>

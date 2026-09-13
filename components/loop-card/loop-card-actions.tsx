@@ -9,7 +9,7 @@ import {
   Bookmark,
   GitBranch,
   GitFork,
-  Loader2,
+  
   Rocket,
   Gift,
   Coins,
@@ -27,6 +27,7 @@ import { SaveToDevice } from "@/components/download/save-to-device"
 import { useAuth } from "@/hooks/use-auth"
 import { useLoginGate } from "@/hooks/use-login-gate"
 import { isCodeLoop } from "@/lib/pro-features"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface LoopCardActionsProps {
   loop: any
@@ -103,7 +104,7 @@ export function LoopCardActions({
               <span className="pointer-events-none absolute inset-0 rounded-full border-2 border-rose-400 animate-ping opacity-60" />
             )}
             {activeInteracting === `${loop.id}-like` ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Spinner className="h-4 w-4" />
             ) : (
               <Heart
                 className={`h-4 w-4 transition-all duration-200 ${
@@ -176,7 +177,7 @@ export function LoopCardActions({
               aria-label="Fork this code"
             >
               {forking ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Spinner className="h-4 w-4" />
               ) : (
                 <GitFork className="h-4 w-4" />
               )}
@@ -285,7 +286,7 @@ export function LoopCardActions({
             aria-label={isSaved ? "Remove bookmark" : "Bookmark this loop"}
           >
             {activeInteracting === `${loop.id}-save` ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Spinner className="h-4 w-4" />
             ) : (
               <Bookmark className={`h-4 w-4 ${isSaved ? "fill-current" : ""}`} />
             )}

@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
 import { formatDistanceToNow } from "date-fns"
-import { Smile, Loader2, Plus, RefreshCw, Trash2, Eye, EyeOff, Search, Upload, X } from "lucide-react"
+import { Smile, Plus, RefreshCw, Trash2, Eye, EyeOff, Search, Upload, X } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface CuratedEmoji {
   id: string
@@ -236,7 +237,7 @@ export function AdminEmojisPanel() {
               onChange={handleFileSelect}
             />
             {uploadingFile ? (
-              <Loader2 className="h-8 w-8 text-purple-400 animate-spin" />
+              <Spinner className="h-8 w-8 text-purple-400" />
             ) : (
               <>
                 <Upload className="h-8 w-8 text-muted-foreground/50 mb-2" />
@@ -300,7 +301,7 @@ export function AdminEmojisPanel() {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <Button type="submit" disabled={saving || !form.shortcode.trim() || !form.url.trim()}>
-                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
                 Add Emoji
               </Button>
               {form.url.trim() && (
@@ -338,7 +339,7 @@ export function AdminEmojisPanel() {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <Spinner className="h-5 w-5" />
             </div>
           ) : filtered.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
@@ -380,7 +381,7 @@ export function AdminEmojisPanel() {
                       disabled={busyId === `${emoji.id}:delete`}
                       onClick={() => void removeEmoji(emoji)}
                     >
-                      {busyId === `${emoji.id}:delete` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                      {busyId === `${emoji.id}:delete` ? <Spinner className="h-3 w-3" /> : <Trash2 className="h-3 w-3" />}
                     </Button>
                   </div>
                   {!emoji.is_active && (

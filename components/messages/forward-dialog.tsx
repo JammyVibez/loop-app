@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { CornerUpRight, Loader2, Search, Send } from "lucide-react"
+import { CornerUpRight, Search, Send } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface ForwardConversation {
   id: string
@@ -115,7 +116,7 @@ export function ForwardDialog({
                     disabled={busyNew}
                   >
                     {busyNew ? (
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      <Spinner className="mr-1.5 h-3.5 w-3.5" />
                     ) : (
                       <Send className="mr-1.5 h-3.5 w-3.5" />
                     )}
@@ -148,7 +149,7 @@ export function ForwardDialog({
                       <p className="truncate text-xs text-muted-foreground">{username}</p>
                     </div>
                     {busy ? (
-                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-sky-500" />
+                      <Spinner className="h-4 w-4 shrink-0 text-sky-500" />
                     ) : (
                       <CornerUpRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                     )}

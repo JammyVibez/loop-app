@@ -16,6 +16,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 interface LiveStream {
   id: string
@@ -136,9 +137,7 @@ export function LiveStreamNotifications() {
                       {stream.streamer.display_name}
                     </p>
                     {stream.streamer.is_verified && (
-                      <Badge variant="secondary" className="text-xs px-1 py-0">
-                        ✓
-                      </Badge>
+                      <VerifiedSeal size={14} title="Verified Creator" />
                     )}
                     <Badge variant="outline" className="text-xs">
                       LIVE

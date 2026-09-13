@@ -23,6 +23,7 @@ import { RichContent } from "@/components/content/rich-content"
 import { MediaEmojiPicker } from "@/components/content/media-emoji-picker"
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp"
 import { createClient } from "@/lib/supabase"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
 import type { ActiveCosmetics } from "@/lib/cosmetics"
 
@@ -83,7 +84,7 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
         setCommentsData(data.comments || [])
       }
     } catch {
-      toast({ title: "Error", description: "Failed to load comments", variant: "destructive" })
+      toast({ title: "Couldn't load comments", description: 'Check your connection and try again.', variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -139,7 +140,7 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
-        toast({ title: "Error", description: data.error || "Failed to add comment", variant: "destructive" })
+        toast({ title: "Couldn't post comment", description: data.error || 'Try again in a moment.', variant: "destructive" })
         return
       }
       // Dedupe by id — the realtime reload will re-fetch the authoritative list.
@@ -164,7 +165,7 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
         body: JSON.stringify({ content: replyContent, parent_comment_id: parentId }),
       })
       if (!response.ok) {
-        toast({ title: "Error", description: "Failed to reply", variant: "destructive" })
+        toast({ title: "Couldn't post reply", description: 'Try again in a moment.', variant: "destructive" })
         return
       }
       setReplyContent("")
@@ -206,7 +207,7 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
     })
     const data = await response.json().catch(() => ({}))
     if (!response.ok) {
-      toast({ title: "Error", description: data.error || "Failed to edit", variant: "destructive" })
+      toast({ title: "Couldn't edit comment", description: data.error || 'Try again.', variant: "destructive" })
       return
     }
     setCommentsData((prev) => prev.map((c) => (c.id === editingId ? { ...c, ...data.comment } : c)))
@@ -234,7 +235,7 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!response.ok) {
-      toast({ title: "Error", description: "Failed to delete comment", variant: "destructive" })
+      toast({ title: "Couldn't delete comment", description: 'Try again.', variant: "destructive" })
       void loadComments()
       return
     }
@@ -268,6 +269,9 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
                 >
                   {comment.author?.display_name}
                 </Link>
+                {comment.author?.is_verified && (
+                  <VerifiedSeal size={13} title="Verified Creator" />
+ )}
                 <Link
                   href={`/profile/${comment.author?.username || ""}`}
                   className="text-muted-foreground text-xs hover:underline"

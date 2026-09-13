@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { MediaEmojiPicker } from "@/components/content/media-emoji-picker"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   Send,
   Mic,
@@ -17,7 +18,7 @@ import {
   CornerUpRight,
   X,
   Zap,
-  Loader2,
+  
 } from "lucide-react"
 
 interface MessageInputProps {
@@ -113,7 +114,7 @@ export function MessageInput({
             onClick={onSaveEdit}
             disabled={savingEdit}
           >
-            {savingEdit ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+            {savingEdit ? <Spinner className="h-3 w-3" /> : "Save"}
           </Button>
         </div>
       )}
@@ -233,7 +234,7 @@ export function MessageInput({
               disabled={sending || (!isEditing && !draft.trim())}
             >
               {sending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Spinner className="h-4 w-4" />
               ) : (
                 <Send className="h-4 w-4" />
               )}

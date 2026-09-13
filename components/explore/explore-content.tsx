@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, TreePine, Zap, TrendingUp, Hash, Loader2, RefreshCw } from "lucide-react"
+import { Clock, TreePine, Zap, TrendingUp, Hash, RefreshCw } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
@@ -19,6 +19,7 @@ import { GlobalEventBanner } from "@/components/events/global-event-banner"
 import { ParticipationDiscovery } from "@/components/explore/participation-discovery"
 import { ExploreSearchAutocomplete } from "@/components/explore/explore-search-autocomplete"
 import { Calendar } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 type ExploreTab = "events" | "recent" | "deepest" | "creative" | "hashtags"
 
@@ -179,7 +180,7 @@ export function ExploreContent() {
     if (loading) {
       return (
         <div className="flex items-center justify-center py-16 text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          <Spinner className="mr-2 h-5 w-5" />
           Loading loops…
         </div>
       )
@@ -287,7 +288,7 @@ export function ExploreContent() {
           </div>
           {loading ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              <Spinner className="mr-2 h-5 w-5" />
               Loading hashtags…
             </div>
           ) : hashtags.length === 0 ? (

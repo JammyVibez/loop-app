@@ -1,13 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2, MonitorUp, Radio, Video } from "lucide-react"
+import { MonitorUp, Radio, Video } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Spinner } from "@/components/ui/skeletons"
 
 const CATEGORIES = ["gaming", "music", "art", "tech", "education", "lifestyle", "entertainment", "general"]
 
@@ -128,7 +129,7 @@ export function CreateStreamForm({ onStreamCreated }: CreateStreamFormProps) {
           onClick={handleCreate}
           className="h-12 w-full rounded-full bg-rose-500 text-base font-bold hover:bg-rose-400"
         >
-          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Radio className="mr-2 h-4 w-4" />}
+          {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Radio className="mr-2 h-4 w-4" />}
           Open Live Studio
         </Button>
       </div>

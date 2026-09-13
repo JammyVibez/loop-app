@@ -4,7 +4,8 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Copy, Check, Share2, Link, Loader2, Mail } from "lucide-react"
+import { Copy, Check, Share2, Link, Mail } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface InviteModalProps {
   open: boolean
@@ -48,7 +49,7 @@ export function InviteModal({ open, onOpenChange, communityId, communityName }: 
       await navigator.clipboard.writeText(inviteLink)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch {}
+    } catch { /* intentionally silent */ }
   }
 
   const share = async () => {
@@ -63,7 +64,7 @@ export function InviteModal({ open, onOpenChange, communityId, communityName }: 
       } else {
         copyLink()
       }
-    } catch {}
+    } catch { /* intentionally silent */ }
   }
 
   return (
@@ -82,7 +83,7 @@ export function InviteModal({ open, onOpenChange, communityId, communityName }: 
         <div className="space-y-4">
           {generating ? (
             <div className="flex items-center justify-center py-6">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <Spinner className="h-5 w-5 text-muted-foreground" />
             </div>
           ) : (
             <>

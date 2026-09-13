@@ -7,7 +7,8 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
-import { Store, Save, Loader2 } from "lucide-react"
+import { Store, Save } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 export function ShopControl() {
   const { toast } = useToast()
@@ -110,7 +111,7 @@ export function ShopControl() {
         )}
 
         <Button onClick={handleSave} disabled={saving} className="w-full">
-          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+          {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
           Save Settings
         </Button>
       </CardContent>

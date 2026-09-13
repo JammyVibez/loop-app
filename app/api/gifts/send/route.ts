@@ -343,7 +343,7 @@ export async function POST(request: NextRequest) {
           context,
         },
       })
-    } catch {}
+    } catch { /* intentionally silent */ }
 
     return NextResponse.json({
       success: true,

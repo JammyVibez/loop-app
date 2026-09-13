@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input"
 import { ProxyImg } from "@/components/ui/proxy-img"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2, Plus, Save, Trash2, Power, Check, Star, Shield, Crown, Zap, Search, Award } from "lucide-react"
+import { Plus, Save, Trash2, Power, Check, Star, Shield, Crown, Zap, Search, Award } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface BadgeRow {
   id: string
@@ -312,7 +313,7 @@ export function VerificationBadgesAdminPanel() {
             </div>
             <div className="flex gap-2">
               <Button onClick={handleSave} disabled={saving || !name.trim()} className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:from-violet-500 hover:to-cyan-500">
-                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
                 {editing ? "Update badge" : "Create badge"}
               </Button>
               {editing && (
@@ -328,7 +329,7 @@ export function VerificationBadgesAdminPanel() {
         <div className="space-y-4">
           {loading ? (
             <div className="flex items-center justify-center gap-2 rounded-2xl border border-border/60 bg-card p-10 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading checkmarks…
+              <Spinner className="h-4 w-4" /> Loading checkmarks…
             </div>
           ) : badges.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
@@ -395,7 +396,7 @@ export function VerificationBadgesAdminPanel() {
             <div className="mt-3 space-y-2">
               {searching && (
                 <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
+                  <Spinner className="h-3.5 w-3.5" /> Searching…
                 </p>
               )}
               {users.map((u) => {

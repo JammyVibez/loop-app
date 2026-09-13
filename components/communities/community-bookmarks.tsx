@@ -68,7 +68,7 @@ export function CommunityBookmarks({ communityId }: CommunityBookmarksProps) {
       if (res.ok) {
         setBookmarks((prev) => prev.filter((b) => b.id !== postId))
       }
-    } catch {}
+    } catch { /* intentionally silent */ }
   }
 
   if (loading) {

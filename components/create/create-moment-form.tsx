@@ -1,13 +1,14 @@
 "use client"
 
 import { useCallback, useRef, useState } from "react"
-import { Clock, ImagePlus, Loader2, Send, Trash2, Zap } from "lucide-react"
+import { Clock, ImagePlus, Send, Trash2, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface CreateMomentFormProps {
   onMomentCreated?: () => void
@@ -196,7 +197,7 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
           className="rounded-full bg-gradient-to-r from-amber-500 to-orange-600 px-5 text-white hover:from-amber-400 hover:to-orange-500"
         >
           {creating || uploading ? (
-            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            <Spinner className="mr-1.5 h-4 w-4" />
           ) : (
             <Send className="mr-1.5 h-4 w-4" />
           )}

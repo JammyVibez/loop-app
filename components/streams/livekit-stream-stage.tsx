@@ -2,9 +2,10 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
 import { Room, RoomEvent, Track, type LocalParticipant, type Participant, type TrackPublication } from "livekit-client"
-import { Loader2 } from "lucide-react"
+import { } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { playRemoteAudio, unlockAudio } from "@/lib/audio-unlock"
+import { Spinner } from "@/components/ui/skeletons"
 
 export interface LivekitStreamStageHandle {
   toggleMic: () => void
@@ -244,7 +245,7 @@ export const LivekitStreamStage = forwardRef<LivekitStreamStageHandle, LivekitSt
     if (!joined) {
       return (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <Loader2 className="h-8 w-8 animate-spin text-rose-400" />
+          <Spinner className="h-8 w-8 text-rose-400" />
         </div>
       )
     }

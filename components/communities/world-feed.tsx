@@ -15,11 +15,12 @@ import { CommunityPostCard } from "./post-cards"
 import type { CommunityPost } from "./post-cards"
 import { StickyComposer } from "./sticky-composer"
 import { shareContent, absoluteAppUrl } from "@/lib/share"
+import { Spinner } from "@/components/ui/skeletons"
 import {
   BadgeCheck,
   BarChart3,
   Image as ImageIcon,
-  Loader2,
+  
   Lock,
   Globe2,
   Hourglass,
@@ -153,7 +154,7 @@ export function WorldFeed({
         if (!res.ok) {
           const errText = await res.text().catch(() => "")
           let errMsg = "Failed to load posts"
-          try { errMsg = JSON.parse(errText).error || errMsg } catch {}
+          try { errMsg = JSON.parse(errText).error || errMsg } catch { /* intentionally silent */ }
           throw new Error(errMsg)
         }
         const data = await res.json()
@@ -244,7 +245,7 @@ export function WorldFeed({
             : p,
         ),
       )
-    } catch {}
+    } catch { /* intentionally silent */ }
     setLiking(null)
   }
 
@@ -259,7 +260,7 @@ export function WorldFeed({
       const data = await res.json()
       if (!res.ok) return
       setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, is_saved: data.is_active } : p)))
-    } catch {}
+    } catch { /* intentionally silent */ }
   }
 
   const deletePost = async (postId: number) => {
@@ -268,7 +269,7 @@ export function WorldFeed({
       if (res.ok) {
         setPosts((prev) => prev.filter((p) => p.id !== postId))
       }
-    } catch {}
+    } catch { /* intentionally silent */ }
   }
 
   const editPost = async (postId: number, content: string) => {
@@ -282,7 +283,7 @@ export function WorldFeed({
         const data = await res.json()
         setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, content, ...data.post } : p)))
       }
-    } catch {}
+    } catch { /* intentionally silent */ }
   }
 
   const togglePin = async (postId: number) => {
@@ -296,7 +297,7 @@ export function WorldFeed({
       if (res.ok) {
         setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, is_pinned: !p.is_pinned } : p)))
       }
-    } catch {}
+    } catch { /* intentionally silent */ }
   }
 
   const sharePost = async (postId: number) => {
@@ -417,7 +418,7 @@ export function WorldFeed({
             {hasMore && (
               <div className="text-center pt-2">
                 <Button variant="outline" size="sm" className="rounded-full" onClick={loadMore} disabled={loadingMore.current}>
-                  {loadingMore.current ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+                  {loadingMore.current ? <Spinner className="h-3.5 w-3.5 mr-1.5" /> : null}
                   Load more
                 </Button>
               </div>

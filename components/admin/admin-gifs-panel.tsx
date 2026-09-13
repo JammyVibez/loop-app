@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
 import { formatDistanceToNow } from "date-fns"
-import { Film, Loader2, Plus, RefreshCw, Trash2, Eye, EyeOff, Search, Link2, Upload, X } from "lucide-react"
+import { Film, Plus, RefreshCw, Trash2, Eye, EyeOff, Search, Link2, Upload, X } from "lucide-react"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface CuratedGif {
   id: string
@@ -240,7 +241,7 @@ export function AdminGifsPanel() {
               onChange={handleFileSelect}
             />
             {uploadingFile ? (
-              <Loader2 className="h-8 w-8 text-cyan-400 animate-spin" />
+              <Spinner className="h-8 w-8 text-cyan-400" />
             ) : (
               <>
                 <Upload className="h-8 w-8 text-muted-foreground/50 mb-2" />
@@ -316,7 +317,7 @@ export function AdminGifsPanel() {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <Button type="submit" disabled={saving || !form.title.trim() || !form.url.trim()}>
-                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
                 Add GIF
               </Button>
               {form.url.trim() && (
@@ -354,7 +355,7 @@ export function AdminGifsPanel() {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <Spinner className="h-5 w-5" />
             </div>
           ) : filtered.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
@@ -395,7 +396,7 @@ export function AdminGifsPanel() {
                       disabled={busyId === `${gif.id}:delete`}
                       onClick={() => void removeGif(gif)}
                     >
-                      {busyId === `${gif.id}:delete` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      {busyId === `${gif.id}:delete` ? <Spinner className="h-3.5 w-3.5" /> : <Trash2 className="h-3.5 w-3.5" />}
                     </Button>
                   </div>
                   {!gif.is_active && (

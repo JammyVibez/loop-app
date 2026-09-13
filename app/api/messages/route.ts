@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
         event: "new_message",
         payload: enriched,
       })
-    } catch {}
+    } catch { /* intentionally silent */ }
 
     // Notify other participants (in-app + real Web Push) so a new DM is
     // never silent, matching the same pattern used for mentions/gifts.

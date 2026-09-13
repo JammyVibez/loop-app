@@ -10,7 +10,7 @@ import {
   Eye,
   Gift,
   Heart,
-  Loader2,
+  
   Mic,
   MicOff,
   MonitorUp,
@@ -37,6 +37,7 @@ import { HmsStreamStage, type HmsStreamStageHandle } from "@/components/streams/
 import { LivekitStreamStage } from "@/components/streams/livekit-stream-stage"
 import { cn } from "@/lib/utils"
 import { unlockAudio } from "@/lib/audio-unlock"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface ChatMessage {
   id: string
@@ -132,7 +133,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
           if (chatData.success && Array.isArray(chatData.messages) && chatData.messages.length) {
             setChatMessages(chatData.messages)
           }
-        } catch {}
+        } catch { /* intentionally silent */ }
       } catch (error: any) {
         toast({ title: "Stream unavailable", description: error.message, variant: "destructive" })
       } finally {
@@ -430,7 +431,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
         await navigator.clipboard.writeText(url)
         toast({ title: "Link copied" })
       }
-    } catch {}
+    } catch { /* intentionally silent */ }
   }
 
   const broadcastGift = async (giftName: string, amount?: number) => {
@@ -465,7 +466,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
   if (loading) {
     return (
       <div className="flex h-[100dvh] items-center justify-center bg-black text-white">
-        <Loader2 className="mr-2 h-6 w-6 animate-spin text-rose-500" />
+        <Spinner className="mr-2 h-6 w-6 text-rose-500" />
         Loading live room…
       </div>
     )
@@ -553,14 +554,14 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
               onClick={handleGoLive}
               className="h-12 rounded-full bg-rose-500 px-8 text-base font-bold hover:bg-rose-400"
             >
-              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Radio className="mr-2 h-4 w-4" />}
+              {busy ? <Spinner className="mr-2 h-4 w-4" /> : <Radio className="mr-2 h-4 w-4" />}
               Go LIVE
             </Button>
           </div>
         )}
         {connectingMedia && isLive && !isOwner && !hasRemote && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            <Loader2 className="h-8 w-8 animate-spin text-rose-400" />
+            <Spinner className="h-8 w-8 text-rose-400" />
           </div>
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/70" />

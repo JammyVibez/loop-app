@@ -9,7 +9,7 @@ import {
   Volume2,
   VolumeX,
   Plus,
-  Loader2,
+  
   Music2,
   Bookmark,
   GitBranch,
@@ -18,7 +18,6 @@ import {
   Pencil,
   Trash2,
   Clock3,
-  BadgeCheck,
   Send,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -48,6 +47,8 @@ import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { parseJsonResponse } from "@/lib/parse-json-response"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { Spinner } from "@/components/ui/skeletons"
 
 function timeAgo(iso?: string) {
   if (!iso) return ""
@@ -174,7 +175,7 @@ function CommentItem({
                 onClick={() => onDelete(comment)}
                 disabled={deleting}
               >
-                {deleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />} Delete
+                {deleting ? <Spinner className="h-3 w-3" /> : <Trash2 className="h-3 w-3" />} Delete
               </button>
             </>
           )}
@@ -936,7 +937,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
   if (loading) {
     return (
       <div className="flex h-[100dvh] items-center justify-center bg-black text-white">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Spinner className="h-8 w-8" />
       </div>
     )
   }
@@ -948,7 +949,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
         <h2 className="text-2xl font-semibold">No reels yet</h2>
         <p className="max-w-sm text-sm text-white/70">Be the first to publish a vertical clip for the feed.</p>
         {user && (
-          <Button className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500" onClick={() => setCreateOpen(true)}>
+          <Button className="rounded-full bg-gradient-to-r from-fuchsia-500 to-orange-500" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> Create Tree
           </Button>
         )}
@@ -1026,7 +1027,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
         {user && (
           <Button
             size="icon"
-            className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500"
+            className="rounded-full bg-gradient-to-r from-fuchsia-500 to-orange-500"
             onClick={() => setCreateOpen(true)}
           >
             <Plus className="h-5 w-5" />
@@ -1093,7 +1094,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                     <AvatarFallback>{(reel.author?.display_name || "U").charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-semibold inline-flex items-center gap-1">@{reel.author?.username || "creator"}{reel.author?.is_verified && <BadgeCheck className="h-3.5 w-3.5 text-blue-400 fill-blue-400/20" />}</p>
+                    <p className="font-semibold inline-flex items-center gap-1">@{reel.author?.username || "creator"}{reel.author?.is_verified && <VerifiedSeal size={14} title="Verified Creator" />}</p>
                     <p className="text-xs text-white/70">{reel.author?.display_name}</p>
                   </div>
                 </Link>
@@ -1423,11 +1424,11 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
               <option value="warm">Warm</option>
             </select>
             <Button
-              className="w-full rounded-full bg-gradient-to-r from-violet-600 to-cyan-500"
+              className="w-full rounded-full bg-gradient-to-r from-fuchsia-500 to-orange-500"
               disabled={savingEdit || !editTitle.trim()}
               onClick={saveEdit}
             >
-              {savingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save changes"}
+              {savingEdit ? <Spinner className="h-4 w-4" /> : "Save changes"}
             </Button>
           </div>
         </DialogContent>
@@ -1461,7 +1462,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
               onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
             />
             <Button className="w-full rounded-full" disabled={creating} onClick={createReel}>
-              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publish Tree"}
+              {creating ? <Spinner className="h-4 w-4" /> : "Publish Tree"}
             </Button>
           </div>
         </DialogContent>
@@ -1481,7 +1482,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
               onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
             />
             <Button className="w-full rounded-full" disabled={dueting} onClick={createDuet}>
-              {dueting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publish Duet"}
+              {dueting ? <Spinner className="h-4 w-4" /> : "Publish Duet"}
             </Button>
           </div>
         </DialogContent>
@@ -1539,7 +1540,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
               disabled={dueting || !uploadFile}
               onClick={createDuet}
             >
-              {dueting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publish Stitch"}
+              {dueting ? <Spinner className="h-4 w-4" /> : "Publish Stitch"}
             </Button>
           </div>
         </DialogContent>

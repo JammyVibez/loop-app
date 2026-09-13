@@ -4,6 +4,8 @@
 -- The fix-duel-schema.sql only corrected loop_duel_entries — this fixes loop_duel_votes.
 
 DO $$
+DECLARE
+    r RECORD;
 BEGIN
     -- Only alter if duel_id is still UUID
     IF EXISTS (SELECT 1 FROM information_schema.columns

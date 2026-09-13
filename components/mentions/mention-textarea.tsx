@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { cn } from "@/lib/utils"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 type UserHit = {
   id: string
@@ -178,7 +179,10 @@ export function MentionTextarea({
                       <AvatarFallback>{(user.display_name || user.username || "?").charAt(0)}</AvatarFallback>
                     </Avatar>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{user.display_name || user.username}</span>
+                      <span className="flex items-center gap-1">
+                        <span className="block truncate font-medium">{user.display_name || user.username}</span>
+                        {user.is_verified && <VerifiedSeal size={12} title="Verified Creator" />}
+                      </span>
                       <span className="block truncate text-xs text-muted-foreground">@{user.username}</span>
                     </span>
                   </button>

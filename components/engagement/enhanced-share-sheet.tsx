@@ -24,9 +24,10 @@ import {
   Share2,
   Mail,
   Send,
-  Loader2,
+  
 } from "lucide-react"
 import { shareContent, absoluteAppUrl } from "@/lib/share"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface ShareSheetProps {
   open: boolean
@@ -215,7 +216,7 @@ export function EnhancedShareSheet({
               className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-muted/50 transition-colors"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 text-white">
-                {sharing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Share2 className="h-5 w-5" />}
+                {sharing ? <Spinner className="h-5 w-5" /> : <Share2 className="h-5 w-5" />}
               </div>
               <span className="text-[11px] text-muted-foreground">Share</span>
             </button>

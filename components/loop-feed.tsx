@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, RefreshCw, ArrowUp, Plus, Zap } from "lucide-react"
+import { RefreshCw, ArrowUp, Plus, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { LoopCard } from "@/components/loop-card"
@@ -19,6 +19,7 @@ import { MomentCard, type MomentCardMoment } from "@/components/engagement/momen
 import { cn } from "@/lib/utils"
 import { useFeedPreload } from "@/hooks/use-media-preload"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
+import { Spinner } from "@/components/ui/skeletons"
 
 /** Max candidates the database ML recommendation engine can score per request. */
 const ML_FETCH_LIMIT = 50
@@ -284,8 +285,8 @@ export function LoopFeed({
         console.error("Error fetching loops:", err)
         setError(err?.message || "Failed to load loops")
         toast({
-          title: "Error",
-          description: err?.message || "Failed to load loops",
+          title: "Couldn't load feed",
+          description: err?.message?.includes('fetch') ? "Check your connection and try again." : (err?.message || "Pull down to retry."),
           variant: "destructive",
         })
       } finally {
@@ -648,8 +649,8 @@ export function LoopFeed({
       if (!response.ok || data.success === false) {
         if (snapshot) setLoops(snapshot)
         toast({
-          title: "Error",
-          description: data.error || "Failed to update interaction",
+          title: "Couldn't react",
+          description: data.error || "Your reaction didn't go through. Try again.",
           variant: "destructive",
         })
         return
@@ -679,8 +680,8 @@ export function LoopFeed({
       console.error("Error updating interaction:", err)
       if (snapshot) setLoops(snapshot)
       toast({
-        title: "Error",
-        description: "Failed to update interaction",
+        title: "Couldn't react",
+        description: "Your reaction didn't go through. Try again.",
         variant: "destructive",
       })
     } finally {
@@ -867,7 +868,7 @@ export function LoopFeed({
           >
             {loadingMore ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Spinner className="mr-2 h-4 w-4" />
                 Loading more…
               </>
             ) : (

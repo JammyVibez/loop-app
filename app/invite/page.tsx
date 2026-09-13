@@ -10,10 +10,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { Copy, Mail, Share2, Users, Zap, GitBranch, Loader2, TrendingUp } from "lucide-react"
+import { Copy, Mail, Share2, Users, Zap, GitBranch, TrendingUp } from "lucide-react"
 import { Header } from "@/components/header"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
+import { Spinner } from "@/components/ui/skeletons"
 
 type ReferredUser = {
   id: string
@@ -134,7 +135,7 @@ export default function InviteFriendsPage() {
           <CardContent className="space-y-5">
             {statsLoading ? (
               <div className="flex items-center justify-center py-8 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Spinner className="h-5 w-5" />
               </div>
             ) : (
               <>

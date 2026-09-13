@@ -8,7 +8,7 @@ import {
   BarChart3,
   Clock,
   Crown,
-  Loader2,
+  
   RefreshCw,
   Search,
   Shield,
@@ -58,6 +58,7 @@ import { AdminAccountManagement } from "@/components/admin/admin-account-managem
 import { AdminTeamPermissions } from "@/components/admin/admin-team-permissions"
 import { CoLoopSessionsPanel } from "@/components/admin/co-loop-sessions-panel"
 import { AdminAnalyticsTab } from "@/components/admin/admin-analytics-tab"
+import { Spinner } from "@/components/ui/skeletons"
 import { ThemePresetManager } from "@/components/admin/theme-preset-manager"
 import { AdminFramesTab } from "@/components/admin/admin-frames-tab"
 import { AdminRevenueTab } from "@/components/admin/admin-revenue-tab"
@@ -350,7 +351,7 @@ export function AdminDashboard() {
             <CardContent className="space-y-3">
               {loading ? (
                 <div className="flex items-center justify-center py-12 text-muted-foreground">
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading users…
+                  <Spinner className="mr-2 h-5 w-5" /> Loading users…
                 </div>
               ) : users.length === 0 ? (
                 <p className="py-10 text-center text-sm text-muted-foreground">No users found.</p>

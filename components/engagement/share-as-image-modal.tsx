@@ -4,9 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Download, Share2, Heart, MessageCircle, GitBranch, Zap } from "lucide-react"
+import { Download, Share2, Heart, MessageCircle, GitBranch, Zap } from "lucide-react"
 import { useTheme } from "next-themes"
 import { getDiceBearUrl } from "@/lib/dicebear"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface ShareAsImageModalProps {
   open: boolean
@@ -447,14 +448,14 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
           <CardPreview post={post} isDark={isDark} />
           {!rendered && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-background/70 backdrop-blur-[1px]">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <Spinner className="h-5 w-5 text-muted-foreground" />
               <p className="text-xs text-muted-foreground">Preparing image...</p>
             </div>
           )}
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Button variant="outline" onClick={() => void download()} disabled={exporting} className="border-border bg-background text-foreground hover:bg-muted">
-            {exporting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />} Download
+            {exporting ? <Spinner className="mr-1.5 h-4 w-4" /> : <Download className="mr-1.5 h-4 w-4" />} Download
           </Button>
           <Button onClick={() => void share()} className="bg-indigo-600 text-white hover:bg-indigo-700">
             <Share2 className="mr-1.5 h-4 w-4" /> Share

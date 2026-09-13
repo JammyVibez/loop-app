@@ -7,7 +7,9 @@ import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { Code, Coins, GitFork, Loader2, Star, Trophy, Wrench } from "lucide-react"
+import { Code, Coins, GitFork, Star, Trophy, Wrench } from "lucide-react"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { Spinner } from "@/components/ui/skeletons"
 
 interface LeaderboardRow {
   id: string
@@ -66,7 +68,7 @@ export function DeveloperLeaderboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Ranking top developers…
+        <Spinner className="h-4 w-4" /> Ranking top developers…
       </div>
     )
   }
@@ -179,9 +181,7 @@ export function DeveloperLeaderboard() {
                 <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
                   {row.display_name}
                   {row.is_verified && (
-                    <Badge variant="secondary" className="h-4 rounded-full px-1.5 text-[9px]">
-                      ✓
-                    </Badge>
+                    <VerifiedSeal size={14} title="Verified Creator" />
                   )}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
