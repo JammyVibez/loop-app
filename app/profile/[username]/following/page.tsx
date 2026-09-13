@@ -154,7 +154,7 @@ export default function FollowingPage() {
                 <div className="min-w-0 flex-1">
                   <Link href={`/profile/${person.username}`} className="flex items-center gap-1 font-semibold hover:underline">
                     <span className="truncate">{person.display_name || person.username}</span>
-                    {person.is_verified && <VerifiedSeal size={16} title="Verified Creator" />}
+                    {person.is_verified && <VerifiedSeal size={18} title="Verified Creator" />}
                   </Link>
                   <p className="truncate text-sm text-muted-foreground">@{person.username}</p>
                 </div>

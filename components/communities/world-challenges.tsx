@@ -259,7 +259,7 @@ export function WorldChallenges({
               {c.creator?.username && (
                 <p className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
                   <User className="h-3 w-3" /> by {c.creator.display_name || c.creator.username}
-                  {c.creator.is_verified && <VerifiedSeal size={12} title="Verified Creator" />}
+                  {c.creator.is_verified && <VerifiedSeal size={14} title="Verified Creator" />}
                 </p>
               )}
               <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">

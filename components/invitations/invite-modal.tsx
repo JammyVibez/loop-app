@@ -223,7 +223,7 @@ export function InviteModal({ isOpen, onClose, type, resourceId, resourceName }:
                       </div>
                     </div>
                     {result.is_verified && (
-                      <VerifiedSeal size={14} title="Verified Creator" />
+                      <VerifiedSeal size={16} title="Verified Creator" />
                     )}
                   </div>
                 ))}

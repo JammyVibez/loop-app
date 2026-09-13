@@ -181,7 +181,7 @@ export function CommentThread({
               <Link href={`/profile/${comment.author?.username}`} className="text-xs font-semibold hover:underline">
                 {comment.author?.display_name || comment.author?.username}
               </Link>
-              {comment.author?.is_verified && <VerifiedSeal size={12} title="Verified Creator" />}
+              {comment.author?.is_verified && <VerifiedSeal size={14} title="Verified Creator" />}
               <span className="text-[10px] text-muted-foreground">{timeAgo(comment.created_at)}</span>
             </div>
             <p className="text-sm mt-0.5 whitespace-pre-wrap">{comment.content}</p>

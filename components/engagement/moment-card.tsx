@@ -210,7 +210,7 @@ export function MomentCard({
           <p className="flex items-center gap-1 truncate text-sm font-semibold leading-tight">
             <span className="truncate">{displayName}</span>
             {author?.is_verified && (
-              <VerifiedSeal size={16} title="Verified Creator" />
+              <VerifiedSeal size={18} title="Verified Creator" />
             )}
           </p>
           <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -422,7 +422,7 @@ function CommentRow({
         <p className="flex items-center gap-1 text-xs font-semibold leading-tight">
           <span className="truncate">{name}</span>
           {comment.author?.is_verified && (
-            <VerifiedSeal size={12} title="Verified Creator" />
+            <VerifiedSeal size={14} title="Verified Creator" />
           )}
         </p>
         <p className="mt-0.5 whitespace-pre-wrap break-words text-[13px] leading-snug text-foreground">{comment.content}</p>

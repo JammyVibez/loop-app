@@ -634,7 +634,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                 {loop.parentLoop.author ? (
                   <span className="inline-flex items-center gap-1 font-bold text-foreground">
                     @{loop.parentLoop.author}
-                    {loop.parentLoop.author_verified && <VerifiedSeal size={14} title="Verified Creator" className="-mt-px" />}
+                    {loop.parentLoop.author_verified && <VerifiedSeal size={16} title="Verified Creator" className="-mt-px" />}
                   </span>
                 ) : (
                   <span className="font-bold text-foreground">a branched post</span>
@@ -703,7 +703,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                     {loop.author.displayName}
                   </Link>
                   {loop.author.verified && (
-                    <VerifiedSeal size={18} title="Verified Creator" />
+                    <VerifiedSeal size={20} title="Verified Creator" />
                   )}
                   {loop.author.premium && (
                     <span className="inline-flex items-center rounded-full bg-gradient-to-r from-amber-300 to-yellow-500 px-1.5 py-px text-[9px] font-extrabold tracking-wider text-black">

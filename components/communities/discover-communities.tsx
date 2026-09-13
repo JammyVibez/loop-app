@@ -258,7 +258,7 @@ export function DiscoverCommunities() {
                         </Avatar>
                         {c.is_verified && (
                           <span className="absolute -bottom-1 -right-1 rounded-full bg-background p-0.5">
-                            <VerifiedSeal size={14} variant="emerald" title="Official Community" />
+                            <VerifiedSeal size={16} variant="emerald" title="Official Community" />
                           </span>
                         )}
                       </div>

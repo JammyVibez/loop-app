@@ -99,7 +99,7 @@ export function LoopCardHeader({
             {parentAuthorName ? (
               <span className="inline-flex items-center gap-1 align-baseline font-semibold text-foreground">
                 @{parentAuthorName}
-                {parentAuthor?.is_verified && <VerifiedSeal size={12} title="Verified Creator" />}
+                {parentAuthor?.is_verified && <VerifiedSeal size={14} title="Verified Creator" />}
               </span>
             ) : (
               <span className="font-semibold text-foreground">the original post</span>

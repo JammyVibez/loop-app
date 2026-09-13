@@ -163,7 +163,7 @@ export function SimilarCreators({ currentUserId, circles = [] }: SimilarCreators
                 >
                   {creator.display_name}
                   {creator.is_verified && (
-                    <VerifiedSeal size={14} title="Verified Creator" />
+                    <VerifiedSeal size={16} title="Verified Creator" />
                   )}
                 </Link>
                 <p className="text-xs text-muted-foreground truncate">

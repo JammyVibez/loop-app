@@ -452,7 +452,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
                 <p className="flex items-center gap-1 truncate text-xs font-semibold text-foreground">
                   <span className="truncate">{authorName}</span>
                   {author?.is_verified && (
-                    <VerifiedSeal size={14} title="Verified Creator" />
+                    <VerifiedSeal size={16} title="Verified Creator" />
                   )}
                 </p>
                 {authorHandle && <p className="truncate text-[10px] text-muted-foreground">{authorHandle}</p>}

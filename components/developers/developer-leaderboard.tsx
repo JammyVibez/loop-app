@@ -181,7 +181,7 @@ export function DeveloperLeaderboard() {
                 <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
                   {row.display_name}
                   {row.is_verified && (
-                    <VerifiedSeal size={14} title="Verified Creator" />
+                    <VerifiedSeal size={16} title="Verified Creator" />
                   )}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">

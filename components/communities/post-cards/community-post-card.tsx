@@ -14,6 +14,7 @@ import { PollCard } from "./poll-card"
 import { CommentThread } from "./comment-thread"
 import { ReportModal } from "./report-modal"
 import { PostReactions } from "./post-reactions"
+import { GiftModal } from "@/components/gifting/gift-modal"
 import {
   Clock,
   Eye,
@@ -29,6 +30,7 @@ import {
   Trophy,
   Swords,
   BookOpen,
+  Gift,
   Flame,
   FileText,
   ChevronLeft,
@@ -94,6 +96,7 @@ export function CommunityPostCard({
   const [extraComments, setExtraComments] = useState(0)
   const [viewerOpen, setViewerOpen] = useState(false)
   const [viewerIndex, setViewerIndex] = useState(0)
+  const [giftOpen, setGiftOpen] = useState(false)
   const touchStartX = useRef<number | null>(null)
   const viewerTouchStartX = useRef<number | null>(null)
 
@@ -221,16 +224,27 @@ export function CommunityPostCard({
               <Link href={`/profile/${author?.username}`} className="text-sm font-semibold truncate hover:underline">
                 {author?.display_name || author?.username}
               </Link>
-              {author?.is_verified && <VerifiedSeal size={14} title="Verified Creator" />}
+              {author?.is_verified && <VerifiedSeal size={16} title="Verified Creator" />}
               {author?.is_premium && (
                 <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
                   PRO
                 </span>
               )}
               <span className="text-[11px] text-muted-foreground">@{author?.username}</span>
+              {(post as any).gift_count > 0 && (
+                <span className="flex items-center gap-0.5 text-[10px] font-bold text-fuchsia-500 bg-fuchsia-500/10 px-1.5 py-0.5 rounded" title={`${(post as any).gift_count} gifts received`}>
+                  <Gift className="h-2.5 w-2.5" /> {(post as any).gift_count}
+                </span>
+              )}
             </div>              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <Clock className="h-3 w-3" />
-              {timeAgo(post.created_at)}
+              <Link
+                href={`/communities/${communityId}/posts/${post.id}`}
+                className="transition hover:text-foreground hover:underline"
+                title="Open post"
+              >
+                {timeAgo(post.created_at)}
+              </Link>
               <span className={cn("flex items-center gap-1", typeConfig.color)}>
                 <TypeIcon className="h-3 w-3" />
                 {typeConfig.label}

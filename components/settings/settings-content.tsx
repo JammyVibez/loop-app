@@ -507,7 +507,7 @@ export function SettingsContent() {
                     <span>Verification Status:</span>
                     {user?.is_verified ? (
                       <span className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-600 dark:text-sky-400">
-                        <VerifiedSeal size={15} variant={user.verification_level === "root" ? "emerald" : "verified"} title={user.verification_level === "root" ? "Root Verified" : "Influencer Verified"} />
+                        <VerifiedSeal size={16} variant={user.verification_level === "root" ? "emerald" : "verified"} title={user.verification_level === "root" ? "Root Verified" : "Influencer Verified"} />
                         {user.verification_level === "root" ? "Root Verified" : "Influencer Verified"}
                       </span>
                     ) : (

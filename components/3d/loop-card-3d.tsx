@@ -231,7 +231,7 @@ export function LoopCard3D({ loop, onLike, onBookmark, className = '', variant =
                   </span>
                 </Link>
                 {user.is_verified && (
-                  <VerifiedSeal size={16} title="Verified Creator" />
+                  <VerifiedSeal size={18} title="Verified Creator" />
                 )}
               </div>
               <div className="flex items-center space-x-2 text-sm opacity-70">

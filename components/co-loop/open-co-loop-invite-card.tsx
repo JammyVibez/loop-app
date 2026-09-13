@@ -108,7 +108,7 @@ function CommentThread({ comment, user, onReply, depth = 0 }: { comment: Comment
               {comment.author?.display_name || comment.author?.username}
             </span>
             {comment.author?.is_verified && (
-              <VerifiedSeal size={12} title="Verified Creator" />
+              <VerifiedSeal size={14} title="Verified Creator" />
             )}
             <span className="text-[10px] text-muted-foreground">
               {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
@@ -608,7 +608,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
                   {author.display_name || author.username}
                 </span>
                 {author.is_verified && (
-                  <VerifiedSeal size={14} title="Verified Creator" />
+                  <VerifiedSeal size={16} title="Verified Creator" />
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground truncate">

@@ -1470,7 +1470,7 @@ export function MessagesWorkspace() {
                     <p className="flex min-w-0 items-center gap-1 truncate text-[15px] font-medium text-foreground">
                       <span className="truncate">{displayName}</span>
                       {!conversation.is_group && conversation.other_user?.is_verified && (
-                        <VerifiedSeal size={13} title="Verified Creator" />
+                        <VerifiedSeal size={15} title="Verified Creator" />
                       )}
                     </p>
                     <span className="shrink-0 text-[11px] text-muted-foreground">
@@ -1530,7 +1530,7 @@ export function MessagesWorkspace() {
           <p className="flex items-center gap-1 truncate text-sm font-semibold text-foreground">
             {selected.other_user?.display_name || selected.name || "Conversation"}
             {!selected.is_group && selected.other_user?.is_verified && (
-              <VerifiedSeal size={13} title="Verified Creator" />
+              <VerifiedSeal size={15} title="Verified Creator" />
             )}
           </p>
           <p className="truncate text-[11px]">

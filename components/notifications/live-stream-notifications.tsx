@@ -137,7 +137,7 @@ export function LiveStreamNotifications() {
                       {stream.streamer.display_name}
                     </p>
                     {stream.streamer.is_verified && (
-                      <VerifiedSeal size={14} title="Verified Creator" />
+                      <VerifiedSeal size={16} title="Verified Creator" />
                     )}
                     <Badge variant="outline" className="text-xs">
                       LIVE

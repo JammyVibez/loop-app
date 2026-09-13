@@ -301,7 +301,7 @@ export function ParticipationDiscovery() {
                       <p className="truncate text-xs font-bold text-foreground">
                         {creator.display_name || creator.username}
                         {creator.is_verified && (
-                          <VerifiedSeal size={12} title="Verified Creator" className="ml-1" />
+                          <VerifiedSeal size={14} title="Verified Creator" className="ml-1" />
                         )}
                       </p>
                       <p className="truncate text-[10px] text-muted-foreground">

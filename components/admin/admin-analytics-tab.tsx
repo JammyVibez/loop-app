@@ -293,7 +293,7 @@ export function AdminAnalyticsTab() {
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex gap-1">
-                            {u.is_verified && <VerifiedSeal size={13} title="Verified Creator" />}
+                            {u.is_verified && <VerifiedSeal size={15} title="Verified Creator" />}
                             {u.is_premium && <Badge className="bg-amber-500 text-[10px] text-slate-900">Pro</Badge>}
                           </div>
                         </td>

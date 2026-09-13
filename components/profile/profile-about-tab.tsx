@@ -216,7 +216,7 @@ export function ProfileAboutTab({ profile, isOwnProfile, onEdit }: ProfileAboutP
         <div className="flex flex-wrap items-center gap-2">
           {profile.is_verified && (
             <Badge variant="outline" className="gap-1.5 border-sky-500/40 bg-gradient-to-r from-sky-500/10 to-indigo-500/10 text-xs font-semibold text-sky-500">
-              <VerifiedSeal size={14} title="Verified Creator" /> Verified Creator
+              <VerifiedSeal size={16} title="Verified Creator" /> Verified Creator
             </Badge>
           )}
           {profile.is_premium && (

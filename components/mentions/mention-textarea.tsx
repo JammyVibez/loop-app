@@ -181,7 +181,7 @@ export function MentionTextarea({
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1">
                         <span className="block truncate font-medium">{user.display_name || user.username}</span>
-                        {user.is_verified && <VerifiedSeal size={12} title="Verified Creator" />}
+                        {user.is_verified && <VerifiedSeal size={14} title="Verified Creator" />}
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">@{user.username}</span>
                     </span>

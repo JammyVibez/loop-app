@@ -238,7 +238,7 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
                   <div className="flex items-center gap-2">
                     <span className="font-medium truncate">{account.display_name || account.username}</span>
                     {account.is_verified && (
-                      <VerifiedSeal size={14} title="Verified Creator" />
+                      <VerifiedSeal size={16} title="Verified Creator" />
                     )}
                     {account.is_primary && (
                       <Badge variant="default" className="text-xs">Active</Badge>

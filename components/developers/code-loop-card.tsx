@@ -284,7 +284,7 @@ export function CodeLoopCard({ project, onUpdated, onDeleted }: CodeLoopCardProp
     if (!project.author.is_verified) return null
     return (
       <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400">
-        <VerifiedSeal size={13} variant={project.author.verification_level === "root" ? "emerald" : "verified"} title={project.author.verification_level === "root" ? "Root Verified" : "Verified"} />
+        <VerifiedSeal size={15} variant={project.author.verification_level === "root" ? "emerald" : "verified"} title={project.author.verification_level === "root" ? "Root Verified" : "Verified"} />
         {project.author.verification_level === "root" ? "Root" : "Verified"}
       </span>
     )

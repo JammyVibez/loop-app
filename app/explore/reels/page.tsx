@@ -176,8 +176,14 @@ export default function ExploreReelsPage() {
                 const likes = formatCompact(reel.like_count)
                 // Variable visual height: real thumbnails keep their own aspect
                 // ratio; clips without a poster get a deterministic varied
-                // height so the masonry rhythm holds.
-                const fallbackHeight = 200 + ((reel.id.charCodeAt(0) + reel.id.length * 7) % 140)
+                // height so the masonry rhythm holds. IDs may be numeric
+                // (Snowflake) or UUIDs — coerce to string before hashing.
+                const idKey = String(reel.id ?? "")
+                let idHash = 0
+                for (let i = 0; i < idKey.length; i++) {
+                  idHash = (idHash * 31 + idKey.charCodeAt(i)) % 100000
+                }
+                const fallbackHeight = 200 + (idHash % 140)
                 return (
                   <Link
                     key={reel.id}
@@ -240,7 +246,7 @@ export default function ExploreReelsPage() {
                           {(reel.author.display_name || reel.author.username || "?").charAt(0)}
                         </span>
                         <span className="truncate">@{reel.author.username}</span>
-                        {reel.author.is_verified && <VerifiedSeal size={10} title="Verified Creator" />}
+                        {reel.author.is_verified && <VerifiedSeal size={14} title="Verified Creator" />}
                       </span>
                     )}
                   </Link>

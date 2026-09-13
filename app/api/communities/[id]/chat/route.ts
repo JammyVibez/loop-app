@@ -69,6 +69,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         content,
         media_url,
         media_type,
+        message_type,
         room_id,
         author_id,
         reply_to_id,
@@ -90,7 +91,24 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, messages: messages || [] })
+    // Hydrate reply previews so replies show the quoted snippet instead of
+    // a generic "Replying to a message...".
+    const replyIds = [...new Set((messages || []).map((m: any) => m.reply_to_id).filter(Boolean))] as string[]
+    const replyMap = new Map<string, any>()
+    if (replyIds.length) {
+      const { data: parents } = await supabase
+        .from("circle_room_messages")
+        .select("id, content, media_url, message_type, author:profiles!circle_room_messages_author_id_fkey(display_name)")
+        .in("id", replyIds)
+      for (const p of parents || []) replyMap.set(p.id, p)
+    }
+
+    const hydrated = (messages || []).map((m: any) => ({
+      ...m,
+      reply_to: m.reply_to_id ? replyMap.get(m.reply_to_id) || null : null,
+    }))
+
+    return NextResponse.json({ success: true, messages: hydrated })
   } catch (error: any) {
     console.error("Community chat GET error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -138,6 +156,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const replyToId = body.reply_to_id || null
     const mediaUrl = body.media_url || null
     const mediaType = body.media_type || null
+    // Message type drives UI rendering: text (default), image, gif, file.
+    const messageType = ["text", "image", "gif", "file"].includes(body.message_type)
+      ? body.message_type
+      : mediaType === "image"
+        ? "image"
+        : mediaType === "video"
+          ? "file"
+          : "text"
 
     if (!content && !mediaUrl) {
       return NextResponse.json({ error: "Message content is required" }, { status: 400 })
@@ -194,6 +220,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         content: content || null,
         media_url: mediaUrl,
         media_type: mediaType,
+        message_type: messageType,
         reply_to_id: replyToId,
       })
       .select(`
@@ -201,6 +228,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         content,
         media_url,
         media_type,
+        message_type,
         room_id,
         author_id,
         reply_to_id,
@@ -223,6 +251,88 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ success: true, message })
   } catch (error: any) {
     console.error("Community chat POST error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+/**
+ * PATCH — toggle a reaction on a chat message.
+ * Body: { message_id, emoji }
+ * Reactions are stored as { "<emoji>": ["<user_id>", ...] } in the JSONB
+ * `reactions` column, so no extra table is needed for this volume.
+ */
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id: communityId } = await params
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const supabase = createServerClient()
+
+    const { data: membership } = await supabase
+      .from("circle_members")
+      .select("id")
+      .eq("circle_id", communityId)
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .maybeSingle()
+
+    if (!membership) {
+      return NextResponse.json({ error: "You must be a member to react" }, { status: 403 })
+    }
+
+    const { message_id: messageId, emoji } = await request.json()
+    if (!messageId || !emoji || typeof emoji !== "string" || emoji.length > 8) {
+      return NextResponse.json({ error: "message_id and emoji are required" }, { status: 400 })
+    }
+
+    // Load the message's current reactions (also verifies the message belongs
+    // to a room in this community).
+    const { data: rooms } = await supabase
+      .from("circle_rooms")
+      .select("id")
+      .eq("circle_id", communityId)
+    const roomIds = (rooms || []).map((r: any) => r.id)
+    if (!roomIds.length) return NextResponse.json({ error: "No rooms" }, { status: 404 })
+
+    const { data: message, error: fetchError } = await supabase
+      .from("circle_room_messages")
+      .select("id, reactions")
+      .eq("id", messageId)
+      .in("room_id", roomIds)
+      .maybeSingle()
+
+    if (fetchError || !message) {
+      return NextResponse.json({ error: "Message not found" }, { status: 404 })
+    }
+
+    const current: Record<string, string[]> =
+      message.reactions && typeof message.reactions === "object" && !Array.isArray(message.reactions)
+        ? message.reactions
+        : {}
+    const reactors = Array.isArray(current[emoji]) ? current[emoji] : []
+    const has = reactors.includes(user.id)
+    const next = { ...current }
+    if (has) {
+      const filtered = reactors.filter((uid) => uid !== user.id)
+      if (filtered.length) next[emoji] = filtered
+      else delete next[emoji]
+    } else {
+      next[emoji] = [...reactors, user.id]
+    }
+
+    const { error: updateError } = await supabase
+      .from("circle_room_messages")
+      .update({ reactions: next })
+      .eq("id", messageId)
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, reactions: next, reacted: !has })
+  } catch (error: any) {
+    console.error("Community chat reaction error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

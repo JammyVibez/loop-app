@@ -29,6 +29,8 @@ import {
   Hourglass,
   Lock,
   ExternalLink,
+  Gift,
+  Link2,
 } from "lucide-react"
 
 export interface PostAuthor {
@@ -85,12 +87,15 @@ interface PostActionsProps {
   onComment?: (id: number) => void
   onSave?: (id: number) => void
   onShare?: (id: number) => void
+  onGift?: (post: CommunityPost) => void
   onPin?: (id: number) => void
   onDelete?: (id: number) => void
   onReport?: (id: number) => void
   onEdit?: (id: number, content: string) => void
   liking?: boolean
   commentCount?: number
+  /** Community id — enables the post-detail page link + copy-link action */
+  communityId?: string
 }
 
 export function PostActions({
@@ -102,17 +107,20 @@ export function PostActions({
   onComment,
   onSave,
   onShare,
+  onGift,
   onPin,
   onDelete,
   onReport,
   onEdit,
   liking,
   commentCount,
+  communityId,
 }: PostActionsProps) {
   const isAuthor = currentUserId === post.author?.id
   const canModerate = isModerator || isAuthor
   const [editing, setEditing] = useState(false)
   const [editContent, setEditContent] = useState(post.content)
+  const [copied, setCopied] = useState(false)
 
   if (editing) {
     return (
@@ -203,6 +211,19 @@ export function PostActions({
         </Button>
       )}
 
+      {/* Gift the author — members can send community gifts */}
+      {onGift && !isAuthor && isMember && post.author?.id && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="rounded-full text-xs h-8 px-3 text-fuchsia-500 hover:text-fuchsia-600"
+          onClick={() => onGift(post)}
+          title={`Gift ${post.author?.display_name || "the author"}`}
+        >
+          <Gift className="h-3.5 w-3.5" />
+        </Button>
+      )}
+
       <div className="ml-auto">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -211,6 +232,28 @@ export function PostActions({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
+            {communityId && (
+              <DropdownMenuItem
+                onClick={() => {
+                  const url = `${window.location.origin}/communities/${communityId}/posts/${post.id}`
+                  void navigator.clipboard.writeText(url).then(() => {
+                    setCopied(true)
+                    setTimeout(() => setCopied(false), 1600)
+                  })
+                }}
+              >
+                {copied ? <Check className="h-3.5 w-3.5 mr-2 text-emerald-500" /> : <Link2 className="h-3.5 w-3.5 mr-2" />}
+                {copied ? "Link copied" : "Copy link"}
+              </DropdownMenuItem>
+            )}
+            {communityId && (
+              <DropdownMenuItem asChild>
+                <Link href={`/communities/${communityId}/posts/${post.id}`}>
+                  <ExternalLink className="h-3.5 w-3.5 mr-2" />
+                  View post
+                </Link>
+              </DropdownMenuItem>
+            )}
             {canModerate && onPin && (
               <DropdownMenuItem onClick={() => onPin(post.id)}>
                 <Pin className="h-3.5 w-3.5 mr-2" />

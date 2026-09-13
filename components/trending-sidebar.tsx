@@ -190,7 +190,7 @@ export function TrendingSidebar() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Status</span>
                 <Badge variant="secondary" className="gap-1 bg-gradient-to-r from-sky-500/15 to-indigo-500/15 text-sky-600 dark:text-sky-400">
-                  <VerifiedSeal size={13} title="Verified Creator" /> Verified
+                  <VerifiedSeal size={15} title="Verified Creator" /> Verified
                 </Badge>
               </div>
             )}

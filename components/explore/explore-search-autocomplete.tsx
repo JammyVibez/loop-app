@@ -270,7 +270,7 @@ export function ExploreSearchAutocomplete({ onSearch, className }: ExploreSearch
                         <p className="text-sm font-medium truncate flex items-center gap-1">
                           {item.title}
                           {item.is_verified && (
-                            <VerifiedSeal size={12} title="Verified Creator" />
+                            <VerifiedSeal size={14} title="Verified Creator" />
                           )}
                         </p>
                         {item.subtitle && (

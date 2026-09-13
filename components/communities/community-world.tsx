@@ -358,7 +358,7 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
             </Avatar>
             {c.is_verified && (
               <span className="absolute -bottom-1.5 -right-1.5 rounded-full bg-background p-0.5">
-                <VerifiedSeal size={24} variant="emerald" title="Official Community" />
+                <VerifiedSeal size={26} variant="emerald" title="Official Community" />
               </span>
             )}
           </div>
@@ -369,7 +369,7 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
               {c.is_private && <Lock className="h-4 w-4 text-muted-foreground" />}
               {c.is_verified && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold text-blue-500 border border-blue-500/30">
-                  <VerifiedSeal size={12} variant="emerald" title="Official Community" /> OFFICIAL
+                  <VerifiedSeal size={14} variant="emerald" title="Official Community" /> OFFICIAL
                 </span>
               )}
               {(() => {

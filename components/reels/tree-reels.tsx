@@ -1094,7 +1094,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                     <AvatarFallback>{(reel.author?.display_name || "U").charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-semibold inline-flex items-center gap-1">@{reel.author?.username || "creator"}{reel.author?.is_verified && <VerifiedSeal size={14} title="Verified Creator" />}</p>
+                    <p className="font-semibold inline-flex items-center gap-1">@{reel.author?.username || "creator"}{reel.author?.is_verified && <VerifiedSeal size={16} title="Verified Creator" />}</p>
                     <p className="text-xs text-white/70">{reel.author?.display_name}</p>
                   </div>
                 </Link>

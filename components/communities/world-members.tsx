@@ -252,7 +252,7 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
                     <Link href={`/profile/${m.user?.username}`} className="text-sm font-semibold truncate hover:underline">
                       {m.user?.display_name || m.user?.username}
                     </Link>
-                    {m.user?.is_verified && <VerifiedSeal size={14} title="Verified Creator" />}
+                    {m.user?.is_verified && <VerifiedSeal size={16} title="Verified Creator" />}
                     <Badge className={`text-[9px] gap-1 ${roleBadge.className}`}>
                       <RoleIcon className="h-2.5 w-2.5" /> {roleBadge.label}
                     </Badge>

@@ -270,7 +270,7 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
                   {comment.author?.display_name}
                 </Link>
                 {comment.author?.is_verified && (
-                  <VerifiedSeal size={13} title="Verified Creator" />
+                  <VerifiedSeal size={15} title="Verified Creator" />
  )}
                 <Link
                   href={`/profile/${comment.author?.username || ""}`}
