@@ -31,13 +31,26 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Get interaction counts
+    const viewer = await getUserFromRequest(request)
     const { data: interactions } = await supabase
       .from("circle_post_interactions")
-      .select("interaction_type")
+      .select("interaction_type, user_id")
       .eq("post_id", postId)
 
     const likes = interactions?.filter(i => i.interaction_type === "like").length || 0
     const shares = interactions?.filter(i => i.interaction_type === "share").length || 0
+    const isLiked = Boolean(viewer && interactions?.some(i => i.interaction_type === "like" && i.user_id === viewer.id))
+    const isSaved = Boolean(viewer && interactions?.some(i => i.interaction_type === "save" && i.user_id === viewer.id))
+
+    // Reaction counts (fire/clap/...) grouped by type.
+    const { data: reactionRows } = await supabase
+      .from("circle_post_reactions")
+      .select("reaction_type")
+      .eq("post_id", postId)
+    const reactionCounts: Record<string, number> = {}
+    for (const r of reactionRows || []) {
+      reactionCounts[r.reaction_type] = (reactionCounts[r.reaction_type] || 0) + 1
+    }
 
     // Increment view count (fire-and-forget)
     void Promise.resolve(
@@ -54,6 +67,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         like_count: likes,
         share_count: shares,
         view_count: (post.view_count || 0) + 1,
+        reaction_counts: reactionCounts,
+        is_liked: isLiked,
+        is_saved: isSaved,
       },
     })
   } catch (error) {
@@ -73,7 +89,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const { id: circleId, postId } = await params
-    const { action } = await request.json() // like, share, save, etc.
+    const body = await request.json() // like, share, save, report, react
+    const { action } = body
 
     // Check if post exists
     const { data: post } = await supabase
@@ -191,7 +208,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           message: "Post shared successfully"
         })
 
-      case "save": {
+      case "save":
+      case "unsave": {
         const { data: existingSave } = await supabase
           .from("circle_post_interactions")
           .select("id")
@@ -212,6 +230,97 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           created_at: new Date().toISOString(),
         })
         return NextResponse.json({ success: true, is_active: true, message: "Post saved" })
+      }
+
+      case "react": {
+        // Post reactions (fire/clap/laugh/...) live in circle_post_reactions.
+        // "like" stays on circle_post_interactions so existing counts keep working.
+        const rawType = String(body.reaction_type || "like").toLowerCase()
+        const allowed = ["fire", "clap", "thinking", "laugh", "rocket"]
+        if (rawType === "like") {
+          // Route plain likes through the same logic as action:"like" so the
+          // like toggle and reaction row never disagree.
+          const { data: existingLike } = await supabase
+            .from("circle_post_interactions")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("post_id", postId)
+            .eq("interaction_type", "like")
+            .maybeSingle()
+          if (existingLike) {
+            await supabase.from("circle_post_interactions").delete().eq("id", existingLike.id)
+            return NextResponse.json({ success: true, reacted: false, reaction_type: "like" })
+          }
+          await supabase.from("circle_post_interactions").insert({
+            user_id: user.id,
+            post_id: postId,
+            interaction_type: "like",
+            created_at: new Date().toISOString(),
+          })
+          return NextResponse.json({ success: true, reacted: true, reaction_type: "like" })
+        }
+        if (!allowed.includes(rawType)) {
+          return NextResponse.json({ error: "Invalid reaction type" }, { status: 400 })
+        }
+        const { data: existingReaction } = await supabase
+          .from("circle_post_reactions")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("post_id", postId)
+          .eq("reaction_type", rawType)
+          .maybeSingle()
+        if (existingReaction) {
+          await supabase.from("circle_post_reactions").delete().eq("id", existingReaction.id)
+          return NextResponse.json({ success: true, reacted: false, reaction_type: rawType })
+        }
+        const { error: reactError } = await supabase.from("circle_post_reactions").insert({
+          user_id: user.id,
+          post_id: postId,
+          reaction_type: rawType,
+        })
+        if (reactError) {
+          return NextResponse.json({ error: "Failed to react" }, { status: 500 })
+        }
+        return NextResponse.json({ success: true, reacted: true, reaction_type: rawType })
+      }
+
+      case "report": {
+        // Community reports land in community_reports for circle moderators
+        // and the platform moderation queue.
+        const reason = String(body.reason || "other").slice(0, 120)
+        const details = String(body.details || "").slice(0, 1000)
+        const targetAuthorId = post.author_id || null
+
+        const { error: reportError } = await supabase.from("community_reports").insert({
+          circle_id: circleId,
+          reporter_id: user.id,
+          target_type: "post",
+          target_id: String(postId),
+          target_author_id: targetAuthorId,
+          reason,
+          details: details || null,
+          status: "open",
+        })
+
+        if (reportError) {
+          console.error("Community report insert error:", reportError)
+          return NextResponse.json({ error: "Failed to submit report" }, { status: 500 })
+        }
+
+        // Moderation audit trail (best-effort).
+        try {
+          await supabase.from("community_moderation_logs").insert({
+            circle_id: circleId,
+            moderator_id: null,
+            action: "post_reported",
+            target_user_id: targetAuthorId,
+            target_type: "post",
+            target_id: String(postId),
+            reason,
+          })
+        } catch { /* log best-effort */ }
+
+        return NextResponse.json({ success: true, message: "Report submitted" })
       }
 
       default:

@@ -265,7 +265,12 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
   const fetchReels = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/trees?category=${category}&limit=30`, {
+      // Pass the deep-linked reel to the API so it is guaranteed to be in the
+      // list (Explore grid may tap a reel outside this category's pool) and so
+      // it plays first instead of wherever the shuffled list puts it.
+      const focusId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("focus") : null
+      const focusParam = focusId ? `&focus=${encodeURIComponent(focusId)}` : ""
+      const response = await fetch(`/api/trees?category=${category}&limit=30${focusParam}`, {
         headers: user ? getAuthHeader() : undefined,
         cache: "no-store",
       })
@@ -283,16 +288,27 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
     fetchReels()
   }, [fetchReels])
 
-  // Deep-link focus: /trees?focus=<id>
+  // Deep-link focus: /trees?focus=<id>. IDs can be numeric (Snowflake) while
+  // the URL param is a string, so compare as strings — strict equality used to
+  // miss every numeric ID and leave the player on the first reel.
   useEffect(() => {
     if (!reels.length || typeof window === "undefined") return
     const focusId = new URLSearchParams(window.location.search).get("focus")
     if (!focusId) return
-    const idx = reels.findIndex((r) => r.id === focusId)
+    const idx = reels.findIndex((r) => String(r.id) === focusId)
     if (idx < 0) return
-    const el = containerRef.current?.querySelector(`[data-index="${idx}"]`) as HTMLElement | null
-    el?.scrollIntoView({ behavior: "smooth", block: "start" })
     setActiveIndex(idx)
+    // The slides are exactly one viewport tall, so scrolling by index is
+    // deterministic — scrollIntoView during initial layout can silently fail.
+    requestAnimationFrame(() => {
+      const container = containerRef.current
+      if (!container) return
+      container.scrollTo({ top: idx * container.clientHeight, behavior: "auto" })
+      // One late retry in case images/layout shifted after first paint.
+      setTimeout(() => {
+        container.scrollTo({ top: idx * container.clientHeight, behavior: "auto" })
+      }, 250)
+    })
   }, [reels])
 
   // Realtime public reels channel

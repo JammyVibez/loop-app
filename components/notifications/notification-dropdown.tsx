@@ -14,6 +14,7 @@ import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp";
 import { CoLoopInviteCard } from "@/components/invitations/co-loop-invite-card";
 import { supabase } from "@/lib/supabase";
 import { Spinner } from "@/components/ui/skeletons"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 interface Actor {
   id: string
@@ -394,6 +395,9 @@ export function NotificationDropdown() {
                         <div className="flex-1 min-w-0">
                           <p className="text-[13px] leading-snug text-foreground">
                             <span className="font-semibold">{actorName}</span>
+                            {!isGrouped && actor?.is_verified && (
+                              <VerifiedSeal size={14} className="ml-0.5" title="Verified Creator" />
+                            )}
                             <span className="text-muted-foreground">{actionText}{verb}{targetText}</span>
                           </p>
                           {notification.message && notification.message !== notification.title && !isGrouped && (

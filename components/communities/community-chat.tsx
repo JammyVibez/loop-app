@@ -210,9 +210,15 @@ export function CommunityChat({
       setInput("")
       setReplyTo(null)
     } catch (e: any) {
+      const raw = String(e?.message || "")
+      const friendly = /author_id|profiles|foreign key/i.test(raw)
+        ? "Your session expired — sign in again and retry."
+        : /too large|maximum size/i.test(raw)
+          ? raw
+          : raw || "Try a smaller file or check your connection."
       toast({
         title: "Couldn't send that media",
-        description: e.message || "Try a smaller file or check your connection.",
+        description: friendly,
         variant: "destructive",
       })
     } finally {
@@ -417,7 +423,16 @@ export function CommunityChat({
                           />
                         </a>
                       )}
-                      {msg.media_url && msg.message_type !== "image" && msg.media_type !== "image" && (
+                      {msg.media_url && (msg.message_type === "file" || msg.media_type === "video") && (
+                        <video
+                          src={msg.media_url}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          className="mt-1 max-h-72 w-full max-w-sm rounded-xl bg-black object-contain border border-border/50"
+                        />
+                      )}
+                      {msg.media_url && msg.message_type !== "image" && msg.media_type !== "image" && msg.message_type !== "file" && msg.media_type !== "video" && (
                         <a
                           href={msg.media_url}
                           target="_blank"

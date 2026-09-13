@@ -30,8 +30,8 @@ export interface UserBadgeProps {
   className?: string
 }
 
-/** Map the legacy sm/md/lg sizes to seal pixel sizes. */
-const SEAL_SIZE = { sm: 14, md: 18, lg: 22 } as const
+/** Map the legacy sm/md/lg sizes to seal pixel sizes (bumped for visibility). */
+const SEAL_SIZE = { sm: 17, md: 20, lg: 24 } as const
 
 function BadgeGlyph({ icon, className }: { icon?: string | null; className: string }) {
   switch (icon) {

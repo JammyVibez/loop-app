@@ -41,16 +41,20 @@ export async function GET(
       return NextResponse.json({ error: "Failed to load bookmarks" }, { status: 500 })
     }
 
+    // circle_id is a bigint, so PostgREST returns it as a JS number while the
+    // route param is a string — the old strict `!==` compared number vs string
+    // and filtered out EVERY bookmark, which is why the Saved tab looked empty.
     const bookmarks = (saves || [])
       .map((save: any) => {
         const post = Array.isArray(save.post) ? save.post[0] : save.post
-        if (!post || post.circle_id !== circleId) return null
+        if (!post || String(post.circle_id) !== String(circleId)) return null
+        const author = Array.isArray(post.author) ? post.author[0] : post.author
         return {
           id: post.id,
           content: post.content,
           post_type: post.post_type || "discussion",
           created_at: post.created_at,
-          author: post.author,
+          author,
           like_count: post.like_count || 0,
           comment_count: post.comment_count || 0,
           saved_at: save.created_at,

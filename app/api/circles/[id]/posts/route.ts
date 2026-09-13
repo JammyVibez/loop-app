@@ -79,6 +79,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       const { data: pollRows } = await supabase.from("circle_post_polls").select("*").in("post_id", postIds)
       pollByPostId = new Map((pollRows || []).map((p: any) => [p.post_id, p]))
     }
+    // Reaction counts (fire/clap/...) grouped per post for the reaction chips.
+    let reactionsByPostId = new Map<string, Record<string, number>>()
+    if (postIds.length > 0) {
+      const { data: reactionRows } = await supabase
+        .from("circle_post_reactions")
+        .select("post_id, reaction_type")
+        .in("post_id", postIds)
+      for (const r of reactionRows || []) {
+        const counts = reactionsByPostId.get(r.post_id) || {}
+        counts[r.reaction_type] = (counts[r.reaction_type] || 0) + 1
+        reactionsByPostId.set(r.post_id, counts)
+      }
+    }
 
     if (postIds.length > 0) {
       const { data: interactions } = await supabase
@@ -96,12 +109,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         const isLiked = Boolean(
           currentUser && postInteractions.some((i) => i.interaction_type === "like" && i.user_id === currentUser.id),
         )
+        const isSaved = Boolean(
+          currentUser && postInteractions.some((i) => i.interaction_type === "save" && i.user_id === currentUser.id),
+        )
 
         return {
           ...post,
           like_count: likes,
           share_count: shares,
           is_liked: isLiked,
+          is_saved: isSaved,
+          reaction_counts: reactionsByPostId.get(post.id) || {},
           poll: pollByPostId.get(post.id) || null,
         }
       }) || []

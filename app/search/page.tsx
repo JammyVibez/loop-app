@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/skeletons"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 type SuggestUser = {
   id: string
@@ -187,9 +188,7 @@ export default function SearchLandingPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <p className="truncate font-medium">{u.display_name || u.username}</p>
-                          {u.is_verified && (
-                            <Badge variant="outline" className="h-4 px-1 text-[9px] border-blue-500/30 text-blue-500">✓</Badge>
-                          )}
+                          {u.is_verified && <VerifiedSeal size={16} title="Verified Creator" />}
                         </div>
                         <p className="truncate text-xs text-muted-foreground">@{u.username}</p>
                       </div>
@@ -309,9 +308,7 @@ export default function SearchLandingPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <p className="truncate font-medium">{u.display_name || u.username}</p>
-                      {u.is_verified && (
-                        <Badge variant="outline" className="h-4 px-1 text-[9px] border-blue-500/30 text-blue-500">✓</Badge>
-                      )}
+                      {u.is_verified && <VerifiedSeal size={16} title="Verified Creator" />}
                       {u.is_premium && (
                         <Badge variant="outline" className="h-4 px-1 text-[9px] border-amber-500/30 text-amber-500">PRO</Badge>
                       )}

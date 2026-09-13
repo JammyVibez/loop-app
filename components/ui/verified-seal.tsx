@@ -55,7 +55,9 @@ interface VariantSpec {
 
 const VARIANTS: Record<SealVariant, VariantSpec> = {
   verified: {
-    darkFrom: "#22d3ee", darkTo: "#6366f1",
+    // Dark theme: cyan → violet, BOTH stops bright so the badge stays vivid at
+    // small sizes on dark cards (a dark indigo stop read as a "dark" blob).
+    darkFrom: "#22d3ee", darkTo: "#818cf8",
     lightFrom: "#0284c7", lightTo: "#4f46e5",
     lightSolid: "#0ea5e9",
     check: "#ffffff",

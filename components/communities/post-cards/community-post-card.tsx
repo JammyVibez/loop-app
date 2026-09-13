@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -39,6 +39,7 @@ import {
 } from "lucide-react"
 import { isVideoUrl } from "@/components/communities/device-media-picker"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { useAuth } from "@/hooks/use-auth"
 
 const POST_TYPE_CONFIG: Record<string, { label: string; icon: typeof FileText; color: string }> = {
   discussion: { label: "Discussion", icon: MessageCircle, color: "text-indigo-500" },
@@ -92,6 +93,24 @@ export function CommunityPostCard({
   const [voting, setVoting] = useState(false)
   const [showReport, setShowReport] = useState(false)
   const [reactions, setReactions] = useState<Array<{type: string; count: number; reacted: boolean}>>([])
+  // Hydrate the fire/clap/etc. chips from the server-provided counts. We can't
+  // know which types the viewer personally reacted to from the list payload,
+  // so counts render un-highlighted; a tap toggles via the react action.
+  useEffect(() => {
+    const counts = (post as any).reaction_counts as Record<string, number> | undefined
+    if (!counts || typeof counts !== "object") return
+    setReactions((prev) => {
+      const merged = new Map(prev.map((r) => [r.type, r]))
+      for (const [type, count] of Object.entries(counts)) {
+        const n = Number(count || 0)
+        if (n <= 0) continue
+        const existing = merged.get(type)
+        merged.set(type, existing ? { ...existing, count: n } : { type, count: n, reacted: false })
+      }
+      return Array.from(merged.values())
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [(post as any).reaction_counts])
   const [mediaIndex, setMediaIndex] = useState(0)
   const [extraComments, setExtraComments] = useState(0)
   const [viewerOpen, setViewerOpen] = useState(false)
@@ -99,6 +118,8 @@ export function CommunityPostCard({
   const [giftOpen, setGiftOpen] = useState(false)
   const touchStartX = useRef<number | null>(null)
   const viewerTouchStartX = useRef<number | null>(null)
+  const { getAuthHeader } = useAuth()
+  const authHeaders = getAuthHeader()
 
   const author = post.author
   const postType = (post.post_type || "discussion").toLowerCase()
@@ -112,7 +133,7 @@ export function CommunityPostCard({
     try {
       const res = await fetch(`/api/circles/${communityId}/posts/${postId}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ action: "react", reaction_type: type }),
       })
       if (res.ok) {
@@ -120,9 +141,9 @@ export function CommunityPostCard({
         setReactions((prev) => {
           const existing = prev.find((r) => r.type === type)
           if (existing) {
-            return prev.map((r) => r.type === type ? { ...r, count: r.count + (data.reacted ? 1 : -1), reacted: data.reacted } : r)
+            return prev.map((r) => r.type === type ? { ...r, count: Math.max(0, r.count + (data.reacted ? 1 : -1)), reacted: data.reacted } : r)
           }
-          return [...prev, { type, count: 1, reacted: true }]
+          return [...prev, { type, count: 1, reacted: data.reacted !== false }]
         })
       }
     } catch { /* intentionally silent */ }
@@ -270,9 +291,25 @@ export function CommunityPostCard({
         </div>
 
         {/* Content — rich rendering: #hashtags, @mentions, stickers/GIFs and
-            auto link-preview cards, matching the main loop feed (#20) */}
+            auto link-preview cards, matching the main loop feed (#20). Clicking
+            the body opens the post detail page, matching social-app conventions. */}
         {post.content && (
-          <RichContent text={post.content} showPreviewCard className="text-sm leading-relaxed" />
+          <div
+            role="link"
+            tabIndex={0}
+            className="cursor-pointer rounded-lg transition hover:opacity-90"
+            onClick={(e) => {
+              // Don't hijack clicks on hashtags/mentions/link previews inside the body.
+              const t = e.target as HTMLElement
+              if (t.closest("a, button")) return
+              window.location.href = `/communities/${communityId}/posts/${post.id}`
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") window.location.href = `/communities/${communityId}/posts/${post.id}`
+            }}
+          >
+            <RichContent text={post.content} showPreviewCard className="text-sm leading-relaxed" />
+          </div>
         )}
 
         {/* Media — carousel with arrows (swipe on touch) so multi-media posts are browsable */}

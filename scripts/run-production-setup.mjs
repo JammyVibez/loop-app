@@ -85,6 +85,7 @@ const files = [
   "scripts/explore-reels-indexes.sql",
   // Community chat + post enhancements: message_type, gifts, indexes.
   "scripts/community-chat-post-enhancements.sql",
+  "scripts/community-fixes-2026-09.sql",
   // Fix duel votes type: loop_duel_votes.duel_id was UUID but loop_duels.id is BIGSERIAL.
   "scripts/fix-duel-votes-type.sql",
   // Fix poll option_id type: change from UUID to TEXT for string option IDs.
