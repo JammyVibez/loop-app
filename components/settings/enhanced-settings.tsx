@@ -46,6 +46,8 @@ import {
   Trash2,
   AtSign,
   Info,
+  Accessibility,
+  UserCog,
 } from "lucide-react"
 import { OrganizationSettings } from "@/components/settings/organization-settings"
 import { ReferralsSettings } from "@/components/settings/referrals-settings"
@@ -53,6 +55,8 @@ import { SecuritySettings } from "@/components/settings/security-settings"
 import { SecuritySessions } from "@/components/settings/security-sessions"
 import { CommunitySettings } from "@/components/settings/community-settings"
 import { AboutSettings } from "@/components/settings/about-settings"
+import { AccessibilitySettings } from "@/components/settings/accessibility-settings"
+import { AccountSettings } from "@/components/settings/account-settings"
 import { VideoMediaSettings } from "@/components/cosmetics/video-media-settings"
 import { AccountSwitcher } from "@/components/accounts/account-switcher"
 import { cn } from "@/lib/utils"
@@ -79,6 +83,7 @@ export function EnhancedSettings() {
   const [uploadingCover, setUploadingCover] = useState(false)
   const [framesOpen, setFramesOpen] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
+  const [testPushBusy, setTestPushBusy] = useState(false)
   const [pushPermission, setPushPermission] = useState<NotificationPermission | "unsupported">("default")
 
   const [formData, setFormData] = useState({
@@ -479,6 +484,9 @@ export function EnhancedSettings() {
           <TabsTrigger value="referrals" className="rounded-xl data-[state=active]:bg-background">
             <Gift className="mr-2 h-4 w-4" /> Referrals
           </TabsTrigger>
+          <TabsTrigger value="account" className="rounded-xl data-[state=active]:bg-background">
+            <UserCog className="mr-2 h-4 w-4" /> Account
+          </TabsTrigger>
           <TabsTrigger value="security" className="rounded-xl data-[state=active]:bg-background">
             <Shield className="mr-2 h-4 w-4" /> Security
           </TabsTrigger>
@@ -487,6 +495,9 @@ export function EnhancedSettings() {
           </TabsTrigger>
           <TabsTrigger value="accounts" className="rounded-xl data-[state=active]:bg-background">
             <Users className="mr-2 h-4 w-4" /> Accounts
+          </TabsTrigger>
+          <TabsTrigger value="accessibility" className="rounded-xl data-[state=active]:bg-background">
+            <Accessibility className="mr-2 h-4 w-4" /> Accessibility
           </TabsTrigger>
           <TabsTrigger value="about" className="rounded-xl data-[state=active]:bg-background">
             <Info className="mr-2 h-4 w-4" /> About
@@ -853,6 +864,53 @@ export function EnhancedSettings() {
                   onCheckedChange={handleTogglePush}
                 />
               </div>
+              {pushPermission === "granted" && (
+                <div className="flex items-center justify-between gap-4 rounded-xl border border-border px-3 py-3">
+                  <div>
+                    <Label>Test notification</Label>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Send a test alert to this device to confirm push works</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full shrink-0"
+                    disabled={testPushBusy}
+                    onClick={async () => {
+                      setTestPushBusy(true)
+                      try {
+                        const res = await fetch("/api/push/send", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+                          body: JSON.stringify({
+                            title: "Loop push works 🎉",
+                            message: "This is how notifications from Loop will look.",
+                            url: "/notifications",
+                            push_only: true,
+                            category: "system",
+                          }),
+                        })
+                        const data = await res.json().catch(() => ({}))
+                        if (!res.ok) throw new Error(data.error || "Failed to send test")
+                        if ((data.deliveredCount ?? 0) > 0) {
+                          toast({ title: "Test sent", description: "Check your device for the notification." })
+                        } else {
+                          toast({
+                            title: "No device subscribed",
+                            description: "Turn push off and on again to re-register this device.",
+                            variant: "destructive",
+                          })
+                        }
+                      } catch (err: any) {
+                        toast({ title: "Test failed", description: err.message, variant: "destructive" })
+                      } finally {
+                        setTestPushBusy(false)
+                      }
+                    }}
+                  >
+                    {testPushBusy ? "Sending…" : "Send test"}
+                  </Button>
+                </div>
+              )}
               {(
                 [
                   ["email_notifications", "Email notifications"],
@@ -883,6 +941,10 @@ export function EnhancedSettings() {
 
         <TabsContent value="community" className="space-y-4">
           <CommunitySettings />
+        </TabsContent>
+
+        <TabsContent value="account" className="space-y-4">
+          <AccountSettings />
         </TabsContent>
 
         <TabsContent value="organization" className="space-y-4">
@@ -1029,6 +1091,10 @@ export function EnhancedSettings() {
 
         <TabsContent value="video-media" className="space-y-4">
           <VideoMediaSettings />
+        </TabsContent>
+
+        <TabsContent value="accessibility" className="space-y-4">
+          <AccessibilitySettings />
         </TabsContent>
 
         <TabsContent value="accounts" className="space-y-4">
