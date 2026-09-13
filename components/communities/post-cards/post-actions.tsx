@@ -42,6 +42,7 @@ export interface PostAuthor {
   is_verified?: boolean
   is_team_member?: boolean
   is_sponsor?: boolean
+  is_organization?: boolean
   is_premium?: boolean
   badge_id?: string | null
   equipped_frame_id?: string | number | null

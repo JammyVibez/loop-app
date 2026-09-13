@@ -10,7 +10,8 @@ import { CommentThread } from "@/components/communities/post-cards/comment-threa
 import { GiftModal } from "@/components/gifting/gift-modal"
 import { useAuth } from "@/hooks/use-auth"
 import { Spinner } from "@/components/ui/skeletons"
-import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { UserBadges } from "@/components/user-badge"
+import { useVerificationBadges } from "@/hooks/use-verification-badges"
 
 /**
  * Community post detail — the full-page view behind each post card.
@@ -19,6 +20,7 @@ import { VerifiedSeal } from "@/components/ui/verified-seal"
  */
 export function CommunityPostDetail({ communityId, postId }: { communityId: string; postId: string }) {
   const { user, getAuthHeader } = useAuth()
+  const badges = useVerificationBadges()
   const router = useRouter()
   const [post, setPost] = useState<CommunityPost | null>(null)
   const [circle, setCircle] = useState<{ name: string } | null>(null)
@@ -152,7 +154,15 @@ export function CommunityPostDetail({ communityId, postId }: { communityId: stri
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3">
         <Link href={`/profile/${author?.username}`} className="flex min-w-0 items-center gap-2.5">
           <span className="text-sm font-bold hover:underline">{author?.display_name || author?.username}</span>
-          {author?.is_verified && <VerifiedSeal size={16} title="Verified Creator" />}
+          <UserBadges
+            is_verified={author?.is_verified}
+            is_team_member={author?.is_team_member}
+            is_sponsor={author?.is_sponsor}
+            is_organization={author?.is_organization}
+            is_premium={author?.is_premium}
+            badge={author?.badge_id ? badges[author.badge_id] || null : null}
+            size="sm"
+          />
           <span className="truncate text-xs text-muted-foreground">@{author?.username}</span>
         </Link>
         {user && author?.id !== user.id && author?.id && (
@@ -213,7 +223,7 @@ export function CommunityPostDetail({ communityId, postId }: { communityId: stri
             avatar_url: author.avatar_url || undefined,
             is_premium: author.is_premium,
           }}
-          context={{ type: "post", id: String(post.id), title: post.content?.slice(0, 40) }}
+          context={{ type: "post", id: String(post.id), title: post.content?.slice(0, 40), circle_id: communityId }}
         />
       )}
     </div>

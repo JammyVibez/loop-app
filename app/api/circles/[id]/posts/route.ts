@@ -181,7 +181,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Check if user is a member of the circle (role needed for announcement-room + max-files checks)
     const { data: member } = await supabase
       .from("circle_members")
-      .select("id, role, permissions")
+      .select("id, role, permissions, is_muted, muted_until")
       .eq("circle_id", circleId)
       .eq("user_id", user.id)
       .in("status", ["active", "approved"])
@@ -189,6 +189,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (!member) {
       return NextResponse.json({ error: "You must be a member to post" }, { status: 403 })
+    }
+
+    // Muted members can't post until their mute expires (staff bypass).
+    if (member.is_muted && !["owner", "admin", "moderator"].includes(member.role)) {
+      const until = member.muted_until ? new Date(member.muted_until) : null
+      if (!until || until > new Date()) {
+        return NextResponse.json(
+          { error: until ? `You are muted until ${until.toLocaleString()}` : "You are muted in this community" },
+          { status: 403 },
+        )
+      }
     }
 
     // Community admins can turn off member posting via settings.allow_posts.
@@ -381,7 +392,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           actor_id: user.id,
           actor_username: actorProfile?.username || user.user_metadata?.username,
           actor_display_name: actorProfile?.display_name || user.user_metadata?.display_name,
-          href: `/circles/${circleId}`,
+          href: `/communities/${circleId}/posts/${post.id}`,
         })
       }
     } catch (mentionError) {

@@ -38,6 +38,8 @@ import {
   X,
 } from "lucide-react"
 import { isVideoUrl } from "@/components/communities/device-media-picker"
+import { UserBadges } from "@/components/user-badge"
+import { useVerificationBadges } from "@/hooks/use-verification-badges"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -89,6 +91,7 @@ export function CommunityPostCard({
   liking,
   flashId,
 }: CommunityPostCardProps) {
+  const badges = useVerificationBadges()
   const [showComments, setShowComments] = useState(false)
   const [voting, setVoting] = useState(false)
   const [showReport, setShowReport] = useState(false)
@@ -245,7 +248,15 @@ export function CommunityPostCard({
               <Link href={`/profile/${author?.username}`} className="text-sm font-semibold truncate hover:underline">
                 {author?.display_name || author?.username}
               </Link>
-              {author?.is_verified && <VerifiedSeal size={16} title="Verified Creator" />}
+              <UserBadges
+                is_verified={author?.is_verified}
+                is_team_member={author?.is_team_member}
+                is_sponsor={author?.is_sponsor}
+                is_organization={author?.is_organization}
+                is_premium={Boolean(author?.is_premium)}
+                badge={author?.badge_id ? badges[author.badge_id] || null : null}
+                size="sm"
+              />
               {author?.is_premium && (
                 <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
                   PRO

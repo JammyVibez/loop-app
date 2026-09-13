@@ -41,6 +41,8 @@ interface GiftModalProps {
     type: "post" | "reel" | "profile" | "comment" | "branch" | "stream"
     id: string
     title?: string
+    /** Community id when gifting from a community post (enables deep-link notifications) */
+    circle_id?: string
   }
   onGiftSent?: (gift: { id: string; name: string; cost: number; type: string; rarity: string }) => void
 }

@@ -81,7 +81,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const actorRole = actorMembership?.role
 
     const body = await request.json()
-    const { user_id, role, status } = body
+    const { user_id, role, status, is_muted, muted_until } = body
     if (!user_id) return NextResponse.json({ error: "Missing member" }, { status: 400 })
 
     const { data: target } = await sb.from("circle_members").select("role, user_id, status").eq("circle_id", id).eq("user_id", user_id).maybeSingle()
@@ -116,6 +116,30 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: "Invalid status" }, { status: 400 })
     }
 
+    // Mute / unmute a member (moderators+). Muted members can't post or chat
+    // until muted_until passes (null = indefinite).
+    if (is_muted !== undefined) {
+      if (!canModerate(actorRole)) {
+        return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
+      }
+      if (target.user_id === actor.id) {
+        return NextResponse.json({ error: "You can't mute yourself" }, { status: 400 })
+      }
+      if (isOwnerRole(target.role) && !isOwnerRole(actorRole)) {
+        return NextResponse.json({ error: "You can't mute the founder" }, { status: 403 })
+      }
+      const muteValue = Boolean(is_muted)
+      const untilValue = muteValue ? (muted_until ? new Date(muted_until).toISOString() : null) : null
+      const { error } = await sb
+        .from("circle_members")
+        .update({ is_muted: muteValue, muted_until: untilValue })
+        .eq("circle_id", id)
+        .eq("user_id", user_id)
+      if (error) return NextResponse.json({ error: "Failed to update mute state" }, { status: 500 })
+      await logCommunityActivity(sb, id, actor.id, muteValue ? "member_muted" : "member_unmuted", "member", user_id)
+      return NextResponse.json({ success: true, is_muted: muteValue, muted_until: untilValue })
+    }
+
     // Role changes: owner only for owner/admin changes; admins can promote to moderator
     if (role && role !== target.role) {
       if (!isOwnerRole(actorRole)) {
@@ -136,6 +160,66 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   } catch (e: any) {
     console.error("[members] PATCH error:", e)
     return NextResponse.json({ error: e.message || "Failed to update member" }, { status: 500 })
+  }
+}
+
+/**
+ * DELETE — remove (kick) a member. Moderators can remove regular members;
+ * admins+ can remove moderators; only the founder can remove other admins.
+ * Body: { user_id }
+ */
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params
+    const actor = await getUserFromRequest(request)
+    if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const sb = communityClient()
+
+    const { data: actorMembership } = await sb.from("circle_members").select("role").eq("circle_id", id).eq("user_id", actor.id).maybeSingle()
+    const actorRole = actorMembership?.role
+    if (!canModerate(actorRole)) {
+      return NextResponse.json({ error: "Only moderators and admins can remove members" }, { status: 403 })
+    }
+
+    const body = await request.json().catch(() => ({}))
+    const { user_id } = body
+    if (!user_id) return NextResponse.json({ error: "Missing member" }, { status: 400 })
+    if (user_id === actor.id) return NextResponse.json({ error: "Leave the community instead" }, { status: 400 })
+
+    const { data: target } = await sb.from("circle_members").select("role, user_id").eq("circle_id", id).eq("user_id", user_id).maybeSingle()
+    if (!target) return NextResponse.json({ error: "Member not found" }, { status: 404 })
+    if (isOwnerRole(target.role)) {
+      return NextResponse.json({ error: "The founder can't be removed" }, { status: 403 })
+    }
+    if (canAdmin(target.role) && !isOwnerRole(actorRole)) {
+      return NextResponse.json({ error: "Only the founder can remove an admin" }, { status: 403 })
+    }
+    if (target.role === "moderator" && !canAdmin(actorRole)) {
+      return NextResponse.json({ error: "Only admins can remove a moderator" }, { status: 403 })
+    }
+
+    const { error } = await sb.from("circle_members").delete().eq("circle_id", id).eq("user_id", user_id)
+    if (error) return NextResponse.json({ error: "Failed to remove member" }, { status: 500 })
+    await logCommunityActivity(sb, id, actor.id, "member_removed", "member", user_id, { by_role: actorRole })
+
+    // Best-effort notification so the removed member isn't left guessing
+    try {
+      const { notifyUser } = await import("@/lib/notifications")
+      const { data: circleRow } = await sb.from("circles").select("name").eq("id", id).maybeSingle()
+      await notifyUser(sb, {
+        userId: user_id,
+        type: "system",
+        title: "Removed from community",
+        message: `You were removed from ${circleRow?.name || "a community"}.`,
+        actionUrl: `/communities`,
+        inAppOnly: true,
+      })
+    } catch { /* best-effort */ }
+
+    return NextResponse.json({ success: true })
+  } catch (e: any) {
+    console.error("[members] DELETE error:", e)
+    return NextResponse.json({ error: e.message || "Failed to remove member" }, { status: 500 })
   }
 }
 

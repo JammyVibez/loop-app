@@ -101,7 +101,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         type: "circle_post_comment",
         title: "New comment on your post",
         message: `${commenterName} commented: "${content.slice(0, 80)}"`,
-        actionUrl: `/circles/${circleId}`,
+        actionUrl: `/communities/${circleId}/posts/${postId}`,
         actorId: user.id,
         pushCategory: "social",
         data: { circleId, postId },

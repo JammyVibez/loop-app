@@ -102,6 +102,46 @@ function useIsDarkTheme(): boolean {
 }
 
 /* ------------------------------------------------------------------ */
+/* Color helpers — keep admin-chosen colors visible at small sizes    */
+/* ------------------------------------------------------------------ */
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return null
+  let h = m[1]
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("")
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
+}
+
+/** Perceived luminance 0..1 (Rec. 601). */
+function luminance(hex: string): number {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return 1
+  return (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255
+}
+
+/** Mix a hex color toward white by `amount` 0..1. */
+function mixTowardWhite(hex: string, amount: number): string {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return hex
+  const ch = rgb.map((c) => Math.round(c + (255 - c) * amount))
+  return `#${ch.map((c) => c.toString(16).padStart(2, "0")).join("")}`
+}
+
+/**
+ * Raise custom badge colors to a visibility floor: anything with luminance
+ * below ~0.16 (near-black at 17px) is lifted toward its hue's brighter self.
+ * Keeps the admin's chosen hue, just never renders as a black blob.
+ */
+function visibleColor(hex: string): string {
+  if (!hex || !hex.trim().startsWith("#")) return hex
+  const lum = luminance(hex)
+  if (lum >= 0.16) return hex.trim()
+  const amount = Math.min(0.55, (0.16 - lum) * 2.2 + 0.18)
+  return mixTowardWhite(hex.trim(), amount)
+}
+
+/* ------------------------------------------------------------------ */
 /* Badge silhouettes — each variant gets a distinct SHAPE             */
 /* ------------------------------------------------------------------ */
 
@@ -173,8 +213,9 @@ export function VerifiedSeal({
     return () => io.disconnect()
   }, [isStatic])
 
-  // Custom colors override the variant palette (admin checkmarks)
-  const stops = colors?.length ? colors : null
+  // Custom colors override the variant palette (admin checkmarks) — but are
+  // luminance-floored so near-black picks stay visible at small sizes.
+  const stops = colors?.length ? colors.map(visibleColor) : null
   const from = stops?.[0] ?? (isDark ? spec.darkFrom : spec.lightFrom)
   const to = stops?.[1] ?? stops?.[0] ?? (isDark ? spec.darkTo : spec.lightTo)
   const solid = stops && stops.length === 1 ? stops[0] : null

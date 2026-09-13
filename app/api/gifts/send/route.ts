@@ -301,6 +301,10 @@ export async function POST(request: NextRequest) {
         message: message || null,
         transaction_id: transaction?.id || null,
         context,
+        // Deep-link to the community post when the gift was sent from one
+        ...(context?.type === "post" && context?.circle_id
+          ? { url: `/communities/${context.circle_id}/posts/${context.id}`, action_url: `/communities/${context.circle_id}/posts/${context.id}` }
+          : {}),
       },
       actor_id: isAnonymous ? null : user.id,
       is_read: false,

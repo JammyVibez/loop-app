@@ -45,11 +45,14 @@ import {
   Sparkles,
   Trash2,
   AtSign,
+  Info,
 } from "lucide-react"
 import { OrganizationSettings } from "@/components/settings/organization-settings"
 import { ReferralsSettings } from "@/components/settings/referrals-settings"
 import { SecuritySettings } from "@/components/settings/security-settings"
 import { SecuritySessions } from "@/components/settings/security-sessions"
+import { CommunitySettings } from "@/components/settings/community-settings"
+import { AboutSettings } from "@/components/settings/about-settings"
 import { VideoMediaSettings } from "@/components/cosmetics/video-media-settings"
 import { AccountSwitcher } from "@/components/accounts/account-switcher"
 import { cn } from "@/lib/utils"
@@ -467,6 +470,9 @@ export function EnhancedSettings() {
           <TabsTrigger value="privacy" className="rounded-xl data-[state=active]:bg-background">
             <Shield className="mr-2 h-4 w-4" /> Privacy
           </TabsTrigger>
+          <TabsTrigger value="community" className="rounded-xl data-[state=active]:bg-background">
+            <Users className="mr-2 h-4 w-4" /> Community
+          </TabsTrigger>
           <TabsTrigger value="organization" className="rounded-xl data-[state=active]:bg-background">
             <Building2 className="mr-2 h-4 w-4" /> Organization
           </TabsTrigger>
@@ -481,6 +487,9 @@ export function EnhancedSettings() {
           </TabsTrigger>
           <TabsTrigger value="accounts" className="rounded-xl data-[state=active]:bg-background">
             <Users className="mr-2 h-4 w-4" /> Accounts
+          </TabsTrigger>
+          <TabsTrigger value="about" className="rounded-xl data-[state=active]:bg-background">
+            <Info className="mr-2 h-4 w-4" /> About
           </TabsTrigger>
         </TabsList>
 
@@ -872,6 +881,10 @@ export function EnhancedSettings() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="community" className="space-y-4">
+          <CommunitySettings />
+        </TabsContent>
+
         <TabsContent value="organization" className="space-y-4">
           <OrganizationSettings />
         </TabsContent>
@@ -1024,6 +1037,10 @@ export function EnhancedSettings() {
               <AccountSwitcher variant="settings" />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="about" className="space-y-4">
+          <AboutSettings />
         </TabsContent>
       </Tabs>
 

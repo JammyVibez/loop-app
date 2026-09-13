@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { notifyUser } from "@/lib/notifications"
 
 export const dynamic = "force-dynamic"
 
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         bot_name,
         created_at,
         author:profiles!circle_room_messages_author_id_fkey(
-          id, username, display_name, avatar_url, is_verified, is_premium
+          id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_organization, is_premium, badge_id
         )
       `)
       .in("room_id", roomIds)
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "You must be a member to chat" }, { status: 403 })
     }
 
-    // Check if user is muted
+    // Check if user is muted (indefinitely, or until muted_until passes)
     const { data: memberData } = await supabase
       .from("circle_members")
       .select("is_muted, muted_until")
@@ -145,8 +146,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .maybeSingle()
 
     if (memberData?.is_muted) {
-      if (!memberData.muted_until || new Date(memberData.muted_until) > new Date()) {
-        return NextResponse.json({ error: "You are muted in this community" }, { status: 403 })
+      const until = memberData.muted_until ? new Date(memberData.muted_until) : null
+      if (!until || until > new Date()) {
+        return NextResponse.json(
+          { error: until ? `You are muted until ${until.toLocaleString()}` : "You are muted in this community" },
+          { status: 403 },
+        )
       }
     }
 
@@ -238,7 +243,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         bot_name,
         created_at,
         author:profiles!circle_room_messages_author_id_fkey(
-          id, username, display_name, avatar_url, is_verified, is_premium
+          id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_organization, is_premium, badge_id
         )
       `)
       .single()
@@ -246,6 +251,92 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (error) {
       console.error("Community chat send error:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    // Community notifications: reply-to (directed), mentions (@handle), and
+    // an ambient "new message" ping for recent participants. All best-effort.
+    try {
+      const senderName =
+        (message as any).author?.display_name || user.user_metadata?.display_name || user.email?.split("@")[0] || "Someone"
+      const chatUrl = `/communities/${communityId}?tab=chat`
+
+      // 1. Directed reply notification
+      if (replyToId) {
+        const { data: parent } = await supabase
+          .from("circle_room_messages")
+          .select("author_id")
+          .eq("id", replyToId)
+          .maybeSingle()
+        if (parent?.author_id && parent.author_id !== user.id) {
+          await notifyUser(supabase, {
+            userId: parent.author_id,
+            type: "chat_message",
+            title: "New reply in chat",
+            message: `${senderName} replied: "${(content || "media").slice(0, 80)}"`,
+            actionUrl: chatUrl,
+            actorId: user.id,
+            pushCategory: "directMessages",
+            data: { communityId, messageId: message.id, reply_to_id: replyToId },
+          })
+        }
+      }
+
+      // 2. Mentions in chat
+      const { processMentions } = await import("@/lib/mentions")
+      if (content) {
+        await processMentions(supabase, content, {
+          source: "circle_room",
+          circle_id: communityId,
+          room_id: String(roomId),
+          actor_id: user.id,
+          actor_username: user.user_metadata?.username,
+          actor_display_name: senderName,
+          href: chatUrl,
+        })
+      }
+
+      // 3. Ambient "chat woke up" ping — only when the room has been quiet for
+      // 5+ minutes, so active conversations never flood notification rows.
+      if (!replyToId && !content?.includes("@")) {
+        const { data: lastMsg } = await supabase
+          .from("circle_room_messages")
+          .select("created_at, author_id")
+          .eq("room_id", roomId)
+          .lt("created_at", new Date().toISOString())
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        const quietForMs = lastMsg ? Date.now() - new Date(lastMsg.created_at).getTime() : Infinity
+        const { data: recent } = quietForMs >= 5 * 60 * 1000
+          ? await supabase
+              .from("circle_room_messages")
+              .select("author_id")
+              .eq("room_id", roomId)
+              .gte("created_at", new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString())
+          : { data: [] }
+        const targets = [
+          ...new Set(
+            (recent || [])
+              .map((r: any) => r.author_id)
+              .filter((aid: string | null) => aid && aid !== user.id),
+          ),
+        ].slice(0, 10) as string[]
+        if (targets.length) {
+          const { notifyUsers } = await import("@/lib/notifications")
+          await notifyUsers(supabase, targets, {
+            type: "chat_message",
+            title: "New message in chat",
+            message: `${senderName}: "${(content || "sent media").slice(0, 80)}"`,
+            actionUrl: chatUrl,
+            actorId: user.id,
+            pushCategory: "directMessages",
+            priority: "low",
+            data: { communityId, messageId: message.id },
+          })
+        }
+      }
+    } catch (notifError) {
+      console.warn("chat notification error:", notifError)
     }
 
     return NextResponse.json({ success: true, message })

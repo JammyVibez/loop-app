@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation"
 import {
   AtSign, Bell, CheckCheck, CheckCircle2, Heart, MessageCircle,
   Trash2, UserPlus, XCircle, Gift, Star, Repeat2,
-  Shield, Award, TrendingUp, Users, Radio
+  Shield, Award, TrendingUp, Users, Radio, Flame, BadgeCheck
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -98,6 +98,16 @@ function notifIcon(type: string) {
     case "circle_invite":
     case "circle_joined":
       return { icon: Users, color: "text-indigo-500", bg: "bg-indigo-500/10" }
+    case "circle_post_comment":
+      return { icon: MessageCircle, color: "text-sky-500", bg: "bg-sky-500/10" }
+    case "circle_post_like":
+      return { icon: Heart, color: "text-rose-500", bg: "bg-rose-500/10" }
+    case "community_reaction":
+      return { icon: Flame, color: "text-orange-500", bg: "bg-orange-500/10" }
+    case "chat_message":
+      return { icon: MessageCircle, color: "text-indigo-500", bg: "bg-indigo-500/10" }
+    case "verification_badge":
+      return { icon: BadgeCheck, color: "text-cyan-500", bg: "bg-cyan-500/10" }
     case "live_stream":
     case "live_started":
       return { icon: Radio, color: "text-red-500", bg: "bg-red-500/10" }

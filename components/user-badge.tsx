@@ -33,6 +33,27 @@ export interface UserBadgeProps {
 /** Map the legacy sm/md/lg sizes to seal pixel sizes (bumped for visibility). */
 const SEAL_SIZE = { sm: 17, md: 20, lg: 24 } as const
 
+/**
+ * Normalize badge colors: DB writers may store the array as a JSON string
+ * ("[\"#fff\"]"), which would render an all-black SVG fill if passed through.
+ */
+function normalizeColors(raw: unknown): string[] | null {
+  let v: unknown = raw
+  if (typeof v === "string") {
+    try {
+      v = JSON.parse(v)
+    } catch {
+      v = raw
+    }
+  }
+  if (Array.isArray(v)) {
+    const arr = v.map((c) => String(c)).filter((c) => c.trim().startsWith("#"))
+    return arr.length ? arr : null
+  }
+  if (typeof v === "string" && v.trim().startsWith("#")) return [v.trim()]
+  return null
+}
+
 function BadgeGlyph({ icon, className }: { icon?: string | null; className: string }) {
   switch (icon) {
     case "star":
@@ -132,17 +153,18 @@ export function UserBadges({
         </span>
       )}
 
-      {/* 4. Admin custom checkmark — colors can be a solid hex or a gradient */}
+      {/* 4. Admin custom checkmark — colors can be a solid hex or a gradient.
+          Shows alongside (not instead of) the standard verification check. */}
       {badge && (
         <VerifiedSeal
           title={badge.label || `${badge.name} checkmark`}
-          colors={badge.colors}
+          colors={normalizeColors(badge.colors) ?? undefined}
           size={seal}
         />
       )}
 
       {/* 5. Creator Verification Checkmark (seal replaces the plain blue dot) */}
-      {is_verified && !isTeam && !badge && (
+      {is_verified && (
         <VerifiedSeal variant="verified" size={seal} title="Verified Creator" />
       )}
 

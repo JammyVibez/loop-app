@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
+import { UserBadges } from "@/components/user-badge"
+import { useVerificationBadges } from "@/hooks/use-verification-badges"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { Spinner } from "@/components/ui/skeletons"
 import { uploadMediaFile } from "@/lib/client-media-upload"
@@ -40,7 +42,11 @@ interface ChatMessage {
     display_name: string
     avatar_url: string | null
     is_verified: boolean
-    is_premium: boolean
+    is_team_member?: boolean
+    is_sponsor?: boolean
+    is_organization?: boolean
+    is_premium?: boolean
+    badge_id?: string | null
   } | null
 }
 
@@ -101,6 +107,7 @@ export function CommunityChat({
 }) {
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
+  const badges = useVerificationBadges()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(true)
@@ -123,7 +130,11 @@ export function CommunityChat({
       const res = await fetch(`/api/communities/${communityId}/chat?limit=100${spaceParam}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to load chat")
-      setMessages(data.messages || [])
+      // The API embeds the profile as `author`; older rows/clients used `sender`.
+      // Normalize so display names never fall back to "Unknown".
+      setMessages(
+        (data.messages || []).map((m: any) => ({ ...m, sender: m.sender || m.author || null })),
+      )
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -170,7 +181,10 @@ export function CommunityChat({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to send")
       if (data.message) {
-        setMessages((prev) => [...prev, data.message])
+        setMessages((prev) => [
+          ...prev,
+          { ...data.message, sender: data.message.sender || data.message.author || null },
+        ])
       }
       setInput("")
       setReplyTo(null)
@@ -206,7 +220,7 @@ export function CommunityChat({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to send")
-      if (data.message) setMessages((prev) => [...prev, data.message])
+      if (data.message) setMessages((prev) => [...prev, { ...data.message, sender: data.message.sender || data.message.author || null }])
       setInput("")
       setReplyTo(null)
     } catch (e: any) {
@@ -390,9 +404,17 @@ export function CommunityChat({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline gap-2">
                         <span className={cn("text-sm font-semibold truncate", isOwn && "text-indigo-500")}>
-                          {sender?.display_name || "Unknown"}
+                          {sender?.display_name || sender?.username || "Unknown"}
                         </span>
-                        {sender?.is_verified && <VerifiedSeal size={14} title="Verified Creator" />}
+                        <UserBadges
+                          is_verified={sender?.is_verified}
+                          is_team_member={sender?.is_team_member}
+                          is_sponsor={sender?.is_sponsor}
+                          is_organization={sender?.is_organization}
+                          is_premium={sender?.is_premium}
+                          badge={sender?.badge_id ? badges[sender.badge_id] || null : null}
+                          size="sm"
+                        />
                         <span className="text-[10px] text-muted-foreground shrink-0">{messageTime(msg.created_at)}</span>
                       </div>
 

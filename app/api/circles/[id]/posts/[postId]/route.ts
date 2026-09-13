@@ -52,6 +52,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       reactionCounts[r.reaction_type] = (reactionCounts[r.reaction_type] || 0) + 1
     }
 
+    // Attach the poll (same shape as the feed route) so PollCard renders on
+    // the detail page too — previously polls were missing from this view.
+    const { data: poll } = await supabase
+      .from("circle_post_polls")
+      .select("*")
+      .eq("post_id", postId)
+      .maybeSingle()
+
     // Increment view count (fire-and-forget)
     void Promise.resolve(
       supabase
@@ -70,6 +78,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         reaction_counts: reactionCounts,
         is_liked: isLiked,
         is_saved: isSaved,
+        poll: poll || null,
       },
     })
   } catch (error) {
@@ -178,7 +187,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
                 type: "circle_post_like",
                 title: "New like",
                 message: `${likerName} liked your post`,
-                actionUrl: `/circles/${circleId}`,
+                actionUrl: `/communities/${circleId}/posts/${postId}`,
                 actorId: user.id,
                 pushCategory: "social",
                 data: { circleId, postId },
@@ -280,6 +289,28 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         })
         if (reactError) {
           return NextResponse.json({ error: "Failed to react" }, { status: 500 })
+        }
+        // Notify the author (best-effort, not for self-reactions)
+        if (post.author_id && post.author_id !== user.id) {
+          try {
+            const { data: reactorProfile } = await supabase
+              .from("profiles")
+              .select("display_name, username")
+              .eq("id", user.id)
+              .maybeSingle()
+            const reactorName = reactorProfile?.display_name || reactorProfile?.username || "Someone"
+            await notifyUser(supabase, {
+              userId: post.author_id,
+              type: "community_reaction",
+              title: `New ${rawType} reaction`,
+              message: `${reactorName} reacted ${rawType === "fire" ? "🔥" : rawType === "clap" ? "👏" : rawType === "laugh" ? "😂" : rawType === "rocket" ? "🚀" : "🤔"} to your post`,
+              actionUrl: `/communities/${circleId}/posts/${postId}`,
+              actorId: user.id,
+              pushCategory: "social",
+              priority: "low",
+              data: { circleId, postId, reactionType: rawType },
+            })
+          } catch { /* best-effort */ }
         }
         return NextResponse.json({ success: true, reacted: true, reaction_type: rawType })
       }

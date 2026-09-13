@@ -19,7 +19,8 @@ import {
   Trash2,
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { UserBadges } from "@/components/user-badge"
+import { useVerificationBadges } from "@/hooks/use-verification-badges"
 import { Spinner } from "@/components/ui/skeletons"
 
 interface Comment {
@@ -37,8 +38,31 @@ interface Comment {
     avatar_url?: string | null
     video_avatar_url?: string | null
     is_verified?: boolean
+    is_team_member?: boolean
+    is_sponsor?: boolean
+    is_organization?: boolean
+    is_premium?: boolean
+    badge_id?: string | null
     equipped_frame_id?: string | number | null
   }
+}
+
+import type { VerificationBadge } from "@/hooks/use-verification-badges"
+
+/** Small helper rendering every badge type a comment author may have. */
+function CommentBadges({ author }: { author?: Comment["author"] }) {
+  const badges = useVerificationBadges()
+  return (
+    <UserBadges
+      is_verified={author?.is_verified}
+      is_team_member={author?.is_team_member}
+      is_sponsor={author?.is_sponsor}
+      is_organization={author?.is_organization}
+      is_premium={Boolean(author?.is_premium)}
+      badge={author?.badge_id ? (badges[author.badge_id] as VerificationBadge | undefined) || null : null}
+      size="sm"
+    />
+  )
 }
 
 interface CommentThreadProps {
@@ -181,7 +205,7 @@ export function CommentThread({
               <Link href={`/profile/${comment.author?.username}`} className="text-xs font-semibold hover:underline">
                 {comment.author?.display_name || comment.author?.username}
               </Link>
-              {comment.author?.is_verified && <VerifiedSeal size={14} title="Verified Creator" />}
+              <CommentBadges author={comment.author} />
               <span className="text-[10px] text-muted-foreground">{timeAgo(comment.created_at)}</span>
             </div>
             <p className="text-sm mt-0.5 whitespace-pre-wrap">{comment.content}</p>

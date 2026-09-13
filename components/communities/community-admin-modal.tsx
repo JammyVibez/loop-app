@@ -36,6 +36,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/skeletons"
+import { useToast } from "@/hooks/use-toast"
 
 interface CommunityAdminProps {
   open: boolean
@@ -50,7 +51,8 @@ export function CommunityAdminModal({
   communityId,
   communityName,
 }: CommunityAdminProps) {
-  const { user } = useAuth()
+  const { user, getAuthHeader } = useAuth()
+  const { toast } = useToast()
   const [tab, setTab] = useState<"overview" | "members" | "moderation" | "settings">("overview")
   const [loading, setLoading] = useState(true)
   const [community, setCommunity] = useState<any>(null)
@@ -59,6 +61,13 @@ export function CommunityAdminModal({
   const [role, setRole] = useState("")
   const [search, setSearch] = useState("")
   const [acting, setActing] = useState<string | null>(null)
+  const [memberError, setMemberError] = useState("")
+
+  // Moderation settings (persisted via PATCH /api/communities/[id])
+  const [approvalOn, setApprovalOn] = useState(false)
+  const [autoModLinks, setAutoModLinks] = useState(false)
+  const [blockedWords, setBlockedWords] = useState("")
+  const [savingMod, setSavingMod] = useState(false)
 
   // Settings form
   const [communityNameEdit, setCommunityNameEdit] = useState("")
@@ -68,24 +77,45 @@ export function CommunityAdminModal({
 
   const load = useCallback(async () => {
     setLoading(true)
+    setMemberError("")
     try {
-      const res = await fetch(`/api/communities/${communityId}`)
+      const res = await fetch(`/api/communities/${communityId}`, { headers: { ...getAuthHeader() } })
       const data = await res.json()
       if (res.ok) {
         setCommunity(data.community)
-        setMembers(data.members || [])
-        setStats(data.stats || {})
-        setRole(data.role || "")
+        // Derive admin stats from the world bundle so the overview shows real numbers.
+        setStats({
+          member_count: data.member_count || 0,
+          post_count: data.pulse?.posts_24h ?? null,
+          space_count: Array.isArray(data.spaces) ? data.spaces.length : null,
+          active_today: data.pulse?.active_now ?? null,
+        })
+        setRole(data.is_owner ? "owner" : data.is_admin ? "admin" : data.is_moderator ? "moderator" : data.role || "")
         setCommunityNameEdit(data.community?.name || "")
         setCommunityDesc(data.community?.description || "")
         setIsPrivate(Boolean(data.community?.is_private))
+        const ms = data.community?.moderation_settings || {}
+        setApprovalOn(Boolean(ms.post_approval))
+        setAutoModLinks(Boolean(ms.auto_moderate_links))
+        setBlockedWords(Array.isArray(ms.blocked_words) ? ms.blocked_words.join("\n") : "")
+        // Load the full member roster from the members endpoint
+        const mRes = await fetch(`/api/communities/${communityId}/members?limit=200`, { headers: { ...getAuthHeader() } })
+        const mData = await mRes.json().catch(() => ({}))
+        if (mRes.ok) {
+          setMembers(mData.members || [])
+        } else {
+          setMemberError(mData.error || "Failed to load members")
+        }
+      } else {
+        setMemberError(data.error || "Failed to load community")
       }
     } catch (err) {
       console.error("Failed to load admin data:", err)
+      setMemberError("Failed to load admin data")
     } finally {
       setLoading(false)
     }
-  }, [communityId])
+  }, [communityId, getAuthHeader])
 
   useEffect(() => {
     if (open) load()
@@ -97,16 +127,20 @@ export function CommunityAdminModal({
     try {
       const res = await fetch(`/api/communities/${communityId}/members`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({ user_id: userId, role: newRole }),
       })
+      const data = await res.json().catch(() => ({}))
       if (res.ok) {
         setMembers((prev) =>
           prev.map((m) => (m.user_id === userId ? { ...m, role: newRole } : m))
         )
+        toast({ title: `Role updated`, description: `${displayName} is now ${newRole === "moderator" ? "a moderator" : "a member"}.` })
+      } else {
+        toast({ title: "Couldn't update role", description: data.error || "You may not have permission.", variant: "destructive" })
       }
     } catch {
-      /* ignore */
+      toast({ title: "Network error", variant: "destructive" })
     } finally {
       setActing(null)
     }
@@ -118,14 +152,18 @@ export function CommunityAdminModal({
     try {
       const res = await fetch(`/api/communities/${communityId}/members`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({ user_id: userId }),
       })
+      const data = await res.json().catch(() => ({}))
       if (res.ok) {
         setMembers((prev) => prev.filter((m) => m.user_id !== userId))
+        toast({ title: "Member removed", description: `${displayName} is no longer in this community.` })
+      } else {
+        toast({ title: "Couldn't remove member", description: data.error || "You may not have permission.", variant: "destructive" })
       }
     } catch {
-      /* ignore */
+      toast({ title: "Network error", variant: "destructive" })
     } finally {
       setActing(null)
     }
@@ -138,18 +176,56 @@ export function CommunityAdminModal({
     try {
       const res = await fetch(`/api/communities/${communityId}/members`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({ user_id: userId, is_muted: muted }),
       })
+      const data = await res.json().catch(() => ({}))
       if (res.ok) {
         setMembers((prev) =>
           prev.map((m) => (m.user_id === userId ? { ...m, is_muted: muted } : m))
         )
+        toast({ title: muted ? "Member muted" : "Member unmuted" })
+      } else {
+        toast({ title: `Couldn't ${action} member`, description: data.error || "You may not have permission.", variant: "destructive" })
       }
     } catch {
-      /* ignore */
+      toast({ title: "Network error", variant: "destructive" })
     } finally {
       setActing(null)
+    }
+  }
+
+  const saveModerationSettings = async () => {
+    setSavingMod(true)
+    try {
+      const words = blockedWords
+        .split(/[\n,]/)
+        .map((w) => w.trim().toLowerCase())
+        .filter(Boolean)
+        .slice(0, 100)
+      const res = await fetch(`/api/communities/${communityId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({
+          moderation_settings: {
+            ...(community?.moderation_settings || {}),
+            post_approval: approvalOn,
+            auto_moderate_links: autoModLinks,
+            blocked_words: words,
+          },
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setCommunity((prev: any) => ({ ...prev, moderation_settings: data.community?.moderation_settings }))
+        toast({ title: "Moderation settings saved" })
+      } else {
+        toast({ title: "Couldn't save settings", description: data.error || "You may not have permission.", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" })
+    } finally {
+      setSavingMod(false)
     }
   }
 
@@ -158,13 +234,14 @@ export function CommunityAdminModal({
     try {
       const res = await fetch(`/api/communities/${communityId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({
           name: communityNameEdit.trim(),
           description: communityDesc.trim(),
           is_private: isPrivate,
         }),
       })
+      const data = await res.json().catch(() => ({}))
       if (res.ok) {
         setCommunity((prev: any) => ({
           ...prev,
@@ -172,13 +249,20 @@ export function CommunityAdminModal({
           description: communityDesc.trim(),
           is_private: isPrivate,
         }))
+        toast({ title: "Community settings saved" })
+      } else {
+        toast({ title: "Couldn't save settings", description: data.error || "You may not have permission.", variant: "destructive" })
       }
     } catch {
-      /* ignore */
+      toast({ title: "Network error", variant: "destructive" })
     } finally {
       setSaving(false)
     }
   }
+
+  // Owner and admins both manage members; owners additionally see admin tools.
+  const canManageMembers = role === "owner" || role === "admin"
+  const isFounder = role === "owner"
 
   const filteredMembers = members.filter(
     (m) =>
@@ -235,20 +319,20 @@ export function CommunityAdminModal({
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="rounded-xl border border-border/50 bg-muted/30 p-3 text-center">
-                      <p className="text-2xl font-bold text-foreground">{stats?.member_count || members.length}</p>
+                      <p className="text-2xl font-bold text-foreground">{stats?.member_count || members.length || 0}</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">Members</p>
                     </div>
                     <div className="rounded-xl border border-border/50 bg-muted/30 p-3 text-center">
-                      <p className="text-2xl font-bold text-foreground">{stats?.post_count || 0}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Posts</p>
+                      <p className="text-2xl font-bold text-foreground">{stats?.post_count ?? "—"}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Posts (24h)</p>
                     </div>
                     <div className="rounded-xl border border-border/50 bg-muted/30 p-3 text-center">
-                      <p className="text-2xl font-bold text-foreground">{stats?.space_count || 0}</p>
+                      <p className="text-2xl font-bold text-foreground">{stats?.space_count ?? "—"}</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">Spaces</p>
                     </div>
                     <div className="rounded-xl border border-border/50 bg-muted/30 p-3 text-center">
-                      <p className="text-2xl font-bold text-foreground">{stats?.active_today || 0}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Active Today</p>
+                      <p className="text-2xl font-bold text-foreground">{stats?.active_today ?? "—"}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Active Now</p>
                     </div>
                   </div>
 
@@ -320,8 +404,20 @@ export function CommunityAdminModal({
                               Muted
                             </Badge>
                           )}
-                          {m.user_id !== user?.id && role === "admin" && (
+                          {m.user_id !== user?.id && canManageMembers && (
                             <>
+                              {isFounder && m.role !== "owner" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-amber-500"
+                                  disabled={acting === m.user_id}
+                                  onClick={() => updateMemberRole(m.user_id, m.role === "admin" ? "member" : "admin", m.display_name)}
+                                  title={m.role === "admin" ? "Remove admin" : "Make admin"}
+                                >
+                                  <Crown className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -367,7 +463,10 @@ export function CommunityAdminModal({
                         </div>
                       </div>
                     ))}
-                    {filteredMembers.length === 0 && (
+                    {memberError && !loading && (
+                      <p className="text-center text-xs text-destructive py-4">{memberError}</p>
+                    )}
+                    {filteredMembers.length === 0 && !memberError && (
                       <p className="text-center text-xs text-muted-foreground py-8">No members found</p>
                     )}
                   </div>
@@ -387,25 +486,28 @@ export function CommunityAdminModal({
                         <p className="text-xs font-medium">Require post approval</p>
                         <p className="text-[10px] text-muted-foreground">Posts must be approved before appearing</p>
                       </div>
-                      <Switch />
+                      <Switch checked={approvalOn} onCheckedChange={setApprovalOn} />
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs font-medium">Auto-moderate links</p>
                         <p className="text-[10px] text-muted-foreground">Flag posts with external links</p>
                       </div>
-                      <Switch />
+                      <Switch checked={autoModLinks} onCheckedChange={setAutoModLinks} />
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-border/50 bg-muted/30 p-4 space-y-2">
                     <h3 className="text-sm font-semibold">Blocked Words</h3>
                     <Textarea
+                      value={blockedWords}
+                      onChange={(e) => setBlockedWords(e.target.value)}
                       placeholder="Enter words to block, one per line..."
                       className="text-xs min-h-[80px] rounded-xl"
                     />
-                    <Button size="sm" className="rounded-full text-xs">
-                      Save Blocked Words
+                    <Button size="sm" className="rounded-full text-xs" disabled={savingMod} onClick={saveModerationSettings}>
+                      {savingMod ? <Spinner className="h-3 w-3 mr-1.5" /> : null}
+                      Save Moderation Settings
                     </Button>
                   </div>
                 </div>
