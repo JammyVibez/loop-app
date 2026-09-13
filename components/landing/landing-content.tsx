@@ -247,7 +247,7 @@ export function LandingContent() {
                 <p className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
                   Loop is where communities create in real time — co-write posts live
                   with friends, settle debates in public Duels, and build spaces that
-                  are actually yours.
+                  are actually yours. No algorithms deciding what matters. Just people building together.
                 </p>
               </Reveal>
 
@@ -256,9 +256,9 @@ export function LandingContent() {
                   <Link href="/signup">
                     <Button
                       size="lg"
-                      className="h-11 rounded-full bg-foreground px-7 text-sm font-semibold text-background hover:opacity-90 transition-opacity"
+                      className="h-11 rounded-full bg-foreground px-7 text-sm font-semibold text-background hover:opacity-90 transition-opacity shadow-sm"
                     >
-                      Join free
+                      Start building free
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
@@ -268,10 +268,15 @@ export function LandingContent() {
                       variant="outline"
                       className="h-11 rounded-full border-border px-7 text-sm text-foreground hover:bg-muted transition-colors"
                     >
-                      Explore as guest
+                      Take a look around
                     </Button>
                   </Link>
                 </div>
+                <p className="mt-4 text-xs text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5 text-emerald-500" /> No waitlist</span>
+                  <span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5 text-emerald-500" /> Free to start</span>
+                  <span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5 text-emerald-500" /> Your content stays yours</span>
+                </p>
               </Reveal>
 
               <Reveal delay={240}>
@@ -295,7 +300,7 @@ export function LandingContent() {
                 <div className="mt-8">
                   <AppDownloadBadges className="justify-start" />
                   <p className="mt-1.5 text-xs text-muted-foreground">
-                    iOS &amp; Android — coming soon to the App Store and Google Play.
+                    iOS & Android — coming soon to the App Store and Google Play.
                   </p>
                 </div>
               </Reveal>
@@ -380,10 +385,10 @@ export function LandingContent() {
             <Reveal>
               <div className="mx-auto max-w-xl text-center">
                 <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                  Four things Loop does that nothing else does.
+                  Four things that make Loop feel different.
                 </h2>
                 <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-                  Built for people who want more than likes and replies.
+                  Built for people who want more than likes and empty replies.
                 </p>
               </div>
             </Reveal>
@@ -413,10 +418,10 @@ export function LandingContent() {
                   Live community
                 </p>
                 <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                  Real activity, pulled from the database.
+                  Happening right now.
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  These numbers update every time someone posts, joins, or debates.
+                  Real numbers, pulled live from the database every time someone posts, joins, or debates.
                 </p>
               </div>
             </Reveal>
@@ -457,7 +462,7 @@ export function LandingContent() {
                           {stats.total_users.toLocaleString()}
                         </p>
                         <p className="mt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                          Creators &amp; builders
+                          Creators & builders
                         </p>
                       </div>
                     )}
@@ -467,7 +472,7 @@ export function LandingContent() {
                           {stats.total_duels.toLocaleString()}
                         </p>
                         <p className="mt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                          Public Duels
+                          Duels fought
                         </p>
                       </div>
                     )}
@@ -475,26 +480,22 @@ export function LandingContent() {
                 </Reveal>
               )}
 
-              {stats && (stats.recent_loops.length > 0 || stats.recent_circles.length > 0) && (
-                <div className="mt-8 grid gap-4 md:grid-cols-2">
+              {/* Recent activity cards if available */}
+              {!loadingStats && stats && (stats.recent_loops.length > 0 || stats.recent_circles.length > 0) && (
+                <div className="mt-8 grid gap-4 sm:grid-cols-2">
                   {stats.recent_loops.length > 0 && (
                     <Reveal delay={60}>
-                      <div className="rounded-xl border border-border bg-card p-4">
-                        <div className="flex items-center gap-2 border-b border-border/60 pb-2.5 mb-3">
-                          <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Recent Loops
-                          </span>
-                          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        </div>
-                        <div className="space-y-2.5">
+                      <div className="rounded-2xl border border-border bg-card p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Recent Loops
+                        </p>
+                        <div className="space-y-2">
                           {stats.recent_loops.slice(0, 3).map((loop) => (
-                            <div key={loop.id} className="rounded-lg bg-muted/40 p-2.5">
-                              <p className="text-xs text-foreground line-clamp-1">{loop.preview}</p>
+                            <div key={loop.id} className="rounded-lg bg-muted/40 px-3 py-2">
+                              <p className="text-sm text-foreground line-clamp-1">{loop.preview || "…"}</p>
                               {loop.author_username && (
-                                <p className="mt-1 text-[10px] text-muted-foreground">
-                                  @{loop.author_username}
-                                </p>
+                                <p className="text-[11px] text-muted-foreground mt-0.5">@{loop.author_username}</p>
                               )}
                             </div>
                           ))}
@@ -504,24 +505,16 @@ export function LandingContent() {
                   )}
                   {stats.recent_circles.length > 0 && (
                     <Reveal delay={120}>
-                      <div className="rounded-xl border border-border bg-card p-4">
-                        <div className="flex items-center gap-2 border-b border-border/60 pb-2.5 mb-3">
-                          <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Active Circles
-                          </span>
-                        </div>
-                        <div className="space-y-2.5">
+                      <div className="rounded-2xl border border-border bg-card p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5" />
+                          Active Circles
+                        </p>
+                        <div className="space-y-2">
                           {stats.recent_circles.slice(0, 3).map((circle) => (
-                            <div key={circle.id} className="flex items-center justify-between rounded-lg bg-muted/40 p-2.5">
-                              <span className="text-xs font-medium text-foreground truncate max-w-[180px]">
-                                {circle.name}
-                              </span>
-                              {typeof circle.member_count === "number" && (
-                                <span className="text-[10px] text-muted-foreground">
-                                  {circle.member_count} member{circle.member_count === 1 ? "" : "s"}
-                                </span>
-                              )}
+                            <div key={circle.id} className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2">
+                              <span className="text-sm font-medium text-foreground">{circle.name}</span>
+                              <span className="text-[11px] text-muted-foreground">{circle.member_count ?? 0} member{(circle.member_count ?? 0) !== 1 ? "s" : ""}</span>
                             </div>
                           ))}
                         </div>
@@ -537,40 +530,40 @@ export function LandingContent() {
         {/* ─── Creator Studio ─────────────────────────── */}
         <section id="creators" className="scroll-mt-20 border-t border-border/60 py-16 sm:py-20">
           <div className="container mx-auto px-4 sm:px-6">
-            <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-2 lg:items-center">
               <Reveal>
-                <div className="rounded-2xl border border-border bg-card p-6 sm:p-7">
+                <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                     Creator Studio
                   </p>
                   <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                     Your numbers, your money, one dashboard.
                   </h2>
-                  <div className="mt-5 space-y-3 text-sm text-muted-foreground">
-                    <div className="flex items-start gap-2.5">
-                      <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-foreground/30" />
-                      <span>Fans gift you through real Stripe-purchased Loop Coins</span>
-                    </div>
-                    <div className="flex items-start gap-2.5">
-                      <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-foreground/30" />
-                      <span>Every gift flows into your earnings ledger automatically</span>
-                    </div>
-                    <div className="flex items-start gap-2.5">
-                      <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-foreground/30" />
-                      <span>Withdrawal requests are manually reviewed, not a fake queue</span>
-                    </div>
-                    <div className="flex items-start gap-2.5">
-                      <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-foreground/30" />
-                      <span>Boost your best Loops into more feeds</span>
-                    </div>
-                    <div className="flex items-start gap-2.5">
-                      <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-foreground/30" />
-                      <span>Pin your best work to the top of your profile</span>
-                    </div>
-                  </div>
+                  <ul className="mt-6 space-y-3 text-sm text-muted-foreground">
+                    <li className="flex items-start gap-2.5">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                      Fans gift you through real Stripe-purchased Loop Coins
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                      Every gift flows into your earnings ledger automatically
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                      Withdrawal requests are manually reviewed, not a fake queue
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                      Boost your best Loops into more feeds
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                      Pin your best work to the top of your profile
+                    </li>
+                  </ul>
                   <Link
                     href="/earnings"
-                    className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline"
+                    className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline"
                   >
                     See Creator Studio <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
@@ -583,9 +576,8 @@ export function LandingContent() {
                     Built with early creators
                   </p>
                   <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                    We&apos;re shaping Loop with the first wave of creators and developers who
-                    join. If something feels off, tell us — this is early, and your feedback
-                    directly shapes what ships next.
+                    We're building Loop with the first wave of creators and developers.
+                    If something feels off, tell us — this is early, and your voice directly shapes what ships next.
                   </p>
                   <div className="mt-6 flex items-center gap-6 text-sm">
                     <div>
@@ -618,37 +610,37 @@ export function LandingContent() {
                   Roadmap
                 </p>
                 <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                  What we&apos;re building next.
+                  What we're building next.
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  No fake dates. Just what&apos;s real.
+                  No fake dates. Just what's real.
                 </p>
               </div>
             </Reveal>
 
-            <div className="mx-auto mt-10 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="mx-auto mt-12 grid max-w-4xl gap-4 sm:grid-cols-2">
               {roadmap.map(({ title, description, icon: Icon, status }, i) => (
-                <Reveal key={title} delay={i * 50}>
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                        <Icon className="h-4 w-4 text-muted-foreground" />
+                <Reveal key={title} delay={i * 60}>
+                  <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
+                        <Icon className="h-5 w-5 text-foreground" />
                       </div>
                       <span
                         className={cn(
-                          "text-[10px] font-medium uppercase tracking-wider",
+                          "rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
                           status === "In progress"
-                            ? "text-emerald-600 dark:text-emerald-400"
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                             : status === "Planned"
-                              ? "text-violet-600 dark:text-violet-400"
-                              : "text-muted-foreground",
+                              ? "bg-violet-500/10 text-violet-600 dark:text-violet-400"
+                              : "bg-amber-500/10 text-amber-600 dark:text-amber-400",
                         )}
                       >
                         {status}
                       </span>
                     </div>
-                    <h3 className="mt-3 text-sm font-semibold text-foreground">{title}</h3>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
+                    <h3 className="mt-4 text-base font-semibold text-foreground">{title}</h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
                   </div>
                 </Reveal>
               ))}
@@ -656,7 +648,7 @@ export function LandingContent() {
 
             <Reveal delay={200}>
               <p className="mx-auto mt-6 max-w-md text-center text-xs text-muted-foreground">
-                Have a feature request? Tell us once you&apos;re in — early users shape the
+                Have a feature request? Tell us once you're in — early users shape the
                 roadmap directly.
               </p>
             </Reveal>
@@ -669,32 +661,35 @@ export function LandingContent() {
             <Reveal>
               <div className="mx-auto max-w-2xl text-center">
                 <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                  Ready to build something?
+                  You're invited.
                 </h2>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Post a Loop, start a Co-Loop with a friend, or drop your first project
-                  in the Developer Hub. See what sticks.
+                <p className="mt-3 text-sm text-muted-foreground max-w-md mx-auto">
+                  We're still early — and that's the best time to join. Post a Loop,
+                  start a Co-Loop with a friend, or just explore. Your feedback shapes what we build next.
                 </p>
                 <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
                   <Link href="/signup">
                     <Button
                       size="lg"
-                      className="h-11 rounded-full bg-foreground px-7 text-sm font-semibold text-background hover:opacity-90 transition-opacity"
+                      className="h-11 rounded-full bg-foreground px-7 text-sm font-semibold text-background hover:opacity-90 transition-opacity shadow-sm"
                     >
-                      Join free
+                      Start building free
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
-                  <Link href="/login">
+                  <Link href="/">
                     <Button
                       size="lg"
                       variant="outline"
                       className="h-11 rounded-full border-border px-7 text-sm text-foreground hover:bg-muted transition-colors"
                     >
-                      Log in
+                      Explore first
                     </Button>
                   </Link>
                 </div>
+                <p className="mt-5 text-xs text-muted-foreground">
+                  No credit card · No waitlist · Your content stays yours
+                </p>
                 <div className="mt-6">
                   <AppDownloadBadges />
                 </div>
