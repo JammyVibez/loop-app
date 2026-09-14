@@ -380,6 +380,14 @@ export async function POST(request: NextRequest) {
       console.error("Loop mention processing error:", mentionError)
     }
 
+    // Quest tracking: native "create_loop" quests progress here (non-fatal).
+    try {
+      const { trackQuestAction } = await import("@/lib/quest-tracker")
+      await trackQuestAction(supabase, user.id, "create_loop")
+    } catch {
+      /* non-fatal */
+    }
+
     return NextResponse.json({ success: true, loop: normalizeLoop(loop) })
   } catch (error: any) {
     console.error("Create loop error:", error)

@@ -126,6 +126,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       } catch (err) {
         console.error("tagged_circles sync:", err)
       }
+
+      // Quest progress: join_circle native action
+      try {
+        const { trackQuestAction } = await import("@/lib/quest-tracker")
+        await trackQuestAction(supabase, user.id, "join_circle")
+      } catch (err) {
+        console.error("quest track (join_circle):", err)
+      }
     }
 
     return NextResponse.json({

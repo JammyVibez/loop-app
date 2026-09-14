@@ -108,6 +108,15 @@ export async function POST(
       } catch (txErr) {
         console.error("Clutch payout transaction error:", txErr)
       }
+      // Quest progress: win_duel native action (winners + refunded predictors count as correct)
+      if (payout.kind === "win") {
+        try {
+          const { trackQuestAction } = await import("@/lib/quest-tracker")
+          await trackQuestAction(supabase, payout.user_id, "win_duel")
+        } catch (err) {
+          console.error("quest track (win_duel):", err)
+        }
+      }
     }
 
     await supabase

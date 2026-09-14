@@ -286,6 +286,14 @@ export async function POST(
       console.error("Comment mention processing error:", mentionError)
     }
 
+    // Quest progress: add_comment native action
+    try {
+      const { trackQuestAction } = await import("@/lib/quest-tracker")
+      await trackQuestAction(supabase, user.id, "create_comment")
+    } catch (err) {
+      console.error("quest track (add_comment):", err)
+    }
+
     // Broadcast real-time update
     await supabase.channel(`loop:${loopId}`)
       .send({

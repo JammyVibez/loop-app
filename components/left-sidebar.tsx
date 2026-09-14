@@ -30,6 +30,7 @@ import {
   UserPlus,
   Lock,
   Building2,
+  Target,
 } from "lucide-react"
 import { UserBadges } from "@/components/user-badge"
 
@@ -77,6 +78,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
     { href: "/co-loop/studio", label: "Co-Loop Studio", icon: Zap, badge: "NEW" },
     { href: "/earnings", label: "Creator Studio", icon: DollarSign },
     { href: "/wallet", label: "Wallet & Gifts", icon: Coins },
+    { href: "/quests", label: "Quests", icon: Target, badge: "NEW" },
     { href: "/bookmarks", label: "Saved Bookmarks", icon: Bookmark },
     { href: "/invite", label: "Invite Friends", icon: UserPlus },
     // Notifications moved to navbar only

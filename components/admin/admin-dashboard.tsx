@@ -52,6 +52,7 @@ import { AdsAdminPanel } from "@/components/admin/ads-admin-panel"
 import { AwardsAdminPanel } from "@/components/admin/awards-admin-panel"
 import { ProCirclePanel } from "@/components/admin/pro-circle-panel"
 import { VerificationBadgesAdminPanel } from "@/components/admin/verification-badges-admin-panel"
+import { AdminQuestsPanel } from "@/components/admin/admin-quests-panel"
 import { SystemHealthPanel } from "@/components/admin/system-health-panel"
 import { BanAppealsPanel } from "@/components/admin/ban-appeals-panel"
 import { AdminAccountManagement } from "@/components/admin/admin-account-management"
@@ -265,6 +266,7 @@ export function AdminDashboard() {
             <TabsTrigger value="emojis" className="text-xs">Emojis</TabsTrigger>
             <TabsTrigger value="awards" className="text-xs">Awards</TabsTrigger>
             <TabsTrigger value="checkmarks" className="text-xs">Checkmarks</TabsTrigger>
+            <TabsTrigger value="quests" className="text-xs">Quests</TabsTrigger>
             <TabsTrigger value="procircle" className="text-xs">Pro Circle</TabsTrigger>
             <TabsTrigger value="appeals" className="text-xs">Ban Appeals</TabsTrigger>
             <TabsTrigger value="coloops" className="text-xs">Co-Loops</TabsTrigger>
@@ -566,6 +568,9 @@ export function AdminDashboard() {
         </TabsContent>
         <TabsContent value="checkmarks" className="mt-6">
           <VerificationBadgesAdminPanel />
+        </TabsContent>
+        <TabsContent value="quests" className="mt-6">
+          <AdminQuestsPanel />
         </TabsContent>
         <TabsContent value="health" className="mt-6">
           <SystemHealthPanel />

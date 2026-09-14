@@ -349,6 +349,14 @@ export async function POST(request: NextRequest) {
       })
     } catch { /* intentionally silent */ }
 
+    // Quest progress: send_gift native action (sender)
+    try {
+      const { trackQuestAction } = await import("@/lib/quest-tracker")
+      await trackQuestAction(supabase, user.id, "send_gift")
+    } catch (err) {
+      console.error("quest track (send_gift):", err)
+    }
+
     return NextResponse.json({
       success: true,
       transaction_id: transaction?.id || null,
