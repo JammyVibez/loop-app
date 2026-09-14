@@ -23,6 +23,7 @@ import {
   CheckCircle,
   MessageSquare,
   TrendingUp,
+  Target,
   Palette,
   Image,
   Gift,
@@ -49,16 +50,48 @@ interface CommandAction {
 interface AdminCommandPaletteProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** In-shell section navigation (updates ?tab= without a page reload). */
+  onNavigate?: (section: string) => void
 }
 
-export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteProps) {
+export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCommandPaletteProps) {
   const router = useRouter()
   const { getAuthHeader, user } = useAuth()
   const { toast } = useToast()
   const [query, setQuery] = useState("")
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [executing, setExecuting] = useState<string | null>(null)
+  const [userHits, setUserHits] = useState<{ id: string; username: string; display_name?: string; avatar_url?: string; is_verified?: boolean }[]>([])
+  const [userLoading, setUserLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Live user search — jump directly to a user's admin record.
+  useEffect(() => {
+    const q = query.trim()
+    if (!open || q.length < 2) {
+      setUserHits([])
+      return
+    }
+    let cancelled = false
+    setUserLoading(true)
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/admin/users/manage?q=${encodeURIComponent(q)}&limit=5`, {
+          headers: getAuthHeader(),
+        })
+        const data = await res.json()
+        if (!cancelled && res.ok) setUserHits(data.users || [])
+      } catch {
+        /* keep palette usable if search fails */
+      } finally {
+        if (!cancelled) setUserLoading(false)
+      }
+    }, 250)
+    return () => {
+      cancelled = true
+      clearTimeout(t)
+    }
+  }, [query, open, getAuthHeader])
 
   const actions: CommandAction[] = [
     // Navigation
@@ -68,7 +101,7 @@ export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteP
       description: "Platform analytics dashboard",
       icon: BarChart3,
       category: "Navigation",
-      action: () => { router.push("/admin"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("analytics") : router.push("/admin"); onOpenChange(false) },
       keywords: ["stats", "metrics", "data"],
     },
     {
@@ -77,7 +110,7 @@ export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteP
       description: "Search, ban, verify users",
       icon: Users,
       category: "Navigation",
-      action: () => { router.push("/admin?tab=users"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("users") : router.push("/admin?tab=users"); onOpenChange(false) },
       keywords: ["people", "accounts"],
     },
     {
@@ -86,7 +119,7 @@ export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteP
       description: "Platform revenue overview",
       icon: Coins,
       category: "Navigation",
-      action: () => { router.push("/admin?tab=revenue"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("revenue") : router.push("/admin?tab=revenue"); onOpenChange(false) },
       keywords: ["money", "earnings", "payouts"],
     },
     {
@@ -95,8 +128,26 @@ export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteP
       description: "Review flagged content",
       icon: Flag,
       category: "Navigation",
-      action: () => { router.push("/admin?tab=moderation"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("moderation") : router.push("/admin?tab=moderation"); onOpenChange(false) },
       keywords: ["reports", "flags", "content"],
+    },
+    {
+      id: "nav-quests",
+      label: "Quests",
+      description: "Create and manage rewarded quests",
+      icon: Target,
+      category: "Navigation",
+      action: () => { onNavigate ? onNavigate("quests") : router.push("/admin?tab=quests"); onOpenChange(false) },
+      keywords: ["rewards", "engagement", "ads", "survey", "games"],
+    },
+    {
+      id: "nav-monetization",
+      label: "Monetization",
+      description: "Coin pricing, balances, Pro grants",
+      icon: Coins,
+      category: "Navigation",
+      action: () => { onNavigate ? onNavigate("monetization") : router.push("/admin?tab=monetization"); onOpenChange(false) },
+      keywords: ["pricing", "coins", "premium", "pro", "stripe"],
     },
     {
       id: "nav-health",
@@ -104,7 +155,7 @@ export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteP
       description: "Server status and metrics",
       icon: Zap,
       category: "Navigation",
-      action: () => { router.push("/admin?tab=health"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("health") : router.push("/admin?tab=health"); onOpenChange(false) },
       keywords: ["status", "uptime", "performance"],
     },
     {
@@ -113,7 +164,7 @@ export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteP
       description: "Manage shop themes and cosmetics",
       icon: Palette,
       category: "Navigation",
-      action: () => { router.push("/admin?tab=catalog"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("catalog") : router.push("/admin?tab=catalog"); onOpenChange(false) },
       keywords: ["shop", "cosmetics", "effects"],
     },
     {
@@ -122,7 +173,7 @@ export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteP
       description: "Manage platform events",
       icon: Calendar,
       category: "Navigation",
-      action: () => { router.push("/admin?tab=events"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("events") : router.push("/admin?tab=events"); onOpenChange(false) },
       keywords: ["happening", "live"],
     },
     // Quick Actions
@@ -132,7 +183,7 @@ export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteP
       description: "Grant blue checkmark",
       icon: CheckCircle,
       category: "Quick Actions",
-      action: () => { router.push("/admin?tab=checkmarks"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("checkmarks") : router.push("/admin?tab=checkmarks"); onOpenChange(false) },
       keywords: ["badge", "verified", "check"],
     },
     {
@@ -141,7 +192,7 @@ export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteP
       description: "Send announcement to all users",
       icon: MessageSquare,
       category: "Quick Actions",
-      action: () => { router.push("/admin?tab=broadcast"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("broadcast") : router.push("/admin?tab=broadcast"); onOpenChange(false) },
       keywords: ["announce", "notify", "message"],
     },
     {
@@ -150,7 +201,7 @@ export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteP
       description: "Pin content to explore page",
       icon: Heart,
       category: "Quick Actions",
-      action: () => { router.push("/admin?tab=featured"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("featured") : router.push("/admin?tab=featured"); onOpenChange(false) },
       keywords: ["pin", "highlight", "showcase"],
     },
     {
@@ -159,7 +210,7 @@ export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteP
       description: "Ban a user account",
       icon: Ban,
       category: "Quick Actions",
-      action: () => { router.push("/admin?tab=users"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("users") : router.push("/admin?tab=users"); onOpenChange(false) },
       keywords: ["block", "suspend", "remove"],
     },
     {
@@ -168,7 +219,7 @@ export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteP
       description: "Enable/disable maintenance mode",
       icon: Settings,
       category: "Quick Actions",
-      action: () => { router.push("/admin?tab=maintenance"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("maintenance") : router.push("/admin?tab=maintenance"); onOpenChange(false) },
       keywords: ["downtime", "offline", "mode"],
     },
     {
@@ -177,7 +228,7 @@ export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteP
       description: "Approve pending withdrawals",
       icon: Gift,
       category: "Quick Actions",
-      action: () => { router.push("/admin?tab=payouts"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("payouts") : router.push("/admin?tab=payouts"); onOpenChange(false) },
       keywords: ["withdraw", "approve", "money"],
     },
     // External Links
@@ -290,6 +341,42 @@ export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteP
 
         {/* Results */}
         <div className="max-h-[400px] overflow-y-auto p-2">
+          {/* User results */}
+          {(query.trim().length >= 2 || userLoading) && (
+            <div className="mb-2">
+              <p className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Users {userLoading && <Loader2 className="ml-1 inline h-3 w-3 animate-spin" />}
+              </p>
+              {userHits.length === 0 && !userLoading ? (
+                <p className="px-3 py-2 text-xs text-muted-foreground">No users match.</p>
+              ) : (
+                userHits.map((u) => (
+                  <button
+                    key={u.id}
+                    onClick={() => {
+                      onNavigate ? onNavigate("users") : router.push("/admin?tab=users")
+                      onOpenChange(false)
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-muted/50"
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                      {u.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={u.avatar_url} alt="" className="h-8 w-8 object-cover" />
+                      ) : (
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{u.display_name || u.username}</p>
+                      <p className="truncate text-xs text-muted-foreground">@{u.username}</p>
+                    </div>
+                    {u.is_verified && <CheckCircle className="h-4 w-4 shrink-0 text-sky-500" />}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
           {Object.entries(grouped).map(([category, items]) => (
             <div key={category} className="mb-2">
               <p className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
@@ -323,7 +410,7 @@ export function AdminCommandPalette({ open, onOpenChange }: AdminCommandPaletteP
               })}
             </div>
           ))}
-          {filtered.length === 0 && (
+          {filtered.length === 0 && userHits.length === 0 && query.trim().length >= 2 && !userLoading && (
             <div className="py-8 text-center">
               <Search className="mx-auto mb-2 h-6 w-6 text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">No results for &quot;{query}&quot;</p>

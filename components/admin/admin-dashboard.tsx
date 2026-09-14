@@ -3,32 +3,51 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import {
+  Activity,
+  Award,
   BadgeCheck,
   Ban,
+  Banknote,
   BarChart3,
+  Building2,
+  Calendar,
+  CircleDot,
   Clock,
+  Coins,
   Crown,
-  
+  Flag,
+  Frame,
+  Gauge,
+  GitBranch,
+  Images,
+  LifeBuoy,
+  Megaphone,
+  Menu,
+  Palette,
+  Paintbrush,
   RefreshCw,
+  ScrollText,
   Search,
   Shield,
-  ShieldOff,
-  Zap,
+  Smile,
+  Star,
+  Target,
+  TrendingUp,
   Users,
-  Coins,
-  Flag,
-  Calendar,
+  UsersRound,
+  Wallet,
+  Wrench,
+  Zap,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { AdminCatalogPanel } from "@/components/admin/admin-catalog-panel"
 import { AdminBroadcastPanel } from "@/components/admin/admin-broadcast-panel"
 import { AdminSupportPanel } from "@/components/admin/admin-support-panel"
@@ -66,26 +85,133 @@ import { AdminRevenueTab } from "@/components/admin/admin-revenue-tab"
 import { AuditLogPanel } from "@/components/admin/audit-log-panel"
 import { AdminMonetizationPanel } from "@/components/admin/admin-monetization-panel"
 import { AdminCommandPalette } from "@/components/admin/admin-command-palette"
-import { UserBadges } from "@/components/user-badge"
+import { AdminUsersTable, type AdminUser } from "@/components/admin/admin-users-table"
+import { cn } from "@/lib/utils"
 
-interface AdminUser {
-  id: string
-  username: string
-  display_name?: string
-  avatar_url?: string
-  email?: string
-  is_verified?: boolean
-  is_team_member?: boolean
-  is_sponsor?: boolean
-  is_premium?: boolean
-  is_admin?: boolean
-  is_banned?: boolean
-  ban_reason?: string | null
-  premium_expires_at?: string | null
-  loop_coins?: number
-  created_at?: string
-  last_active?: string
+/* ------------------------------------------------------------------ */
+/* Sidebar navigation — grouped, professional dashboard style          */
+/* ------------------------------------------------------------------ */
+
+const NAV_GROUPS: {
+  label: string
+  items: { value: string; label: string; icon: React.ElementType }[]
+}[] = [
+  {
+    label: "Overview",
+    items: [
+      { value: "analytics", label: "Analytics", icon: BarChart3 },
+      { value: "health", label: "Health", icon: Activity },
+      { value: "audit", label: "Audit Log", icon: ScrollText },
+    ],
+  },
+  {
+    label: "People",
+    items: [
+      { value: "users", label: "Users", icon: Users },
+      { value: "moderation", label: "Moderation", icon: Flag },
+      { value: "appeals", label: "Ban Appeals", icon: Ban },
+      { value: "team", label: "Team", icon: UsersRound },
+      { value: "organizations", label: "Orgs", icon: Building2 },
+      { value: "support", label: "Support", icon: LifeBuoy },
+    ],
+  },
+  {
+    label: "Economy",
+    items: [
+      { value: "revenue", label: "Revenue", icon: Wallet },
+      { value: "economy", label: "Economy", icon: Coins },
+      { value: "monetization", label: "Monetization", icon: Crown },
+      { value: "payouts", label: "Payouts", icon: Banknote },
+      { value: "rate-limits", label: "Rate limits", icon: Gauge },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
+      { value: "featured", label: "Featured", icon: Star },
+      { value: "events", label: "Events", icon: Calendar },
+      { value: "quests", label: "Quests", icon: Target },
+      { value: "coloops", label: "Co-Loops", icon: GitBranch },
+      { value: "broadcast", label: "Broadcast", icon: Megaphone },
+      { value: "ads", label: "Ads", icon: Images },
+    ],
+  },
+  {
+    label: "Customization",
+    items: [
+      { value: "catalog", label: "Themes", icon: Palette },
+      { value: "circle-themes", label: "Circle Themes", icon: Paintbrush },
+      { value: "pfp-frames", label: "PFP Frames", icon: Frame },
+      { value: "gifs", label: "GIFs", icon: Images },
+      { value: "emojis", label: "Emojis", icon: Smile },
+      { value: "awards", label: "Awards", icon: Award },
+      { value: "checkmarks", label: "Checkmarks", icon: BadgeCheck },
+      { value: "procircle", label: "Pro Circle", icon: CircleDot },
+    ],
+  },
+  {
+    label: "System",
+    items: [{ value: "maintenance", label: "Maintenance", icon: Wrench }],
+  },
+]
+
+const ALL_SECTIONS = NAV_GROUPS.flatMap((g) => g.items)
+
+/* ------------------------------------------------------------------ */
+
+function SidebarNav({
+  section,
+  onNavigate,
+  onNavigateMobile,
+}: {
+  section: string
+  onNavigate: (v: string) => void
+  onNavigateMobile?: (v: string) => void
+}) {
+  return (
+    <nav className="space-y-5">
+      {NAV_GROUPS.map((group) => (
+        <div key={group.label}>
+          <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+            {group.label}
+          </p>
+          <div className="space-y-0.5">
+            {group.items.map((item) => {
+              const Icon = item.icon
+              const active = section === item.value
+              return (
+                <button
+                  key={item.value}
+                  onClick={() => {
+                    onNavigate(item.value)
+                    onNavigateMobile?.(item.value)
+                  }}
+                  className={cn(
+                    "group flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
+                    active
+                      ? "bg-primary/10 text-primary shadow-sm"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      "h-4 w-4 shrink-0 transition-colors",
+                      active ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground",
+                    )}
+                  />
+                  <span className="truncate">{item.label}</span>
+                  {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </nav>
+  )
 }
+
+/* ------------------------------------------------------------------ */
 
 export function AdminDashboard() {
   const searchParams = useSearchParams()
@@ -93,7 +219,7 @@ export function AdminDashboard() {
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const [users, setUsers] = useState<AdminUser[]>([])
-  const [stats, setStats] = useState({ total_users: 0, verified: 0, premium: 0, banned: 0 })
+  const [stats, setStats] = useState({ total_users: 0, verified: 0, premium: 0, banned: 0, new_this_week: 0 })
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [q, setQ] = useState("")
@@ -101,6 +227,7 @@ export function AdminDashboard() {
   const [live, setLive] = useState(false)
   const [section, setSection] = useState(initialTab)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   const loadUsers = useCallback(async () => {
     if (!user?.is_admin) return
@@ -114,7 +241,7 @@ export function AdminDashboard() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to load users")
       setUsers(data.users || [])
-      setStats(data.stats || { total_users: 0, verified: 0, premium: 0 })
+      setStats(data.stats || { total_users: 0, verified: 0, premium: 0, banned: 0 })
     } catch (error: any) {
       toast({ title: "Admin load failed", description: error.message, variant: "destructive" })
     } finally {
@@ -159,7 +286,9 @@ export function AdminDashboard() {
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Action failed")
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, ...data.user } : u)))
+      if (data.user) {
+        setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, ...data.user } : u)))
+      }
       toast({ title: "Updated", description: `${action.replace(/_/g, " ")} applied.` })
       await loadUsers()
     } catch (error: any) {
@@ -169,14 +298,23 @@ export function AdminDashboard() {
     }
   }
 
-  const filteredLabel = useMemo(() => {
-    if (filter === "verified") return "Verified users"
-    if (filter === "premium") return "Premium users"
-    if (filter === "admin") return "Admins"
-    if (filter === "unverified") return "Unverified users"
-    if (filter === "banned") return "Banned users"
-    return "All users"
-  }, [filter])
+  const navigate = useCallback((v: string) => {
+    setSection(v)
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href)
+      url.searchParams.set("tab", v)
+      window.history.replaceState(null, "", url.toString())
+    }
+  }, [])
+
+  const currentLabel = useMemo(
+    () => ALL_SECTIONS.find((s) => s.value === section)?.label || "Dashboard",
+    [section],
+  )
+  const currentIcon = useMemo(
+    () => ALL_SECTIONS.find((s) => s.value === section)?.icon || BarChart3,
+    [section],
+  )
 
   if (!user?.is_admin) {
     return (
@@ -189,410 +327,216 @@ export function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">App Admin</h1>
-          <p className="text-sm text-muted-foreground">
-            Grant verification, premium, roles, and coins in realtime.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={live ? "default" : "outline"} className="rounded-full">
-            {live ? "Live" : "Connecting…"}
-          </Badge>
-          <Button variant="outline" size="sm" className="rounded-full" onClick={loadUsers}>
-            <RefreshCw className="mr-2 h-4 w-4" /> Refresh
-          </Button>
-        </div>
-      </div>
+    <div className="flex gap-6">
+      {/* Desktop sidebar */}
+      <aside className="sticky top-6 hidden h-[calc(100vh-3rem)] w-60 shrink-0 overflow-y-auto rounded-2xl border bg-card/60 p-4 lg:block">
+        <SidebarNav section={section} onNavigate={navigate} />
+      </aside>
 
-      <Tabs value={section} onValueChange={setSection}>
-        {/* Command Palette Trigger */}
-        <div className="flex items-center gap-2 mb-3">
+      {/* Main column */}
+      <div className="min-w-0 flex-1 space-y-5">
+        {/* Top bar: drawer toggle + section title + live + palette */}
+        <div className="flex items-center gap-2">
+          <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon" className="rounded-full lg:hidden" aria-label="Open admin menu">
+                <Menu className="h-4 w-4" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 overflow-y-auto p-4">
+              <SheetHeader className="p-0 pb-3 text-left">
+                <SheetTitle className="text-base">Admin sections</SheetTitle>
+              </SheetHeader>
+              <SidebarNav
+                section={section}
+                onNavigate={navigate}
+                onNavigateMobile={() => setDrawerOpen(false)}
+              />
+            </SheetContent>
+          </Sheet>
+
+          <div className="min-w-0 flex-1">
+            <h2 className="flex items-center gap-2 truncate text-xl font-bold tracking-tight sm:text-2xl">
+              {(() => {
+                const Icon = currentIcon
+                return <Icon className="h-5 w-5 text-primary" />
+              })()}
+              {currentLabel}
+            </h2>
+          </div>
+
           <button
             onClick={() => setCommandPaletteOpen(true)}
-            className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors w-full sm:w-auto"
+            className="hidden items-center gap-2 rounded-full border bg-muted/50 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted sm:flex"
           >
             <Search className="h-4 w-4" />
-            <span>Quick actions...</span>
-            <kbd className="ml-auto hidden sm:inline-flex h-5 items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px]">⌘K</kbd>
+            <span>Quick actions…</span>
+            <kbd className="ml-1 inline-flex h-5 items-center rounded border bg-background px-1.5 font-mono text-[10px]">
+              ⌘K
+            </kbd>
           </button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full sm:hidden"
+            onClick={() => setCommandPaletteOpen(true)}
+            aria-label="Search"
+          >
+            <Search className="h-4 w-4" />
+          </Button>
+
+          <Badge variant={live ? "default" : "outline"} className="hidden rounded-full md:inline-flex">
+            {live ? "Live" : "Connecting…"}
+          </Badge>
+          <Button variant="outline" size="icon" className="hidden rounded-full sm:inline-flex" onClick={loadUsers} aria-label="Refresh">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </div>
 
-        {/* Grouped Tab Navigation */}
-        <div className="space-y-2">
-          {/* Primary Tabs */}
-          <TabsList className="flex h-auto w-full flex-wrap gap-1">
-            <TabsTrigger value="analytics" className="text-xs">
-              <BarChart3 className="mr-1 h-3 w-3" /> Analytics
-            </TabsTrigger>
-            <TabsTrigger value="revenue" className="text-xs">
-              <Coins className="mr-1 h-3 w-3" /> Revenue
-            </TabsTrigger>
-            <TabsTrigger value="users" className="text-xs">
-              <Users className="mr-1 h-3 w-3" /> Users
-            </TabsTrigger>
-            <TabsTrigger value="moderation" className="text-xs">
-              <Shield className="mr-1 h-3 w-3" /> Moderation
-            </TabsTrigger>
-            <TabsTrigger value="audit" className="text-xs">
-              <Clock className="mr-1 h-3 w-3" /> Audit Log
-            </TabsTrigger>
-            <TabsTrigger value="health" className="text-xs">
-              <Zap className="mr-1 h-3 w-3" /> Health
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={section} onValueChange={navigate}>
+          {/* Users gets the fully redesigned table experience */}
+          <TabsContent value="users" className="mt-0 space-y-5">
+            <AdminUsersTable
+              users={users}
+              stats={stats}
+              loading={loading}
+              busyId={busyId}
+              filter={filter}
+              onFilterChange={setFilter}
+              q={q}
+              onQueryChange={setQ}
+              onSearch={loadUsers}
+              onAction={runAction}
+              onRefresh={loadUsers}
+            />
 
-          {/* Secondary Tabs (collapsed by default on mobile) */}
-          <TabsList className="flex h-auto w-full flex-wrap gap-1">
-            <TabsTrigger value="economy" className="text-xs">Economy</TabsTrigger>
-            <TabsTrigger value="monetization" className="text-xs">Monetization</TabsTrigger>
-            <TabsTrigger value="rate-limits" className="text-xs">Rate limits</TabsTrigger>
-            <TabsTrigger value="payouts" className="text-xs">Payouts</TabsTrigger>
-            <TabsTrigger value="catalog" className="text-xs">Themes</TabsTrigger>
-            <TabsTrigger value="featured" className="text-xs">Featured</TabsTrigger>
-            <TabsTrigger value="events" className="text-xs">Events</TabsTrigger>
-            <TabsTrigger value="broadcast" className="text-xs">Broadcast</TabsTrigger>
-            <TabsTrigger value="ads" className="text-xs">Ads</TabsTrigger>
-            <TabsTrigger value="support" className="text-xs">Support</TabsTrigger>
-            <TabsTrigger value="team" className="text-xs">Team</TabsTrigger>
-            <TabsTrigger value="organizations" className="text-xs">Orgs</TabsTrigger>
-          </TabsList>
-
-          {/* Tertiary Tabs */}
-          <TabsList className="flex h-auto w-full flex-wrap gap-1">
-            <TabsTrigger value="gifs" className="text-xs">GIFs</TabsTrigger>
-            <TabsTrigger value="emojis" className="text-xs">Emojis</TabsTrigger>
-            <TabsTrigger value="awards" className="text-xs">Awards</TabsTrigger>
-            <TabsTrigger value="checkmarks" className="text-xs">Checkmarks</TabsTrigger>
-            <TabsTrigger value="quests" className="text-xs">Quests</TabsTrigger>
-            <TabsTrigger value="procircle" className="text-xs">Pro Circle</TabsTrigger>
-            <TabsTrigger value="appeals" className="text-xs">Ban Appeals</TabsTrigger>
-            <TabsTrigger value="coloops" className="text-xs">Co-Loops</TabsTrigger>
-            <TabsTrigger value="circle-themes" className="text-xs">Circle Themes</TabsTrigger>
-            <TabsTrigger value="pfp-frames" className="text-xs">PFP Frames</TabsTrigger>
-            <TabsTrigger value="maintenance" className="text-xs">Maintenance</TabsTrigger>
-          </TabsList>
-        </div>
-
-        
-        <TabsContent value="revenue" className="mt-6">
-          <AdminRevenueTab />
-        </TabsContent>
-
-        <TabsContent value="audit" className="mt-6">
-          <AuditLogPanel />
-        </TabsContent>
-
-<TabsContent value="analytics" className="mt-6">
-          <AdminAnalyticsTab />
-        </TabsContent>
-
-        <TabsContent value="users" className="mt-6 space-y-6">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                  <Users className="h-4 w-4" /> Total users
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-3xl font-bold">{stats.total_users}</CardContent>
+            <Card className="border-dashed">
+              <CardContent className="flex items-start gap-3 p-4 text-sm text-muted-foreground">
+                <Zap className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" />
+                Changes sync live across open admin sessions. Recipients also get an in-app notification.
+              </CardContent>
             </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                  <BadgeCheck className="h-4 w-4" /> Verified
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-3xl font-bold">{stats.verified}</CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                  <Crown className="h-4 w-4" /> Premium
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-3xl font-bold">{stats.premium}</CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                  <Ban className="h-4 w-4" /> Banned
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-3xl font-bold">{stats.banned || 0}</CardContent>
-            </Card>
-          </div>
+          </TabsContent>
 
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <Tabs value={filter} onValueChange={setFilter} className="w-full lg:w-auto">
-              <TabsList className="grid h-auto w-full grid-cols-3 gap-1 sm:grid-cols-6">
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="unverified">Unverified</TabsTrigger>
-                <TabsTrigger value="verified">Verified</TabsTrigger>
-                <TabsTrigger value="premium">Premium</TabsTrigger>
-                <TabsTrigger value="admin">Admins</TabsTrigger>
-                <TabsTrigger value="banned">Banned</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search username, name, email…"
-                className="pl-9"
-                onKeyDown={(e) => e.key === "Enter" && loadUsers()}
-              />
+          {/* Every other section — unchanged functionality, consistent spacing */}
+          <TabsContent value="revenue" className="mt-0">
+            <AdminRevenueTab />
+          </TabsContent>
+
+          <TabsContent value="audit" className="mt-0">
+            <AuditLogPanel />
+          </TabsContent>
+
+          <TabsContent value="analytics" className="mt-0">
+            <AdminAnalyticsTab />
+          </TabsContent>
+
+          <TabsContent value="maintenance" className="mt-0 space-y-6">
+            <ShopControl />
+            <MaintenanceModeControl />
+            <LogoControl />
+            <CacheManagementPanel />
+            <ProLoungeSettings />
+            <AdminAccountManagement />
+          </TabsContent>
+
+          <TabsContent value="organizations" className="mt-0">
+            <OrgManagementPanel />
+          </TabsContent>
+
+          <TabsContent value="events" className="mt-0">
+            <EventManagement />
+          </TabsContent>
+
+          <TabsContent value="economy" className="mt-0 space-y-6">
+            <EconomyControl />
+            <SettingsTabContent />
+          </TabsContent>
+
+          <TabsContent value="monetization" className="mt-0">
+            <AdminMonetizationPanel />
+          </TabsContent>
+
+          <TabsContent value="rate-limits" className="mt-0">
+            <RateLimitControl />
+          </TabsContent>
+
+          <TabsContent value="payouts" className="mt-0 space-y-6">
+            <WithdrawalsControl />
+            <RefundsControl />
+          </TabsContent>
+
+          <TabsContent value="catalog" className="mt-0">
+            <AdminCatalogPanel />
+          </TabsContent>
+
+          <TabsContent value="featured" className="mt-0">
+            <AdminFeaturedPanel />
+          </TabsContent>
+
+          <TabsContent value="moderation" className="mt-0">
+            <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <Flag className="h-4 w-4" /> Review reported content and take action.
             </div>
-          </div>
+            <ContentModerationControl />
+          </TabsContent>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{filteredLabel}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {loading ? (
-                <div className="flex items-center justify-center py-12 text-muted-foreground">
-                  <Spinner className="mr-2 h-5 w-5" /> Loading users…
-                </div>
-              ) : users.length === 0 ? (
-                <p className="py-10 text-center text-sm text-muted-foreground">No users found.</p>
-              ) : (
-                users.map((u) => (
-                  <div
-                    key={u.id}
-                    className="flex flex-col gap-3 rounded-2xl border p-3 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <Avatar>
-                        <AvatarImage src={u.avatar_url} />
-                        <AvatarFallback>{(u.display_name || u.username || "U").charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <p className="truncate font-semibold">{u.display_name || u.username}</p>
-                          <UserBadges
-                            is_verified={u.is_verified}
-                            is_team_member={u.is_team_member}
-                            is_sponsor={u.is_sponsor}
-                            username={u.username}
-                            size="sm"
-                          />
-                          {u.is_premium && <Badge className="bg-amber-500 text-slate-900">Premium</Badge>}
-                          {u.is_admin && <Badge variant="secondary">Admin</Badge>}
-                          {u.is_banned && <Badge variant="destructive">Banned</Badge>}
-                        </div>
-                        <p className="truncate text-sm text-muted-foreground">
-                          @{u.username} · {Number(u.loop_coins || 0).toLocaleString()} coins
-                          {u.ban_reason ? ` · ${u.ban_reason}` : ""}
-                        </p>
-                      </div>
-                    </div>
+          <TabsContent value="support" className="mt-0">
+            <AdminSupportPanel />
+          </TabsContent>
 
-                    <div className="flex flex-wrap gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-full text-xs"
-                        disabled={busyId === `${u.id}:verify` || busyId === `${u.id}:unverify`}
-                        onClick={() => runAction(u.id, u.is_verified ? "unverify" : "verify")}
-                        title="Toggle Creator Checkmark"
-                      >
-                        <BadgeCheck className="mr-1 h-3.5 w-3.5 text-sky-500" />
-                        {u.is_verified ? "Rem Creator" : "Add Creator"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-full text-xs"
-                        disabled={busyId === `${u.id}:grant_team_badge` || busyId === `${u.id}:revoke_team_badge`}
-                        onClick={() => runAction(u.id, u.is_team_member ? "revoke_team_badge" : "grant_team_badge")}
-                        title="Toggle Team Badge"
-                      >
-                        <Shield className="mr-1 h-3.5 w-3.5 text-violet-500" />
-                        {u.is_team_member ? "Rem Team" : "Add Team"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-full text-xs"
-                        disabled={busyId === `${u.id}:grant_sponsor_badge` || busyId === `${u.id}:revoke_sponsor_badge`}
-                        onClick={() => runAction(u.id, u.is_sponsor ? "revoke_sponsor_badge" : "grant_sponsor_badge")}
-                        title="Toggle Sponsor Gold Badge"
-                      >
-                        <Zap className="mr-1 h-3.5 w-3.5 text-amber-500" />
-                        {u.is_sponsor ? "Rem Sponsor" : "Add Sponsor"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-full text-xs"
-                        disabled={busyId === `${u.id}:grant_premium` || busyId === `${u.id}:revoke_premium`}
-                        onClick={() =>
-                          runAction(u.id, u.is_premium ? "revoke_premium" : "grant_premium", { months: 1 })
-                        }
-                      >
-                        <Crown className="mr-1 h-3.5 w-3.5 text-amber-500" />
-                        {u.is_premium ? "Revoke Pro" : "Grant Pro"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-full"
-                        disabled={busyId === `${u.id}:make_admin` || busyId === `${u.id}:remove_admin`}
-                        onClick={() => runAction(u.id, u.is_admin ? "remove_admin" : "make_admin")}
-                      >
-                        {u.is_admin ? (
-                          <>
-                            <ShieldOff className="mr-1.5 h-3.5 w-3.5" /> Remove admin
-                          </>
-                        ) : (
-                          <>
-                            <Shield className="mr-1.5 h-3.5 w-3.5" /> Make admin
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-full"
-                        disabled={busyId === `${u.id}:add_coins`}
-                        onClick={() => runAction(u.id, "add_coins", { amount: 50 })}
-                      >
-                        <Coins className="mr-1.5 h-3.5 w-3.5" /> +50
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={u.is_banned ? "outline" : "destructive"}
-                        className="rounded-full"
-                        disabled={busyId === `${u.id}:ban` || busyId === `${u.id}:unban`}
-                        onClick={() =>
-                          runAction(u.id, u.is_banned ? "unban" : "ban", {
-                            reason: "Violated community guidelines",
-                          })
-                        }
-                      >
-                        <Ban className="mr-1.5 h-3.5 w-3.5" />
-                        {u.is_banned ? "Unban" : "Ban"}
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+          <TabsContent value="gifs" className="mt-0">
+            <AdminGifsPanel />
+          </TabsContent>
+          <TabsContent value="emojis" className="mt-0">
+            <AdminEmojisPanel />
+          </TabsContent>
 
-          <Card className="border-dashed">
-            <CardContent className="flex items-start gap-3 py-5 text-sm text-muted-foreground">
-              <Zap className="mt-0.5 h-4 w-4 text-sky-500" />
-              Changes sync live across open admin sessions. Recipients also get an in-app notification.
-            </CardContent>
-          </Card>
-        </TabsContent>
+          <TabsContent value="broadcast" className="mt-0">
+            <AdminBroadcastPanel />
+          </TabsContent>
 
-        <TabsContent value="maintenance" className="mt-6 space-y-6">
-          <ShopControl />
-          <MaintenanceModeControl />
-          <LogoControl />
-          <CacheManagementPanel />
-          <ProLoungeSettings />
-          <AdminAccountManagement />
-        </TabsContent>
+          <TabsContent value="ads" className="mt-0">
+            <AdsAdminPanel />
+          </TabsContent>
+          <TabsContent value="awards" className="mt-0">
+            <AwardsAdminPanel />
+          </TabsContent>
+          <TabsContent value="procircle" className="mt-0">
+            <ProCirclePanel />
+          </TabsContent>
+          <TabsContent value="checkmarks" className="mt-0">
+            <VerificationBadgesAdminPanel />
+          </TabsContent>
+          <TabsContent value="quests" className="mt-0">
+            <AdminQuestsPanel />
+          </TabsContent>
+          <TabsContent value="health" className="mt-0">
+            <SystemHealthPanel />
+          </TabsContent>
+          <TabsContent value="appeals" className="mt-0">
+            <BanAppealsPanel />
+          </TabsContent>
+          <TabsContent value="coloops" className="mt-0">
+            <CoLoopSessionsPanel />
+          </TabsContent>
+          <TabsContent value="team" className="mt-0">
+            <AdminTeamPermissions />
+          </TabsContent>
+          <TabsContent value="circle-themes" className="mt-0">
+            <ThemePresetManager />
+          </TabsContent>
+          <TabsContent value="pfp-frames" className="mt-0">
+            <AdminFramesTab />
+          </TabsContent>
+        </Tabs>
+      </div>
 
-        <TabsContent value="organizations" className="mt-6">
-          <OrgManagementPanel />
-        </TabsContent>
-
-        <TabsContent value="events" className="mt-6">
-          <EventManagement />
-        </TabsContent>
-
-        <TabsContent value="economy" className="mt-6 space-y-6">
-          <EconomyControl />
-          <SettingsTabContent />
-        </TabsContent>
-
-        <TabsContent value="monetization" className="mt-6">
-          <AdminMonetizationPanel />
-        </TabsContent>
-
-        <TabsContent value="rate-limits" className="mt-6">
-          <RateLimitControl />
-        </TabsContent>
-
-        <TabsContent value="payouts" className="mt-6">
-          <WithdrawalsControl />
-          <RefundsControl />
-        </TabsContent>
-
-        <TabsContent value="catalog" className="mt-6">
-          <AdminCatalogPanel />
-        </TabsContent>
-
-        <TabsContent value="featured" className="mt-6">
-          <AdminFeaturedPanel />
-        </TabsContent>
-
-        <TabsContent value="moderation" className="mt-6">
-          <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
-            <Flag className="h-4 w-4" /> Review reported content and take action.
-          </div>
-          <ContentModerationControl />
-        </TabsContent>
-
-        <TabsContent value="support" className="mt-6">
-          <AdminSupportPanel />
-        </TabsContent>
-
-        <TabsContent value="gifs" className="mt-6">
-          <AdminGifsPanel />
-        </TabsContent>
-        <TabsContent value="emojis" className="mt-6">
-          <AdminEmojisPanel />
-        </TabsContent>
-
-        <TabsContent value="broadcast" className="mt-6">
-          <AdminBroadcastPanel />
-        </TabsContent>
-
-        <TabsContent value="ads" className="mt-6">
-          <AdsAdminPanel />
-        </TabsContent>
-        <TabsContent value="awards" className="mt-6">
-          <AwardsAdminPanel />
-        </TabsContent>
-        <TabsContent value="procircle" className="mt-6">
-          <ProCirclePanel />
-        </TabsContent>
-        <TabsContent value="checkmarks" className="mt-6">
-          <VerificationBadgesAdminPanel />
-        </TabsContent>
-        <TabsContent value="quests" className="mt-6">
-          <AdminQuestsPanel />
-        </TabsContent>
-        <TabsContent value="health" className="mt-6">
-          <SystemHealthPanel />
-        </TabsContent>
-        <TabsContent value="appeals" className="mt-6">
-          <BanAppealsPanel />
-        </TabsContent>
-        <TabsContent value="coloops" className="mt-6">
-          <CoLoopSessionsPanel />
-        </TabsContent>
-        <TabsContent value="team" className="mt-6">
-          <AdminTeamPermissions />
-        </TabsContent>
-        <TabsContent value="circle-themes" className="mt-6">
-          <ThemePresetManager />
-        </TabsContent>
-        <TabsContent value="pfp-frames" className="mt-6">
-          <AdminFramesTab />
-        </TabsContent>
-      </Tabs>
-
-      <AdminCommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
+      <AdminCommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        onNavigate={navigate}
+      />
     </div>
   )
 }

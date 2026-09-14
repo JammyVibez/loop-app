@@ -37,6 +37,7 @@ import { ClutchDuelCard } from "@/components/duels/clutch-duel-card"
 import { RichContent } from "@/components/content/rich-content"
 import { LoopDetailCodeBlock } from "@/components/loops/loop-detail-code-block"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { useVerificationBadges } from "@/hooks/use-verification-badges"
 import { LoopDetailBoostBar } from "@/components/loops/loop-detail-boost-bar"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -67,6 +68,7 @@ interface LoopData {
     verified: boolean
     premium: boolean
     equippedFrameId?: string | number | null
+    badgeId?: string | null
   }
   createdAt: string
   updatedAt: string
@@ -128,6 +130,7 @@ const formatCompact = (n: number) => {
 
 export function LoopDetailClient({ loopId }: { loopId: string }) {
   const [loop, setLoop] = useState<LoopData | null>(null)
+  const verificationBadges = useVerificationBadges()
   const [loading, setLoading] = useState(true)
   const [showFullTree, setShowFullTree] = useState(false)
   const [branchOpen, setBranchOpen] = useState(false)
@@ -174,6 +177,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           verified: Boolean(loopData.author?.is_verified),
           premium: Boolean(loopData.author?.is_premium),
           equippedFrameId: loopData.author?.equipped_frame_id || null,
+          badgeId: loopData.author?.badge_id || null,
         },
         createdAt: loopData.created_at,
         updatedAt: loopData.updated_at || loopData.created_at,
@@ -704,6 +708,13 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                   </Link>
                   {loop.author.verified && (
                     <VerifiedSeal size={20} title="Verified Creator" />
+                  )}
+                  {loop.author.badgeId && verificationBadges[loop.author.badgeId] && (
+                    <VerifiedSeal
+                      size={20}
+                      title={verificationBadges[loop.author.badgeId].label || `${verificationBadges[loop.author.badgeId].name} checkmark`}
+                      colors={verificationBadges[loop.author.badgeId].colors ?? undefined}
+                    />
                   )}
                   {loop.author.premium && (
                     <span className="inline-flex items-center rounded-full bg-gradient-to-r from-amber-300 to-yellow-500 px-1.5 py-px text-[9px] font-extrabold tracking-wider text-black">
