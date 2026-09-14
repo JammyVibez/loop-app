@@ -14,6 +14,24 @@ export interface VerificationBadge {
 let cached: Record<string, VerificationBadge> | null = null
 let inflight: Promise<Record<string, VerificationBadge>> | null = null
 
+/** DB writers may store `colors` as a JSON string — normalize to string[]. */
+function normalizeBadge(b: any): VerificationBadge {
+  let colors: unknown = b.colors
+  if (typeof colors === "string") {
+    try {
+      colors = JSON.parse(colors)
+    } catch {
+      colors = b.colors
+    }
+  }
+  const arr = Array.isArray(colors)
+    ? colors.map((c: unknown) => String(c).trim()).filter(Boolean)
+    : typeof colors === "string" && colors.trim()
+      ? [colors.trim()]
+      : []
+  return { ...b, colors: arr }
+}
+
 async function loadBadges(): Promise<Record<string, VerificationBadge>> {
   if (cached) return cached
   if (!inflight) {
@@ -21,7 +39,7 @@ async function loadBadges(): Promise<Record<string, VerificationBadge>> {
       .then((res) => res.json().catch(() => ({ badges: [] })))
       .then((data) => {
         const map: Record<string, VerificationBadge> = {}
-        for (const b of data.badges || []) map[b.id] = b
+        for (const b of data.badges || []) map[b.id] = normalizeBadge(b)
         cached = map
         return map
       })

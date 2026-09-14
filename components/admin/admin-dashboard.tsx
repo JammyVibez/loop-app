@@ -63,6 +63,7 @@ import { ThemePresetManager } from "@/components/admin/theme-preset-manager"
 import { AdminFramesTab } from "@/components/admin/admin-frames-tab"
 import { AdminRevenueTab } from "@/components/admin/admin-revenue-tab"
 import { AuditLogPanel } from "@/components/admin/audit-log-panel"
+import { AdminMonetizationPanel } from "@/components/admin/admin-monetization-panel"
 import { AdminCommandPalette } from "@/components/admin/admin-command-palette"
 import { UserBadges } from "@/components/user-badge"
 
@@ -245,6 +246,7 @@ export function AdminDashboard() {
           {/* Secondary Tabs (collapsed by default on mobile) */}
           <TabsList className="flex h-auto w-full flex-wrap gap-1">
             <TabsTrigger value="economy" className="text-xs">Economy</TabsTrigger>
+            <TabsTrigger value="monetization" className="text-xs">Monetization</TabsTrigger>
             <TabsTrigger value="rate-limits" className="text-xs">Rate limits</TabsTrigger>
             <TabsTrigger value="payouts" className="text-xs">Payouts</TabsTrigger>
             <TabsTrigger value="catalog" className="text-xs">Themes</TabsTrigger>
@@ -508,6 +510,10 @@ export function AdminDashboard() {
         <TabsContent value="economy" className="mt-6 space-y-6">
           <EconomyControl />
           <SettingsTabContent />
+        </TabsContent>
+
+        <TabsContent value="monetization" className="mt-6">
+          <AdminMonetizationPanel />
         </TabsContent>
 
         <TabsContent value="rate-limits" className="mt-6">

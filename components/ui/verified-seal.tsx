@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 
 /**
@@ -113,6 +113,72 @@ function hexToRgb(hex: string): [number, number, number] | null {
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
 }
 
+/**
+ * Convert any CSS color (rgb(), rgba(), hsl(), named colors) to hex so the
+ * SVG gradient can consume it. SVG paint servers ignore CSS color functions
+ * in some engines — normalizing here prevents a black fallback fill.
+ */
+function cssColorToHex(input: string): string | null {
+  const raw = input.trim()
+  if (raw.startsWith("#")) {
+    const m = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(raw)
+    if (!m) return null
+    let h = m[1].slice(0, 6)
+    if (h.length === 3) h = h.split("").map((c) => c + c).join("")
+    return `#${h.toLowerCase()}`
+  }
+  // rgb()/rgba() — also tolerates percentages (rgb(100%, 0%, 0%))
+  const fnMatch = /^(rgba?|hsla?)\(([^)]+)\)$/i.exec(raw)
+  if (fnMatch) {
+    const fn = fnMatch[1].toLowerCase()
+    const parts = fnMatch[2]
+      .split(/[\s,/]+/)
+      .filter(Boolean)
+    const num = (v: string, scale = 255) => {
+      if (v.endsWith("%")) return Math.round((parseFloat(v) / 100) * scale)
+      return Math.round(parseFloat(v))
+    }
+    if ((fn === "rgb" || fn === "rgba") && parts.length >= 3) {
+      const r = Math.max(0, Math.min(255, num(parts[0])))
+      const g = Math.max(0, Math.min(255, num(parts[1])))
+      const b = Math.max(0, Math.min(255, num(parts[2])))
+      return `#${[r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("")}`
+    }
+    if ((fn === "hsl" || fn === "hsla") && parts.length >= 3) {
+      const h = ((parseFloat(parts[0]) % 360) + 360) % 360
+      const s = Math.max(0, Math.min(1, parts[1].endsWith("%") ? parseFloat(parts[1]) / 100 : parseFloat(parts[1])))
+      const l = Math.max(0, Math.min(1, parts[2].endsWith("%") ? parseFloat(parts[2]) / 100 : parseFloat(parts[2])))
+      // Convert HSL → RGB
+      const c = (1 - Math.abs(2 * l - 1)) * s
+      const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+      const m1 = l - c / 2
+      let rp = 0, gp = 0, bp = 0
+      if (h < 60) [rp, gp, bp] = [c, x, 0]
+      else if (h < 120) [rp, gp, bp] = [x, c, 0]
+      else if (h < 180) [rp, gp, bp] = [0, c, x]
+      else if (h < 240) [rp, gp, bp] = [0, x, c]
+      else if (h < 300) [rp, gp, bp] = [x, 0, c]
+      else [rp, gp, bp] = [c, 0, x]
+      const r = Math.round((rp + m1) * 255)
+      const g = Math.round((gp + m1) * 255)
+      const b = Math.round((bp + m1) * 255)
+      return `#${[r, g, b].map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join("")}`
+    }
+    return null
+  }
+  // Named colors that appear in the wild for badges — avoid canvas round-trip
+  // which can throw in SSR/edge runtimes.
+  const named: Record<string, string> = {
+    red: "#ff0000", blue: "#0000ff", green: "#008000", yellow: "#ffff00",
+    orange: "#ffa500", purple: "#800080", pink: "#ffc0cb", gold: "#ffd700",
+    cyan: "#00ffff", magenta: "#ff00ff", teal: "#008080", lime: "#00ff00",
+    white: "#ffffff", black: "#000000", silver: "#c0c0c0", gray: "#808080",
+    grey: "#808080", crimson: "#dc143c", navy: "#000080", violet: "#ee82ee",
+    indigo: "#4b0082", aqua: "#00ffff", fuchsia: "#ff00ff",
+  }
+  return named[raw.toLowerCase()] ?? null
+}
+
 /** Perceived luminance 0..1 (Rec. 601). */
 function luminance(hex: string): number {
   const rgb = hexToRgb(hex)
@@ -129,16 +195,26 @@ function mixTowardWhite(hex: string, amount: number): string {
 }
 
 /**
+ * Sanitize + normalize an admin-chosen color to a safe hex. Non-hex inputs
+ * (rgb(), named colors, JSON artifacts) are converted; unparseable values
+ * return null so the caller can drop them instead of painting black.
+ */
+function sanitizeColor(input: string): string | null {
+  return cssColorToHex(String(input ?? ""))
+}
+
+/**
  * Raise custom badge colors to a visibility floor: anything with luminance
  * below ~0.16 (near-black at 17px) is lifted toward its hue's brighter self.
  * Keeps the admin's chosen hue, just never renders as a black blob.
  */
 function visibleColor(hex: string): string {
-  if (!hex || !hex.trim().startsWith("#")) return hex
-  const lum = luminance(hex)
-  if (lum >= 0.16) return hex.trim()
+  const norm = sanitizeColor(hex)
+  if (!norm) return hex
+  const lum = luminance(norm)
+  if (lum >= 0.16) return norm
   const amount = Math.min(0.55, (0.16 - lum) * 2.2 + 0.18)
-  return mixTowardWhite(hex.trim(), amount)
+  return mixTowardWhite(norm, amount)
 }
 
 /* ------------------------------------------------------------------ */
@@ -185,7 +261,12 @@ export function VerifiedSeal({
 }: VerifiedSealProps) {
   const [drawn, setDrawn] = useState(false)
   const ref = useRef<HTMLSpanElement>(null)
-  const uid = useRef(`vs${Math.random().toString(36).slice(2, 9)}`)
+  // useId() is stable across SSR + hydration. Math.random() ids mismatched
+  // between server and client, so the fill referenced a gradient id that
+  // didn't exist in the DOM and Chrome fell back to BLACK — the reported bug.
+  // Colons are stripped because some SVG/WebView engines mishandle them in
+  // url(#...) fragment references.
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "")
   const isDark = useIsDarkTheme()
   const spec = VARIANTS[variant]
 
@@ -213,13 +294,15 @@ export function VerifiedSeal({
     return () => io.disconnect()
   }, [isStatic])
 
-  // Custom colors override the variant palette (admin checkmarks) — but are
-  // luminance-floored so near-black picks stay visible at small sizes.
-  const stops = colors?.length ? colors.map(visibleColor) : null
-  const from = stops?.[0] ?? (isDark ? spec.darkFrom : spec.lightFrom)
-  const to = stops?.[1] ?? stops?.[0] ?? (isDark ? spec.darkTo : spec.lightTo)
-  const solid = stops && stops.length === 1 ? stops[0] : null
-  const ringColor = stops ? "rgba(0,0,0,0.12)" : spec.ring
+  // Custom colors override the variant palette (admin checkmarks) — normalized
+  // to hex and luminance-floored so near-black picks stay visible. Invalid
+  // colors are dropped so the variant palette shows instead of black.
+  const stops = colors?.length ? colors.map(visibleColor).filter((c) => c.trim().startsWith("#")) : null
+  const hasCustom = !!stops?.length
+  const from = hasCustom ? stops![0] : isDark ? spec.darkFrom : spec.lightFrom
+  const to = hasCustom ? stops![1] ?? stops![0] : isDark ? spec.darkTo : spec.lightTo
+  const solid = hasCustom && stops!.length === 1 ? stops![0] : null
+  const ringColor = hasCustom ? "rgba(0,0,0,0.12)" : spec.ring
 
   // In light theme, drop an outer white ring + soft colored shadow so the seal
   // pops against light cards instead of washing out.
@@ -280,6 +363,10 @@ export function VerifiedSeal({
             )}
           </linearGradient>
         </defs>
+        {/* Solid underlay: if the gradient reference ever fails to resolve
+            (engine quirk), the shape still paints in `from` instead of the
+            SVG-spec black fallback. This is the root-cause fix. */}
+        <Shape fill={from} />
         <Shape fill={`url(#${uid}-fill)`} />
         {/* Inner white ring — separates badge from backgrounds of any color */}
         <circle cx="24" cy="24" r="13.5" fill="none" stroke={ringColor} strokeWidth="1.6" opacity={solid ? 0.5 : 0.45} />

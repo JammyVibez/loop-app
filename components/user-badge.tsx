@@ -35,7 +35,8 @@ const SEAL_SIZE = { sm: 17, md: 20, lg: 24 } as const
 
 /**
  * Normalize badge colors: DB writers may store the array as a JSON string
- * ("[\"#fff\"]"), which would render an all-black SVG fill if passed through.
+ * ("[\"#fff\"]"). Non-hex formats (rgb(), named colors) are passed through —
+ * VerifiedSeal converts them safely.
  */
 function normalizeColors(raw: unknown): string[] | null {
   let v: unknown = raw
@@ -47,10 +48,10 @@ function normalizeColors(raw: unknown): string[] | null {
     }
   }
   if (Array.isArray(v)) {
-    const arr = v.map((c) => String(c)).filter((c) => c.trim().startsWith("#"))
+    const arr = v.map((c) => String(c).trim()).filter(Boolean)
     return arr.length ? arr : null
   }
-  if (typeof v === "string" && v.trim().startsWith("#")) return [v.trim()]
+  if (typeof v === "string" && v.trim()) return [v.trim()]
   return null
 }
 

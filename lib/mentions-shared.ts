@@ -68,7 +68,8 @@ export function mentionHref(
     return ctx.loop_id ? `/loop/${ctx.loop_id}` : "/notifications?type=mention"
   }
   if (ctx.source === "circle_post" || ctx.source === "circle_comment") {
-    if (ctx.circle_id) return `/circles/${ctx.circle_id}`
+    if (ctx.circle_id && ctx.post_id) return `/communities/${ctx.circle_id}/posts/${ctx.post_id}`
+    if (ctx.circle_id) return `/communities/${ctx.circle_id}`
     return "/notifications?type=mention"
   }
   if (ctx.source === "circle_room" && ctx.circle_id) {
