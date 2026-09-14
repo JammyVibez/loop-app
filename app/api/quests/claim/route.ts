@@ -1,54 +1,37 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { type Quest, windowKeyFor, questRateLimit, creditQuestRewards } from "@/lib/quests"
+import { type Quest, windowKeyFor, creditQuestRewards, questRateLimit } from "@/lib/quests"
+import { nextStreak } from "@/lib/quests-v2"
 
 export const dynamic = "force-dynamic"
 
+const QUEST_XP_PER_CLAIM = 25
+
 /**
- * POST /api/quests/claim — claim a completed quest's reward.
- * Body: { quest_id }
- * Server-side verifies completion before crediting; applies daily caps,
- * rate limits, and idempotency (double-claims are rejected).
+ * POST /api/quests/claim — claim a completed quest's rewards.
+ * Completion is re-verified server-side; crediting is idempotent per
+ * quest+user+window. Also advances the daily streak and awards Quest XP.
  */
 export async function POST(request: NextRequest) {
   const user = await getUserFromRequest(request)
   if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-
-  if (!questRateLimit(user.id, "claim", 10, 60_000)) {
-    return NextResponse.json({ error: "Too many claim attempts — slow down" }, { status: 429 })
+  if (!questRateLimit(user.id, "claim", 20, 60_000)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 })
   }
 
   try {
     const body = await request.json().catch(() => ({}))
     const questId = String(body.quest_id || "")
-    if (!questId) return NextResponse.json({ error: "quest_id is required" }, { status: 400 })
+    if (!questId) return NextResponse.json({ error: "quest_id required" }, { status: 400 })
 
     const supabase = createServerClient()
+    const { data: quest } = await supabase.from("quests").select("*").eq("id", questId).maybeSingle()
+    const q = quest as Quest | null
+    if (!q) return NextResponse.json({ error: "Quest not found" }, { status: 404 })
 
-    const { data: quest, error: questError } = await supabase
-      .from("quests")
-      .select("*")
-      .eq("id", questId)
-      .eq("is_active", true)
-      .maybeSingle()
-
-    if (questError) return NextResponse.json({ error: questError.message }, { status: 500 })
-    if (!quest) return NextResponse.json({ error: "Quest not found or inactive" }, { status: 404 })
-
-    const q = quest as Quest
+    // Verify completion server-side before crediting anything.
     const wk = windowKeyFor(q.cadence)
-
-    // Seasonal window check.
-    const now = new Date()
-    if (q.cadence === "seasonal") {
-      if (q.starts_at && new Date(q.starts_at) > now)
-        return NextResponse.json({ error: "This quest hasn't started yet" }, { status: 400 })
-      if (q.ends_at && new Date(q.ends_at) < now)
-        return NextResponse.json({ error: "This quest has ended" }, { status: 400 })
-    }
-
-    // Verify completion server-side (never trust the client).
     const { data: progress } = await supabase
       .from("quest_progress")
       .select("progress_count, completed_at")
@@ -57,61 +40,108 @@ export async function POST(request: NextRequest) {
       .eq("window_key", wk)
       .maybeSingle()
 
-    const required = Math.max(1, Number(q.requirement_count || 1))
-    const count = Number(progress?.progress_count || 0)
-    if (!progress || count < required) {
-      return NextResponse.json(
-        { error: "Quest not completed yet", progress: { count, required } },
-        { status: 400 },
-      )
+    let verified = Boolean(progress?.completed_at)
+
+    // Missions: all configured steps completed?
+    if (!verified && q.quest_kind === "mission") {
+      const steps = Array.isArray(q.mission_config) ? q.mission_config : []
+      if (steps.length > 0) {
+        const { data: doneRows } = await supabase
+          .from("quest_mission_steps")
+          .select("step_index")
+          .eq("quest_id", questId)
+          .eq("user_id", user.id)
+          .not("completed_at", "is", null)
+        const done = new Set((doneRows || []).map((r: any) => Number(r.step_index)))
+        verified = steps.every((_: unknown, i: number) => done.has(i))
+      }
     }
 
-    // For repeatable quests, allow re-claim after re-completing: a claim exists
-    // but progress has advanced past the last claim. Track via claimed ledger count.
-    const { data: claimRows } = await supabase
-      .from("quest_claims")
-      .select("id")
-      .eq("quest_id", questId)
-      .eq("user_id", user.id)
-      .eq("window_key", wk)
-    const claimsSoFar = (claimRows || []).length
-    const maxCompletions = Math.max(1, Number(q.max_completions_per_user || 1))
-    if (claimsSoFar >= maxCompletions) {
-      return NextResponse.json({ error: "Already claimed for this period" }, { status: 400 })
+    if (!verified) {
+      return NextResponse.json({ error: "Quest not completed yet" }, { status: 400 })
     }
 
+    // Credit rewards (idempotent; caps applied).
     const result = await creditQuestRewards(supabase, q, user.id, "user")
-    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
-
-    // Mark progress claimed.
-    await supabase
-      .from("quest_progress")
-      .update({ claimed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq("quest_id", questId)
-      .eq("user_id", user.id)
-      .eq("window_key", wk)
-
-    // For repeatable quests past claim #1, reset progress so it can be earned again.
-    if (maxCompletions > 1 && claimsSoFar + 1 < maxCompletions) {
-      await supabase
-        .from("quest_progress")
-        .update({ progress_count: 0, completed_at: null, claimed_at: null, updated_at: new Date().toISOString() })
-        .eq("quest_id", questId)
-        .eq("user_id", user.id)
-        .eq("window_key", wk)
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error || "Claim failed" }, { status: 400 })
     }
+
+    // Award Quest XP (separate from app XP).
+    let questXpTotal: number | null = null
+    const { data: prevXp } = await supabase
+      .from("quest_xp")
+      .select("xp")
+      .eq("user_id", user.id)
+      .maybeSingle()
+    questXpTotal = Number(prevXp?.xp || 0) + QUEST_XP_PER_CLAIM
+    await supabase.from("quest_xp").upsert({
+      user_id: user.id,
+      xp: questXpTotal,
+      updated_at: new Date().toISOString(),
+    })
+
+    // Advance streak when claiming any daily-window quest today.
+    let streak: { current: number; increased: boolean } | null = null
+    if (q.cadence === "daily") {
+      const { data: prev } = await supabase
+        .from("quest_streaks")
+        .select("current_streak, best_streak, last_day")
+        .eq("user_id", user.id)
+        .maybeSingle()
+      const next = nextStreak({
+        current_streak: Number(prev?.current_streak || 0),
+        best_streak: Number(prev?.best_streak || 0),
+        last_day: prev?.last_day ?? null,
+      })
+      await supabase.from("quest_streaks").upsert({
+        user_id: user.id,
+        current_streak: next.current_streak,
+        best_streak: next.best_streak,
+        last_day: next.last_day,
+        updated_at: new Date().toISOString(),
+      })
+      streak = { current: next.current_streak, increased: next.increased }
+    }
+
+    // Collection item grant (limited/seasonal quests with a collection_tag).
+    let collectionAwarded: string | null = null
+    if (q.collection_tag) {
+      const { data: col } = await supabase
+        .from("quest_collections")
+        .select("id, name")
+        .eq("tag", q.collection_tag)
+        .maybeSingle()
+      if (col) {
+        const { error: colErr } = await supabase
+          .from("quest_collection_items")
+          .insert({ collection_id: col.id, user_id: user.id, quest_id: q.id })
+        if (!colErr || colErr.code === "23505") collectionAwarded = col.name
+      }
+    }
+
+    // Notification: reward added.
+    try {
+      await supabase.from("notifications").insert({
+        user_id: user.id,
+        type: "quest_reward",
+        title: "Reward added",
+        message: `Your reward for "${q.title}" is in your wallet.`,
+        data: { quest_id: q.id, coins: result.coins, xp: result.xp },
+      })
+    } catch { /* non-blocking */ }
 
     return NextResponse.json({
       success: true,
-      reward: {
-        coins: result.coins,
-        xp: result.xp,
-        item_id: result.item?.id ?? null,
-        item_qty: result.item?.qty ?? 0,
-        label: q.reward_label || null,
-      },
-      new_balance: result.newBalance ?? null,
-      leveled_up: result.leveledUp ?? false,
+      coins: result.coins,
+      xp: result.xp,
+      item: result.item,
+      new_balance: result.newBalance,
+      quest_xp: questXpTotal,
+      leveled_up: result.leveledUp,
+      streak,
+      collection: collectionAwarded,
+      capped: result.coins < Number(q.reward_coins || 0),
     })
   } catch (error: any) {
     console.error("POST /api/quests/claim error:", error)

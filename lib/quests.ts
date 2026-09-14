@@ -31,6 +31,30 @@ export interface Quest {
   max_completions_per_user: number | null
   is_active: boolean
   sort_order: number | null
+  /* v2 columns */
+  status?: "draft" | "active" | "paused" | "archived"
+  quest_kind?: "simple" | "mission"
+  banner_url?: string | null
+  thumbnail_url?: string | null
+  category?: string | null
+  difficulty?: "easy" | "medium" | "hard" | null
+  est_minutes?: number | null
+  sponsor_name?: string | null
+  sponsor_url?: string | null
+  cta_text?: string | null
+  terms_text?: string | null
+  featured?: boolean
+  is_sponsored?: boolean
+  region_eligibility?: string | null
+  auto_claim?: boolean
+  mission_config?: unknown[]
+  survey_config?: unknown[]
+  game_config?: Record<string, unknown>
+  video_url?: string | null
+  video_seconds?: number | null
+  collection_tag?: string | null
+  total_views?: number
+  total_starts?: number
 }
 
 export interface QuestProgressRow {

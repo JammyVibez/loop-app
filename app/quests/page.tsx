@@ -3,7 +3,7 @@ import QuestsClient from "./quests-client"
 
 export const metadata: Metadata = {
   title: "Quests — Loop",
-  description: "Complete quests to earn coins, XP, and rare cosmetics.",
+  description: "Do more. Earn more. Unlock more.",
 }
 
 export default function QuestsPage() {

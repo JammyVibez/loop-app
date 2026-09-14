@@ -78,6 +78,37 @@ export async function PUT(
     if (typeof body.is_active === "boolean") updates.is_active = body.is_active
     if (body.sort_order !== undefined) updates.sort_order = Math.floor(Number(body.sort_order) || 0)
 
+    /* v2 fields */
+    if (["draft", "active", "paused", "archived"].includes(body.status)) {
+      updates.status = body.status
+      updates.is_active = body.status === "active"
+    }
+    if (body.quest_kind === "mission" || body.quest_kind === "simple") {
+      updates.quest_kind = body.quest_kind
+      updates.mission_config = body.quest_kind === "mission" && Array.isArray(body.mission_config) ? body.mission_config.slice(0, 12) : []
+    } else if (Array.isArray(body.mission_config)) {
+      updates.mission_config = body.mission_config.slice(0, 12)
+    }
+    if (body.banner_url !== undefined) updates.banner_url = String(body.banner_url).trim() || null
+    if (body.thumbnail_url !== undefined) updates.thumbnail_url = String(body.thumbnail_url).trim() || null
+    if (body.category !== undefined) updates.category = String(body.category).trim() || null
+    if (["easy", "medium", "hard"].includes(body.difficulty)) updates.difficulty = body.difficulty
+    if (body.est_minutes !== undefined) updates.est_minutes = body.est_minutes ? Math.max(1, Math.floor(Number(body.est_minutes))) : null
+    if (body.sponsor_name !== undefined) updates.sponsor_name = String(body.sponsor_name).trim() || null
+    if (body.sponsor_url !== undefined) updates.sponsor_url = String(body.sponsor_url).trim() || null
+    if (body.cta_text !== undefined) updates.cta_text = String(body.cta_text).trim() || null
+    if (body.terms_text !== undefined) updates.terms_text = String(body.terms_text).trim() || null
+    if (typeof body.featured === "boolean") updates.featured = body.featured
+    if (typeof body.is_sponsored === "boolean") updates.is_sponsored = body.is_sponsored
+    if (typeof body.auto_claim === "boolean") updates.auto_claim = body.auto_claim
+    if (body.video_url !== undefined) updates.video_url = String(body.video_url).trim() || null
+    if (body.video_seconds !== undefined) updates.video_seconds = body.video_seconds ? Math.max(5, Math.floor(Number(body.video_seconds))) : null
+    if (body.collection_tag !== undefined) updates.collection_tag = String(body.collection_tag).trim() || null
+    if (body.quest_type === "survey" && Array.isArray(body.survey_config)) {
+      updates.survey_config = body.survey_config.slice(0, 20)
+    }
+    if (body.game_config && typeof body.game_config === "object") updates.game_config = body.game_config
+
     const { data: quest, error } = await supabase
       .from("quests")
       .update(updates)
@@ -111,6 +142,62 @@ export async function DELETE(
     return NextResponse.json({ success: true, message: "Quest deleted successfully" })
   } catch (error: any) {
     console.error("Error in quest DELETE:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+/**
+ * POST /api/admin/quests/[questId] — lifecycle actions.
+ * Body: { action: "publish" | "unpublish" | "pause" | "resume" | "archive" | "duplicate" }
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ questId: string }> },
+) {
+  const { response, user } = await requireAdmin(request)
+  if (response) return response
+
+  try {
+    const { questId } = await params
+    const body = await request.json().catch(() => ({}))
+    const action = String(body.action || "")
+    const supabase = createServerClient()
+
+    if (action === "duplicate") {
+      const { data: src } = await supabase.from("quests").select("*").eq("id", questId).maybeSingle()
+      if (!src) return NextResponse.json({ error: "Quest not found" }, { status: 404 })
+      const { id: _omit, created_at: _c, updated_at: _u, total_views: _v, total_starts: _s, ...rest } = src as any
+      const { data: copy, error } = await supabase
+        .from("quests")
+        .insert({ ...rest, title: `${src.title} (copy)`, status: "draft", is_active: false })
+        .select()
+        .single()
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ success: true, quest: copy, message: "Quest duplicated as draft" })
+    }
+
+    const statusMap: Record<string, { status: string; is_active: boolean }> = {
+      publish: { status: "active", is_active: true },
+      unpause: { status: "active", is_active: true },
+      resume: { status: "active", is_active: true },
+      pause: { status: "paused", is_active: false },
+      unpublish: { status: "draft", is_active: false },
+      archive: { status: "archived", is_active: false },
+    }
+    const next = statusMap[action]
+    if (!next) return NextResponse.json({ error: "Unknown action" }, { status: 400 })
+
+    const { data: quest, error } = await supabase
+      .from("quests")
+      .update({ status: next.status, is_active: next.is_active, updated_at: new Date().toISOString() })
+      .eq("id", questId)
+      .select()
+      .single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({ success: true, quest, message: `Quest ${action}d` })
+  } catch (error: any) {
+    console.error("Error in quest lifecycle POST:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

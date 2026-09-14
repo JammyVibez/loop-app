@@ -110,6 +110,27 @@ export async function POST(request: NextRequest) {
       is_active: body.is_active !== false,
       sort_order: Math.floor(Number(body.sort_order || 0)),
       created_by: user!.id,
+      /* v2 fields */
+      status: ["draft", "active", "paused", "archived"].includes(body.status) ? body.status : body.is_active === false ? "draft" : "active",
+      quest_kind: body.quest_kind === "mission" ? "mission" : "simple",
+      banner_url: String(body.banner_url || "").trim() || null,
+      thumbnail_url: String(body.thumbnail_url || "").trim() || null,
+      category: String(body.category || "").trim() || null,
+      difficulty: ["easy", "medium", "hard"].includes(body.difficulty) ? body.difficulty : "easy",
+      est_minutes: body.est_minutes ? Math.max(1, Math.floor(Number(body.est_minutes))) : null,
+      sponsor_name: String(body.sponsor_name || "").trim() || null,
+      sponsor_url: String(body.sponsor_url || "").trim() || null,
+      cta_text: String(body.cta_text || "").trim() || null,
+      terms_text: String(body.terms_text || "").trim() || null,
+      featured: Boolean(body.featured),
+      is_sponsored: Boolean(body.is_sponsored),
+      auto_claim: Boolean(body.auto_claim),
+      video_url: String(body.video_url || "").trim() || null,
+      video_seconds: body.video_seconds ? Math.max(5, Math.floor(Number(body.video_seconds))) : null,
+      collection_tag: String(body.collection_tag || "").trim() || null,
+      mission_config: body.quest_kind === "mission" && Array.isArray(body.mission_config) ? body.mission_config.slice(0, 12) : [],
+      survey_config: body.quest_type === "survey" && Array.isArray(body.survey_config) ? body.survey_config.slice(0, 20) : [],
+      game_config: body.quest_type === "minigame" && body.game_config && typeof body.game_config === "object" ? body.game_config : {},
     }
 
     const { data: created, error } = await supabase.from("quests").insert(quest).select().single()

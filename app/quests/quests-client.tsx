@@ -1,277 +1,533 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import { Spinner } from "@/components/ui/skeletons"
+import {
+  ChevronRight,
+  Coins,
+  Flame,
+  Gamepad2,
+  Hourglass,
+  ListChecks,
+  MessagesSquare,
+  MonitorPlay,
+  Sparkles,
+  Star,
+  Target,
+  TrendingUp,
+  Trophy,
+  ClipboardList,
+  EyeOff,
+  Zap,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
-  Coins,
-  Crown,
-  Gamepad2,
-  Gift,
-  Hourglass,
-  Lock,
-  PartyPopper,
-  Play,
-  Target,
-  Timer,
-  Trophy,
-  Zap,
-  ClipboardList,
-  Sparkles,
-} from "lucide-react"
+  formatTimeRemaining,
+  estimateLabel,
+  sectionForQuest,
+  type BoardSection,
+} from "@/lib/quests-v2"
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
 /* ------------------------------------------------------------------ */
 
-interface QuestProgress {
-  count: number
-  required: number
-  percent: number
-  completed: boolean
-  claimed: boolean
-  reset_label: string
-}
-
-interface QuestItem {
+export interface BoardQuest {
   id: string
   title: string
   description: string | null
   icon: string | null
   accent: string | null
-  quest_type: "ad" | "survey" | "minigame" | "native"
-  minigame_kind: string | null
-  requirement_count: number
-  cadence: "daily" | "weekly" | "seasonal"
+  banner_url: string | null
+  thumbnail_url: string | null
+  category: string | null
+  difficulty: string | null
+  est_minutes: number | null
+  quest_type: string
+  quest_kind: string
+  cadence: string
+  starts_at: string | null
   ends_at: string | null
-  reward_type: string
   reward_coins: number | null
   reward_xp: number | null
-  reward_item_id: number | null
   reward_label: string | null
-  visibility: string
-  progress: QuestProgress
-  reward_item_preview: { name: string; preview_data: any; rarity: string } | null
+  reward_item_preview: { name: string; rarity: string } | null
+  sponsor_name: string | null
+  is_sponsored: boolean
+  featured: boolean
+  auto_claim: boolean
+  cta_text: string | null
+  state: string
+  progress: { count: number; required: number; percent: number; completed: boolean; claimed: boolean; reset_label: string }
+  mission_progress: { done: number; total: number } | null
 }
 
-interface Caps {
-  daily_coin_cap: number
-  daily_xp_cap: number
-  earned_today_coins: number
-  earned_today_xp: number
+interface BoardData {
+  quests: BoardQuest[]
+  quest_xp: { xp: number; level: number; name: string; minXp: number; nextXp: number | null }
+  streak: { current: number; best: number; last_day: string | null }
+  coins: number
+  caps: { daily_coin_cap: number; daily_xp_cap: number; earned_today_coins: number; earned_today_xp: number }
 }
 
-type Session =
-  | { kind: "trivia"; sessionId: string; questions: Array<{ index: number; question: string; options: Array<{ id: number; text: string }> }> }
-  | { kind: "reaction"; sessionId: string; rounds: number; targetAvgMs: number }
-  | null
-
-/* ------------------------------------------------------------------ */
-/* Accent palette                                                      */
-/* ------------------------------------------------------------------ */
-
-const ACCENTS: Record<string, { ring: string; glow: string; bar: string; text: string; chip: string; halo: string }> = {
-  violet: {
-    ring: "border-violet-500/40", glow: "shadow-[0_0_24px_-4px_rgba(139,92,246,0.5)]",
-    bar: "from-violet-500 to-fuchsia-400", text: "text-violet-400", chip: "bg-violet-500/15 text-violet-400",
-    halo: "from-violet-500/20",
-  },
-  amber: {
-    ring: "border-amber-500/40", glow: "shadow-[0_0_24px_-4px_rgba(245,158,11,0.5)]",
-    bar: "from-amber-500 to-orange-400", text: "text-amber-400", chip: "bg-amber-500/15 text-amber-400",
-    halo: "from-amber-500/20",
-  },
-  emerald: {
-    ring: "border-emerald-500/40", glow: "shadow-[0_0_24px_-4px_rgba(16,185,129,0.5)]",
-    bar: "from-emerald-500 to-teal-400", text: "text-emerald-400", chip: "bg-emerald-500/15 text-emerald-400",
-    halo: "from-emerald-500/20",
-  },
-  cyan: {
-    ring: "border-cyan-500/40", glow: "shadow-[0_0_24px_-4px_rgba(6,182,212,0.5)]",
-    bar: "from-cyan-500 to-sky-400", text: "text-cyan-400", chip: "bg-cyan-500/15 text-cyan-400",
-    halo: "from-cyan-500/20",
-  },
-  rose: {
-    ring: "border-rose-500/40", glow: "shadow-[0_0_24px_-4px_rgba(244,63,94,0.5)]",
-    bar: "from-rose-500 to-pink-400", text: "text-rose-400", chip: "bg-rose-500/15 text-rose-400",
-    halo: "from-rose-500/20",
-  },
-  sky: {
-    ring: "border-sky-500/40", glow: "shadow-[0_0_24px_-4px_rgba(14,165,233,0.5)]",
-    bar: "from-sky-500 to-blue-400", text: "text-sky-400", chip: "bg-sky-500/15 text-sky-400",
-    halo: "from-sky-500/20",
-  },
+const ACCENTS: Record<string, { chip: string; bar: string; ring: string; text: string }> = {
+  violet: { chip: "bg-violet-500/10 text-violet-500", bar: "bg-violet-500", ring: "ring-violet-500/30", text: "text-violet-500" },
+  amber: { chip: "bg-amber-500/10 text-amber-600", bar: "bg-amber-500", ring: "ring-amber-500/30", text: "text-amber-600" },
+  emerald: { chip: "bg-emerald-500/10 text-emerald-500", bar: "bg-emerald-500", ring: "ring-emerald-500/30", text: "text-emerald-500" },
+  cyan: { chip: "bg-cyan-500/10 text-cyan-500", bar: "bg-cyan-500", ring: "ring-cyan-500/30", text: "text-cyan-500" },
+  rose: { chip: "bg-rose-500/10 text-rose-500", bar: "bg-rose-500", ring: "ring-rose-500/30", text: "text-rose-500" },
+  sky: { chip: "bg-sky-500/10 text-sky-500", bar: "bg-sky-500", ring: "ring-sky-500/30", text: "text-sky-500" },
 }
 
-const TYPE_META: Record<string, { label: string; icon: any }> = {
-  ad: { label: "Watch ad", icon: Play },
-  survey: { label: "Survey", icon: ClipboardList },
-  minigame: { label: "Mini-game", icon: Gamepad2 },
-  native: { label: "In-app", icon: Target },
+const TYPE_ICON: Record<string, React.ElementType> = {
+  ad: MonitorPlay,
+  survey: ClipboardList,
+  minigame: Gamepad2,
+  native: Target,
 }
 
-function QuestIcon({ name, className }: { name: string | null; className?: string }) {
-  const map: Record<string, any> = { target: Target, coins: Coins, zap: Zap, crown: Crown, gift: Gift, game: Gamepad2, trophy: Trophy, timer: Timer }
-  const Icon = map[name || "target"] || Target
-  return <Icon className={className} />
+const CATEGORY_LABEL: Record<string, string> = {
+  community: "Community",
+  discovery: "Discovery",
+  watch: "Watch & Earn",
+  survey: "Survey",
+  game: "Games",
+  sponsored: "Sponsored",
+  creator: "Creator",
+  seasonal: "Limited Time",
 }
 
 /* ------------------------------------------------------------------ */
-/* Animated progress bar                                               */
-/* ------------------------------------------------------------------ */
 
-function ProgressBar({ percent, accent, done }: { percent: number; accent: string; done: boolean }) {
-  const a = ACCENTS[accent] || ACCENTS.violet
+export default function QuestsClient() {
+  const { user, getAuthHeader } = useAuth()
+  const { toast } = useToast()
+  const [data, setData] = useState<BoardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [claiming, setClaiming] = useState<string | null>(null)
+  const [justClaimed, setJustClaimed] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    if (!user) return
+    try {
+      const res = await fetch("/api/quests", { headers: getAuthHeader() })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to load quests")
+      setData(json)
+    } catch (err: any) {
+      toast({ title: "Could not load quests", description: err.message, variant: "destructive" })
+    } finally {
+      setLoading(false)
+    }
+  }, [user, getAuthHeader, toast])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const claim = async (q: BoardQuest) => {
+    setClaiming(q.id)
+    try {
+      const res = await fetch("/api/quests/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ quest_id: q.id }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Claim failed")
+      setJustClaimed(q.id)
+      setTimeout(() => setJustClaimed(null), 2600)
+      toast({
+        title: "Reward claimed",
+        description: [
+          json.coins > 0 ? `+${json.coins} Loop Coins` : null,
+          json.xp > 0 ? `+${json.xp} XP` : null,
+          json.collection ? `${json.collection} unlocked` : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      })
+      load()
+    } catch (err: any) {
+      toast({ title: "Claim failed", description: err.message, variant: "destructive" })
+    } finally {
+      setClaiming(null)
+    }
+  }
+
+  const hideQuest = async (questId: string) => {
+    setData((prev) => (prev ? { ...prev, quests: prev.quests.filter((x) => x.id !== questId) } : prev))
+    try {
+      await fetch("/api/quests/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ quest_id: questId }),
+      })
+      toast({ title: "Quest hidden" })
+    } catch {
+      load()
+    }
+  }
+
+  /* ---------------- Sections ---------------- */
+
+  const sections = useMemo(() => {
+    if (!data) return []
+    const byState = (list: BoardQuest[], states: string[]) => list.filter((q) => states.includes(q.state))
+    const active = byState(data.quests, ["available", "in_progress", "claimable"])
+    const claimed = byState(data.quests, ["claimed"])
+
+    const out: { key: BoardSection | "completed"; label: string; icon: React.ElementType; quests: BoardQuest[] }[] = []
+
+    const featuredMission = active.filter((q) => q.quest_kind === "mission" && q.featured)
+    if (featuredMission.length > 0) out.push({ key: "featured", label: "Featured Mission", icon: Star, quests: featuredMission })
+
+    const missions = active.filter((q) => q.quest_kind === "mission" && !q.featured)
+    if (missions.length > 0) out.push({ key: "missions", label: "Missions", icon: ListChecks, quests: missions })
+
+    const daily = active.filter((q) => q.cadence === "daily")
+    if (daily.length > 0) out.push({ key: "daily", label: "Daily Quests", icon: Flame, quests: daily })
+
+    const weekly = active.filter((q) => q.cadence === "weekly")
+    if (weekly.length > 0) out.push({ key: "weekly", label: "Weekly Quests", icon: TrendingUp, quests: weekly })
+
+    const limited = active.filter((q) => sectionForQuest(q) === "limited" && q.cadence !== "daily" && q.cadence !== "weekly")
+    if (limited.length > 0) out.push({ key: "limited", label: "Limited Time", icon: Hourglass, quests: limited })
+
+    const games = active.filter((q) => sectionForQuest(q) === "games")
+    if (games.length > 0) out.push({ key: "games", label: "Games", icon: Gamepad2, quests: games })
+
+    const surveys = active.filter((q) => sectionForQuest(q) === "surveys")
+    if (surveys.length > 0) out.push({ key: "surveys", label: "Surveys", icon: ClipboardList, quests: surveys })
+
+    const watch = active.filter((q) => sectionForQuest(q) === "watch")
+    if (watch.length > 0) out.push({ key: "watch", label: "Watch & Earn", icon: MonitorPlay, quests: watch })
+
+    const community = active.filter((q) => sectionForQuest(q) === "community")
+    if (community.length > 0) out.push({ key: "community", label: "Community Missions", icon: MessagesSquare, quests: community })
+
+    const featuredRest = active.filter(
+      (q) => q.featured && !featuredMission.includes(q) && !daily.includes(q) && !weekly.includes(q) && !limited.includes(q) && !games.includes(q) && !surveys.includes(q) && !watch.includes(q) && !community.includes(q) && !missions.includes(q),
+    )
+    if (featuredRest.length > 0) out.push({ key: "featured", label: "Featured", icon: Sparkles, quests: featuredRest })
+
+    if (claimed.length > 0) out.push({ key: "completed", label: "Completed", icon: Trophy, quests: claimed })
+
+    return out
+  }, [data])
+
+  /* ---------------- Render ---------------- */
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Spinner className="h-7 w-7" />
+      </div>
+    )
+  }
+
+  const xp = data?.quest_xp
+  const xpPercent = xp?.nextXp ? Math.min(100, Math.round(((xp.xp - xp.minXp) / (xp.nextXp - xp.minXp)) * 100)) : 100
+  const claimableCount = data?.quests.filter((q) => q.state === "claimable").length ?? 0
+
   return (
-    <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-muted">
-      <div
-        className={cn(
-          "relative h-full rounded-full bg-gradient-to-r transition-[width] duration-700 ease-out",
-          a.bar,
-          done && "animate-[quest-pop_0.5s_ease-out_1]",
-        )}
-        style={{ width: `${Math.max(percent, done ? 100 : 3)}%` }}
-      >
-        {/* moving sheen */}
-        <span className="absolute inset-0 overflow-hidden rounded-full">
-          <span className="absolute inset-y-0 -left-full w-1/2 animate-[quest-sheen_2.4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/45 to-transparent" />
-        </span>
+    <div className="mx-auto max-w-5xl px-3 pb-24 pt-4 sm:px-5 sm:pt-6">
+      {/* Hero */}
+      <header className="mb-6">
+        <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
+          QUESTS
+        </h1>
+        <p className="mt-1 text-lg font-semibold text-foreground/90 sm:text-xl">
+          Do more. Earn more. Unlock more.
+        </p>
+        <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+          Complete missions across Loop, discover new experiences, and earn rewards along the way.
+        </p>
+      </header>
+
+      {/* Progress header */}
+      {data && (
+        <section className="mb-8 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border bg-card p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Quest Level</p>
+              <Badge variant="secondary" className="rounded-full">{xp?.level ?? 1}</Badge>
+            </div>
+            <p className="mt-1 text-xl font-bold">{xp?.name ?? "Explorer"}</p>
+            <div className="mt-2 space-y-1">
+              <Progress value={xpPercent} className="h-1.5" />
+              <p className="text-[11px] text-muted-foreground">
+                {xp?.xp ?? 0} XP{xp?.nextXp ? ` · next level at ${xp.nextXp}` : " · max level"}
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border bg-card p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Loop Coins</p>
+              <Coins className="h-4 w-4 text-amber-500" />
+            </div>
+            <p className="mt-1 text-xl font-bold tabular-nums">{(data.coins || 0).toLocaleString()}</p>
+            <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+              <span>
+                {data.caps.earned_today_coins}/{data.caps.daily_coin_cap} earned today
+              </span>
+              <Link href="/wallet" className="font-medium text-primary hover:underline">
+                Wallet
+              </Link>
+            </div>
+            <Progress
+              value={Math.min(100, (data.caps.earned_today_coins / Math.max(1, data.caps.daily_coin_cap)) * 100)}
+              className="mt-1 h-1"
+            />
+          </div>
+
+          <div className="rounded-2xl border bg-card p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Daily Streak</p>
+              <Flame className={cn("h-4 w-4", (data.streak.current || 0) > 0 ? "text-orange-500" : "text-muted-foreground")} />
+            </div>
+            <p className="mt-1 text-xl font-bold tabular-nums">
+              {data.streak.current || 0} <span className="text-sm font-medium text-muted-foreground">day{(data.streak.current || 0) === 1 ? "" : "s"}</span>
+            </p>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Best: {data.streak.best || 0} · Complete a daily quest to keep it going
+            </p>
+          </div>
+        </section>
+      )}
+
+      {/* Claimable banner */}
+      {claimableCount > 0 && (
+        <section className="mb-8 overflow-hidden rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15">
+                <Trophy className="h-5 w-5 text-amber-500" />
+              </div>
+              <div>
+                <p className="font-semibold">
+                  {claimableCount} reward{claimableCount === 1 ? "" : "s"} ready to claim
+                </p>
+                <p className="text-sm text-muted-foreground">Finish the loop — collect what you earned.</p>
+              </div>
+            </div>
+            <Button size="sm" className="rounded-full" onClick={() => document.getElementById("section-completed-claim")?.scrollIntoView({ behavior: "smooth" })}>
+              View
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {/* Sections */}
+      {data && sections.length === 0 && (
+        <div className="rounded-2xl border border-dashed p-12 text-center">
+          <Target className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
+          <p className="font-medium">No quests right now</p>
+          <p className="text-sm text-muted-foreground">New quests and missions land regularly. Check back soon.</p>
+        </div>
+      )}
+
+      {sections.map((section) => (
+        <section key={`${section.key}-${section.label}`} className="mb-9">
+          <div className="mb-3 flex items-center gap-2">
+            <section.icon className="h-4 w-4 text-primary" />
+            <h2 className="text-base font-bold tracking-tight">{section.label}</h2>
+            <Badge variant="outline" className="rounded-full text-[10px] text-muted-foreground">
+              {section.quests.length}
+            </Badge>
+          </div>
+
+          {/* Featured mission gets a wide card */}
+          {section.key === "featured" && section.quests[0] ? (
+            <FeaturedMissionCard quest={section.quests[0]} onClaim={claim} claiming={claiming === section.quests[0].id} justClaimed={justClaimed === section.quests[0].id} onHide={hideQuest} />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {section.quests.map((q) => (
+                <QuestCard
+                  key={q.id}
+                  quest={q}
+                  onClaim={claim}
+                  claiming={claiming === q.id}
+                  justClaimed={justClaimed === q.id}
+                  onHide={hideQuest}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      ))}
+
+      {/* History link */}
+      <div className="mt-4 flex justify-center">
+        <Button variant="outline" className="rounded-full" asChild>
+          <Link href="/quests/history">
+            <Trophy className="mr-2 h-4 w-4" /> Quest history
+          </Link>
+        </Button>
       </div>
     </div>
   )
 }
 
 /* ------------------------------------------------------------------ */
-/* Quest card                                                          */
+/* Cards                                                               */
 /* ------------------------------------------------------------------ */
 
 function QuestCard({
   quest,
-  claiming,
-  justCompleted,
   onClaim,
-  onStart,
+  claiming,
+  justClaimed,
+  onHide,
 }: {
-  quest: QuestItem
+  quest: BoardQuest
+  onClaim: (q: BoardQuest) => void
   claiming: boolean
-  justCompleted: string | null
-  onClaim: (q: QuestItem) => void
-  onStart: (q: QuestItem) => void
+  justClaimed: boolean
+  onHide: (id: string) => void
 }) {
-  const a = ACCENTS[quest.accent ?? "violet"] || ACCENTS.violet
-  const typeMeta = TYPE_META[quest.quest_type] || TYPE_META.native
-  const TypeIcon = typeMeta.icon
-  const p = quest.progress
-  const burst = justCompleted === quest.id
+  const a = ACCENTS[quest.accent || ""] || ACCENTS.violet
+  const TypeIcon = TYPE_ICON[quest.quest_type] || Target
+  const timeLeft = formatTimeRemaining(quest.ends_at)
+  const est = estimateLabel(quest.est_minutes)
+  const isMission = quest.quest_kind === "mission"
+  const href = `/quests/${quest.id}`
 
-  const rewardBits: string[] = []
-  if (quest.reward_coins && quest.reward_coins > 0) rewardBits.push(`🪙 ${quest.reward_coins.toLocaleString()}`)
-  if (quest.reward_xp && quest.reward_xp > 0) rewardBits.push(`⚡ ${quest.reward_xp.toLocaleString()} XP`)
-  if (quest.reward_item_preview) rewardBits.push(quest.reward_item_preview.name)
+  const cta =
+    quest.state === "claimable" ? "Claim reward"
+    : quest.state === "in_progress" ? "Continue"
+    : quest.state === "claimed" ? "Claimed"
+    : quest.state === "expired" ? "Expired"
+    : quest.cta_text || "Start quest"
 
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-2xl border bg-card transition-all duration-300",
-        p.completed ? cn(a.ring, a.glow) : "border-border/60 hover:border-border",
-        burst && "animate-[quest-burst_0.9s_ease-out_1]",
+        "group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+        justClaimed && "quest-complete-burst",
       )}
     >
-      {/* accent halo */}
-      <div className={cn("pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-gradient-to-br to-transparent blur-2xl transition-opacity group-hover:opacity-100", a.halo, p.completed ? "opacity-90" : "opacity-40")} />
-
-      {/* completion burst */}
-      {burst && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <PartyPopper className={cn("h-14 w-14 animate-[quest-burst-icon_0.9s_ease-out_1]", a.text)} />
-        </div>
-      )}
-
-      <div className="relative p-4">
-        <div className="flex items-start gap-3">
-          {/* icon tile */}
-          <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl", a.chip)}>
-            <QuestIcon name={quest.icon} className="h-5 w-5" />
+      {/* Banner / artwork */}
+      <Link href={href} className="relative block h-24 overflow-hidden bg-muted">
+        {quest.banner_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={quest.banner_url} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+        ) : (
+          <div className={cn("flex h-full w-full items-center justify-center", a.chip)}>
+            <TypeIcon className="h-8 w-8 opacity-70" />
           </div>
+        )}
+        {quest.is_sponsored && (
+          <span className="absolute left-2 top-2 rounded-full bg-background/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+            Sponsored
+          </span>
+        )}
+        {timeLeft && (
+          <span className="absolute right-2 top-2 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-semibold">
+            {timeLeft}
+          </span>
+        )}
+        <button
+          onClick={(e) => {
+            e.preventDefault()
+            onHide(quest.id)
+          }}
+          title="Hide this quest"
+          className="absolute bottom-2 right-2 rounded-full bg-background/90 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+        >
+          <EyeOff className="h-3 w-3 text-muted-foreground" />
+        </button>
+      </Link>
 
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <h3 className="truncate text-sm font-bold">{quest.title}</h3>
-              <Badge variant="secondary" className={cn("gap-1 border-0 text-[9px] font-bold uppercase", a.chip)}>
-                <TypeIcon className="h-2.5 w-2.5" /> {typeMeta.label}
-              </Badge>
-              {quest.visibility === "pro" && (
-                <Badge className="border-0 bg-amber-500/15 text-[9px] font-bold text-amber-500">PRO</Badge>
-              )}
-            </div>
-            {quest.description && (
-              <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{quest.description}</p>
-            )}
-          </div>
-
-          {/* reward */}
-          <div className="shrink-0 text-right">
-            {quest.reward_label ? (
-              <span className={cn("text-xs font-black", a.text)}>{quest.reward_label}</span>
-            ) : (
-              rewardBits.slice(0, 2).map((b) => (
-                <p key={b} className={cn("text-xs font-black leading-tight", a.text)}>{b}</p>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* progress */}
-        <div className="mt-3 space-y-1.5">
-          <ProgressBar percent={p.percent} accent={quest.accent || "violet"} done={p.completed} />
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="font-semibold text-muted-foreground">
-              {p.completed ? "Complete!" : `${p.count} / ${p.required}`}
-              {quest.requirement_count > 1 && !p.completed && " steps"}
+      <div className="flex flex-1 flex-col p-4">
+        <div className="mb-2 flex items-center gap-1.5">
+          {quest.category && (
+            <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", a.chip)}>
+              {CATEGORY_LABEL[quest.category] || quest.category}
             </span>
-            <span className="flex items-center gap-1 text-muted-foreground/80">
-              <Hourglass className="h-3 w-3" /> {p.reset_label}
+          )}
+          {quest.difficulty && quest.difficulty !== "easy" && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+              {quest.difficulty}
             </span>
-          </div>
+          )}
         </div>
 
-        {/* action */}
+        <Link href={href}>
+          <h3 className="line-clamp-1 font-bold leading-snug hover:underline">{quest.title}</h3>
+        </Link>
+        {quest.description && (
+          <p className="mt-0.5 line-clamp-2 min-h-[2rem] text-xs text-muted-foreground">{quest.description}</p>
+        )}
+
+        {/* Progress */}
         <div className="mt-3">
-          {p.claimed ? (
-            <div className={cn("flex items-center justify-center gap-1.5 rounded-xl bg-muted/50 py-2 text-xs font-bold", a.text)}>
-              <Trophy className="h-3.5 w-3.5" /> Reward claimed
-            </div>
-          ) : p.completed ? (
-            <Button
-              onClick={() => onClaim(quest)}
-              disabled={claiming}
-              size="sm"
-              className={cn("w-full rounded-xl bg-gradient-to-r text-white font-bold", a.bar, "hover:opacity-90")}
-            >
-              {claiming ? <Spinner className="mr-2 h-3.5 w-3.5" /> : <Gift className="mr-2 h-3.5 w-3.5" />}
+          {isMission && quest.mission_progress ? (
+            <>
+              <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                <span>MISSION PROGRESS</span>
+                <span>{quest.mission_progress.done} / {quest.mission_progress.total} COMPLETE</span>
+              </div>
+              <Progress value={(quest.mission_progress.done / Math.max(1, quest.mission_progress.total)) * 100} className="h-1.5" />
+            </>
+          ) : quest.state !== "claimed" && quest.state !== "expired" ? (
+            <>
+              <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                <span>PROGRESS</span>
+                <span>{quest.progress.count} / {quest.progress.required}</span>
+              </div>
+              <Progress value={quest.progress.percent} className="h-1.5" />
+            </>
+          ) : (
+            <p className="text-[11px] font-medium text-emerald-600">{quest.state === "claimed" ? "Completed and claimed" : "Expired"}</p>
+          )}
+        </div>
+
+        {/* Reward + meta */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          {quest.reward_coins && quest.reward_coins > 0 && (
+            <span className="inline-flex items-center gap-1 font-semibold text-amber-600">
+              <Coins className="h-3 w-3" /> {quest.reward_coins.toLocaleString()}
+            </span>
+          )}
+          {quest.reward_xp && quest.reward_xp > 0 && (
+            <span className="inline-flex items-center gap-1 font-semibold text-violet-500">
+              <Zap className="h-3 w-3" /> {quest.reward_xp.toLocaleString()} XP
+            </span>
+          )}
+          {quest.reward_item_preview && (
+            <span className="inline-flex items-center gap-1 font-semibold text-pink-500">
+              <Sparkles className="h-3 w-3" /> {quest.reward_item_preview.name}
+            </span>
+          )}
+          {est && <span>{est}</span>}
+        </div>
+
+        {/* CTA */}
+        <div className="mt-4">
+          {quest.state === "claimable" ? (
+            <Button size="sm" className="w-full rounded-full" disabled={claiming} onClick={() => onClaim(quest)}>
+              {claiming ? <Spinner className="h-4 w-4" /> : <Trophy className="mr-1 h-3.5 w-3.5" />}
               Claim reward
             </Button>
-          ) : quest.quest_type === "minigame" ? (
-            <Button onClick={() => onStart(quest)} size="sm" variant="outline" className="w-full rounded-xl text-xs font-bold">
-              <Gamepad2 className="mr-2 h-3.5 w-3.5" /> Play now
-            </Button>
-          ) : quest.quest_type === "ad" ? (
-            <Button onClick={() => onStart(quest)} size="sm" variant="outline" className="w-full rounded-xl text-xs font-bold">
-              <Play className="mr-2 h-3.5 w-3.5" /> Watch ad
-            </Button>
-          ) : quest.quest_type === "survey" ? (
-            <Button onClick={() => onStart(quest)} size="sm" variant="outline" className="w-full rounded-xl text-xs font-bold">
-              <ClipboardList className="mr-2 h-3.5 w-3.5" /> Take survey
+          ) : quest.state === "claimed" || quest.state === "expired" ? (
+            <Button size="sm" variant="outline" className="w-full rounded-full" disabled asChild>
+              <span>{cta}</span>
             </Button>
           ) : (
-            <div className="rounded-xl bg-muted/40 py-2 text-center text-[11px] font-medium text-muted-foreground">
-              {p.count > 0 ? "Keep going — progress saves automatically" : "Do the action in-app to start"}
-            </div>
+            <Button size="sm" variant={quest.state === "in_progress" ? "secondary" : "default"} className="w-full rounded-full" asChild>
+              <Link href={href}>
+                {cta}
+                <ChevronRight className="ml-1 h-3.5 w-3.5" />
+              </Link>
+            </Button>
           )}
         </div>
       </div>
@@ -280,367 +536,105 @@ function QuestCard({
 }
 
 /* ------------------------------------------------------------------ */
-/* Mini-game modals                                                    */
-/* ------------------------------------------------------------------ */
 
-function TriviaModal({ session, getAuthHeader, onDone }: { session: NonNullable<Session> & { kind: "trivia" }; getAuthHeader: () => Record<string, string>; onDone: (res: any) => void }) {
-  const [answers, setAnswers] = useState<number[]>([])
-  const [submitting, setSubmitting] = useState(false)
-
-  const pick = (qIndex: number, optId: number) => {
-    setAnswers((prev) => {
-      const next = [...prev]
-      next[qIndex] = optId
-      return next
-    })
-  }
-
-  const submit = async () => {
-    setSubmitting(true)
-    try {
-      const res = await fetch("/api/quests/minigame", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ session_id: session.sessionId, answers }),
-      })
-      const data = await res.json().catch(() => ({}))
-      onDone(data)
-    } finally {
-      setSubmitting(false)
-    }
-  }
+function FeaturedMissionCard({
+  quest,
+  onClaim,
+  claiming,
+  justClaimed,
+  onHide,
+}: {
+  quest: BoardQuest
+  onClaim: (q: BoardQuest) => void
+  claiming: boolean
+  justClaimed: boolean
+  onHide: (id: string) => void
+}) {
+  const a = ACCENTS[quest.accent || ""] || ACCENTS.violet
+  const timeLeft = formatTimeRemaining(quest.ends_at)
+  const done = quest.mission_progress?.done ?? 0
+  const total = quest.mission_progress?.total ?? 5
 
   return (
-    <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">Answer all {session.questions.length} to max your reward.</p>
-      {session.questions.map((q, qi) => (
-        <div key={qi} className="rounded-xl border border-border/60 bg-muted/30 p-3">
-          <p className="mb-2 text-sm font-semibold">{qi + 1}. {q.question}</p>
-          <div className="grid grid-cols-2 gap-1.5">
-            {q.options.map((o) => (
-              <button
-                key={o.id}
-                type="button"
-                onClick={() => pick(qi, o.id)}
-                className={cn(
-                  "rounded-lg border px-2.5 py-1.5 text-left text-xs transition",
-                  answers[qi] === o.id
-                    ? "border-violet-400 bg-violet-500/15 font-bold text-violet-500"
-                    : "border-border bg-card hover:bg-muted",
-                )}
-              >
-                {o.text}
-              </button>
-            ))}
+    <div className={cn("relative overflow-hidden rounded-2xl border bg-card", justClaimed && "quest-complete-burst")}>
+      <div className="relative h-36 bg-muted sm:h-44">
+        {quest.banner_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={quest.banner_url} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className={cn("flex h-full w-full items-center justify-center", a.chip)}>
+            <ListChecks className="h-12 w-12 opacity-60" />
           </div>
-        </div>
-      ))}
-      <Button onClick={submit} disabled={submitting || answers.filter((a) => a !== undefined).length < session.questions.length} className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 text-white">
-        {submitting ? <Spinner className="mr-2 h-4 w-4" /> : <Trophy className="mr-2 h-4 w-4" />} Submit answers
-      </Button>
-    </div>
-  )
-}
-
-function ReactionGame({ session, getAuthHeader, onDone }: { session: NonNullable<Session> & { kind: "reaction" }; getAuthHeader: () => Record<string, string>; onDone: (res: any) => void }) {
-  const [state, setState] = useState<"idle" | "waiting" | "go" | "done">("idle")
-  const [round, setRound] = useState(0)
-  const [times, setTimes] = useState<number[]>([])
-  const goAt = useRef(0)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
-
-  const startRound = () => {
-    if (round >= session.rounds) return
-    setState("waiting")
-    timer.current = setTimeout(() => {
-      goAt.current = Date.now()
-      setState("go")
-    }, 900 + Math.random() * 2200)
-  }
-
-  const tap = () => {
-    if (state === "waiting") {
-      // too early — restart this round
-      if (timer.current) clearTimeout(timer.current)
-      setState("idle")
-      return
-    }
-    if (state === "go") {
-      const ms = Date.now() - goAt.current
-      const next = [...times, ms]
-      setTimes(next)
-      if (next.length >= session.rounds) {
-        setState("done")
-        void (async () => {
-          const res = await fetch("/api/quests/minigame", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", ...getAuthHeader() },
-            body: JSON.stringify({ session_id: session.sessionId, reaction_times_ms: next }),
-          })
-          const data = await res.json().catch(() => ({}))
-          onDone(data)
-        })()
-      } else {
-        setRound(next.length)
-        setState("idle")
-      }
-    }
-  }
-
-  const avg = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0
-
-  return (
-    <div className="space-y-3 text-center">
-      <p className="text-xs text-muted-foreground">
-        Round {Math.min(round + 1, session.rounds)} / {session.rounds} · Beat {session.targetAvgMs}ms average
-      </p>
-      <button
-        type="button"
-        onClick={tap}
-        disabled={state === "done"}
-        className={cn(
-          "flex h-44 w-full items-center justify-center rounded-2xl border-2 text-lg font-black transition-colors select-none",
-          state === "idle" && "border-border bg-muted/40 text-muted-foreground",
-          state === "waiting" && "border-rose-500/60 bg-rose-500/10 text-rose-400",
-          state === "go" && "border-emerald-400 bg-emerald-500/20 text-emerald-400",
-          state === "done" && "border-border bg-muted/40",
         )}
-      >
-        {state === "idle" && "Tap to start round"}
-        {state === "waiting" && "Wait for green…"}
-        {state === "go" && "TAP!"}
-        {state === "done" && `Avg ${avg}ms`}
-      </button>
-      {times.length > 0 && state !== "done" && (
-        <p className="text-xs text-muted-foreground">Last: {times[times.length - 1]}ms · Avg: {avg}ms</p>
-      )}
-      {state === "done" && <Spinner className="mx-auto h-4 w-4" />}
-    </div>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Page                                                                */
-/* ------------------------------------------------------------------ */
-
-export default function QuestsClient() {
-  const { user, getAuthHeader } = useAuth()
-  const { toast } = useToast()
-
-  const [quests, setQuests] = useState<QuestItem[]>([])
-  const [caps, setCaps] = useState<Caps | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [claiming, setClaiming] = useState<string | null>(null)
-  const [justCompleted, setJustCompleted] = useState<string | null>(null)
-  const [gameOpen, setGameOpen] = useState(false)
-  const [gameQuest, setGameQuest] = useState<QuestItem | null>(null)
-  const [session, setSession] = useState<Session>(null)
-
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/quests", { headers: getAuthHeader() })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.success) {
-        setQuests(data.quests || [])
-        setCaps(data.caps || null)
-      }
-    } catch {
-      // offline — keep old list
-    } finally {
-      setLoading(false)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    if (!user) return
-    void load()
-    const t = setInterval(() => void load(), 60_000) // light refresh for reset timers
-    return () => clearInterval(t)
-  }, [user, load])
-
-  const grouped = useMemo(() => {
-    const g: Record<string, QuestItem[]> = { daily: [], weekly: [], seasonal: [] }
-    for (const q of quests) g[q.cadence]?.push(q)
-    return g
-  }, [quests])
-
-  const handleClaim = async (quest: QuestItem) => {
-    setClaiming(quest.id)
-    try {
-      const res = await fetch("/api/quests/claim", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ quest_id: quest.id }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || "Claim failed")
-      const parts: string[] = []
-      if (data.reward?.coins > 0) parts.push(`🪙 ${data.reward.coins.toLocaleString()} coins`)
-      if (data.reward?.xp > 0) parts.push(`⚡ ${data.reward.xp.toLocaleString()} XP`)
-      if (data.reward?.item_qty > 0) parts.push("🎁 an item")
-      toast({
-        title: data.leveled_up ? "Reward claimed — LEVEL UP! 🎉" : "Reward claimed! 🎉",
-        description: `You earned ${parts.join(" + ") || "a reward"}.`,
-      })
-      void load()
-    } catch (e: any) {
-      toast({ title: "Claim failed", description: e.message, variant: "destructive" })
-    } finally {
-      setClaiming(null)
-    }
-  }
-
-  const startGame = async (quest: QuestItem) => {
-    setGameQuest(quest)
-    setSession(null)
-    setGameOpen(true)
-    try {
-      const res = await fetch(`/api/quests/minigame?quest_id=${quest.id}`, { headers: getAuthHeader() })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || "Could not start")
-      if (data.kind === "trivia") {
-        setSession({ kind: "trivia", sessionId: data.session_id, questions: data.questions })
-      } else {
-        setSession({ kind: "reaction", sessionId: data.session_id, rounds: data.rounds, targetAvgMs: data.target_avg_ms })
-      }
-    } catch (e: any) {
-      toast({ title: "Couldn't start the game", description: e.message, variant: "destructive" })
-      setGameOpen(false)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }
-
-  const onGameDone = async (res: any) => {
-    setGameOpen(false)
-    if (res?.error) {
-      toast({ title: "Game error", description: res.error, variant: "destructive" })
-      return
-    }
-    const score = res?.score_pct ?? 0
-    if (res?.quest?.completed) {
-      setJustCompleted(res.quest.quest_id ?? gameQuest?.id ?? null)
-      setTimeout(() => setJustCompleted(null), 1200)
-      toast({ title: `Quest complete! (${score}% score)`, description: "Claim your reward on the quest card." })
-    } else {
-      toast({ title: `Scored ${score}%`, description: "Progress saved — play again to finish the quest." })
-    }
-    void load()
-  }
-
-  const capPct = caps && caps.daily_coin_cap > 0 ? Math.min(100, Math.round((caps.earned_today_coins / caps.daily_coin_cap) * 100)) : 0
-
-  if (!user) {
-    return (
-      <div className="container mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20">
-          <Sparkles className="h-8 w-8 text-violet-400" />
-        </div>
-        <h1 className="text-2xl font-black">Quests await</h1>
-        <p className="text-sm text-muted-foreground">Sign in to earn coins, XP, and rare cosmetics by completing daily quests.</p>
-        <Link href="/login">
-          <Button className="rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 text-white">Sign in to play</Button>
-        </Link>
-      </div>
-    )
-  }
-
-  return (
-    <div className="container mx-auto max-w-3xl space-y-6 px-4 py-6 pb-24">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500/25 to-cyan-500/25 shadow-[0_0_30px_-6px_rgba(139,92,246,0.5)]">
-          <Sparkles className="h-6 w-6 text-violet-400" />
-        </div>
-        <div className="flex-1">
-          <h1 className="text-2xl font-black tracking-tight">Quests</h1>
-          <p className="text-xs text-muted-foreground">Earn coins, XP, and rare loot — new quests every day.</p>
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+        {quest.is_sponsored && (
+          <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Sponsored{sponsorSuffix(quest.sponsor_name)}
+          </span>
+        )}
+        {timeLeft && (
+          <span className="absolute right-3 top-3 rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-semibold">
+            {timeLeft}
+          </span>
+        )}
+        <button
+          onClick={() => onHide(quest.id)}
+          title="Hide this quest"
+          className="absolute bottom-3 right-3 rounded-full bg-background/90 p-1.5"
+        >
+          <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+        </button>
       </div>
 
-      {/* Daily cap meter */}
-      {caps && (
-        <div className="rounded-2xl border border-border/60 bg-card p-4">
-          <div className="mb-2 flex items-center justify-between text-xs">
-            <span className="font-bold">Today's quest earnings</span>
-            <span className="text-muted-foreground">
-              🪙 {caps.earned_today_coins.toLocaleString()} / {caps.daily_coin_cap.toLocaleString()} · ⚡ {caps.earned_today_xp.toLocaleString()} / {caps.daily_xp_cap.toLocaleString()}
-            </span>
+      <div className="p-5 sm:p-6">
+        <p className={cn("text-[11px] font-bold uppercase tracking-widest", a.text)}>Featured Mission</p>
+        <h3 className="mt-1 text-2xl font-black tracking-tight">{quest.title}</h3>
+        {quest.description && <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{quest.description}</p>}
+
+        <div className="mt-4">
+          <div className="mb-1.5 flex items-center justify-between text-xs font-semibold">
+            <span className="uppercase tracking-wide text-muted-foreground">Mission Progress</span>
+            <span>{done} / {total} COMPLETE</span>
           </div>
-          <ProgressBar percent={capPct} accent="amber" done={false} />
-          <p className="mt-1.5 text-[10px] text-muted-foreground">Daily caps keep the economy fair — they reset at midnight UTC.</p>
+          <Progress value={(done / Math.max(1, total)) * 100} className="h-2" />
         </div>
-      )}
 
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-36 animate-pulse rounded-2xl bg-muted/50" />
-          ))}
-        </div>
-      ) : quests.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center">
-          <Target className="mx-auto h-10 w-10 text-muted-foreground/40" />
-          <h3 className="mt-3 text-sm font-bold">No quests right now</h3>
-          <p className="mt-1 text-xs text-muted-foreground">New quests drop daily — check back soon!</p>
-        </div>
-      ) : (
-        <>
-          {(["daily", "weekly", "seasonal"] as const).map((cadence) => {
-            if (grouped[cadence].length === 0) return null
-            const sectionMeta = {
-              daily: { title: "Daily Quests", icon: Timer, hint: "Reset every 24 hours", accent: "text-cyan-400" },
-              weekly: { title: "Weekly Quests", icon: Trophy, hint: "Reset every Monday", accent: "text-violet-400" },
-              seasonal: { title: "Seasonal & Special", icon: Crown, hint: "Limited-time events", accent: "text-amber-400" },
-            }[cadence]
-            const SectionIcon = sectionMeta.icon
-            return (
-              <section key={cadence} className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <SectionIcon className={cn("h-4 w-4", sectionMeta.accent)} />
-                  <h2 className="text-sm font-black uppercase tracking-wide">{sectionMeta.title}</h2>
-                  <span className="text-[11px] text-muted-foreground">· {sectionMeta.hint}</span>
-                </div>
-                <div className="space-y-3">
-                  {grouped[cadence].map((q) => (
-                    <QuestCard
-                      key={q.id}
-                      quest={q}
-                      claiming={claiming === q.id}
-                      justCompleted={justCompleted}
-                      onClaim={handleClaim}
-                      onStart={startGame}
-                    />
-                  ))}
-                </div>
-              </section>
-            )
-          })}
-        </>
-      )}
-
-      {/* Mini-game modal */}
-      {gameOpen && gameQuest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={() => setGameOpen(false)}>
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="flex items-center gap-2 text-base font-black">
-                <Gamepad2 className="h-4 w-4 text-violet-400" /> {gameQuest.title}
-              </h3>
-              <button type="button" onClick={() => setGameOpen(false)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">✕</button>
-            </div>
-            {!session ? (
-              <div className="flex items-center justify-center py-10"><Spinner className="h-6 w-6" /></div>
-            ) : session.kind === "trivia" ? (
-              <TriviaModal session={session} getAuthHeader={getAuthHeader} onDone={onGameDone} />
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {quest.reward_coins && quest.reward_coins > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-sm font-bold text-amber-600">
+              <Coins className="h-4 w-4" /> {quest.reward_coins.toLocaleString()} Loop Coins
+            </span>
+          )}
+          {quest.reward_item_preview && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-pink-500/10 px-3 py-1 text-sm font-bold text-pink-500">
+              <Sparkles className="h-4 w-4" /> {quest.reward_item_preview.name}
+            </span>
+          )}
+          <div className="ml-auto">
+            {quest.state === "claimable" ? (
+              <Button className="rounded-full" disabled={claiming} onClick={() => onClaim(quest)}>
+                {claiming ? <Spinner className="h-4 w-4" /> : <Trophy className="mr-1.5 h-4 w-4" />}
+                Claim reward
+              </Button>
+            ) : quest.state === "claimed" ? (
+              <Button variant="outline" className="rounded-full" disabled>
+                Claimed
+              </Button>
             ) : (
-              <ReactionGame session={session} getAuthHeader={getAuthHeader} onDone={onGameDone} />
+              <Button asChild className="rounded-full">
+                <Link href={`/quests/${quest.id}`}>
+                  {quest.state === "in_progress" ? "Continue mission" : "Start mission"}
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
             )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
+}
+
+function sponsorSuffix(name: string | null): string {
+  return name ? ` · ${name}` : ""
 }
