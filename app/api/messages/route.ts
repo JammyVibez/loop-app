@@ -175,6 +175,14 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
     }
 
+    // Extract @mentions from content and store as JSONB for targeted
+    // notifications in group chats (bypasses muting for mentioned users).
+    try {
+      const { extractMentions } = await import("@/lib/mentions")
+      const mentions = extractMentions(content)
+      if (mentions.length) basePayload.mentions = mentions
+    } catch { /* mentions extraction is best-effort */ }
+
     // Forwards carry a human-readable origin label + the original message id.
     if (forwardedFrom) basePayload.forwarded_from = String(forwardedFrom).slice(0, 80)
     if (forwardedMessageId) basePayload.forwarded_message_id = String(forwardedMessageId)
@@ -278,7 +286,8 @@ export async function POST(request: NextRequest) {
     if (content) {
       try {
         const { processMentions, extractMentions } = await import("@/lib/mentions")
-        if (extractMentions(content).length) {
+        const mentionObjects = extractMentions(content)
+        if (mentionObjects.length) {
           const { data: profile } = await supabase
             .from("profiles")
             .select("username, display_name")
@@ -293,6 +302,35 @@ export async function POST(request: NextRequest) {
               profile?.display_name || user.user_metadata?.display_name || user.user_metadata?.username,
             href: `/messages?c=${conversationId}`,
           })
+          // Targeted @mention notification that bypasses group muting
+          try {
+            const mentionedUsernames = mentionObjects.map((m: any) => m.username || m).filter(Boolean)
+            if (mentionedUsernames.length) {
+              const { data: mentionedProfiles } = await supabase
+                .from("profiles")
+                .select("id")
+                .in("username", mentionedUsernames)
+              const mentionedIds = (mentionedProfiles || []).map((p) => p.id).filter((id) => id !== user.id)
+              if (mentionedIds.length) {
+                const { notifyUser } = await import("@/lib/notifications")
+                const mentionerName = profile?.display_name || profile?.username || "Someone"
+                await Promise.all(
+                  mentionedIds.map((rid: string) =>
+                    notifyUser(supabase, {
+                      userId: rid,
+                      type: "mention",
+                      title: `${mentionerName} mentioned you`,
+                      message: String(content).slice(0, 120),
+                      actorId: user.id,
+                      actionUrl: `/messages?c=${conversationId}`,
+                      data: { conversation_id: conversationId, message_id: message.id },
+                      pushCategory: "social",
+                    }),
+                  ),
+                )
+              }
+            }
+          } catch (mErr) { console.warn("@mention notify failed:", mErr) }
         }
       } catch (err) {
         console.error("message mentions:", err)

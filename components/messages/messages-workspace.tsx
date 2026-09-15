@@ -38,6 +38,8 @@ import {
   type ChatWallpaper,
 } from "@/lib/chat-wallpapers"
 import { Spinner } from "@/components/ui/skeletons"
+import { GroupCreateDialog } from "@/components/messages/group-create-dialog"
+import { GroupInfoPanel } from "@/components/messages/group-info-panel"
 import {
   ArrowLeft,
   Bell,
@@ -225,6 +227,8 @@ export function MessagesWorkspace() {
   const [deletingMessage, setDeletingMessage] = useState<ChatMessage | null>(null)
   const [forwardTarget, setForwardTarget] = useState<ChatMessage | null>(null)
   const [forwardingTo, setForwardingTo] = useState<string | null>(null)
+  const [showGroupCreate, setShowGroupCreate] = useState(false)
+  const [showGroupInfo, setShowGroupInfo] = useState(false)
   const [typingPeer, setTypingPeer] = useState(false)
   const [peerOnline, setPeerOnline] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -1412,6 +1416,17 @@ export function MessagesWorkspace() {
             {starting ? <Spinner className="h-4 w-4" /> : <Search className="h-4 w-4" />}
           </Button>
         </div>
+        {/* New group button */}
+        <div className="px-4">
+          <Button
+            onClick={() => setShowGroupCreate(true)}
+            variant="outline"
+            className="w-full rounded-full h-8 text-xs font-semibold border-dashed"
+            size="sm"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1.5" /> New group
+          </Button>
+        </div>
       </div>
       {inboxTab === "calls" ? (
         <CallLogs
@@ -1534,7 +1549,10 @@ export function MessagesWorkspace() {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1 truncate text-sm font-semibold text-foreground">
+          <p
+            className={`flex items-center gap-1 truncate text-sm font-semibold text-foreground ${selected.is_group ? "cursor-pointer hover:underline" : ""}`}
+            onClick={() => { if (selected.is_group) setShowGroupInfo(true) }}
+          >
             {selected.other_user?.display_name || selected.name || "Conversation"}
             {!selected.is_group && selected.other_user?.is_verified && (
               <VerifiedSeal size={15} title="Verified Creator" />
@@ -2368,6 +2386,28 @@ export function MessagesWorkspace() {
           outgoingCallRef.current = null
         }}
       />
+
+      {/* Group creation dialog */}
+      <GroupCreateDialog
+        open={showGroupCreate}
+        onClose={() => setShowGroupCreate(false)}
+        onCreated={(convId) => {
+          setSelectedId(convId)
+          setMobileShowChat(true)
+          setShowGroupCreate(false)
+          void loadConversations()
+        }}
+      />
+
+      {/* Group info panel */}
+      {showGroupInfo && selected ? (
+        <div className="absolute inset-0 z-40 bg-background flex flex-col lg:w-80 lg:right-0 lg:left-auto lg:inset-auto">
+          <GroupInfoPanel
+            conversationId={String(selected.id)}
+            onClose={() => setShowGroupInfo(false)}
+          />
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { ProxyImg } from "@/components/ui/proxy-img"
-import { CheckCheck, Check, Reply, CornerUpRight, Trash2, Pencil, MoreHorizontal, Copy } from "lucide-react"
+import { CheckCheck, Check, Reply, CornerUpRight, Trash2, Pencil, MoreHorizontal, Copy, Pin } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,6 +55,17 @@ export function MessageBubble({
   const [showReactions, setShowReactions] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  // System messages (join, leave, remove, lock, etc.) render centered
+  if (message.message_type === "system") {
+    return (
+      <div className="flex w-full justify-center my-1.5">
+        <p className="text-[11px] text-muted-foreground bg-muted/30 rounded-full px-3 py-1">
+          {message.content}
+        </p>
+      </div>
+    )
+  }
+
   if (message.is_deleted) {
     return (
       <div className={cn("flex w-full mb-1", isOwn ? "justify-end" : "justify-start")}>
@@ -99,6 +110,13 @@ export function MessageBubble({
         onMouseEnter={() => setShowReactions(true)}
         onMouseLeave={() => setShowReactions(false)}
       >
+        {/* Pinned badge */}
+        {(message as any).is_pinned && (
+          <div className="text-[9px] font-semibold text-amber-500 mb-1 flex items-center gap-1">
+            <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+            Pinned
+          </div>
+        )}
         {/* Reply preview */}
         {message.reply_to && (
           <div className={cn(
@@ -203,6 +221,11 @@ export function MessageBubble({
             <DropdownMenuItem onClick={handleCopy}>
               <Copy className="h-3.5 w-3.5 mr-2" /> {copied ? "Copied!" : "Copy"}
             </DropdownMenuItem>
+            {(message as any).onPin && (
+              <DropdownMenuItem onClick={() => (message as any).onPin(message)}>
+                <Pin className="h-3.5 w-3.5 mr-2" /> Pin
+              </DropdownMenuItem>
+            )}
             {isOwn && (
               <>
                 <DropdownMenuSeparator />

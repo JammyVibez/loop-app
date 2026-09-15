@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, MessageCircle } from "lucide-react"
+import { Search, MessageCircle, Users } from "lucide-react"
 
 interface Conversation {
   id: string
@@ -38,6 +38,7 @@ interface ConversationListProps {
   search: string
   onSearchChange: (value: string) => void
   onSelect: (id: string) => void
+  onNewGroup?: () => void
   loading: boolean
   currentUserId?: string
   inboxTab: "chats" | "calls"
@@ -66,6 +67,7 @@ export function ConversationList({
   search,
   onSearchChange,
   onSelect,
+  onNewGroup,
   loading,
   currentUserId,
   inboxTab,
@@ -87,9 +89,20 @@ export function ConversationList({
       <div className="px-4 pt-4 pb-2 space-y-3">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-extrabold text-foreground">Messages</h1>
-          <Badge variant="secondary" className="text-xs">
-            {conversations.length}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {onNewGroup && (
+              <button
+                onClick={onNewGroup}
+                className="rounded-lg bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary hover:bg-primary/20 transition-colors"
+                title="Create new group"
+              >
+                + New group
+              </button>
+            )}
+            <Badge variant="secondary" className="text-xs">
+              {conversations.length}
+            </Badge>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -167,9 +180,31 @@ export function ConversationList({
                       : "hover:bg-muted/60 border border-transparent",
                   )}
                 >
-                  {/* Avatar */}
+                  {/* Avatar — stacked for groups, single for DMs */}
                   <div className="relative shrink-0">
-                    {other?.video_avatar_url ? (
+                    {convo.is_group ? (
+                      <div className="relative h-12 w-12">
+                        {(convo as any).participants?.slice(0, 3).map((p: any, i: number) => (
+                          <Avatar
+                            key={p.user_id}
+                            className="h-7 w-7 absolute border-2 border-background"
+                            style={{ top: i * 8, left: i * 8, zIndex: 3 - i }}
+                          >
+                            <AvatarImage src={p.user?.avatar_url} />
+                            <AvatarFallback className="text-[9px] font-bold">
+                              {(p.user?.display_name || p.user?.username || "?").charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                        ))}
+                        {((convo as any).participants?.length || 0) === 0 && (
+                          <Avatar className="h-12 w-12">
+                            <AvatarFallback className="text-sm font-bold bg-primary/10 text-primary">
+                              {displayName.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                      </div>
+                    ) : other?.video_avatar_url ? (
                       <VideoAvatar
                         src={other?.avatar_url}
                         videoSrc={other?.video_avatar_url}
@@ -186,8 +221,8 @@ export function ConversationList({
                         </AvatarFallback>
                       </Avatar>
                     )}
-                    {/* Online dot */}
-                    {other && (
+                    {/* Online dot — only for DMs */}
+                    {other && !convo.is_group && (
                       <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-background bg-emerald-500" />
                     )}
                   </div>
