@@ -15,12 +15,15 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("user_id")
 
     if (userId) {
+      // NOTE: no FK exists on user_awards.awarded_by → profiles in PostgREST's
+      // schema cache, so an embedded `awarded_by:profiles!awarded_by(...)`
+      // hint fails the ENTIRE query (PGRST200) and the profile tab rendered
+      // empty even though grants existed. Fetch granters separately instead.
       const { data: grants, error } = await supabase
         .from("user_awards")
         .select(
-          `id, reason, created_at,
-           award:awards(id, name, description, emoji, color),
-           awarded_by:profiles!awarded_by(id, username, display_name)`,
+          `id, reason, created_at, awarded_by,
+           award:awards(id, name, description, emoji, color)`,
         )
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
@@ -28,9 +31,24 @@ export async function GET(request: NextRequest) {
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+      // Resolve granter display names in one batch (works without an FK).
+      const granterIds = [...new Set((grants || []).map((g: any) => g.awarded_by).filter(Boolean))] as string[]
+      const grantersById = new Map<string, any>()
+      if (granterIds.length) {
+        const { data: granters } = await supabase
+          .from("profiles")
+          .select("id, username, display_name")
+          .in("id", granterIds)
+        for (const g of granters || []) grantersById.set(g.id, g)
+      }
+      const withGranter = (grants || []).map((g: any) => ({
+        ...g,
+        granted_by: grantersById.get(g.awarded_by) || null,
+      }))
+
       // Group so the profile shelf shows each badge once with its count.
       const grouped = new Map<string, any>()
-      for (const grant of grants || []) {
+      for (const grant of withGranter) {
         const award = Array.isArray(grant.award) ? grant.award[0] : grant.award
         if (!award) continue
         const key = award.id

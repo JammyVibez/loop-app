@@ -18,6 +18,9 @@ export interface ProfileAward {
   color: string
   count?: number
   awarded_at?: string
+  /** Admin who granted it (id/username/display_name) — resolved by the API without an FK. */
+  granted_by?: { id: string; username: string; display_name: string } | null
+  reason?: string | null
 }
 
 /** Award shelf — compact inline row (profile header). */
@@ -26,26 +29,6 @@ export function ProfileAwards({ userId, compact }: { userId: string; compact?: b
   const [loaded, setLoaded] = useState(false)
 
   useUserAwards(userId, setAwards, setLoaded)
-
-  useEffect(() => {
-    if (!userId) return
-    let cancelled = false
-    setLoaded(false)
-    fetch(`/api/awards?user_id=${encodeURIComponent(userId)}`, { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!cancelled) setAwards(data?.awards || [])
-      })
-      .catch(() => {
-        if (!cancelled) setAwards([])
-      })
-      .finally(() => {
-        if (!cancelled) setLoaded(true)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [userId])
 
   if (loaded && awards.length === 0) return null
 
@@ -83,18 +66,22 @@ export function ProfileAwards({ userId, compact }: { userId: string; compact?: b
                   )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-[240px]">
-                <p className="text-xs font-semibold" style={{ color: award.color }}>
-                  {award.emoji} {award.name}
-                  {(award.count || 0) > 1 ? ` ×${award.count}` : ""}
+            <TooltipContent side="top" className="max-w-[260px]">
+              <p className="text-xs font-semibold" style={{ color: award.color }}>
+                {award.emoji} {award.name}
+                {(award.count || 0) > 1 ? ` ×${award.count}` : ""}
+              </p>
+              {award.reason && <p className="mt-0.5 text-xs text-muted-foreground">{award.reason}</p>}
+              {award.description && !award.reason && <p className="mt-0.5 text-xs text-muted-foreground">{award.description}</p>}
+              {award.granted_by?.display_name && (
+                <p className="mt-0.5 text-[10px] text-muted-foreground">Granted by {award.granted_by.display_name}</p>
+              )}
+              {award.awarded_at && (
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  Awarded {new Date(award.awarded_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                 </p>
-                {award.description && <p className="mt-0.5 text-xs text-muted-foreground">{award.description}</p>}
-                {award.awarded_at && (
-                  <p className="mt-0.5 text-[10px] text-muted-foreground">
-                    Awarded {new Date(award.awarded_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-                  </p>
-                )}
-              </TooltipContent>
+              )}
+            </TooltipContent>
             </Tooltip>
           ))}
         </div>
@@ -181,6 +168,12 @@ export function ProfileAwardsGrid({ userId }: { userId: string }) {
                   {award.description && (
                     <p className="mt-0.5 text-sm text-muted-foreground">{award.description}</p>
                   )}
+                  {award.granted_by?.display_name && (
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Granted by {award.granted_by.display_name}
+                      {award.reason ? ` — ${award.reason}` : ""}
+                    </p>
+                  )}
                   {award.awarded_at && (
                     <p className="mt-1 text-[11px] text-muted-foreground">
                       First awarded {new Date(award.awarded_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
@@ -191,6 +184,7 @@ export function ProfileAwardsGrid({ userId }: { userId: string }) {
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-[240px]">
               <p className="text-xs">Granted by the Loop team</p>
+              {award.reason && <p className="mt-0.5 text-xs text-muted-foreground">{award.reason}</p>}
             </TooltipContent>
           </Tooltip>
         ))}
