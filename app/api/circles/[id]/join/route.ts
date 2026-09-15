@@ -109,23 +109,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         console.error("welcome bot:", err)
       }
 
-      // Sync tagged_circles so profile completion recognizes community membership
-      try {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("tagged_circles")
-          .eq("id", user.id)
-          .maybeSingle()
-        const existing = Array.isArray(profile?.tagged_circles) ? profile.tagged_circles : []
-        if (!existing.some((c: any) => c.id === circleId)) {
-          await supabase
-            .from("profiles")
-            .update({ tagged_circles: [...existing, { id: circleId, name: circle.name, avatar_url: null }] })
-            .eq("id", user.id)
-        }
-      } catch (err) {
-        console.error("tagged_circles sync:", err)
-      }
+      // Community tags on the profile are user-curated (Settings → Communities)
+      // and are no longer auto-added on join — joining must not modify the
+      // member's profile.
 
       // Quest progress: join_circle native action
       try {

@@ -11,9 +11,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { formatNumber, timeAgo } from "@/lib/community-engine"
 import { MemberReputation } from "./member-reputation"
 import { useToast } from "@/hooks/use-toast"
-import { Users, Search, Shield, Crown, Star, Award, Handshake, Brain, Palette, Flame, UserPlus, Check, X } from "lucide-react"
+import { Users, Search, Shield, Crown, Star, Award, Handshake, Brain, Palette, Flame, UserPlus, Check, X, Tag } from "lucide-react"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { Spinner } from "@/components/ui/skeletons"
+import { COMMUNITY_ROLE_GRADIENTS as GRADIENT_MAP } from "@/lib/community-gradients"
 
 const ROLE_BADGE: Record<string, { label: string; className: string; icon: typeof Shield }> = {
   owner: { label: "Founder", className: "bg-amber-500/10 text-amber-600 border-amber-500/30", icon: Crown },
@@ -42,6 +43,10 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
   const [activeMember, setActiveMember] = useState<any>(null)
   const [recognizing, setRecognizing] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [roleMember, setRoleMember] = useState<any>(null)
+  const [roleFreeform, setRoleFreeform] = useState("")
+  const [customRoles, setCustomRoles] = useState<any[]>([])
+  const [savingRole, setSavingRole] = useState(false)
 
   const isAdmin = viewerRole === "owner" || viewerRole === "admin"
   const isMod = isAdmin || viewerRole === "moderator"
@@ -57,6 +62,7 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to load members")
       setMembers(data.members || [])
+      if (Array.isArray(data.custom_roles)) setCustomRoles(data.custom_roles)
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -85,6 +91,32 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
       return
     }
     load()
+  }
+
+  const assignCustomRole = async (userId: string, title: string) => {
+    setSavingRole(true)
+    try {
+      const res = await fetch(`/api/communities/${communityId}/members`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, custom_title: title }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to assign role")
+      toast({
+        title: title ? "Role assigned" : "Role cleared",
+        description: title
+          ? `They now carry the "${title}" role across this community.`
+          : "Their custom role was removed.",
+      })
+      setRoleMember(null)
+      setRoleFreeform("")
+      load()
+    } catch (e: any) {
+      toast({ title: "Couldn't assign role", description: e.message, variant: "destructive" })
+    } finally {
+      setSavingRole(false)
+    }
   }
 
   const approveJoin = async (member: any) => {
@@ -295,6 +327,9 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
                         {isAdmin && <option value="admin">Admin</option>}
                         {isAdmin && <option value="owner">Founder</option>}
                       </select>
+                      <Button size="sm" variant="outline" className="rounded-full h-8 text-[11px]" onClick={() => { setRoleMember(m); setRoleFreeform(m.custom_title || "") }} title="Assign a custom role">
+                        <Tag className="h-3 w-3 mr-1" /> Role
+                      </Button>
                       <Button size="sm" variant="outline" className="rounded-full h-8 text-[11px]" onClick={() => setActiveMember(m)}>
                         <Star className="h-3 w-3 mr-1" /> Recognize
                       </Button>
@@ -306,6 +341,63 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
           })}
         </div>
       )}
+
+      {/* Assign custom role dialog */}
+      <Dialog open={Boolean(roleMember)} onOpenChange={(o) => { if (!o) { setRoleMember(null); setRoleFreeform("") } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Tag className="h-4 w-4" /> Assign role — {roleMember?.user?.display_name || roleMember?.user?.username}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-[11px] text-muted-foreground">
+              Pick one of this community's roles, or type a custom label. Roles render as gradient badges next to the member's name in chat, the member list, and post cards.
+            </p>
+            {customRoles.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Community roles</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {customRoles.filter((cr) => cr?.name).map((cr) => {
+                    const selected = roleFreeform === cr.name
+                    return (
+                      <button
+                        key={cr.name}
+                        type="button"
+                        onClick={() => setRoleFreeform(cr.name)}
+                        className="rounded-full px-2.5 py-1 text-[10px] font-bold text-white/95 shadow-sm transition hover:opacity-90"
+                        style={{ background: GRADIENT_MAP[cr.gradient] || cr.color || "#6b7280" }}
+                        title="Click to select"
+                      >
+                        {cr.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Custom label</p>
+              <Input
+                value={roleFreeform}
+                onChange={(e) => setRoleFreeform(e.target.value.slice(0, 40))}
+                placeholder="e.g. Events Lead"
+                className="rounded-xl h-9"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" className="flex-1 rounded-full" onClick={() => assignCustomRole(roleMember?.user_id, roleFreeform)} disabled={savingRole}>
+                {savingRole ? <Spinner className="h-3 w-3" /> : "Assign role"}
+              </Button>
+              {roleMember?.custom_title && (
+                <Button size="sm" variant="outline" className="rounded-full" onClick={() => assignCustomRole(roleMember.user_id, "")} disabled={savingRole}>
+                  Remove
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Recognize dialog */}
       <Dialog open={Boolean(activeMember)} onOpenChange={(o) => { if (!o) setActiveMember(null) }}>

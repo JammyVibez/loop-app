@@ -31,27 +31,34 @@ export function HomePageClient() {
         <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0 space-y-2.5 sm:space-y-3">
             {isGuest ? (
-              <section className="rounded-2xl border border-border/60 bg-card/50 p-4 sm:p-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div className="max-w-xl">
-                    <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                      Build together.
-                      <span className="text-muted-foreground"> Not just post into the void.</span>
-                    </h1>
-                    <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-                      Co-write posts live with friends, settle debates in public Duels, and build spaces that are actually yours.
-                    </p>
+              <section className="rounded-2xl border border-border/60 bg-card/50 overflow-hidden">
+                <div className="p-5 sm:p-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="max-w-xl">
+                      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                        Build together.
+                        <span className="text-muted-foreground"> Not just post into the void.</span>
+                      </h1>
+                      <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+                        Co-write posts live with friends, settle debates in public Duels, and build communities that actually work for the people in them.
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <Button asChild className="rounded-full bg-foreground text-background hover:opacity-90" size="sm">
+                        <Link href="/signup">Join free</Link>
+                      </Button>
+                      <Button asChild variant="outline" className="rounded-full" size="sm">
+                        <Link href="/login">
+                          <LogIn className="mr-1.5 h-4 w-4" />
+                          Log in
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    <Button asChild className="rounded-full" size="sm">
-                      <Link href="/signup">Join free</Link>
-                    </Button>
-                    <Button asChild variant="outline" className="rounded-full" size="sm">
-                      <Link href="/login">
-                        <LogIn className="mr-1.5 h-4 w-4" />
-                        Log in
-                      </Link>
-                    </Button>
+                  <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> No waitlist</span>
+                    <span className="inline-flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> Free to start</span>
+                    <span className="inline-flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> Your content stays yours</span>
                   </div>
                 </div>
               </section>
@@ -133,7 +140,7 @@ export function HomePageClient() {
             <div className="sticky top-20 space-y-4">
               {isGuest ? (
                 <div className="rounded-2xl border border-border/60 bg-card/50 p-4">
-                  <h2 className="text-sm font-semibold">Why join Loop?</h2>
+                  <h2 className="text-sm font-semibold">What makes Loop different</h2>
                   <ul className="mt-3 space-y-2.5 text-xs text-muted-foreground">
                     <li className="flex items-start gap-2">
                       <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-foreground/30" />
@@ -151,13 +158,21 @@ export function HomePageClient() {
                       <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-foreground/30" />
                       <span><strong className="text-foreground">Coins</strong> — Earn, gift, and boost content across Loop.</span>
                     </li>
+                    <li className="flex items-start gap-2">
+                      <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-foreground/30" />
+                      <span><strong className="text-foreground">Quests</strong> — Complete missions, play games, earn rewards.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-foreground/30" />
+                      <span><strong className="text-foreground">Reels</strong> — Short-form video with a dedicated Explore grid.</span>
+                    </li>
                   </ul>
 
                   <div className="mt-4">
                     <StatsBlock />
                   </div>
 
-                  <Button asChild className="mt-4 w-full rounded-full" size="sm">
+                  <Button asChild className="mt-4 w-full rounded-full bg-foreground text-background hover:opacity-90" size="sm">
                     <Link href="/signup">Create account</Link>
                   </Button>
                   <Button asChild variant="ghost" className="mt-1 w-full rounded-full" size="sm">

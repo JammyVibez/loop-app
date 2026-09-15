@@ -74,7 +74,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       role_gradient: customRoles.find((cr: any) => cr?.name && cr.name === m.custom_title)?.gradient || STAFF_GRADIENTS[m.role] || null,
     }))
 
-    return NextResponse.json({ members: enriched })
+    return NextResponse.json({ members: enriched, custom_roles: customRoles })
   } catch (e: any) {
     console.error("[members] GET error:", e)
     return NextResponse.json({ error: e.message || "Failed to load members" }, { status: 500 })
@@ -92,7 +92,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const actorRole = actorMembership?.role
 
     const body = await request.json()
-    const { user_id, role, status, is_muted, muted_until } = body
+    const { user_id, role, status, is_muted, muted_until, custom_title } = body
     if (!user_id) return NextResponse.json({ error: "Missing member" }, { status: 400 })
 
     const { data: target } = await sb.from("circle_members").select("role, user_id, status").eq("circle_id", id).eq("user_id", user_id).maybeSingle()
@@ -149,6 +149,34 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (error) return NextResponse.json({ error: "Failed to update mute state" }, { status: 500 })
       await logCommunityActivity(sb, id, actor.id, muteValue ? "member_muted" : "member_unmuted", "member", user_id)
       return NextResponse.json({ success: true, is_muted: muteValue, muted_until: untilValue })
+    }
+
+    // Custom role assignment: admins/owner assign one of the community's
+    // defined roles (Settings → Roles) or a short freeform label. Defined
+    // roles render with their gradient everywhere; freeform labels render
+    // neutral.
+    if (custom_title !== undefined) {
+      if (!canAdmin(actorRole)) {
+        return NextResponse.json({ error: "Only admins can assign custom roles" }, { status: 403 })
+      }
+      if (isOwnerRole(target.role) && !isOwnerRole(actorRole)) {
+        return NextResponse.json({ error: "You can't change the founder's role" }, { status: 403 })
+      }
+      const { data: circleRow } = await sb.from("circles").select("custom_roles").eq("id", id).maybeSingle()
+      const customRoles = Array.isArray((circleRow as any)?.custom_roles) ? (circleRow as any).custom_roles : []
+      const title = String(custom_title || "").trim().slice(0, 40)
+      const known = customRoles.find((cr: any) => cr?.name && cr.name === title)
+      const { error } = await sb
+        .from("circle_members")
+        .update({ custom_title: title || null })
+        .eq("circle_id", id)
+        .eq("user_id", user_id)
+      if (error) return NextResponse.json({ error: "Failed to assign role" }, { status: 500 })
+      await logCommunityActivity(sb, id, actor.id, "member_custom_role_changed", "member", user_id, {
+        title: title || null,
+        is_defined_role: Boolean(known),
+      })
+      return NextResponse.json({ success: true, custom_title: title || null, gradient: known?.gradient || null })
     }
 
     // Role changes: owner only for owner/admin changes; admins can promote to moderator

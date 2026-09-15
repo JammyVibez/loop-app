@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { LAYOUT_PRESETS } from "@/lib/community-categories"
+import { COMMUNITY_ROLE_GRADIENTS } from "@/lib/community-gradients"
 import { Trash2, Save, ShieldAlert, Palette, Sliders, Users, Star, MessageSquareLock, Lock, Timer, Volume2 } from "lucide-react"
 import { Spinner } from "@/components/ui/skeletons"
 
@@ -53,16 +54,7 @@ export function WorldSettings({ communityId, bundle, onSaved }: { communityId: s
   const [slowMode, setSlowMode] = useState<number>(Number(mod.slow_mode_seconds) || 0)
   const [announceOnly, setAnnounceOnly] = useState<boolean>(Boolean(mod.announce_only))
 
-  const GRADIENTS: Record<string, string> = {
-    none: "",
-    sunset: "linear-gradient(135deg, #f97316, #ef4444)",
-    ocean: "linear-gradient(135deg, #38bdf8, #6366f1)",
-    aurora: "linear-gradient(135deg, #34d399, #22d3ee)",
-    royal: "linear-gradient(135deg, #a855f7, #ec4899)",
-    gold: "linear-gradient(135deg, #fbbf24, #f97316)",
-    ember: "linear-gradient(135deg, #f43f5e, #a21caf)",
-    steel: "linear-gradient(135deg, #94a3b8, #475569)",
-  }
+  const GRADIENTS: Record<string, string> = COMMUNITY_ROLE_GRADIENTS
 
   const save = async (fields: Record<string, any>) => {
     setSaving(true)
