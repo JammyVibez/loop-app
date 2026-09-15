@@ -22,6 +22,8 @@ import { ForwardDialog } from "@/components/messages/forward-dialog"
 import { WallpaperPicker } from "@/components/messages/wallpaper-picker"
 import { GifPicker } from "@/components/messages/gif-picker"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { UserBadges } from "@/components/user-badge"
+import { useVerificationBadges } from "@/hooks/use-verification-badges"
 import { VoiceRecorderWaves } from "@/components/messages/voice-recorder-waves"
 import { CallLogs } from "@/components/messages/call-logs"
 import { cn } from "@/lib/utils"
@@ -96,6 +98,7 @@ interface Conversation {
     username?: string
     display_name?: string
     is_verified?: boolean
+    badge_id?: string | null
     avatar_url?: string
     active_cosmetics?: any
     cosmetics?: any
@@ -200,6 +203,7 @@ export function MessagesWorkspace() {
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const verificationBadges = useVerificationBadges()
   const deepLinkId = searchParams.get("c")
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(deepLinkId)
@@ -1472,6 +1476,9 @@ export function MessagesWorkspace() {
                       {!conversation.is_group && conversation.other_user?.is_verified && (
                         <VerifiedSeal size={15} title="Verified Creator" />
                       )}
+                      {!conversation.is_group && conversation.other_user?.badge_id && verificationBadges[conversation.other_user.badge_id] && (
+                        <UserBadges badge={verificationBadges[conversation.other_user.badge_id]} size="sm" />
+                      )}
                     </p>
                     <span className="shrink-0 text-[11px] text-muted-foreground">
                       {last?.created_at ? convoTime(last.created_at) : ""}
@@ -1531,6 +1538,9 @@ export function MessagesWorkspace() {
             {selected.other_user?.display_name || selected.name || "Conversation"}
             {!selected.is_group && selected.other_user?.is_verified && (
               <VerifiedSeal size={15} title="Verified Creator" />
+            )}
+            {!selected.is_group && selected.other_user?.badge_id && verificationBadges[selected.other_user.badge_id] && (
+              <UserBadges badge={verificationBadges[selected.other_user.badge_id]} size="sm" />
             )}
           </p>
           <p className="truncate text-[11px]">

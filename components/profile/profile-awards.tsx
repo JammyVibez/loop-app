@@ -20,9 +20,12 @@ export interface ProfileAward {
   awarded_at?: string
 }
 
+/** Award shelf — compact inline row (profile header). */
 export function ProfileAwards({ userId, compact }: { userId: string; compact?: boolean }) {
   const [awards, setAwards] = useState<ProfileAward[]>([])
   const [loaded, setLoaded] = useState(false)
+
+  useUserAwards(userId, setAwards, setLoaded)
 
   useEffect(() => {
     if (!userId) return
@@ -95,6 +98,102 @@ export function ProfileAwards({ userId, compact }: { userId: string; compact?: b
             </Tooltip>
           ))}
         </div>
+      </div>
+    </TooltipProvider>
+  )
+}
+
+/** Shared loader — fetches the user's grouped award grants once per mount. */
+function useUserAwards(
+  userId: string,
+  setAwards: (a: ProfileAward[]) => void,
+  setLoaded: (v: boolean) => void,
+) {
+  useEffect(() => {
+    if (!userId) return
+    let cancelled = false
+    setLoaded(false)
+    fetch(`/api/awards?user_id=${encodeURIComponent(userId)}`, { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled) setAwards(data?.awards || [])
+      })
+      .catch(() => {
+        if (!cancelled) setAwards([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoaded(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [userId, setAwards, setLoaded])
+}
+
+/** Full awards grid — used by the profile Awards tab. */
+export function ProfileAwardsGrid({ userId }: { userId: string }) {
+  const [awards, setAwards] = useState<ProfileAward[]>([])
+  const [loaded, setLoaded] = useState(false)
+
+  useUserAwards(userId, setAwards, setLoaded)
+
+  if (!loaded) {
+    return <p className="py-8 text-center text-sm text-muted-foreground">Loading awards…</p>
+  }
+
+  if (awards.length === 0) {
+    return (
+      <div className="py-12 text-center">
+        <Award className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
+        <p className="font-medium">No awards yet</p>
+        <p className="text-sm text-muted-foreground">Awards granted by the Loop team will appear here.</p>
+      </div>
+    )
+  }
+
+  return (
+    <TooltipProvider delayDuration={150}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {awards.map((award) => (
+          <Tooltip key={award.id}>
+            <TooltipTrigger asChild>
+              <div
+                className="flex items-start gap-3 rounded-2xl border bg-card p-4"
+                style={{ boxShadow: `inset 0 0 0 1px ${award.color}33` }}
+              >
+                <span
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-2xl"
+                  style={{ backgroundColor: `${award.color}1a` }}
+                >
+                  {award.emoji}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-semibold" style={{ color: award.color }}>
+                      {award.name}
+                    </p>
+                    {(award.count || 0) > 1 && (
+                      <span className="rounded-full bg-foreground/10 px-1.5 text-[10px] font-bold text-muted-foreground">
+                        ×{award.count}
+                      </span>
+                    )}
+                  </div>
+                  {award.description && (
+                    <p className="mt-0.5 text-sm text-muted-foreground">{award.description}</p>
+                  )}
+                  {award.awarded_at && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      First awarded {new Date(award.awarded_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[240px]">
+              <p className="text-xs">Granted by the Loop team</p>
+            </TooltipContent>
+          </Tooltip>
+        ))}
       </div>
     </TooltipProvider>
   )

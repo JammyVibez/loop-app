@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -38,6 +38,8 @@ import {
   Zap,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { uploadMediaFile } from "@/lib/client-media-upload"
+import { ImagePlus, Link2, Loader2 } from "lucide-react"
 import type { MissionStepConfig, SurveyQuestionConfig } from "@/lib/quests-v2"
 
 /* ------------------------------------------------------------------ */
@@ -152,6 +154,88 @@ const NATIVE_ACTIONS = [
 ]
 
 const CATEGORIES = ["community", "discovery", "watch", "survey", "game", "sponsored", "creator", "seasonal"]
+
+/**
+ * Media field: paste any image/video URL, or upload from the device.
+ * Uploads go through the app's Cloudinary-backed media proxy.
+ */
+function MediaUrlField({
+  label,
+  value,
+  onChange,
+  accept,
+  uploadType,
+  placeholder,
+}: {
+  label: string
+  value: string
+  onChange: (url: string) => void
+  accept: string
+  uploadType: "image" | "video"
+  placeholder?: string
+}) {
+  const { user } = useAuth()
+  const { toast } = useToast()
+  const [uploading, setUploading] = useState(false)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  const upload = async (file: File) => {
+    if (!file) return
+    setUploading(true)
+    try {
+      const token = (user as any)?.access_token
+      const result = await uploadMediaFile(file, {
+        type: uploadType,
+        folder: "quest-media",
+        authHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      onChange(result.url)
+      toast({ title: "Media uploaded" })
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-1">
+      <Label>{label}</Label>
+      <div className="flex gap-1.5">
+        <div className="relative flex-1">
+          <Link2 className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="pl-8" />
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) void upload(f)
+            e.target.value = ""
+          }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 shrink-0"
+          title="Upload from device"
+          disabled={uploading}
+          onClick={() => inputRef.current?.click()}
+        >
+          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+        </Button>
+      </div>
+      {value && uploadType === "image" && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={value} alt="Preview" className="mt-1 h-16 w-full rounded-lg border object-cover" />
+      )}
+    </div>
+  )
+}
 
 /* ------------------------------------------------------------------ */
 
@@ -501,10 +585,14 @@ export function AdminQuestsPanel() {
               <Textarea rows={2} value={editing.description || ""} onChange={(e) => setEditing((p) => ({ ...p, description: e.target.value }))} placeholder="Complete five steps across the community to earn the limited badge." />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label>Banner image URL</Label>
-                <Input value={editing.banner_url || ""} onChange={(e) => setEditing((p) => ({ ...p, banner_url: e.target.value }))} placeholder="https://…" />
-              </div>
+              <MediaUrlField
+                label="Banner image"
+                value={editing.banner_url || ""}
+                onChange={(url) => setEditing((p) => ({ ...p, banner_url: url }))}
+                accept="image/*"
+                uploadType="image"
+                placeholder="Paste URL or upload"
+              />
               <div className="space-y-1">
                 <Label>Category</Label>
                 <Select value={editing.category || "community"} onValueChange={(v) => setEditing((p) => ({ ...p, category: v }))}>
@@ -557,13 +645,17 @@ export function AdminQuestsPanel() {
 
             {/* Type-specific config */}
             {editing.quest_type === "ad" && (
-              <div className="grid grid-cols-[1fr_110px] gap-2">
-                <div className="space-y-1">
-                  <Label>Video URL (mp4)</Label>
-                  <Input value={editing.video_url || ""} onChange={(e) => setEditing((p) => ({ ...p, video_url: e.target.value }))} placeholder="https://…/trailer.mp4" />
-                </div>
-                <div className="space-y-1">
-                  <Label>Watch seconds</Label>
+              <div className="space-y-2">
+                <MediaUrlField
+                  label="Quest video"
+                  value={editing.video_url || ""}
+                  onChange={(url) => setEditing((p) => ({ ...p, video_url: url }))}
+                  accept="video/*"
+                  uploadType="video"
+                  placeholder="Paste URL or upload mp4 from device"
+                />
+                <div className="w-40 space-y-1">
+                  <Label>Watch seconds required</Label>
                   <Input type="number" min={5} value={editing.video_seconds ?? 30} onChange={(e) => setEditing((p) => ({ ...p, video_seconds: Number(e.target.value) }))} />
                 </div>
               </div>

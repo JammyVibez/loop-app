@@ -148,7 +148,8 @@ export function WorldFeed({
       if (reset) setLoading(true)
       setError("")
       try {
-        const params = new URLSearchParams({ limit: "20", offset: reset ? "0" : String(offset), sort: sortBy })
+        const params = new URLSearchParams({ limit: "20", offset: reset ? "0" : String(offset), sort: sortBy === "discussed" ? "latest" : sortBy })
+        if (sortBy === "discussed") params.set("order_by", "comment_count")
         if (spaceId !== "general") params.set("space_id", spaceId)
         const res = await fetch(`/api/circles/${communityId}/posts?${params}`)
         if (!res.ok) {
@@ -352,6 +353,7 @@ export function WorldFeed({
           {[
             { id: "latest", label: "Latest", icon: Clock },
             { id: "top", label: "Top", icon: TrendingUp },
+            { id: "discussed", label: "Active", icon: MessageSquare },
           ].map((s) => (
             <button
               key={s.id}
@@ -396,7 +398,9 @@ export function WorldFeed({
           </div>
         ) : (
           <div className="space-y-3">
-            {posts.map((p) => (
+            {[...posts]
+              .sort((a, b) => Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned)))
+              .map((p) => (
               <CommunityPostCard
                 key={p.id}
                 post={p}
@@ -414,7 +418,7 @@ export function WorldFeed({
                 liking={liking}
                 flashId={flashId}
               />
-            ))}
+              ))}
             {hasMore && (
               <div className="text-center pt-2">
                 <Button variant="outline" size="sm" className="rounded-full" onClick={loadMore} disabled={loadingMore.current}>

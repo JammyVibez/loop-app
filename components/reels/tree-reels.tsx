@@ -48,6 +48,8 @@ import { RichContent } from "@/components/content/rich-content"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { parseJsonResponse } from "@/lib/parse-json-response"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { UserBadges } from "@/components/user-badge"
+import { useVerificationBadges } from "@/hooks/use-verification-badges"
 import { Spinner } from "@/components/ui/skeletons"
 
 function timeAgo(iso?: string) {
@@ -219,6 +221,9 @@ interface TreeReelsProps {
 }
 
 export function TreeReels({ category = "trending" }: TreeReelsProps) {
+  const verificationBadges = useVerificationBadges()
+  const badgesRef = useRef(verificationBadges)
+  badgesRef.current = verificationBadges
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const [reels, setReels] = useState<Reel[]>([])
@@ -1110,7 +1115,7 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
                     <AvatarFallback>{(reel.author?.display_name || "U").charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-semibold inline-flex items-center gap-1">@{reel.author?.username || "creator"}{reel.author?.is_verified && <VerifiedSeal size={16} title="Verified Creator" />}</p>
+                    <p className="font-semibold inline-flex items-center gap-1">@{reel.author?.username || "creator"}{reel.author?.is_verified && <VerifiedSeal size={16} title="Verified Creator" />}{(() => { const bid = (reel.author as any)?.badge_id; const b = bid ? badgesRef.current[bid] : null; return b ? <UserBadges badge={b} size="sm" /> : null })()}</p>
                     <p className="text-xs text-white/70">{reel.author?.display_name}</p>
                   </div>
                 </Link>

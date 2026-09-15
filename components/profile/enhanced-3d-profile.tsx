@@ -39,7 +39,7 @@ import { SimilarCreators } from "@/components/profile/similar-creators"
 import { AccountStatusScreen } from "@/components/profile/account-status-screen"
 import { RichContent } from "@/components/content/rich-content"
 import { BioCommunityTags } from "@/components/profile/bio-community-tags"
-import { ProfileAwards } from "@/components/profile/profile-awards"
+import { ProfileAwards, ProfileAwardsGrid } from "@/components/profile/profile-awards"
 import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
 
 interface Achievement {
@@ -1008,20 +1008,8 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         </TabsContent>
 
         <TabsContent value="awards" className="mt-0 p-4">
-          {profile.achievements?.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {profile.achievements.map((achievement) => (
-                <Card key={achievement.id} className="border-border/70">
-                  <CardContent className="p-4">
-                    <div className="mb-2 flex items-center gap-2">
-                      <Trophy className="h-4 w-4 text-amber-500" />
-                      <p className="font-semibold">{achievement.name}</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{achievement.description}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+          {profile.id ? (
+            <ProfileAwardsGrid userId={profile.id} />
           ) : (
             <EmptyBlock icon={Trophy} label="No awards yet" />
           )}

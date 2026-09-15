@@ -48,6 +48,7 @@ import {
   Info,
   Accessibility,
   UserCog,
+  BadgeCheck,
 } from "lucide-react"
 import { OrganizationSettings } from "@/components/settings/organization-settings"
 import { ReferralsSettings } from "@/components/settings/referrals-settings"
@@ -57,6 +58,7 @@ import { CommunitySettings } from "@/components/settings/community-settings"
 import { AboutSettings } from "@/components/settings/about-settings"
 import { AccessibilitySettings } from "@/components/settings/accessibility-settings"
 import { AccountSettings } from "@/components/settings/account-settings"
+import { VerificationSettings } from "@/components/settings/verification-settings"
 import { VideoMediaSettings } from "@/components/cosmetics/video-media-settings"
 import { AccountSwitcher } from "@/components/accounts/account-switcher"
 import { cn } from "@/lib/utils"
@@ -483,6 +485,9 @@ export function EnhancedSettings() {
           </TabsTrigger>
           <TabsTrigger value="referrals" className="rounded-xl data-[state=active]:bg-background">
             <Gift className="mr-2 h-4 w-4" /> Referrals
+          </TabsTrigger>
+          <TabsTrigger value="verification" className="rounded-xl data-[state=active]:bg-background">
+            <BadgeCheck className="mr-2 h-4 w-4" /> Verification
           </TabsTrigger>
           <TabsTrigger value="account" className="rounded-xl data-[state=active]:bg-background">
             <UserCog className="mr-2 h-4 w-4" /> Account
@@ -941,6 +946,10 @@ export function EnhancedSettings() {
 
         <TabsContent value="community" className="space-y-4">
           <CommunitySettings />
+        </TabsContent>
+
+        <TabsContent value="verification" className="space-y-4">
+          <VerificationSettings />
         </TabsContent>
 
         <TabsContent value="account" className="space-y-4">

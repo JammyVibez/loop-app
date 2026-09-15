@@ -24,6 +24,8 @@ import { MediaEmojiPicker } from "@/components/content/media-emoji-picker"
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp"
 import { createClient } from "@/lib/supabase"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { UserBadges } from "@/components/user-badge"
+import { useVerificationBadges } from "@/hooks/use-verification-badges"
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
 import type { ActiveCosmetics } from "@/lib/cosmetics"
 
@@ -35,6 +37,7 @@ interface CommentAuthor {
   video_avatar_url?: string | null
   is_verified?: boolean
   is_premium?: boolean
+  badge_id?: string | null
   active_cosmetics?: ActiveCosmetics | null
   cosmetics?: ActiveCosmetics | null
 }
@@ -61,6 +64,7 @@ const supabase = createClient(
 export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; comments?: Comment[]; commentsDisabled?: boolean }) {
   const [commentsData, setCommentsData] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState("")
+  const verificationBadges = useVerificationBadges()
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -272,6 +276,12 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
                 {comment.author?.is_verified && (
                   <VerifiedSeal size={15} title="Verified Creator" />
  )}
+                {(comment.author as any)?.badge_id && verificationBadges[(comment.author as any).badge_id] && (
+                  <UserBadges
+                    badge={verificationBadges[(comment.author as any).badge_id]}
+                    size="sm"
+                  />
+                )}
                 <Link
                   href={`/profile/${comment.author?.username || ""}`}
                   className="text-muted-foreground text-xs hover:underline"

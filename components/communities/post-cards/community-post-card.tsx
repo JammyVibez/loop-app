@@ -443,6 +443,7 @@ export function CommunityPostCard({
           onComment={() => setShowComments(!showComments)}
           onSave={onSave}
           onShare={onShare}
+          onGift={() => setGiftOpen(true)}
           onPin={onPin}
           onDelete={onDelete}
           onReport={() => setShowReport(true)}
@@ -458,6 +459,22 @@ export function CommunityPostCard({
           postId={post.id}
           communityId={communityId}
         />
+
+        {/* Gift the author (members) */}
+        {post.author?.id && currentUserId !== post.author.id && (
+          <GiftModal
+            open={giftOpen}
+            onOpenChange={setGiftOpen}
+            recipient={{
+              id: post.author.id,
+              username: post.author.username,
+              display_name: post.author.display_name || post.author.username,
+              avatar_url: (post.author as any).avatar_url,
+              is_premium: Boolean((post.author as any).is_premium),
+            }}
+            context={{ type: "post", id: String(post.id) }}
+          />
+        )}
 
         {/* Full-screen media viewer (lightbox) */}
         {viewerOpen && mediaUrls.length > 0 && (() => {

@@ -32,7 +32,8 @@ export async function GET(request: NextRequest) {
           display_name,
           avatar_url, video_avatar_url,
           is_verified,
-          is_premium
+          is_premium,
+          badge_id
         )
       `)
       .eq("visibility", "public")
@@ -60,7 +61,8 @@ export async function GET(request: NextRequest) {
               display_name,
               avatar_url, video_avatar_url,
               is_verified,
-              is_premium
+              is_premium,
+              badge_id
             )
           `)
           .eq("visibility", "public")
@@ -79,7 +81,8 @@ export async function GET(request: NextRequest) {
               display_name,
               avatar_url, video_avatar_url,
               is_verified,
-              is_premium
+              is_premium,
+              badge_id
             )
           `)
           .eq("visibility", "public")
@@ -227,7 +230,7 @@ export async function GET(request: NextRequest) {
         .from("loops")
         .select(`
           id, author_id, content, content_text, media_url, content_media_url, media_type, hashtags, created_at,
-          author:profiles!author_id (id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium),
+          author:profiles!author_id (id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium, badge_id),
           loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
         `)
         .or("media_type.eq.video,content_type.eq.video")
@@ -280,7 +283,8 @@ export async function GET(request: NextRequest) {
             display_name,
             avatar_url, video_avatar_url,
             is_verified,
-            is_premium
+            is_premium,
+            badge_id
           )
         `)
         .eq("id", focusId)

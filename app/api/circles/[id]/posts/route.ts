@@ -16,7 +16,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // mapping, "latest" was passed to .order() as a column name and Postgres
     // rejected it — the feed showed "Failed to fetch posts".
     const sortMode = searchParams.get("sort") || "latest"
-    const sortBy = sortMode === "top" ? "like_count" : "created_at"
+    const orderBy = searchParams.get("order_by") || ""
+    const sortBy = orderBy === "comment_count" ? "comment_count" : sortMode === "top" ? "like_count" : "created_at"
     const order = searchParams.get("order") || (sortMode === "top" ? "desc" : "desc")
 
     const { id: circleId } = await params
