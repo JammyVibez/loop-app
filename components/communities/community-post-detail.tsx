@@ -52,28 +52,25 @@ export function CommunityPostDetail({ communityId, postId }: { communityId: stri
       }
       setPost(normalized)
 
-      // Community context for the header + membership gating
-      const [circleRes, spacesRes, memberRes] = await Promise.all([
-        fetch(`/api/circles/${communityId}`),
+      // Community context for the header + membership gating. The circle API
+      // is the authoritative source for is_member / user_role — the members
+      // list endpoint ignores ?user_id= so it was always reporting the wrong
+      // membership state here (which silently disabled voting, saving, and
+      // gifting on the detail page).
+      const [circleRes, spacesRes] = await Promise.all([
+        fetch(`/api/circles/${communityId}`, { headers: user ? getAuthHeader() : undefined }),
         fetch(`/api/communities/${communityId}/spaces`).catch(() => null),
-        user
-          ? fetch(`/api/circles/${communityId}/members?user_id=${user.id}`, { headers: getAuthHeader() }).catch(() => null)
-          : Promise.resolve(null),
       ])
       if (circleRes.ok) {
         const cd = await circleRes.json()
         setCircle({ name: cd.circle?.name || cd.name || "Community" })
+        setIsMember(Boolean(cd.is_member || cd.circle?.is_member))
+        const role = cd.user_role || cd.circle?.user_role || null
+        setIsModerator(role === "owner" || role === "admin" || role === "moderator")
       }
       if (spacesRes && spacesRes.ok) {
         const sd = await spacesRes.json()
         setSpaces(sd.spaces || [])
-      }
-      if (memberRes && memberRes.ok) {
-        const md = await memberRes.json()
-        const membership = md.members?.[0] || md.member || null
-        const role = membership?.role || membership?.status
-        setIsMember(Boolean(membership))
-        setIsModerator(role === "owner" || role === "admin" || role === "moderator")
       }
     } catch (e: any) {
       setError(e.message)
@@ -85,6 +82,27 @@ export function CommunityPostDetail({ communityId, postId }: { communityId: stri
   useEffect(() => {
     load()
   }, [load])
+
+  // Poll voting on the detail page — posts to the real vote endpoint and
+  // syncs the returned poll (options + total_votes) back into the post so
+  // results render immediately, same as the feed.
+  const [voting, setVoting] = useState(false)
+  const handleVote = async (pollId: number, optionId: string) => {
+    if (!user || voting) return
+    setVoting(true)
+    try {
+      const res = await fetch(`/api/circles/${communityId}/posts/${postId}/poll/vote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ optionId }),
+      })
+      const data = await res.json()
+      if (res.ok && data.poll) {
+        setPost((prev: CommunityPost | null) => (prev ? { ...prev, poll: data.poll } : prev))
+      }
+    } catch { /* handled by UI state */ }
+    setVoting(false)
+  }
 
   const handleLike = async (id: number) => {
     if (!user || liking) return
@@ -186,6 +204,8 @@ export function CommunityPostDetail({ communityId, postId }: { communityId: stri
         isModerator={isModerator}
         currentUserId={user?.id}
         onLike={handleLike}
+        onVote={handleVote}
+        voting={voting ? post.id : null}
         liking={liking ? post.id : null}
       />
 

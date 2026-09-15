@@ -29,6 +29,10 @@ export interface ShareToCircleModalProps {
     text?: string
     authorName?: string
     mediaUrl?: string
+    /** Explicit share URL override (e.g. community post detail pages). */
+    url?: string
+    /** Noun used in the share text, e.g. "Post". Defaults by type. */
+    shareLabel?: string
   } | null
 }
 
@@ -106,13 +110,19 @@ export function ShareToCircleModal({ open, onOpenChange, item }: ShareToCircleMo
     setSending(true)
     try {
       const shareUrl =
-        typeof window !== "undefined"
+        (item.url
+          ? item.url.startsWith("http")
+            ? item.url
+            : `${typeof window !== "undefined" ? window.location.origin : ""}${item.url}`
+          : null) ||
+        (typeof window !== "undefined"
           ? `${window.location.origin}/${item.type === "reel" ? "reels?focus=" + item.id : "loop/" + item.id}`
-          : `/${item.type === "reel" ? "reels?focus=" + item.id : "loop/" + item.id}`
+          : `/${item.type === "reel" ? "reels?focus=" + item.id : "loop/" + item.id}`)
 
+      const shareLabel = item.shareLabel || (item.type === "reel" ? "Tree" : "Loop")
       const shareText = customNote.trim()
-        ? `${customNote.trim()}\n\n📌 Shared ${item.type === "reel" ? "Tree" : "Loop"}: ${item.title || "Check this out!"}\n${shareUrl}`
-        : `📌 Shared ${item.type === "reel" ? "Tree" : "Loop"}: ${item.title || "Check this out!"}\n${shareUrl}`
+        ? `${customNote.trim()}\n\n📌 Shared ${shareLabel}: ${item.title || "Check this out!"}\n${shareUrl}`
+        : `📌 Shared ${shareLabel}: ${item.title || "Check this out!"}\n${shareUrl}`
 
       const res = await fetch(`/api/circles/${selectedCircle.id}/posts`, {
         method: "POST",

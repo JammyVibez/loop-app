@@ -15,6 +15,9 @@ import { CommentThread } from "./comment-thread"
 import { ReportModal } from "./report-modal"
 import { PostReactions } from "./post-reactions"
 import { GiftModal } from "@/components/gifting/gift-modal"
+import { ShareToDmModal } from "@/components/messages/share-to-dm-modal"
+import { ShareToCircleModal } from "@/components/messages/share-to-circle-modal"
+import { ShareAsImageModal } from "@/components/engagement/share-as-image-modal"
 import {
   Clock,
   Eye,
@@ -64,6 +67,10 @@ interface CommunityPostCardProps {
   isModerator: boolean
   currentUserId?: string
   onLike: (id: number) => void
+  /** Optional custom vote handler (detail page supplies one that syncs results). */
+  onVote?: (pollId: number, optionId: string) => void
+  /** Post id currently processing a vote — mirrors the `liking` pattern. */
+  voting?: number | null
   onSave?: (id: number) => void
   onShare?: (id: number) => void
   onPin?: (id: number) => void
@@ -82,6 +89,8 @@ export function CommunityPostCard({
   isModerator,
   currentUserId,
   onLike,
+  onVote,
+  voting,
   onSave,
   onShare,
   onPin,
@@ -93,7 +102,7 @@ export function CommunityPostCard({
 }: CommunityPostCardProps) {
   const badges = useVerificationBadges()
   const [showComments, setShowComments] = useState(false)
-  const [voting, setVoting] = useState(false)
+  const [localVoting, setLocalVoting] = useState(false)
   const [showReport, setShowReport] = useState(false)
   const [reactions, setReactions] = useState<Array<{type: string; count: number; reacted: boolean}>>([])
   // Hydrate the fire/clap/etc. chips from the server-provided counts. We can't
@@ -119,6 +128,9 @@ export function CommunityPostCard({
   const [viewerOpen, setViewerOpen] = useState(false)
   const [viewerIndex, setViewerIndex] = useState(0)
   const [giftOpen, setGiftOpen] = useState(false)
+  const [shareDmOpen, setShareDmOpen] = useState(false)
+  const [shareCircleOpen, setShareCircleOpen] = useState(false)
+  const [shareImageOpen, setShareImageOpen] = useState(false)
   const touchStartX = useRef<number | null>(null)
   const viewerTouchStartX = useRef<number | null>(null)
   const { getAuthHeader } = useAuth()
@@ -154,16 +166,28 @@ export function CommunityPostCard({
 
   const handleVote = async (pollId: number, optionId: string) => {
     if (voting) return
-    setVoting(true)
+    // Detail page supplies its own syncing handler; feed falls back to the
+    // built-in POST + local vote bump.
+    if (onVote) {
+      await onVote(pollId, optionId)
+      return
+    }
+    setLocalVoting(true)
     try {
       const optIdx = (post.poll?.options || []).findIndex((o: any) => String(o.id) === String(optionId))
-      await fetch(`/api/circles/${communityId}/posts/${post.id}/poll/vote`, {
+      const res = await fetch(`/api/circles/${communityId}/posts/${post.id}/poll/vote`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(authHeaders || {}) },
         body: JSON.stringify({ optionId, optionIndex: optIdx >= 0 ? optIdx : undefined }),
       })
+      const data = await res.json().catch(() => null)
+      if (res.ok && (data as any)?.poll) {
+        // Sync the authoritative poll row (options with new vote counts) so
+        // results render correctly for everyone viewing after a refresh.
+        ;(post as any).poll = (data as any).poll
+      }
     } catch { /* intentionally silent */ }
-    setVoting(false)
+    setLocalVoting(false)
   }
 
   // ---- Defensive normalization -------------------------------------------------
@@ -408,7 +432,7 @@ export function CommunityPostCard({
             expiresAt={post.poll.expires_at}
             isMember={isMember}
             onVote={handleVote}
-            voting={voting}
+            voting={Boolean(voting != null ? voting === post.id : localVoting)}
           />
         )}
 
@@ -448,6 +472,11 @@ export function CommunityPostCard({
           onDelete={onDelete}
           onReport={() => setShowReport(true)}
           onEdit={onEdit}
+          onShareSuite={(p, kind) => {
+            if (kind === "dm") setShareDmOpen(true)
+            else if (kind === "circle") setShareCircleOpen(true)
+            else setShareImageOpen(true)
+          }}
           liking={liking != null && liking === post.id ? true : undefined}
           commentCount={(post.comment_count || 0) + extraComments}
         />
@@ -458,6 +487,59 @@ export function CommunityPostCard({
           onOpenChange={setShowReport}
           postId={post.id}
           communityId={communityId}
+        />
+
+        {/* Share suite — same set as the feed loop card, scoped to this post */}
+        <ShareToDmModal
+          open={shareDmOpen}
+          onOpenChange={setShareDmOpen}
+          item={{
+            id: String(post.id),
+            type: "loop",
+            title: post.content?.slice(0, 60),
+            text: post.content,
+            authorName: author?.display_name || author?.username,
+            mediaUrl: mediaUrls[0] || undefined,
+            url: `/communities/${communityId}/posts/${post.id}`,
+            shareLabel: "Post",
+          }}
+        />
+        <ShareToCircleModal
+          open={shareCircleOpen}
+          onOpenChange={setShareCircleOpen}
+          item={{
+            id: String(post.id),
+            type: "loop",
+            title: post.content?.slice(0, 60),
+            text: post.content,
+            authorName: author?.display_name || author?.username,
+            mediaUrl: mediaUrls[0] || undefined,
+            url: `/communities/${communityId}/posts/${post.id}`,
+            shareLabel: "Post",
+          }}
+        />
+        <ShareAsImageModal
+          open={shareImageOpen}
+          onOpenChange={setShareImageOpen}
+          post={{
+            id: String(post.id),
+            content: post.content || "",
+            author: {
+              username: author?.username || "member",
+              display_name: author?.display_name || author?.username || "Member",
+              avatar_url: author?.avatar_url || undefined,
+              is_verified: author?.is_verified,
+              is_premium: Boolean(author?.is_premium),
+              is_sponsor: author?.is_sponsor,
+              is_team: author?.is_team_member,
+            },
+            media_url: mediaUrls[0] || undefined,
+            stats: {
+              likes_count: post.like_count || 0,
+              comments_count: post.comment_count || 0,
+              shares_count: (post as any).share_count || 0,
+            },
+          }}
         />
 
         {/* Gift the author (members) */}

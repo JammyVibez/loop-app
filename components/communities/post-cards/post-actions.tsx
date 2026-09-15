@@ -31,6 +31,8 @@ import {
   ExternalLink,
   Gift,
   Link2,
+  Users,
+  ImageDown,
 } from "lucide-react"
 
 export interface PostAuthor {
@@ -97,6 +99,8 @@ interface PostActionsProps {
   commentCount?: number
   /** Community id — enables the post-detail page link + copy-link action */
   communityId?: string
+  /** Opens the share-suite (DM/circle/image) for this post, like the feed loop card. */
+  onShareSuite?: (post: CommunityPost, kind: "dm" | "circle" | "image") => void
 }
 
 export function PostActions({
@@ -116,6 +120,7 @@ export function PostActions({
   liking,
   commentCount,
   communityId,
+  onShareSuite,
 }: PostActionsProps) {
   const isAuthor = currentUserId === post.author?.id
   const canModerate = isModerator || isAuthor
@@ -184,17 +189,55 @@ export function PostActions({
       )}
 
       {onShare && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="rounded-full text-xs h-8 px-3"
-          onClick={() => onShare(post.id)}
-        >
-          <Share2 className="h-3.5 w-3.5" />
-          {(post as any).share_count > 0 && (
-            <span className="ml-1">{(post as any).share_count}</span>
-          )}
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="rounded-full text-xs h-8 px-3"
+              title="Share options"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              {(post as any).share_count > 0 && (
+                <span className="ml-1">{(post as any).share_count}</span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-44">
+            {onShareSuite && (
+              <DropdownMenuItem onClick={() => onShareSuite(post, "dm")} className="cursor-pointer">
+                <Send className="h-3.5 w-3.5 mr-2" /> Share to DM
+              </DropdownMenuItem>
+            )}
+            {onShareSuite && (
+              <DropdownMenuItem onClick={() => onShareSuite(post, "circle")} className="cursor-pointer">
+                <Users className="h-3.5 w-3.5 mr-2" /> Share to community
+              </DropdownMenuItem>
+            )}
+            {onShareSuite && (
+              <DropdownMenuItem onClick={() => onShareSuite(post, "image")} className="cursor-pointer">
+                <ImageDown className="h-3.5 w-3.5 mr-2" /> Share as image
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={() => {
+                if (!communityId) return
+                const url = `${window.location.origin}/communities/${communityId}/posts/${post.id}`
+                void navigator.clipboard.writeText(url).then(() => {
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 1600)
+                })
+              }}
+              className="cursor-pointer"
+            >
+              {copied ? <Check className="h-3.5 w-3.5 mr-2 text-emerald-500" /> : <Link2 className="h-3.5 w-3.5 mr-2" />}
+              {copied ? "Link copied" : "Copy link"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onShare(post.id)} className="cursor-pointer">
+              <Share2 className="h-3.5 w-3.5 mr-2" /> More options…
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
 
       {onSave && (

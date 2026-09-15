@@ -31,6 +31,10 @@ export interface ShareToDmModalProps {
     mediaUrl?: string
     /** content type of the media: "video" | "image" | undefined (text share) */
     mediaType?: string
+    /** Explicit share URL override (e.g. community post detail pages). */
+    url?: string
+    /** Noun used in the share text, e.g. "Post". Defaults by type. */
+    shareLabel?: string
   } | null
 }
 
@@ -155,13 +159,17 @@ export function ShareToDmModal({ open, onOpenChange, item }: ShareToDmModalProps
         targetConversationId = createData.conversation.id
       }
 
-      const shareUrl = typeof window !== "undefined"
+      const itemUrl = item.url
+        ? (item.url.startsWith("http") ? item.url : `${typeof window !== "undefined" ? window.location.origin : ""}${item.url}`)
+        : null
+      const shareUrl = itemUrl || (typeof window !== "undefined"
         ? `${window.location.origin}/${item.type === "reel" ? "reels?focus=" + item.id : "loop/" + item.id}`
-        : `/${item.type === "reel" ? "reels?focus=" + item.id : "loop/" + item.id}`
+        : `/${item.type === "reel" ? "reels?focus=" + item.id : "loop/" + item.id}`)
 
+      const shareLabel = item.shareLabel || (item.type === "reel" ? "Tree" : "Loop")
       const shareText = customNote.trim()
-        ? `${customNote.trim()}\n\n📌 Shared ${item.type === "reel" ? "Tree" : "Loop"}: ${item.title || "Check this out!"}\n${shareUrl}`
-        : `📌 Shared ${item.type === "reel" ? "Tree" : "Loop"}: ${item.title || "Check this out!"}\n${shareUrl}`
+        ? `${customNote.trim()}\n\n📌 Shared ${shareLabel}: ${item.title || "Check this out!"}\n${shareUrl}`
+        : `📌 Shared ${shareLabel}: ${item.title || "Check this out!"}\n${shareUrl}`
 
       // Reels with media are sent as real video/image messages so the
       // recipient sees the inline player — not just a text link.
