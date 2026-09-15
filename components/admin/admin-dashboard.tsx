@@ -157,6 +157,39 @@ const NAV_GROUPS: {
 
 const ALL_SECTIONS = NAV_GROUPS.flatMap((g) => g.items)
 
+/* Short, consistent description per section — rendered under the top-bar title. */
+const SECTION_DESCRIPTIONS: Record<string, string> = {
+  analytics: "Platform-wide engagement and growth metrics.",
+  health: "Live system status: API, database, and background jobs.",
+  audit: "Every admin action, with actor, reason, and timestamp.",
+  users: "Manage accounts, roles, balances, and verification.",
+  moderation: "Review reported content and take action.",
+  appeals: "User-submitted ban appeals awaiting review.",
+  team: "Team member permissions and access control.",
+  organizations: "Organization accounts and verification.",
+  support: "User support tickets and conversations.",
+  revenue: "Revenue, transactions, and payment history.",
+  economy: "Coin economy constants and platform settings.",
+  monetization: "Coin packs, Pro subscriptions, and pricing.",
+  payouts: "Withdrawal requests and refund processing.",
+  "rate-limits": "API and action rate-limit configuration.",
+  featured: "Curate featured loops, creators, and circles.",
+  events: "Platform events and scheduling.",
+  quests: "Build, publish, and analyze quest campaigns.",
+  coloops: "Co-Loop session management and analytics.",
+  broadcast: "Send announcements to all users.",
+  ads: "Ad placements and campaign management.",
+  catalog: "Shop themes and cosmetic catalog.",
+  "circle-themes": "Community-specific theme presets.",
+  "pfp-frames": "Profile frame catalog and availability.",
+  gifs: "Curated GIF library management.",
+  emojis: "Custom emoji and sticker packs.",
+  awards: "Award definitions and granting.",
+  checkmarks: "Custom verification badge creator and assignments.",
+  procircle: "Pro Circle member benefits and management.",
+  maintenance: "Shop status, maintenance mode, branding, and cache.",
+}
+
 /* ------------------------------------------------------------------ */
 
 function SidebarNav({
@@ -311,6 +344,7 @@ export function AdminDashboard() {
     () => ALL_SECTIONS.find((s) => s.value === section)?.label || "Dashboard",
     [section],
   )
+  const currentDescription = SECTION_DESCRIPTIONS[section]
   const currentIcon = useMemo(
     () => ALL_SECTIONS.find((s) => s.value === section)?.icon || BarChart3,
     [section],
@@ -363,6 +397,9 @@ export function AdminDashboard() {
               })()}
               {currentLabel}
             </h2>
+            {currentDescription && (
+              <p className="hidden truncate text-xs text-muted-foreground sm:block">{currentDescription}</p>
+            )}
           </div>
 
           <button
@@ -475,9 +512,6 @@ export function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="moderation" className="mt-0">
-            <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
-              <Flag className="h-4 w-4" /> Review reported content and take action.
-            </div>
             <ContentModerationControl />
           </TabsContent>
 

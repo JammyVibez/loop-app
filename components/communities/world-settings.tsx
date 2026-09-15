@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { LAYOUT_PRESETS } from "@/lib/community-categories"
-import { Trash2, Save, ShieldAlert, Palette, Sliders, Users, Star } from "lucide-react"
+import { Trash2, Save, ShieldAlert, Palette, Sliders, Users, Star, MessageSquareLock, Lock, Timer, Volume2 } from "lucide-react"
 import { Spinner } from "@/components/ui/skeletons"
 
 const FEATURES = [
@@ -48,6 +48,21 @@ export function WorldSettings({ communityId, bundle, onSaved }: { communityId: s
   const [rules, setRules] = useState<string>(Array.isArray(c.rules?.rules) ? (c.rules.rules as string[]).join("\n") : "")
   const [features, setFeatures] = useState<Record<string, boolean>>({ ...(c.enabled_features || {}) })
   const [roles, setRoles] = useState<any[]>(Array.isArray(c.custom_roles) ? c.custom_roles : [])
+  const mod = (c.moderation_settings && typeof c.moderation_settings === "object" ? c.moderation_settings : {}) as Record<string, any>
+  const [chatLocked, setChatLocked] = useState<boolean>(Boolean(mod.chat_locked))
+  const [slowMode, setSlowMode] = useState<number>(Number(mod.slow_mode_seconds) || 0)
+  const [announceOnly, setAnnounceOnly] = useState<boolean>(Boolean(mod.announce_only))
+
+  const GRADIENTS: Record<string, string> = {
+    none: "",
+    sunset: "linear-gradient(135deg, #f97316, #ef4444)",
+    ocean: "linear-gradient(135deg, #38bdf8, #6366f1)",
+    aurora: "linear-gradient(135deg, #34d399, #22d3ee)",
+    royal: "linear-gradient(135deg, #a855f7, #ec4899)",
+    gold: "linear-gradient(135deg, #fbbf24, #f97316)",
+    ember: "linear-gradient(135deg, #f43f5e, #a21caf)",
+    steel: "linear-gradient(135deg, #94a3b8, #475569)",
+  }
 
   const save = async (fields: Record<string, any>) => {
     setSaving(true)
@@ -94,6 +109,7 @@ export function WorldSettings({ communityId, bundle, onSaved }: { communityId: s
     { id: "appearance", label: "Appearance", icon: Palette },
     { id: "features", label: "Features", icon: Star },
     { id: "roles", label: "Roles", icon: Users },
+    { id: "chat", label: "Chat Control", icon: MessageSquareLock },
     { id: "danger", label: "Danger Zone", icon: ShieldAlert },
   ]
 
@@ -213,22 +229,69 @@ export function WorldSettings({ communityId, bundle, onSaved }: { communityId: s
           </div>
         )}
 
+        {/* CHAT CONTROL */}
+        {tab === "chat" && (
+          <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+            <h3 className="font-bold flex items-center gap-2"><MessageSquareLock className="h-4 w-4" /> Chat control</h3>
+            <p className="text-xs text-muted-foreground -mt-2">Moderation powers for the chat room. Staff and moderators are never restricted.</p>
+            <div className="flex items-center justify-between rounded-xl border border-border p-3">
+              <div>
+                <p className="text-sm font-medium flex items-center gap-1.5"><Lock className="h-3.5 w-3.5" /> Lock chat</p>
+                <p className="text-[11px] text-muted-foreground">Only staff and moderators can send messages. Members can still read.</p>
+              </div>
+              <Switch checked={chatLocked} onCheckedChange={(v) => { setChatLocked(v); save({ moderation_settings: { ...mod, chat_locked: v } }) }} />
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-border p-3">
+              <div>
+                <p className="text-sm font-medium flex items-center gap-1.5"><Volume2 className="h-3.5 w-3.5" /> Announcements only</p>
+                <p className="text-[11px] text-muted-foreground">Members see a read-only banner. Useful for official updates.</p>
+              </div>
+              <Switch checked={announceOnly} onCheckedChange={(v) => { setAnnounceOnly(v); save({ moderation_settings: { ...mod, announce_only: v } }) }} />
+            </div>
+            <div className="rounded-xl border border-border p-3">
+              <p className="text-sm font-medium flex items-center gap-1.5"><Timer className="h-3.5 w-3.5" /> Slow mode</p>
+              <p className="text-[11px] text-muted-foreground mb-2.5">Minimum seconds between member messages.</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {[0, 5, 10, 30, 60, 300].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => { setSlowMode(s); save({ moderation_settings: { ...mod, slow_mode_seconds: s } }) }}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition ${slowMode === s ? "border-indigo-500 bg-indigo-500/10 text-indigo-500" : "border-border text-muted-foreground hover:border-indigo-500/40"}`}
+                  >
+                    {s === 0 ? "Off" : s < 60 ? `${s}s` : `${s / 60}m`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ROLES */}
         {tab === "roles" && (
           <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
             <h3 className="font-bold">Custom roles</h3>
             <p className="text-xs text-muted-foreground -mt-2">
-              Recognition-style roles with name, color and permissions. They don't grant admin powers automatically.
+              Roles render as gradient badges next to member names in the member list and chat. They don't grant admin powers automatically.
             </p>
             <div className="flex gap-2">
               <Input placeholder="New role name (e.g. Curator)" id="new-role-name" className="rounded-xl" />
+              <select
+                id="new-role-gradient"
+                className="rounded-xl border border-border bg-background px-2 text-sm"
+                defaultValue="royal"
+              >
+                {Object.keys(GRADIENTS).filter((k) => k !== "none").map((k) => (
+                  <option key={k} value={k} className="capitalize">{k}</option>
+                ))}
+              </select>
               <Button
                 size="sm"
                 className="rounded-full"
                 onClick={() => {
                   const input = document.getElementById("new-role-name") as HTMLInputElement
+                  const grad = (document.getElementById("new-role-gradient") as HTMLSelectElement)?.value || "royal"
                   if (!input?.value.trim()) return
-                  const next = [...roles, { name: input.value.trim(), color: "#8b5cf6", icon: "star", permissions: [] }]
+                  const next = [...roles, { name: input.value.trim(), color: "#8b5cf6", gradient: grad, icon: "star", permissions: [] }]
                   setRoles(next)
                   save({ custom_roles: next })
                   input.value = ""
@@ -242,9 +305,26 @@ export function WorldSettings({ communityId, bundle, onSaved }: { communityId: s
             ) : (
               <div className="space-y-2">
                 {roles.map((r, i) => (
-                  <div key={i} className="flex items-center gap-2 rounded-xl border border-border p-3">
-                    <span className="h-3 w-3 rounded-full" style={{ background: r.color || "#8b5cf6" }} />
-                    <span className="text-sm font-medium flex-1">{r.name}</span>
+                  <div key={i} className="flex flex-wrap items-center gap-2 rounded-xl border border-border p-3">
+                    <span
+                      className="rounded-full px-2.5 py-0.5 text-[10px] font-bold text-white shadow-sm"
+                      style={{ background: GRADIENTS[r.gradient] || r.color || "#8b5cf6" }}
+                    >
+                      {r.name}
+                    </span>
+                    <select
+                      value={r.gradient || "none"}
+                      className="rounded-lg border border-border bg-background px-1.5 py-1 text-xs"
+                      onChange={(e) => {
+                        const next = roles.map((x, j) => (j === i ? { ...x, gradient: e.target.value } : x))
+                        setRoles(next)
+                        save({ custom_roles: next })
+                      }}
+                    >
+                      {Object.keys(GRADIENTS).map((k) => (
+                        <option key={k} value={k} className="capitalize">{k === "none" ? "Flat color" : k}</option>
+                      ))}
+                    </select>
                     <input
                       type="color"
                       value={r.color || "#8b5cf6"}
@@ -254,6 +334,7 @@ export function WorldSettings({ communityId, bundle, onSaved }: { communityId: s
                         setRoles(next)
                       }}
                       onBlur={() => save({ custom_roles: roles })}
+                      title="Fallback flat color (used when gradient is None)"
                     />
                     <Button
                       size="sm"

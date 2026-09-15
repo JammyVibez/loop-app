@@ -21,6 +21,7 @@ import {
   Smile,
   Trash2,
   Search,
+  Lock,
 } from "lucide-react"
 
 interface ChatMessage {
@@ -109,6 +110,9 @@ export function CommunityChat({
   const { toast } = useToast()
   const badges = useVerificationBadges()
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [memberRoles, setMemberRoles] = useState<Record<string, { role: string | null; custom_role_name: string | null; gradient: string | null }>>({})
+  const [chatSettings, setChatSettings] = useState<{ chat_locked: boolean; chat_locked_message: string; slow_mode_seconds: number } | null>(null)
+  const [slowLeft, setSlowLeft] = useState(0)
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -135,6 +139,8 @@ export function CommunityChat({
       setMessages(
         (data.messages || []).map((m: any) => ({ ...m, sender: m.sender || m.author || null })),
       )
+      setMemberRoles(data.member_roles || {})
+      setChatSettings(data.chat_settings || null)
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -162,8 +168,20 @@ export function CommunityChat({
     return () => clearInterval(interval)
   }, [load])
 
+  // Slow-mode local countdown for the input hint.
+  useEffect(() => {
+    if (slowLeft <= 0) return
+    const t = setInterval(() => setSlowLeft((s) => Math.max(0, s - 1)), 1000)
+    return () => clearInterval(t)
+  }, [slowLeft])
+
   const send = async () => {
     if (!input.trim() || sending) return
+    if (chatSettings?.chat_locked) {
+      setError(chatSettings.chat_locked_message)
+      setTimeout(() => setError(""), 3000)
+      return
+    }
     setSending(true)
     try {
       const body: any = {
@@ -189,6 +207,7 @@ export function CommunityChat({
       setInput("")
       setReplyTo(null)
       inputRef.current?.focus()
+      if ((chatSettings?.slow_mode_seconds || 0) > 0) setSlowLeft(chatSettings!.slow_mode_seconds)
     } catch (e: any) {
       setError(e.message)
       setTimeout(() => setError(""), 3000)
@@ -415,6 +434,19 @@ export function CommunityChat({
                           badge={sender?.badge_id ? badges[sender.badge_id] || null : null}
                           size="sm"
                         />
+                        {(() => {
+                          const mr = memberRoles[msg.author_id]
+                          const label = mr?.custom_role_name || (mr?.role && mr.role !== "member" ? mr.role.charAt(0).toUpperCase() + mr.role.slice(1) : null)
+                          if (!label) return null
+                          return (
+                            <span
+                              className="px-1.5 py-0.5 rounded-full text-[9px] font-bold text-white/95 shrink-0 leading-tight"
+                              style={{ background: mr?.gradient || "rgba(120,120,150,0.35)" }}
+                            >
+                              {label}
+                            </span>
+                          )
+                        })()}
                         <span className="text-[10px] text-muted-foreground shrink-0">{messageTime(msg.created_at)}</span>
                       </div>
 
@@ -592,7 +624,15 @@ export function CommunityChat({
         </div>
       )}
 
-      {/* Input */}
+      {/* Locked banner — replaces the composer for non-staff when locked */}
+      {chatSettings?.chat_locked ? (
+        <div className="px-4 py-3 border-t border-border/50">
+          <div className="flex items-center gap-2 rounded-xl bg-muted/60 border border-border/50 px-3 py-2.5 text-xs text-muted-foreground">
+            <Lock className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+            <span className="truncate">{chatSettings.chat_locked_message}</span>
+          </div>
+        </div>
+      ) : (
       <div className="px-4 py-3 border-t border-border/50">
         <form
           onSubmit={(e) => {
@@ -636,9 +676,15 @@ export function CommunityChat({
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={replyTo ? `Reply to ${replyTo.sender?.display_name}...` : "Type a message..."}
+            placeholder={
+              slowLeft > 0
+                ? `Slow mode — wait ${slowLeft}s`
+                : replyTo
+                  ? `Reply to ${replyTo.sender?.display_name}...`
+                  : "Type a message..."
+            }
             className="flex-1 rounded-xl bg-muted/50 border-border/50 text-sm h-10"
-            disabled={sending}
+            disabled={sending || slowLeft > 0}
             maxLength={5000}
           />
           <Button
@@ -651,6 +697,7 @@ export function CommunityChat({
           </Button>
         </form>
       </div>
+      )}
     </div>
   )
 }

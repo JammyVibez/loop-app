@@ -17,7 +17,12 @@ async function getLoopWithRelations(loopId: string, userId?: string) {
       parent_loop:loops!parent_loop_id(id, content_text, content_title, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url, is_verified)),
       loop_stats(likes_count, comments_count, branches_count, shares_count, views_count),
       loop_polls(*),
-      loop_duels(*)
+      loop_duels(
+        *,
+        creator:profiles!creator_id (id, username, display_name, avatar_url, video_avatar_url),
+        opponent:profiles!opponent_id (id, username, display_name, avatar_url, video_avatar_url),
+        entries:loop_duel_entries (id, side, title, content, media_url, votes_count, user_id)
+      )
     `)
     .eq("id", loopId)
     .single()

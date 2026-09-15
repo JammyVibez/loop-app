@@ -47,6 +47,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { data: members, error } = await query
     if (error) return NextResponse.json({ error: "Failed to load members" }, { status: 500 })
 
+    // Resolve gradient role colors: custom_roles definitions matched by the
+    // member's custom_title, falling back to staff default gradients.
+    const STAFF_GRADIENTS: Record<string, string> = {
+      owner: "linear-gradient(90deg, #f59e0b, #ef4444)",
+      admin: "linear-gradient(90deg, #8b5cf6, #ec4899)",
+      moderator: "linear-gradient(90deg, #10b981, #14b8a6)",
+    }
+    const { data: circleRow } = await sb.from("circles").select("custom_roles").eq("id", id).maybeSingle()
+    const customRoles = Array.isArray((circleRow as any)?.custom_roles) ? (circleRow as any).custom_roles : []
+
     // Recognition counts (no FK from circle_members, count separately)
     const recMap = new Map<string, number>()
     if (members && members.length > 0) {
@@ -61,6 +71,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const enriched = (members || []).map((m: any) => ({
       ...m,
       recognition_count: recMap.get(String(m.user_id)) || 0,
+      role_gradient: customRoles.find((cr: any) => cr?.name && cr.name === m.custom_title)?.gradient || STAFF_GRADIENTS[m.role] || null,
     }))
 
     return NextResponse.json({ members: enriched })

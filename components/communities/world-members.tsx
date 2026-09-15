@@ -239,6 +239,10 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
           {activeMembers.map((m) => {
             const roleBadge = ROLE_BADGE[m.role] || ROLE_BADGE.member
             const RoleIcon = roleBadge.icon
+            const gradientLabel: string | null = m.custom_title || (m.role !== "member" ? roleBadge.label : null)
+            const gradientStyle = m.role_gradient
+              ? { background: m.role_gradient }
+              : { background: "rgba(120,120,150,0.35)" }
             return (
               <div key={m.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
                 <Link href={`/profile/${m.user?.username}`}>
@@ -256,6 +260,14 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
                     <Badge className={`text-[9px] gap-1 ${roleBadge.className}`}>
                       <RoleIcon className="h-2.5 w-2.5" /> {roleBadge.label}
                     </Badge>
+                    {gradientLabel && (
+                      <span
+                        className="px-1.5 py-0.5 rounded-full text-[9px] font-bold text-white/95 leading-tight"
+                        style={gradientStyle}
+                      >
+                        {gradientLabel}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
                     <span className="font-semibold text-foreground flex items-center gap-1">

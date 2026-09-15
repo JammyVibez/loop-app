@@ -22,10 +22,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const supabase = createServerClient()
 
-    // Verify membership
+    // Verify membership (also gives us the role for staff-aware settings)
     const { data: membership } = await supabase
       .from("circle_members")
-      .select("id")
+      .select("id, role")
       .eq("circle_id", communityId)
       .eq("user_id", user.id)
       .eq("status", "active")
@@ -33,6 +33,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (!membership) {
       return NextResponse.json({ error: "You must be a member to view chat" }, { status: 403 })
+    }
+
+    const isStaff = ["owner", "admin", "moderator"].includes((membership as any).role || "")
+
+    // Chat controls for client UX (lock banner, slow-mode countdown). Staff
+    // bypass both server-side, so the client mirrors that.
+    const { data: circleCtl } = await supabase
+      .from("circles")
+      .select("moderation_settings")
+      .eq("id", communityId)
+      .maybeSingle()
+    const ctl = (circleCtl as any)?.moderation_settings || {}
+    const chatSettings = {
+      chat_locked: Boolean(ctl.chat_locked) && !isStaff,
+      chat_locked_message: String(ctl.chat_locked_message || "Chat is locked by the community owners right now."),
+      slow_mode_seconds: isStaff ? 0 : Math.max(0, Math.min(600, Math.floor(Number(ctl.slow_mode_seconds || 0)))),
     }
 
     const { searchParams } = new URL(request.url)
@@ -109,7 +125,40 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       reply_to: m.reply_to_id ? replyMap.get(m.reply_to_id) || null : null,
     }))
 
-    return NextResponse.json({ success: true, messages: hydrated })
+    // Resolve each member's community role name + gradient so the client can
+    // render gradient role badges next to message author names.
+    // Staff roles get sensible default gradients; custom_title overrides via
+    // the community's custom_roles definitions (name + gradient pairs).
+    const authorIds = [...new Set((messages || []).map((m: any) => m.author_id).filter(Boolean))] as string[]
+    const STAFF_GRADIENTS: Record<string, string> = {
+      owner: "linear-gradient(90deg, #f59e0b, #ef4444)",
+      admin: "linear-gradient(90deg, #8b5cf6, #ec4899)",
+      moderator: "linear-gradient(90deg, #10b981, #14b8a6)",
+    }
+    let rolesByAuthor: Record<string, { role: string | null; custom_role_name: string | null; gradient: string | null }> = {}
+    if (authorIds.length) {
+      const [{ data: memberRows }, { data: circle }] = await Promise.all([
+        supabase.from("circle_members").select("user_id, role, custom_title").in("user_id", authorIds).eq("circle_id", communityId),
+        supabase.from("circles").select("custom_roles").eq("id", communityId).maybeSingle(),
+      ])
+      const customRoles = Array.isArray((circle as any)?.custom_roles) ? (circle as any).custom_roles : []
+      const byUserId = new Map((memberRows || []).map((r: any) => [r.user_id, r]))
+      rolesByAuthor = Object.fromEntries(
+        authorIds.map((uid) => {
+          const row: any = byUserId.get(uid)
+          const role = row?.role || null
+          const customDef = customRoles.find((cr: any) => cr?.name && cr.name === row?.custom_title)
+          const gradient = customDef?.gradient || (role ? STAFF_GRADIENTS[role] || null : null)
+          return [uid, {
+            role,
+            custom_role_name: row?.custom_title || customDef?.name || null,
+            gradient,
+          }]
+        }),
+      )
+    }
+
+    return NextResponse.json({ success: true, messages: hydrated, member_roles: rolesByAuthor, chat_settings: chatSettings })
   } catch (error: any) {
     console.error("Community chat GET error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -124,10 +173,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const supabase = createServerClient()
 
-    // Verify membership
+    // Verify membership (role needed for staff bypasses below)
     const { data: membership } = await supabase
       .from("circle_members")
-      .select("id")
+      .select("id, role")
       .eq("circle_id", communityId)
       .eq("user_id", user.id)
       .eq("status", "active")
@@ -135,6 +184,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (!membership) {
       return NextResponse.json({ error: "You must be a member to chat" }, { status: 403 })
+    }
+
+    const isChatStaff = ["owner", "admin", "moderator"].includes(membership.role || "")
+
+    // Community-wide chat controls (owner/admin): chat lock + slow mode.
+    const { data: circleRow } = await supabase
+      .from("circles")
+      .select("moderation_settings")
+      .eq("id", communityId)
+      .maybeSingle()
+    const chatSettings = (circleRow as any)?.moderation_settings || {}
+
+    if (!isChatStaff && chatSettings.chat_locked) {
+      return NextResponse.json(
+        { error: chatSettings.chat_locked_message || "Chat is locked by the community owners right now." },
+        { status: 403 },
+      )
     }
 
     // Check if user is muted (indefinitely, or until muted_until passes)
@@ -215,6 +281,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (!roomId) {
       return NextResponse.json({ error: "Could not find or create a chat room" }, { status: 500 })
+    }
+
+    // Slow mode: non-staff members must wait N seconds between messages.
+    const slowModeSec = Math.max(0, Math.min(600, Math.floor(Number(chatSettings.slow_mode_seconds || 0))))
+    if (slowModeSec > 0 && !isChatStaff) {
+      const { data: lastMsg } = await supabase
+        .from("circle_room_messages")
+        .select("created_at")
+        .eq("room_id", roomId)
+        .eq("author_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (lastMsg?.created_at) {
+        const elapsed = (Date.now() - new Date(lastMsg.created_at).getTime()) / 1000
+        if (elapsed < slowModeSec) {
+          const wait = Math.ceil(slowModeSec - elapsed)
+          return NextResponse.json(
+            { error: `Slow mode is on — wait ${wait}s before sending again.` },
+            { status: 429 },
+          )
+        }
+      }
     }
 
     const { data: message, error } = await supabase
