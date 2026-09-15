@@ -4,6 +4,7 @@ import { normalizeLoops } from "@/lib/normalize-loop"
 import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 import { applyRealCommentCounts } from "@/lib/loop-stats"
 import { getUserFromRequest } from "@/lib/server-auth";
+import { getHiddenUserIds } from "@/lib/user-blocks"
 
 export const dynamic = "force-dynamic"
 
@@ -247,8 +248,14 @@ export async function GET(request: NextRequest) {
             )
             .map((p: any) => p.id),
         )
+        // Blocked users (either direction) are hidden from search results.
+        let hiddenIds: Set<string> = new Set()
+        if (user) {
+          hiddenIds = await getHiddenUserIds(supabase, user.id)
+        }
         users = users
           .filter((u: any) => {
+            if (hiddenIds.has(u.id)) return false
             if (!privateIds.has(u.id)) return true
             if (user && u.id === user.id) return true
             return following.has(u.id)

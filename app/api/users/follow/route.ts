@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { checkBlockStatus } from "@/lib/user-blocks"
 
 export const dynamic = "force-dynamic"
 
@@ -85,6 +86,14 @@ export async function POST(request: NextRequest) {
 
     if (targetUserId === user.id) {
       return NextResponse.json({ error: "You cannot follow yourself" }, { status: 400 })
+    }
+
+    // Blocked users (either direction) can't follow each other.
+    if (action === "follow") {
+      const blockStatus = await checkBlockStatus(supabase, user.id, targetUserId)
+      if (blockStatus.blocked) {
+        return NextResponse.json({ error: "You can't follow this user" }, { status: 403 })
+      }
     }
 
     const { data: target } = await supabase

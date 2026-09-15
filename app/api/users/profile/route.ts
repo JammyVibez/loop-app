@@ -6,6 +6,7 @@ import { getUserFromRequest } from "@/lib/server-auth"
 import { isProUser } from "@/lib/pro-features"
 import { maskProfile, profileStatus } from "@/lib/user-status"
 import { applyRealCommentCounts, attachParentAuthors } from "@/lib/loop-stats"
+import { checkBlockStatus } from "@/lib/user-blocks"
 
 export async function GET(request: NextRequest) {
   try {
@@ -172,10 +173,23 @@ export async function GET(request: NextRequest) {
     const isSelf = Boolean(authedUser && authedUser.id === profile.id)
     const isFollower = Boolean(followRecord)
     const hasPendingRequest = Boolean(pendingFollowRequest)
-    const canViewFull = !isPrivate || isSelf || isFollower
 
-    // Private profile & viewer isn't the owner or an approved follower —
-    // only expose pfp, cover, name and bio (plus request status).
+    // Blocks short-circuit the profile: the target blocked the viewer, or the
+    // viewer blocked the target — either way the full profile stays hidden.
+    // (Blocking is meant to be one-sided and invisible-ish; both directions
+    // hide so a blocked user can't probe via a second account.)
+    let isBlockedView = false
+    let blockDirection: "by_me" | "by_them" | null = null
+    if (authedUser && !isSelf) {
+      const blockStatus = await checkBlockStatus(supabase, authedUser.id, profile.id)
+      isBlockedView = blockStatus.blocked
+      blockDirection = blockStatus.direction
+    }
+
+    const canViewFull = !isBlockedView && (!isPrivate || isSelf || isFollower)
+
+    // Private profile, or a block in either direction — only expose pfp,
+    // cover, name and bio (plus block status so the UI can explain why).
     if (!canViewFull) {
       const limited = {
         id: profile.id,
@@ -192,7 +206,7 @@ export async function GET(request: NextRequest) {
         is_organization: profile.is_organization,
         organization_name: profile.organization_name,
         created_at: profile.created_at,
-        is_private: true,
+        is_private: isPrivate,
         privacy: {
           profile_visibility: privacySettings.profile_visibility || "public",
           message_privacy: privacySettings.message_privacy || "everyone",
@@ -201,6 +215,8 @@ export async function GET(request: NextRequest) {
         is_follower: false,
         is_self: false,
         has_pending_follow_request: hasPendingRequest,
+        is_blocked: isBlockedView,
+        block_direction: blockDirection,
         can_view_full: false,
         followers_count: followersCount ?? 0,
         following_count: 0,
@@ -214,7 +230,7 @@ export async function GET(request: NextRequest) {
         active_cosmetics: null,
         active_effects: [],
       }
-      return NextResponse.json({ success: true, profile: limited, private: true })
+      return NextResponse.json({ success: true, profile: limited, private: isPrivate, blocked: isBlockedView })
     }
 
     // Filter co-authored loops where profile is listed in co_authors or author
@@ -291,6 +307,8 @@ export async function GET(request: NextRequest) {
       is_follower: isFollower,
       is_self: isSelf,
       is_private: isPrivate,
+      is_blocked: false,
+      block_direction: null,
       has_pending_follow_request: hasPendingRequest,
       can_view_full: true,
       privacy: {

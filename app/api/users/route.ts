@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { getUserFromRequest } from "@/lib/server-auth";
+import { getHiddenUserIds } from "@/lib/user-blocks";
 
 // GET /api/users?sort=newest&limit=5
 export async function GET(req: NextRequest) {
@@ -9,6 +11,9 @@ export async function GET(req: NextRequest) {
   const sort = searchParams.get("sort") || "newest"
   const limit = parseInt(searchParams.get("limit") || "5")
   const q = (searchParams.get("q") || searchParams.get("search") || "").trim()
+
+  // Viewer may be signed out — blocks only filter for signed-in users.
+  const viewer = await getUserFromRequest(req).catch(() => null)
 
   // Fetch users from "profiles" table
   let query = supabase
@@ -35,8 +40,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 
+  // Blocked users (either direction) never appear in people lists/search.
+  let users = data ?? []
+  if (viewer && users.length > 0) {
+    const hiddenIds = await getHiddenUserIds(supabase, viewer.id)
+    if (hiddenIds.size > 0) {
+      users = users.filter((u) => !hiddenIds.has(u.id))
+    }
+  }
+
   return NextResponse.json({
     success: true,
-    users: data ?? [],
+    users,
   })
 }

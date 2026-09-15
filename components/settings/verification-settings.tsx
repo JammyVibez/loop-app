@@ -45,7 +45,7 @@ const STATUS_META: Record<string, { label: string; cls: string; icon: React.Elem
 export function VerificationSettings() {
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
-  const [profile, setProfile] = useState<{ is_verified: boolean; followers_count?: number; posts_count?: number; avatar_url?: string; display_name?: string } | null>(null)
+  const [profile, setProfile] = useState<{ is_verified: boolean; avatar_url?: string; display_name?: string } | null>(null)
   const [requests, setRequests] = useState<VerifRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -56,12 +56,19 @@ export function VerificationSettings() {
     setLoading(true)
     try {
       const [profileRes, reqRes] = await Promise.all([
-        fetch("/api/users/me", { headers: getAuthHeader() }).catch(() => null),
+        // /api/auth/me is the canonical current-profile endpoint (user +
+        // profile fields incl. is_verified, avatar_url, display_name).
+        fetch("/api/auth/me", { headers: getAuthHeader() }).catch(() => null),
         fetch("/api/verification/request", { headers: getAuthHeader() }),
       ])
       if (profileRes?.ok) {
         const data = await profileRes.json()
-        setProfile(data.user || data.profile || data)
+        const p = data.profile || data.user || data
+        setProfile({
+          is_verified: Boolean(p?.is_verified),
+          avatar_url: p?.avatar_url,
+          display_name: p?.display_name,
+        })
       }
       if (reqRes.ok) {
         const data = await reqRes.json()
@@ -79,14 +86,12 @@ export function VerificationSettings() {
   const pending = requests.find((r) => r.status === "pending")
   const latest = requests[0]
 
-  // Smart eligibility checklist — mirrors what admins look for.
-  const eligibility = useMemo(() => {
-    const followers = Number(profile?.followers_count || 0)
-    const posts = Number(profile?.posts_count || 0)
+  // Smart eligibility checklist — mirrors what admins look for. Post count
+  // isn't available from /api/auth/me, so only verifiable signals are listed.
+  const eligibility: Array<{ label: string; ok: boolean; detail?: string }> = useMemo(() => {
     return [
       { label: "Profile photo added", ok: Boolean(profile?.avatar_url) },
       { label: "Display name set", ok: Boolean(profile?.display_name) },
-      { label: "At least 10 posts", ok: posts >= 10, detail: `${posts}/10` },
       { label: "Authentic presence (no impersonation reports)", ok: true },
       { label: "Not already verified", ok: !profile?.is_verified },
     ]
@@ -94,7 +99,6 @@ export function VerificationSettings() {
 
   const eligibleCount = eligibility.filter((e) => e.ok).length
   const canSubmit = !profile?.is_verified && !pending && eligibleCount >= 3
-
   const submit = async () => {
     if (!form.realName.trim() || !form.reason.trim()) {
       toast({ title: "Missing details", description: "Your real name and reason are required." })

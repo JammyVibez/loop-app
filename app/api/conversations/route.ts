@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { getHiddenUserIds } from "@/lib/user-blocks"
 
 export const dynamic = "force-dynamic"
 
@@ -115,17 +116,33 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const enriched = (conversations || []).map((conversation) => {
-      const people = (participants || []).filter((p) => p.conversation_id === conversation.id)
-      const other = people.find((p) => p.user_id !== user.id)?.user || null
-      return {
-        ...conversation,
-        participants: people,
-        other_user: other,
-        last_message: lastByConversation.get(conversation.id) || null,
-        unread_count: unreadCounts.get(conversation.id) || 0,
-      }
-    })
+    // Blocked users (either direction) are hidden from the inbox.
+    const hiddenIds = await getHiddenUserIds(supabase, user.id)
+
+    const enriched = (conversations || [])
+      .filter((conversation) => {
+        const people = (participants || []).filter((p) => p.conversation_id === conversation.id)
+        // Hide 1:1 conversations with a blocked user. Group chats stay visible
+        // (a mute/leave is the right tool there), but blocked members are
+        // filtered out of the embedded people list.
+        if (!conversation.is_group && people.some((p) => p.user_id !== user.id && hiddenIds.has(p.user_id))) {
+          return false
+        }
+        return true
+      })
+      .map((conversation) => {
+        const people = (participants || [])
+          .filter((p) => p.conversation_id === conversation.id)
+          .filter((p) => p.user_id === user.id || !hiddenIds.has(p.user_id))
+        const other = people.find((p) => p.user_id !== user.id)?.user || null
+        return {
+          ...conversation,
+          participants: people,
+          other_user: other,
+          last_message: lastByConversation.get(conversation.id) || null,
+          unread_count: unreadCounts.get(conversation.id) || 0,
+        }
+      })
 
     return NextResponse.json({ success: true, conversations: enriched })
   } catch (error) {
@@ -150,7 +167,18 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServerClient()
+
     const isGroup = participantIds.length > 1 || body.type === "group" || body.is_group === true
+
+    // A blocked user (in either direction) cannot start a new conversation.
+    const hiddenIds = await getHiddenUserIds(supabase, user.id)
+    const blockedParticipants = participantIds.filter((id) => hiddenIds.has(id))
+    if (blockedParticipants.length > 0) {
+      return NextResponse.json(
+        { error: isGroup ? "You can't add a blocked user to a group" : "You can't message this user" },
+        { status: 403 },
+      )
+    }
 
     if (!isGroup) {
       const recipientId = participantIds[0]

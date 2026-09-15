@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { checkBlockStatus } from "@/lib/user-blocks"
 
 export const dynamic = "force-dynamic"
 
@@ -127,6 +128,13 @@ export async function POST(request: NextRequest) {
     const others = (participants || []).filter((p) => p.user_id !== user.id)
     if (others.length === 1) {
       const recipientId = others[0].user_id
+
+      // Blocks work in both directions — neither side can DM the other.
+      const blockStatus = await checkBlockStatus(supabase, user.id, recipientId)
+      if (blockStatus.blocked) {
+        return NextResponse.json({ error: "You can't message this user" }, { status: 403 })
+      }
+
       const { data: recipientProfile } = await supabase
         .from("profiles")
         .select("privacy_settings")

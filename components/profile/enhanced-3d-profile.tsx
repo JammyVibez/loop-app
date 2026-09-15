@@ -15,6 +15,7 @@ import { ProfileSkeleton } from "@/components/loading-states"
 import { EmptyState as PageEmptyState } from "@/components/ui/empty-state"
 import { ProxyImg } from "@/components/ui/proxy-img"
 import { ReportContentButton } from "@/components/moderation/report-content-button"
+import { BlockUserButton } from "@/components/moderation/block-user-button"
 import { GiftModal } from "@/components/gifting/gift-modal"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
@@ -59,6 +60,8 @@ interface UserProfile {
   tagged_circles?: Array<{ id: string; name: string; avatar_url?: string | null }>
   avatar_url?: string
   banner_url?: string
+  is_blocked?: boolean
+  block_direction?: "by_me" | "by_them" | null
   followers_count: number
   following_count: number
   loops_count: number
@@ -820,7 +823,16 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           </div>
 
           {!isOwnProfile && (
-            <div className="pt-1">
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <BlockUserButton
+                targetUserId={profile.id}
+                targetUsername={profile.username}
+                className="h-8 rounded-full px-3 text-xs"
+                onChanged={() => {
+                  // Blocking hides the profile behind a restricted wall; unblocking restores it.
+                  void fetchProfile({ silent: true })
+                }}
+              />
               <ReportContentButton
                 contentType="profile"
                 contentId={profile.id}
@@ -841,36 +853,51 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               <Lock className="h-6 w-6 text-muted-foreground" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-foreground">This account is private</h3>
+              <h3 className="text-base font-bold text-foreground">
+                {(profile as any).is_blocked ? "You can't view this profile" : "This account is private"}
+              </h3>
               <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                {displayName || profile.username} hasn't approved you as a follower yet. Loops, branches,
-                media, and awards are hidden until your follow request is accepted.
+                {(profile as any).is_blocked
+                  ? profile.block_direction === "by_me"
+                    ? `You blocked @${profile.username}, so their content is hidden. Unblock to see it again.`
+                    : "This account isn't available to you. They may have blocked you."
+                  : `${displayName || profile.username} hasn't approved you as a follower yet. Loops, branches, media, and awards are hidden until your follow request is accepted.`}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => {
-                  if (!user) {
-                    toast({ title: "Sign in required", description: "Please sign in to continue." })
-                    return
-                  }
-                  void handleFollow()
-                }}
-                className={cn(
-                  "rounded-full px-5 font-semibold",
-                  followRequestPending
-                    ? "border border-border bg-transparent text-foreground hover:bg-muted"
-                    : "bg-foreground text-background hover:opacity-90",
+            {(profile as any).is_blocked && profile.block_direction === "by_me" ? (
+              <BlockUserButton
+                targetUserId={profile.id}
+                targetUsername={profile.username}
+                initialBlocked={true}
+                className="rounded-full px-5"
+                onChanged={() => void fetchProfile({ silent: true })}
+              />
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => {
+                    if (!user) {
+                      toast({ title: "Sign in required", description: "Please sign in to continue." })
+                      return
+                    }
+                    void handleFollow()
+                  }}
+                  className={cn(
+                    "rounded-full px-5 font-semibold",
+                    followRequestPending
+                      ? "border border-border bg-transparent text-foreground hover:bg-muted"
+                      : "bg-foreground text-background hover:opacity-90",
+                  )}
+                >
+                  {followRequestPending ? "Requested ✓ — tap to withdraw" : "Request to follow"}
+                </Button>
+                {user && followRequestPending && (
+                  <p className="text-xs text-muted-foreground">
+                    You'll see their content once they accept.
+                  </p>
                 )}
-              >
-                {followRequestPending ? "Requested ✓ — tap to withdraw" : "Request to follow"}
-              </Button>
-              {user && followRequestPending && (
-                <p className="text-xs text-muted-foreground">
-                  You'll see their content once they accept.
-                </p>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       ) : (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,6 +21,13 @@ interface UserResult {
   is_verified?: boolean
 }
 
+interface ConversationEntry {
+  id: string
+  name: string | null
+  is_group: boolean
+  users: UserResult[]
+}
+
 interface GroupCreateDialogProps {
   open: boolean
   onClose: () => void
@@ -35,32 +42,75 @@ export function GroupCreateDialog({ open, onClose, onCreated }: GroupCreateDialo
   const [step, setStep] = useState<"select" | "details">("select")
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<UserResult[]>([])
+  const [recentPeople, setRecentPeople] = useState<UserResult[]>([])
+  const [loadingRecent, setLoadingRecent] = useState(false)
   const [selectedUsers, setSelectedUsers] = useState<UserResult[]>([])
   const [searching, setSearching] = useState(false)
   const [groupName, setGroupName] = useState("")
   const [creating, setCreating] = useState(false)
 
-  const searchUsers = useCallback(async (q: string) => {
-    if (!q.trim() || q.trim().length < 2) {
-      setSearchResults([])
-      return
-    }
-    setSearching(true)
-    try {
-      const res = await fetch(`/api/users/search?q=${encodeURIComponent(q.trim())}&limit=10`, {
-        headers: { ...getAuthHeader() },
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Recent people = everyone from the user's existing 1-on-1 and group conversations.
+  // Shown immediately so the creator can pick people they already chat with.
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    setLoadingRecent(true)
+    fetch("/api/conversations?include_people=1", { headers: { ...getAuthHeader() } })
+      .then((res) => (res.ok ? res.json() : { conversations: [] }))
+      .then((data) => {
+        if (cancelled) return
+        const seen = new Set<string>()
+        const people: UserResult[] = []
+        for (const conv of data.conversations || []) {
+          for (const u of conv.users || []) {
+            if (u?.id && u.id !== user?.id && !seen.has(u.id)) {
+              seen.add(u.id)
+              people.push(u)
+            }
+          }
+        }
+        setRecentPeople(people)
       })
-      const data = await res.json()
-      const users = (data.users || data.results || []).filter(
-        (u: UserResult) => u.id !== user?.id && !selectedUsers.some((s) => s.id === u.id),
-      )
-      setSearchResults(users)
-    } catch {
-      setSearchResults([])
-    } finally {
-      setSearching(false)
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingRecent(false)
+      })
+    return () => {
+      cancelled = true
     }
-  }, [user?.id, selectedUsers])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  const searchUsers = useCallback(
+    (q: string) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      if (!q.trim() || q.trim().length < 2) {
+        setSearchResults([])
+        setSearching(false)
+        return
+      }
+      setSearching(true)
+      debounceRef.current = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/users?search=${encodeURIComponent(q.trim())}&limit=10`, {
+            headers: { ...getAuthHeader() },
+          })
+          const data = await res.json()
+          const users = (data.users || []).filter(
+            (u: UserResult) => u.id !== user?.id && !selectedUsers.some((s) => s.id === u.id),
+          )
+          setSearchResults(users)
+        } catch {
+          setSearchResults([])
+        } finally {
+          setSearching(false)
+        }
+      }, 250)
+    },
+    [user?.id, selectedUsers, getAuthHeader],
+  )
 
   const toggleUser = (u: UserResult) => {
     setSelectedUsers((prev) =>
@@ -117,6 +167,15 @@ export function GroupCreateDialog({ open, onClose, onCreated }: GroupCreateDialo
     onClose()
   }
 
+  const nameOf = (u: UserResult) => u.display_name || u.username || "?"
+
+  // People to show in the list: filter the recent list while searching.
+  const listPeople: UserResult[] = searchQuery.trim().length >= 2
+    ? [...recentPeople.filter((p) =>
+        (nameOf(p) + " " + (p.username || "")).toLowerCase().includes(searchQuery.trim().toLowerCase()),
+      ), ...searchResults.filter((r) => !recentPeople.some((p) => p.id === r.id))]
+    : recentPeople
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) resetAndClose() }}>
       <DialogContent className="sm:max-w-md max-h-[85vh] overflow-hidden flex flex-col">
@@ -139,9 +198,9 @@ export function GroupCreateDialog({ open, onClose, onCreated }: GroupCreateDialo
                   >
                     <Avatar className="h-4 w-4">
                       <AvatarImage src={u.avatar_url || undefined} />
-                      <AvatarFallback className="text-[7px]">{(u.display_name || u.username || "?")[0]}</AvatarFallback>
+                      <AvatarFallback className="text-[7px]">{nameOf(u)[0]}</AvatarFallback>
                     </Avatar>
-                    {u.display_name || u.username}
+                    {nameOf(u)}
                     <button onClick={() => removeUser(u.id)} className="hover:bg-primary/20 rounded-full p-0.5">
                       <X className="h-3 w-3" />
                     </button>
@@ -165,30 +224,42 @@ export function GroupCreateDialog({ open, onClose, onCreated }: GroupCreateDialo
               {searching && <Spinner className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5" />}
             </div>
 
-            {/* Search results */}
-            {searchResults.length > 0 && (
-              <div className="rounded-xl border border-border bg-card overflow-hidden">
-                {searchResults.map((u) => (
-                  <button
-                    key={u.id}
-                    onClick={() => toggleUser(u)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 transition-colors text-left"
-                  >
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={u.avatar_url || undefined} />
-                      <AvatarFallback className="text-xs font-bold">
-                        {(u.display_name || u.username || "?")[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold truncate">{u.display_name || u.username}</p>
-                      <p className="text-[11px] text-muted-foreground">@{u.username}</p>
-                    </div>
-                    <Check className="h-4 w-4 text-primary" />
-                  </button>
-                ))}
-              </div>
-            )}
+            {/* People list: existing conversations first, then search results */}
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              {loadingRecent ? (
+                <div className="flex items-center justify-center py-6">
+                  <Spinner className="h-4 w-4" />
+                </div>
+              ) : listPeople.length > 0 ? (
+                listPeople.map((u) => {
+                  const isSelected = selectedUsers.some((s) => s.id === u.id)
+                  return (
+                    <button
+                      key={u.id}
+                      onClick={() => toggleUser(u)}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 transition-colors text-left",
+                        isSelected && "bg-primary/5",
+                      )}
+                    >
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={u.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs font-bold">{nameOf(u)[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold truncate">{nameOf(u)}</p>
+                        <p className="text-[11px] text-muted-foreground">@{u.username}</p>
+                      </div>
+                      {isSelected && <Check className="h-4 w-4 text-primary" />}
+                    </button>
+                  )
+                })
+              ) : (
+                <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+                  {searchQuery.trim().length >= 2 ? "No people found" : "No conversations yet — search for people to add"}
+                </div>
+              )}
+            </div>
 
             <Button
               className="w-full rounded-full"
@@ -210,9 +281,7 @@ export function GroupCreateDialog({ open, onClose, onCreated }: GroupCreateDialo
                     style={{ top: i * 8, left: i * 8, zIndex: 3 - i }}
                   >
                     <AvatarImage src={u.avatar_url || undefined} />
-                    <AvatarFallback className="text-[9px] font-bold">
-                      {(u.display_name || u.username || "?")[0]}
-                    </AvatarFallback>
+                    <AvatarFallback className="text-[9px] font-bold">{nameOf(u)[0]}</AvatarFallback>
                   </Avatar>
                 ))}
               </div>
