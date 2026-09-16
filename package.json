@@ -8,7 +8,9 @@
     "lint": "next lint",
     "start": "next start",
     "test:critical": "node scripts/critical-smoke.mjs",
-    "test": "npm run test:critical",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test": "npm run test:critical && npm run test:unit",
     "db:setup:production": "node scripts/run-production-setup.mjs",
     "db:setup:production:seed": "node scripts/run-production-setup.mjs --with-seed",
     "db:apply:pending": "node scripts/apply-pending-schema.mjs"
