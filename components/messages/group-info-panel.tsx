@@ -13,7 +13,7 @@ import { Spinner } from "@/components/ui/skeletons"
 import { cn } from "@/lib/utils"
 import {
   Users, Shield, Crown, Settings, Pin, Link2, Lock, LockOpen,
-  ChevronLeft, UserMinus, Copy, Check, X, ChevronDown, ChevronUp,
+  ChevronLeft, UserMinus, Copy, Check, X, ChevronDown, ChevronUp, Bell, BellOff,
 } from "lucide-react"
 
 const ROLE_LABELS: Record<string, { label: string; color: string; icon: typeof Shield }> = {
@@ -393,6 +393,39 @@ export function GroupInfoPanel({ conversationId, onClose, onMemberRemoved }: Gro
             </div>
           )}
         </div>
+
+        {/* Mute toggle */}
+        <div className="border-t border-border px-4 py-3 space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Notifications</p>
+          <button
+            onClick={async () => {
+              try {
+                const res = await fetch("/api/conversations/" + conversationId + "/group/members", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json", ...getAuthHeader() },
+                  body: JSON.stringify({ user_id: user?.id, mute: !(info as any).members?.find((m: any) => m.user_id === user?.id)?.is_muted }),
+                })
+                if (res.ok) {
+                  toast({ title: (info as any).members?.find((m: any) => m.user_id === user?.id)?.is_muted ? "Notifications unmuted" : "Notifications muted" })
+                  load()
+                }
+              } catch {}
+            }}
+            className="flex items-center gap-2 text-xs text-foreground w-full py-1.5 rounded-lg hover:bg-muted/50 transition-colors"
+          >
+            {(info as any).members?.find((m: any) => m.user_id === user?.id)?.is_muted ? (
+              <><BellOff className="h-4 w-4 text-muted-foreground" /> Unmute notifications</>
+            ) : (
+              <><Bell className="h-4 w-4 text-emerald-500" /> Mute notifications</>
+            )}
+          </button>
+        </div>
+
+        {/* Shared media */}
+        {(() => {
+          const mediaMsgs = (info as any).members || []
+          return null // Placeholder for shared media grid
+        })()}
 
         {/* Leave */}
         {myRole !== "owner" && (

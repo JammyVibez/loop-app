@@ -150,6 +150,23 @@ interface ChatMessage {
 
 const QUICK_REACTIONS = ["❤️", "😂", "👍", "🔥", "😮", "👏"]
 
+// Sender name color accents for group chats — distinct but restrained.
+const SENDER_ACCENT_COLORS = [
+  "text-emerald-600 dark:text-emerald-400",
+  "text-sky-600 dark:text-sky-400",
+  "text-violet-600 dark:text-violet-400",
+  "text-rose-600 dark:text-rose-400",
+  "text-amber-600 dark:text-amber-400",
+  "text-teal-600 dark:text-teal-400",
+  "text-indigo-600 dark:text-indigo-400",
+  "text-pink-600 dark:text-pink-400",
+]
+
+function senderAccentColor(senderId: string): string {
+  const h = senderId.split("").reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) >>> 0, 0)
+  return SENDER_ACCENT_COLORS[h % SENDER_ACCENT_COLORS.length]
+}
+
 const EMOJI_GRID = [
   "😀", "😁", "😂", "🤣", "😊", "😍", "😘", "😎", "🤩", "🥳",
   "😢", "😭", "😤", "😡", "🥺", "😳", "🤔", "🙄", "😴", "🤯",
@@ -230,6 +247,7 @@ export function MessagesWorkspace() {
   const [showGroupCreate, setShowGroupCreate] = useState(false)
   const [showGroupInfo, setShowGroupInfo] = useState(false)
   const [typingPeer, setTypingPeer] = useState(false)
+  const [groupTypers, setGroupTypers] = useState<Map<string, {name: string; ts: number}>>(new Map())
   const [peerOnline, setPeerOnline] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -243,6 +261,8 @@ export function MessagesWorkspace() {
   const [publishingCoLoop, setPublishingCoLoop] = useState(false)
   const [peerReadAt, setPeerReadAt] = useState<string | null>(null)
   const [freshMessageIds, setFreshMessageIds] = useState<Set<string>>(new Set())
+  const [pinnedMessages, setPinnedMessages] = useState<Array<{id: string; content: string; author_id: string; created_at: string}>>([])
+  const [pinnedExpanded, setPinnedExpanded] = useState(false)
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showGifPicker, setShowGifPicker] = useState(false)
@@ -409,6 +429,14 @@ export function MessagesWorkspace() {
     setFreshMessageIds(new Set())
     setReplyTo(null)
     void loadMessages(selectedId)
+    setPinnedMessages([])
+    void (async () => {
+      try {
+        const res = await fetch("/api/conversations/" + selectedId + "/group", { headers: getAuthHeader() });
+        const data = await res.json();
+        if (data.success && data.pinned_messages) setPinnedMessages(data.pinned_messages);
+      } catch { /* non-fatal */ }
+    })()
     void loadWallpaper(selectedId)
 
     const supabase = getSupabaseBrowserClient()
@@ -459,6 +487,21 @@ export function MessagesWorkspace() {
           setTypingPeer(true)
           if (peerTypingClear.current) clearTimeout(peerTypingClear.current)
           peerTypingClear.current = setTimeout(() => setTypingPeer(false), 2500)
+          // Track group typers
+          if (selected?.is_group && payload.display_name) {
+            setGroupTypers(prev => {
+              const next = new Map(prev)
+              next.set(payload.user_id, { name: payload.display_name, ts: Date.now() })
+              return next
+            })
+            setTimeout(() => {
+              setGroupTypers(prev => {
+                const next = new Map(prev)
+                next.delete(payload.user_id)
+                return next
+              })
+            }, 3000)
+          }
         }
       })
       .on("broadcast", { event: "presence" }, ({ payload }: { payload: any }) => {
@@ -651,7 +694,7 @@ export function MessagesWorkspace() {
     void channelRef.current?.send({
       type: "broadcast",
       event: "typing",
-      payload: { user_id: user.id },
+      payload: { user_id: user.id, display_name: user.display_name || user.username || "" },
     })
   }
 
@@ -1451,16 +1494,22 @@ export function MessagesWorkspace() {
             const last = conversation.last_message
             const unread = unreadCounts[conversation.id] || 0
             const lastMine = last?.sender_id === user.id || last?.author_id === user.id
+            // For groups, prefix the last message with the sender name.
+            const lastSenderName = last && conversation.is_group
+              ? (last as any).sender?.display_name || (last as any).sender?.username || (last as any).author_name || ""
+              : ""
             const preview = last
-              ? last.message_type === "image"
-                ? "📷 Photo"
-                : last.message_type === "gif"
-                  ? "🎞️ GIF"
-                  : last.message_type === "video"
-                    ? "🎬 Video"
-                    : last.message_type === "audio"
-                      ? "🎤 Voice message"
-                      : last.content || "Message"
+              ? last.message_type === "system"
+                ? last.content || ""
+                : last.message_type === "image"
+                  ? "📷 Photo"
+                  : last.message_type === "gif"
+                    ? "🎞️ GIF"
+                    : last.message_type === "video"
+                      ? "🎬 Video"
+                      : last.message_type === "audio"
+                        ? "🎤 Voice message"
+                        : last.content || "Message"
               : "Say hello 👋"
             return (
               <button
@@ -1506,6 +1555,9 @@ export function MessagesWorkspace() {
                         unread ? "font-medium text-foreground" : "text-muted-foreground",
                       )}
                     >
+                      {conversation.is_group && lastSenderName && !lastMine && (
+                        <span className="font-semibold text-foreground">{lastSenderName}: </span>
+                      )}
                       {lastMine && <span className="text-violet-500 dark:text-violet-400">You: </span>}
                       {preview}
                     </p>
@@ -1537,15 +1589,41 @@ export function MessagesWorkspace() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="relative shrink-0 rounded-full ring-2 ring-violet-500/40">
-          <CosmeticAvatar
-            src={selected.other_user?.avatar_url}
-            alt={selected.other_user?.display_name || selected.name || "U"}
-            fallback={selected.other_user?.display_name || selected.name || "U"}
-            size="md"
-            cosmetics={selected.other_user?.active_cosmetics || selected.other_user?.cosmetics || null}
-          />
-          {peerOnline && (
-            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500" />
+          {selected.is_group ? (
+            <div className="relative h-10 w-10">
+              {(selected as any).participants?.slice(0, 3).map((p: any, i: number) => (
+                <Avatar
+                  key={p.user_id}
+                  className="h-6 w-6 absolute border-2 border-background"
+                  style={{ top: i * 5, left: i * 5, zIndex: 3 - i }}
+                >
+                  <AvatarImage src={p.user?.avatar_url} />
+                  <AvatarFallback className="text-[8px] font-bold">
+                    {(p.user?.display_name || p.user?.username || "?").charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+              {((selected as any).participants?.length || 0) === 0 && (
+                <Avatar className="h-10 w-10">
+                  <AvatarFallback className="text-sm font-bold bg-primary/10 text-primary">
+                    {(selected.name || "G").charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+            </div>
+          ) : (
+            <>
+              <CosmeticAvatar
+                src={selected.other_user?.avatar_url}
+                alt={selected.other_user?.display_name || selected.name || "U"}
+                fallback={selected.other_user?.display_name || selected.name || "U"}
+                size="md"
+                cosmetics={selected.other_user?.active_cosmetics || selected.other_user?.cosmetics || null}
+              />
+              {peerOnline && (
+                <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500" />
+              )}
+            </>
           )}
         </div>
         <div className="min-w-0 flex-1">
@@ -1732,6 +1810,30 @@ export function MessagesWorkspace() {
         </div>
       )}
 
+      {/* Pinned message banner */}
+      {selected?.is_group && pinnedMessages.length > 0 && (
+        <div className="mx-2 mb-1">
+          <button
+            onClick={() => setPinnedExpanded(!pinnedExpanded)}
+            className="w-full flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-left transition-colors hover:bg-amber-500/15"
+          >
+            <svg className="h-3.5 w-3.5 shrink-0 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+            <span className="flex-1 truncate text-xs font-medium text-amber-700 dark:text-amber-300">
+              {pinnedExpanded ? "Pinned messages" : pinnedMessages[0]?.content?.slice(0, 60) || "Pinned message"}
+            </span>
+            <span className="text-[10px] text-amber-600/70">{pinnedMessages.length}</span>
+          </button>
+          {pinnedExpanded && (
+            <div className="mt-1 space-y-1 pl-2">
+              {pinnedMessages.map((pm) => (
+                <div key={pm.id} className="rounded-lg bg-amber-500/5 px-3 py-1.5">
+                  <p className="text-[11px] text-foreground line-clamp-2">{pm.content}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <div className="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-6">
         {messagesLoading && messages.length === 0 ? (
           <div className="flex justify-center py-10 text-muted-foreground">
@@ -1747,8 +1849,28 @@ export function MessagesWorkspace() {
               (Boolean(peerReadAt) && new Date(peerReadAt!) >= new Date(message.created_at)))
           const prev = filteredMessages[index - 1]
           const showDate = !prev || dayLabel(prev.created_at) !== dayLabel(message.created_at)
+          // In groups, show sender name/avatar when the sender changes (Telegram pattern).
+          const showSenderHeader = selected?.is_group && !mine && (
+            !prev ||
+            prev.message_type === "system" ||
+            (prev.sender_id || prev.author_id) !== (message.sender_id || message.author_id)
+          )
           return (
             <Fragment key={message.id}>
+              {/* Group sender name + avatar header */}
+              {showSenderHeader && (
+                <div className="flex items-center gap-2 mt-2 ml-1">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={message.sender?.avatar_url} />
+                    <AvatarFallback className="text-[8px] font-bold">
+                      {(message.sender?.display_name || message.sender?.username || "?").charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className={cn("text-xs font-semibold", senderAccentColor(message.sender_id || message.author_id || ""))}>
+                    {message.sender?.display_name || message.sender?.username || "Someone"}
+                  </span>
+                </div>
+              )}
               {showDate && (
                 <div className="flex justify-center py-2">
                   <span className="rounded-full bg-background/85 px-3 py-1 text-[11px] font-medium text-foreground shadow-sm ring-1 ring-violet-500/20">
@@ -1776,7 +1898,8 @@ export function MessagesWorkspace() {
                     "chat-bubble min-w-0 max-w-full break-words [overflow-wrap:anywhere] relative rounded-2xl px-3 py-2 text-sm shadow-sm",
                     mine
                       ? "chat-bubble-mine rounded-br-md bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-950/25"
-                      : "chat-bubble-peer rounded-bl-md bg-muted text-foreground shadow-sm ring-1 ring-border/40",
+                      : cn("chat-bubble-peer rounded-bl-md bg-muted text-foreground shadow-sm ring-1 ring-border/40",
+                          selected?.is_group && !mine && "border-l-2 border-l-violet-500/40"),
                     message.is_deleted &&
                       "chat-bubble-peer rounded-bl-md bg-muted/70 italic text-muted-foreground",
                   )}
@@ -1957,9 +2080,20 @@ export function MessagesWorkspace() {
         {typingPeer && (
           <div className="message-appear flex justify-start">
             <div className="chat-bubble chat-bubble-peer flex items-center gap-1 rounded-2xl rounded-bl-md bg-muted px-3.5 py-2.5">
-              <span className="typing-dot" />
-              <span className="typing-dot" />
-              <span className="typing-dot" />
+              {selected?.is_group && groupTypers.size > 0 ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
+                  <span className="text-[11px] text-muted-foreground ml-1">
+                    {groupTypers.size === 1
+                      ? Array.from(groupTypers.values())[0].name + " is typing..."
+                      : groupTypers.size === 2
+                        ? "2 people are typing..."
+                        : "Several people are typing..."}
+                  </span>
+                </div>
+              ) : (
+                <><span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" /></>
+              )}
             </div>
           </div>
         )}

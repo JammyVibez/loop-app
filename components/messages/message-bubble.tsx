@@ -38,6 +38,8 @@ interface MessageBubbleProps {
   onEdit: (msg: any) => void
   onDelete: (msg: any) => void
   onReaction?: (messageId: string, emoji: string) => void
+  onPin?: (msg: any) => void
+  canAdminDelete?: boolean
   QUICK_REACTIONS?: readonly string[]
 }
 
@@ -50,6 +52,8 @@ export function MessageBubble({
   onEdit,
   onDelete,
   onReaction,
+  onPin,
+  canAdminDelete = false,
   QUICK_REACTIONS = ["❤️", "😂", "👍", "🔥", "😮", "👏"],
 }: MessageBubbleProps) {
   const [showReactions, setShowReactions] = useState(false)
@@ -221,12 +225,12 @@ export function MessageBubble({
             <DropdownMenuItem onClick={handleCopy}>
               <Copy className="h-3.5 w-3.5 mr-2" /> {copied ? "Copied!" : "Copy"}
             </DropdownMenuItem>
-            {(message as any).onPin && (
-              <DropdownMenuItem onClick={() => (message as any).onPin(message)}>
+            {(onPin || (message as any).onPin) && (
+              <DropdownMenuItem onClick={() => onPin ? onPin(message) : (message as any).onPin?.(message)}>
                 <Pin className="h-3.5 w-3.5 mr-2" /> Pin
               </DropdownMenuItem>
             )}
-            {isOwn && (
+            {(isOwn || canAdminDelete) && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onEdit(message)}>
