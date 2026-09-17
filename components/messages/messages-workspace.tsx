@@ -1869,7 +1869,7 @@ export function MessagesWorkspace() {
           )}
         </div>
       )}
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-5">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-2.5 sm:px-5">
         {messagesLoading && messages.length === 0 ? (
           <div className="flex justify-center py-10 text-muted-foreground">
             <Spinner className="h-5 w-5" />
@@ -1915,13 +1915,13 @@ export function MessagesWorkspace() {
             return (
               <Fragment key={message.id}>
                 {showDate && (
-                  <div className="flex justify-center py-3">
-                    <span className="rounded-full bg-foreground/[0.05] px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur-sm">
+                  <div className="flex justify-center py-1.5">
+                    <span className="rounded-full bg-foreground/[0.05] px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm">
                       {dayLabel(message.created_at)}
                     </span>
                   </div>
                 )}
-                <div className="my-2 flex justify-center px-4">
+                <div className="my-1.5 flex justify-center px-4">
                   <span className="inline-flex max-w-[85%] items-center gap-1.5 rounded-full bg-foreground/[0.05] px-3 py-1 text-[11px] font-medium text-muted-foreground ring-1 ring-inset ring-border/40 backdrop-blur-sm">
                     <SystemIcon className="h-3 w-3 shrink-0 opacity-70" />
                     <span className="truncate">{message.content}</span>
@@ -1948,8 +1948,8 @@ export function MessagesWorkspace() {
                 </div>
               )}
               {showDate && (
-                <div className="flex justify-center py-3">
-                  <span className="rounded-full bg-foreground/[0.05] px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur-sm">
+                <div className="flex justify-center py-1.5">
+                  <span className="rounded-full bg-foreground/[0.05] px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm">
                     {dayLabel(message.created_at)}
                   </span>
                 </div>
@@ -1958,7 +1958,7 @@ export function MessagesWorkspace() {
                 className={cn(
                   "group flex w-full min-w-0 max-w-full",
                   mine ? "justify-end" : "justify-start",
-                  isFirstOfGroup ? "mt-3" : "mt-1",
+                  showDate ? "mt-1" : isFirstOfGroup ? "mt-2" : "mt-1",
                   isFresh && "message-appear",
                 )}
                 onClick={() => setActiveActionsId(null)}
@@ -2189,7 +2189,7 @@ export function MessagesWorkspace() {
           )
         })}
         {typingPeer && (
-          <div className="message-appear mt-3 flex justify-start">
+          <div className="message-appear mt-2 flex justify-start">
             <div className="chat-bubble chat-bubble-peer flex items-center gap-1 rounded-[18px] rounded-bl-[6px] bg-slate-100 px-3.5 py-2 ring-1 ring-inset ring-black/[0.04] dark:bg-slate-800 dark:ring-white/[0.06]">
               {selected?.is_group && groupTypers.size > 0 ? (
                 <div className="flex items-center gap-1.5">
