@@ -25,22 +25,57 @@ export async function generateMetadata({
   let isVerified = false
   let likeCount = 0
   let isCodeLoop = false
+  // Extra fields the premium share card needs (author name, PRO, custom mark).
+  let authorName = ""
+  let isPremium = false
+  let createdAt = ""
+  let postBody = ""
+  let badgeLabel = ""
+  let badgeColors: string[] = []
 
   try {
     const { data: loop } = await supabase
       .from("loops")
       .select(
-        "content_title, content, author_id, content_type, content_metadata, loop_stats(likes_count), profiles(username, display_name, avatar_url, is_verified)",
+        "content_title, content, author_id, content_type, content_metadata, created_at, loop_stats(likes_count), profiles(username, display_name, avatar_url, is_verified, is_premium, badge_id)",
       )
       .eq("id", id)
       .single()
 
     if (loop) {
-      const authorName = (loop as any)?.profiles?.display_name || (loop as any)?.profiles?.username || "Creator"
+      authorName = (loop as any)?.profiles?.display_name || (loop as any)?.profiles?.username || "Creator"
       username = (loop as any)?.profiles?.username || ""
       avatarUrl = (loop as any)?.profiles?.avatar_url || ""
       isVerified = Boolean((loop as any)?.profiles?.is_verified)
+      isPremium = Boolean((loop as any)?.profiles?.is_premium)
       likeCount = Number((loop as any)?.loop_stats?.likes_count || 0)
+      createdAt = (loop as any)?.created_at || ""
+      postBody = String(loop.content || "").slice(0, 480)
+
+      // Custom verification mark (admin badge) — resolved so the share card can
+      // paint it next to the standard verified / PRO badges.
+      const badgeId = (loop as any)?.profiles?.badge_id
+      if (badgeId) {
+        const { data: badge } = await supabase
+          .from("verification_badges")
+          .select("label, name, colors")
+          .eq("id", badgeId)
+          .maybeSingle()
+        if (badge) {
+          badgeLabel = (badge as any)?.label || (badge as any)?.name || ""
+          let colors: unknown = (badge as any)?.colors
+          if (typeof colors === "string") {
+            try {
+              colors = JSON.parse(colors)
+            } catch {
+              colors = (badge as any)?.colors
+            }
+          }
+          if (Array.isArray(colors)) {
+            badgeColors = colors.map((c: unknown) => String(c).trim()).filter(Boolean).slice(0, 2)
+          }
+        }
+      }
       isCodeLoop =
         (loop as any)?.content_type === "code" ||
         Boolean((loop as any)?.content_metadata?.is_code) ||
@@ -60,6 +95,18 @@ export async function generateMetadata({
     username,
   })
   if (avatarUrl) ogParams.set("avatar", avatarUrl)
+  if (authorName) ogParams.set("name", authorName)
+  if (postBody) ogParams.set("body", postBody)
+  if (createdAt) {
+    const d = new Date(createdAt)
+    if (!Number.isNaN(d.getTime())) {
+      ogParams.set("date", d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }))
+    }
+  }
+  if (badgeLabel) ogParams.set("badge_label", badgeLabel)
+  if (badgeColors[0]) ogParams.set("badge_color", badgeColors[0])
+  if (badgeColors[1]) ogParams.set("badge_color2", badgeColors[1])
+  if (isPremium) ogParams.set("premium", "true")
   if (isVerified) ogParams.set("verified", "true")
   if (likeCount > 0) {
     ogParams.set("stat", likeCount.toLocaleString())

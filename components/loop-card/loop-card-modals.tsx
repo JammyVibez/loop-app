@@ -395,6 +395,7 @@ export function LoopCardModals({
         post={{
           id: loop.id,
           content: content,
+          created_at: loop.created_at,
           media_url: loop.media_urls?.[0] || loop.media_url || undefined,
           media_type: loop.media_type || undefined,
           author: {
@@ -405,6 +406,7 @@ export function LoopCardModals({
             is_premium: Boolean(loop.author?.is_premium),
             is_sponsor: Boolean(loop.author?.is_sponsor),
             is_team: Boolean(loop.author?.is_team_member),
+            badge_id: loop.author?.badge_id ?? null,
           },
           stats: {
             likes_count: Number(loop.stats?.likes_count || 0),

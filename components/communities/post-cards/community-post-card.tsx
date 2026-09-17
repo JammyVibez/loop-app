@@ -525,6 +525,7 @@ export function CommunityPostCard({
           post={{
             id: String(post.id),
             content: post.content || "",
+            created_at: post.created_at,
             author: {
               username: author?.username || "member",
               display_name: author?.display_name || author?.username || "Member",
@@ -533,6 +534,7 @@ export function CommunityPostCard({
               is_premium: Boolean(author?.is_premium),
               is_sponsor: author?.is_sponsor,
               is_team: author?.is_team_member,
+              badge_id: author?.badge_id ?? null,
             },
             media_url: mediaUrls[0] || undefined,
             stats: {
