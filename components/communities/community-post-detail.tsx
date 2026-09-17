@@ -153,7 +153,7 @@ export function CommunityPostDetail({ communityId, postId }: { communityId: stri
         <button
           type="button"
           onClick={() => router.back()}
-          className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          className="flex h-9 items-center gap-1.5 rounded-full bg-foreground/[0.04] px-3 text-sm font-semibold text-muted-foreground transition hover:bg-foreground/[0.08] hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Back
@@ -169,7 +169,7 @@ export function CommunityPostDetail({ communityId, postId }: { communityId: stri
       </div>
 
       {/* Author summary header */}
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3">
+      <div className="flex items-center justify-between gap-3 rounded-3xl bg-foreground/[0.02] px-4 py-3 ring-1 ring-inset ring-border/30">
         <Link href={`/profile/${author?.username}`} className="flex min-w-0 items-center gap-2.5">
           <span className="text-sm font-bold hover:underline">{author?.display_name || author?.username}</span>
           <UserBadges
@@ -195,7 +195,10 @@ export function CommunityPostDetail({ communityId, postId }: { communityId: stri
         )}
       </div>
 
-      {/* The post — same card component as the feed, detail context */}
+      {/* The post — same card component as the feed, detail context. The card
+          itself is borderless in the feed, so the detail page seats it on a
+          quiet glass panel instead of leaving it unanchored. */}
+      <div className="rounded-3xl bg-foreground/[0.02] px-2 py-1 ring-1 ring-inset ring-border/30">
       <CommunityPostCard
         post={post}
         communityId={communityId}
@@ -208,13 +211,14 @@ export function CommunityPostDetail({ communityId, postId }: { communityId: stri
         voting={voting ? post.id : null}
         liking={liking ? post.id : null}
       />
+      </div>
 
       {/* Comments — always open on the detail page */}
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-3xl bg-foreground/[0.02] p-4 ring-1 ring-inset ring-border/30">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-bold">
           <MessageSquare className="h-4 w-4 text-muted-foreground" />
           Comments
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+          <span className="rounded-full bg-foreground/[0.06] px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
             {post.comment_count || 0}
           </span>
         </h2>

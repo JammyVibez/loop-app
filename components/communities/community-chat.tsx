@@ -62,6 +62,11 @@ interface SpaceInfo {
 const QUICK_REACTIONS = ["❤️", "😂", "🔥", "👍", "😮", "🙏"]
 const QUICK_EMOJIS = ["😀", "😂", "🥰", "😎", "🤔", "😢", "😡", "🎉", "🔥", "👍", "🙏", "💯", "🚀", "✨", "❤️", "👀"]
 
+/** Long-press delay before a touch reveals a message's action bar. */
+const LONG_PRESS_MS = 380
+/** Consecutive messages from one author inside this window form one block. */
+const GROUP_WINDOW_MS = 5 * 60 * 1000
+
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60000)
@@ -124,6 +129,15 @@ export function CommunityChat({
   const [showEmoji, setShowEmoji] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [reactingTo, setReactingTo] = useState<string | null>(null)
+  /** Message whose action bar / reaction picker a long-press revealed. */
+  const [activeActionsId, setActiveActionsId] = useState<string | null>(null)
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -317,11 +331,15 @@ export function CommunityChat({
   }, [messages, search])
 
   const grouped = groupMessagesByDate(filtered)
+  // Flat index so each message can look at its true neighbours when deciding
+  // whether it starts/ends a run from the same author.
+  const flatIndex = new Map<string, number>()
+  filtered.forEach((m, i) => flatIndex.set(m.id, i))
 
   return (
-    <div className="flex flex-col h-full min-h-[520px] max-h-[720px] rounded-2xl border border-border bg-card overflow-hidden">
+    <div className="flex h-full min-h-[520px] max-h-[720px] flex-col overflow-hidden rounded-3xl border border-border/30 bg-background/40 backdrop-blur-xl">
       {/* Header: space tabs + search toggle */}
-      <div className="border-b border-border/50">
+      <div className="border-b border-border/30">
         <div className="flex items-center gap-2 px-4 py-2">
           <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
             <button
@@ -329,8 +347,8 @@ export function CommunityChat({
               className={cn(
                 "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition shrink-0",
                 selectedSpace === "general"
-                  ? "bg-indigo-500/15 text-indigo-500 border border-indigo-500/30"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                  ? "bg-indigo-500/15 text-indigo-500"
+                  : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]",
               )}
             >
               <MessageSquare className="h-3 w-3" />
@@ -343,8 +361,8 @@ export function CommunityChat({
                 className={cn(
                   "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition shrink-0",
                   selectedSpace === String(s.id)
-                    ? "bg-indigo-500/15 text-indigo-500 border border-indigo-500/30"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                    ? "bg-indigo-500/15 text-indigo-500"
+                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]",
                 )}
               >
                 {s.name}
@@ -359,7 +377,7 @@ export function CommunityChat({
             }}
             className={cn(
               "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition",
-              showSearch ? "bg-indigo-500/15 text-indigo-500" : "text-muted-foreground hover:bg-muted/50",
+              showSearch ? "bg-indigo-500/15 text-indigo-500" : "text-muted-foreground hover:bg-foreground/[0.06]",
             )}
             title="Search messages"
           >
@@ -372,7 +390,7 @@ export function CommunityChat({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search this conversation…"
-              className="h-8 rounded-full bg-muted/50 text-xs"
+              className="h-8 rounded-full border-0 bg-foreground/[0.05] text-xs"
               autoFocus
             />
           </div>
@@ -380,7 +398,7 @@ export function CommunityChat({
       </div>
 
       {/* Messages Area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-1 scroll-smooth">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto scroll-smooth px-3 py-4 sm:px-4">
         {loading ? (
           <div className="flex items-center justify-center h-32">
             <Spinner className="h-5 w-5 text-muted-foreground" />
@@ -399,10 +417,8 @@ export function CommunityChat({
           grouped.map((group) => (
             <div key={group.date}>
               {/* Date separator */}
-              <div className="flex items-center gap-3 py-3">
-                <div className="flex-1 h-px bg-border/50" />
-                <span className="text-[10px] font-medium text-muted-foreground shrink-0">{group.date}</span>
-                <div className="flex-1 h-px bg-border/50" />
+              <div className="flex justify-center py-3">
+                <span className="rounded-full bg-foreground/[0.05] px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur-sm">{group.date}</span>
               </div>
 
               {group.messages.map((msg) => {
@@ -411,17 +427,69 @@ export function CommunityChat({
                 const sender = msg.sender
                 const reactions = msg.reactions && typeof msg.reactions === "object" ? msg.reactions : {}
                 const reactionEntries = Object.entries(reactions).filter(([, uids]) => (uids as string[]).length > 0)
+                // Runs of consecutive messages from the same author are visually
+                // grouped: tighter spacing, a single name header, and the avatar
+                // plus timestamp only on the last message of the run.
+                const idx = flatIndex.get(msg.id) ?? 0
+                const prevMsg = filtered[idx - 1]
+                const nextMsg = filtered[idx + 1]
+                const sameAuthorAsPrev =
+                  Boolean(prevMsg) &&
+                  prevMsg!.author_id === msg.author_id &&
+                  !prevMsg!.is_deleted &&
+                  new Date(msg.created_at).getTime() - new Date(prevMsg!.created_at).getTime() < GROUP_WINDOW_MS
+                const sameAuthorAsNext =
+                  Boolean(nextMsg) &&
+                  nextMsg!.author_id === msg.author_id &&
+                  !msg.is_deleted &&
+                  new Date(nextMsg!.created_at).getTime() - new Date(msg.created_at).getTime() < GROUP_WINDOW_MS
+                const isFirstOfGroup = !sameAuthorAsPrev
+                const isLastOfGroup = !sameAuthorAsNext
+                const actionsOpen = activeActionsId === msg.id
+                const revealMeta = isLastOfGroup || actionsOpen
 
                 return (
-                  <div key={msg.id} className={cn("group relative flex items-start gap-2 py-1.5 rounded-lg px-2 -mx-2 transition", isOwn ? "hover:bg-indigo-500/5" : "hover:bg-muted/30")}>
-                    <Avatar className="h-8 w-8 shrink-0 mt-0.5">
-                      <AvatarImage src={sender?.avatar_url || ""} />
-                      <AvatarFallback className="text-[10px] bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white">
-                        {sender?.display_name?.charAt(0) || "?"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline gap-2">
+                  <div
+                    key={msg.id}
+                    className={cn(
+                      "group relative flex w-full min-w-0 gap-2",
+                      isOwn ? "justify-end" : "justify-start",
+                      isFirstOfGroup ? "mt-3" : "mt-[3px]",
+                    )}
+                    onClick={() => setActiveActionsId(null)}
+                    onContextMenu={(e) => {
+                      // Touch devices: a long-press reveals the actions instead of
+                      // the native menu. Desktop keeps right-click for copy.
+                      if (typeof window !== "undefined" && window.matchMedia("(hover: none)").matches) {
+                        e.preventDefault()
+                        setActiveActionsId(msg.id)
+                      }
+                    }}
+                    onTouchStart={() => {
+                      cancelLongPress()
+                      longPressTimer.current = setTimeout(() => setActiveActionsId(msg.id), LONG_PRESS_MS)
+                    }}
+                    onTouchEnd={cancelLongPress}
+                    onTouchMove={cancelLongPress}
+                    onTouchCancel={cancelLongPress}
+                  >
+                    {/* Avatar gutter — bottom aligned, only on the last message of a run */}
+                    {!isOwn && (
+                      <div className="w-7 shrink-0 self-end">
+                        {isLastOfGroup && (
+                          <Avatar className="h-7 w-7 ring-1 ring-border/40">
+                            <AvatarImage src={sender?.avatar_url || ""} />
+                            <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-[10px] text-white">
+                              {sender?.display_name?.charAt(0) || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                      </div>
+                    )}
+                    <div className="min-w-0 max-w-[min(85%,calc(100vw-3rem))] sm:max-w-[min(72%,calc(100vw-4rem))]">
+                      {/* Your own messages don't repeat your name above the bubble */}
+                      {isFirstOfGroup && !isOwn && (
+                        <div className="mb-0.5 flex items-center gap-1.5">
                         <span className={cn("text-sm font-semibold truncate", isOwn && "text-indigo-500")}>
                           {sender?.display_name || sender?.username || "Unknown"}
                         </span>
@@ -447,23 +515,37 @@ export function CommunityChat({
                             </span>
                           )
                         })()}
-                        <span className="text-[10px] text-muted-foreground shrink-0">{messageTime(msg.created_at)}</span>
-                      </div>
+                        </div>
+                      )}
 
+                      <div
+                        className={cn(
+                          "chat-bubble relative break-words [overflow-wrap:anywhere] px-3.5 py-2.5 text-[15px] leading-relaxed shadow-sm",
+                          isOwn
+                            ? cn(
+                                "chat-bubble-mine bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-950/20",
+                                isLastOfGroup ? "rounded-[20px] rounded-br-[7px]" : "rounded-[20px]",
+                              )
+                            : cn(
+                                "chat-bubble-peer bg-slate-100 text-slate-900 ring-1 ring-inset ring-black/[0.04] dark:bg-slate-800 dark:text-slate-50 dark:ring-white/[0.06]",
+                                isLastOfGroup ? "rounded-[20px] rounded-bl-[7px]" : "rounded-[20px]",
+                              ),
+                        )}
+                      >
                       {/* Quoted reply preview */}
                       {msg.reply_to && (
-                        <div className="mt-0.5 mb-1 flex items-center gap-1.5 rounded-lg border-l-2 border-indigo-400/60 bg-muted/40 px-2 py-1">
-                          <span className="text-[10px] font-semibold text-indigo-500 shrink-0">
+                        <div className={cn("mb-1.5 flex items-center gap-1.5 rounded-xl border-l-2 border-indigo-400/70 px-2 py-1", isOwn ? "bg-white/10" : "bg-background/50")}>
+                          <span className={cn("shrink-0 text-[10px] font-semibold", isOwn ? "text-white/90" : "text-indigo-500")}>
                             {msg.reply_to.author?.display_name || "Member"}
                           </span>
-                          <span className="truncate text-[10px] text-muted-foreground">
+                          <span className={cn("truncate text-[10px]", isOwn ? "text-white/70" : "text-muted-foreground")}>
                             {msg.reply_to.content?.slice(0, 80) || (msg.reply_to.media_url ? "📷 Media" : "")}
                           </span>
                         </div>
                       )}
 
                       {msg.content && (
-                        <p className={cn("text-sm leading-relaxed break-words whitespace-pre-wrap", isOwn ? "text-foreground" : "text-foreground/90")}>
+                        <p className="whitespace-pre-wrap break-words leading-relaxed">
                           {msg.content}
                         </p>
                       )}
@@ -472,7 +554,7 @@ export function CommunityChat({
                           <img
                             src={msg.media_url}
                             alt="Shared media"
-                            className="mt-1 max-h-64 rounded-xl object-cover border border-border/50 transition hover:opacity-95"
+                            className="mt-1 max-h-64 rounded-2xl object-cover ring-1 ring-inset ring-black/5 transition hover:opacity-95 dark:ring-white/10"
                             loading="lazy"
                           />
                         </a>
@@ -483,7 +565,7 @@ export function CommunityChat({
                           controls
                           playsInline
                           preload="metadata"
-                          className="mt-1 max-h-72 w-full max-w-sm rounded-xl bg-black object-contain border border-border/50"
+                          className="mt-1 max-h-72 w-full max-w-sm rounded-2xl bg-black object-contain ring-1 ring-inset ring-black/10 dark:ring-white/10"
                         />
                       )}
                       {msg.media_url && msg.message_type !== "image" && msg.media_type !== "image" && msg.message_type !== "file" && msg.media_type !== "video" && (
@@ -491,16 +573,14 @@ export function CommunityChat({
                           href={msg.media_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="mt-1 inline-flex items-center gap-1.5 text-xs text-indigo-500 hover:underline"
+                          className={cn("mt-1 inline-flex items-center gap-1.5 text-xs hover:underline", isOwn ? "text-white/90" : "text-indigo-500")}
                         >
                           📎 {msg.message_type === "gif" ? "GIF" : "Attachment"}
                         </a>
                       )}
-                      {msg.is_edited && <span className="text-[10px] text-muted-foreground/60">(edited)</span>}
-
                       {/* Reaction chips */}
                       {reactionEntries.length > 0 && (
-                        <div className="mt-1 flex flex-wrap gap-1">
+                        <div className="mt-1.5 flex flex-wrap gap-1">
                           {reactionEntries.map(([emoji, uids]) => {
                             const mine = user && (uids as string[]).includes(user.id)
                             return (
@@ -509,10 +589,10 @@ export function CommunityChat({
                                 type="button"
                                 onClick={() => toggleReaction(msg.id, emoji)}
                                 className={cn(
-                                  "flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold transition",
+                                  "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset transition active:scale-95",
                                   mine
-                                    ? "border-indigo-500/50 bg-indigo-500/10 text-indigo-500"
-                                    : "border-border bg-muted/50 text-muted-foreground hover:border-indigo-500/40",
+                                    ? (isOwn ? "bg-white/20 text-white ring-white/25" : "bg-indigo-500/15 text-indigo-500 ring-indigo-500/30")
+                                    : (isOwn ? "bg-white/10 text-white/80 ring-white/15" : "bg-foreground/[0.06] text-muted-foreground ring-border/40 hover:text-foreground"),
                                 )}
                                 title={(uids as string[]).length + " reacted"}
                               >
@@ -523,14 +603,30 @@ export function CommunityChat({
                           })}
                         </div>
                       )}
+                      </div>
+
+                      {revealMeta && (
+                        <div className={cn("mt-1 flex items-center gap-1 text-[10px] leading-none opacity-60", isOwn ? "justify-end" : "justify-start")}>
+                          <span className="tabular-nums">{messageTime(msg.created_at)}</span>
+                          {msg.is_edited && <span className="italic">edited</span>}
+                        </div>
+                      )}
                     </div>
 
-                    {/* Hover actions */}
-                    <div className="flex items-center gap-0.5 opacity-0 transition group-hover:opacity-100 shrink-0 mt-1">
+                    {/* Actions — hidden until long-press (mobile) or hover (desktop) */}
+                    <div
+                      className={cn(
+                        "mt-0.5 flex shrink-0 items-center gap-0.5 self-start transition-opacity duration-150",
+                        actionsOpen
+                          ? "opacity-100"
+                          : "pointer-events-none opacity-0 sm:pointer-events-auto sm:group-hover:opacity-100",
+                      )}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6"
+                        className="h-7 w-7 rounded-full text-muted-foreground hover:bg-foreground/[0.06]"
                         onClick={() => setReactingTo(reactingTo === msg.id ? null : msg.id)}
                         title="React"
                       >
@@ -539,7 +635,7 @@ export function CommunityChat({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6"
+                        className="h-7 w-7 rounded-full text-muted-foreground hover:bg-foreground/[0.06]"
                         onClick={() => {
                           setReplyTo(msg)
                           inputRef.current?.focus()
@@ -552,7 +648,7 @@ export function CommunityChat({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 text-red-500 hover:text-red-600"
+                          className="h-7 w-7 rounded-full text-red-500 hover:bg-red-500/10 hover:text-red-600"
                           onClick={() => deleteMessage(msg.id)}
                           title="Delete"
                         >
@@ -563,7 +659,7 @@ export function CommunityChat({
 
                     {/* Reaction picker */}
                     {reactingTo === msg.id && (
-                      <div className="absolute right-2 top-8 z-20 flex items-center gap-0.5 rounded-full border border-border bg-popover px-1.5 py-1 shadow-lg">
+                      <div className={cn("absolute top-full z-20 mt-1 flex items-center gap-0.5 rounded-2xl bg-popover/95 px-1.5 py-1 shadow-xl ring-1 ring-border/40 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150", isOwn ? "right-0" : "left-0")}>
                         {QUICK_REACTIONS.map((emoji) => (
                           <button
                             key={emoji}
@@ -586,9 +682,9 @@ export function CommunityChat({
 
       {/* Reply Preview */}
       {replyTo && (
-        <div className="mx-4 flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-xs">
-          <Reply className="h-3 w-3 text-indigo-500 shrink-0" />
-          <span className="text-muted-foreground truncate flex-1">
+        <div className="mx-2 mb-1 flex items-center gap-2 rounded-2xl border-l-2 border-indigo-500 bg-foreground/[0.05] px-3 py-2 text-xs backdrop-blur-xl sm:mx-3">
+          <Reply className="h-3 w-3 shrink-0 text-indigo-500" />
+          <span className="min-w-0 flex-1 truncate text-muted-foreground">
             Replying to <span className="font-semibold text-foreground">{replyTo.sender?.display_name}</span>:{" "}
             {replyTo.content?.slice(0, 60) || (replyTo.media_url ? "Media" : "")}
           </span>
@@ -600,7 +696,7 @@ export function CommunityChat({
 
       {/* Emoji picker */}
       {showEmoji && (
-        <div className="mx-4 mb-2 flex flex-wrap gap-1 rounded-xl border border-border bg-muted/40 p-2">
+        <div className="mx-2 mb-2 flex flex-wrap gap-1 rounded-2xl bg-foreground/[0.05] p-2 ring-1 ring-inset ring-border/40 sm:mx-3">
           {QUICK_EMOJIS.map((emoji) => (
             <button
               key={emoji}
@@ -619,21 +715,21 @@ export function CommunityChat({
 
       {/* Error banner */}
       {error && (
-        <div className="mx-4 mb-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2 text-xs text-red-500">
+        <div className="mx-2 mb-2 rounded-2xl bg-rose-500/10 px-3 py-2 text-xs text-rose-500 ring-1 ring-inset ring-rose-500/20 sm:mx-3">
           {error}
         </div>
       )}
 
       {/* Locked banner — replaces the composer for non-staff when locked */}
       {chatSettings?.chat_locked ? (
-        <div className="px-4 py-3 border-t border-border/50">
-          <div className="flex items-center gap-2 rounded-xl bg-muted/60 border border-border/50 px-3 py-2.5 text-xs text-muted-foreground">
+        <div className="border-t border-border/30 px-2 py-3 sm:px-3">
+          <div className="flex items-center justify-center gap-2 rounded-full bg-foreground/[0.05] px-4 py-2.5 text-xs text-muted-foreground ring-1 ring-inset ring-border/40">
             <Lock className="h-3.5 w-3.5 shrink-0 text-amber-500" />
             <span className="truncate">{chatSettings.chat_locked_message}</span>
           </div>
         </div>
       ) : (
-      <div className="px-4 py-3 border-t border-border/50">
+      <div className="border-t border-border/30 bg-background/50 px-2 py-2.5 backdrop-blur-2xl sm:px-3">
         <form
           onSubmit={(e) => {
             e.preventDefault()
@@ -655,7 +751,7 @@ export function CommunityChat({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-10 w-10 shrink-0 rounded-xl text-muted-foreground hover:text-indigo-500"
+            className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-indigo-500/10 hover:text-indigo-500"
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
             title="Send an image"
@@ -666,7 +762,7 @@ export function CommunityChat({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-10 w-10 shrink-0 rounded-xl text-muted-foreground hover:text-amber-500"
+            className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-amber-500/10 hover:text-amber-500"
             onClick={() => setShowEmoji((v) => !v)}
             title="Emoji"
           >
@@ -683,7 +779,7 @@ export function CommunityChat({
                   ? `Reply to ${replyTo.sender?.display_name}...`
                   : "Type a message..."
             }
-            className="flex-1 rounded-xl bg-muted/50 border-border/50 text-sm h-10"
+            className="h-10 flex-1 rounded-full border-0 bg-foreground/[0.05] px-4 text-sm focus-visible:ring-1 focus-visible:ring-violet-500/40"
             disabled={sending || slowLeft > 0}
             maxLength={5000}
           />
@@ -691,7 +787,7 @@ export function CommunityChat({
             type="submit"
             size="icon"
             disabled={!input.trim() || sending}
-            className="h-10 w-10 rounded-xl shrink-0 bg-indigo-500 hover:bg-indigo-600"
+            className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-violet-600/20 hover:from-violet-400 hover:to-purple-500"
           >
             {sending ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
           </Button>

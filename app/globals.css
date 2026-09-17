@@ -715,25 +715,13 @@ html[data-theme="forest"] .border-zinc-800 { border-color: hsl(var(--border)) !i
   max-width: 100%;
 }
 
-.chat-bubble::before {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  width: 10px;
-  height: 10px;
-}
-
-.chat-bubble-mine::before {
-  right: -5px;
-  background: inherit;
-  clip-path: polygon(0 0, 0% 100%, 100% 100%);
-}
-
-.chat-bubble-peer::before {
-  left: -5px;
-  background: inherit;
-  clip-path: polygon(100% 0, 0% 100%, 100% 100%);
-}
+/*
+ * Bubbles no longer paint a pseudo-element tail. Runs of consecutive messages
+ * now signal the sender side with a tightened corner radius on the last bubble
+ * of the run (rounded-br-[7px] / rounded-bl-[7px]) — a 10px tail on every
+ * bubble fought that grouping and added visual noise on both 1:1 and community
+ * chats.
+ */
 
 .typing-dot {
   width: 6px;

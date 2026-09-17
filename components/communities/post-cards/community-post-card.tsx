@@ -241,21 +241,22 @@ export function CommunityPostCard({
     <div
       id={`world-post-${post.id}`}
       className={cn(
-        "rounded-2xl border bg-card overflow-hidden scroll-mt-24 transition-all duration-500 hover:shadow-md hover:border-border/80",
-        flashId === post.id
-          ? "border-indigo-500 ring-2 ring-indigo-500/40 shadow-lg shadow-indigo-900/20"
-          : "border-border",
+        // Borderless, X-style post: no card chrome or shadow — community posts
+        // sit directly on the page background, separated by the feed's
+        // hairline divider, with a whisper-quiet row hover.
+        "relative bg-transparent scroll-mt-24 transition-colors duration-300 hover:bg-foreground/[0.02]",
+        flashId === post.id && "bg-indigo-500/[0.07] ring-1 ring-inset ring-indigo-500/30",
       )}
     >
       {/* Pinned indicator */}
       {post.is_pinned && (
-        <div className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-500/10 border-b border-indigo-500/20">
+        <div className="flex items-center gap-1.5 px-1.5 py-1">
           <Pin className="h-3 w-3 text-indigo-500" />
           <span className="text-[11px] font-semibold text-indigo-500">Pinned</span>
         </div>
       )}
 
-      <div className="p-4">
+      <div className="px-1.5 py-3 sm:px-2">
         {/* Header */}
         <div className="flex items-center gap-3">
           <Link href={`/profile/${author?.username}`} className="shrink-0">
@@ -343,7 +344,7 @@ export function CommunityPostCard({
               if (e.key === "Enter") window.location.href = `/communities/${communityId}/posts/${post.id}`
             }}
           >
-            <RichContent text={post.content} showPreviewCard className="text-sm leading-relaxed" />
+            <RichContent text={post.content} showPreviewCard className="text-[15px] leading-relaxed" />
           </div>
         )}
 
@@ -358,7 +359,7 @@ export function CommunityPostCard({
           return (
             <div className="mt-3">
               <div
-                className={cn("group relative aspect-video overflow-hidden rounded-xl bg-muted select-none", mediaUrls.length > 1 && "cursor-grab")}
+                className={cn("group relative aspect-video overflow-hidden rounded-2xl bg-muted select-none", mediaUrls.length > 1 && "cursor-grab")}
                 onClick={() => {
                   setViewerIndex(idx)
                   setViewerOpen(true)
@@ -440,7 +441,7 @@ export function CommunityPostCard({
         {hashtags.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {hashtags.map((tag, i) => (
-              <span key={i} className="text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+              <span key={i} className="text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full ring-1 ring-inset ring-primary/20">
                 #{tag}
               </span>
             ))}

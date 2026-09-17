@@ -62,10 +62,10 @@ export function PostReactions({ postId, reactions, onReact, isMember }: PostReac
             onClick={() => isMember && onReact(postId, r.type)}
             disabled={!isMember}
             className={cn(
-              "flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition border",
+              "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset transition active:scale-95",
               r.reacted
-                ? "border-primary/30 bg-primary/10 text-primary"
-                : "border-border bg-card text-muted-foreground hover:border-primary/30",
+                ? "bg-primary/10 text-primary ring-primary/30"
+                : "bg-foreground/[0.05] text-muted-foreground ring-border/40 hover:text-foreground",
             )}
           >
             <Icon className={cn("h-3 w-3", r.reacted && "fill-current")} />

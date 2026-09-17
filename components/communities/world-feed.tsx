@@ -335,7 +335,7 @@ export function WorldFeed({
             onPostCreated={handlePostCreated}
           />
         ) : (
-          <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
             <Lock className="mx-auto h-5 w-5 mb-2" />
             Join the community to post and interact.
           </div>
@@ -343,7 +343,7 @@ export function WorldFeed({
 
         {/* Approval notice */}
         {approvalOn && (
-          <div className="flex items-center gap-1.5 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+          <div className="flex items-center gap-1.5 rounded-xl bg-amber-500/[0.08] px-3 py-2 text-[11px] font-semibold text-amber-600 ring-1 ring-inset ring-amber-500/25 dark:text-amber-400">
             <Hourglass className="h-3 w-3" /> Posts are reviewed by moderators before they appear.
           </div>
         )}
@@ -362,7 +362,7 @@ export function WorldFeed({
                 "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition",
                 sortBy === s.id
                   ? "bg-foreground text-background"
-                  : "border border-border bg-card text-muted-foreground hover:text-foreground",
+                  : "bg-foreground/[0.04] text-muted-foreground hover:text-foreground",
               )}
             >
               <s.icon className="h-3 w-3" />
@@ -379,7 +379,7 @@ export function WorldFeed({
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="rounded-2xl border border-border bg-card p-4 space-y-3">
+              <div key={i} className="space-y-3 rounded-2xl bg-foreground/[0.03] p-4">
                 <div className="flex gap-3">
                   <Skeleton className="h-9 w-9 rounded-full" />
                   <div className="space-y-2 flex-1">
@@ -391,13 +391,13 @@ export function WorldFeed({
             ))}
           </div>
         ) : posts.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border p-10 text-center">
+          <div className="rounded-2xl border border-dashed border-border/60 p-10 text-center">
             <Globe2 className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
             <p className="text-sm font-semibold">No posts here yet</p>
             <p className="text-xs text-muted-foreground mt-1">Be the first to start the conversation.</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="divide-y divide-border/40">
             {[...posts]
               .sort((a, b) => Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned)))
               .map((p) => (
@@ -439,10 +439,10 @@ export function WorldFeed({
             key={s.id}
             onClick={() => setSpaceId(String(s.id))}
             className={cn(
-              "w-full flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition",
+              "flex w-full items-center gap-2.5 rounded-xl p-2.5 text-left ring-1 ring-inset transition",
               String(s.id) === spaceId
-                ? "border-indigo-500/50 bg-indigo-500/10"
-                : "border-border bg-card hover:border-indigo-500/30",
+                ? "bg-indigo-500/10 ring-indigo-500/40"
+                : "bg-foreground/[0.02] ring-transparent hover:bg-foreground/[0.05]",
             )}
           >
             <SpaceIcon icon={s.icon || "home"} className="h-4 w-4 text-muted-foreground shrink-0" />
