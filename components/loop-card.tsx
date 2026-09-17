@@ -425,22 +425,26 @@ export const LoopCard = memo(function LoopCard({
   const coAuthors = loop.co_authors || []
 
   const getCardStyle = () => {
+    // Borderless, X-style row. Posts sit directly on the page background with
+    // no card chrome or drop shadow, separated only by the feed's hairline
+    // divider. Premium card effects still render through AnimatedCardFrame,
+    // and callers can layer their own container styles via `className`
+    // (e.g. the profile passes `rounded-none border-0 shadow-none`).
     const baseStyle =
-      "relative overflow-hidden transition-all duration-300 transform-gpu"
+      "relative overflow-hidden rounded-none border-0 bg-transparent text-card-foreground shadow-none transition-colors duration-200"
     const themeStyle = currentTheme?.effects?.glow
       ? `shadow-lg shadow-[var(--theme-primary)]/20`
       : ""
-    const hoverStyle = isHovered
-      ? "-translate-y-1 shadow-xl shadow-black/10 ring-1 ring-primary/10"
-      : "hover:shadow-lg hover:-translate-y-0.5"
+    // Subtle row highlight instead of a lift + shadow.
+    const hoverStyle = isHovered ? "bg-foreground/[0.02]" : "hover:bg-foreground/[0.02]"
     const featuredStyle = loop.is_featured
-      ? "ring-2 ring-yellow-400/50 bg-gradient-to-br from-yellow-50/50 to-orange-50/50 dark:from-yellow-900/10 dark:to-orange-900/10"
+      ? "border-l-2 border-l-yellow-400/70 bg-gradient-to-r from-yellow-500/[0.06] to-transparent"
       : ""
     const coLoopStyle = isCoLoop
-      ? "border-cyan-500/40 bg-gradient-to-br from-cyan-950/10 via-card to-purple-950/10 dark:from-cyan-950/30 dark:to-purple-950/20 shadow-cyan-500/5 shadow-lg border"
+      ? "border-l-2 border-l-cyan-400/60 bg-gradient-to-r from-cyan-500/[0.06] to-transparent"
       : ""
 
-    return `${baseStyle} ${themeStyle} ${hoverStyle} ${featuredStyle} ${coLoopStyle}`
+    return `${baseStyle} ${className} ${themeStyle} ${hoverStyle} ${featuredStyle} ${coLoopStyle}`
   }
 
   const getAvatarStyle = () => {
@@ -506,7 +510,7 @@ export const LoopCard = memo(function LoopCard({
           />
 
           {/* ── Content + Media + Actions ── */}
-          <CardContent className="pt-0 px-3 sm:px-6">
+          <CardContent className="px-1 pb-2 pt-0 sm:px-2">
             <LoopCardContent
               loop={loop}
               rawLoop={rawLoop}

@@ -18,7 +18,6 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CardHeader } from "@/components/ui/card"
 import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
 import {
@@ -83,7 +82,7 @@ export function LoopCardHeader({
     parentAuthor?.username?.trim() || parentAuthor?.display_name?.trim() || ""
 
   return (
-    <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6">
+    <div className="flex flex-col gap-1.5 px-1 pb-1.5 pt-3 sm:px-2">
       {LoginGateDialog}
 
       {/* Branch origin banner — always name the author we branched from (@username + badge when verified) */}
@@ -384,6 +383,6 @@ export function LoopCardHeader({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </CardHeader>
+    </div>
   )
 }

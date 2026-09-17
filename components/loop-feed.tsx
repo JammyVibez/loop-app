@@ -788,7 +788,9 @@ export function LoopFeed({
         className={cn(
           viewMode === "cards" && "grid gap-3 sm:grid-cols-2",
           viewMode === "articles" && "space-y-4",
-          viewMode === "stream" && "space-y-3 sm:space-y-4"
+          // Stream view is a seamless, borderless feed (X-style): posts are
+          // separated by a hairline divider instead of card gaps.
+          viewMode === "stream" && "divide-y divide-border/40"
         )}
       >
         {filteredLoops.map((loop, idx) => {
@@ -799,7 +801,7 @@ export function LoopFeed({
           const showMomentCompose =
             !guestMode && feedType === "personalized" && idx === COMPOSE_MOMENT_SLOT && moments.length > 0
           return (
-            <div key={loop.id} className="space-y-1.5">
+            <div key={loop.id} className="py-1.5">
               {showAdHere && (
                 <div className="mb-1.5">
                   <AdCard ad={feedAds[0]} sessionId={sessionIdRef.current} />
@@ -845,6 +847,11 @@ export function LoopFeed({
                   <LoopCard
                     loop={loop}
                     interacting={interacting}
+                    className={
+                      viewMode === "cards"
+                        ? "rounded-2xl border border-border/60 bg-card p-1"
+                        : undefined
+                    }
                     onInteraction={handleInteraction}
                     onDeleted={(loopId) => setLoops((prev) => prev.filter((item) => item.id !== loopId))}
                     onEdited={(updatedLoop) =>

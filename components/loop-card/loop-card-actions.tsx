@@ -86,7 +86,7 @@ export function LoopCardActions({
   return (
     <div className="space-y-2">
       {/* Action buttons bar */}
-      <div className="flex items-center justify-between gap-2 rounded-2xl border border-border/60 bg-muted/20 px-1.5 py-1.5 sm:px-2.5">
+      <div className="flex items-center justify-between gap-2 px-0.5">
         <div className="flex items-center gap-0.5 sm:gap-1">
           <Button
             variant="ghost"

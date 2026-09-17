@@ -75,6 +75,10 @@ import {
   Video,
   Wallpaper,
   ImagePlus,
+  Lock,
+  ShieldCheck,
+  UserMinus,
+  UserPlus,
   X,
 } from "lucide-react"
 import {
@@ -166,6 +170,24 @@ function senderAccentColor(senderId: string): string {
   const h = senderId.split("").reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) >>> 0, 0)
   return SENDER_ACCENT_COLORS[h % SENDER_ACCENT_COLORS.length]
 }
+
+/**
+ * System events (join/leave/lock/name change…) get a small semantic icon so
+ * they read at a glance without looking like a chat bubble.
+ */
+function systemMessageIcon(content: string) {
+  const text = (content || "").toLowerCase()
+  if (text.includes("lock")) return Lock
+  if (text.includes("unlock")) return Lock
+  if (text.includes("join") || text.includes("added")) return UserPlus
+  if (text.includes("left") || text.includes("removed")) return UserMinus
+  if (text.includes("admin") || text.includes("moderator") || text.includes("promot")) return ShieldCheck
+  if (text.includes("name") || text.includes("description") || text.includes("renam")) return Pencil
+  return MessageCircle
+}
+
+/** Long-press delay before a touch reveals a message's action bar. */
+const LONG_PRESS_MS = 380
 
 const EMOJI_GRID = [
   "😀", "😁", "😂", "🤣", "😊", "😍", "😘", "😎", "🤩", "🥳",
@@ -261,6 +283,15 @@ export function MessagesWorkspace() {
   const [publishingCoLoop, setPublishingCoLoop] = useState(false)
   const [peerReadAt, setPeerReadAt] = useState<string | null>(null)
   const [freshMessageIds, setFreshMessageIds] = useState<Set<string>>(new Set())
+  /** Message whose action bar / quick reactions are revealed (mobile long-press). */
+  const [activeActionsId, setActiveActionsId] = useState<string | null>(null)
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
   const [pinnedMessages, setPinnedMessages] = useState<Array<{id: string; content: string; author_id: string; created_at: string}>>([])
   const [pinnedExpanded, setPinnedExpanded] = useState(false)
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
@@ -1584,7 +1615,7 @@ export function MessagesWorkspace() {
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.12),transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(34,211,238,0.08),transparent_55%)]" />
-      <div className="flex items-center gap-2 border-b border-border bg-background/95 px-2 py-2.5 shadow-sm backdrop-blur-sm sm:px-4">
+      <div className="flex items-center gap-2 border-b border-border/40 bg-background/70 px-2 py-2.5 backdrop-blur-xl sm:px-4">
         <Button variant="ghost" size="icon" className="text-foreground lg:hidden" onClick={backToInbox}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -1647,7 +1678,11 @@ export function MessagesWorkspace() {
             ) : selected.other_user?.username ? (
               <span className="text-muted-foreground">last seen recently</span>
             ) : (
-              <span className="text-muted-foreground">group chat</span>
+              <span className="text-muted-foreground">
+                {((selected as any).participants?.length || 0) > 0
+                  ? `${(selected as any).participants.length} members`
+                  : "group chat"}
+              </span>
             )}
             {!typingPeer && !selected.is_group && selected.other_user?.display_name && (
               <span className="ml-1.5 text-muted-foreground/70">· 🔒 Only you and {selected.other_user.display_name} can see this conversation</span>
@@ -1758,7 +1793,7 @@ export function MessagesWorkspace() {
       />
 
       {showChatSearch && (
-        <div className="border-b border-border bg-card px-3 py-2">
+        <div className="border-b border-border/40 bg-background/60 px-3 py-2 backdrop-blur-xl">
           <Input
             value={chatSearch}
             onChange={(e) => setChatSearch(e.target.value)}
@@ -1815,7 +1850,7 @@ export function MessagesWorkspace() {
         <div className="mx-2 mb-1">
           <button
             onClick={() => setPinnedExpanded(!pinnedExpanded)}
-            className="w-full flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-left transition-colors hover:bg-amber-500/15"
+            className="flex w-full items-center gap-2 rounded-2xl border-l-2 border-amber-500 bg-amber-500/[0.08] px-3 py-2 text-left transition-colors hover:bg-amber-500/15"
           >
             <svg className="h-3.5 w-3.5 shrink-0 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
             <span className="flex-1 truncate text-xs font-medium text-amber-700 dark:text-amber-300">
@@ -1834,7 +1869,7 @@ export function MessagesWorkspace() {
           )}
         </div>
       )}
-      <div className="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-6">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-6">
         {messagesLoading && messages.length === 0 ? (
           <div className="flex justify-center py-10 text-muted-foreground">
             <Spinner className="h-5 w-5" />
@@ -1848,19 +1883,60 @@ export function MessagesWorkspace() {
             (message.is_read === true ||
               (Boolean(peerReadAt) && new Date(peerReadAt!) >= new Date(message.created_at)))
           const prev = filteredMessages[index - 1]
+          const next = filteredMessages[index + 1]
+          const isSystem = message.message_type === "system"
+          const prevIsSystem = !prev || prev.message_type === "system"
+          const nextIsSystem = !next || next.message_type === "system"
+          // Consecutive messages from the same person read as ONE block: only the
+          // first gets breathing room above, and only the last gets a tail corner
+          // plus the timestamp — so runs no longer look like stacked cards.
+          const sameSenderAsPrev =
+            !prevIsSystem &&
+            Boolean(prev) &&
+            (prev!.sender_id || prev!.author_id) === (message.sender_id || message.author_id)
+          const sameSenderAsNext =
+            !nextIsSystem &&
+            Boolean(next) &&
+            (next!.sender_id || next!.author_id) === (message.sender_id || message.author_id)
+          const isFirstOfGroup = !sameSenderAsPrev
+          const isLastOfGroup = !sameSenderAsNext
           const showDate = !prev || dayLabel(prev.created_at) !== dayLabel(message.created_at)
           // In groups, show sender name/avatar when the sender changes (Telegram pattern).
-          const showSenderHeader = selected?.is_group && !mine && (
-            !prev ||
-            prev.message_type === "system" ||
-            (prev.sender_id || prev.author_id) !== (message.sender_id || message.author_id)
-          )
+          const showSenderHeader = selected?.is_group && !mine && !isSystem && isFirstOfGroup
+          const actionsOpen = activeActionsId === message.id
+          // Timestamps stay out of the way except on the last bubble of a run or
+          // when that message's actions are open (long-press).
+          const revealMeta = isLastOfGroup || actionsOpen
+
+          // System events render as a small centered pill with a semantic icon —
+          // never as a chat bubble.
+          if (isSystem) {
+            const SystemIcon = systemMessageIcon(message.content)
+            return (
+              <Fragment key={message.id}>
+                {showDate && (
+                  <div className="flex justify-center py-3">
+                    <span className="rounded-full bg-foreground/[0.05] px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur-sm">
+                      {dayLabel(message.created_at)}
+                    </span>
+                  </div>
+                )}
+                <div className="my-2.5 flex justify-center px-4">
+                  <span className="inline-flex max-w-[85%] items-center gap-1.5 rounded-full bg-foreground/[0.05] px-3 py-1 text-[11px] font-medium text-muted-foreground ring-1 ring-inset ring-border/40 backdrop-blur-sm">
+                    <SystemIcon className="h-3 w-3 shrink-0 opacity-70" />
+                    <span className="truncate">{message.content}</span>
+                  </span>
+                </div>
+              </Fragment>
+            )
+          }
+
           return (
             <Fragment key={message.id}>
               {/* Group sender name + avatar header */}
               {showSenderHeader && (
-                <div className="flex items-center gap-2 mt-2 ml-1">
-                  <Avatar className="h-6 w-6">
+                <div className="mt-3 flex items-center gap-2 pl-1">
+                  <Avatar className="h-6 w-6 ring-1 ring-border/40">
                     <AvatarImage src={message.sender?.avatar_url} />
                     <AvatarFallback className="text-[8px] font-bold">
                       {(message.sender?.display_name || message.sender?.username || "?").charAt(0)}
@@ -1872,8 +1948,8 @@ export function MessagesWorkspace() {
                 </div>
               )}
               {showDate && (
-                <div className="flex justify-center py-2">
-                  <span className="rounded-full bg-background/85 px-3 py-1 text-[11px] font-medium text-foreground shadow-sm ring-1 ring-violet-500/20">
+                <div className="flex justify-center py-3">
+                  <span className="rounded-full bg-foreground/[0.05] px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur-sm">
                     {dayLabel(message.created_at)}
                   </span>
                 </div>
@@ -1882,8 +1958,29 @@ export function MessagesWorkspace() {
                 className={cn(
                   "group flex w-full min-w-0 max-w-full",
                   mine ? "justify-end" : "justify-start",
+                  isFirstOfGroup ? "mt-2.5" : "mt-[3px]",
                   isFresh && "message-appear",
                 )}
+                onClick={() => setActiveActionsId(null)}
+                onContextMenu={(e) => {
+                  // On touch devices a long-press reveals the message actions
+                  // instead of the native menu; desktop keeps right-click so
+                  // text selection / copy still works.
+                  if (typeof window !== "undefined" && window.matchMedia("(hover: none)").matches) {
+                    e.preventDefault()
+                    setActiveActionsId(message.id)
+                  }
+                }}
+                onTouchStart={() => {
+                  cancelLongPress()
+                  longPressTimer.current = setTimeout(
+                    () => setActiveActionsId(message.id),
+                    LONG_PRESS_MS,
+                  )
+                }}
+                onTouchEnd={cancelLongPress}
+                onTouchMove={cancelLongPress}
+                onTouchCancel={cancelLongPress}
               >
                 <div
                   className={cn(
@@ -1895,13 +1992,18 @@ export function MessagesWorkspace() {
                 >
                 <div
                   className={cn(
-                    "chat-bubble min-w-0 max-w-full break-words [overflow-wrap:anywhere] relative rounded-2xl px-3 py-2 text-sm shadow-sm",
+                    "chat-bubble min-w-0 max-w-full break-words [overflow-wrap:anywhere] relative px-3.5 py-2.5 text-[15px] leading-relaxed shadow-sm",
                     mine
-                      ? "chat-bubble-mine rounded-br-md bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-950/25"
-                      : cn("chat-bubble-peer rounded-bl-md bg-muted text-foreground shadow-sm ring-1 ring-border/40",
-                          selected?.is_group && !mine && "border-l-2 border-l-violet-500/40"),
+                      ? cn(
+                          "chat-bubble-mine bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-950/20",
+                          isLastOfGroup ? "rounded-[20px] rounded-br-[7px]" : "rounded-[20px]",
+                        )
+                      : cn(
+                          "chat-bubble-peer bg-slate-100 text-slate-900 ring-1 ring-inset ring-black/[0.04] dark:bg-slate-800 dark:text-slate-50 dark:ring-white/[0.06]",
+                          isLastOfGroup ? "rounded-[20px] rounded-bl-[7px]" : "rounded-[20px]",
+                        ),
                     message.is_deleted &&
-                      "chat-bubble-peer rounded-bl-md bg-muted/70 italic text-muted-foreground",
+                      "chat-bubble-peer rounded-[20px] rounded-bl-[7px] bg-muted/70 italic text-muted-foreground",
                   )}
                 >
                   {message.is_deleted ? (
@@ -1966,18 +2068,20 @@ export function MessagesWorkspace() {
                           showPreviewCard={!message.media_url}
                         />
                       )}
-                      <div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70">
-                        <span>
-                          {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                        {message.edited_at && <span className="italic">Edited</span>}
-                        {mine &&
-                          (read ? (
-                            <CheckCheck className="h-3.5 w-3.5 text-cyan-200" aria-label="Seen" />
-                          ) : (
-                            <Check className="h-3.5 w-3.5 text-white/80" aria-label="Sent" />
-                          ))}
-                      </div>
+                      {revealMeta && (
+                        <div className="mt-1 flex items-center justify-end gap-1 text-[10px] leading-none opacity-70">
+                          <span className="tabular-nums">
+                            {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          {message.edited_at && <span className="italic opacity-80">Edited</span>}
+                          {mine &&
+                            (read ? (
+                              <CheckCheck className="h-3.5 w-3.5 text-cyan-100" aria-label="Seen" />
+                            ) : (
+                              <Check className="h-3.5 w-3.5 text-white/80" aria-label="Sent" />
+                            ))}
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -1989,7 +2093,7 @@ export function MessagesWorkspace() {
                         key={r.emoji}
                         type="button"
                         onClick={() => void toggleReaction(message, r.emoji)}
-                        className="rounded-full bg-muted px-1.5 py-0.5 text-xs"
+                        className="rounded-full bg-foreground/[0.06] px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ring-border/40 transition-transform active:scale-95"
                       >
                         {r.emoji} {r.count}
                       </button>
@@ -1999,9 +2103,13 @@ export function MessagesWorkspace() {
 
                 <div
                   className={cn(
-                    "mt-1 flex flex-wrap items-center gap-0.5 sm:gap-1 sm:opacity-0 sm:transition sm:group-hover:opacity-100",
+                    "mt-1 flex flex-wrap items-center gap-0.5 transition-opacity duration-150 sm:gap-1",
+                    actionsOpen
+                      ? "opacity-100"
+                      : "pointer-events-none opacity-0 sm:pointer-events-auto sm:group-hover:opacity-100",
                     mine ? "justify-end" : "justify-start",
                   )}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   {!message.is_deleted && (
                     <>
@@ -2065,8 +2173,11 @@ export function MessagesWorkspace() {
                     <button
                       key={emoji}
                       type="button"
-                      className="rounded-full px-1.5 text-sm hover:bg-muted"
-                      onClick={() => void toggleReaction(message, emoji)}
+                      className="rounded-full px-1.5 text-sm transition-transform hover:scale-110 hover:bg-foreground/[0.08] active:scale-95"
+                      onClick={() => {
+                        void toggleReaction(message, emoji)
+                        setActiveActionsId(null)
+                      }}
                     >
                       {emoji}
                     </button>
@@ -2078,8 +2189,8 @@ export function MessagesWorkspace() {
           )
         })}
         {typingPeer && (
-          <div className="message-appear flex justify-start">
-            <div className="chat-bubble chat-bubble-peer flex items-center gap-1 rounded-2xl rounded-bl-md bg-muted px-3.5 py-2.5">
+          <div className="message-appear mt-2 flex justify-start">
+            <div className="chat-bubble chat-bubble-peer flex items-center gap-1 rounded-[20px] rounded-bl-[7px] bg-slate-100 px-3.5 py-2.5 ring-1 ring-inset ring-black/[0.04] dark:bg-slate-800 dark:ring-white/[0.06]">
               {selected?.is_group && groupTypers.size > 0 ? (
                 <div className="flex items-center gap-1.5">
                   <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
@@ -2119,19 +2230,20 @@ export function MessagesWorkspace() {
       </div>
 
       {replyTo && (
-        <div className="flex items-center justify-between border-t border-border bg-card px-3 py-2 text-sm text-foreground">
-          <div className="min-w-0">
-            <p className="text-xs text-violet-600 dark:text-violet-400">Replying</p>
-            <p className="truncate">{replyTo.content || "Media"}</p>
+        <div className="mx-2 mb-1 flex items-center gap-2 rounded-2xl border-l-2 border-violet-500 bg-foreground/[0.05] px-3 py-2 text-sm text-foreground backdrop-blur-xl sm:mx-3">
+          <Reply className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold text-violet-500">Replying to message</p>
+            <p className="truncate text-xs text-muted-foreground">{replyTo.content || "Media"}</p>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setReplyTo(null)}>
+          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground" onClick={() => setReplyTo(null)}>
             <X className="h-4 w-4" />
           </Button>
         </div>
       )}
 
       {editingMessage && (
-        <div className="border-t border-border bg-card px-3 py-2 text-sm text-foreground">
+        <div className="mx-2 mb-1 rounded-2xl border-l-2 border-violet-500 bg-foreground/[0.05] px-3 py-2 text-sm text-foreground backdrop-blur-xl sm:mx-3">
           <div className="mb-1.5 flex items-center justify-between gap-2">
             <p className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400">
               <Pencil className="h-3.5 w-3.5" />
@@ -2169,7 +2281,7 @@ export function MessagesWorkspace() {
       )}
 
       {deletingMessage && (
-        <div className="flex items-center justify-between gap-2 border-t border-border bg-destructive/10 px-3 py-2 text-sm text-foreground">
+        <div className="mx-2 mb-1 flex items-center justify-between gap-2 rounded-2xl border-l-2 border-rose-500 bg-rose-500/10 px-3 py-2 text-sm text-foreground backdrop-blur-xl sm:mx-3">
           <p className="min-w-0 truncate text-xs font-medium">Delete this message for everyone?</p>
           <div className="flex shrink-0 items-center gap-1.5">
             <Button size="sm" variant="outline" className="h-8 rounded-full px-3 text-xs" onClick={() => setDeletingMessage(null)}>
@@ -2183,7 +2295,7 @@ export function MessagesWorkspace() {
         </div>
       )}
 
-      <div className="relative border-t border-border/60 bg-background/70 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl sm:p-3">
+      <div className="relative border-t border-border/40 bg-background/60 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-2xl sm:p-3">
         {showEmojiPicker && (
           <>
             <button
