@@ -1615,7 +1615,7 @@ export function MessagesWorkspace() {
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.12),transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(34,211,238,0.08),transparent_55%)]" />
-      <div className="flex items-center gap-2 border-b border-border/40 bg-background/70 px-2 py-2.5 backdrop-blur-xl sm:px-4">
+      <div className="flex items-center gap-2 border-b border-border/40 bg-background/70 px-1.5 py-2 backdrop-blur-xl sm:px-3">
         <Button variant="ghost" size="icon" className="text-foreground lg:hidden" onClick={backToInbox}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -1869,7 +1869,7 @@ export function MessagesWorkspace() {
           )}
         </div>
       )}
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-6">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-5">
         {messagesLoading && messages.length === 0 ? (
           <div className="flex justify-center py-10 text-muted-foreground">
             <Spinner className="h-5 w-5" />
@@ -1921,7 +1921,7 @@ export function MessagesWorkspace() {
                     </span>
                   </div>
                 )}
-                <div className="my-2.5 flex justify-center px-4">
+                <div className="my-2 flex justify-center px-4">
                   <span className="inline-flex max-w-[85%] items-center gap-1.5 rounded-full bg-foreground/[0.05] px-3 py-1 text-[11px] font-medium text-muted-foreground ring-1 ring-inset ring-border/40 backdrop-blur-sm">
                     <SystemIcon className="h-3 w-3 shrink-0 opacity-70" />
                     <span className="truncate">{message.content}</span>
@@ -1958,7 +1958,7 @@ export function MessagesWorkspace() {
                 className={cn(
                   "group flex w-full min-w-0 max-w-full",
                   mine ? "justify-end" : "justify-start",
-                  isFirstOfGroup ? "mt-2.5" : "mt-[3px]",
+                  isFirstOfGroup ? "mt-3" : "mt-1",
                   isFresh && "message-appear",
                 )}
                 onClick={() => setActiveActionsId(null)}
@@ -1992,18 +1992,18 @@ export function MessagesWorkspace() {
                 >
                 <div
                   className={cn(
-                    "chat-bubble min-w-0 max-w-full break-words [overflow-wrap:anywhere] relative px-3.5 py-2.5 text-[15px] leading-relaxed shadow-sm",
+                    "chat-bubble min-w-0 max-w-full break-words [overflow-wrap:anywhere] relative px-3.5 py-2 text-[15px] leading-[1.45]",
                     mine
                       ? cn(
-                          "chat-bubble-mine bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-950/20",
-                          isLastOfGroup ? "rounded-[20px] rounded-br-[7px]" : "rounded-[20px]",
+                          "chat-bubble-mine bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-sm shadow-violet-950/20",
+                          isLastOfGroup ? "rounded-[18px] rounded-br-[6px]" : "rounded-[18px]",
                         )
                       : cn(
                           "chat-bubble-peer bg-slate-100 text-slate-900 ring-1 ring-inset ring-black/[0.04] dark:bg-slate-800 dark:text-slate-50 dark:ring-white/[0.06]",
-                          isLastOfGroup ? "rounded-[20px] rounded-bl-[7px]" : "rounded-[20px]",
+                          isLastOfGroup ? "rounded-[18px] rounded-bl-[6px]" : "rounded-[18px]",
                         ),
                     message.is_deleted &&
-                      "chat-bubble-peer rounded-[20px] rounded-bl-[7px] bg-muted/70 italic text-muted-foreground",
+                      "chat-bubble-peer rounded-[18px] rounded-bl-[6px] bg-muted/70 italic text-muted-foreground",
                   )}
                 >
                   {message.is_deleted ? (
@@ -2189,8 +2189,8 @@ export function MessagesWorkspace() {
           )
         })}
         {typingPeer && (
-          <div className="message-appear mt-2 flex justify-start">
-            <div className="chat-bubble chat-bubble-peer flex items-center gap-1 rounded-[20px] rounded-bl-[7px] bg-slate-100 px-3.5 py-2.5 ring-1 ring-inset ring-black/[0.04] dark:bg-slate-800 dark:ring-white/[0.06]">
+          <div className="message-appear mt-3 flex justify-start">
+            <div className="chat-bubble chat-bubble-peer flex items-center gap-1 rounded-[18px] rounded-bl-[6px] bg-slate-100 px-3.5 py-2 ring-1 ring-inset ring-black/[0.04] dark:bg-slate-800 dark:ring-white/[0.06]">
               {selected?.is_group && groupTypers.size > 0 ? (
                 <div className="flex items-center gap-1.5">
                   <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
@@ -2295,7 +2295,7 @@ export function MessagesWorkspace() {
         </div>
       )}
 
-      <div className="relative border-t border-border/40 bg-background/60 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-2xl sm:p-3">
+      <div className="relative border-t border-border/40 bg-background/60 px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-2xl sm:px-3">
         {showEmojiPicker && (
           <>
             <button
@@ -2333,7 +2333,7 @@ export function MessagesWorkspace() {
             setGifSearch("")
           }}
         />
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-1.5">
           <input
             ref={fileRef}
             type="file"
@@ -2369,7 +2369,7 @@ export function MessagesWorkspace() {
                 size="icon"
                 aria-label="Add to message"
                 title="Add to message"
-                className="h-11 w-11 shrink-0 rounded-full border border-border/60 bg-foreground/[0.04] text-foreground/80 shadow-sm backdrop-blur transition hover:bg-foreground/10 hover:text-foreground"
+                className="h-10 w-10 shrink-0 rounded-full border border-border/50 bg-foreground/[0.04] text-foreground/80 shadow-sm backdrop-blur transition hover:bg-foreground/10 hover:text-foreground"
               >
                 {uploading ? <Spinner className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
               </Button>
@@ -2424,7 +2424,7 @@ export function MessagesWorkspace() {
               onChange={onDraftChange}
               rows={1}
               placeholder="Message"
-              className="min-h-[44px] resize-none rounded-full border-0 bg-transparent py-3 pl-4 pr-32 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="min-h-[40px] resize-none rounded-full border-0 bg-transparent py-2.5 pl-4 pr-32 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault()

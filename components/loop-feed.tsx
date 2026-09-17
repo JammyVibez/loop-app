@@ -752,14 +752,14 @@ export function LoopFeed({
   }
 
   return (
-    <div ref={feedRef} className="relative space-y-4 sm:space-y-6">
+    <div ref={feedRef} className="relative space-y-3">
       {pullDistance > 8 && (
         <div className="flex justify-center text-xs text-muted-foreground" style={{ height: pullDistance }}>
           {pullDistance > 48 ? "Release to refresh" : "Pull to refresh"}
         </div>
       )}
 
-      <div className="flex items-center justify-end gap-2 px-1">
+      <div className="flex items-center justify-end gap-2 px-3 sm:px-4">
         {pendingNew.length > 0 ? (
           <button
             type="button"
@@ -788,9 +788,10 @@ export function LoopFeed({
         className={cn(
           viewMode === "cards" && "grid gap-3 sm:grid-cols-2",
           viewMode === "articles" && "space-y-4",
-          // Stream view is a seamless, borderless feed (X-style): posts are
-          // separated by a hairline divider instead of card gaps.
-          viewMode === "stream" && "divide-y divide-border/40"
+          // Stream view is a seamless, borderless feed (X-style): posts sit
+          // directly on the background, separated only by X's hairline
+          // (#2F3336 in dark, #EFF3F4 in light) rather than card gaps.
+          viewMode === "stream" && "divide-y divide-[#eff3f4] dark:divide-[#2F3336]"
         )}
       >
         {filteredLoops.map((loop, idx) => {
@@ -801,7 +802,9 @@ export function LoopFeed({
           const showMomentCompose =
             !guestMode && feedType === "personalized" && idx === COMPOSE_MOMENT_SLOT && moments.length > 0
           return (
-            <div key={loop.id} className="py-1.5">
+            // No vertical padding between posts — the hairline divider does the
+            // separating, so the stream reads as one continuous river of posts.
+            <div key={loop.id}>
               {showAdHere && (
                 <div className="mb-1.5">
                   <AdCard ad={feedAds[0]} sessionId={sessionIdRef.current} />
@@ -849,7 +852,7 @@ export function LoopFeed({
                     interacting={interacting}
                     className={
                       viewMode === "cards"
-                        ? "rounded-2xl border border-border/60 bg-card p-1"
+                        ? "rounded-2xl border border-border/40 bg-card/40 p-1"
                         : undefined
                     }
                     onInteraction={handleInteraction}

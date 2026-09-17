@@ -82,14 +82,14 @@ export function LoopCardHeader({
     parentAuthor?.username?.trim() || parentAuthor?.display_name?.trim() || ""
 
   return (
-    <div className="flex flex-col gap-1.5 px-1 pb-1.5 pt-3 sm:px-2">
+    <div className="flex flex-col gap-1 px-3 pb-1 pt-3 sm:px-4">
       {LoginGateDialog}
 
       {/* Branch origin banner — always name the author we branched from (@username + badge when verified) */}
       {loop.parent_loop_id && (
         <Link
           href={`/loop/${loop.parent_loop?.id || loop.parent_loop_id}`}
-          className="mb-2 flex items-center gap-2 rounded-lg border border-border/80 bg-muted/40 px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-foreground"
+          className="mb-1 flex items-center gap-2 rounded-lg bg-emerald-500/[0.08] px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-emerald-500/15 hover:text-foreground"
           title={`View the original loop this was branched from`}
         >
           <GitBranch className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
@@ -112,7 +112,7 @@ export function LoopCardHeader({
 
       {/* Co-loop collaboration banner */}
       {isCoLoop && (
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-1.5">
           <Badge className="bg-primary text-primary-foreground font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-sm flex items-center gap-1">
             <Zap className="h-3 w-3 animate-pulse text-cyan-200" />
             Co-Loop Collaboration
@@ -143,7 +143,7 @@ export function LoopCardHeader({
                   avatarUrl={loop.author.avatar_url}
                   videoAvatarUrl={loop.author.video_avatar_url || null}
                   frameId={loop.author.equipped_frame_id}
-                  size={32}
+                  size={40}
                   alt={loop.author.display_name}
                   className="ring-2 ring-cyan-500 ring-offset-2 ring-offset-background group-hover:scale-105 transition-transform"
                 />
@@ -175,7 +175,7 @@ export function LoopCardHeader({
                 avatarUrl={loop.author.avatar_url}
                 videoAvatarUrl={loop.author.video_avatar_url || null}
                 frameId={loop.author.equipped_frame_id}
-                size={32}
+                size={40}
                 alt={loop.author.display_name}
                 className={getAvatarStyle()}
               />
@@ -186,7 +186,7 @@ export function LoopCardHeader({
           <div className="min-w-0 flex-1">
             <div className="flex items-center space-x-1 flex-wrap">
               {isCoLoop ? (
-                <div className="flex items-center gap-1 flex-wrap font-semibold text-sm sm:text-base">
+                <div className="flex items-center gap-1 flex-wrap font-semibold text-[15px]">
                   <Link
                     href={`/profile/${loop.author.username}`}
                     className="hover:underline text-cyan-400"
@@ -208,7 +208,7 @@ export function LoopCardHeader({
               ) : (
                 <Link href={`/profile/${loop.author.username}`} className="min-w-0">
                   <span
-                    className="font-semibold hover:underline text-sm sm:text-base truncate block max-w-[120px] sm:max-w-none"
+                    className="font-semibold hover:underline text-[15px] truncate block max-w-[120px] sm:max-w-none"
                     style={fontStyle(
                       (loop.author.cosmetics || loop.author.active_cosmetics)?.font
                     )}
@@ -232,22 +232,21 @@ export function LoopCardHeader({
               />
 
               {loop.author.level && loop.author.level > 1 && (
-                <Badge variant="outline" className="text-[10px] sm:text-xs px-1 flex-shrink-0">
+                <Badge className="border-0 bg-foreground/[0.06] text-[10px] font-semibold text-muted-foreground px-1.5 flex-shrink-0 shadow-none">
                   L{loop.author.level}
                 </Badge>
               )}
 
               {loop.media_urls && loop.media_urls.length > 1 && (
                 <Badge
-                  variant="outline"
-                  className="text-[10px] sm:text-xs px-1 flex-shrink-0 border-purple-500 text-purple-600"
+                  className="border-0 bg-purple-500/12 text-[10px] font-semibold text-purple-400 px-1.5 flex-shrink-0 shadow-none"
                 >
                   {loop.media_urls.length} files
                 </Badge>
               )}
             </div>
 
-            <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
+            <div className="flex items-center space-x-1 sm:space-x-2 text-[13px] text-muted-foreground flex-wrap">
               <span className="truncate max-w-[80px] sm:max-w-none">@{loop.author.username}</span>
               <span>&middot;</span>
               <FreshnessTimestamp date={loop.created_at} showIcon />
@@ -259,8 +258,8 @@ export function LoopCardHeader({
               {loop.engagement_score && loop.engagement_score > 80 && (
                 <>
                   <span>&middot;</span>
-                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
-                    <Zap className="h-2 w-2 mr-1" />
+                  <Badge className="border-0 bg-orange-500/12 text-[10px] font-semibold text-orange-400 px-1.5 shadow-none">
+                    <Zap className="h-2.5 w-2.5 mr-0.5" />
                     Hot
                   </Badge>
                 </>
@@ -268,8 +267,8 @@ export function LoopCardHeader({
               {loop.is_featured && (
                 <>
                   <span>&middot;</span>
-                  <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-700">
-                    <Star className="h-2 w-2 mr-1" />
+                  <Badge className="border-0 bg-amber-400/12 text-[10px] font-semibold text-amber-400 px-1.5 shadow-none">
+                    <Star className="h-2.5 w-2.5 mr-0.5" />
                     Featured
                   </Badge>
                 </>
@@ -277,11 +276,8 @@ export function LoopCardHeader({
               {(isBoosted || boostCoinsCurrent >= 100) && (
                 <>
                   <span>&middot;</span>
-                  <Badge
-                    variant="secondary"
-                    className="text-xs bg-primary text-primary-foreground font-bold shadow-sm flex items-center gap-1 border border-cyan-400/30"
-                  >
-                    <Rocket className="h-3 w-3 text-cyan-200 animate-pulse" />
+                  <Badge className="border-0 bg-cyan-500/12 text-[10px] font-semibold text-cyan-400 px-1.5 shadow-none">
+                    <Rocket className="h-2.5 w-2.5 mr-0.5" />
                     Boosted{" "}
                     {boostCoinsCurrent >= 2000
                       ? "(Tier 3)"
@@ -301,9 +297,9 @@ export function LoopCardHeader({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 sm:h-8 sm:w-8 p-0 flex-shrink-0"
+              className="-mr-1.5 h-7 w-7 shrink-0 rounded-full p-0 text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
             >
-              <MoreHorizontal className="h-3 w-3 sm:h-4 sm:w-4" />
+              <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

@@ -44,7 +44,7 @@ export function LoopCardContent({
   return (
     <>
       {LoginGateDialog}
-      <div className="space-y-2 sm:space-y-3">
+      <div className="space-y-2">
         <div
           onDoubleClick={() => onLike({ fromDoubleTap: true })}
           className="relative"
@@ -83,13 +83,15 @@ export function LoopCardContent({
             <>
               <RichContent
                 text={showFullContent ? content : contentPreview}
-                className="text-sm sm:text-base leading-relaxed"
+                // X sets post copy at 15px with tight leading — dense but
+                // readable, and it keeps more of a post above the fold.
+                className="text-[15px] leading-[1.45]"
               />
               {content.length > 200 && (
                 <Button
                   variant="link"
                   size="sm"
-                  className="p-0 h-auto text-[var(--theme-primary)] hover:text-[var(--theme-secondary)] text-xs sm:text-sm"
+                  className="p-0 h-auto text-[var(--theme-primary)] hover:text-[var(--theme-secondary)] text-[13px]"
                   onClick={() => setShowFullContent(!showFullContent)}
                 >
                   {showFullContent ? "Show less" : "Show more"}
@@ -100,19 +102,17 @@ export function LoopCardContent({
         </div>
 
         {hashtags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {hashtags.slice(0, 3).map((tag: string) => (
               <Link key={tag} href={`/hashtag/${tag}`}>
-                <Badge
-                  variant="outline"
-                  className="text-[var(--theme-primary)] hover:bg-[var(--theme-primary)]/10 border-[var(--theme-primary)]/30 text-xs"
-                >
+                {/* Borderless chips — X renders tags as plain tinted text. */}
+                <Badge className="border-0 bg-[var(--theme-primary)]/12 text-[12px] font-medium text-[var(--theme-primary)] shadow-none transition-colors hover:bg-[var(--theme-primary)]/20">
                   #{tag}
                 </Badge>
               </Link>
             ))}
             {hashtags.length > 3 && (
-              <Badge variant="outline" className="text-xs text-muted-foreground">
+              <Badge className="border-0 bg-foreground/[0.06] text-[12px] font-medium text-muted-foreground shadow-none">
                 +{hashtags.length - 3}
               </Badge>
             )}

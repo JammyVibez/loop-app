@@ -435,8 +435,8 @@ export const LoopCard = memo(function LoopCard({
     const themeStyle = currentTheme?.effects?.glow
       ? `shadow-lg shadow-[var(--theme-primary)]/20`
       : ""
-    // Subtle row highlight instead of a lift + shadow.
-    const hoverStyle = isHovered ? "bg-foreground/[0.02]" : "hover:bg-foreground/[0.02]"
+    // Subtle row highlight instead of a lift + shadow — X's press/hover wash.
+    const hoverStyle = isHovered ? "bg-foreground/[0.03]" : "hover:bg-foreground/[0.03]"
     const featuredStyle = loop.is_featured
       ? "border-l-2 border-l-yellow-400/70 bg-gradient-to-r from-yellow-500/[0.06] to-transparent"
       : ""
@@ -510,7 +510,7 @@ export const LoopCard = memo(function LoopCard({
           />
 
           {/* ── Content + Media + Actions ── */}
-          <CardContent className="px-1 pb-2 pt-0 sm:px-2">
+          <CardContent className="px-3 pb-1.5 pt-0 sm:px-4">
             <LoopCardContent
               loop={loop}
               rawLoop={rawLoop}
