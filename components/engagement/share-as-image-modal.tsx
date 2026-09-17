@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
@@ -47,26 +47,38 @@ interface ShareAsImageModalProps {
   }
 }
 
-/* ── Canvas geometry ──────────────────────────────────────────────────────
- * Portrait 4:5 at the base (1080 wide), which is the friendliest ratio for
- * X / Instagram / LinkedIn feeds, and grows a little for long posts (capped
- * at 1350) so text never gets cramped or clipped.
+/* ── Card geometry ───────────────────────────────────────────────────────
+ * A fixed 1080×1350 portrait card — exactly 4:5, the shape X, Instagram and
+ * LinkedIn all crop kindly — so the HTML preview and the exported JPEG are
+ * pixel-for-pixel the same layout at any size.
  */
 const CARD_W = 1080
-const CARD_H_MIN = 1080
-const CARD_H_MAX = 1350
+const CARD_H = 1350
 const SCALE = 2
 const PAD = 72
 const RADIUS = 36
 const AVATAR = 76
 const HEADER_TOP = 96
 const BODY_FONT = 40
-const META_FONT = 22
+const BODY_LINE = 1.5
 const NAME_FONT = 34
-const LINE_HEIGHT = 1.5
+const META_FONT = 22
 const MAX_LINES = 13
-const FOOTER_BLOCK = 208
+const L_MARK = 44
+/** Distance from the card's bottom edge to each footer landmark. */
+const HAIRLINE_FROM_BOTTOM = 176
+const ENGAGEMENT_FROM_BOTTOM = 132
+const BRAND_FROM_BOTTOM = 72
+/** Gap that keeps the last line of text clear of the footer hairline. */
+const BODY_BOTTOM_GAP = 48
 const DOMAIN = "loopapp.me"
+
+/* Footer landmarks, expressed relative to the footer block's own top edge so
+ * the canvas and the HTML preview agree to the pixel. */
+const FOOTER_H = HAIRLINE_FROM_BOTTOM + BODY_BOTTOM_GAP
+const FOOTER_HAIRLINE_TOP = BODY_BOTTOM_GAP
+const FOOTER_ENGAGEMENT_TOP = FOOTER_H - ENGAGEMENT_FROM_BOTTOM - 13
+const FOOTER_BRAND_TOP = FOOTER_H - BRAND_FROM_BOTTOM - 17
 
 /* ── Palette: always the Loop dark theme ── */
 const C = {
@@ -78,7 +90,6 @@ const C = {
   textFaint: "rgba(255,255,255,0.38)",
   hairline: "rgba(255,255,255,0.10)",
   violet: "#8B5CF6",
-  violetLight: "#C4B5FD",
   cyan: "#22D3EE",
   amber: "#F59E0B",
   amberLight: "#FBBF24",
@@ -92,7 +103,7 @@ function truncate(t: string, m: number) {
 function fmt(n: number | undefined | null) {
   const v = Math.max(0, Number(n || 0))
   if (v >= 1_000_000) return (v / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M"
-  if (v >= 1_000) return (v / 1_000).toFixed(1).replace(/\.0$/, "") + "k"
+  if (v >= 1_000) return (v / 1_000).toFixed(1).replace(/\.0$/, "") + "K"
   return String(v)
 }
 /** "Mar 3, 2026" — stable across locales for a share card. */
@@ -121,19 +132,42 @@ function normalizeColors(badge?: ShareCardBadge | null): string[] {
 /* ── Avatar loading ── */
 type AV = HTMLImageElement | HTMLCanvasElement | ImageBitmap
 function avDim(s: AV) {
-  if (typeof HTMLImageElement !== "undefined" && s instanceof HTMLImageElement) return { w: s.naturalWidth || s.width, h: s.naturalHeight || s.height }
+  if (typeof HTMLImageElement !== "undefined" && s instanceof HTMLImageElement)
+    return { w: s.naturalWidth || s.width, h: s.naturalHeight || s.height }
   return { w: (s as any).width, h: (s as any).height }
 }
 function loadAv(src: string): Promise<AV | null> {
   return new Promise((r) => {
     let done = false
-    const ok = (v: AV | null) => { if (done) return; done = true; clearTimeout(t); r(v) }
+    const ok = (v: AV | null) => {
+      if (done) return
+      done = true
+      clearTimeout(t)
+      r(v)
+    }
     const t = window.setTimeout(() => ok(null), 1500)
     if (typeof createImageBitmap === "function") {
-      fetch(src, { mode: "cors", credentials: "include" }).then(x => { if (!x.ok) throw 0; return x.blob() }).then(b => createImageBitmap(b)).then(b => ok(b)).catch(() => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src })
+      fetch(src, { mode: "cors", credentials: "include" })
+        .then((x) => {
+          if (!x.ok) throw 0
+          return x.blob()
+        })
+        .then((b) => createImageBitmap(b))
+        .then((b) => ok(b))
+        .catch(() => {
+          const i = new Image()
+          i.crossOrigin = "anonymous"
+          i.onload = () => ok(i)
+          i.onerror = () => ok(null)
+          i.src = src
+        })
       return
     }
-    const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src
+    const i = new Image()
+    i.crossOrigin = "anonymous"
+    i.onload = () => ok(i)
+    i.onerror = () => ok(null)
+    i.src = src
   })
 }
 
@@ -143,18 +177,27 @@ function font(weight: number, size: number) {
   return `${weight} ${size}px ${SANS}`
 }
 function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath()
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + w, y, x + w, y + h, r)
+  ctx.arcTo(x + w, y + h, x, y + h, r)
+  ctx.arcTo(x, y + h, x, y, r)
+  ctx.arcTo(x, y, x + w, y, r)
+  ctx.closePath()
 }
 function setup(c: HTMLCanvasElement, w: number, h: number, s: number) {
-  const ctx = c.getContext("2d"); if (!ctx) return null
-  c.width = Math.round(w * s); c.height = Math.round(h * s)
+  const ctx = c.getContext("2d")
+  if (!ctx) return null
+  c.width = Math.round(w * s)
+  c.height = Math.round(h * s)
   ctx.setTransform(s, 0, 0, s, 0, 0)
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = "high"
   return ctx
 }
 function circle(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  ctx.beginPath()
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
 }
 /** White check mark inside a small badge. */
 function drawCheck(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, color = "#FFFFFF") {
@@ -164,33 +207,27 @@ function drawCheck(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: 
   ctx.lineCap = "round"
   ctx.lineJoin = "round"
   ctx.beginPath()
-  ctx.moveTo(cx - size * 0.30, cy + size * 0.02)
+  ctx.moveTo(cx - size * 0.3, cy + size * 0.02)
   ctx.lineTo(cx - size * 0.08, cy + size * 0.24)
   ctx.lineTo(cx + size * 0.32, cy - size * 0.22)
   ctx.stroke()
   ctx.restore()
 }
-/** Branded verified seal — cyan → violet gradient disc with a check. */
-function drawVerified(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
-  ctx.save()
-  const g = ctx.createLinearGradient(x, y, x + size, y + size)
-  g.addColorStop(0, "#22D3EE"); g.addColorStop(1, "#818CF8")
-  circle(ctx, x + size / 2, y + size / 2, size / 2); ctx.fillStyle = g; ctx.fill()
-  ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 1.2
-  circle(ctx, x + size / 2, y + size / 2, size / 2 - 0.6); ctx.stroke()
-  drawCheck(ctx, x + size / 2, y + size / 2, size)
-  ctx.restore()
-}
-/** Custom admin badge — same seal, painted with the badge's own colors. */
-function drawCustomBadge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colors: string[]) {
+/** Gradient disc with a check — the verified seal / custom admin mark. */
+function drawSeal(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colors: string[]) {
   ctx.save()
   const a = colors[0] || "#22D3EE"
   const b = colors[1] || colors[0] || "#818CF8"
   const g = ctx.createLinearGradient(x, y, x + size, y + size)
-  g.addColorStop(0, a); g.addColorStop(1, b)
-  circle(ctx, x + size / 2, y + size / 2, size / 2); ctx.fillStyle = g; ctx.fill()
-  ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 1.2
-  circle(ctx, x + size / 2, y + size / 2, size / 2 - 0.6); ctx.stroke()
+  g.addColorStop(0, a)
+  g.addColorStop(1, b)
+  circle(ctx, x + size / 2, y + size / 2, size / 2)
+  ctx.fillStyle = g
+  ctx.fill()
+  ctx.strokeStyle = "rgba(255,255,255,0.35)"
+  ctx.lineWidth = 1.2
+  circle(ctx, x + size / 2, y + size / 2, size / 2 - 0.6)
+  ctx.stroke()
   drawCheck(ctx, x + size / 2, y + size / 2, size)
   ctx.restore()
 }
@@ -199,11 +236,15 @@ function drawPro(ctx: CanvasRenderingContext2D, x: number, y: number, h: number)
   const w = 68
   ctx.save()
   const g = ctx.createLinearGradient(x, y, x + w, y + h)
-  g.addColorStop(0, C.amberLight); g.addColorStop(1, C.amber)
-  rr(ctx, x, y, w, h, h / 2); ctx.fillStyle = g; ctx.fill()
+  g.addColorStop(0, C.amberLight)
+  g.addColorStop(1, C.amber)
+  rr(ctx, x, y, w, h, h / 2)
+  ctx.fillStyle = g
+  ctx.fill()
   ctx.fillStyle = C.proText
   ctx.font = font(800, 15)
-  ctx.textAlign = "center"; ctx.textBaseline = "middle"
+  ctx.textAlign = "center"
+  ctx.textBaseline = "middle"
   ctx.fillText("PRO", x + w / 2, y + h / 2 + 1)
   ctx.restore()
   return w
@@ -212,12 +253,102 @@ function drawPro(ctx: CanvasRenderingContext2D, x: number, y: number, h: number)
 function drawLoopMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
   ctx.save()
   const g = ctx.createLinearGradient(x, y, x + size, y + size)
-  g.addColorStop(0, "#7C3AED"); g.addColorStop(1, "#22D3EE")
-  rr(ctx, x, y, size, size, size * 0.3); ctx.fillStyle = g; ctx.fill()
+  g.addColorStop(0, "#7C3AED")
+  g.addColorStop(1, "#22D3EE")
+  rr(ctx, x, y, size, size, size * 0.3)
+  ctx.fillStyle = g
+  ctx.fill()
   ctx.fillStyle = "#FFFFFF"
   ctx.font = font(800, size * 0.6)
-  ctx.textAlign = "center"; ctx.textBaseline = "middle"
+  ctx.textAlign = "center"
+  ctx.textBaseline = "middle"
   ctx.fillText("L", x + size / 2, y + size / 2 + size * 0.04)
+  ctx.restore()
+}
+
+/* ── Engagement glyphs, stroked to match the muted footer ── */
+function strokeGlyph(ctx: CanvasRenderingContext2D, size: number) {
+  ctx.strokeStyle = C.textMuted
+  ctx.lineWidth = Math.max(1.7, size * 0.082)
+  ctx.lineCap = "round"
+  ctx.lineJoin = "round"
+}
+function drawHeart(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
+  const t = size / 2
+  ctx.save()
+  strokeGlyph(ctx, size)
+  ctx.beginPath()
+  ctx.moveTo(cx, cy + t * 0.78)
+  ctx.bezierCurveTo(cx - t * 1.16, cy - t * 0.14, cx - t * 0.66, cy - t * 1.02, cx, cy - t * 0.3)
+  ctx.bezierCurveTo(cx + t * 0.66, cy - t * 1.02, cx + t * 1.16, cy - t * 0.14, cx, cy + t * 0.78)
+  ctx.closePath()
+  ctx.stroke()
+  ctx.restore()
+}
+function drawReply(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
+  const w = size
+  const h = size * 0.86
+  const left = cx - w / 2
+  const top = cy - h / 2 - size * 0.04
+  ctx.save()
+  strokeGlyph(ctx, size)
+  rr(ctx, left, top, w, h, h * 0.34)
+  ctx.stroke()
+  // small speech tail
+  ctx.beginPath()
+  ctx.moveTo(cx - w * 0.24, top + h)
+  ctx.lineTo(cx - w * 0.34, top + h + size * 0.26)
+  ctx.lineTo(cx + w * 0.02, top + h)
+  ctx.stroke()
+  ctx.restore()
+}
+function drawRepost(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
+  const s = size
+  ctx.save()
+  strokeGlyph(ctx, size)
+  // upper leg: left → right, arrowhead at the right
+  ctx.beginPath()
+  ctx.moveTo(cx - s * 0.42, cy - s * 0.22)
+  ctx.lineTo(cx + s * 0.3, cy - s * 0.22)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.moveTo(cx + s * 0.1, cy - s * 0.44)
+  ctx.lineTo(cx + s * 0.32, cy - s * 0.22)
+  ctx.lineTo(cx + s * 0.1, cy)
+  ctx.stroke()
+  // lower leg: right → left, arrowhead at the left
+  ctx.beginPath()
+  ctx.moveTo(cx + s * 0.42, cy + s * 0.22)
+  ctx.lineTo(cx - s * 0.3, cy + s * 0.22)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.moveTo(cx - s * 0.1, cy)
+  ctx.lineTo(cx - s * 0.32, cy + s * 0.22)
+  ctx.lineTo(cx - s * 0.1, cy + s * 0.44)
+  ctx.stroke()
+  ctx.restore()
+}
+function drawShareArrow(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
+  const s = size
+  ctx.save()
+  strokeGlyph(ctx, size)
+  // tray
+  ctx.beginPath()
+  ctx.moveTo(cx - s * 0.42, cy + s * 0.04)
+  ctx.lineTo(cx - s * 0.42, cy + s * 0.44)
+  ctx.lineTo(cx + s * 0.42, cy + s * 0.44)
+  ctx.lineTo(cx + s * 0.42, cy + s * 0.04)
+  ctx.stroke()
+  // arrow up
+  ctx.beginPath()
+  ctx.moveTo(cx, cy + s * 0.26)
+  ctx.lineTo(cx, cy - s * 0.44)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.moveTo(cx - s * 0.26, cy - s * 0.18)
+  ctx.lineTo(cx, cy - s * 0.44)
+  ctx.lineTo(cx + s * 0.26, cy - s * 0.18)
+  ctx.stroke()
   ctx.restore()
 }
 
@@ -228,7 +359,10 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxW: number, ma
     let ln = ""
     for (const w of words) {
       const t = ln ? `${ln} ${w}` : w
-      if (ctx.measureText(t).width > maxW && ln) { lines.push(ln); ln = w } else ln = t
+      if (ctx.measureText(t).width > maxW && ln) {
+        lines.push(ln)
+        ln = w
+      } else ln = t
       if (lines.length >= maxLines) break
     }
     if (ln && lines.length < maxLines) lines.push(ln)
@@ -248,92 +382,99 @@ interface CardModel {
   handle: string
   date: string
   likes: number
+  replies: number
+  reposts: number
   body: string
   showVerified: boolean
   showPro: boolean
+  verifiedColors: string[]
   customColorList: string[] | null
 }
 
 function model(post: ShareAsImageModalProps["post"], resolvedBadge?: ShareCardBadge | null): CardModel {
   const badge = post.author.badge || resolvedBadge || null
-  const custom = badge ? normalizeColors(badge) : null
   return {
     name: truncate(post.author.display_name || post.author.username || "User", 40),
     handle: `@${truncate(post.author.username || "user", 30)}`,
     date: cardDate(post.created_at),
     likes: Number(post.stats?.likes_count || 0),
+    replies: Number(post.stats?.comments_count || 0),
+    reposts: Number(post.stats?.branches_count || 0),
     body: truncate(post.content || "Shared a loop on Loop.", 600),
     showVerified: Boolean(post.author.is_verified),
     showPro: Boolean(post.author.is_premium),
-    customColorList: custom,
+    verifiedColors: ["#22D3EE", "#818CF8"],
+    customColorList: badge ? normalizeColors(badge) : null,
   }
 }
 
-function measureCardHeight(ctx: CanvasRenderingContext2D, m: CardModel): number {
-  ctx.font = font(500, BODY_FONT)
-  const lines = wrapLines(ctx, m.body, CARD_W - PAD * 2, MAX_LINES)
-  const textH = lines.length * BODY_FONT * LINE_HEIGHT
-  const contentTop = HEADER_TOP + AVATAR + 64
-  const total = contentTop + textH + FOOTER_BLOCK
-  return Math.max(CARD_H_MIN, Math.min(CARD_H_MAX, Math.round(total)))
-}
-
-function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"], scale: number, av: AV | null, resolvedBadge?: ShareCardBadge | null) {
+function drawCard(
+  canvas: HTMLCanvasElement,
+  post: ShareAsImageModalProps["post"],
+  scale: number,
+  av: AV | null,
+  resolvedBadge?: ShareCardBadge | null,
+) {
   const m = model(post, resolvedBadge)
-  const tmp = canvas.getContext("2d")
-  if (!tmp) return
-  tmp.font = font(500, BODY_FONT)
-  const cardH = measureCardHeight(tmp, m)
-
-  const ctx = setup(canvas, CARD_W, cardH, scale)
+  const ctx = setup(canvas, CARD_W, CARD_H, scale)
   if (!ctx) return
 
   // ── Background: deep navy-black with soft violet + cyan ambience ──
   // Flat base first so the rounded-corner cut-outs are the card color, not
   // transparent black (JPEG has no alpha).
   ctx.fillStyle = C.bg
-  ctx.fillRect(0, 0, CARD_W, cardH)
-  rr(ctx, 0, 0, CARD_W, cardH, RADIUS)
-  ctx.save(); ctx.clip()
+  ctx.fillRect(0, 0, CARD_W, CARD_H)
+  rr(ctx, 0, 0, CARD_W, CARD_H, RADIUS)
+  ctx.save()
+  ctx.clip()
   ctx.fillStyle = C.bg
-  ctx.fillRect(0, 0, CARD_W, cardH)
+  ctx.fillRect(0, 0, CARD_W, CARD_H)
 
+  // Soft violet glow, top-left — realistic light falloff over the navy.
   const violetGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, CARD_W * 0.95)
   violetGlow.addColorStop(0, "rgba(124,58,237,0.34)")
   violetGlow.addColorStop(0.45, "rgba(124,58,237,0.10)")
   violetGlow.addColorStop(1, "rgba(124,58,237,0)")
   ctx.fillStyle = violetGlow
-  ctx.fillRect(0, 0, CARD_W, cardH)
+  ctx.fillRect(0, 0, CARD_W, CARD_H)
 
-  const cyanGlow = ctx.createRadialGradient(CARD_W, cardH, 0, CARD_W, cardH, CARD_W * 0.9)
+  // Soft cyan glow, bottom-right.
+  const cyanGlow = ctx.createRadialGradient(CARD_W, CARD_H, 0, CARD_W, CARD_H, CARD_W * 0.9)
   cyanGlow.addColorStop(0, "rgba(34,211,238,0.20)")
   cyanGlow.addColorStop(0.5, "rgba(34,211,238,0.06)")
   cyanGlow.addColorStop(1, "rgba(34,211,238,0)")
   ctx.fillStyle = cyanGlow
-  ctx.fillRect(0, 0, CARD_W, cardH)
+  ctx.fillRect(0, 0, CARD_W, CARD_H)
   ctx.restore()
 
-  // Hairline inner edge (no heavy border, just a lit rim)
-  rr(ctx, 0.5, 0.5, CARD_W - 1, cardH - 1, RADIUS)
+  // Hairline rim only — no heavy border.
+  rr(ctx, 0.5, 0.5, CARD_W - 1, CARD_H - 1, RADIUS)
   ctx.strokeStyle = "rgba(255,255,255,0.07)"
   ctx.lineWidth = 1
   ctx.stroke()
 
-  // ── Author row ──
+  /* ── Top section: avatar, name, badges, app mark ── */
   const avR = AVATAR / 2
-  const avCx = PAD + avR
+  // +4 so the gradient ring — which sits 4px outside the avatar — still starts
+  // exactly on the text margin instead of bleeding past it.
+  const avCx = PAD + 4 + avR
   const avCy = HEADER_TOP + avR
 
-  // gradient ring
+  // violet → cyan gradient ring
   ctx.save()
   const ring = ctx.createLinearGradient(avCx - avR, avCy - avR, avCx + avR, avCy + avR)
-  ring.addColorStop(0, C.violet); ring.addColorStop(1, C.cyan)
-  circle(ctx, avCx, avCy, avR + 4); ctx.fillStyle = ring; ctx.fill()
+  ring.addColorStop(0, C.violet)
+  ring.addColorStop(1, C.cyan)
+  circle(ctx, avCx, avCy, avR + 4)
+  ctx.fillStyle = ring
+  ctx.fill()
   ctx.restore()
 
   ctx.save()
-  circle(ctx, avCx, avCy, avR); ctx.clip()
-  ctx.fillStyle = C.bgLift; ctx.fillRect(avCx - avR, avCy - avR, AVATAR, AVATAR)
+  circle(ctx, avCx, avCy, avR)
+  ctx.clip()
+  ctx.fillStyle = C.bgLift
+  ctx.fillRect(avCx - avR, avCy - avR, AVATAR, AVATAR)
   if (av) {
     const { w, h } = avDim(av)
     const sz = Math.min(w, h)
@@ -341,12 +482,16 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
   } else {
     ctx.fillStyle = "rgba(255,255,255,0.85)"
     ctx.font = font(800, 32)
-    ctx.textAlign = "center"; ctx.textBaseline = "middle"
+    ctx.textAlign = "center"
+    ctx.textBaseline = "middle"
     ctx.fillText((m.name || "U").charAt(0).toUpperCase(), avCx, avCy + 1)
   }
   ctx.restore()
 
-  // badges stacked to the right of the name
+  // Loop app mark, far top-right
+  drawLoopMark(ctx, CARD_W - PAD - L_MARK, HEADER_TOP + (AVATAR - L_MARK) / 2, L_MARK)
+
+  // Badges stack to the right of the name
   const badgeSize = 28
   const proH = 28
   let badgeW = 0
@@ -355,10 +500,11 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
   if (m.customColorList) badgeW += badgeSize + 8
 
   const nameX = avCx + avR + 24
-  const nameMaxW = CARD_W - PAD - nameX - badgeW
+  const nameMaxW = CARD_W - PAD - L_MARK - 24 - nameX - badgeW
   ctx.save()
   ctx.font = font(700, NAME_FONT)
-  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"
+  ctx.textAlign = "left"
+  ctx.textBaseline = "alphabetic"
   let displayName = m.name
   while (displayName.length > 1 && ctx.measureText(displayName).width > nameMaxW) {
     displayName = displayName.slice(0, -1)
@@ -370,22 +516,21 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
   const nameW = ctx.measureText(displayName).width
   ctx.restore()
 
-  // meta line: @handle · date · likes
+  // meta line: @handle · date
   const metaBits = [m.handle]
   if (m.date) metaBits.push(m.date)
-  if (m.likes > 0) metaBits.push(`${fmt(m.likes)} ${m.likes === 1 ? "like" : "likes"}`)
   ctx.save()
   ctx.font = font(400, META_FONT)
   ctx.fillStyle = C.textMuted
-  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"
+  ctx.textAlign = "left"
+  ctx.textBaseline = "alphabetic"
   ctx.fillText(metaBits.join("  ·  "), nameX, avCy + 24)
   ctx.restore()
 
-  // badges, right after the name
   let bx = nameX + nameW + 12
   const by = nameBaseline - NAME_FONT * 0.78
   if (m.showVerified) {
-    drawVerified(ctx, bx, by, badgeSize)
+    drawSeal(ctx, bx, by, badgeSize, m.verifiedColors)
     bx += badgeSize + 8
   }
   if (m.showPro) {
@@ -393,133 +538,414 @@ function drawCard(canvas: HTMLCanvasElement, post: ShareAsImageModalProps["post"
     bx += 68 + 8
   }
   if (m.customColorList) {
-    drawCustomBadge(ctx, bx, by, badgeSize, m.customColorList)
+    drawSeal(ctx, bx, by, badgeSize, m.customColorList)
     bx += badgeSize + 8
   }
 
-  // ── Post body ──
+  /* ── Main body: 40px / 1.5, centred in the space above the footer ── */
+  const hairlineY = CARD_H - HAIRLINE_FROM_BOTTOM
   const bodyTop = HEADER_TOP + AVATAR + 64
+  const bodyFloor = hairlineY - BODY_BOTTOM_GAP
   ctx.save()
   ctx.font = font(500, BODY_FONT)
-  ctx.fillStyle = C.text
-  ctx.textAlign = "left"; ctx.textBaseline = "top"
+  ctx.textAlign = "left"
+  ctx.textBaseline = "top"
   const lines = wrapLines(ctx, m.body, CARD_W - PAD * 2, MAX_LINES)
-  let ty = bodyTop
+  const textH = lines.length * BODY_FONT * BODY_LINE
+  // Short posts sit optically centred instead of clinging to the header.
+  const extra = Math.max(0, bodyFloor - bodyTop - textH)
+  let ty = bodyTop + extra / 2
   for (const l of lines) {
     ctx.fillText(l, PAD, ty)
-    ty += BODY_FONT * LINE_HEIGHT
+    ty += BODY_FONT * BODY_LINE
   }
   ctx.restore()
 
-  // ── Footer: hairline + subtle brand watermark ──
-  const footerY = cardH - 92
+  /* ── Bottom section: hairline, engagement row, brand watermark ── */
   ctx.save()
   ctx.strokeStyle = C.hairline
   ctx.lineWidth = 1
-  ctx.beginPath(); ctx.moveTo(PAD, footerY); ctx.lineTo(CARD_W - PAD, footerY); ctx.stroke()
+  ctx.beginPath()
+  ctx.moveTo(PAD, hairlineY)
+  ctx.lineTo(CARD_W - PAD, hairlineY)
+  ctx.stroke()
   ctx.restore()
 
-  const markY = footerY + 30
-  drawLoopMark(ctx, PAD, markY, 34)
+  const engCy = CARD_H - ENGAGEMENT_FROM_BOTTOM
+  const icon = 26
+  const gapAfterIcon = 12
+  const gapBetween = 46
   ctx.save()
-  ctx.textAlign = "left"; ctx.textBaseline = "middle"
+  ctx.font = font(600, 24)
+  ctx.textAlign = "left"
+  ctx.textBaseline = "middle"
+  ctx.fillStyle = C.textMuted
+  // +2 keeps the heart's widest bezier control point on the text margin.
+  let ex = PAD + 2 + icon / 2
+  const items: Array<{
+    draw: (ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) => void
+    label: string
+  }> = [
+    { draw: drawHeart, label: fmt(m.likes) },
+    { draw: drawReply, label: fmt(m.replies) },
+    { draw: drawRepost, label: fmt(m.reposts) },
+    { draw: drawShareArrow, label: "" },
+  ]
+  for (const item of items) {
+    item.draw(ctx, ex, engCy, icon)
+    ex += icon / 2 + gapAfterIcon
+    if (item.label) {
+      ctx.fillText(item.label, ex, engCy + 1)
+      ex += ctx.measureText(item.label).width + gapBetween
+    } else {
+      ex += gapBetween
+    }
+  }
+  ctx.restore()
+
+  // Brand row: gradient mark + wordmark on the left, quiet watermark right.
+  const brandCy = CARD_H - BRAND_FROM_BOTTOM
+  const markSize = 34
+  drawLoopMark(ctx, PAD, brandCy - markSize / 2, markSize)
+  ctx.save()
+  ctx.textAlign = "left"
+  ctx.textBaseline = "middle"
   ctx.fillStyle = "rgba(255,255,255,0.82)"
   ctx.font = font(700, 22)
-  ctx.fillText("Loop", PAD + 34 + 12, markY + 17)
+  ctx.fillText("Loop", PAD + markSize + 12, brandCy)
   ctx.font = font(400, 20)
   ctx.fillStyle = C.textFaint
-  ctx.fillText(DOMAIN, PAD + 34 + 12 + 52, markY + 17)
-  ctx.restore()
+  ctx.fillText(`· ${DOMAIN}`, PAD + markSize + 12 + 52, brandCy)
 
-  // Right side: quiet accent dot + handle watermark
-  ctx.save()
   const dotR = 5
-  const dotX = CARD_W - PAD - 96
-  circle(ctx, dotX, markY + 17, dotR)
-  const dotGrad = ctx.createLinearGradient(dotX - dotR, markY + 17 - dotR, dotX + dotR, markY + 17 + dotR)
-  dotGrad.addColorStop(0, C.violet); dotGrad.addColorStop(1, C.cyan)
-  ctx.fillStyle = dotGrad; ctx.fill()
+  const dotX = CARD_W - PAD - 100
+  circle(ctx, dotX, brandCy, dotR)
+  const dotGrad = ctx.createLinearGradient(dotX - dotR, brandCy - dotR, dotX + dotR, brandCy + dotR)
+  dotGrad.addColorStop(0, C.violet)
+  dotGrad.addColorStop(1, C.cyan)
+  ctx.fillStyle = dotGrad
+  ctx.fill()
   ctx.font = font(600, 20)
   ctx.fillStyle = C.textFaint
-  ctx.textAlign = "left"; ctx.textBaseline = "middle"
-  ctx.fillText("Build together", CARD_W - PAD - 82, markY + 17)
+  ctx.fillText("Build together", CARD_W - PAD - 84, brandCy)
   ctx.restore()
 }
 
 function toBlob(c: HTMLCanvasElement, q = 0.94): Promise<Blob> {
-  return new Promise((ok, no) => c.toBlob(b => b ? ok(b) : no(new Error("empty")), "image/jpeg", q))
+  return new Promise((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("empty"))), "image/jpeg", q))
 }
 
-/* ── JSX preview mirroring the canvas layout ── */
+/* ── HTML mirror ─────────────────────────────────────────────────────────
+ * The same 1080×1350 layout, rendered at its real pixel sizes and scaled down
+ * to whatever width the dialog gives it — so the preview is a true miniature
+ * of the exported JPEG rather than an approximation.
+ */
 function CardPreview({ post, resolvedBadge }: { post: ShareAsImageModalProps["post"]; resolvedBadge?: ShareCardBadge | null }) {
   const m = model(post, resolvedBadge)
+  const wrapRef = useRef<HTMLDivElement | null>(null)
+  const [scale, setScale] = useState(0)
+
+  const measure = useCallback(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const w = el.getBoundingClientRect().width
+    if (w > 0) setScale(w / CARD_W)
+  }, [])
+
+  useEffect(() => {
+    measure()
+    const el = wrapRef.current
+    if (!el || typeof ResizeObserver === "undefined") return
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [measure])
+
   const avatarSrc = post.author.avatar_url
     ? `/api/image-proxy?url=${encodeURIComponent(post.author.avatar_url)}`
     : getDiceBearUrl(post.author.username)
 
-  const meta = [m.handle, m.date, m.likes > 0 ? `${fmt(m.likes)} ${m.likes === 1 ? "like" : "likes"}` : ""].filter(Boolean)
+  const meta = [m.handle, m.date].filter(Boolean).join("  ·  ")
 
   return (
-    <div className="relative w-full select-none overflow-hidden rounded-[28px] text-left">
-      {/* background */}
-      <div className="absolute inset-0 bg-[#0A0C18]" />
-      <div className="absolute -left-24 -top-24 h-[420px] w-[420px] rounded-full" style={{ background: "radial-gradient(circle, rgba(124,58,237,0.34), rgba(124,58,237,0) 65%)" }} />
-      <div className="absolute -bottom-28 -right-24 h-[420px] w-[420px] rounded-full" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.22), rgba(34,211,238,0) 65%)" }} />
-      <div className="pointer-events-none absolute inset-0 rounded-[28px] ring-1 ring-inset ring-white/[0.07]" />
+    <div
+      ref={wrapRef}
+      className="relative w-full overflow-hidden rounded-[28px] shadow-2xl shadow-black/40"
+      style={{ aspectRatio: `${CARD_W} / ${CARD_H}` }}
+    >
+      <div
+        className="absolute left-0 top-0"
+        style={{ width: CARD_W, height: CARD_H, transform: `scale(${scale})`, transformOrigin: "top left" }}
+      >
+        <div className="relative h-full w-full" style={{ background: C.bg }}>
+          {/* ambient glows */}
+          <div
+            className="absolute rounded-full"
+            style={{
+              left: -CARD_W * 0.5,
+              top: -CARD_W * 0.5,
+              width: CARD_W * 1.9,
+              height: CARD_W * 1.9,
+              background: "radial-gradient(circle, rgba(124,58,237,0.34), rgba(124,58,237,0.10) 45%, rgba(124,58,237,0) 70%)",
+            }}
+          />
+          <div
+            className="absolute rounded-full"
+            style={{
+              right: -CARD_W * 0.45,
+              bottom: -CARD_W * 0.45,
+              width: CARD_W * 1.8,
+              height: CARD_W * 1.8,
+              background: "radial-gradient(circle, rgba(34,211,238,0.20), rgba(34,211,238,0.06) 50%, rgba(34,211,238,0) 72%)",
+            }}
+          />
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{ borderRadius: RADIUS, boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.07)" }}
+          />
 
-      <div className="relative z-10 px-[6.5%] pb-8 pt-9">
-        {/* author */}
-        <div className="flex items-center gap-3.5">
-          <span className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full p-[2.5px]" style={{ background: "linear-gradient(135deg, #8B5CF6, #22D3EE)" }}>
-            <span className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-[#111530]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
-            </span>
-          </span>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <p className="truncate text-[17px] font-bold leading-tight text-white">{m.name}</p>
-              {m.showVerified && (
-                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full" style={{ background: "linear-gradient(135deg, #22D3EE, #818CF8)" }}>
-                  <BadgeCheck className="h-3 w-3 text-white" />
+          <div className="relative flex h-full flex-col" style={{ paddingLeft: PAD, paddingRight: PAD }}>
+            <div style={{ height: HEADER_TOP }} />
+
+            {/* ── Top section: avatar + name + badges, app mark at the far right ── */}
+            <div className="relative" style={{ height: AVATAR }}>
+              <div className="flex items-center" style={{ gap: 20 }}>
+                <span
+                  className="flex shrink-0 items-center justify-center rounded-full"
+                  style={{
+                    width: AVATAR + 8,
+                    height: AVATAR + 8,
+                    padding: 4,
+                    background: "linear-gradient(135deg, #8B5CF6, #22D3EE)",
+                  }}
+                >
+                  <span
+                    className="flex h-full w-full items-center justify-center overflow-hidden rounded-full"
+                    style={{ background: C.bgLift }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
+                  </span>
                 </span>
-              )}
-              {m.showPro && (
-                <span className="shrink-0 rounded-full px-1.5 py-[1px] text-[9px] font-extrabold tracking-wide" style={{ background: "linear-gradient(135deg, #FBBF24, #F59E0B)", color: "#241505" }}>
-                  PRO
-                </span>
-              )}
-              {m.customColorList && (
-                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full" style={{ background: `linear-gradient(135deg, ${m.customColorList[0]}, ${m.customColorList[1] || m.customColorList[0]})` }}>
-                  <BadgeCheck className="h-3 w-3 text-white" />
-                </span>
-              )}
+
+                <div className="min-w-0">
+                  <div className="flex items-center" style={{ gap: 10 }}>
+                    <span
+                      style={{
+                        fontSize: NAME_FONT,
+                        fontWeight: 700,
+                        lineHeight: 1.1,
+                        color: C.textStrong,
+                        // Mirrors the canvas: the name truncates rather than
+                        // pushing the badges under the app mark.
+                        maxWidth: 580,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {m.name}
+                    </span>
+                    {m.showVerified && (
+                      <span
+                        className="flex shrink-0 items-center justify-center rounded-full"
+                        style={{
+                          width: 28,
+                          height: 28,
+                          background: `linear-gradient(135deg, ${m.verifiedColors[0]}, ${m.verifiedColors[1]})`,
+                        }}
+                      >
+                        <BadgeCheck style={{ width: 18, height: 18, color: "#FFFFFF" }} />
+                      </span>
+                    )}
+                    {m.showPro && (
+                      <span
+                        className="flex shrink-0 items-center justify-center"
+                        style={{
+                          height: 28,
+                          width: 68,
+                          borderRadius: 999,
+                          background: `linear-gradient(135deg, ${C.amberLight}, ${C.amber})`,
+                          color: C.proText,
+                          fontSize: 15,
+                          fontWeight: 800,
+                          letterSpacing: "0.02em",
+                        }}
+                      >
+                        PRO
+                      </span>
+                    )}
+                    {m.customColorList && (
+                      <span
+                        className="flex shrink-0 items-center justify-center rounded-full"
+                        style={{
+                          width: 28,
+                          height: 28,
+                          background: `linear-gradient(135deg, ${m.customColorList[0]}, ${m.customColorList[1] || m.customColorList[0]})`,
+                        }}
+                      >
+                        <BadgeCheck style={{ width: 18, height: 18, color: "#FFFFFF" }} />
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: META_FONT, color: C.textMuted }}>{meta}</div>
+                </div>
+              </div>
+
+              {/* Loop app mark, far top-right */}
+              <span
+                className="absolute flex items-center justify-center"
+                style={{
+                  top: (AVATAR - L_MARK) / 2,
+                  right: 0,
+                  width: L_MARK,
+                  height: L_MARK,
+                  borderRadius: L_MARK * 0.3,
+                  background: "linear-gradient(135deg, #7C3AED, #22D3EE)",
+                  color: "#FFFFFF",
+                  fontSize: L_MARK * 0.6,
+                  fontWeight: 800,
+                  lineHeight: 1,
+                }}
+              >
+                L
+              </span>
             </div>
-            <p className="mt-0.5 truncate text-[12px] text-white/55">{meta.join("  ·  ")}</p>
-          </div>
-        </div>
 
-        {/* body */}
-        <p className="mt-6 whitespace-pre-line text-[19px] font-medium leading-[1.5] text-white/95">
-          {m.body}
-        </p>
+            <div style={{ height: 64 }} />
 
-        {/* footer */}
-        <div className="mt-8 border-t border-white/10 pt-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-md text-[11px] font-extrabold text-white" style={{ background: "linear-gradient(135deg, #7C3AED, #22D3EE)" }}>L</span>
-              <span className="text-[13px] font-bold text-white/80">Loop</span>
-              <span className="text-[12px] text-white/35">{DOMAIN}</span>
+            {/* ── Main body: flex-1 centres it exactly like the canvas ── */}
+            <div className="flex min-h-0 flex-1 items-center">
+              <p
+                style={{
+                  margin: 0,
+                  width: "100%",
+                  fontSize: BODY_FONT,
+                  fontWeight: 500,
+                  lineHeight: BODY_LINE,
+                  color: C.text,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {m.body}
+              </p>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full" style={{ background: "linear-gradient(135deg, #8B5CF6, #22D3EE)" }} />
-              <span className="text-[12px] font-semibold text-white/35">Build together</span>
+
+            {/* ── Bottom section ── */}
+            <div className="relative shrink-0" style={{ height: FOOTER_H }}>
+              <div
+                style={{ position: "absolute", top: FOOTER_HAIRLINE_TOP, left: 0, right: 0, height: 1, background: C.hairline }}
+              />
+
+              <div className="absolute flex items-center" style={{ top: FOOTER_ENGAGEMENT_TOP, left: 0, gap: 46 }}>
+                <EngagementItem icon={<HeartGlyph />} label={fmt(m.likes)} />
+                <EngagementItem icon={<ReplyGlyph />} label={fmt(m.replies)} />
+                <EngagementItem icon={<RepostGlyph />} label={fmt(m.reposts)} />
+                <span className="flex items-center" style={{ color: C.textMuted }}>
+                  <ShareGlyph />
+                </span>
+              </div>
+
+              <div
+                className="absolute flex items-center"
+                style={{
+                  top: FOOTER_BRAND_TOP,
+                  left: 0,
+                  right: 0,
+                  justifyContent: "space-between",
+                }}
+              >
+                <span className="flex items-center" style={{ gap: 12 }}>
+                  <span
+                    className="flex items-center justify-center"
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      background: "linear-gradient(135deg, #7C3AED, #22D3EE)",
+                      color: "#FFFFFF",
+                      fontSize: 20,
+                      fontWeight: 800,
+                      lineHeight: 1,
+                    }}
+                  >
+                    L
+                  </span>
+                  <span style={{ fontSize: 22, fontWeight: 700, color: "rgba(255,255,255,0.82)" }}>Loop</span>
+                  <span style={{ fontSize: 20, color: C.textFaint }}>· {DOMAIN}</span>
+                </span>
+                <span className="flex items-center" style={{ gap: 12 }}>
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 999,
+                      background: "linear-gradient(135deg, #8B5CF6, #22D3EE)",
+                    }}
+                  />
+                  <span style={{ fontSize: 20, fontWeight: 600, color: C.textFaint }}>Build together</span>
+                </span>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+  )
+}
+
+/** Muted engagement item: stroked glyph + number, matching the canvas footer. */
+function EngagementItem({ icon, label }: { icon: ReactNode; label: string }) {
+  return (
+    <span className="flex items-center" style={{ gap: 12, color: C.textMuted }}>
+      {icon}
+      <span style={{ fontSize: 24, fontWeight: 600 }}>{label}</span>
+    </span>
+  )
+}
+
+const glyphProps = {
+  width: 26,
+  height: 26,
+  viewBox: "0 0 26 26",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 2.1,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+}
+function HeartGlyph() {
+  return (
+    <svg {...glyphProps}>
+      <path d="M13 21.5c-4.8-4.2-8.5-7.6-8.5-11.2A4.9 4.9 0 0 1 13 7.2a4.9 4.9 0 0 1 8.5 3.1c0 3.6-3.7 7-8.5 11.2Z" />
+    </svg>
+  )
+}
+function ReplyGlyph() {
+  return (
+    <svg {...glyphProps}>
+      <rect x="3" y="3.6" width="20" height="15.4" rx="5" />
+      <path d="M9.2 19v4l4.4-4" />
+    </svg>
+  )
+}
+function RepostGlyph() {
+  return (
+    <svg {...glyphProps}>
+      <path d="M5.4 9.6h14.2" />
+      <path d="M16.4 6.4l3.4 3.2-3.4 3.2" />
+      <path d="M20.6 16.4H6.4" />
+      <path d="M9.6 13.2 6.2 16.4l3.4 3.2" />
+    </svg>
+  )
+}
+function ShareGlyph() {
+  return (
+    <svg {...glyphProps}>
+      <path d="M6.6 11.4v11h12.8v-11" />
+      <path d="M13 16.6V3.2" />
+      <path d="M9.6 6.6 13 3.2l3.4 3.4" />
+    </svg>
   )
 }
 
@@ -545,18 +971,21 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
   const genRef = useRef(0)
 
   const key = useMemo(
-    () => [
-      post.id,
-      post.content,
-      post.created_at,
-      post.author.username,
-      post.author.display_name,
-      post.author.avatar_url,
-      post.author.is_verified,
-      post.author.is_premium,
-      (resolvedBadge?.colors || []).join(","),
-      post.stats?.likes_count,
-    ].join("|"),
+    () =>
+      [
+        post.id,
+        post.content,
+        post.created_at,
+        post.author.username,
+        post.author.display_name,
+        post.author.avatar_url,
+        post.author.is_verified,
+        post.author.is_premium,
+        (resolvedBadge?.colors || []).join(","),
+        post.stats?.likes_count,
+        post.stats?.comments_count,
+        post.stats?.branches_count,
+      ].join("|"),
     [
       post.id,
       post.content,
@@ -568,52 +997,88 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       post.author.is_premium,
       resolvedBadge?.colors,
       post.stats?.likes_count,
+      post.stats?.comments_count,
+      post.stats?.branches_count,
     ],
   )
 
   useEffect(() => {
-    if (!open) { setRendered(false); setExporting(false); blobRef.current = null; avRef.current = null; return }
-    const g = ++genRef.current; let c = false; setRendered(false)
+    if (!open) {
+      setRendered(false)
+      setExporting(false)
+      blobRef.current = null
+      avRef.current = null
+      return
+    }
+    const g = ++genRef.current
+    let c = false
+    setRendered(false)
     const run = async () => {
-      const cv = canvasRef.current; if (!cv) return
+      const cv = canvasRef.current
+      if (!cv) return
       try {
-        const avUrl = post.author.avatar_url ? `/api/image-proxy?url=${encodeURIComponent(post.author.avatar_url)}` : null
+        const avUrl = post.author.avatar_url
+          ? `/api/image-proxy?url=${encodeURIComponent(post.author.avatar_url)}`
+          : null
         const av = avUrl ? await loadAv(avUrl) : null
         if (c || genRef.current !== g) return
         avRef.current = av
         drawCard(cv, post, SCALE, av, resolvedBadge)
         if (c || genRef.current !== g) return
-        blobRef.current = await toBlob(cv); setRendered(true)
-      } catch { if (!c) setRendered(false) }
+        blobRef.current = await toBlob(cv)
+        setRendered(true)
+      } catch {
+        if (!c) setRendered(false)
+      }
     }
     const t = window.setTimeout(() => void run(), 80)
-    return () => { c = true; clearTimeout(t) }
+    return () => {
+      c = true
+      clearTimeout(t)
+    }
   }, [open, key, resolvedBadge])
 
   const getBlob = async (): Promise<Blob> => {
     if (blobRef.current) return blobRef.current
-    const cv = canvasRef.current; if (!cv) throw new Error("Canvas not ready")
+    const cv = canvasRef.current
+    if (!cv) throw new Error("Canvas not ready")
     drawCard(cv, post, SCALE, avRef.current, resolvedBadge)
-    const b = await toBlob(cv); blobRef.current = b; return b
+    const b = await toBlob(cv)
+    blobRef.current = b
+    return b
   }
 
   const download = async () => {
-    if (exporting) return; setExporting(true)
+    if (exporting) return
+    setExporting(true)
     try {
-      const b = await getBlob(); const url = URL.createObjectURL(b)
-      const a = document.createElement("a"); a.href = url; a.download = `loop-${post.id}.jpg`; a.click()
+      const b = await getBlob()
+      const url = URL.createObjectURL(b)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `loop-${post.id}.jpg`
+      a.click()
       setTimeout(() => URL.revokeObjectURL(url), 4000)
       toast({ title: "Downloaded", description: "Share it anywhere." })
-    } catch (e: any) { toast({ title: "Failed", description: e?.message, variant: "destructive" }) }
-    finally { setExporting(false) }
+    } catch (e: any) {
+      toast({ title: "Failed", description: e?.message, variant: "destructive" })
+    } finally {
+      setExporting(false)
+    }
   }
 
   const share = async () => {
     try {
-      const b = await getBlob(); const f = new File([b], `loop-${post.id}.jpg`, { type: "image/jpeg" })
-      if (navigator.share && navigator.canShare?.({ files: [f] })) { await navigator.share({ files: [f], title: "Loop", text: post.content.slice(0, 120) }); toast({ title: "Shared!" }) }
-      else await download()
-    } catch (e: any) { if (e?.name !== "AbortError") toast({ title: "Couldn't share", description: e.message, variant: "destructive" }) }
+      const b = await getBlob()
+      const f = new File([b], `loop-${post.id}.jpg`, { type: "image/jpeg" })
+      if (navigator.share && navigator.canShare?.({ files: [f] })) {
+        await navigator.share({ files: [f], title: "Loop", text: post.content.slice(0, 120) })
+        toast({ title: "Shared!" })
+      } else await download()
+    } catch (e: any) {
+      if (e?.name !== "AbortError")
+        toast({ title: "Couldn't share", description: e.message, variant: "destructive" })
+    }
   }
 
   return (
@@ -623,23 +1088,33 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
           <DialogTitle className="flex items-center gap-2 text-foreground">
             <Share2 className="h-4 w-4 text-violet-500" /> Share as image
           </DialogTitle>
-          <DialogDescription className="text-muted-foreground">A branded card for sharing on X, Instagram, or anywhere.</DialogDescription>
+          <DialogDescription className="text-muted-foreground">
+            A 1080×1350 card for X, Instagram, or anywhere.
+          </DialogDescription>
         </DialogHeader>
         <canvas ref={canvasRef} className="hidden" />
-        <div className="relative w-full overflow-hidden rounded-[28px] shadow-2xl shadow-black/40 max-h-[50dvh] sm:max-h-[55vh] overflow-y-auto">
+        <div className="relative">
           <CardPreview post={post} resolvedBadge={resolvedBadge} />
           {!rendered && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-background/70 backdrop-blur-[1px]">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 rounded-[28px] bg-background/70 backdrop-blur-[1px]">
               <Spinner className="h-5 w-5 text-muted-foreground" />
               <p className="text-xs text-muted-foreground">Preparing image...</p>
             </div>
           )}
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" onClick={() => void download()} disabled={exporting} className="border-border bg-background text-foreground hover:bg-muted">
+          <Button
+            variant="outline"
+            onClick={() => void download()}
+            disabled={exporting}
+            className="border-border bg-background text-foreground hover:bg-muted"
+          >
             {exporting ? <Spinner className="mr-1.5 h-4 w-4" /> : <Download className="mr-1.5 h-4 w-4" />} Download
           </Button>
-          <Button onClick={() => void share()} className="bg-gradient-to-br from-violet-500 to-purple-600 text-white hover:from-violet-400 hover:to-purple-500">
+          <Button
+            onClick={() => void share()}
+            className="bg-gradient-to-br from-violet-500 to-purple-600 text-white hover:from-violet-400 hover:to-purple-500"
+          >
             <Share2 className="mr-1.5 h-4 w-4" /> Share
           </Button>
         </div>
