@@ -59,8 +59,8 @@ const CARD_W = 1080
 const SCALE = 2
 const PAD = 64
 const RADIUS = 28
-/** Avatar gradient ring thickness. */
-const RING = 5
+/** Hairline ring around the avatar. */
+const RING = 2
 const AVATAR = 96
 const AV_BOX = AVATAR + RING * 2
 const NAME_FONT = 38
@@ -105,23 +105,23 @@ function estimateLines(body: string) {
   return Math.min(MAX_LINES, Math.max(1, Math.ceil(body.trim().length / perLine)))
 }
 
-/* ── Palette: near-black, the way the reference card reads ── */
+/* ── Palette: flat deep navy-black, the way the reference card reads ──
+ * No gradients — the only colour on the card comes from the app icon and the
+ * author's own badges.
+ */
 const C = {
-  bg: "#000000",
-  bgLift: "#141726",
+  bg: "#0A0C18",
+  bgLift: "#161B2E",
+  rim: "rgba(255,255,255,0.10)",
+  avatarRing: "rgba(255,255,255,0.14)",
   text: "rgba(255,255,255,0.96)",
   textStrong: "#FFFFFF",
   textMuted: "rgba(255,255,255,0.55)",
-  violet: "#8B5CF6",
   cyan: "#22D3EE",
-  amber: "#F59E0B",
   amberLight: "#FBBF24",
   proText: "#241505",
 }
-/** Gradient rim + wordmark, matching the app icon's violet → cyan sweep. */
-const RIM_GRADIENT =
-  "linear-gradient(135deg, rgba(139,92,246,0.45), rgba(255,255,255,0.10) 48%, rgba(34,211,238,0.38))"
-/** The wordmark stays white — the icon already carries the brand gradient. */
+/** The wordmark stays white — the icon already carries the brand colour. */
 const WORDMARK_COLOR = "rgba(255,255,255,0.92)"
 
 function truncate(t: string, m: number) {
@@ -295,16 +295,11 @@ function drawCheck(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: 
   ctx.stroke()
   ctx.restore()
 }
-/** Gradient disc with a check — the verified seal / custom admin mark. */
+/** Flat disc with a check — the verified seal / custom admin mark. */
 function drawSeal(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colors: string[]) {
   ctx.save()
-  const a = colors[0] || C.cyan
-  const b = colors[1] || colors[0] || "#818CF8"
-  const g = ctx.createLinearGradient(x, y, x + size, y + size)
-  g.addColorStop(0, a)
-  g.addColorStop(1, b)
   circle(ctx, x + size / 2, y + size / 2, size / 2)
-  ctx.fillStyle = g
+  ctx.fillStyle = colors[0] || C.cyan
   ctx.fill()
   ctx.strokeStyle = "rgba(255,255,255,0.35)"
   ctx.lineWidth = 1.2
@@ -313,15 +308,12 @@ function drawSeal(ctx: CanvasRenderingContext2D, x: number, y: number, size: num
   drawCheck(ctx, x + size / 2, y + size / 2, size)
   ctx.restore()
 }
-/** PRO pill — amber gradient, dark label. Width is returned so callers stack. */
+/** PRO pill — flat amber, dark label. Width is returned so callers stack. */
 function drawPro(ctx: CanvasRenderingContext2D, x: number, y: number, h: number) {
   const w = 72
   ctx.save()
-  const g = ctx.createLinearGradient(x, y, x + w, y + h)
-  g.addColorStop(0, C.amberLight)
-  g.addColorStop(1, C.amber)
   rr(ctx, x, y, w, h, h / 2)
-  ctx.fillStyle = g
+  ctx.fillStyle = C.amberLight
   ctx.fill()
   ctx.fillStyle = C.proText
   ctx.font = font(800, 16)
@@ -334,11 +326,8 @@ function drawPro(ctx: CanvasRenderingContext2D, x: number, y: number, h: number)
 /** Fallback brand mark: the app icon's gradient "L" in a rounded tile. */
 function drawLoopMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
   ctx.save()
-  const g = ctx.createLinearGradient(x, y, x + size, y + size)
-  g.addColorStop(0, "#7C3AED")
-  g.addColorStop(1, C.cyan)
   rr(ctx, x, y, size, size, size * 0.3)
-  ctx.fillStyle = g
+  ctx.fillStyle = "#7C3AED"
   ctx.fill()
   ctx.fillStyle = "#FFFFFF"
   ctx.font = font(800, size * 0.6)
@@ -572,9 +561,9 @@ function drawCard(
   const ctx = setup(canvas, CARD_W, h, scale)
   if (!ctx) return
 
-  // ── Background: black, with just enough ambience to feel lit ──
-  // Flat base first so the rounded-corner cut-outs are the card color, not
-  // transparent black (JPEG has no alpha).
+  // ── Background: one flat fill, no ambience ──
+  // Painted first so the rounded-corner cut-outs are the card colour, not
+  // transparent (JPEG has no alpha), then clipped to round the card itself.
   ctx.fillStyle = C.bg
   ctx.fillRect(0, 0, CARD_W, h)
   rr(ctx, 0, 0, CARD_W, h, RADIUS)
@@ -582,35 +571,12 @@ function drawCard(
   ctx.clip()
   ctx.fillStyle = C.bg
   ctx.fillRect(0, 0, CARD_W, h)
-
-  const violetGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, CARD_W * 0.85)
-  violetGlow.addColorStop(0, "rgba(124,58,237,0.22)")
-  violetGlow.addColorStop(1, "rgba(124,58,237,0)")
-  ctx.fillStyle = violetGlow
-  ctx.fillRect(0, 0, CARD_W, h)
-
-  const cyanGlow = ctx.createRadialGradient(CARD_W, h, 0, CARD_W, h, CARD_W * 0.75)
-  cyanGlow.addColorStop(0, "rgba(34,211,238,0.14)")
-  cyanGlow.addColorStop(1, "rgba(34,211,238,0)")
-  ctx.fillStyle = cyanGlow
-  ctx.fillRect(0, 0, CARD_W, h)
-
-  // A whisper of the other two corners keeps the black from reading flat.
-  const indigoDeep = ctx.createRadialGradient(CARD_W * 0.15, h, 0, CARD_W * 0.15, h, CARD_W * 0.5)
-  indigoDeep.addColorStop(0, "rgba(99,102,241,0.10)")
-  indigoDeep.addColorStop(1, "rgba(99,102,241,0)")
-  ctx.fillStyle = indigoDeep
-  ctx.fillRect(0, 0, CARD_W, h)
   ctx.restore()
 
-  // Hairline rim, tinted violet → cyan like the app icon.
-  const rimGrad = ctx.createLinearGradient(0, 0, CARD_W, h)
-  rimGrad.addColorStop(0, "rgba(139,92,246,0.45)")
-  rimGrad.addColorStop(0.48, "rgba(255,255,255,0.10)")
-  rimGrad.addColorStop(1, "rgba(34,211,238,0.38)")
-  rr(ctx, 0.75, 0.75, CARD_W - 1.5, h - 1.5, RADIUS)
-  ctx.strokeStyle = rimGrad
-  ctx.lineWidth = 1.5
+  // Flat hairline rim — no gradient, no heavy border.
+  rr(ctx, 0.5, 0.5, CARD_W - 1, h - 1, RADIUS)
+  ctx.strokeStyle = C.rim
+  ctx.lineWidth = 1
   ctx.stroke()
 
   /* ── Header: avatar + gradient ring, name + badges, meta, app logo ── */
@@ -636,12 +602,9 @@ function drawCard(
   }
   ctx.restore()
 
-  // Violet → cyan ring, so the avatar reads as a brand element.
+  // Flat hairline ring, so the avatar reads as a deliberate element.
   ctx.save()
-  const ringGrad = ctx.createLinearGradient(avCx - avR, avCy - avR, avCx + avR, avCy + avR)
-  ringGrad.addColorStop(0, C.violet)
-  ringGrad.addColorStop(1, C.cyan)
-  ctx.strokeStyle = ringGrad
+  ctx.strokeStyle = C.avatarRing
   ctx.lineWidth = RING
   circle(ctx, avCx, avCy, avR + RING / 2)
   ctx.stroke()
@@ -821,60 +784,22 @@ function CardPreview({
         style={{ width: CARD_W, height, transform: `scale(${scale})`, transformOrigin: "top left" }}
       >
         <div className="relative h-full w-full" style={{ background: C.bg }}>
-          {/* ambience */}
-          <div
-            className="absolute rounded-full"
-            style={{
-              left: -CARD_W * 0.4,
-              top: -CARD_W * 0.4,
-              width: CARD_W * 1.7,
-              height: CARD_W * 1.7,
-              background: "radial-gradient(circle, rgba(124,58,237,0.22), rgba(124,58,237,0) 70%)",
-            }}
-          />
-          <div
-            className="absolute rounded-full"
-            style={{
-              right: -CARD_W * 0.35,
-              bottom: -CARD_W * 0.35,
-              width: CARD_W * 1.5,
-              height: CARD_W * 1.5,
-              background: "radial-gradient(circle, rgba(34,211,238,0.14), rgba(34,211,238,0) 72%)",
-            }}
-          />
-          <div
-            className="absolute rounded-full"
-            style={{
-              left: -CARD_W * 0.2,
-              bottom: -CARD_W * 0.3,
-              width: CARD_W * 1.0,
-              height: CARD_W * 1.0,
-              background: "radial-gradient(circle, rgba(99,102,241,0.10), rgba(99,102,241,0) 70%)",
-            }}
-          />
-          {/* violet → cyan hairline rim */}
+          {/* flat hairline rim */}
           <div
             className="pointer-events-none absolute inset-0"
-            style={{
-              borderRadius: RADIUS,
-              padding: 1.5,
-              background: RIM_GRADIENT,
-              WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
-              WebkitMaskComposite: "xor",
-              maskComposite: "exclude",
-            }}
+            style={{ borderRadius: RADIUS, boxShadow: `inset 0 0 0 1px ${C.rim}` }}
           />
 
           <div className="relative h-full w-full" style={{ paddingLeft: PAD, paddingRight: PAD }}>
             {/* ── Header ── */}
             <div className="flex items-center" style={{ paddingTop: PAD, gap: 24 }}>
-              {/* Avatar in the same violet → cyan ring the canvas paints. */}
+              {/* Avatar in the same flat hairline ring the canvas paints. */}
               <span
                 className="flex shrink-0 items-center justify-center rounded-full"
                 style={{
                   width: AV_BOX,
                   height: AV_BOX,
-                  background: `linear-gradient(135deg, ${C.violet}, ${C.cyan})`,
+                  background: C.avatarRing,
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -908,7 +833,7 @@ function CardPreview({
                       style={{
                         width: BADGE,
                         height: BADGE,
-                        background: `linear-gradient(135deg, ${m.verifiedColors[0]}, ${m.verifiedColors[1]})`,
+                        background: m.verifiedColors[0],
                       }}
                     >
                       <BadgeCheck style={{ width: 20, height: 20, color: "#FFFFFF" }} />
@@ -921,7 +846,7 @@ function CardPreview({
                         height: BADGE,
                         width: 72,
                         borderRadius: 999,
-                        background: `linear-gradient(135deg, ${C.amberLight}, ${C.amber})`,
+                        background: C.amberLight,
                         color: C.proText,
                         fontSize: 16,
                         fontWeight: 800,
@@ -937,7 +862,7 @@ function CardPreview({
                       style={{
                         width: BADGE,
                         height: BADGE,
-                        background: `linear-gradient(135deg, ${m.customColorList[0]}, ${m.customColorList[1] || m.customColorList[0]})`,
+                        background: m.customColorList[0],
                       }}
                     >
                       <BadgeCheck style={{ width: 20, height: 20, color: "#FFFFFF" }} />
