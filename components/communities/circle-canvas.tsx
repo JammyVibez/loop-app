@@ -95,7 +95,8 @@ export function CircleCanvas({
   const rules: string[] = bundle.community?.rules?.rules || []
   const pulse = bundle.pulse || {}
 
-  const openThreads = threads.filter((t) => (t.state || "open") === "open")
+  const liveThreads = threads.filter((t) => t.is_live)
+  const openThreads = threads.filter((t) => (t.state || "open") === "open" && !t.is_live)
   const decidedThreads = threads.filter((t) => t.state === "decided")
   const decisions = challenges.slice(0, 3)
   const activeProjects = projects.filter((p) => p.status === "active").slice(0, 3)
@@ -269,7 +270,35 @@ export function CircleCanvas({
             bodyClassName="divide-y divide-border/60"
             action={<Activity className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
           >
-            {happening.length === 0 ? (
+            {liveThreads.length > 0 && (
+              <>
+                {liveThreads.map((t: ThreadRecord) => (
+                  <button
+                    key={`live-${t.id}`}
+                    type="button"
+                    onClick={() => onOpenThread(t)}
+                    className="flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/40"
+                  >
+                    <span className="relative mt-1 flex h-2 w-2 shrink-0">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/60" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="truncate text-xs font-semibold text-foreground">{t.title}</span>
+                        <span className="shrink-0 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-px text-[9px] font-bold uppercase text-emerald-600 dark:text-emerald-400">Live</span>
+                      </span>
+                      {t.live_viewer_count ? (
+                        <span className="mt-0.5 block text-[10px] text-emerald-600/70 dark:text-emerald-400/70">
+                          {t.live_viewer_count} watching
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                ))}
+              </>
+            )}
+            {happening.length === 0 && liveThreads.length === 0 ? (
               <Empty>The room is quiet. Open a thread to get it moving.</Empty>
             ) : (
               happening.slice(0, 5).map((h: any, i: number) => (

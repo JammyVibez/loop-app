@@ -143,6 +143,30 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       patch.is_pinned = Boolean(body.is_pinned)
     }
 
+    // Live toggle — thread managers can start or end a live room.
+    // A live thread links to the existing co-loop infrastructure so we don't
+    // build a second WebRTC stack.
+    if (body.is_live !== undefined && typeof body.is_live === "boolean") {
+      if (!canManage)
+        return NextResponse.json({ error: "Only thread managers can go live" }, { status: 403 })
+      patch.is_live = body.is_live
+      if (body.is_live) {
+        // Generate a room id once and reuse it until the thread is taken offline.
+        patch.live_room_id = thread.live_room_id || `thread-${threadId}`
+        patch.live_started_at = new Date().toISOString()
+        patch.live_viewer_count = 0
+        if (body.live_stream_url !== undefined)
+          patch.live_stream_url = String(body.live_stream_url || "").slice(0, 500)
+      } else {
+        patch.live_started_at = null
+        patch.live_viewer_count = 0
+        patch.live_stream_url = null
+      }
+    } else if (body.live_stream_url !== undefined) {
+      // Update the live stream URL without toggling the state.
+      patch.live_stream_url = String(body.live_stream_url || "").slice(0, 500)
+    }
+
     const { data: updated, error } = await sb
       .from("community_threads")
       .update(patch)

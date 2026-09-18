@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Archive, ArrowLeft, Check, Loader2, Pin, Plus, RotateCcw, Send } from "lucide-react"
+import { Archive, ArrowLeft, Check, Loader2, Pin, Plus, Radio, RotateCcw, Send, Users, Video } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -360,6 +360,7 @@ function ThreadDetail({
   const [contribution, setContribution] = useState("")
   const [busy, setBusy] = useState(false)
   const [savingOutcome, setSavingOutcome] = useState(false)
+  const [togglingLive, setTogglingLive] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -482,6 +483,32 @@ function ThreadDetail({
             ) : null}
           </div>
 
+          {/* Live badge */}
+          {thread.is_live ? (
+            <div className="mb-3 flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/60" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              </span>
+              <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Live now</span>
+              {thread.live_viewer_count ? (
+                <span className="flex items-center gap-1 text-xs text-emerald-600/70 dark:text-emerald-400/70">
+                  <Users className="h-3 w-3" /> {thread.live_viewer_count} watching
+                </span>
+              ) : null}
+              <div className="ml-auto flex gap-1.5">
+                {isMember ? (
+                  <Button
+                    size="sm"
+                    className="h-7 rounded-full bg-emerald-600 px-2.5 text-[11px] text-white hover:bg-emerald-700"
+                  >
+                    <Video className="mr-1 h-3 w-3" /> Join room
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
           <div className="flex shrink-0 items-center gap-1">
             {isMember ? (
               <button
@@ -535,6 +562,41 @@ function ThreadDetail({
                     <Archive className="h-3.5 w-3.5" />
                   </button>
                 ) : null}
+                {/* Go live / End live toggle */}
+                <button
+                  type="button"
+                  title={thread.is_live ? "End live" : "Go live"}
+                  disabled={togglingLive}
+                  onClick={async () => {
+                    setTogglingLive(true)
+                    try {
+                      const res = await fetch(`/api/communities/${communityId}/threads/${threadId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ is_live: !thread.is_live }),
+                      })
+                      if (!res.ok) throw new Error("Failed")
+                      await load()
+                      toast({ title: thread.is_live ? "Live session ended" : "You're live!" })
+                    } catch {
+                      toast({ title: "Couldn't toggle live", variant: "destructive" })
+                    } finally {
+                      setTogglingLive(false)
+                    }
+                  }}
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-full border transition-colors",
+                    thread.is_live
+                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 dark:text-emerald-400"
+                      : "border-border bg-background text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {togglingLive ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Radio className="h-3.5 w-3.5" />
+                  )}
+                </button>
               </>
             ) : null}
           </div>

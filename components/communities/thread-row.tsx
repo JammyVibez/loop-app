@@ -11,6 +11,7 @@ import {
   HelpCircle,
   Layers,
   Pin,
+  Radio,
   Scale,
   Sparkles,
 } from "lucide-react"
@@ -87,6 +88,9 @@ export interface ThreadRecord {
   last_activity_at?: string | null
   created_at?: string | null
   follow_mode?: string | null
+  is_live?: boolean
+  live_viewer_count?: number
+  live_started_at?: string | null
   creator?: { username?: string | null; display_name?: string | null; avatar_url?: string | null } | null
   space?: { id: number; name: string; icon?: string | null } | null
 }
@@ -121,6 +125,15 @@ export function ThreadRow({
 
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
+          {thread.is_live ? (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/60" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              </span>
+              Live{thread.live_viewer_count ? ` · ${thread.live_viewer_count}` : ""}
+            </span>
+          ) : null}
           {thread.is_pinned && <Pin className="h-3 w-3 shrink-0 text-amber-500" />}
           <span className="truncate text-sm font-semibold text-foreground">{thread.title}</span>
           <ThreadStateChip state={thread.state} />

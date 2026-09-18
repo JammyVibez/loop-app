@@ -21,6 +21,7 @@ import { ShareAsImageModal } from "@/components/engagement/share-as-image-modal"
 import {
   Clock,
   Eye,
+  Layers,
   Pin,
   Share2,
   ExternalLink,
@@ -309,6 +310,11 @@ export function CommunityPostCard({
               {spaceName && (
                 <span className="flex items-center gap-1">
                   in {spaceName}
+                </span>
+              )}
+              {(post as any).thread && (
+                <span className="flex items-center gap-1 text-indigo-500 dark:text-indigo-400">
+                  <Layers className="h-3 w-3" /> {(post as any).thread.title}
                 </span>
               )}
               {(post as any).view_count > 0 && (
