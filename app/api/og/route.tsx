@@ -49,6 +49,38 @@ async function loadAvatarDataUri(raw: string | null, origin: string): Promise<st
 }
 
 /**
+ * Inline the real app icon (`/icons/icon-512x512.png`) so post previews carry
+ * the actual Loop logo instead of a drawn stand-in. Cached per isolate and
+ * best-effort — the card falls back to the drawn mark if the fetch fails.
+ */
+let logoDataUriCache: string | null | false = false
+async function loadLogoDataUri(origin: string): Promise<string | undefined> {
+  if (logoDataUriCache !== false) return logoDataUriCache || undefined
+  try {
+    const res = await fetch(new URL("/icons/icon-512x512.png", origin).toString(), {
+      signal: AbortSignal.timeout(2500),
+    })
+    if (!res.ok) {
+      logoDataUriCache = null
+      return undefined
+    }
+    const buf = await res.arrayBuffer()
+    if (buf.byteLength > 1_500_000 || buf.byteLength === 0) {
+      logoDataUriCache = null
+      return undefined
+    }
+    const bytes = new Uint8Array(buf)
+    let binary = ""
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+    logoDataUriCache = `data:image/png;base64,${btoa(binary)}`
+    return logoDataUriCache
+  } catch {
+    logoDataUriCache = null
+    return undefined
+  }
+}
+
+/**
  * Parse a stat passed through the query string. Callers format with
  * `toLocaleString()` ("1,234") and share sheets may pass "1.2k", so strip the
  * separators and honour a k/M suffix instead of letting Number() return NaN
@@ -111,10 +143,8 @@ export async function GET(request: Request) {
     const rawName = searchParams.get("name") || searchParams.get("title") || username || "Loop"
     // `title` for posts is built as "<content> by @<author>" — strip that tail.
     const name = truncate(rawName.replace(/\s+by\s+@[\w.]+\s*$/i, "").replace(/\s+—.*$/, "").trim(), 46)
-    const avatar = await loadAvatarDataUri(
-      searchParams.get("avatar"),
-      new URL(request.url).origin,
-    )
+    const avatar = await loadAvatarDataUri(searchParams.get("avatar"), new URL(request.url).origin)
+    const logo = await loadLogoDataUri(new URL(request.url).origin)
     const likes = parseStat(searchParams.get("stat"))
 
     return new ImageResponse(
@@ -129,6 +159,7 @@ export async function GET(request: Request) {
           premium={searchParams.get("premium") === "true"}
           badgeColors={parseColors(searchParams.get("badge_color"), searchParams.get("badge_color2"))}
           avatarDataUri={avatar}
+          logoDataUri={logo}
           kicker={type === "developer" ? "Code" : "Post"}
         />
       ),

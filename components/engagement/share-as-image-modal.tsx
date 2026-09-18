@@ -49,38 +49,55 @@ interface ShareAsImageModalProps {
 
 /* ── Card geometry ───────────────────────────────────────────────────────
  * The card hugs its content the way a Substack share card does: 1080 wide,
- * height driven by the number of wrapped body lines, so a one-line post is
- * a compact strip instead of a mostly-empty portrait. The HTML preview and
- * the exported JPEG derive their height from the same `lines` array, so the
- * two are pixel-for-pixel the same layout at any size.
+ * height driven by the wrapped body lines (plus the post image when there is
+ * one), so a one-line post is a compact strip instead of an empty portrait.
+ * The HTML preview and the exported JPEG derive their height from the same
+ * `lines` array and the same media height, so the two are the same layout at
+ * any size.
  */
 const CARD_W = 1080
 const SCALE = 2
 const PAD = 64
 const RADIUS = 28
+/** Avatar gradient ring thickness. */
+const RING = 5
 const AVATAR = 96
+const AV_BOX = AVATAR + RING * 2
 const NAME_FONT = 38
 const META_FONT = 27
 const BODY_FONT = 40
 const BODY_LINE = 1.5
 const MAX_LINES = 14
-const L_MARK = 48
-/** Header → body, and body → engagement row. */
-const HEADER_GAP = 56
-const ENGAGE_GAP = 56
+const LOGO = 46
+const WORDMARK_FONT = 33
+const WORDMARK_GAP = 12
+const BADGE = 30
+/** Header → body, body → media, media → engagement row. */
+const HEADER_GAP = 48
+const MEDIA_GAP = 44
+const ENGAGE_GAP = 52
 const ICON = 36
 const COUNT_FONT = 28
 const GAP_AFTER_ICON = 14
 const GAP_BETWEEN = 52
-const BADGE = 30
 
 const BODY_LINE_H = BODY_FONT * BODY_LINE
-const HEADER_BOTTOM = PAD + AVATAR
+const HEADER_BOTTOM = PAD + AV_BOX
 const BODY_TOP = HEADER_BOTTOM + HEADER_GAP
+const MEDIA_W = CARD_W - PAD * 2
+const MEDIA_MIN_H = 280
+const MEDIA_MAX_H = 620
 
-/** Total card height for a given number of wrapped body lines. */
-function cardHeight(lineCount: number) {
-  return BODY_TOP + Math.max(1, lineCount) * BODY_LINE_H + ENGAGE_GAP + ICON + PAD
+/** Total card height for a given number of wrapped body lines (+ media). */
+function cardHeight(lineCount: number, mediaH: number | null) {
+  return (
+    BODY_TOP +
+    Math.max(1, lineCount) * BODY_LINE_H +
+    (mediaH ? MEDIA_GAP + mediaH : 0) +
+    ENGAGE_GAP +
+    ICON +
+    PAD
+  )
 }
 /** Rough line count used for the very first (server) render. */
 function estimateLines(body: string) {
@@ -95,14 +112,17 @@ const C = {
   text: "rgba(255,255,255,0.96)",
   textStrong: "#FFFFFF",
   textMuted: "rgba(255,255,255,0.55)",
-  textFaint: "rgba(255,255,255,0.40)",
-  rim: "rgba(255,255,255,0.09)",
   violet: "#8B5CF6",
   cyan: "#22D3EE",
   amber: "#F59E0B",
   amberLight: "#FBBF24",
   proText: "#241505",
 }
+/** Gradient rim + wordmark, matching the app icon's violet → cyan sweep. */
+const RIM_GRADIENT =
+  "linear-gradient(135deg, rgba(139,92,246,0.45), rgba(255,255,255,0.10) 48%, rgba(34,211,238,0.38))"
+/** The wordmark stays white — the icon already carries the brand gradient. */
+const WORDMARK_COLOR = "rgba(255,255,255,0.92)"
 
 function truncate(t: string, m: number) {
   const c = t.replace(/\s+/g, " ").trim()
@@ -134,10 +154,64 @@ function normalizeColors(badge?: ShareCardBadge | null): string[] {
   if (Array.isArray(v)) return v.map((c: any) => String(c).trim()).filter(Boolean)
   if (typeof v === "string" && v.trim()) return [v.trim()]
   // Fall back to the branded seal gradient so a custom mark never disappears.
-  return ["#22D3EE", "#818CF8"]
+  return [C.cyan, "#818CF8"]
 }
 
-/* ── Avatar loading ── */
+/* ── App logo ────────────────────────────────────────────────────────────
+ * Mirrors `AppLogo`: the admin-configured `app_logo.logo_url` (cached in
+ * sessionStorage, refreshed from /api/admin/settings) with a local fallback.
+ * The PNG fallback is used for the canvas because some browsers report a zero
+ * intrinsic size for an SVG loaded into an <img>, which would draw nothing.
+ */
+const DEFAULT_LOGO_IMG = "/icons/icon-512x512.png"
+let logoSrcPromise: Promise<string> | null = null
+
+async function resolveLogoSrc(): Promise<string> {
+  try {
+    const cached = sessionStorage.getItem("loop-app-logo")
+    if (cached) return cached
+  } catch {
+    /* ignore */
+  }
+  try {
+    const res = await fetch("/api/admin/settings", { cache: "no-store" })
+    if (res.ok) {
+      const data = await res.json()
+      const url = data?.settings?.app_logo?.logo_url || data?.data?.app_logo?.logo_url
+      if (typeof url === "string" && url.trim()) {
+        try {
+          sessionStorage.setItem("loop-app-logo", url)
+        } catch {
+          /* ignore */
+        }
+        return url
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_LOGO_IMG
+}
+function getLogoSrc() {
+  if (!logoSrcPromise) logoSrcPromise = resolveLogoSrc()
+  return logoSrcPromise
+}
+/** Same-origin passthrough, everything else through the media proxy (no CORS taint). */
+function proxyUrl(src: string) {
+  if (src.startsWith("/") || src.startsWith("data:") || src.startsWith("blob:")) return src
+  return `/api/image-proxy?url=${encodeURIComponent(src)}`
+}
+/** The post's own image, when it has one we can draw. */
+function imageMediaUrl(mediaUrl?: string, mediaType?: string): string | null {
+  if (!mediaUrl) return null
+  const t = (mediaType || "").toLowerCase()
+  if (t && !t.startsWith("image")) return null
+  if (!t && /\.(mp4|webm|mov|m4v|mp3|wav|m4a|ogg|pdf)$/i.test(mediaUrl)) return null
+  if (mediaUrl.startsWith("blob:")) return null
+  return mediaUrl
+}
+
+/* ── Image loading ── */
 type AV = HTMLImageElement | HTMLCanvasElement | ImageBitmap
 function avDim(s: AV) {
   if (typeof HTMLImageElement !== "undefined" && s instanceof HTMLImageElement)
@@ -153,7 +227,7 @@ function loadAv(src: string): Promise<AV | null> {
       clearTimeout(t)
       r(v)
     }
-    const t = window.setTimeout(() => ok(null), 1500)
+    const t = window.setTimeout(() => ok(null), 2000)
     if (typeof createImageBitmap === "function") {
       fetch(src, { mode: "cors", credentials: "include" })
         .then((x) => {
@@ -224,7 +298,7 @@ function drawCheck(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: 
 /** Gradient disc with a check — the verified seal / custom admin mark. */
 function drawSeal(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colors: string[]) {
   ctx.save()
-  const a = colors[0] || "#22D3EE"
+  const a = colors[0] || C.cyan
   const b = colors[1] || colors[0] || "#818CF8"
   const g = ctx.createLinearGradient(x, y, x + size, y + size)
   g.addColorStop(0, a)
@@ -257,12 +331,12 @@ function drawPro(ctx: CanvasRenderingContext2D, x: number, y: number, h: number)
   ctx.restore()
   return w
 }
-/** Small Loop mark: rounded gradient square with the wordmark's L. */
+/** Fallback brand mark: the app icon's gradient "L" in a rounded tile. */
 function drawLoopMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
   ctx.save()
   const g = ctx.createLinearGradient(x, y, x + size, y + size)
   g.addColorStop(0, "#7C3AED")
-  g.addColorStop(1, "#22D3EE")
+  g.addColorStop(1, C.cyan)
   rr(ctx, x, y, size, size, size * 0.3)
   ctx.fillStyle = g
   ctx.fill()
@@ -271,6 +345,34 @@ function drawLoopMark(ctx: CanvasRenderingContext2D, x: number, y: number, size:
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
   ctx.fillText("L", x + size / 2, y + size / 2 + size * 0.04)
+  ctx.restore()
+}
+/**
+ * The real app icon, with the drawn mark as a safety net.
+ *
+ * The icon SVG declares only a viewBox, so an <img> reports a 300×150
+ * intrinsic size and the square mark sits centered inside it — the source is
+ * cropped to its centered square (the same trick the avatar uses) so the logo
+ * fills the box instead of shrinking into it.
+ */
+function drawLogo(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, logo: AV | null) {
+  if (!logo) return drawLoopMark(ctx, x, y, size)
+  const { w, h } = avDim(logo)
+  if (!w || !h) return drawLoopMark(ctx, x, y, size)
+  const sz = Math.min(w, h)
+  ctx.save()
+  ctx.imageSmoothingQuality = "high"
+  ctx.drawImage(logo, (w - sz) / 2, (h - sz) / 2, sz, sz, x, y, size, size)
+  ctx.restore()
+}
+/** The wordmark that sits beside the app icon. */
+function drawWordmark(ctx: CanvasRenderingContext2D, x: number, baseline: number) {
+  ctx.save()
+  ctx.font = font(800, WORDMARK_FONT)
+  ctx.textAlign = "left"
+  ctx.textBaseline = "alphabetic"
+  ctx.fillStyle = WORDMARK_COLOR
+  ctx.fillText("Loop", x, baseline)
   ctx.restore()
 }
 
@@ -416,19 +518,57 @@ function model(post: ShareAsImageModalProps["post"], resolvedBadge?: ShareCardBa
     body: truncate(post.content || "Shared a loop on Loop.", 600),
     showVerified: Boolean(post.author.is_verified),
     showPro: Boolean(post.author.is_premium),
-    verifiedColors: ["#22D3EE", "#818CF8"],
+    verifiedColors: [C.cyan, "#818CF8"],
     customColorList: badge ? normalizeColors(badge) : null,
   }
+}
+
+/** Height of the media block, or null when there is nothing to draw. */
+function mediaBoxHeight(img: AV) {
+  const { w, h } = avDim(img)
+  if (!w || !h) return null
+  return Math.round(Math.min(MEDIA_MAX_H, Math.max(MEDIA_MIN_H, MEDIA_W * (h / w))))
+}
+/** Cover-crop the post image into its rounded block. */
+function drawCover(
+  ctx: CanvasRenderingContext2D,
+  img: AV,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  radius: number,
+) {
+  const { w: iw, h: ih } = avDim(img)
+  if (!iw || !ih) return
+  const k = Math.max(w / iw, h / ih)
+  const dw = iw * k
+  const dh = ih * k
+  ctx.save()
+  rr(ctx, x, y, w, h, radius)
+  ctx.clip()
+  ctx.fillStyle = C.bgLift
+  ctx.fillRect(x, y, w, h)
+  ctx.imageSmoothingQuality = "high"
+  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh)
+  ctx.restore()
+  rr(ctx, x + 0.5, y + 0.5, w - 1, h - 1, radius)
+  ctx.strokeStyle = "rgba(255,255,255,0.10)"
+  ctx.lineWidth = 1
+  ctx.stroke()
 }
 
 function drawCard(
   canvas: HTMLCanvasElement,
   m: CardModel,
   lines: string[],
+  mediaH: number | null,
   scale: number,
   av: AV | null,
+  logo: AV | null,
+  media: AV | null,
 ) {
-  const h = cardHeight(lines.length)
+  const h = cardHeight(lines.length, mediaH)
   const ctx = setup(canvas, CARD_W, h, scale)
   if (!ctx) return
 
@@ -443,29 +583,40 @@ function drawCard(
   ctx.fillStyle = C.bg
   ctx.fillRect(0, 0, CARD_W, h)
 
-  const violetGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, CARD_W * 0.8)
-  violetGlow.addColorStop(0, "rgba(124,58,237,0.16)")
+  const violetGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, CARD_W * 0.85)
+  violetGlow.addColorStop(0, "rgba(124,58,237,0.22)")
   violetGlow.addColorStop(1, "rgba(124,58,237,0)")
   ctx.fillStyle = violetGlow
   ctx.fillRect(0, 0, CARD_W, h)
 
-  const cyanGlow = ctx.createRadialGradient(CARD_W, h, 0, CARD_W, h, CARD_W * 0.7)
-  cyanGlow.addColorStop(0, "rgba(34,211,238,0.10)")
+  const cyanGlow = ctx.createRadialGradient(CARD_W, h, 0, CARD_W, h, CARD_W * 0.75)
+  cyanGlow.addColorStop(0, "rgba(34,211,238,0.14)")
   cyanGlow.addColorStop(1, "rgba(34,211,238,0)")
   ctx.fillStyle = cyanGlow
   ctx.fillRect(0, 0, CARD_W, h)
+
+  // A whisper of the other two corners keeps the black from reading flat.
+  const indigoDeep = ctx.createRadialGradient(CARD_W * 0.15, h, 0, CARD_W * 0.15, h, CARD_W * 0.5)
+  indigoDeep.addColorStop(0, "rgba(99,102,241,0.10)")
+  indigoDeep.addColorStop(1, "rgba(99,102,241,0)")
+  ctx.fillStyle = indigoDeep
+  ctx.fillRect(0, 0, CARD_W, h)
   ctx.restore()
 
-  // Hairline rim only — no heavy border.
-  rr(ctx, 0.5, 0.5, CARD_W - 1, h - 1, RADIUS)
-  ctx.strokeStyle = C.rim
-  ctx.lineWidth = 1
+  // Hairline rim, tinted violet → cyan like the app icon.
+  const rimGrad = ctx.createLinearGradient(0, 0, CARD_W, h)
+  rimGrad.addColorStop(0, "rgba(139,92,246,0.45)")
+  rimGrad.addColorStop(0.48, "rgba(255,255,255,0.10)")
+  rimGrad.addColorStop(1, "rgba(34,211,238,0.38)")
+  rr(ctx, 0.75, 0.75, CARD_W - 1.5, h - 1.5, RADIUS)
+  ctx.strokeStyle = rimGrad
+  ctx.lineWidth = 1.5
   ctx.stroke()
 
-  /* ── Header: avatar, name + badges, meta line, app mark top-right ── */
+  /* ── Header: avatar + gradient ring, name + badges, meta, app logo ── */
   const avR = AVATAR / 2
-  const avCx = PAD + avR
-  const avCy = PAD + avR
+  const avCx = PAD + RING + avR
+  const avCy = PAD + RING + avR
 
   ctx.save()
   circle(ctx, avCx, avCy, avR)
@@ -485,15 +636,31 @@ function drawCard(
   }
   ctx.restore()
 
+  // Violet → cyan ring, so the avatar reads as a brand element.
   ctx.save()
-  circle(ctx, avCx, avCy, avR + 0.5)
-  ctx.strokeStyle = "rgba(255,255,255,0.12)"
-  ctx.lineWidth = 1
+  const ringGrad = ctx.createLinearGradient(avCx - avR, avCy - avR, avCx + avR, avCy + avR)
+  ringGrad.addColorStop(0, C.violet)
+  ringGrad.addColorStop(1, C.cyan)
+  ctx.strokeStyle = ringGrad
+  ctx.lineWidth = RING
+  circle(ctx, avCx, avCy, avR + RING / 2)
   ctx.stroke()
   ctx.restore()
 
-  // Loop app mark, far top-right
-  drawLoopMark(ctx, CARD_W - PAD - L_MARK, PAD + (AVATAR - L_MARK) / 2, L_MARK)
+  // Brand: the real app icon + wordmark, far top-right (the Substack slot).
+  const logoBaseline = PAD + (AV_BOX - LOGO) / 2
+  const wordmarkW = (() => {
+    ctx.save()
+    ctx.font = font(800, WORDMARK_FONT)
+    const w = ctx.measureText("Loop").width
+    ctx.restore()
+    return w
+  })()
+  const wordmarkX = CARD_W - PAD - wordmarkW
+  drawLogo(ctx, wordmarkX - WORDMARK_GAP - LOGO, logoBaseline, LOGO, logo)
+  drawWordmark(ctx, wordmarkX, logoBaseline + LOGO / 2 + WORDMARK_FONT * 0.35)
+
+  const brandLeft = wordmarkX - WORDMARK_GAP - LOGO
 
   // Badges stack to the right of the name
   let badgeW = 0
@@ -501,9 +668,9 @@ function drawCard(
   if (m.showPro) badgeW += 72 + 8
   if (m.customColorList) badgeW += BADGE + 8
 
-  const nameX = avCx + avR + 24
-  const nameMaxW = CARD_W - PAD - L_MARK - 24 - nameX - badgeW
-  const nameBaseline = PAD + 42
+  const nameX = avCx + avR + RING + 24
+  const nameMaxW = brandLeft - 24 - nameX - badgeW
+  const nameBaseline = avCy - AVATAR * 0.08
   ctx.save()
   ctx.font = font(700, NAME_FONT)
   ctx.textAlign = "left"
@@ -526,7 +693,7 @@ function drawCard(
   ctx.fillStyle = C.textMuted
   ctx.textAlign = "left"
   ctx.textBaseline = "alphabetic"
-  ctx.fillText(metaBits.join("  ·  "), nameX, PAD + 82)
+  ctx.fillText(metaBits.join("  ·  "), nameX, nameBaseline + 40)
   ctx.restore()
 
   let bx = nameX + nameW + 12
@@ -557,8 +724,15 @@ function drawCard(
   }
   ctx.restore()
 
-  /* ── Engagement row, directly beneath the text ── */
-  const engCy = BODY_TOP + lines.length * BODY_LINE_H + ENGAGE_GAP + ICON / 2
+  /* ── Post image, when the loop has one ── */
+  let afterBody = BODY_TOP + lines.length * BODY_LINE_H
+  if (media && mediaH) {
+    drawCover(ctx, media, PAD, afterBody + MEDIA_GAP, MEDIA_W, mediaH, 22)
+    afterBody += MEDIA_GAP + mediaH
+  }
+
+  /* ── Engagement row, directly beneath the text (or the image) ── */
+  const engCy = afterBody + ENGAGE_GAP + ICON / 2
   ctx.save()
   ctx.font = font(600, COUNT_FONT)
   ctx.textAlign = "left"
@@ -601,11 +775,17 @@ function CardPreview({
   m,
   lines,
   avatarSrc,
+  logoSrc,
+  mediaSrc,
+  mediaH,
   height,
 }: {
   m: CardModel
   lines: string[]
   avatarSrc: string
+  logoSrc: string
+  mediaSrc: string | null
+  mediaH: number | null
   height: number
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null)
@@ -627,7 +807,7 @@ function CardPreview({
     return () => ro.disconnect()
   }, [measure])
 
-  const engTop = BODY_TOP + lines.length * BODY_LINE_H + ENGAGE_GAP
+  const engTop = BODY_TOP + lines.length * BODY_LINE_H + (mediaH ? MEDIA_GAP + mediaH : 0) + ENGAGE_GAP
   const meta = [m.handle, m.date].filter(Boolean).join("  ·  ")
 
   return (
@@ -647,9 +827,9 @@ function CardPreview({
             style={{
               left: -CARD_W * 0.4,
               top: -CARD_W * 0.4,
-              width: CARD_W * 1.6,
-              height: CARD_W * 1.6,
-              background: "radial-gradient(circle, rgba(124,58,237,0.16), rgba(124,58,237,0) 70%)",
+              width: CARD_W * 1.7,
+              height: CARD_W * 1.7,
+              background: "radial-gradient(circle, rgba(124,58,237,0.22), rgba(124,58,237,0) 70%)",
             }}
           />
           <div
@@ -657,30 +837,53 @@ function CardPreview({
             style={{
               right: -CARD_W * 0.35,
               bottom: -CARD_W * 0.35,
-              width: CARD_W * 1.4,
-              height: CARD_W * 1.4,
-              background: "radial-gradient(circle, rgba(34,211,238,0.10), rgba(34,211,238,0) 72%)",
+              width: CARD_W * 1.5,
+              height: CARD_W * 1.5,
+              background: "radial-gradient(circle, rgba(34,211,238,0.14), rgba(34,211,238,0) 72%)",
             }}
           />
           <div
+            className="absolute rounded-full"
+            style={{
+              left: -CARD_W * 0.2,
+              bottom: -CARD_W * 0.3,
+              width: CARD_W * 1.0,
+              height: CARD_W * 1.0,
+              background: "radial-gradient(circle, rgba(99,102,241,0.10), rgba(99,102,241,0) 70%)",
+            }}
+          />
+          {/* violet → cyan hairline rim */}
+          <div
             className="pointer-events-none absolute inset-0"
-            style={{ borderRadius: RADIUS, boxShadow: `inset 0 0 0 1px ${C.rim}` }}
+            style={{
+              borderRadius: RADIUS,
+              padding: 1.5,
+              background: RIM_GRADIENT,
+              WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+              WebkitMaskComposite: "xor",
+              maskComposite: "exclude",
+            }}
           />
 
           <div className="relative h-full w-full" style={{ paddingLeft: PAD, paddingRight: PAD }}>
             {/* ── Header ── */}
             <div className="flex items-center" style={{ paddingTop: PAD, gap: 24 }}>
+              {/* Avatar in the same violet → cyan ring the canvas paints. */}
               <span
-                className="flex shrink-0 items-center justify-center overflow-hidden rounded-full"
+                className="flex shrink-0 items-center justify-center rounded-full"
                 style={{
-                  width: AVATAR,
-                  height: AVATAR,
-                  background: C.bgLift,
-                  boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.12)",
+                  width: AV_BOX,
+                  height: AV_BOX,
+                  background: `linear-gradient(135deg, ${C.violet}, ${C.cyan})`,
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
+                <img
+                  src={avatarSrc}
+                  alt=""
+                  className="rounded-full object-cover"
+                  style={{ width: AVATAR, height: AVATAR, background: C.bgLift }}
+                />
               </span>
 
               <div className="min-w-0 flex-1">
@@ -694,7 +897,7 @@ function CardPreview({
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
-                      maxWidth: 520,
+                      maxWidth: 500,
                     }}
                   >
                     {m.name}
@@ -746,21 +949,25 @@ function CardPreview({
                 </div>
               </div>
 
-              {/* Loop app mark, far top-right */}
-              <span
-                className="flex shrink-0 items-center justify-center"
-                style={{
-                  width: L_MARK,
-                  height: L_MARK,
-                  borderRadius: L_MARK * 0.3,
-                  background: "linear-gradient(135deg, #7C3AED, #22D3EE)",
-                  color: "#FFFFFF",
-                  fontSize: L_MARK * 0.6,
-                  fontWeight: 800,
-                  lineHeight: 1,
-                }}
-              >
-                L
+              {/* App logo + wordmark, the brand slot at the top-right */}
+              <span className="flex shrink-0 items-center" style={{ gap: WORDMARK_GAP }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={logoSrc}
+                  alt="Loop"
+                  style={{ width: LOGO, height: LOGO, borderRadius: LOGO * 0.24, objectFit: "cover" }}
+                />
+                <span
+                  style={{
+                    fontSize: WORDMARK_FONT,
+                    fontWeight: 800,
+                    lineHeight: 1,
+                    letterSpacing: "-0.01em",
+                    color: WORDMARK_COLOR,
+                  }}
+                >
+                  Loop
+                </span>
               </span>
             </div>
 
@@ -783,6 +990,24 @@ function CardPreview({
                 </p>
               ))}
             </div>
+
+            {/* ── Post image ── */}
+            {mediaSrc && mediaH ? (
+              <div style={{ paddingTop: MEDIA_GAP }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={mediaSrc}
+                  alt=""
+                  style={{
+                    width: MEDIA_W,
+                    height: mediaH,
+                    borderRadius: 22,
+                    objectFit: "cover",
+                    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.10)",
+                  }}
+                />
+              </div>
+            ) : null}
 
             {/* ── Engagement row ── */}
             <div className="absolute flex items-center" style={{ top: engTop, left: PAD, gap: GAP_BETWEEN }}>
@@ -871,6 +1096,14 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
   }, [post.author.badge, post.author.badge_id, badgeCatalog])
 
   const m = useMemo(() => model(post, resolvedBadge), [post, resolvedBadge])
+  // The draw effect reads the model through a ref so re-renders of the parent
+  // feed (new object identity every render) don't redraw the card. The stable
+  // `key` below decides when a redraw is actually needed.
+  const mRef = useRef(m)
+  mRef.current = m
+
+  const mediaSrc = useMemo(() => imageMediaUrl(post.media_url, post.media_type), [post.media_url, post.media_type])
+  const proxiedMediaSrc = mediaSrc ? proxyUrl(mediaSrc) : null
 
   // Body wrapping drives the card height, so both the canvas and the preview
   // render exactly the same lines. The first pass is an estimate so the server
@@ -880,11 +1113,18 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
     const estimated = estimateLines(body)
     return Array.from({ length: estimated }, () => "")
   })
+  /** Media height is resolved on the client (from the real image) — null until then. */
+  const [mediaH, setMediaH] = useState<number | null>(null)
+  /** Preview needs a logo URL up front; the canvas gets the bitmap. */
+  const [logoSrc, setLogoSrc] = useState(DEFAULT_LOGO_IMG)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [rendered, setRendered] = useState(false)
   const [exporting, setExporting] = useState(false)
   const avRef = useRef<AV | null>(null)
+  const logoRef = useRef<AV | null>(null)
+  const mediaRef = useRef<AV | null>(null)
+  const mediaUrlRef = useRef<string | null>(null)
   const blobRef = useRef<Blob | null>(null)
   const genRef = useRef(0)
 
@@ -892,7 +1132,18 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
     setLines(measureLines(m.body) || [m.body])
   }, [m.body])
 
-  const height = useMemo(() => cardHeight(lines.length), [lines.length])
+  // Keep the preview's app mark in sync with the admin-configured logo.
+  useEffect(() => {
+    let active = true
+    void getLogoSrc().then((url) => {
+      if (active && url) setLogoSrc(url)
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const height = useMemo(() => cardHeight(lines.length, mediaH), [lines.length, mediaH])
 
   const key = useMemo(
     () =>
@@ -909,6 +1160,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
         post.stats?.likes_count,
         post.stats?.comments_count,
         post.stats?.branches_count,
+        mediaSrc || "",
       ].join("|"),
     [
       post.id,
@@ -923,6 +1175,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       post.stats?.likes_count,
       post.stats?.comments_count,
       post.stats?.branches_count,
+      mediaSrc,
     ],
   )
 
@@ -932,6 +1185,10 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       setExporting(false)
       blobRef.current = null
       avRef.current = null
+      logoRef.current = null
+      mediaRef.current = null
+      mediaUrlRef.current = null
+      setMediaH(null)
       return
     }
     const g = ++genRef.current
@@ -941,13 +1198,41 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       const cv = canvasRef.current
       if (!cv) return
       try {
-        const avUrl = post.author.avatar_url
-          ? `/api/image-proxy?url=${encodeURIComponent(post.author.avatar_url)}`
-          : null
-        const av = avUrl ? await loadAv(avUrl) : null
+        // Post image first — its height is part of the card's height.
+        if (proxiedMediaSrc && mediaUrlRef.current !== proxiedMediaSrc) {
+          mediaRef.current = await loadAv(proxiedMediaSrc)
+          mediaUrlRef.current = proxiedMediaSrc
+          if (c || genRef.current !== g) return
+        }
+        if (!proxiedMediaSrc) {
+          mediaRef.current = null
+          mediaUrlRef.current = null
+        }
+        const mh = mediaRef.current ? mediaBoxHeight(mediaRef.current) : null
+        setMediaH(mh)
+
+        // Always same-origin for the canvas: a cross-origin avatar would taint
+        // it and make toBlob() throw, leaving the preview stuck.
+        const avUrl = proxyUrl(
+          post.author.avatar_url || getDiceBearUrl(post.author.username),
+        )
+        const loadLogo = async (): Promise<AV | null> => {
+          const url = await getLogoSrc()
+          let img = await loadAv(url)
+          const dim = img ? avDim(img) : null
+          // A logo we can't rasterise (some browsers refuse SVGs with no
+          // intrinsic size) falls back to the bundled icon, then to the mark.
+          if ((!img || !dim?.w || !dim?.h) && url !== DEFAULT_LOGO_IMG) img = await loadAv(DEFAULT_LOGO_IMG)
+          return img
+        }
+        const [av, logo] = await Promise.all([
+          avRef.current ? Promise.resolve(avRef.current) : loadAv(avUrl),
+          logoRef.current ? Promise.resolve(logoRef.current) : loadLogo(),
+        ])
         if (c || genRef.current !== g) return
         avRef.current = av
-        drawCard(cv, m, lines, SCALE, av)
+        logoRef.current = logo
+        drawCard(cv, mRef.current, lines, mh, SCALE, av, logo, mediaRef.current)
         if (c || genRef.current !== g) return
         blobRef.current = await toBlob(cv)
         setRendered(true)
@@ -960,13 +1245,13 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       c = true
       clearTimeout(t)
     }
-  }, [open, key, m, lines, post.author.avatar_url])
+  }, [open, key, lines, proxiedMediaSrc, post.author.avatar_url, post.author.username])
 
   const getBlob = async (): Promise<Blob> => {
     if (blobRef.current) return blobRef.current
     const cv = canvasRef.current
     if (!cv) throw new Error("Canvas not ready")
-    drawCard(cv, m, lines, SCALE, avRef.current)
+    drawCard(cv, mRef.current, lines, mediaH, SCALE, avRef.current, logoRef.current, mediaRef.current)
     const b = await toBlob(cv)
     blobRef.current = b
     return b
@@ -1006,7 +1291,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
   }
 
   const avatarSrc = post.author.avatar_url
-    ? `/api/image-proxy?url=${encodeURIComponent(post.author.avatar_url)}`
+    ? proxyUrl(post.author.avatar_url)
     : getDiceBearUrl(post.author.username)
 
   return (
@@ -1022,7 +1307,15 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
         </DialogHeader>
         <canvas ref={canvasRef} className="hidden" />
         <div className="relative">
-          <CardPreview m={m} lines={lines} avatarSrc={avatarSrc} height={height} />
+          <CardPreview
+            m={m}
+            lines={lines}
+            avatarSrc={avatarSrc}
+            logoSrc={logoSrc}
+            mediaSrc={proxiedMediaSrc}
+            mediaH={mediaH}
+            height={height}
+          />
           {!rendered && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 rounded-[22px] bg-background/70 backdrop-blur-[1px]">
               <Spinner className="h-5 w-5 text-muted-foreground" />

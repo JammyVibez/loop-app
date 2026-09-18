@@ -19,6 +19,8 @@ export interface PostOgCardProps {
   badgeColors?: string[]
   /** Avatar already inlined as a data URI (or undefined to fall back to an initial). */
   avatarDataUri?: string
+  /** The real app icon, inlined as a data URI (falls back to the drawn mark). */
+  logoDataUri?: string
   /** Short label shown in the top-right corner, e.g. "Loop Post". */
   kicker?: string
 }
@@ -122,6 +124,7 @@ export function PostOgCard({
   premium,
   badgeColors,
   avatarDataUri,
+  logoDataUri,
   kicker,
 }: PostOgCardProps) {
   const meta = [username ? `@${username}` : "", date || "", likesLabel(likes)].filter(Boolean).join("  ·  ")
@@ -292,7 +295,17 @@ export function PostOgCard({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <LoopMark size={38} />
+            {logoDataUri ? (
+              // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
+              <img
+                src={logoDataUri}
+                width={38}
+                height={38}
+                style={{ width: 38, height: 38, borderRadius: 11, objectFit: "cover" }}
+              />
+            ) : (
+              <LoopMark size={38} />
+            )}
             <div style={{ fontSize: 24, fontWeight: 700, color: "rgba(255,255,255,0.82)" }}>Loop</div>
             <div style={{ fontSize: 21, fontWeight: 400, color: "rgba(255,255,255,0.38)" }}>loopapp.me</div>
           </div>
