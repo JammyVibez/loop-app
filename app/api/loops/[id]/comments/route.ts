@@ -4,6 +4,47 @@ import { createServerClient } from "@/lib/supabase";
 import { getUserFromRequest } from "@/lib/server-auth";
 import { enforceUserRateLimit } from "@/lib/rate-limit-settings";
 
+/** Attachments a single comment can carry. */
+const MAX_COMMENT_ATTACHMENTS = 4
+
+type CommentAttachment = {
+  url: string
+  type: "image" | "video" | "audio" | "file"
+  name?: string
+  width?: number
+  height?: number
+  duration?: number
+}
+
+/**
+ * Validates client-supplied attachments before they reach the database — only
+ * absolute http(s) URLs from our own upload pipeline are kept, and the type is
+ * forced into the small set the comment renderer knows how to draw.
+ */
+function sanitizeAttachments(input: unknown): CommentAttachment[] {
+  if (!Array.isArray(input)) return []
+  const out: CommentAttachment[] = []
+  for (const raw of input) {
+    if (!raw || typeof raw !== "object") continue
+    const src = raw as Record<string, unknown>
+    const url = typeof src.url === "string" ? src.url.trim() : ""
+    if (!/^https?:\/\//i.test(url) || url.length > 2048) continue
+    const declared = String(src.type || "").toLowerCase()
+    const type: CommentAttachment["type"] =
+      declared === "image" || declared === "video" || declared === "audio" ? declared : "file"
+    const item: CommentAttachment = { url, type }
+    const name = typeof src.name === "string" ? src.name.trim().slice(0, 160) : ""
+    if (name) item.name = name
+    for (const dim of ["width", "height", "duration"] as const) {
+      const value = Number(src[dim])
+      if (Number.isFinite(value) && value > 0) item[dim] = Math.round(value)
+    }
+    out.push(item)
+    if (out.length >= MAX_COMMENT_ATTACHMENTS) break
+  }
+  return out
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -123,12 +164,25 @@ export async function POST(
       )
     }
 
-    const { content, parent_comment_id, media_url } = await request.json()
+    const body = await request.json()
+    const { parent_comment_id, media_url, media_type } = body
     const { id: loopId } = await params
 
-    if (!content?.trim()) {
+    const text = typeof body.content === "string" ? body.content.trim() : ""
+    const attachments = sanitizeAttachments(body.attachments)
+
+    // A comment is valid with text, with media, or with both — but not empty.
+    if (!text && attachments.length === 0) {
       return NextResponse.json({ error: "Comment content is required" }, { status: 400 })
     }
+
+    // Keep the legacy single-attachment columns in sync with the new array so
+    // older consumers (and search) still see the first attachment.
+    const first = attachments[0]
+    const resolvedMediaUrl =
+      first?.url || (typeof media_url === "string" && media_url.trim() ? media_url.trim() : null)
+    const resolvedMediaType =
+      first?.type || (typeof media_type === "string" && media_type.trim() ? media_type.trim() : null)
 
     const supabase = createServerClient()
 
@@ -149,9 +203,11 @@ export async function POST(
       .insert({
         loop_id: loopId,
         author_id: user.id,
-        content: content.trim(),
+        content: text,
         parent_comment_id,
-        media_url
+        media_url: resolvedMediaUrl,
+        media_type: resolvedMediaType,
+        attachments,
       })
       .select(`
         *,
@@ -219,7 +275,13 @@ export async function POST(
       .single()
 
     const actorName = user.user_metadata?.display_name || user.user_metadata?.username || user.email || "Someone"
-    const snippet = content.substring(0, 100) + (content.length > 100 ? '...' : '')
+    const snippet = text
+      ? text.substring(0, 100) + (text.length > 100 ? '...' : '')
+      : first?.type === "video"
+        ? "Sent a video"
+        : first?.type === "image"
+          ? "Sent a photo"
+          : "Sent an attachment"
 
     if (loop && loop.author_id !== user.id) {
       try {
@@ -270,10 +332,10 @@ export async function POST(
 
     try {
       const { processMentions, extractMentions, attachMentionsColumn } = await import("@/lib/mentions")
-      const usernames = extractMentions(content)
+      const usernames = extractMentions(text)
       if (usernames.length) {
         await attachMentionsColumn(supabase, "comments", comment.id, usernames)
-        await processMentions(supabase, content, {
+        await processMentions(supabase, text, {
           source: "loop_comment",
           loop_id: loopId,
           comment_id: comment.id,

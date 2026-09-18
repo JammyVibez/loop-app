@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Heart, Lock, MoreHorizontal, Pencil, Reply, Trash2 } from "lucide-react"
+import { FileText, Heart, Lock, MoreHorizontal, Paperclip, Pencil, Reply, Trash2, X } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -17,6 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
@@ -27,7 +28,45 @@ import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { UserBadges } from "@/components/user-badge"
 import { useVerificationBadges } from "@/hooks/use-verification-badges"
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
+import { uploadMediaFile } from "@/lib/client-media-upload"
+import { Spinner } from "@/components/ui/skeletons"
 import type { ActiveCosmetics } from "@/lib/cosmetics"
+
+/** Media a single comment can carry. Mirrors the API's validation. */
+type CommentAttachment = {
+  url: string
+  type: "image" | "video" | "audio" | "file"
+  name?: string
+  width?: number
+  height?: number
+  duration?: number
+}
+
+const MAX_COMMENT_ATTACHMENTS = 4
+
+function attachmentKind(file: File): CommentAttachment["type"] {
+  if (file.type.startsWith("image/")) return "image"
+  if (file.type.startsWith("video/")) return "video"
+  if (file.type.startsWith("audio/")) return "audio"
+  const name = (file.name || "").toLowerCase()
+  if (/\.(jpe?g|png|gif|webp|avif|heic|heif|bmp|svg)$/.test(name)) return "image"
+  if (/\.(mp4|webm|mov|m4v|ogv|mkv|3gp)$/.test(name)) return "video"
+  if (/\.(mp3|wav|m4a|aac|flac|opus|oga)$/.test(name)) return "audio"
+  return "file"
+}
+
+/** Attachments a comment was saved with — new array first, legacy column as fallback. */
+function attachmentsOf(comment: Comment): CommentAttachment[] {
+  const list = Array.isArray(comment.attachments) ? comment.attachments : []
+  if (list.length) return list.filter((a) => a && typeof a.url === "string")
+  if (comment.media_url) {
+    const declared = String(comment.media_type || "")
+    const type: CommentAttachment["type"] =
+      declared === "video" || declared === "audio" || declared === "file" ? declared : "image"
+    return [{ url: comment.media_url, type }]
+  }
+  return []
+}
 
 interface CommentAuthor {
   id: string
@@ -54,6 +93,150 @@ interface Comment {
   replies?: Comment[]
   isLiked?: boolean
   parent_comment_id?: string | null
+  media_url?: string | null
+  media_type?: string | null
+  attachments?: CommentAttachment[] | null
+}
+
+/** Read-only media on a posted comment. */
+function CommentAttachments({
+  items,
+  onOpen,
+}: {
+  items: CommentAttachment[]
+  onOpen: (url: string) => void
+}) {
+  if (items.length === 0) return null
+  const single = items.length === 1
+  return (
+    <div className="mt-2 flex flex-wrap items-start gap-2">
+      {items.map((a, i) => {
+        if (a.type === "image") {
+          return (
+            <button
+              key={`${a.url}-${i}`}
+              type="button"
+              onClick={() => onOpen(a.url)}
+              className="group relative overflow-hidden rounded-2xl ring-1 ring-border/50 transition-transform active:scale-[0.99]"
+              aria-label="Open image"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={a.url}
+                alt={a.name || "Comment attachment"}
+                loading="lazy"
+                className={
+                  single
+                    ? "max-h-80 w-auto max-w-full object-cover transition-transform group-hover:scale-[1.01]"
+                    : "h-32 w-32 object-cover sm:h-40 sm:w-40"
+                }
+              />
+            </button>
+          )
+        }
+        if (a.type === "video") {
+          return (
+            <video
+              key={`${a.url}-${i}`}
+              src={a.url}
+              controls
+              playsInline
+              preload="metadata"
+              className="max-h-80 w-full max-w-md rounded-2xl bg-black ring-1 ring-border/50"
+            />
+          )
+        }
+        if (a.type === "audio") {
+          return (
+            <audio
+              key={`${a.url}-${i}`}
+              src={a.url}
+              controls
+              preload="metadata"
+              className="w-full max-w-sm"
+            />
+          )
+        }
+        return (
+          <a
+            key={`${a.url}-${i}`}
+            href={a.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-flex max-w-full items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            <FileText className="h-4 w-4 shrink-0 text-cyan-500" />
+            <span className="truncate">{a.name || "Attachment"}</span>
+          </a>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Pending attachments in a composer, each removable before posting. */
+function AttachmentChips({
+  items,
+  onRemove,
+}: {
+  items: CommentAttachment[]
+  onRemove: (index: number) => void
+}) {
+  if (items.length === 0) return null
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {items.map((a, i) => (
+        <div
+          key={`${a.url}-${i}`}
+          className="relative overflow-hidden rounded-xl border border-border/60 bg-muted/40"
+        >
+          {a.type === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={a.url} alt={a.name || "Attachment"} className="h-16 w-16 object-cover" />
+          ) : (
+            <div className="flex h-16 w-24 items-center gap-1.5 px-2 text-[11px] text-muted-foreground">
+              <FileText className="h-4 w-4 shrink-0 text-cyan-500" />
+              <span className="truncate">{a.type === "video" ? "Video" : a.name || "File"}</span>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => onRemove(i)}
+            aria-label="Remove attachment"
+            className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white transition-colors hover:bg-black"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Paperclip button shared by the comment and reply composers. */
+function AttachButton({
+  onClick,
+  busy,
+  disabled,
+}: {
+  onClick: () => void
+  busy: boolean
+  disabled?: boolean
+}) {
+  return (
+    <Button
+      type="button"
+      size="icon"
+      variant="ghost"
+      onClick={onClick}
+      disabled={disabled || busy}
+      title="Attach a photo, video or file"
+      aria-label="Attach media"
+      className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+    >
+      {busy ? <Spinner className="h-4 w-4" /> : <Paperclip className="h-4 w-4" />}
+    </Button>
+  )
 }
 
 const supabase = createClient(
@@ -76,6 +259,74 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const token = user?.access_token || user?.token
+
+  // ── Comment attachments (image / video / audio / any file) ──
+  const [newAttachments, setNewAttachments] = useState<CommentAttachment[]>([])
+  const [replyAttachments, setReplyAttachments] = useState<Record<string, CommentAttachment[]>>({})
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null)
+  const [lightbox, setLightbox] = useState<string | null>(null)
+  const fileTargetRef = useRef<string>("new")
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const openFilePicker = (target: string) => {
+    fileTargetRef.current = target
+    fileInputRef.current?.click()
+  }
+
+  const handleFiles = async (files: FileList | null) => {
+    const target = fileTargetRef.current
+    if (!files || files.length === 0 || !token) return
+    const current = target === "new" ? newAttachments : replyAttachments[target] || []
+    const room = MAX_COMMENT_ATTACHMENTS - current.length
+    if (room <= 0) {
+      toast({
+        title: `Up to ${MAX_COMMENT_ATTACHMENTS} attachments`,
+        description: "Remove one to add another.",
+        variant: "destructive",
+      })
+      return
+    }
+    const picked = Array.from(files).slice(0, room)
+    setUploadingFor(target)
+    const uploaded: CommentAttachment[] = []
+    try {
+      for (const file of picked) {
+        const kind = attachmentKind(file)
+        const result = await uploadMediaFile(file, {
+          type: kind,
+          authHeaders: { Authorization: `Bearer ${token}` },
+          folder: "comments",
+        })
+        uploaded.push({
+          url: result.url,
+          type: kind,
+          name: file.name,
+          width: result.width,
+          height: result.height,
+          duration: result.duration,
+        })
+      }
+    } catch (err: any) {
+      toast({
+        title: "Couldn't attach that file",
+        description: err?.message || "Try a different file.",
+        variant: "destructive",
+      })
+    } finally {
+      if (uploaded.length) {
+        if (target === "new") {
+          setNewAttachments((prev) => [...prev, ...uploaded].slice(0, MAX_COMMENT_ATTACHMENTS))
+        } else {
+          setReplyAttachments((prev) => ({
+            ...prev,
+            [target]: [...(prev[target] || []), ...uploaded].slice(0, MAX_COMMENT_ATTACHMENTS),
+          }))
+        }
+      }
+      setUploadingFor(null)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
 
   const loadComments = useCallback(async () => {
     try {
@@ -133,14 +384,15 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
   }, [loopId, loadComments])
 
   const handleSubmitComment = async () => {
-    if (!newComment.trim() || !token || submitting) return
+    if ((!newComment.trim() && newAttachments.length === 0) || !token || submitting) return
     const submittedContent = newComment
+    const submittedAttachments = newAttachments
     setSubmitting(true)
     try {
       const response = await fetch(`/api/loops/${loopId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ content: submittedContent }),
+        body: JSON.stringify({ content: submittedContent, attachments: submittedAttachments }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
@@ -154,25 +406,32 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
           : [data.comment, ...prev],
       )
       setNewComment("")
+      setNewAttachments([])
     } finally {
       setSubmitting(false)
     }
   }
 
   const handleSubmitReply = async (parentId: string) => {
-    if (!replyContent.trim() || !token || submittingReplyId) return
+    const pending = replyAttachments[parentId] || []
+    if ((!replyContent.trim() && pending.length === 0) || !token || submittingReplyId) return
     setSubmittingReplyId(parentId)
     try {
       const response = await fetch(`/api/loops/${loopId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ content: replyContent, parent_comment_id: parentId }),
+        body: JSON.stringify({
+          content: replyContent,
+          parent_comment_id: parentId,
+          attachments: pending,
+        }),
       })
       if (!response.ok) {
         toast({ title: "Couldn't post reply", description: 'Try again in a moment.', variant: "destructive" })
         return
       }
       setReplyContent("")
+      setReplyAttachments((prev) => ({ ...prev, [parentId]: [] }))
       setReplyingTo(null)
       await loadComments()
     } finally {
@@ -327,7 +586,12 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
                 </div>
               </div>
             ) : (
-              <RichContent text={comment.content} className="text-sm text-foreground" />
+              <>
+                {comment.content?.trim() ? (
+                  <RichContent text={comment.content} className="text-sm text-foreground" />
+                ) : null}
+                <CommentAttachments items={attachmentsOf(comment)} onOpen={setLightbox} />
+              </>
             )}
 
             <div className="mt-2 flex items-center gap-3">
@@ -347,18 +611,35 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
                     value={replyContent}
                     onChange={setReplyContent}
                     placeholder={`Reply to @${comment.author?.username || "comment"}… use @ to tag`}
-                    className="bg-muted border-border text-foreground min-h-[70px] pr-10"
+                    className="bg-muted border-border text-foreground min-h-[70px] pr-20"
                   />
-                  <div className="absolute right-2 bottom-2">
+                  <div className="absolute right-2 bottom-2 flex items-center gap-0.5">
+                    <AttachButton
+                      onClick={() => openFilePicker(comment.id)}
+                      busy={uploadingFor === comment.id}
+                    />
                     <MediaEmojiPicker onSelectEmoji={(emoji) => setReplyContent((prev) => prev + emoji)} />
                   </div>
                 </div>
+                <AttachmentChips
+                  items={replyAttachments[comment.id] || []}
+                  onRemove={(index) =>
+                    setReplyAttachments((prev) => ({
+                      ...prev,
+                      [comment.id]: (prev[comment.id] || []).filter((_, i) => i !== index),
+                    }))
+                  }
+                />
                 <div className="flex gap-2">
                   <Button
                     size="sm"
                     className="bg-cyan-500 font-semibold text-slate-950 hover:bg-cyan-400"
                     onClick={() => handleSubmitReply(comment.id)}
-                    disabled={submittingReplyId === comment.id}
+                    disabled={
+                      submittingReplyId === comment.id ||
+                      uploadingFor === comment.id ||
+                      (!replyContent.trim() && (replyAttachments[comment.id] || []).length === 0)
+                    }
                   >
                     {submittingReplyId === comment.id ? "Replying…" : "Reply"}
                   </Button>
@@ -392,10 +673,11 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
             <MentionTextarea
               value={newComment}
               onChange={setNewComment}
-              placeholder="Share your thoughts… type @ to tag, insert emojis, GIFs or stickers"
-              className="min-h-[85px] border-border bg-muted text-foreground pr-12"
+              placeholder="Share your thoughts… type @ to tag, attach photos or videos, insert emojis"
+              className="min-h-[85px] border-border bg-muted text-foreground pr-20"
             />
-            <div className="absolute right-2 bottom-2">
+            <div className="absolute right-2 bottom-2 flex items-center gap-0.5">
+              <AttachButton onClick={() => openFilePicker("new")} busy={uploadingFor === "new"} />
               <MediaEmojiPicker
                 onSelectEmoji={(emoji) => setNewComment((prev) => prev + emoji)}
                 onSelectGif={(url) => setNewComment((prev) => prev + ` ![GIF](${url}) `)}
@@ -403,9 +685,15 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
               />
             </div>
           </div>
+          <AttachmentChips
+            items={newAttachments}
+            onRemove={(index) => setNewAttachments((prev) => prev.filter((_, i) => i !== index))}
+          />
           <Button
             onClick={handleSubmitComment}
-            disabled={!newComment.trim() || submitting}
+            disabled={
+              submitting || uploadingFor === "new" || (!newComment.trim() && newAttachments.length === 0)
+            }
             className="bg-cyan-500 font-bold text-slate-950 hover:bg-cyan-400 rounded-xl"
           >
             {submitting ? "Posting…" : "Post comment"}
@@ -441,6 +729,33 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
         destructive
         onConfirm={handleDelete}
       />
+
+      {/* One hidden picker shared by the comment box and every reply box. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*,audio/*,.pdf,.zip,.txt,.md,.csv,.json"
+        multiple
+        className="hidden"
+        onChange={(e) => void handleFiles(e.target.files)}
+      />
+
+      <Dialog open={Boolean(lightbox)} onOpenChange={(open) => !open && setLightbox(null)}>
+        <DialogContent className="max-w-[calc(100vw-2rem)] border-border bg-card p-3 sm:max-w-3xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Comment image</DialogTitle>
+            <DialogDescription>Full-size comment attachment</DialogDescription>
+          </DialogHeader>
+          {lightbox && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={lightbox}
+              alt="Comment attachment"
+              className="max-h-[80dvh] w-full rounded-xl object-contain"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -802,9 +802,10 @@ export function LoopFeed({
           const showMomentCompose =
             !guestMode && feedType === "personalized" && idx === COMPOSE_MOMENT_SLOT && moments.length > 0
           return (
-            // No vertical padding between posts — the hairline divider does the
-            // separating, so the stream reads as one continuous river of posts.
-            <div key={loop.id}>
+            // A whisper of vertical breathing room (6px each side of the
+            // hairline) so posts don't collide with the divider, while the
+            // stream still reads as one continuous river of posts.
+            <div key={loop.id} className={viewMode === "stream" ? "py-1.5" : undefined}>
               {showAdHere && (
                 <div className="mb-1.5">
                   <AdCard ad={feedAds[0]} sessionId={sessionIdRef.current} />

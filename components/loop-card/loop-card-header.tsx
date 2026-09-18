@@ -82,7 +82,7 @@ export function LoopCardHeader({
     parentAuthor?.username?.trim() || parentAuthor?.display_name?.trim() || ""
 
   return (
-    <div className="flex flex-col gap-1 px-3 pb-1 pt-3 sm:px-4">
+    <div className="flex flex-col gap-1 px-3.5 pb-1.5 pt-3.5 sm:px-5">
       {LoginGateDialog}
 
       {/* Branch origin banner — always name the author we branched from (@username + badge when verified) */}
