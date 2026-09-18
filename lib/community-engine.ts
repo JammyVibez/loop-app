@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase"
 import { getCategoryConfig, categoryDefaultSpaces } from "@/lib/community-categories"
 import { canManageCircle, normalizeRole } from "@/lib/circle-permissions"
+import { listPowers, viewerAbilities } from "@/lib/community-permissions"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 // The community engine works against a fast-evolving schema — the generated
@@ -281,6 +282,46 @@ export interface HappeningItem {
 export async function computeHappening(sb: SB, circleId: number | string): Promise<HappeningItem[]> {
   const id = Number(circleId)
   const items: HappeningItem[] = []
+
+  // What the community is working on right now, and what it last settled.
+  // Threads lead: they are the unit of work, so they belong at the top.
+  const { data: liveThread } = await sb
+    .from("community_threads")
+    .select("id, title, contribution_count, last_activity_at")
+    .eq("circle_id", id)
+    .eq("state", "open")
+    .order("last_activity_at", { ascending: false })
+    .limit(1)
+  if (liveThread && liveThread.length > 0) {
+    const t = liveThread[0]
+    items.push({
+      kind: "open_thread",
+      emoji: "🧵",
+      title: "Thread in progress",
+      description: `${t.title}${t.contribution_count ? ` — ${t.contribution_count} contributions` : " — nothing added yet"}`,
+      ref_type: "thread",
+      ref_id: t.id,
+    })
+  }
+
+  const { data: decidedThread } = await sb
+    .from("community_threads")
+    .select("id, title, outcome, decided_at")
+    .eq("circle_id", id)
+    .eq("state", "decided")
+    .order("decided_at", { ascending: false })
+    .limit(1)
+  if (decidedThread && decidedThread.length > 0) {
+    const t = decidedThread[0]
+    items.push({
+      kind: "recent_decision",
+      emoji: "⚖️",
+      title: "Decided",
+      description: t.outcome ? `${t.title} — ${t.outcome}` : t.title,
+      ref_type: "thread",
+      ref_id: t.id,
+    })
+  }
 
   // Trending discussion — most commented post
   const { data: topPost } = await sb
@@ -837,19 +878,50 @@ export async function getWorldBundle(sb: SB, circleId: number | string, viewerId
   // Seed default spaces on first visit (migration path for existing circles)
   await ensureDefaultSpaces(sb, circle, viewerId)
 
-  const [spaces, pulse, dna, happening, memory, moments, recentMembers, projects, challenges, communityLoop] =
-    await Promise.all([
-      sb.from("community_spaces").select("*").eq("circle_id", id).eq("is_archived", false).order("sort_order").limit(30),
-      computePulse(sb, id),
-      computeDNA(sb, id),
-      computeHappening(sb, id),
-      computeMemory(sb, id, memberCount),
-      computeMoments(sb, id),
-      sb.from("circle_members").select("user_id, role, joined_at, last_active, user:profiles!user_id(id, username, display_name, avatar_url, is_verified, is_premium)").eq("circle_id", id).neq("status", "banned").order("joined_at", { ascending: false }).limit(12),
-      sb.from("community_projects").select("*, creator:profiles!created_by(id, username, display_name, avatar_url)").eq("circle_id", id).order("created_at", { ascending: false }).limit(8),
-      sb.from("circle_challenges").select("*").eq("circle_id", id).order("created_at", { ascending: false }).limit(6),
-      computeCommunityLoop(sb, id),
-    ])
+  const [
+    spaces,
+    pulse,
+    happening,
+    memory,
+    moments,
+    recentMembers,
+    projects,
+    challenges,
+    threads,
+    onlineMembers,
+    abilities,
+  ] = await Promise.all([
+    sb.from("community_spaces").select("*").eq("circle_id", id).eq("is_archived", false).order("sort_order").limit(30),
+    computePulse(sb, id),
+    computeHappening(sb, id),
+    computeMemory(sb, id, memberCount),
+    computeMoments(sb, id),
+    sb.from("circle_members").select("user_id, role, joined_at, last_active, user:profiles!user_id(id, username, display_name, avatar_url, is_verified, is_premium)").eq("circle_id", id).neq("status", "banned").order("joined_at", { ascending: false }).limit(12),
+    sb.from("community_projects").select("*, creator:profiles!created_by(id, username, display_name, avatar_url)").eq("circle_id", id).order("created_at", { ascending: false }).limit(8),
+    sb.from("circle_challenges").select("*").eq("circle_id", id).order("created_at", { ascending: false }).limit(6),
+    // Threads are the front door, so the bundle carries the live board.
+    sb
+      .from("community_threads")
+      .select(
+        `*,
+         creator:profiles!created_by(id, username, display_name, avatar_url, is_verified),
+         space:community_spaces!space_id(id, name, icon, type)`,
+      )
+      .eq("circle_id", id)
+      .order("is_pinned", { ascending: false })
+      .order("last_activity_at", { ascending: false })
+      .limit(14),
+    // Who is around right now (last 15 minutes of activity).
+    sb
+      .from("circle_members")
+      .select("user_id, role, last_active, user:profiles!user_id(id, username, display_name, avatar_url, is_verified, is_premium)")
+      .eq("circle_id", id)
+      .eq("status", "active")
+      .gte("last_active", new Date(Date.now() - 15 * 60 * 1000).toISOString())
+      .order("last_active", { ascending: false })
+      .limit(14),
+    viewerAbilities(sb, id, viewerId),
+  ])
 
   const spacesData = spaces.data || []
 
@@ -877,16 +949,10 @@ export async function getWorldBundle(sb: SB, circleId: number | string, viewerId
     }
   }
 
-  const evolutionData = await computeEvolution(sb, id, (circle.enabled_features as any) || {}, spacesData.map((s: any) => s.name.toLowerCase()))
+  // Which Power was handed to which member — needed to draw role chips.
+  const powers = await listPowers(sb, id)
 
-  // Pending recommendations from DB (persisted)
-  const { data: pendingRecs } = await sb
-    .from("community_evolution_recommendations")
-    .select("*")
-    .eq("circle_id", id)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false })
-    .limit(10)
+  const threadRows = (threads.data || []).map((t: any) => ({ ...t, follow_mode: null }))
 
   return {
     community: circle,
@@ -899,16 +965,21 @@ export async function getWorldBundle(sb: SB, circleId: number | string, viewerId
     is_owner: isOwnerRole(role),
     spaces: spacesData,
     pulse,
-    dna,
     happening,
     memory,
     moments,
-    evolution: evolutionData,
-    pending_recommendations: pendingRecs || [],
+    threads: threadRows,
+    powers: powers.roles,
+    power_assignments: powers.by_user,
+    abilities: {
+      role: abilities.role,
+      permissions: Array.from(abilities.permissions),
+      powers: abilities.powers.map((p: any) => ({ id: p.id, name: p.name, color: p.color })),
+    },
+    online_members: onlineMembers.data || [],
     recent_members: recentMembers.data || [],
     projects: projects.data || [],
     challenges: challenges.data || [],
-    community_loop: communityLoop,
     viewer: viewerId,
   }
 }

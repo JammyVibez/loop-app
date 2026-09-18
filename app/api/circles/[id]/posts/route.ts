@@ -297,6 +297,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (space) spaceId = space.id
     }
 
+    // Optional thread attachment — a post can land inside a community thread,
+    // which is how a thread shows real contributions instead of a counter.
+    let threadId: number | null = null
+    if (body.thread_id) {
+      const { data: thread } = await supabase
+        .from("community_threads")
+        .select("id, state")
+        .eq("id", body.thread_id)
+        .eq("circle_id", circleId)
+        .maybeSingle()
+      if (thread && thread.state !== "archived") threadId = thread.id
+    }
+
     // Create post
     const { data: post, error: insertError } = await supabase
       .from("circle_posts")
@@ -310,6 +323,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         hashtags: hashtags || [],
         tags: validTags,
         space_id: spaceId,
+        thread_id: threadId,
         status: postStatus,
         moderation_note: postStatus === "pending" ? "Awaiting moderator approval" : null,
         created_at: new Date().toISOString(),
@@ -398,6 +412,63 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
     } catch (mentionError) {
       console.error("Circle post mention error:", mentionError)
+    }
+
+    // Thread followers get told — per-thread, so muting one thread doesn't
+    // silence the community. "mentions" mode only fires when they're named.
+    if (threadId && postStatus === "published") {
+      try {
+        const { data: followers } = await supabase
+          .from("community_thread_follows")
+          .select("user_id, mode")
+          .eq("thread_id", threadId)
+          .neq("user_id", user.id)
+
+        if (followers && followers.length > 0) {
+          const { data: threadRow } = await supabase
+            .from("community_threads")
+            .select("title")
+            .eq("id", threadId)
+            .maybeSingle()
+
+          const mentioned = new Set<string>()
+          try {
+            const { extractMentions } = await import("@/lib/mentions")
+            for (const name of extractMentions(String(content || ""))) mentioned.add(String(name).toLowerCase())
+          } catch {
+            /* mentions are best-effort */
+          }
+
+          const ids = followers.map((f: any) => f.user_id)
+          let nameById = new Map<string, string>()
+          if (mentioned.size > 0) {
+            const { data: profiles } = await supabase.from("profiles").select("id, username").in("id", ids)
+            nameById = new Map((profiles || []).map((p: any) => [p.id, String(p.username || "").toLowerCase()]))
+          }
+
+          const targets = followers
+            .filter((f: any) => {
+              const mode = f.mode || "none"
+              if (mode === "none") return false
+              if (mode === "all") return true
+              return mentioned.has(nameById.get(f.user_id) || "\u0000")
+            })
+            .map((f: any) => f.user_id)
+
+          if (targets.length > 0) {
+            const { notifyUsers } = await import("@/lib/notifications")
+            await notifyUsers(supabase, targets, {
+              type: "community_thread",
+              title: threadRow?.title ? `New in "${threadRow.title}"` : "New in a thread you follow",
+              message: (String(content || "").trim() || "Sent an attachment").slice(0, 140),
+              actionUrl: `/communities/${circleId}?tab=threads`,
+              inAppOnly: true,
+            })
+          }
+        }
+      } catch (threadNotifyError) {
+        console.error("Thread follower notify error:", threadNotifyError)
+      }
     }
 
     return NextResponse.json({

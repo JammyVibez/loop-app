@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { formatNumber, timeAgo } from "@/lib/community-engine"
 import { MemberReputation } from "./member-reputation"
 import { useToast } from "@/hooks/use-toast"
-import { Users, Search, Shield, Crown, Star, Award, Handshake, Brain, Palette, Flame, UserPlus, Check, X, Tag } from "lucide-react"
+import { Users, Search, Shield, Crown, Star, Award, Handshake, Brain, Palette, Flame, UserPlus, Check, X, Tag, Sparkles } from "lucide-react"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { Spinner } from "@/components/ui/skeletons"
 import { COMMUNITY_ROLE_GRADIENTS as GRADIENT_MAP } from "@/lib/community-gradients"
@@ -32,7 +32,25 @@ const RECOGNITIONS = [
   { kind: "top_contributor", label: "Top Contributor", icon: Flame },
 ]
 
-export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { communityId: string; initial: any[]; viewerRole?: string | null; viewerId?: string | null }) {
+export function WorldMembers({
+  communityId,
+  initial,
+  viewerRole,
+  viewerId,
+  powers = [],
+  powerAssignments = {},
+  onOpenPowers,
+}: {
+  communityId: string
+  initial: any[]
+  viewerRole?: string | null
+  viewerId?: string | null
+  /** Powers defined in this community, with the id → Power map used for chips. */
+  powers?: any[]
+  /** user_id → [power_id] */
+  powerAssignments?: Record<string, number[]>
+  onOpenPowers?: () => void
+}) {
   const { user } = useAuth()
   const { toast } = useToast()
   const [members, setMembers] = useState<any[]>(initial)
@@ -300,6 +318,21 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
                         {gradientLabel}
                       </span>
                     )}
+                    {(powerAssignments[m.user_id] || [])
+                      .map((id: number) => powers.find((p: any) => p.id === id))
+                      .filter((p: any) => p && p.name !== gradientLabel)
+                      .slice(0, 3)
+                      .map((p: any) => (
+                        <span
+                          key={p.id}
+                          className="inline-flex items-center gap-1 rounded-md border px-1.5 py-px text-[9px] font-semibold leading-tight"
+                          style={{ borderColor: `${p.color}55`, color: p.color, background: `${p.color}14` }}
+                          title={p.name}
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ background: p.color }} />
+                          {p.name}
+                        </span>
+                      ))}
                   </div>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
                     <span className="font-semibold text-foreground flex items-center gap-1">
@@ -327,9 +360,17 @@ export function WorldMembers({ communityId, initial, viewerRole, viewerId }: { c
                         {isAdmin && <option value="admin">Admin</option>}
                         {isAdmin && <option value="owner">Founder</option>}
                       </select>
-                      <Button size="sm" variant="outline" className="rounded-full h-8 text-[11px]" onClick={() => { setRoleMember(m); setRoleFreeform(m.custom_title || "") }} title="Assign a custom role">
-                        <Tag className="h-3 w-3 mr-1" /> Role
-                      </Button>
+                      {isAdmin && onOpenPowers ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full h-8 text-[11px]"
+                          onClick={onOpenPowers}
+                          title="Give or take away a Power"
+                        >
+                          <Sparkles className="h-3 w-3 mr-1" /> Powers
+                        </Button>
+                      ) : null}
                       <Button size="sm" variant="outline" className="rounded-full h-8 text-[11px]" onClick={() => setActiveMember(m)}>
                         <Star className="h-3 w-3 mr-1" /> Recognize
                       </Button>
