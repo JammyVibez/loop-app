@@ -59,8 +59,13 @@ interface FocusTarget {
   ts: number
 }
 
-/** Tabs kept out of the bar but still reachable from the canvas. */
-const VALID_TABS = [
+/**
+ * Tab bar entries, plus the contextual surfaces kept out of the bar but still
+ * reachable from canvas cards (`spaces`, `projects`, `challenges`, `memory`,
+ * `bookmarks`). Anything else — including retired tabs like `bots` — falls back
+ * to the canvas so an old deep link never lands on an empty pane.
+ */
+const RENDERED_TABS = [
   "canvas",
   "threads",
   "feed",
@@ -69,15 +74,17 @@ const VALID_TABS = [
   "powers",
   "moderation",
   "settings",
-  // Contextual surfaces (opened from canvas cards / deep links)
-  "overview",
   "spaces",
   "projects",
   "challenges",
   "memory",
-  "bots",
   "bookmarks",
 ]
+
+function resolveTab(raw: string) {
+  if (raw === "overview") return "canvas"
+  return RENDERED_TABS.includes(raw) ? raw : "canvas"
+}
 
 export function CommunityWorld({ communityId }: { communityId: string }) {
   const { user } = useAuth()
@@ -104,8 +111,7 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
   useEffect(() => {
     const t = searchParams?.get("tab") || ""
     if (!t) return
-    if (t === "overview") setTab("canvas")
-    else if (VALID_TABS.includes(t)) setTab(t)
+    setTab(resolveTab(t))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, communityId])
 
@@ -190,7 +196,7 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
   }
 
   const openTab = useCallback((target: { tab: string; id?: number | string }) => {
-    setTab(target.tab === "overview" ? "canvas" : target.tab)
+    setTab(resolveTab(target.tab))
     if (target.id) setFocus({ tab: target.tab, id: target.id, ts: Date.now() })
     else setFocus(null)
     setMenuOpen(false)
