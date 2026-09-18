@@ -11,7 +11,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { getCategoryConfig } from "@/lib/community-categories"
 import { formatNumber } from "@/lib/community-engine"
 import { WorldFeed } from "@/components/communities/world-feed"
-import { WorldSpaces } from "@/components/communities/world-spaces"
 import { WorldProjects } from "@/components/communities/world-projects"
 import { WorldChallenges } from "@/components/communities/world-challenges"
 import { WorldMemory } from "@/components/communities/world-memory"
@@ -74,7 +73,6 @@ const RENDERED_TABS = [
   "powers",
   "moderation",
   "settings",
-  "spaces",
   "projects",
   "challenges",
   "memory",
@@ -494,14 +492,6 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
           )}
 
           {/* Contextual surfaces — reachable from canvas cards, kept out of the bar */}
-          {tab === "spaces" && (
-            <WorldSpaces
-              communityId={communityId}
-              spaces={bundle.spaces || []}
-              canModerate={bundle.is_moderator}
-              onChanged={() => setRefreshKey((k) => k + 1)}
-            />
-          )}
           {tab === "projects" && (
             <WorldProjects
               communityId={communityId}
