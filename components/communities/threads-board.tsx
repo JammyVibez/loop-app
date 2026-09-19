@@ -1,8 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Archive, ArrowLeft, Check, Loader2, Pencil, Pin, Plus, Radio, RotateCcw, Send, Trash2, Users, Video } from "lucide-react"
+import { Archive, ArrowLeft, Check, Loader2, Paperclip, Pencil, Pin, Plus, Radio, RotateCcw, Send, Trash2, Users, Video, X } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/use-auth"
+import { uploadMediaFile } from "@/lib/client-media-upload"
 import { cn } from "@/lib/utils"
 import { timeAgo } from "@/lib/community-engine"
 import {
@@ -384,6 +386,7 @@ function ThreadDetail({
 }) {
   const { toast } = useToast()
   const router = useRouter()
+  const { getAuthHeader } = useAuth()
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [outcome, setOutcome] = useState("")
@@ -393,6 +396,9 @@ function ThreadDetail({
   const [togglingLive, setTogglingLive] = useState(false)
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [attachments, setAttachments] = useState<{ url: string; type: string }[]>([])
+  const [uploadingMedia, setUploadingMedia] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -434,22 +440,54 @@ function ThreadDetail({
 
   const addContribution = async () => {
     const body = contribution.trim()
-    if (!body) return
+    if (!body && attachments.length === 0) return
     setBusy(true)
     try {
       const res = await fetch(`/api/circles/${communityId}/posts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: body, thread_id: threadId, space_id: data?.thread?.space_id || undefined }),
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({
+          content: body,
+          thread_id: threadId,
+          space_id: data?.thread?.space_id || undefined,
+          media_urls: attachments.length > 0 ? attachments.map((a) => a.url) : undefined,
+        }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Failed to post")
       setContribution("")
+      setAttachments([])
       await load()
     } catch (e: any) {
       toast({ title: "Couldn't add that", description: e.message, variant: "destructive" })
     } finally {
       setBusy(false)
+    }
+  }
+
+  const pickMedia = async (files: FileList | null) => {
+    if (!files || files.length === 0 || uploadingMedia) return
+    const room = 4 - attachments.length
+    const picked = Array.from(files).slice(0, Math.max(0, room))
+    if (picked.length === 0) return
+    setUploadingMedia(true)
+    const added: { url: string; type: string }[] = []
+    try {
+      for (const file of picked) {
+        const type = file.type.startsWith("video") ? "video" : file.type.startsWith("image") ? "image" : file.type.startsWith("audio") ? "audio" : "file"
+        const result = await uploadMediaFile(file, {
+          type: type as any,
+          authHeaders: getAuthHeader(),
+          folder: "threads",
+        })
+        added.push({ url: result.url, type })
+      }
+      setAttachments((prev) => [...prev, ...added])
+    } catch (e: any) {
+      toast({ title: "Couldn't attach that file", description: e?.message || "Try a different file.", variant: "destructive" })
+    } finally {
+      setUploadingMedia(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
     }
   }
 
@@ -753,17 +791,28 @@ function ThreadDetail({
                     <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{p.content}</p>
                   ) : null}
                   {Array.isArray(p.media_urls) && p.media_urls.length > 0 ? (
-                    <div className="mt-2 flex gap-2">
-                      {p.media_urls.slice(0, 3).map((u: string, i: number) => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={i}
-                          src={`/api/image-proxy?url=${encodeURIComponent(u)}`}
-                          alt=""
-                          className="h-20 w-20 rounded-lg border border-border object-cover"
-                          loading="lazy"
-                        />
-                      ))}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {p.media_urls.slice(0, 4).map((u: string, i: number) => {
+                        const isVideo = /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u) || u.includes("video/upload")
+                        return isVideo ? (
+                          <video
+                            key={i}
+                            src={u}
+                            controls
+                            preload="metadata"
+                            className="h-20 w-20 rounded-lg border border-border object-cover"
+                          />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={i}
+                            src={`/api/image-proxy?url=${encodeURIComponent(u)}`}
+                            alt=""
+                            className="h-20 w-20 rounded-lg border border-border object-cover"
+                            loading="lazy"
+                          />
+                        )
+                      })}
                     </div>
                   ) : null}
                 </div>
@@ -773,28 +822,78 @@ function ThreadDetail({
         </div>
 
         {isMember && thread.state !== "archived" ? (
-          <div className="flex items-end gap-2 border-t border-border/60 px-4 py-3">
-            <Textarea
-              value={contribution}
-              onChange={(e) => setContribution(e.target.value)}
-              placeholder="Add to this thread…"
-              rows={1}
-              className="min-h-[40px] resize-none text-sm"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault()
-                  void addContribution()
-                }
-              }}
-            />
-            <Button
-              size="sm"
-              className="h-9 shrink-0 rounded-full px-3"
-              disabled={busy || !contribution.trim()}
-              onClick={() => void addContribution()}
-            >
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-            </Button>
+          <div className="border-t border-border/60 px-4 py-3">
+            {attachments.length > 0 ? (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {attachments.map((a, i) => (
+                  <div key={`${a.url}-${i}`} className="relative">
+                    {a.type === "image" ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`/api/image-proxy?url=${encodeURIComponent(a.url)}`}
+                        alt=""
+                        className="h-14 w-14 rounded-lg border border-border object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-14 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-[11px] capitalize text-muted-foreground">
+                        <Video className={cn("h-3.5 w-3.5", a.type === "video" ? "text-foreground/70" : "opacity-60")} />
+                        {a.type}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      title="Remove attachment"
+                      onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <div className="flex items-end gap-2">
+              <Textarea
+                value={contribution}
+                onChange={(e) => setContribution(e.target.value)}
+                placeholder={attachments.length > 0 ? "Say something about it (optional)…" : "Add to this thread…"}
+                rows={1}
+                className="min-h-[40px] resize-none text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault()
+                    void addContribution()
+                  }
+                }}
+              />
+              <div className="flex shrink-0 items-center gap-1.5">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*,audio/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => void pickMedia(e.target.files)}
+                />
+                <button
+                  type="button"
+                  title="Attach media"
+                  disabled={uploadingMedia || attachments.length >= 4}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {uploadingMedia ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
+                </button>
+                <Button
+                  size="sm"
+                  className="h-9 rounded-full px-3"
+                  disabled={busy || uploadingMedia || (!contribution.trim() && attachments.length === 0)}
+                  onClick={() => void addContribution()}
+                >
+                  {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+            </div>
           </div>
         ) : null}
       </div>
