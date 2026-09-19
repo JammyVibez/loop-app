@@ -144,23 +144,65 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     // Live toggle — thread managers can start or end a live room.
-    // A live thread links to the existing co-loop infrastructure so we don't
-    // build a second WebRTC stack.
+    // Going live creates a REAL live_streams row so the thread reuses the
+    // existing /streams/[id] WebRTC room (signaling, chat, viewers, media)
+    // instead of a second, dead-end stack.
     if (body.is_live !== undefined && typeof body.is_live === "boolean") {
       if (!canManage)
         return NextResponse.json({ error: "Only thread managers can go live" }, { status: 403 })
       patch.is_live = body.is_live
       if (body.is_live) {
-        // Generate a room id once and reuse it until the thread is taken offline.
-        patch.live_room_id = thread.live_room_id || `thread-${threadId}`
         patch.live_started_at = new Date().toISOString()
         patch.live_viewer_count = 0
+        // Reuse an existing room row while it's still live; otherwise spin up
+        // a fresh one owned by the thread manager.
+        let streamId: string | null = thread.live_stream_id || null
+        if (streamId) {
+          const { data: existing } = await sb
+            .from("live_streams")
+            .select("id, status")
+            .eq("id", streamId)
+            .maybeSingle()
+          if (!existing || existing.status === "ended") streamId = null
+        }
+        if (!streamId) {
+          const { data: created, error: createErr } = await sb
+            .from("live_streams")
+            .insert({
+              streamer_id: user.id,
+              title: `Thread: ${thread.title}`.slice(0, 120),
+              description: thread.prompt ? String(thread.prompt).slice(0, 500) : null,
+              category: "community",
+              stream_key: crypto.randomUUID(),
+              status: "live",
+              chat_enabled: true,
+            })
+            .select("id")
+            .single()
+          if (createErr || !created) {
+            return NextResponse.json(
+              { error: "Couldn't open the live room: " + (createErr?.message || "unknown") },
+              { status: 500 },
+            )
+          }
+          streamId = created.id
+        }
+        patch.live_stream_id = streamId
+        patch.live_room_id = streamId
         if (body.live_stream_url !== undefined)
           patch.live_stream_url = String(body.live_stream_url || "").slice(0, 500)
       } else {
         patch.live_started_at = null
         patch.live_viewer_count = 0
         patch.live_stream_url = null
+        // End the underlying room row so /streams/[id] shows "live has ended".
+        if (thread.live_stream_id) {
+          await sb
+            .from("live_streams")
+            .update({ status: "ended", ended_at: new Date().toISOString() })
+            .eq("id", thread.live_stream_id)
+            .eq("status", "live")
+        }
       }
     } else if (body.live_stream_url !== undefined) {
       // Update the live stream URL without toggling the state.

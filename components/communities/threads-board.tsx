@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Archive, ArrowLeft, Check, Loader2, Pin, Plus, Radio, RotateCcw, Send, Users, Video } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Archive, ArrowLeft, Check, Loader2, Pencil, Pin, Plus, Radio, RotateCcw, Send, Trash2, Users, Video } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -35,21 +36,27 @@ const FILTERS = [
   { id: "all", label: "Everything" },
 ] as const
 
-/** Open a thread: title, what it is for, which kind of work it is. */
+/**
+ * Open a thread (create) or edit an existing one.
+ * The same dialog does both so the copy and validation stay identical.
+ */
 export function NewThreadDialog({
   open,
   onOpenChange,
   communityId,
   spaces,
   onCreated,
+  thread,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   communityId: string
   spaces: any[]
   onCreated: (thread: ThreadRecord) => void
+  thread?: ThreadRecord | null
 }) {
   const { toast } = useToast()
+  const editing = Boolean(thread)
   const [title, setTitle] = useState("")
   const [prompt, setPrompt] = useState("")
   const [kind, setKind] = useState<string>("make")
@@ -58,12 +65,12 @@ export function NewThreadDialog({
 
   useEffect(() => {
     if (open) {
-      setTitle("")
-      setPrompt("")
-      setKind("make")
-      setSpaceId("none")
+      setTitle(thread?.title || "")
+      setPrompt(thread?.prompt || "")
+      setKind(thread?.kind || "make")
+      setSpaceId(thread?.space?.id ? String(thread.space.id) : "none")
     }
-  }, [open])
+  }, [open, thread])
 
   const submit = async () => {
     if (title.trim().length < 3) {
@@ -72,23 +79,34 @@ export function NewThreadDialog({
     }
     setSaving(true)
     try {
-      const res = await fetch(`/api/communities/${communityId}/threads`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          prompt: prompt.trim(),
-          kind,
-          space_id: spaceId === "none" ? null : Number(spaceId),
-        }),
-      })
+      const payload = {
+        title: title.trim(),
+        prompt: prompt.trim(),
+        kind,
+        space_id: spaceId === "none" ? null : Number(spaceId),
+      }
+      const res = await fetch(
+        editing ? `/api/communities/${communityId}/threads/${thread!.id}` : `/api/communities/${communityId}/threads`,
+        {
+          method: editing ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      )
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to open thread")
+      if (!res.ok) throw new Error(data.error || (editing ? "Failed to update thread" : "Failed to open thread"))
       onCreated(data.thread)
       onOpenChange(false)
-      toast({ title: "Thread opened", description: "It shows up for everyone in the community." })
+      toast({
+        title: editing ? "Thread updated" : "Thread opened",
+        description: editing ? undefined : "It shows up for everyone in the community.",
+      })
     } catch (e: any) {
-      toast({ title: "Couldn't open the thread", description: e.message, variant: "destructive" })
+      toast({
+        title: editing ? "Couldn't update the thread" : "Couldn't open the thread",
+        description: e.message,
+        variant: "destructive",
+      })
     } finally {
       setSaving(false)
     }
@@ -98,9 +116,11 @@ export function NewThreadDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Open a thread</DialogTitle>
+          <DialogTitle>{editing ? "Edit thread" : "Open a thread"}</DialogTitle>
           <DialogDescription>
-            A thread is one piece of work with an end. Decide it, record the outcome, archive it.
+            {editing
+              ? "Update the title, context, kind, or where posts land."
+              : "A thread is one piece of work with an end. Decide it, record the outcome, archive it."}
           </DialogDescription>
         </DialogHeader>
 
@@ -110,7 +130,7 @@ export function NewThreadDialog({
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Pick a name for the community"
+              placeholder="Name the thread"
               maxLength={120}
               className="mt-1.5"
               autoFocus
@@ -179,8 +199,14 @@ export function NewThreadDialog({
             Cancel
           </Button>
           <Button onClick={() => void submit()} disabled={saving}>
-            {saving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Plus className="mr-1.5 h-4 w-4" />}
-            Open thread
+            {saving ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : editing ? (
+              <Check className="mr-1.5 h-4 w-4" />
+            ) : (
+              <Plus className="mr-1.5 h-4 w-4" />
+            )}
+            {editing ? "Save changes" : "Open thread"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -250,6 +276,7 @@ export function ThreadsBoard({
         threadId={selected}
         isMember={isMember}
         canManage={canManage}
+        spaces={spaces}
         onBack={() => {
           setSelected(null)
           void load()
@@ -345,15 +372,18 @@ function ThreadDetail({
   threadId,
   isMember,
   canManage,
+  spaces,
   onBack,
 }: {
   communityId: string
   threadId: number
   isMember: boolean
   canManage: boolean
+  spaces: any[]
   onBack: () => void
 }) {
   const { toast } = useToast()
+  const router = useRouter()
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [outcome, setOutcome] = useState("")
@@ -361,6 +391,8 @@ function ThreadDetail({
   const [busy, setBusy] = useState(false)
   const [savingOutcome, setSavingOutcome] = useState(false)
   const [togglingLive, setTogglingLive] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -421,6 +453,30 @@ function ThreadDetail({
     }
   }
 
+  const deleteThread = async () => {
+    if (!window.confirm("Delete this thread? Its posts stay, but they detach from it. This cannot be undone.")) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/communities/${communityId}/threads/${threadId}`, { method: "DELETE" })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || "Failed to delete thread")
+      toast({ title: "Thread deleted" })
+      onBack()
+    } catch (e: any) {
+      toast({ title: "Couldn't delete the thread", description: e.message, variant: "destructive" })
+      setDeleting(false)
+    }
+  }
+
+  const joinRoom = () => {
+    const roomId: string | null = data?.thread?.live_stream_id || null
+    if (!roomId) {
+      toast({ title: "The room is still starting", description: "Give it a moment, then try again." })
+      return
+    }
+    router.push(`/streams/${roomId}`)
+  }
+
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center rounded-2xl border border-border bg-card py-16 text-muted-foreground">
@@ -430,6 +486,7 @@ function ThreadDetail({
   }
 
   const thread = data?.thread
+  const isAuthor = Boolean(data?.is_author)
   if (!thread) return null
   const contributions: any[] = data?.contributions || []
   const kind = threadKind(thread.kind)
@@ -443,6 +500,31 @@ function ThreadDetail({
       >
         <ArrowLeft className="h-3 w-3" /> All threads
       </button>
+
+      {/* Live banner — full width strip above the thread card */}
+      {thread.is_live ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/60" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Live now</p>
+            <p className="text-[11px] text-emerald-600/70 dark:text-emerald-400/70">
+              {thread.live_viewer_count ? `${thread.live_viewer_count} watching` : "Voice, video and chat are open"}
+            </p>
+          </div>
+          {isMember ? (
+            <Button
+              size="sm"
+              className="ml-auto h-8 shrink-0 rounded-full bg-emerald-600 px-3 text-xs text-white hover:bg-emerald-700"
+              onClick={joinRoom}
+            >
+              <Video className="mr-1.5 h-3.5 w-3.5" /> Join room
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="rounded-2xl border border-border bg-card">
         <div className="flex items-start gap-3 px-4 py-3.5">
@@ -482,32 +564,6 @@ function ThreadDetail({
               </p>
             ) : null}
           </div>
-
-          {/* Live badge */}
-          {thread.is_live ? (
-            <div className="mb-3 flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/60" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              </span>
-              <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Live now</span>
-              {thread.live_viewer_count ? (
-                <span className="flex items-center gap-1 text-xs text-emerald-600/70 dark:text-emerald-400/70">
-                  <Users className="h-3 w-3" /> {thread.live_viewer_count} watching
-                </span>
-              ) : null}
-              <div className="ml-auto flex gap-1.5">
-                {isMember ? (
-                  <Button
-                    size="sm"
-                    className="h-7 rounded-full bg-emerald-600 px-2.5 text-[11px] text-white hover:bg-emerald-700"
-                  >
-                    <Video className="mr-1 h-3 w-3" /> Join room
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
 
           <div className="flex shrink-0 items-center gap-1">
             {isMember ? (
@@ -597,6 +653,27 @@ function ThreadDetail({
                     <Radio className="h-3.5 w-3.5" />
                   )}
                 </button>
+                {canManage || isAuthor ? (
+                  <button
+                    type="button"
+                    title="Edit thread"
+                    onClick={() => setEditing(true)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+                {canManage ? (
+                  <button
+                    type="button"
+                    title="Delete thread"
+                    disabled={deleting}
+                    onClick={() => void deleteThread()}
+                    className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:border-rose-500/40 hover:text-rose-500"
+                  >
+                    {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  </button>
+                ) : null}
               </>
             ) : null}
           </div>
@@ -721,6 +798,15 @@ function ThreadDetail({
           </div>
         ) : null}
       </div>
+
+      <NewThreadDialog
+        open={editing}
+        onOpenChange={setEditing}
+        communityId={communityId}
+        spaces={spaces}
+        thread={thread}
+        onCreated={() => void load()}
+      />
     </div>
   )
 }
