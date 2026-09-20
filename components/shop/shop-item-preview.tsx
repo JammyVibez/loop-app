@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Lottie } from "@/components/ui/lottie"
 import { LockedNotice } from "@/components/shop/shop-states"
-import { COIN, COIN_GOLD, GIFT } from "@/components/shop/shop-art"
+import { COIN, COIN_GOLD, GIFT, artForItem, itemIllustration } from "@/components/shop/shop-art"
 import { COSMETIC_FONT_PRESETS, ensureCosmeticFonts, fontPresetForFamily } from "@/lib/cosmetic-fonts"
 import type { ShopCatalogItem } from "@/lib/shop-catalog"
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
@@ -352,6 +352,21 @@ export function ShopItemMiniPreview({ item, className }: { item: ShopPreviewItem
             <div className="mt-1 h-1.5 w-1/2 rounded-full bg-muted" />
           </div>
         </AnimatedCardFrame>
+      </div>
+    )
+  }
+
+  // If the item name/description matches a known illustration (car, crown,
+  // heart, star, diamond, …), show the matching Lottie instead of the
+  // generic avatar fallback.
+  const itemArt = useMemo(() => itemIllustration(item), [item])
+  if (itemArt) {
+    return (
+      <div className={cn("flex h-full w-full items-center justify-center gap-1 p-2", className)}>
+        <Lottie animation={itemArt} className="h-16 w-16" />
+        <span className="line-clamp-2 max-w-[140px] text-center text-[10px] leading-relaxed text-muted-foreground">
+          {item.description || item.name}
+        </span>
       </div>
     )
   }

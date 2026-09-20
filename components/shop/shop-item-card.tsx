@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import Link from "next/link"
 import { ArrowUpRight, Check, Coins, CreditCard, Crown, Eye, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -7,7 +8,7 @@ import { cn } from "@/lib/utils"
 import { ShopItemMiniPreview, type ShopPreviewItem } from "@/components/shop/shop-item-preview"
 import { coinPrice, usdPrice } from "@/lib/shop-catalog"
 import { Lottie } from "@/components/ui/lottie"
-import { COIN } from "@/components/shop/shop-art"
+import { COIN, artForItem } from "@/components/shop/shop-art"
 
 /**
  * How each rarity looks. One table, so a card, a chip and a filter can never
@@ -96,6 +97,7 @@ export function ShopItemCard({
 }: ShopItemCardProps) {
   const style = rarityStyle(item.rarity)
   const isCoinPack = item.category === "coins"
+  const itemArt = useMemo(() => artForItem(item), [item])
   const coins = coinPrice(item)
   const usd = usdPrice(item)
 
@@ -186,7 +188,7 @@ export function ShopItemCard({
               className="h-8 rounded-full px-3 text-xs font-semibold"
             >
               {purchasing ? (
-                <Lottie animation={COIN} className="h-4 w-4" />
+                <Lottie animation={itemArt} className="h-4 w-4" />
               ) : locked ? (
                 <>
                   <Lock className="mr-1 h-3 w-3" />

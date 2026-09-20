@@ -49,7 +49,7 @@ export const generateViewport = (): Viewport => ({
 const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://loopapp.me").replace(/\/$/, "")
 const defaultOgTitle = "Loop — Build Together, Not Just Post Into The Void"
 const defaultOgDesc = "Loop is the collaborative social network where you co-write posts live with friends, settle debates in public Duels, build communities in Circles, and earn rewards for being active. Free to join."
-const defaultOgImage = `${siteUrl}/api/og?type=home&title=${encodeURIComponent(defaultOgTitle)}&description=${encodeURIComponent(defaultOgDesc)}`
+const defaultOgImage = `${siteUrl}/icons/icon-512x512.png`
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -99,24 +99,24 @@ export const metadata: Metadata = {
     images: [
       {
         url: defaultOgImage,
-        width: 1200,
-        height: 630,
+        width: 512,
+        height: 512,
         type: "image/png",
-        alt: "loopapp.me - Next-Gen Collaborative Social OS",
+        alt: "Loop — loopapp.me",
       },
     ],
   },
   twitter: {
-    card: "summary_large_image",
+    card: "summary",
     title: "loopapp.me - Next-Gen Collaborative Social OS",
     description: "Connect, create, and collaborate in the loopapp.me ecosystem with live streams, real-time co-loops, and interactive circles.",
     creator: "@loopappme",
     images: [
       {
         url: defaultOgImage,
-        width: 1200,
-        height: 630,
-        alt: "loopapp.me - Next-Gen Collaborative Social OS",
+        width: 512,
+        height: 512,
+        alt: "Loop — loopapp.me",
       },
     ],
   },

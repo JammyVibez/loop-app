@@ -354,6 +354,57 @@ function drawLogo(ctx: CanvasRenderingContext2D, x: number, y: number, size: num
   ctx.drawImage(logo, (w - sz) / 2, (h - sz) / 2, sz, sz, x, y, size, size)
   ctx.restore()
 }
+
+/**
+ * Load the app logo as a base64 data URI so the canvas never has a CORS
+ * or timeout issue. The OG route uses the same pattern.
+ */
+let logoDataUriCache: string | null = null
+let logoDataUriPromise: Promise<string | null> | null = null
+async function loadLogoAsDataUri(): Promise<string | null> {
+  if (logoDataUriCache !== null) return logoDataUriCache
+  if (logoDataUriPromise) return logoDataUriPromise
+  logoDataUriPromise = (async () => {
+    try {
+      const res = await fetch("/icons/icon-512x512.png", { cache: "force-cache" })
+      if (!res.ok) { logoDataUriCache = null; return null }
+      const buf = await res.arrayBuffer()
+      if (buf.byteLength === 0 || buf.byteLength > 2_000_000) { logoDataUriCache = null; return null }
+      const bytes = new Uint8Array(buf)
+      let binary = ""
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+      logoDataUriCache = `data:image/png;base64,${btoa(binary)}`
+      return logoDataUriCache
+    } catch {
+      logoDataUriCache = null
+      return null
+    } finally {
+      logoDataUriPromise = null
+    }
+  })()
+  return logoDataUriPromise
+}
+
+/**
+ * Load the logo bitmap for the canvas, guaranteed to succeed: tries the admin
+ * logo first (which may be external), then falls back to the local icon, and
+ * if everything fails, draws the purple "L" mark.
+ */
+async function ensureLogoBitmap(): Promise<AV | null> {
+  // If we already have it in a ref, reuse it.
+  // Try the admin-configured logo (may be external, may fail).
+  const adminUrl = await getLogoSrc().catch(() => DEFAULT_LOGO_IMG)
+  if (adminUrl && adminUrl !== DEFAULT_LOGO_IMG) {
+    const img = await loadAv(adminUrl)
+    if (img) {
+      const dim = avDim(img)
+      if (dim.w && dim.h) return img
+    }
+  }
+  // Always succeeds: same-origin PNG.
+  const fallback = await loadAv(DEFAULT_LOGO_IMG)
+  return fallback
+}
 /** The wordmark that sits beside the app icon. */
 function drawWordmark(ctx: CanvasRenderingContext2D, x: number, baseline: number) {
   ctx.save()
@@ -1141,18 +1192,9 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
         const avUrl = proxyUrl(
           post.author.avatar_url || getDiceBearUrl(post.author.username),
         )
-        const loadLogo = async (): Promise<AV | null> => {
-          const url = await getLogoSrc()
-          let img = await loadAv(url)
-          const dim = img ? avDim(img) : null
-          // A logo we can't rasterise (some browsers refuse SVGs with no
-          // intrinsic size) falls back to the bundled icon, then to the mark.
-          if ((!img || !dim?.w || !dim?.h) && url !== DEFAULT_LOGO_IMG) img = await loadAv(DEFAULT_LOGO_IMG)
-          return img
-        }
         const [av, logo] = await Promise.all([
           avRef.current ? Promise.resolve(avRef.current) : loadAv(avUrl),
-          logoRef.current ? Promise.resolve(logoRef.current) : loadLogo(),
+          logoRef.current ? Promise.resolve(logoRef.current) : ensureLogoBitmap(),
         ])
         if (c || genRef.current !== g) return
         avRef.current = av
@@ -1176,6 +1218,21 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
     if (blobRef.current) return blobRef.current
     const cv = canvasRef.current
     if (!cv) throw new Error("Canvas not ready")
+
+    // Ensure assets are loaded — the user might click Download before the
+    // initial render effect completes, leaving a ref null.
+    if (!avRef.current || !logoRef.current) {
+      const avUrl = proxyUrl(
+        post.author.avatar_url || getDiceBearUrl(post.author.username),
+      )
+      const [av, logo] = await Promise.all([
+        avRef.current || loadAv(avUrl),
+        logoRef.current || ensureLogoBitmap(),
+      ])
+      avRef.current = av
+      logoRef.current = logo
+    }
+
     drawCard(cv, mRef.current, lines, mediaH, SCALE, avRef.current, logoRef.current, mediaRef.current)
     const b = await toBlob(cv)
     blobRef.current = b
