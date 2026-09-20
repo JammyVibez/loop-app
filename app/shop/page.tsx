@@ -1,59 +1,56 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Header } from "@/components/header"
 import { ShopContent } from "@/components/shop/shop-content"
 import { ShopUnderConstruction } from "@/components/shop/under-construction"
+import { ShopLoading } from "@/components/shop/shop-states"
 
+/**
+ * The storefront.
+ *
+ * Admins can close it from Settings — the switch is read here rather than in
+ * the shop itself, so a closed shop costs one request and nothing else.
+ */
 export default function ShopPage() {
-  const [underConstruction, setUnderConstruction] = useState(true)
-  const [constructionMsg, setConstructionMsg] = useState("")
-  const [constructionSub, setConstructionSub] = useState("")
-  const [loading, setLoading] = useState(true)
+  const [state, setState] = useState<"loading" | "open" | "closed">("loading")
+  const [message, setMessage] = useState("")
+  const [subtitle, setSubtitle] = useState("")
 
   useEffect(() => {
+    let cancelled = false
+
     fetch("/api/admin/settings")
-      .then((r) => r.json())
+      .then((response) => response.json())
       .then((data) => {
+        if (cancelled) return
         const setting = data.settings?.shop_under_construction
-        if (setting) {
-          setUnderConstruction(!!setting.enabled)
-          setConstructionMsg(setting.message || "")
-          setConstructionSub(setting.subtitle || "")
-        }
-        setLoading(false)
+        const closed = Boolean(setting?.enabled)
+        setMessage(setting?.message || "")
+        setSubtitle(setting?.subtitle || "")
+        setState(closed ? "closed" : "open")
       })
       .catch(() => {
-        setLoading(false)
+        // If the setting cannot be read, the shop is open: a settings endpoint
+        // having a bad day should not shut the store.
+        if (!cancelled) setState("open")
       })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-4 py-6 max-w-6xl">
-        {loading ? (
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          </div>
-        ) : underConstruction ? (
-          <ShopUnderConstruction
-            message={constructionMsg || undefined}
-            subtitle={constructionSub || undefined}
-          />
+      <main className="mx-auto max-w-6xl px-4 py-6">
+        {state === "loading" ? (
+          <ShopLoading />
+        ) : state === "closed" ? (
+          <ShopUnderConstruction message={message || undefined} subtitle={subtitle || undefined} />
         ) : (
-          <div className="space-y-6">
-            <div className="text-center space-y-2">
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                Loop Shop
-              </h1>
-              <p className="text-muted-foreground text-lg">
-                Customize your profile with themes, animations, cosmetics, and exclusive items
-              </p>
-            </div>
-
-            <ShopContent />
-          </div>
+          <ShopContent />
         )}
       </main>
     </div>

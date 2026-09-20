@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -11,28 +11,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
+import { Lottie } from "@/components/ui/lottie"
+import { LockedNotice } from "@/components/shop/shop-states"
+import { COIN, COIN_GOLD, GIFT } from "@/components/shop/shop-art"
+import { COSMETIC_FONT_PRESETS, ensureCosmeticFonts, fontPresetForFamily } from "@/lib/cosmetic-fonts"
+import type { ShopCatalogItem } from "@/lib/shop-catalog"
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
 import { AnimatedCardFrame } from "@/components/cosmetics/animated-card-frame"
 import { type CosmeticItem, type ActiveCosmetics, resolveEffectData } from "@/lib/cosmetics"
 import { useTheme3D } from "@/providers/theme-3d-provider"
-import { Coins, Crown, Eye, Heart, MessageCircle, Palette, Zap, Wand2 } from "lucide-react"
+import { Coins, Crown, Eye, Gift, Heart, MessageCircle, Zap, Wand2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export type ShopPreviewItem = {
-  id: string
-  name: string
-  description: string
-  price: number
-  price_coins?: number | null
-  price_usd?: number | null
-  category: string
-  item_type: string
-  rarity: string
-  premium_only: boolean
-  is_active?: boolean
-  item_data: any
-  preview_data?: any
-}
+/** The catalogue row shape, defined once in `lib/shop-catalog`. */
+export type ShopPreviewItem = ShopCatalogItem
 
 /**
  * Known legacy shop items → real cosmetic configs. This keeps every shop item
@@ -110,6 +102,67 @@ function isCardEffectItem(item: ShopPreviewItem) {
   return hay.includes("card_effect") || hay.includes("post") || hay.includes("loop") || hay.includes("tree-skin")
 }
 
+function isFontItem(item: ShopPreviewItem) {
+  return lower(`${item.category} ${item.item_type}`).includes("font")
+}
+
+/**
+ * The CSS stack a font item renders in, resolved the same way an equipped font
+ * is, so the preview cannot promise a typeface the app will not deliver.
+ */
+function fontStackFor(item: ShopPreviewItem): string | null {
+  const data = item.item_data && typeof item.item_data === "object" ? item.item_data : {}
+  const preset =
+    (data.font_preset && COSMETIC_FONT_PRESETS[data.font_preset as string]) ||
+    fontPresetForFamily(String(data.font_family || ""))
+  if (preset?.family) return preset.family
+  if (typeof data.font_family === "string" && data.font_family) return data.font_family
+  return null
+}
+
+/**
+ * What an item actually is, which is not always what its category says: nine
+ * "badges" in the live catalogue are animated gifts, and a coin pack filed
+ * under `coins` has nothing to wear. One decision, made once, so the shelf and
+ * the dialog cannot disagree.
+ */
+type PreviewVariant = "coins" | "premium" | "gift" | "font" | "theme" | "card" | "avatar"
+
+function previewVariantFor(item: ShopPreviewItem): PreviewVariant {
+  const category = lower(item.category)
+  const type = lower(item.item_type)
+  if (category.includes("coin")) return "coins"
+  if (category.includes("premium") || type.includes("subscription")) return "premium"
+  if (item.item_data?.is_giftable) return "gift"
+  if (type.includes("font") || category.includes("font")) return "font"
+  if (isThemeItem(item)) return "theme"
+  if (isCardEffectItem(item)) return "card"
+  return "avatar"
+}
+
+/** Coins a pack pays out, bonus included. */
+function coinAmount(item: ShopPreviewItem): number {
+  const data = item.item_data && typeof item.item_data === "object" ? item.item_data : {}
+  return Number(data.coins_amount || 0) + Number(data.bonus || 0)
+}
+
+function bonusAmount(item: ShopPreviewItem): number {
+  return Number(item.item_data?.bonus || 0)
+}
+
+const FEATURE_LABELS: Record<string, string> = {
+  ad_free: "No ads, anywhere in the app",
+  exclusive_themes: "Pro-only themes, frames and fonts",
+  priority_support: "Priority support",
+  pro_badge: "The Pro badge on your profile",
+  unlimited_uploads: "Bigger, faster uploads",
+  profile_analytics: "Profile analytics",
+}
+
+function featureLabel(feature: string): string {
+  return FEATURE_LABELS[feature] || feature.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase())
+}
+
 export function buildCosmeticFromItem(item: ShopPreviewItem): CosmeticItem | null {
   const legacy = LEGACY_EFFECTS[item.id] || {}
   const itemData = item.item_data && typeof item.item_data === "object" ? item.item_data : {}
@@ -178,30 +231,115 @@ const RARITY_BADGE: Record<string, string> = {
 /** Small live preview used directly inside shop cards. */
 export function ShopItemMiniPreview({ item, className }: { item: ShopPreviewItem; className?: string }) {
   const cosmetic = useMemo(() => buildCosmeticFromItem(item), [item])
-  const isTheme = isThemeItem(item)
-  const isCard = !isTheme && isCardEffectItem(item)
+  const variant = previewVariantFor(item)
+  const fontStack = fontStackFor(item)
   const primary = cosmetic?.color || "#8b5cf6"
   const secondary = cosmetic?.item_data?.colors?.secondary || primary
 
-  if (isTheme) {
-    const colors = cosmetic?.item_data?.colors || {}
+  // A font item is shown in its own typeface, so the font has to be loaded.
+  useEffect(() => {
+    if (variant !== "font") return
+    ensureCosmeticFonts({ item_data: item.item_data } as CosmeticItem)
+  }, [variant, item.id, item.item_data])
+
+  if (variant === "coins") {
     return (
-      <div
-        className={cn("flex h-full w-full items-center justify-center gap-2", className)}
-        style={{
-          background: `linear-gradient(135deg, ${colors.primary || "#8b5cf6"}22, ${colors.secondary || "#3b82f6"}22)`,
-        }}
-      >
-        <span
-          className="h-8 w-8 rounded-full border-2 border-background shadow-lg"
-          style={{ background: `linear-gradient(135deg, ${colors.primary || "#8b5cf6"}, ${colors.secondary || "#3b82f6"})` }}
-        />
-        <Palette className="h-4 w-4 text-muted-foreground" />
+      <div className={cn("flex h-full w-full flex-col items-center justify-center gap-0.5", className)}>
+        <Lottie animation={coinAmount(item) >= 10000 ? COIN_GOLD : COIN} className="h-16 w-16" />
+        <span className="text-xs font-semibold tabular-nums text-foreground">
+          {coinAmount(item).toLocaleString()} coins
+        </span>
+        {bonusAmount(item) > 0 ? (
+          <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+            +{bonusAmount(item).toLocaleString()} bonus
+          </span>
+        ) : null}
       </div>
     )
   }
 
-  if (isCard) {
+  if (variant === "premium") {
+    const duration = String(item.item_data?.duration || "1 month")
+    const features: string[] = Array.isArray(item.item_data?.features) ? item.item_data.features : []
+    return (
+      <div className={cn("flex h-full w-full flex-col items-center justify-center gap-1 p-3", className)}>
+        <Crown className="h-7 w-7 text-amber-500" />
+        <span className="text-xs font-semibold text-foreground">Loop Pro · {duration}</span>
+        <span className="line-clamp-2 text-center text-[10px] leading-relaxed text-muted-foreground">
+          {features.length > 0
+            ? features.slice(0, 2).map(featureLabel).join(" · ")
+            : "Everything the shop has, minus the ads"}
+        </span>
+      </div>
+    )
+  }
+
+  if (variant === "gift") {
+    return (
+      <div className={cn("flex h-full w-full flex-col items-center justify-center gap-0.5", className)}>
+        <Lottie animation={GIFT} className="h-14 w-14" />
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+          <Gift className="h-2.5 w-2.5" />
+          A gift you send
+        </span>
+      </div>
+    )
+  }
+
+  if (variant === "font") {
+    return (
+      <div className={cn("flex h-full w-full flex-col items-center justify-center gap-1", className)}>
+        <span className="text-4xl leading-none text-foreground" style={{ fontFamily: fontStack || undefined }}>
+          Aa
+        </span>
+        <span
+          className="text-xs text-muted-foreground"
+          style={{ fontFamily: fontStack || undefined }}
+        >
+          Your name here
+        </span>
+      </div>
+    )
+  }
+
+  if (variant === "theme") {
+    // A theme is a palette, so preview it as one: a miniature of the app in the
+    // item's own colours beats two gradient circles.
+    const colors = cosmetic?.item_data?.colors || {}
+    const surface = colors.surface || "#111827"
+    const background = colors.background || "#0b1220"
+    const text = colors.text || "#f8fafc"
+    const accent = colors.accent || "#f59e0b"
+
+    return (
+      <div
+        className={cn("flex h-full w-full items-center justify-center p-2.5", className)}
+        style={{ background }}
+      >
+        <div className="w-full max-w-[230px] rounded-xl p-2.5" style={{ background: surface }}>
+          <div className="flex items-center gap-1.5">
+            <span
+              className="h-5 w-5 shrink-0 rounded-full"
+              style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }}
+            />
+            <span className="h-1.5 w-10 rounded-full" style={{ background: text, opacity: 0.8 }} />
+            <span className="ml-auto h-1.5 w-4 rounded-full" style={{ background: accent, opacity: 0.9 }} />
+          </div>
+          <div className="mt-2 space-y-1">
+            <span className="block h-1.5 w-4/5 rounded-full" style={{ background: text, opacity: 0.22 }} />
+            <span className="block h-1.5 w-3/5 rounded-full" style={{ background: text, opacity: 0.14 }} />
+          </div>
+          <div className="mt-2 flex gap-1">
+            <span className="h-3.5 flex-1 rounded" style={{ background: primary }} />
+            <span className="h-3.5 flex-1 rounded" style={{ background: secondary }} />
+            <span className="h-3.5 flex-1 rounded" style={{ background: accent }} />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (variant === "card") {
     return (
       <div className={cn("flex h-full w-full items-center justify-center p-2", className)}>
         <AnimatedCardFrame effect={cosmetic} rounded="rounded-xl" className="w-full max-w-[220px]">
@@ -241,16 +379,26 @@ export function ShopItemPreviewDialog({
   onOpenChange,
   onPurchase,
   owned,
+  locked,
 }: {
   item: ShopPreviewItem | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onPurchase?: (item: ShopPreviewItem) => void
   owned?: boolean
+  /** Pro-only, and the viewer is not Pro. */
+  locked?: boolean
 }) {
   const { applyTheme } = useTheme3D()
-  const isTheme = item ? isThemeItem(item) : false
-  const isCard = item ? !isTheme && isCardEffectItem(item) : false
+  const variant = item ? previewVariantFor(item) : "avatar"
+  const isFont = variant === "font"
+  const isTheme = variant === "theme"
+  const isCard = variant === "card"
+  const fontStack = item ? fontStackFor(item) : null
+
+  useEffect(() => {
+    if (item && isFont) ensureCosmeticFonts({ item_data: item.item_data } as CosmeticItem)
+  }, [item, isFont])
   const cosmetic = useMemo(() => (item ? buildCosmeticFromItem(item) : null), [item])
   const themePayload = useMemo(() => (item ? buildThemePayload(item) : null), [item])
   const primary = cosmetic?.color || themePayload?.colors?.primary || "#8b5cf6"
@@ -260,22 +408,22 @@ export function ShopItemPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md overflow-hidden border-border bg-background text-foreground sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto border-border bg-card text-foreground sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-base">
             <Eye className="h-4 w-4 text-primary" />
-            {item.name} — Live Preview
+            {item.name}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            This is exactly how it will look once you own and equip it. No static mockup — the real effect is running.
+            The real effect, running. What you see here is what you get once it is equipped.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge className={RARITY_BADGE[lower(item.rarity)] || RARITY_BADGE.common}>{item.rarity}</Badge>
           {item.premium_only && (
-            <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
-              <Crown className="h-3 w-3 mr-1" /> Premium
+            <Badge className="border border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <Crown className="h-3 w-3 mr-1" /> Pro
             </Badge>
           )}
           <Badge variant="outline" className="text-[10px] capitalize">{item.category}</Badge>
@@ -289,7 +437,63 @@ export function ShopItemPreviewDialog({
             className="pointer-events-none absolute inset-0 opacity-60"
             style={{ background: `radial-gradient(400px 200px at 50% 0%, ${primary}33, transparent 70%)` }}
           />
-          {isTheme ? (
+          {variant === "coins" ? (
+            <div className="relative flex flex-col items-center gap-1.5">
+              <Lottie animation={coinAmount(item) >= 10000 ? COIN_GOLD : COIN} className="h-28 w-28" />
+              <p className="text-2xl font-semibold tabular-nums text-foreground">
+                {coinAmount(item).toLocaleString()} coins
+              </p>
+              {bonusAmount(item) > 0 ? (
+                <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                  +{bonusAmount(item).toLocaleString()} bonus included
+                </p>
+              ) : null}
+              <p className="mt-1 max-w-[280px] text-center text-xs leading-relaxed text-muted-foreground">
+                Coins land in your balance as soon as the card payment is confirmed.
+              </p>
+            </div>
+          ) : variant === "premium" ? (
+            <div className="relative flex flex-col items-center gap-3">
+              <Crown className="h-9 w-9 text-amber-500" />
+              <p className="text-sm font-semibold text-foreground">
+                Loop Pro · {String(item.item_data?.duration || "1 month")}
+              </p>
+              <ul className="w-full max-w-[280px] space-y-1.5">
+                {(Array.isArray(item.item_data?.features)
+                  ? (item.item_data.features as string[])
+                  : ["ad_free", "exclusive_themes", "priority_support"]
+                ).map((feature) => (
+                  <li key={feature} className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <Zap className="mt-0.5 h-3 w-3 shrink-0 text-violet-500" />
+                    {featureLabel(feature)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : variant === "gift" ? (
+            <div className="relative flex flex-col items-center gap-3">
+              <Lottie animation={GIFT} className="h-28 w-28" />
+              <p className="max-w-[280px] text-center text-xs leading-relaxed text-muted-foreground">
+                An animated gift. Send it from someone&rsquo;s profile and it plays for them when they
+                open it.
+              </p>
+            </div>
+          ) : isFont ? (
+            <div className="relative flex flex-col items-center gap-3 py-2">
+              <span
+                className="text-center text-4xl leading-tight text-foreground"
+                style={{ fontFamily: fontStack || undefined }}
+              >
+                {item.name}
+              </span>
+              <span
+                className="text-center text-lg text-muted-foreground"
+                style={{ fontFamily: fontStack || undefined }}
+              >
+                Your display name, everywhere it appears
+              </span>
+            </div>
+          ) : isTheme ? (
             <div className="relative flex justify-center">
               <div
                 className="w-full max-w-[280px] rounded-2xl border p-4 shadow-xl"
@@ -357,15 +561,33 @@ export function ShopItemPreviewDialog({
           )}
         </div>
 
-        <p className="text-sm text-muted-foreground">{item.description || "Own it once and it stays in your inventory forever."}</p>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {item.description || "Own it once and it stays in your inventory forever."}
+        </p>
+
+        {locked ? (
+          <LockedNotice>
+            Buy it any time once you are on Pro — or pick something with a coin price and own it outright.
+          </LockedNotice>
+        ) : null}
 
         <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-1.5">
-            <Coins className="h-4 w-4 text-amber-500" />
-            <span className="font-bold">{item.price_coins ?? item.price ?? 0}</span>
-            <span className="text-xs text-muted-foreground">Loop Coins</span>
+            {item.category === "coins" ? (
+              <Lottie animation={COIN} className="h-5 w-5" />
+            ) : (
+              <Coins className="h-4 w-4 text-amber-500" />
+            )}
+            <span className="font-semibold tabular-nums">
+              {item.category === "coins"
+                ? `$${Number(item.price_usd || item.price || 0).toFixed(2)}`
+                : Number(item.price_coins ?? item.price ?? 0).toLocaleString()}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {item.category === "coins" ? "USD" : "Loop Coins"}
+            </span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             {isTheme && (
               <Button
                 variant="outline"
@@ -376,15 +598,15 @@ export function ShopItemPreviewDialog({
                 }}
               >
                 <Wand2 className="mr-1.5 h-4 w-4" />
-                Try it on my profile
+                Try it on
               </Button>
             )}
             <Button
-              className="rounded-full bg-gradient-to-r from-purple-500 to-blue-500"
+              className="rounded-full"
               disabled={Boolean(owned)}
               onClick={() => onPurchase?.(item)}
             >
-              {owned ? "Owned ✓" : item.category === "coins" ? "Buy Now" : "Buy with Coins"}
+              {owned ? "Owned" : item.category === "coins" ? "Buy now" : "Buy with Coins"}
             </Button>
           </div>
         </DialogFooter>
