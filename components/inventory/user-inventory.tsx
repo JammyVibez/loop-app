@@ -1,130 +1,157 @@
 "use client"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import Link from "next/link"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { useInventoryRealtime } from "@/hooks/use-inventory-realtime"
-import { Coins, Palette, Crown, Zap, Trash2, Eye, ShoppingBag } from "lucide-react"
+import { ShopItemMiniPreview, type ShopPreviewItem } from "@/components/shop/shop-item-preview"
+import { RarityChip, RARITY_STYLE } from "@/components/shop/shop-item-card"
+import { Lottie } from "@/components/ui/lottie"
+import { artForItem, LOCK, LOADER, EMPTY_BOX } from "@/components/shop/shop-art"
+import { Coins, Palette, ShoppingBag, Sparkles, Shield, Check, Eye, X, Crown, Star, Zap, Layers } from "lucide-react"
+import { cn } from "@/lib/utils"
 
+/* ── Inventory item shape from the API ──────────────────────────────────── */
 interface InventoryItem {
   id: string
   item_id: string
   item_name: string
   item_type: string
   item_data: any
+  preview_data?: any
   is_active: boolean
   purchased_at?: string
   acquired_at?: string
-  rarity: "common" | "rare" | "epic" | "legendary" | string
+  rarity: string
+  category?: string
+  shop_item?: any
+}
+
+/* ── Shelf keys — match the shop's categorisation ──────────────────────── */
+type Shelf = "theme" | "effect" | "identity" | "coins" | "other"
+
+function shelfFor(item: InventoryItem): Shelf {
+  const hay = `${item.category || ""} ${item.item_type || ""} ${item.item_name || ""}`.toLowerCase()
+  if (hay.includes("theme") && !hay.includes("badge")) return "theme"
+  if (hay.includes("coin")) return "coins"
+  if (
+    hay.includes("badge") || hay.includes("frame") || hay.includes("aura") ||
+    hay.includes("font") || hay.includes("avatar") || hay.includes("accessory") ||
+    hay.includes("subscription") || hay.includes("premium")
+  ) return "identity"
+  if (
+    hay.includes("effect") || hay.includes("animation") || hay.includes("card_effect") ||
+    hay.includes("post_card") || hay.includes("particle") || hay.includes("glow") ||
+    hay.includes("cursor") || hay.includes("tree") || hay.includes("branch") ||
+    hay.includes("ring") || hay.includes("sparkle")
+  ) return "effect"
+  return "other"
+}
+
+const SHELF_META: Record<Shelf, { label: string; icon: React.ReactNode; hint: string }> = {
+  theme: { label: "Themes", icon: <Palette className="h-4 w-4" />, hint: "Accent colour palettes for the app" },
+  effect: { label: "Effects", icon: <Sparkles className="h-4 w-4" />, hint: "Visual effects that follow you around" },
+  identity: { label: "Identity", icon: <Shield className="h-4 w-4" />, hint: "Badges, frames, fonts, and accessories" },
+  coins: { label: "Coins", icon: <Coins className="h-4 w-4" />, hint: "Coin packs and currency" },
+  other: { label: "Other", icon: <Star className="h-4 w-4" />, hint: "Miscellaneous items" },
+}
+
+/* ── Coerce inventory row into the shape ShopItemMiniPreview expects ──── */
+function toShopItem(item: InventoryItem): ShopPreviewItem {
+  const shop = item.shop_item || {}
+  return {
+    id: item.item_id || item.id,
+    name: item.item_name || shop.name || "Item",
+    description: shop.description || "",
+    price: shop.price || 0,
+    price_coins: shop.price_coins || shop.price || 0,
+    price_usd: shop.price_usd || 0,
+    category: item.category || shop.category || item.item_type || "item",
+    item_type: item.item_type || shop.item_type || "item",
+    rarity: item.rarity || shop.rarity || "common",
+    premium_only: shop.premium_only || false,
+    item_data: item.item_data || shop.item_data || {},
+    preview_data: item.preview_data || shop.preview_data || {},
+    icon_url: shop.icon_url,
+    preview_url: shop.preview_url,
+  } as ShopPreviewItem
 }
 
 export function UserInventory() {
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [applying, setApplying] = useState<string | null>(null)
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
 
   const fetchInventory = useCallback(async () => {
-    if (!user) {
-      setLoading(false)
-      return
-    }
+    if (!user) { setLoading(false); return }
     try {
       setLoading(true)
       setError(null)
-
       const response = await fetch("/api/inventory", {
         headers: getAuthHeader(),
         cache: "no-store",
       })
-
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch inventory")
-      }
-
+      if (!response.ok) throw new Error(data.error || "Failed to fetch inventory")
       setInventory(data.items || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load inventory")
-      console.error("Error fetching inventory:", err)
     } finally {
       setLoading(false)
     }
   }, [user?.id, getAuthHeader])
 
-  useEffect(() => {
-    void fetchInventory()
-  }, [fetchInventory])
+  useEffect(() => { void fetchInventory() }, [fetchInventory])
+  useInventoryRealtime(user?.id, () => { void fetchInventory() })
 
-  // Live inventory: purchases, applies and removals sync in instantly.
-  useInventoryRealtime(user?.id, () => {
-    void fetchInventory()
-  })
-
-  const applyItem = async (itemId: string) => {
+  /* ── Apply / remove ──────────────────────────────────────────────────── */
+  const applyItem = async (item: InventoryItem) => {
+    if (applying) return
+    setApplying(item.id)
     try {
       const response = await fetch("/api/inventory/apply", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
-        },
-        body: JSON.stringify({ inventory_item_id: itemId }),
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ inventory_item_id: item.id }),
       })
-
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to apply item")
-      }
+      if (!response.ok) throw new Error(data.error || "Failed to apply item")
 
       if (data.theme && typeof window !== "undefined") {
         localStorage.setItem("loop-3d-theme", data.theme.id)
         localStorage.setItem("loop-3d-custom-theme", JSON.stringify(data.theme))
         window.dispatchEvent(new CustomEvent("loop-theme-applied", { detail: data.theme }))
       }
-
       if (typeof window !== "undefined" && data.cosmetics) {
         window.dispatchEvent(new CustomEvent("loop-cosmetics-applied", { detail: data.cosmetics }))
       }
-
       await fetchInventory()
-      toast({
-        title: "Applied",
-        description: data.theme
-          ? "Accent theme applied. Light/dark mode still works from Settings."
-          : "Badge/effect is now active on your profile.",
-      })
+      toast({ title: "Equipped", description: `${item.item_name} is now active.` })
     } catch (err) {
-      toast({
-        title: "Couldn't apply item",
-        description: err instanceof Error ? err.message : "Take it off and try once more.",
-        variant: "destructive",
-      })
+      toast({ title: "Couldn't equip", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" })
+    } finally {
+      setApplying(null)
     }
   }
 
-  const removeItem = async (itemId: string) => {
+  const removeItem = async (item: InventoryItem) => {
+    if (applying) return
+    setApplying(item.id)
     try {
       const response = await fetch("/api/inventory/remove", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
-        },
-        body: JSON.stringify({ inventory_item_id: itemId }),
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ inventory_item_id: item.id }),
       })
-
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to remove item")
-      }
+      if (!response.ok) throw new Error(data.error || "Failed to remove item")
 
       if (typeof window !== "undefined") {
         if (data.cleared_theme) {
@@ -136,236 +163,307 @@ export function UserInventory() {
           window.dispatchEvent(new CustomEvent("loop-cosmetics-applied", { detail: data.cosmetics }))
         }
       }
-
       await fetchInventory()
-      toast({ description: "Item deactivated." })
+      toast({ title: "Unequipped", description: `${item.item_name} removed.` })
     } catch (err) {
-      toast({
-        title: "Couldn't remove item",
-        description: err instanceof Error ? err.message : "Give it another go.",
-        variant: "destructive",
-      })
+      toast({ title: "Couldn't unequip", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" })
+    } finally {
+      setApplying(null)
     }
   }
 
-  const getRarityColor = (rarity: string) => {
-    switch (String(rarity).toLowerCase()) {
-      case "common":
-        return "bg-slate-800 text-slate-300 border border-slate-700"
-      case "rare":
-        return "bg-blue-950/80 text-blue-300 border border-blue-500/40"
-      case "epic":
-        return "bg-purple-950/80 text-purple-300 border border-purple-500/40"
-      case "legendary":
-        return "bg-amber-950/80 text-amber-300 border border-amber-500/40"
-      default:
-        return "bg-slate-800 text-slate-300 border border-slate-700"
-    }
-  }
+  /* ── Derived data ────────────────────────────────────────────────────── */
+  const grouped = useMemo(() => {
+    const map: Record<Shelf, InventoryItem[]> = { theme: [], effect: [], identity: [], coins: [], other: [] }
+    for (const item of inventory) map[shelfFor(item)].push(item)
+    return map
+  }, [inventory])
 
-  const getRarityIcon = (type: string) => {
-    if (String(type).includes("theme")) return <Palette className="w-4 h-4 text-cyan-400" />
-    if (String(type).includes("frame") || String(type).includes("avatar")) return <Crown className="w-4 h-4 text-amber-400" />
-    if (String(type).includes("badge")) return <Zap className="w-4 h-4 text-fuchsia-400" />
-    if (String(type).includes("effect") || String(type).includes("animation")) return <Eye className="w-4 h-4 text-emerald-400" />
-    return <Coins className="w-4 h-4 text-yellow-400" />
-  }
+  const activeItems = useMemo(() => inventory.filter((i) => i.is_active), [inventory])
+  const activeByShelf = useMemo(() => {
+    const map: Record<Shelf, InventoryItem[]> = { theme: [], effect: [], identity: [], coins: [], other: [] }
+    for (const item of activeItems) map[shelfFor(item)].push(item)
+    return map
+  }, [activeItems])
 
-  const tabType = (item: InventoryItem) => {
-    const t = String(item.item_type || "").toLowerCase()
-    if (t.includes("theme")) return "theme"
-    if (t.includes("frame") || t.includes("avatar")) return "avatar_frame"
-    if (t.includes("badge")) return "badge"
-    if (t.includes("effect") || t.includes("animation")) return "effect"
-    return "effect"
-  }
-
-  const groupedInventory = inventory.reduce(
-    (acc, item) => {
-      const key = tabType(item)
-      if (!acc[key]) acc[key] = []
-      acc[key].push(item)
-      return acc
-    },
-    {} as Record<string, InventoryItem[]>,
-  )
-
+  /* ── Not signed in ───────────────────────────────────────────────────── */
   if (!user) {
     return (
-      <Card className="bg-card border-border text-foreground rounded-2xl">
-        <CardContent className="p-10 text-center text-muted-foreground">
-          Sign in to view your inventory.
-        </CardContent>
-      </Card>
-    )
-  }
-
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {[...Array(6)].map((_, i) => (
-          <Card key={i} className="animate-pulse bg-card border-border rounded-2xl">
-            <CardContent className="p-6">
-              <div className="mb-4 h-4 rounded bg-muted" />
-              <div className="mb-4 h-20 rounded bg-muted" />
-              <div className="h-8 rounded bg-muted" />
-            </CardContent>
-          </Card>
-        ))}
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card/60 p-16 text-center backdrop-blur">
+        <Lottie animation={LOCK} className="mb-4 h-16 w-16" />
+        <h3 className="text-lg font-semibold text-foreground">Sign in to see your inventory</h3>
+        <p className="mt-1 max-w-xs text-sm text-muted-foreground">Your owned items, themes, and cosmetics will appear here.</p>
       </div>
     )
   }
 
-  if (error) {
+  /* ── Loading ─────────────────────────────────────────────────────────── */
+  if (loading) {
     return (
-      <Card className="bg-card border-border rounded-2xl">
-        <CardContent className="p-6 text-center">
-          <p className="mb-4 text-rose-400">{error}</p>
-          <Button onClick={fetchInventory} className="bg-muted text-foreground hover:bg-muted/80">Try Again</Button>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="animate-pulse rounded-2xl border border-border bg-card/50 p-1">
+              <div className="aspect-[4/3] rounded-xl bg-muted/40" />
+              <div className="space-y-2 p-3">
+                <div className="h-3 w-3/4 rounded bg-muted/40" />
+                <div className="h-2 w-1/2 rounded bg-muted/30" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     )
   }
 
-  const renderCard = (item: InventoryItem) => {
-    const primary = item.item_data?.colors?.primary || "#8b5cf6"
-    const secondary = item.item_data?.colors?.secondary || "#06b6d4"
+  /* ── Error ───────────────────────────────────────────────────────────── */
+  if (error) {
     return (
-      <Card
-        key={item.id}
-        className={`relative overflow-hidden bg-card border transition-all duration-200 hover:border-border rounded-2xl shadow-lg text-foreground ${
-          item.is_active ? "border-cyan-500/80 ring-2 ring-cyan-500/30 shadow-cyan-500/10" : "border-border/80"
-        }`}
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card/60 p-12 text-center">
+        <p className="mb-3 text-sm text-destructive">{error}</p>
+        <Button onClick={fetchInventory} variant="outline" size="sm" className="rounded-full">Try Again</Button>
+      </div>
+    )
+  }
+
+  /* ── Inventory card ──────────────────────────────────────────────────── */
+  function ItemCard({ item }: { item: InventoryItem }) {
+    const shopItem = toShopItem(item)
+    const rarity = (item.rarity || "common").toLowerCase()
+    const style = RARITY_STYLE[rarity] || RARITY_STYLE.common
+    const isActive = item.is_active
+    const isApplying = applying === item.id
+
+    return (
+      <article
+        className={cn(
+          "group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-200",
+          isActive
+            ? "border-violet-500/50 ring-1 ring-violet-500/20"
+            : "border-border hover:border-foreground/20",
+        )}
       >
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center space-x-2">
-              {getRarityIcon(item.item_type)}
-              <CardTitle className="truncate text-base font-semibold text-slate-100">{item.item_name}</CardTitle>
-            </div>
-            <Badge className={`${getRarityColor(item.rarity)} uppercase text-[10px] tracking-wider font-semibold px-2 py-0.5 rounded-full`}>
-              {item.rarity || "common"}
-            </Badge>
+        {/* Rarity top accent */}
+        <span aria-hidden className={cn("absolute inset-x-0 top-0 h-px bg-gradient-to-r to-transparent", style.edge)} />
+
+        {/* Preview — live cosmetic render, same as the shop */}
+        <div className="relative overflow-hidden border-b border-border bg-muted/20">
+          <div className="aspect-[4/3] w-full">
+            <ShopItemMiniPreview item={shopItem} className="py-3" />
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div
-            className="flex h-28 items-center justify-center rounded-xl border border-white/5 relative overflow-hidden"
-            style={{ background: `linear-gradient(135deg, ${primary}44, ${secondary}44)` }}
-          >              <div className="p-3 rounded-full bg-background/60 backdrop-blur-md border border-border shadow-inner">
-              {getRarityIcon(item.item_type)}
-            </div>
+
+          {/* Rarity chip */}
+          <span className="absolute left-2 top-2">
+            <RarityChip rarity={rarity} />
+          </span>
+
+          {/* Active badge */}
+          {isActive && (
+            <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full border border-violet-500/40 bg-violet-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-400 backdrop-blur-sm">
+              <Check className="h-2.5 w-2.5" />
+              Active
+            </span>
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="flex flex-1 flex-col gap-2.5 p-3.5">
+          <div className="min-w-0">
+            <h3 className="truncate text-sm font-semibold text-foreground">{item.item_name}</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              {SHELF_META[shelfFor(item)].label}
+              {item.acquired_at ? ` · ${new Date(item.acquired_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
+            </p>
           </div>
-          <div className="flex space-x-2">
-            {item.is_active ? (
+
+          {/* Actions */}
+          <div className="mt-auto flex items-center gap-2">
+            {isActive ? (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => removeItem(item.id)}
-                className="flex-1 bg-background/60 border-border/80 text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 rounded-xl transition-all"
+                onClick={() => removeItem(item)}
+                disabled={isApplying}
+                className="flex-1 rounded-full border-border/80 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Deactivate
+                {isApplying ? (
+                  <Lottie animation={LOADER} className="h-3.5 w-3.5" />
+                ) : (
+                  <>
+                    <X className="mr-1 h-3 w-3" />
+                    Unequip
+                  </>
+                )}
               </Button>
             ) : (
               <Button
                 size="sm"
-                onClick={() => applyItem(item.id)}
-                className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold rounded-xl shadow-md transition-all"
+                onClick={() => applyItem(item)}
+                disabled={isApplying}
+                className="flex-1 rounded-full bg-foreground text-background text-xs font-semibold hover:bg-foreground/90"
               >
-                Apply
+                {isApplying ? (
+                  <Lottie animation={LOADER} className="h-3.5 w-3.5" />
+                ) : (
+                  <>
+                    <Check className="mr-1 h-3 w-3" />
+                    Equip
+                  </>
+                )}
               </Button>
             )}
           </div>
-          <div className="text-[11px] text-slate-400 font-medium">
-            Acquired: {new Date(item.acquired_at || item.purchased_at || Date.now()).toLocaleDateString()}
-          </div>
-        </CardContent>
-        {item.is_active && (
-          <div className="absolute right-3 top-3">
-            <Badge className="bg-cyan-500 text-slate-950 font-bold text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm">
-              Active
-            </Badge>
-          </div>
-        )}
-      </Card>
+        </div>
+      </article>
     )
   }
 
+  /* ── Empty state per shelf ───────────────────────────────────────────── */
+  function EmptyShelf({ shelf }: { shelf: Shelf }) {
+    const meta = SHELF_META[shelf]
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-border/60 bg-card/30 p-10 text-center">
+        <Lottie animation={EMPTY_BOX} className="mb-3 h-12 w-12" />
+        <p className="text-sm font-medium text-foreground">No {meta.label.toLowerCase()} yet</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{meta.hint}</p>
+        <Link href="/shop">
+          <Button variant="outline" size="sm" className="mt-3 rounded-full text-xs">
+            <ShoppingBag className="mr-1.5 h-3 w-3" />
+            Browse shop
+          </Button>
+        </Link>
+      </div>
+    )
+  }
+
+  /* ── Active items strip ──────────────────────────────────────────────── */
+  function ActiveStrip() {
+    if (activeItems.length === 0) return null
+    return (
+      <div className="rounded-2xl border border-border bg-card/60 p-4 backdrop-blur">
+        <div className="mb-3 flex items-center gap-2">
+          <Zap className="h-4 w-4 text-violet-400" />
+          <span className="text-sm font-semibold text-foreground">Currently equipped</span>
+          <Badge variant="secondary" className="ml-auto rounded-full px-2 py-0 text-[10px]">{activeItems.length}</Badge>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {activeItems.map((item) => {
+            const meta = SHELF_META[shelfFor(item)]
+            return (
+              <button
+                key={item.id}
+                onClick={() => removeItem(item)}
+                disabled={applying === item.id}
+                className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-300 transition-colors hover:border-violet-500/50 hover:bg-violet-500/20 disabled:opacity-50"
+              >
+                {meta.icon}
+                <span className="max-w-[120px] truncate">{item.item_name}</span>
+                <X className="h-3 w-3 opacity-50" />
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  /* ── Shelf grid ──────────────────────────────────────────────────────── */
+  function ShelfGrid({ shelf }: { shelf: Shelf }) {
+    const items = grouped[shelf]
+    if (items.length === 0) return <EmptyShelf shelf={shelf} />
+    return (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {items.map((item) => <ItemCard key={item.id} item={item} />)}
+      </div>
+    )
+  }
+
+  /* ── Main render ─────────────────────────────────────────────────────── */
+  const totalByShelf = (Object.keys(grouped) as Shelf[]).filter((s) => grouped[s].length > 0)
+
   return (
-    <div className="space-y-6">
-      <Card className="bg-card border-border text-foreground rounded-2xl shadow-xl overflow-hidden backdrop-blur-md">
-        <CardContent className="p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center space-x-4">
-              <VideoAvatar src={user?.avatar_url} className="h-16 w-16 border-2 border-cyan-500/40 shadow-md" fallback={user?.display_name?.charAt(0)} />
-              <div>
-                <h2 className="text-xl font-bold text-slate-100">{user?.display_name}</h2>
-                <p className="text-sm text-cyan-400 font-medium">@{user?.username}</p>
-                <p className="mt-1 text-xs text-slate-400">
-                  Equip themes & items purchased from the Coin Shop.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <div className="mb-0.5 flex items-center justify-end space-x-1.5">
-                  <Coins className="h-5 w-5 text-amber-400" />
-                  <span className="text-2xl font-black text-amber-300">{user?.loop_coins || 0}</span>
-                </div>
-                <p className="text-xs text-slate-400 font-medium">Loop Coins</p>
-              </div>
-              <Link href="/shop">
-                <Button className="rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 font-medium">
-                  <ShoppingBag className="mr-2 h-4 w-4 text-cyan-400" /> Shop
-                </Button>
-              </Link>
-            </div>
+    <div className="space-y-5">
+      {/* User header + stats */}
+      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card/60 p-4 sm:p-5 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3.5">
+          <VideoAvatar src={user?.avatar_url} className="h-14 w-14 border-2 border-border shadow-md" fallback={user?.display_name?.charAt(0)} />
+          <div>
+            <h2 className="text-lg font-bold text-foreground">{user?.display_name}</h2>
+            <p className="text-xs text-muted-foreground">@{user?.username}</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1.5">
+            <Coins className="h-4 w-4 text-amber-400" />
+            <span className="text-sm font-bold tabular-nums text-foreground">{user?.loop_coins || 0}</span>
+          </div>
+          <Link href="/shop">
+            <Button size="sm" className="rounded-full bg-foreground text-background text-xs font-semibold hover:bg-foreground/90">
+              <ShoppingBag className="mr-1.5 h-3.5 w-3.5" />
+              Shop
+            </Button>
+          </Link>
+        </div>
+      </div>
 
-      <Tabs defaultValue="all" className="w-full">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-5 bg-card border border-border rounded-2xl p-1.5">
-          <TabsTrigger value="all" className="rounded-xl text-xs font-semibold data-[state=active]:bg-cyan-500 data-[state=active]:text-slate-950 text-slate-400 transition-all">All</TabsTrigger>
-          <TabsTrigger value="theme" className="rounded-xl text-xs font-semibold data-[state=active]:bg-cyan-500 data-[state=active]:text-slate-950 text-slate-400 transition-all">Themes</TabsTrigger>
-          <TabsTrigger value="avatar_frame" className="rounded-xl text-xs font-semibold data-[state=active]:bg-cyan-500 data-[state=active]:text-slate-950 text-slate-400 transition-all">Frames</TabsTrigger>
-          <TabsTrigger value="badge" className="rounded-xl text-xs font-semibold data-[state=active]:bg-cyan-500 data-[state=active]:text-slate-950 text-slate-400 transition-all">Badges</TabsTrigger>
-          <TabsTrigger value="effect" className="rounded-xl text-xs font-semibold data-[state=active]:bg-cyan-500 data-[state=active]:text-slate-950 text-slate-400 transition-all">Effects</TabsTrigger>
-        </TabsList>
+      {/* Active items strip */}
+      <ActiveStrip />
 
-        <TabsContent value="all" className="space-y-6 mt-6">
-          {inventory.length === 0 ? (
-            <Card className="bg-card border-border rounded-2xl text-foreground">
-              <CardContent className="p-12 text-center">
-                <Coins className="mx-auto mb-4 h-16 w-16 text-slate-700" />
-                <h3 className="mb-2 text-xl font-semibold text-slate-200">No Items Yet</h3>
-                <p className="mb-4 text-sm text-slate-400">Visit the coin shop to purchase themes, avatar frames, and special effects.</p>
-                <Link href="/shop">
-                  <Button className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl">
-                    <ShoppingBag className="mr-2 h-4 w-4" /> Visit Shop
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {inventory.map(renderCard)}
-            </div>
-          )}
-        </TabsContent>
+      {/* Empty state */}
+      {inventory.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-border/60 bg-card/30 py-20 text-center">
+          <Lottie animation={EMPTY_BOX} className="mb-4 h-20 w-20" />
+          <h3 className="text-lg font-semibold text-foreground">Your inventory is empty</h3>
+          <p className="mt-1 max-w-xs text-sm text-muted-foreground">Purchase themes, effects, frames, and badges from the shop to start customizing your profile.</p>
+          <Link href="/shop">
+            <Button className="mt-5 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-foreground/90">
+              <ShoppingBag className="mr-2 h-4 w-4" />
+              Visit Shop
+            </Button>
+          </Link>
+        </div>
+      ) : (
+        <Tabs defaultValue={totalByShelf[0] || "theme"} className="w-full">
+          <TabsList className="grid h-auto w-full grid-cols-3 gap-1 sm:grid-cols-5 bg-card border border-border rounded-2xl p-1.5">
+            <TabsTrigger value="all" className="rounded-xl text-xs font-semibold data-[state=active]:bg-foreground data-[state=active]:text-background text-muted-foreground transition-all">
+              All <span className="ml-1 text-[10px] opacity-60">{inventory.length}</span>
+            </TabsTrigger>
+            {(Object.keys(SHELF_META) as Shelf[]).map((shelf) => {
+              const meta = SHELF_META[shelf]
+              const count = grouped[shelf].length
+              if (count === 0) return null
+              return (
+                <TabsTrigger key={shelf} value={shelf} className="rounded-xl text-xs font-semibold data-[state=active]:bg-foreground data-[state=active]:text-background text-muted-foreground transition-all">
+                  <span className="hidden sm:inline">{meta.label}</span>
+                  <span className="sm:hidden">{meta.icon}</span>
+                  <span className="ml-1 text-[10px] opacity-60">{count}</span>
+                </TabsTrigger>
+              )
+            })}
+          </TabsList>
 
-        {(["theme", "avatar_frame", "badge", "effect"] as const).map((type) => (
-          <TabsContent key={type} value={type} className="space-y-6 mt-6">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {(groupedInventory[type] || []).map(renderCard)}
-            </div>
-            {(groupedInventory[type] || []).length === 0 && (
-              <p className="py-12 text-center text-sm text-muted-foreground bg-card/40 border border-border/60 rounded-2xl">No {type.replace("_", " ")} items in inventory.</p>
-            )}
+          {/* All tab */}
+          <TabsContent value="all" className="mt-4 space-y-4">
+            {totalByShelf.map((shelf) => (
+              <div key={shelf}>
+                <div className="mb-2 flex items-center gap-2 px-0.5">
+                  {SHELF_META[shelf].icon}
+                  <span className="text-sm font-semibold text-foreground">{SHELF_META[shelf].label}</span>
+                  <span className="text-[11px] text-muted-foreground">{grouped[shelf].length} items</span>
+                </div>
+                <ShelfGrid shelf={shelf} />
+              </div>
+            ))}
           </TabsContent>
-        ))}
-      </Tabs>
+
+          {/* Per-shelf tabs */}
+          {(Object.keys(SHELF_META) as Shelf[]).map((shelf) => (
+            <TabsContent key={shelf} value={shelf} className="mt-4">
+              <ShelfGrid shelf={shelf} />
+            </TabsContent>
+          ))}
+        </Tabs>
+      )}
     </div>
   )
 }
