@@ -326,7 +326,7 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
   const accent = c.accent_color || cfg.accent
 
   return (
-    <div className="pb-16">
+    <div className="pb-24 lg:pb-16">
       {/* Banner — flat brand colour, or the artwork the community uploaded */}
       <div className="relative h-36 w-full overflow-hidden sm:h-44" style={{ background: accent }}>
         {bannerUrl ? <Image src={bannerUrl} alt="" fill className="object-cover" unoptimized /> : null}

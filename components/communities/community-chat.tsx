@@ -337,7 +337,7 @@ export function CommunityChat({
   filtered.forEach((m, i) => flatIndex.set(m.id, i))
 
   return (
-    <div className="flex h-full min-h-[520px] max-h-[720px] flex-col overflow-hidden rounded-3xl border border-border/30 bg-background/40 backdrop-blur-xl">
+    <div className="flex h-chat-pane min-h-0 flex-col overflow-hidden rounded-3xl border border-border/30 bg-background/40 backdrop-blur-xl">
       {/* Header: space tabs + search toggle */}
       <div className="border-b border-border/30">
         <div className="flex items-center gap-2 px-4 py-2">
@@ -398,7 +398,7 @@ export function CommunityChat({
       </div>
 
       {/* Messages Area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto scroll-smooth px-3 py-4 sm:px-4">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-smooth px-3 py-3 sm:px-4">
         {loading ? (
           <div className="flex items-center justify-center h-32">
             <Spinner className="h-5 w-5 text-muted-foreground" />
@@ -616,10 +616,13 @@ export function CommunityChat({
                     {/* Actions — hidden until long-press (mobile) or hover (desktop) */}
                     <div
                       className={cn(
-                        "mt-0.5 flex shrink-0 items-center gap-0.5 self-start transition-opacity duration-150",
+                        "mt-0.5 items-center gap-0.5 self-start transition-opacity duration-150",
+                        // A hidden action bar must not eat bubble width on phones:
+                        // it is only laid out when it is actually visible (or on
+                        // desktop, where hover keeps it in flow).
                         actionsOpen
-                          ? "opacity-100"
-                          : "pointer-events-none opacity-0 sm:pointer-events-auto sm:group-hover:opacity-100",
+                          ? "flex shrink-0 opacity-100"
+                          : "hidden pointer-events-none opacity-0 sm:pointer-events-auto sm:flex sm:shrink-0 sm:group-hover:opacity-100",
                       )}
                       onClick={(e) => e.stopPropagation()}
                     >

@@ -1,8 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Archive, ArrowLeft, Check, Loader2, Paperclip, Pencil, Pin, Plus, Radio, RotateCcw, Send, Trash2, Users, Video, X } from "lucide-react"
+import { Archive, ArrowLeft, Check, Loader2, Paperclip, Pencil, Pin, Plus, Radio, RotateCcw, Search, Send, Trash2, Users, Video, X } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -234,6 +234,7 @@ export function ThreadsBoard({
   const [threads, setThreads] = useState<ThreadRecord[]>([])
   const [filter, setFilter] = useState<string>("open")
   const [spaceFilter, setSpaceFilter] = useState<string>("all")
+  const [query, setQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [selected, setSelected] = useState<number | null>(null)
@@ -265,6 +266,26 @@ export function ThreadsBoard({
   useEffect(() => {
     if (openThreadId) setSelected(openThreadId)
   }, [openThreadId])
+
+  // Pinned first, then by whatever moved most recently — and a plain text
+  // search across title, context, outcome, owner and space, because a board you
+  // cannot search stops being usable the moment a community gets busy.
+  const visibleThreads = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    const matched = q
+      ? threads.filter((t) =>
+          [t.title, t.prompt, t.outcome, t.creator?.display_name, t.creator?.username, t.space?.name]
+            .filter(Boolean)
+            .some((v) => String(v).toLowerCase().includes(q)),
+        )
+      : threads
+    return [...matched].sort((a, b) => {
+      if (Boolean(a.is_pinned) !== Boolean(b.is_pinned)) return a.is_pinned ? -1 : 1
+      const aAt = new Date(a.last_activity_at || a.created_at || 0).getTime()
+      const bAt = new Date(b.last_activity_at || b.created_at || 0).getTime()
+      return bAt - aAt
+    })
+  }, [threads, query])
 
   const openThread = (thread: ThreadRecord) => {
     setSelected(thread.id)
@@ -319,6 +340,15 @@ export function ThreadsBoard({
             </button>
           ))}
         </div>
+        <div className="relative min-w-[150px] flex-1 sm:max-w-[220px]">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search threads"
+            className="h-8 rounded-full pl-8 text-xs"
+          />
+        </div>
         {spaces.length > 0 ? (
           <Select value={spaceFilter} onValueChange={setSpaceFilter}>
             <SelectTrigger className="h-8 w-[150px] rounded-full text-xs">
@@ -342,14 +372,28 @@ export function ThreadsBoard({
             <div className="flex items-center justify-center py-10 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
-          ) : threads.length === 0 ? (
-            <p className="px-4 py-10 text-center text-xs text-muted-foreground">
-              {filter === "open"
-                ? "No open threads. Everyone is either decided or resting."
-                : "Nothing here yet."}
-            </p>
+          ) : visibleThreads.length === 0 ? (
+            <div className="px-4 py-10 text-center">
+              <p className="text-xs text-muted-foreground">
+                {query
+                  ? `Nothing matches “${query}”.`
+                  : filter === "open"
+                    ? "No open threads. Everyone is either decided or resting."
+                    : "Nothing here yet."}
+              </p>
+              {isMember && canCreate && !query ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-3 h-8 rounded-full px-3 text-xs"
+                  onClick={() => setCreating(true)}
+                >
+                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Open the first thread
+                </Button>
+              ) : null}
+            </div>
           ) : (
-            threads.map((t) => <ThreadRow key={t.id} thread={t} onOpen={openThread} />)
+            visibleThreads.map((t) => <ThreadRow key={t.id} thread={t} onOpen={openThread} />)
           )}
         </div>
       </div>
@@ -528,6 +572,15 @@ function ThreadDetail({
   if (!thread) return null
   const contributions: any[] = data?.contributions || []
   const kind = threadKind(thread.kind)
+  // Who actually showed up. The header used to count posts and nothing else.
+  const contributorMap = new Map<string, any>()
+  for (const p of contributions) {
+    const contributorId = String(p.author?.id || p.author_id || "")
+    if (contributorId && !contributorMap.has(contributorId)) {
+      contributorMap.set(contributorId, p.author || { id: contributorId })
+    }
+  }
+  const contributors = Array.from(contributorMap.values())
 
   return (
     <div className="space-y-3">
@@ -565,45 +618,60 @@ function ThreadDetail({
       ) : null}
 
       <div className="rounded-2xl border border-border bg-card">
-        <div className="flex items-start gap-3 px-4 py-3.5">
-          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground">
-            <ThreadKindIcon kind={thread.kind} className="h-4 w-4" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-base font-semibold tracking-tight text-foreground">{thread.title}</h1>
-              <ThreadStateChip state={thread.state} />
-              {thread.is_pinned ? <Pin className="h-3.5 w-3.5 text-amber-500" /> : null}
-            </div>
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground">
-              <span>{kind.label}</span>
-              <span>·</span>
-              <span className="inline-flex items-center gap-1.5">
-                <Avatar className="h-4 w-4">
-                  <AvatarImage src={thread.creator?.avatar_url || ""} alt="" />
-                  <AvatarFallback className="text-[8px]">
-                    {(thread.creator?.display_name || thread.creator?.username || "?").charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                {thread.creator?.display_name || thread.creator?.username}
-              </span>
-              <span>·</span>
-              <span>opened {timeAgo(thread.created_at)}</span>
-              {thread.space?.name ? (
-                <>
-                  <span>·</span>
-                  <span>{thread.space.name}</span>
-                </>
+        {/* The title owns the full width and the controls live on their own row
+            below it — six buttons beside a title squeezed it to "Gre…" on a
+            phone and stacked the metadata one item per line. */}
+        <div className="px-4 py-3.5">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground">
+              <ThreadKindIcon kind={thread.kind} className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-base font-semibold leading-snug tracking-tight text-foreground">
+                {thread.title}
+              </h1>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                <ThreadStateChip state={thread.state} />
+                {thread.is_pinned ? (
+                  <span className="inline-flex items-center gap-1 text-amber-500">
+                    <Pin className="h-3 w-3" /> Pinned
+                  </span>
+                ) : null}
+                {thread.is_live ? (
+                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                    <Radio className="h-3 w-3" /> Live
+                  </span>
+                ) : null}
+                <span>{kind.label}</span>
+                <span>·</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Avatar className="h-4 w-4">
+                    <AvatarImage src={thread.creator?.avatar_url || ""} alt="" />
+                    <AvatarFallback className="text-[8px]">
+                      {(thread.creator?.display_name || thread.creator?.username || "?").charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  {thread.creator?.display_name || thread.creator?.username}
+                </span>
+                <span>·</span>
+                <span>opened {timeAgo(thread.created_at)}</span>
+                {thread.space?.name ? (
+                  <>
+                    <span>·</span>
+                    <span className="truncate">{thread.space.name}</span>
+                  </>
+                ) : null}
+              </div>
+              {thread.prompt ? (
+                <p className="mt-2.5 max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                  {thread.prompt}
+                </p>
               ) : null}
-            </p>
-            {thread.prompt ? (
-              <p className="mt-2.5 max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                {thread.prompt}
-              </p>
-            ) : null}
+            </div>
           </div>
-
-          <div className="flex shrink-0 items-center gap-1">
+        </div>
+        {isMember || canManage || isAuthor ? (
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 px-3 py-2">
             {isMember ? (
               <button
                 type="button"
@@ -611,9 +679,12 @@ function ThreadDetail({
                 onClick={() =>
                   patch({ follow_mode: thread.follow_mode === "all" ? "mentions" : thread.follow_mode === "mentions" ? "none" : "all" })
                 }
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:text-foreground"
+                className="flex h-8 items-center gap-1.5 rounded-full border border-border bg-background px-2.5 text-muted-foreground transition-colors hover:text-foreground"
               >
                 <FollowIcon mode={thread.follow_mode} className="h-3.5 w-3.5" />
+                <span className="hidden text-[11px] font-semibold sm:inline">
+                  {thread.follow_mode === "all" ? "Everything" : thread.follow_mode === "mentions" ? "Mentions" : "Muted"}
+                </span>
               </button>
             ) : null}
             {canManage ? (
@@ -626,7 +697,7 @@ function ThreadDetail({
                 >
                   <Pin className={cn("h-3.5 w-3.5", thread.is_pinned && "text-amber-500")} />
                 </button>
-                {thread.state !== "decided" ? (
+                {thread.state === "open" ? (
                   <Button
                     size="sm"
                     className="h-8 rounded-full px-3 text-xs"
@@ -636,6 +707,8 @@ function ThreadDetail({
                     <Check className="mr-1.5 h-3.5 w-3.5" /> Decide
                   </Button>
                 ) : (
+                  // Decided and archived threads reopen — "Decide" on something
+                  // already decided was a dead end.
                   <Button
                     size="sm"
                     variant="outline"
@@ -679,7 +752,7 @@ function ThreadDetail({
                     }
                   }}
                   className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full border transition-colors",
+                    "flex h-8 items-center gap-1.5 rounded-full border px-3 text-[11px] font-semibold transition-colors",
                     thread.is_live
                       ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 dark:text-emerald-400"
                       : "border-border bg-background text-muted-foreground hover:text-foreground",
@@ -690,6 +763,7 @@ function ThreadDetail({
                   ) : (
                     <Radio className="h-3.5 w-3.5" />
                   )}
+                  {thread.is_live ? "End live" : "Go live"}
                 </button>
                 {canManage || isAuthor ? (
                   <button
@@ -715,7 +789,7 @@ function ThreadDetail({
               </>
             ) : null}
           </div>
-        </div>
+        ) : null}
 
         {/* Outcome — the reason the thread exists */}
         <div className="border-t border-border/60 px-4 py-3">
@@ -761,9 +835,32 @@ function ThreadDetail({
 
       {/* Contributions */}
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
-          <h2 className="text-sm font-semibold tracking-tight">Contributions</h2>
-          <span className="text-[11px] tabular-nums text-muted-foreground">{contributions.length}</span>
+        <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold tracking-tight">Contributions</h2>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              {contributions.length === 0
+                ? "Nothing yet — be the first"
+                : `${contributions.length} ${contributions.length === 1 ? "post" : "posts"} from ${contributors.length} ${contributors.length === 1 ? "person" : "people"}`}
+            </p>
+          </div>
+          {contributors.length > 0 ? (
+            <div className="flex shrink-0 items-center -space-x-1.5">
+              {contributors.slice(0, 5).map((c: any, i: number) => (
+                <Avatar key={c.id || i} className="h-6 w-6 ring-2 ring-card">
+                  <AvatarImage src={c.avatar_url || ""} alt="" />
+                  <AvatarFallback className="text-[9px]">
+                    {(c.display_name || c.username || "?").charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+              {contributors.length > 5 ? (
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground ring-2 ring-card">
+                  +{contributors.length - 5}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div className="divide-y divide-border/60">

@@ -682,6 +682,34 @@ html[data-theme="forest"] .border-zinc-800 { border-color: hsl(var(--border)) !i
   height: 100dvh;
 }
 
+/*
+ * Community chat pane.
+ * The pane sits inside an ordinary scrolling page (banner + header + tabs), so
+ * it cannot use h-full and it must never rely on max-height: with a content
+ * sized flex child that refuses to shrink, max-height + overflow-hidden simply
+ * cut the composer off the bottom of the box. A clamped dynamic viewport height
+ * gives the pane a real height, and the message list scrolls inside it.
+ */
+.h-chat-pane {
+  height: clamp(22rem, calc(100vh - 20rem), 45rem);
+  height: clamp(22rem, calc(100dvh - 20rem), 45rem);
+}
+
+/*
+ * DM message actions.
+ * The action bar stays in normal flow while it is invisible so that hovering a
+ * message on desktop never shifts the conversation. On phones there is no
+ * hover, so that reserved row was pure dead space — roughly 32px parked under
+ * every bubble, which read as huge gaps between messages. Below the sm
+ * breakpoint a closed bar is removed from layout entirely; opening it
+ * (long-press) switches it to opacity-100, so the rule no longer applies.
+ */
+@media (max-width: 639px) {
+  .chat-workspace [class~="flex-wrap"][class~="opacity-0"][class~="transition-opacity"] {
+    display: none;
+  }
+}
+
 @keyframes message-appear {
   from {
     opacity: 0;
