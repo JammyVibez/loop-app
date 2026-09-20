@@ -6,7 +6,7 @@
  * `components/shop/shop-art.ts`.
  */
 
-import { anim, animation, ellipse, fill, group, polygon, polyline, rect, seconds, shapeLayer, stroke, type LottieProp, type ShapeItem } from "./build"
+import { EASE, anim, animation, ellipse, fill, group, polygon, polyline, rect, seconds, shapeLayer, stroke, type LottieProp, type ShapeItem } from "./build"
 import { type LottiePalette, DEFAULT_PALETTE } from "./animations"
 
 function pos(x: number, y: number) { return [x, y, 0] }
@@ -116,9 +116,10 @@ export function heartAnimation(input: Partial<LottiePalette> = {}) {
   const frames = seconds(2)
 
   const heart: ShapeItem = group([
-    // Two circles for top bumps
-    group([ellipse(18, [-10, -8])]),
-    group([ellipse(18, [10, -8])]),
+    // Two circles for the top bumps. Each is its own group, so each carries its
+    // own fill — without one they were drawing nothing at all.
+    group([ellipse(18, [-10, -8]), fill(accent)]),
+    group([ellipse(18, [10, -8]), fill(accent)]),
     // Triangle for the bottom
     polygon([[-28, -4], [0, 28], [28, -4]]),
     fill(accent),
@@ -373,7 +374,9 @@ export function musicAnimation(input: Partial<LottiePalette> = {}) {
   const frames = seconds(2.5)
 
   const note1: ShapeItem = group([
-    group([ellipse(10, [-2, 12])]),
+    // The head is its own group so it can sit off the stem, which means it
+    // needs its own fill: a parent's fill never reaches into a nested group.
+    group([ellipse(10, [-2, 12]), fill(accent)]),
     group([rect([3, -28], 2, [10, -14]), fill(accent)]),
     // Flag
     group([polyline([[13, -28], [24, -22], [13, -18]]), fill(accent)]),
@@ -381,7 +384,7 @@ export function musicAnimation(input: Partial<LottiePalette> = {}) {
   ])
 
   const note2: ShapeItem = group([
-    group([ellipse(8, [-1, 10])]),
+    group([ellipse(8, [-1, 10]), fill(accent2)]),
     group([rect([3, -22], 2, [8, -11]), fill(accent2)]),
     group([polyline([[11, -22], [20, -17], [11, -13]]), fill(accent2)]),
     fill(accent2),
@@ -789,3 +792,164 @@ export function carAnimation(input: Partial<LottiePalette> = {}) {
     layers: [line(50, 0, 24), line(56, 3, 30), line(62, 6, 20), line(66, 9, 26), carLayer],
   })
 }
+
+/* ── Rose / Garden ──────────────────────────────────────────────────────
+ *
+ * A rose in bloom on its stem: three rings of petals opening in sequence,
+ * leaves unfurling along the stem, and a few petals drifting loose.
+ *
+ * The bloom is tinted from the rarity palette like every other animation;
+ * the stem and leaves keep a botanical green, because a violet stem reads as
+ * a mistake rather than a rose.
+ */
+
+const STEM = "#3fae72"
+const LEAF = "#2f8f5c"
+
+export function roseAnimation(input: Partial<LottiePalette> = {}) {
+  const { accent, accent2 } = palette(input)
+  const frames = seconds(3)
+
+  /**
+   * One petal of a ring: an upright oval pinned `radius` out from the centre.
+   * It is rotated by its own group, so it must be filled by its own group too.
+   */
+  const petal = (size: [number, number], radius: number, angle: number, color: string, opacity: number): ShapeItem =>
+    group([ellipse(size, [0, -radius]), fill(color, opacity)], { rotation: angle })
+
+  /**
+   * A ring of petals that spirals shut as it unfurls — the slow counter-roll
+   * is what makes it read as a flower opening rather than a shape scaling up.
+   */
+  const bloom = (
+    count: number,
+    radius: number,
+    size: [number, number],
+    color: string,
+    delay: number,
+    spin: number,
+    opacity = 100,
+  ) =>
+    shapeLayer({
+      name: `petals-${count}`,
+      shapes: [group(Array.from({ length: count }, (_, i) => petal(size, radius, (360 / count) * i, color, opacity)))],
+      position: pos(60, 46),
+      rotation: anim([
+        { t: 0, v: spin },
+        { t: delay, v: spin },
+        { t: delay + 24, v: 0, ease: EASE.out },
+        { t: frames, v: 0 },
+      ]),
+      scale: anim([
+        { t: 0, v: scale(0, 0) },
+        { t: delay, v: scale(0, 0) },
+        { t: delay + 16, v: scale(112, 112) },
+        { t: delay + 26, v: scale(100, 100) },
+        { t: frames, v: scale(100, 100) },
+      ]),
+      outPoint: frames,
+    })
+
+  // Stem and leaves, anchored at the top of the stem so it grows downwards.
+  const plant = shapeLayer({
+    name: "stem",
+    shapes: [
+      group([
+        group([rect([5, 42], 2), fill(STEM)]),
+        group([ellipse([28, 13], [15, -7]), fill(LEAF)], { rotation: -26 }),
+        group([ellipse([28, 13], [-15, 7]), fill(LEAF)], { rotation: 26 }),
+      ]),
+    ],
+    anchor: [0, -21],
+    position: pos(60, 64),
+    scale: anim([
+      { t: 0, v: scale(100, 0) },
+      { t: 8, v: scale(100, 0) },
+      { t: 30, v: scale(100, 100), ease: EASE.out },
+      { t: frames, v: scale(100, 100) },
+    ]),
+    outPoint: frames,
+  })
+
+  // Petals knocked loose, drifting down past the stem.
+  const drift = (x: number, delay: number, tilt: number) =>
+    shapeLayer({
+      name: `drift-${x}`,
+      shapes: [group([ellipse([9, 13]), fill(accent2, 85)])],
+      position: anim([
+        { t: 0, v: pos(x, 58) },
+        { t: delay, v: pos(x, 58) },
+        { t: frames, v: [x + tilt, 112, 0] },
+      ]),
+      rotation: anim([
+        { t: 0, v: 0 },
+        { t: frames, v: 150 },
+      ]),
+      opacity: anim([
+        { t: 0, v: 0 },
+        { t: delay, v: 0 },
+        { t: delay + 8, v: 85 },
+        { t: frames - 10, v: 50 },
+        { t: frames, v: 0 },
+      ]),
+      outPoint: frames,
+    })
+
+  /** A four-point glint, sized in half-extents. */
+  const glint = (size: number, color: string) =>
+    group([polygon([[0, -size], [size * 0.34, 0], [0, size], [-size * 0.34, 0]]), fill(color)])
+
+  const spark = (x: number, y: number, delay: number, size: number, color: string) =>
+    shapeLayer({
+      name: `glint-${x}-${y}`,
+      shapes: [glint(size, color)],
+      position: pos(x, y),
+      scale: anim([
+        { t: 0, v: scale(0, 0) },
+        { t: delay, v: scale(0, 0) },
+        { t: delay + 8, v: scale(118, 118), ease: EASE.out },
+        { t: delay + 24, v: scale(0, 0) },
+      ]),
+      opacity: anim([
+        { t: 0, v: 0 },
+        { t: delay, v: 0 },
+        { t: delay + 8, v: 95 },
+        { t: delay + 24, v: 0 },
+      ]),
+      outPoint: frames,
+    })
+
+  return animation({
+    name: "Rose",
+    frames,
+    layers: [
+      spark(96, 30, 26, 8, accent2),
+      spark(26, 40, 34, 6, accent),
+      drift(40, 40, -12),
+      drift(78, 54, 14),
+      drift(60, 68, -6),
+      bloom(4, 7, [13, 17], accent, 22, 46),
+      bloom(6, 13, [14, 20], accent2, 11, -34, 92),
+      bloom(8, 19, [15, 24], accent, 0, 28),
+      plant,
+    ],
+  })
+}
+
+/** Every item illustration, keyed by name — the tested set. */
+export const ITEM_LOTTIE = {
+  car: carAnimation,
+  rose: roseAnimation,
+  crown: crownAnimation,
+  diamond: diamondAnimation,
+  flame: flameAnimation,
+  heart: heartAnimation,
+  lightning: lightningAnimation,
+  music: musicAnimation,
+  rocket: rocketAnimation,
+  shield: shieldAnimation,
+  star: starAnimation,
+  wand: wandAnimation,
+} as const
+
+export type ItemLottieName = keyof typeof ITEM_LOTTIE

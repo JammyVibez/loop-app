@@ -22,6 +22,12 @@ export interface ShopCatalogItem {
   is_active?: boolean
   item_data: any
   preview_data?: any
+  /** Admin-set image, GIF, or animation URL for the item preview. */
+  image_url?: string | null
+  /** Admin-set animation/video URL (e.g. a looping MP4 or WebM). */
+  animation_url?: string | null
+  icon_url?: string | null
+  preview_url?: string | null
   created_at?: string
   purchase_count?: number
 }
@@ -50,7 +56,7 @@ export function shopBucket(item: Pick<ShopCatalogItem, "category">): string {
   return SHOP_BUCKETS[(item.category || "").toLowerCase()] || "other"
 }
 
-export type ShopBucketId = "featured" | "theme" | "effect" | "identity" | "coins" | "other" | "cosmetics"
+export type ShopBucketId = "featured" | "theme" | "effect" | "identity" | "coins" | "other"
 
 export const RARITY_RANK: Record<string, number> = { legendary: 4, epic: 3, rare: 2, common: 1 }
 

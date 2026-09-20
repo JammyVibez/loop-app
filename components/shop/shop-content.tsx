@@ -5,7 +5,6 @@ import Link from "next/link"
 import {
   ArrowDownUp,
   Coins,
-  Gem,
   LayoutGrid,
   Package,
   Palette,
@@ -36,7 +35,6 @@ import {
   ShopItemPreviewDialog,
   type ShopPreviewItem,
 } from "@/components/shop/shop-item-preview"
-import { CosmeticsShop } from "@/components/cosmetics/cosmetics-shop"
 import { LoopCoinsBalance } from "@/components/shop/loop-coins-balance"
 import { ShopItemCard, RarityChip } from "@/components/shop/shop-item-card"
 import {
@@ -51,6 +49,7 @@ import {
 import { ShopEmpty, ShopError, ShopLoading } from "@/components/shop/shop-states"
 import { PurchaseCelebration, type CelebrationPayload } from "@/components/shop/purchase-celebration"
 import { ShopHero } from "@/components/shop/shop-hero"
+import { ProfileFramesPanel } from "@/components/profile/pfp-frames-panel"
 import { GIFT, SPARKLES } from "@/components/shop/shop-art"
 import { Lottie } from "@/components/ui/lottie"
 
@@ -64,10 +63,10 @@ interface CategoryDef {
   icon: LucideIcon
   hint: string
   match?: (item: ShopPreviewItem) => boolean
-  /** Rendered by its own surface rather than the item grid. */
-  custom?: "cosmetics"
   /** Hidden while it has nothing in it. */
   hideWhenEmpty?: boolean
+  /** Rendered by its own component instead of the item grid. */
+  custom?: boolean
 }
 
 const CATEGORIES: CategoryDef[] = [
@@ -99,18 +98,18 @@ const CATEGORIES: CategoryDef[] = [
     match: (item) => shopBucket(item) === "identity",
   },
   {
-    id: "cosmetics",
-    label: "Cosmetics",
-    icon: Gem,
-    hint: "The full cosmetics catalogue, with equipping built in.",
-    custom: "cosmetics",
-  },
-  {
     id: "coins",
     label: "Loop Coins",
     icon: Coins,
     hint: "Top up, or earn them for free.",
     match: (item) => shopBucket(item) === "coins",
+  },
+  {
+    id: "frames",
+    label: "Profile frames",
+    icon: Sparkle,
+    hint: "Rings you collect and wear on your avatar.",
+    custom: true,
   },
   {
     id: "other",
@@ -186,6 +185,12 @@ export function ShopContent() {
   useInventoryRealtime(user?.id, () => {
     void loadInventory()
   })
+
+  // Deep links (e.g. the inventory's "Browse frames in the shop") open on a shelf.
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("category")
+    if (requested && CATEGORIES.some((def) => def.id === requested)) setCategory(requested)
+  }, [])
 
   // Stripe Checkout sends card payers back here.
   useEffect(() => {
@@ -402,8 +407,16 @@ export function ShopContent() {
             </div>
           </nav>
 
-          {activeCategory.custom === "cosmetics" ? (
-            <CosmeticsShop />
+          {activeCategory.custom ? (
+            <section className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <Sparkle className="h-3 w-3" />
+                  {activeCategory.hint}
+                </span>
+              </div>
+              <ProfileFramesPanel avatarUrl={user?.avatar_url} />
+            </section>
           ) : activeCategory.id === "coins" ? (
             <div className="grid gap-4 lg:grid-cols-[1fr_320px] lg:items-start">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{filtered.map((item) => card(item))}</div>

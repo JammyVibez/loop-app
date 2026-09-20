@@ -10,6 +10,7 @@
 
 import { describe, expect, it } from "vitest"
 import { LOTTIE, RARITY_PALETTE, paletteForRarity, type LottieName } from "@/lib/lottie/animations"
+import { ITEM_LOTTIE, type ItemLottieName } from "@/lib/lottie/item-animations"
 
 // lottie-web probes for canvas support the moment it is imported, and jsdom has
 // no 2D context to give it. The app draws with the SVG renderer, so a stub that
@@ -33,7 +34,12 @@ async function lottie() {
   return engine
 }
 
-const NAMES = Object.keys(LOTTIE) as LottieName[]
+type AnyName = LottieName | ItemLottieName
+
+/** The generic set plus every item illustration, in one place to sweep. */
+const FACTORIES: Record<AnyName, () => object> = { ...LOTTIE, ...ITEM_LOTTIE }
+
+const NAMES = Object.keys(FACTORIES) as AnyName[]
 
 interface Json {
   v: string
@@ -45,13 +51,36 @@ interface Json {
   layers: Array<Record<string, any>>
 }
 
+const DRAWABLE = new Set(["sh", "rc", "el", "sr"])
+const PAINT = new Set(["fl", "st", "gf", "gs"])
+
+/**
+ * A group paints only the shapes listed directly inside it: a fill in a parent
+ * group does not reach into a child group, because the engine builds a separate
+ * style list per element. So a nested group that draws an ellipse and defines
+ * no fill of its own renders absolutely nothing — invisible in the app, and
+ * invisible to any component test that only counts DOM nodes.
+ */
+function auditGroup(group: Record<string, any>, where: string) {
+  const items: Array<Record<string, any>> = group.it
+  expect(items.map((item) => item.ty), `${where} has no transform`).toContain("tr")
+
+  items.forEach((item, index) => {
+    if (DRAWABLE.has(item.ty)) {
+      const painted = items.some((other, otherIndex) => otherIndex > index && PAINT.has(other.ty))
+      expect(painted, `${where}: item ${index} ("${item.ty}") is drawn with no fill or stroke after it`).toBe(true)
+    }
+    if (item.ty === "gr") auditGroup(item, `${where} → nested group ${index}`)
+  })
+}
+
 /** Each animation, as parsed JSON — i.e. what the engine actually receives. */
-function json(name: LottieName): Json {
-  return JSON.parse(JSON.stringify(LOTTIE[name]()))
+function json(name: AnyName): Json {
+  return JSON.parse(JSON.stringify(FACTORIES[name]()))
 }
 
 /** Builds an animation in a detached container and hands back what it drew. */
-async function render(name: LottieName, frame?: number) {
+async function render(name: AnyName, frame?: number) {
   const container = document.createElement("div")
   document.body.appendChild(container)
 
@@ -114,18 +143,16 @@ describe("coded Lottie animations", () => {
     }
   })
 
-  it.each(NAMES)("%s animates something and every shape group is filled or stroked", (name) => {
+  it.each(NAMES)("%s animates something and paints every shape it draws", (name) => {
     const doc = json(name)
     const animated = JSON.stringify(doc).includes('"a":1')
     expect(animated).toBe(true)
 
     for (const layer of doc.layers) {
       expect(Array.isArray(layer.shapes)).toBe(true)
-      for (const group of layer.shapes) {
+      for (const [index, group] of layer.shapes.entries()) {
         expect(group.ty).toBe("gr")
-        const kinds = group.it.map((item: any) => item.ty)
-        expect(kinds).toContain("tr")
-        expect(kinds.includes("fl") || kinds.includes("st")).toBe(true)
+        auditGroup(group, `${name} → layer "${layer.nm}" → group ${index}`)
       }
     }
   })
@@ -142,6 +169,11 @@ describe("coded Lottie animations", () => {
     expect(shapes()).toBeGreaterThan(0)
 
     instance.destroy()
+  })
+
+  it("covers every item illustration, not just the generic set", () => {
+    expect(Object.keys(ITEM_LOTTIE)).toContain("rose")
+    expect(NAMES.length).toBeGreaterThanOrEqual(Object.keys(LOTTIE).length + Object.keys(ITEM_LOTTIE).length - 1)
   })
 
   it("tints an animation from the palette it is handed", () => {

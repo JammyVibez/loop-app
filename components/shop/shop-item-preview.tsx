@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Lottie } from "@/components/ui/lottie"
 import { LockedNotice } from "@/components/shop/shop-states"
+import { CustomMedia, customMediaFor } from "@/components/shop/custom-media"
 import { COIN, COIN_GOLD, GIFT, artForItem, itemIllustration } from "@/components/shop/shop-art"
 import { COSMETIC_FONT_PRESETS, ensureCosmeticFonts, fontPresetForFamily } from "@/lib/cosmetic-fonts"
 import type { ShopCatalogItem } from "@/lib/shop-catalog"
@@ -230,7 +231,11 @@ const RARITY_BADGE: Record<string, string> = {
 
 /** Small live preview used directly inside shop cards. */
 export function ShopItemMiniPreview({ item, className }: { item: ShopPreviewItem; className?: string }) {
+  // Every hook runs before any early return below — a preview that sometimes
+  // calls `useMemo` and sometimes does not changes the hook count between
+  // renders, which React rejects outright.
   const cosmetic = useMemo(() => buildCosmeticFromItem(item), [item])
+  const itemArt = useMemo(() => itemIllustration(item), [item])
   const variant = previewVariantFor(item)
   const fontStack = fontStackFor(item)
   const primary = cosmetic?.color || "#8b5cf6"
@@ -241,6 +246,18 @@ export function ShopItemMiniPreview({ item, className }: { item: ShopPreviewItem
     if (variant !== "font") return
     ensureCosmeticFonts({ item_data: item.item_data } as CosmeticItem)
   }, [variant, item.id, item.item_data])
+
+  // Admin-set custom media: image, GIF, or video URL.  When an admin has
+  // deliberately attached art to an item, that is what the buyer sees — a
+  // "24K Rose Garden" shows the rose, not a generic gift-box Lottie.
+  const customMedia = customMediaFor(item as unknown as Record<string, unknown>)
+  if (customMedia) {
+    return (
+      <div className={cn("flex h-full w-full items-center justify-center overflow-hidden", className)}>
+        <CustomMedia url={customMedia} alt={item.name} />
+      </div>
+    )
+  }
 
   if (variant === "coins") {
     return (
@@ -357,9 +374,8 @@ export function ShopItemMiniPreview({ item, className }: { item: ShopPreviewItem
   }
 
   // If the item name/description matches a known illustration (car, crown,
-  // heart, star, diamond, …), show the matching Lottie instead of the
+  // heart, star, diamond, rose, …), show the matching Lottie instead of the
   // generic avatar fallback.
-  const itemArt = useMemo(() => itemIllustration(item), [item])
   if (itemArt) {
     return (
       <div className={cn("flex h-full w-full items-center justify-center gap-1 p-2", className)}>
@@ -421,6 +437,9 @@ export function ShopItemPreviewDialog({
 
   if (!item) return null
 
+  const customMedia = customMediaFor(item as unknown as Record<string, unknown>)
+  const hasCustomMedia = Boolean(customMedia)
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto border-border bg-card text-foreground sm:max-w-lg">
@@ -452,7 +471,13 @@ export function ShopItemPreviewDialog({
             className="pointer-events-none absolute inset-0 opacity-60"
             style={{ background: `radial-gradient(400px 200px at 50% 0%, ${primary}33, transparent 70%)` }}
           />
-          {variant === "coins" ? (
+          {/* Admin-set custom media: image, GIF, video or Lottie */}
+          {customMedia ? (
+            <div className="relative flex h-[320px] justify-center">
+              <CustomMedia url={customMedia} alt={item.name} fit="contain" className="rounded-xl" />
+            </div>
+          ) : null}
+          {!hasCustomMedia && (variant === "coins" ? (
             <div className="relative flex flex-col items-center gap-1.5">
               <Lottie animation={coinAmount(item) >= 10000 ? COIN_GOLD : COIN} className="h-28 w-28" />
               <p className="text-2xl font-semibold tabular-nums text-foreground">
@@ -573,7 +598,7 @@ export function ShopItemPreviewDialog({
                 {item.name} runs on your avatar everywhere — feed, profile, chat and comments. Tap your avatar to feel the micro-interaction.
               </p>
             </div>
-          )}
+          ))}
         </div>
 
         <p className="text-sm leading-relaxed text-muted-foreground">

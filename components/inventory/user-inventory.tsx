@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { useInventoryRealtime } from "@/hooks/use-inventory-realtime"
 import { ShopItemMiniPreview, type ShopPreviewItem } from "@/components/shop/shop-item-preview"
+import { ProfileFramesPanel } from "@/components/profile/pfp-frames-panel"
 import { RarityChip, RARITY_STYLE } from "@/components/shop/shop-item-card"
 import { Lottie } from "@/components/ui/lottie"
 import { artForItem, LOCK, LOADER, EMPTY_BOX } from "@/components/shop/shop-art"
@@ -408,6 +409,16 @@ export function UserInventory() {
 
       {/* Active items strip */}
       <ActiveStrip />
+
+      {/* Profile frames are sold in the shop and worn from here, so they belong
+          on this page too — an avatar ring nobody can find is not an inventory. */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 px-0.5">
+          <Sparkles className="h-4 w-4 text-violet-400" />
+          <span className="text-sm font-semibold text-foreground">Profile frames</span>
+        </div>
+        <ProfileFramesPanel ownedOnly compact avatarUrl={user?.avatar_url} />
+      </section>
 
       {/* Empty state */}
       {inventory.length === 0 ? (

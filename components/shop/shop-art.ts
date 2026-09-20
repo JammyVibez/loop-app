@@ -25,6 +25,7 @@ import {
   lightningAnimation,
   musicAnimation,
   rocketAnimation,
+  roseAnimation,
   shieldAnimation,
   starAnimation,
   wandAnimation,
@@ -63,6 +64,24 @@ type AnimationFactory = (input?: Partial<import("@/lib/lottie/animations").Lotti
 
 const ITEM_KEYWORDS: Array<[string[], AnimationFactory]> = [
   [["car", "vehicle", "automobile", "sports car", "racing", "supar"], carAnimation],
+  [
+    [
+      "rose",
+      "garden",
+      "flower",
+      "floral",
+      "bloom",
+      "blossom",
+      "bouquet",
+      "petal",
+      "tulip",
+      "sunflower",
+      "botanical",
+      "vase",
+      "plant",
+    ],
+    roseAnimation,
+  ],
   [["crown", "king", "queen", "royal", "monarch"], crownAnimation],
   [["diamond", "gem", "jewel", "crystal", "jade", "ruby", "sapphire", "emerald"], diamondAnimation],
   [["flame", "fire", "burn", "blaze", "inferno", "ember", "pyro"], flameAnimation],
@@ -75,22 +94,28 @@ const ITEM_KEYWORDS: Array<[string[], AnimationFactory]> = [
   [["wand", "magic", "spell", "enchant", "sorcery", "mystic", "wizard"], wandAnimation],
 ]
 
+function match(hay: string): object | null {
+  for (const [keywords, factory] of ITEM_KEYWORDS) {
+    if (keywords.some((kw) => hay.includes(kw))) return factory()
+  }
+  return null
+}
+
 /**
- * Given a shop item, return the Lottie animation that best matches its
- * name/description/category, or `null` for generic items.
+ * Given a shop item, return the Lottie animation that best matches it.
+ *
+ * The name is consulted first and on its own: an item called "24K Rose Garden"
+ * is a rose garden even if its blurb happens to mention a star, and a name is
+ * what a buyer reads.
  */
 export function itemIllustration(item: {
   name?: string
   description?: string
   category?: string
 }): object | null {
-  const hay = `${item.name || ""} ${item.description || ""} ${item.category || ""}`.toLowerCase()
-  for (const [keywords, factory] of ITEM_KEYWORDS) {
-    if (keywords.some((kw) => hay.includes(kw))) {
-      return factory()
-    }
-  }
-  return null
+  const byName = match((item.name || "").toLowerCase())
+  if (byName) return byName
+  return match(`${item.description || ""} ${item.category || ""}`.toLowerCase())
 }
 
 /**
