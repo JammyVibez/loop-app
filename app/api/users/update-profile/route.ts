@@ -24,7 +24,10 @@ function compactPayload(payload: Record<string, unknown>) {
 function friendlyProfileError(message?: string) {
   const text = String(message || "")
   if (/invalid input syntax for type uuid/i.test(text)) {
-    return "We couldn't match your account to a profile. Please sign in again and retry."
+    // A uuid column was fed a non-uuid value server-side (a bad id or a
+    // database trigger). That is not something the user caused or can fix by
+    // re-authenticating, so don't tell them to sign in again.
+    return "We couldn't save your profile just now. Please reload the page and try again."
   }
   if (/PGRST204|column .* does not exist/i.test(text)) {
     return "That profile field isn't available yet — try again in a moment."

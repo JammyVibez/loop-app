@@ -38,6 +38,11 @@ const DEFAULT_FILES = [
   "scripts/loop-preview-and-branch-limits-schema.sql",
   // profiles.has_seen_feature_tour — one-time on-feed coach-mark tour.
   "scripts/add-has-seen-feature-tour.sql",
+  // sync_pro_circle_membership() declared its pro circle id as UUID while
+  // circles.id is bigint, which made EVERY insert into profiles fail with
+  // `invalid input syntax for type uuid: "6"` (no profiles for new signups,
+  // onboarding step 1 always erroring).
+  "scripts/fix-pro-circle-membership-trigger.sql",
 ]
 
 // Allow a targeted run: node apply-pending-schema.mjs scripts/foo.sql …
