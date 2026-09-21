@@ -15,15 +15,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Compass,
-  Lock,
   Sparkles,
   Tags,
   UserPlus,
   UserRound,
-  Users,
 } from "lucide-react"
 import { AppLogo } from "@/components/brand/app-logo"
 import { Spinner } from "@/components/ui/skeletons"
+import { CommunityCard, type CommunityCardData } from "@/components/onboarding/community-card"
 import { cn } from "@/lib/utils"
 
 const STEPS = [
@@ -546,60 +545,17 @@ export default function OnboardingPage() {
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-2.5 sm:grid-cols-2">
-                  {communities.map((c) => {
-                    const joined = joinedCommunities.has(c.id)
-                    const pending = pendingCommunities.has(c.id)
-                    return (
-                      <div
-                        key={c.id}
-                        className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-3 transition-colors hover:border-primary/30"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Avatar className="h-10 w-10 rounded-xl border border-border">
-                            <AvatarImage src={c.avatar_url || undefined} alt={c.name} />
-                            <AvatarFallback className="rounded-xl bg-primary/15 text-sm font-bold text-primary">
-                              {c.name.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5">
-                              <p className="truncate text-sm font-semibold">{c.name}</p>
-                              {c.is_private && <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />}
-                            </div>
-                            <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                              <Users className="h-3 w-3" />
-                              {(c.member_count || 0).toLocaleString()} members
-                            </p>
-                          </div>
-                        </div>
-                        {c.description && (
-                          <p className="line-clamp-2 text-xs text-muted-foreground">{c.description}</p>
-                        )}
-                        <Button
-                          size="sm"
-                          variant={joined || pending ? "outline" : "default"}
-                          disabled={joined || pending}
-                          onClick={() => handleJoinCommunity(c)}
-                          className={cn(
-                            "mt-auto w-full",
-                            joined && "border-primary/40 bg-primary/10 text-primary",
-                            pending && "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-                          )}
-                        >
-                          {joined ? (
-                            <>
-                              <Check className="mr-1 h-3.5 w-3.5" /> Joined
-                            </>
-                          ) : pending ? (
-                            "Requested"
-                          ) : (
-                            "Join"
-                          )}
-                        </Button>
-                      </div>
-                    )
-                  })}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {communities.map((c, i) => (
+                    <CommunityCard
+                      key={c.id}
+                      index={i}
+                      community={c as CommunityCardData}
+                      joined={joinedCommunities.has(c.id)}
+                      pending={pendingCommunities.has(c.id)}
+                      onJoin={() => handleJoinCommunity(c)}
+                    />
+                  ))}
                 </div>
               )}
 
