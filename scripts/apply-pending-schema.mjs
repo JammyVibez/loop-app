@@ -36,6 +36,8 @@ const DEFAULT_FILES = [
   "scripts/user-inventory-integrity.sql",
   // Per-post link-preview toggle + owner-configurable branch limits.
   "scripts/loop-preview-and-branch-limits-schema.sql",
+  // profiles.has_seen_feature_tour — one-time on-feed coach-mark tour.
+  "scripts/add-has-seen-feature-tour.sql",
 ]
 
 // Allow a targeted run: node apply-pending-schema.mjs scripts/foo.sql …

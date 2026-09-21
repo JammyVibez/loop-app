@@ -21,6 +21,7 @@ import { mentionHref } from "@/lib/mentions-shared"
 import { NotificationQuickReply } from "@/components/notifications/notification-quick-reply"
 import { AdSlot } from "@/components/ads/ad-slot"
 import { Spinner } from "@/components/ui/skeletons"
+import { getNotificationCopy, maskAdminCopy, SYSTEM_SENDER } from "@/lib/notification-copy"
 
 type Notification = {
   id: string
@@ -466,6 +467,15 @@ function NotifRow({
   const { icon: Icon, color, bg } = notifIcon(n.type)
   const actor = n.actor
   const href = linkForNotification(n)
+  // Platform notifications are attributed to Loop and never name an admin;
+  // they also carry their own title instead of a post-interaction verb.
+  const copy = getNotificationCopy({
+    type: n.type,
+    title: n.title,
+    message: n.message,
+    actorName: actor?.display_name || actor?.username || "",
+    groupCount: (n as any).count,
+  })
 
   return (
     <li className="group relative flex items-center justify-between">
@@ -493,11 +503,11 @@ function NotifRow({
           <div className="min-w-0 flex-1">
             <p className="text-sm">
               <span className="font-semibold">
-                {actor?.display_name || actor?.username || "Someone"}
+                {copy.system ? SYSTEM_SENDER : actor?.display_name || actor?.username || "Someone"}
               </span>
               {" "}
               <span className="text-muted-foreground">
-                {cleanText(n.message || n.title)}
+                {cleanText(maskAdminCopy(copy.system ? n.title || n.message || copy.action : n.message || n.title))}
               </span>
             </p>
             <p className="mt-1 text-[11px] text-muted-foreground">

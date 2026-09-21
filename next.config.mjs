@@ -40,7 +40,10 @@ const nextConfig = {
   // consumes the standalone server bundle.
   // Keep Node-only packages out of the client/Edge bundles.
   serverExternalPackages: ["stripe", "web-push", "https-proxy-agent", "agent-base"],
-  productionBrowserSourceMaps: true,
+  // On by default. Set NEXT_BROWSER_SOURCE_MAPS=0 to skip browser source maps
+  // when building on a small (≈2GB / 1 vCPU) machine, where generating them for
+  // this app is what pushes the build over the memory limit.
+  productionBrowserSourceMaps: process.env.NEXT_BROWSER_SOURCE_MAPS !== "0",
   eslint: {
     ignoreDuringBuilds: true,
   },

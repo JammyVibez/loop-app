@@ -116,6 +116,13 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
                   key={item.href}
                   href={item.href}
                   onClick={onLinkClick}
+                  data-tour={
+                    item.href === "/communities"
+                      ? "nav-circles"
+                      : item.href === "/wallet"
+                        ? "wallet"
+                        : undefined
+                  }
                   className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
                     isActive
                       ? "bg-primary text-primary-foreground shadow-sm"

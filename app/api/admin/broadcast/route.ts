@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { notifyUsers } from "@/lib/notifications"
+import { maskAdminCopy } from "@/lib/notification-copy"
 import { isResendConfigured, resend, EMAIL_FROM } from "@/lib/resend"
 import { getUserFromRequest } from "@/lib/server-auth";
 
@@ -42,8 +43,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}))
-    const title = String(body.title || "").trim().slice(0, 120)
-    const message = String(body.message || "").trim().slice(0, 2000)
+    // Broadcasts go out in the platform's voice: never "an admin sent this".
+    const title = maskAdminCopy(String(body.title || "").trim()).slice(0, 120)
+    const message = maskAdminCopy(String(body.message || "").trim()).slice(0, 2000)
     const actionUrl = body.action_url ? String(body.action_url).slice(0, 500) : null
     const type = body.type === "announcement" ? "announcement" : "trending"
     const scope = body.scope === "random" ? "random" : body.scope === "sample" ? "sample" : "all"

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { requireAdmin } from "@/lib/server-auth"
+import { maskAdminCopy } from "@/lib/notification-copy"
 
 export const dynamic = "force-dynamic"
 
@@ -189,11 +190,11 @@ export async function PUT(request: NextRequest) {
         userId,
         type: "award",
         title: `You earned the ${award.emoji} ${award.name} award!`,
-        message: reason || "An admin awarded you for being awesome.",
-        actorId: admin.id,
+        // Platform voice — the recipient must never learn that staff granted it.
+        message: maskAdminCopy(reason || "You earned this award for being awesome. It now shows on your profile."),
         actionUrl: `/profile/${profile.username}`,
         data: { award_id: awardId, user_award_id: grant.id },
-        pushCategory: "social",
+        pushCategory: "system",
       })
     } catch (notifyErr) {
       console.warn("Award notify failed:", notifyErr)

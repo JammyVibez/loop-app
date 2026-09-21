@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         method: "request",
-        message: "Pro request submitted. An admin will review it shortly.",
+        message: "Pro request submitted. We'll let you know here as soon as it's approved.",
       })
     }
 

@@ -16,6 +16,25 @@ function compactPayload(payload: Record<string, unknown>) {
   )
 }
 
+/**
+ * Never echo raw PostgREST/Postgres text back to the client. In particular a
+ * wrong id format used to surface as `invalid input syntax for type uuid: "6"`
+ * straight into the onboarding form, which reads like the user's fault.
+ */
+function friendlyProfileError(message?: string) {
+  const text = String(message || "")
+  if (/invalid input syntax for type uuid/i.test(text)) {
+    return "We couldn't match your account to a profile. Please sign in again and retry."
+  }
+  if (/PGRST204|column .* does not exist/i.test(text)) {
+    return "That profile field isn't available yet — try again in a moment."
+  }
+  if (/duplicate key|unique constraint/i.test(text)) {
+    return "That username was just taken. Please choose another."
+  }
+  return "Failed to update profile"
+}
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request)
@@ -65,6 +84,7 @@ export async function POST(request: NextRequest) {
       notification_settings,
       tagged_circles,
       username: newUsername,
+      has_seen_feature_tour,
     } = body
 
     // --- Username change: uniqueness + 2-week cooldown ---
@@ -85,9 +105,15 @@ export async function POST(request: NextRequest) {
         .eq("id", user.id)
         .maybeSingle()
 
-      if (currentProfile && sanitized !== currentProfile.username) {
-        // Check cooldown: last change must be ≥ 14 days ago
-        if (currentProfile.username_change_at) {
+      // Users who are still onboarding have no profile row yet — their first
+      // username must be saved, not skipped (it used to be dropped silently,
+      // so step 1 of onboarding looked like it did nothing).
+      const isFirstUsername = !currentProfile?.username
+      const isChanged = sanitized !== currentProfile?.username
+
+      if (isChanged) {
+        // Cooldown only applies to accounts that already claimed a username.
+        if (!isFirstUsername && currentProfile?.username_change_at) {
           const lastChange = new Date(currentProfile.username_change_at).getTime()
           const cooldownMs = 14 * 24 * 60 * 60 * 1000
           const remainingMs = cooldownMs - (Date.now() - lastChange)
@@ -112,8 +138,6 @@ export async function POST(request: NextRequest) {
         }
 
         validatedUsername = sanitized
-      } else if (currentProfile && sanitized === currentProfile.username) {
-        // No actual change — skip
       }
     }
 
@@ -190,6 +214,8 @@ export async function POST(request: NextRequest) {
       notification_settings,
       tagged_circles: sanitizedTags,
       onboarding_completed: typeof onboarding_completed === "boolean" ? onboarding_completed : undefined,
+      has_seen_feature_tour:
+        typeof has_seen_feature_tour === "boolean" ? has_seen_feature_tour : undefined,
       ...(validatedUsername ? { username: validatedUsername, username_change_at: new Date().toISOString() } : {}),
       updated_at: new Date().toISOString(),
       // Only write theme_preferences when explicitly sending a shop theme payload (has colors)
@@ -206,7 +232,7 @@ export async function POST(request: NextRequest) {
       .select("*")
       .maybeSingle()
 
-    for (const optionalColumn of ["theme_preferences", "theme_data", "interests", "phone", "privacy_settings", "notification_settings", "banner_url", "tagged_circles", "pronouns"]) {
+    for (const optionalColumn of ["theme_preferences", "theme_data", "interests", "phone", "privacy_settings", "notification_settings", "banner_url", "tagged_circles", "pronouns", "has_seen_feature_tour"]) {
       if (profileError?.code === "PGRST204" && optionalColumn in payload) {
         delete payload[optionalColumn]
         ;({ data: profile, error: profileError } = await supabase
@@ -257,7 +283,7 @@ export async function POST(request: NextRequest) {
 
     if (profileError) {
       console.error("Profile update error:", profileError)
-      return NextResponse.json({ error: profileError.message || "Failed to update profile" }, { status: 500 })
+      return NextResponse.json({ error: friendlyProfileError(profileError.message) }, { status: 500 })
     }
 
     if (onboarding_completed === true && profile && profile.onboarding_completed !== true) {

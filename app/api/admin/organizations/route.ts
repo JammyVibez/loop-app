@@ -143,11 +143,12 @@ export async function POST(request: NextRequest) {
       // Notify user of upgrade
       await supabase.from("notifications").insert({
         user_id: targetUserId,
-        type: "organization_upgrade",
+        type: "system",
         title: "Upgraded to Official Organization Status! 🎉",
-        message: "Your account has been granted official Organization status with custom event hosting, coin rate multipliers, and branded perks.",
+        message: "Your account now has official Organization status with custom event hosting, coin rate multipliers, and branded perks.",
+        // No actor_id: the notification must read as a platform event, not
+        // as something an individual admin did.
         data: { action: "upgrade_organization" },
-        actor_id: adminUser.id,
       })
 
       return NextResponse.json({

@@ -147,10 +147,12 @@ export async function POST(request: NextRequest) {
 
       await supabase.from("notifications").insert({
         user_id: userId,
-        type: "system",
-        title: "Pro membership granted",
+        type: "pro_grant",
+        title: "Loop Pro unlocked",
         message: `You've been granted Loop Pro! It's active until ${expiresAt.toLocaleDateString()}.`,
-        data: { source: "admin", expires_at: expiresAt.toISOString() },
+        // The audit trail records the staff action elsewhere — the user-facing
+        // record must not hint that a human intervened.
+        data: { source: "loop", expires_at: expiresAt.toISOString() },
       })
 
       await logAdminAction(supabase, {
@@ -193,9 +195,9 @@ export async function POST(request: NextRequest) {
     await supabase.from("notifications").insert({
       user_id: userId,
       type: "system",
-      title: "Pro membership updated",
+      title: "Loop Pro membership ended",
       message: "Your Loop Pro membership has ended. You can resubscribe anytime.",
-      data: { source: "admin_revoke" },
+      data: { source: "loop" },
     })
 
     await logAdminAction(supabase, {

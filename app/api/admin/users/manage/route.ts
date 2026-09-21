@@ -1,8 +1,71 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { requireAdmin } from "@/lib/server-auth"
+import { maskAdminCopy } from "@/lib/notification-copy"
 
 export const dynamic = "force-dynamic"
+
+/**
+ * Admin-initiated changes are delivered to the user as plain platform events —
+ * "You received 100 Loop Coins", not "An admin gave you 100 coins". Nothing in
+ * the copy (or the notification payload) should expose manual intervention.
+ */
+function userFacingNotice(
+  action: string,
+  body: Record<string, unknown>,
+  updated: Record<string, unknown> | null,
+): { type: string; title: string; message: string } {
+  const amount = Math.max(0, Number(body?.amount) || 0)
+  switch (action) {
+    case "add_coins":
+      return {
+        type: "coin_reward",
+        title: "You received Loop Coins",
+        message: `You received ${amount.toLocaleString()} Loop Coins — spend them in the shop or send a gift.`,
+      }
+    case "grant_premium": {
+      const until = updated?.premium_expires_at
+      return {
+        type: "pro_grant",
+        title: "Loop Pro unlocked",
+        message: until
+          ? `Your Loop Pro membership is active until ${new Date(String(until)).toLocaleDateString()}.`
+          : "Your Loop Pro membership is now active.",
+      }
+    }
+    case "revoke_premium":
+      return {
+        type: "system",
+        title: "Loop Pro membership ended",
+        message: "Your Loop Pro membership has ended. You can resubscribe any time.",
+      }
+    case "ban":
+      return {
+        type: "system",
+        title: "Account suspended",
+        message: maskAdminCopy(
+          body?.reason
+            ? `Your account was suspended for violating the community guidelines. Reason: ${String(body.reason)}`
+            : "Your account was suspended for violating the community guidelines.",
+        ),
+      }
+    case "unban":
+      return {
+        type: "system",
+        title: "Account restored",
+        message: "Your account is active again. Welcome back.",
+      }
+    case "make_admin":
+    case "remove_admin":
+      return {
+        type: "system",
+        title: "Account permissions updated",
+        message: "Your account permissions were updated.",
+      }
+    default:
+      return { type: "system", title: "Account updated", message: "Your account was updated." }
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -179,14 +242,17 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        const adminUsername = adminUser.name || adminUser.email || "admin"
+        // User-facing copy must never reveal that an admin acted — it is
+        // framed as something that simply happened to the user, and reads as
+        // coming from Loop. No actor_id / admin_* payload either, otherwise the
+        // notification list would render the admin's name and avatar.
+        const notice = userFacingNotice(action, body, updated)
         await supabase.from("notifications").insert({
           user_id: userId,
-          type: "admin_action",
-          title: "Account updated",
-          message: `An admin updated your account (${action.replace(/_/g, " ")}).`,
-          data: { action, admin_id: adminUser.id, admin_username: adminUsername },
-          actor_id: adminUser.id,
+          type: notice.type,
+          title: notice.title,
+          message: notice.message,
+          data: { action },
         })
 
         try {

@@ -12,6 +12,7 @@ import { UserSuggestions } from "@/components/users/user-suggestions"
 import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt"
 import { AppDownloadBadges } from "@/components/app-download-badges"
 import { DailyPulse } from "@/components/engagement/daily-pulse"
+import { FeedTour } from "@/components/tour/feed-tour"
 import { Button } from "@/components/ui/button"
 import { Compass, Users, Video, Plus, Bookmark, LogIn, Search, Smartphone, ArrowRight, Download, CheckCircle } from "lucide-react"
 import { useEffect, useState, useCallback } from "react"
@@ -68,6 +69,8 @@ export function HomePageClient() {
                 <ReturnRecap />
                 <CircleActivityStrip />
                 <DailyPulse />
+                {/* One-time coach-mark tour over the real feed UI */}
+                <FeedTour />
               </>
             )}
 

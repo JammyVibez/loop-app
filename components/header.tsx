@@ -182,8 +182,21 @@ export function Header() {
 
           <ThemeToggle />
 
+          {/* Loop Coins — wallet indicator (feature tour anchor) */}
+          <Link
+            href="/wallet"
+            data-tour="wallet"
+            className="hidden items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary sm:inline-flex"
+            title="Loop Coins wallet"
+          >
+            <Coins className="h-3.5 w-3.5 text-amber-500" />
+            {Number(user.loop_coins || 0).toLocaleString()}
+          </Link>
+
           {/* Notifications */}
-          <NotificationDropdown />
+          <span data-tour="notifications" className="inline-flex">
+            <NotificationDropdown />
+          </span>
 
           {/* Messages */}
           <Link href="/messages" className="relative">
@@ -202,6 +215,7 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
+                data-tour="nav-profile"
                 className="relative h-8 w-8 rounded-full border border-border/80 bg-muted/50 p-0 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-sky-500/50"
               >
                 <AvatarWithFrame
