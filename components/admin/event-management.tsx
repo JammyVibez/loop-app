@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar, Plus, Trophy, Users, Star, Trash2, Edit3, CheckCircle2, Globe, Video, Code, Image as ImageIcon, ExternalLink, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { getEventStatus, formatEventTime, getEventStatusBadge } from "@/lib/events"
 import { useLiveEventTimer } from "@/hooks/use-events-state"
 
@@ -165,7 +166,15 @@ export function EventManagement() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this event?")) return
+    if (
+      !(await confirmDialog({
+        title: "Delete this event?",
+        description: "It disappears for everyone who RSVP'd, and the event page stops working.",
+        confirmLabel: "Delete event",
+        destructive: true,
+      }))
+    )
+      return
     try {
       const res = await fetch(`/api/admin/events/${id}`, {
         method: "DELETE",

@@ -8,8 +8,31 @@ import type {
   ToastProps,
 } from "@/components/ui/toast";
 
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+/**
+ * Three notices can stack; a fourth pushes the oldest out. One at a time hid
+ * the error that arrived while a success notice was still on screen.
+ */
+const TOAST_LIMIT = 3
+
+/**
+ * How long a dismissed toast stays mounted so its exit animation can play.
+ * It used to be ~16 minutes, which left invisible closed toasts occupying the
+ * viewport and shoving live ones around.
+ */
+const TOAST_REMOVE_DELAY = 1500
+
+/**
+ * Auto-dismiss timing. Recoverable successes get out of the way quickly;
+ * anything the reader may need to act on stays a little longer.
+ */
+const TOAST_DURATION: Record<string, number> = {
+  default: 4000,
+  info: 4000,
+  success: 4000,
+  warning: 6000,
+  error: 6500,
+  destructive: 6500,
+}
 
 type ToasterToast = ToastProps & {
   id: string
@@ -152,10 +175,13 @@ function toast({ ...props }: Toast) {
     })
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
+  const duration = props.duration ?? TOAST_DURATION[props.variant || "default"] ?? TOAST_DURATION.default
+
   dispatch({
     type: "ADD_TOAST",
     toast: {
       ...props,
+      duration,
       id,
       open: true,
       onOpenChange: (open) => {

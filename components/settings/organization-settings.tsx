@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Building2, TrendingUp, Crown, Coins, Percent, Users, ExternalLink, CheckCircle2 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/skeletons"
 
@@ -86,7 +87,15 @@ export function OrganizationSettings() {
   }
 
   const disable = async () => {
-    if (!confirm("Disable organization mode? Your perks and org badge will be turned off (you can re-enable anytime).")) return
+    if (
+      !(await confirmDialog({
+        title: "Disable organization mode?",
+        description: "Your perks and org badge are turned off. You can re-enable it any time.",
+        confirmLabel: "Disable",
+        destructive: true,
+      }))
+    )
+      return
     setBusy(true)
     try {
       const res = await fetch("/api/organizations/upgrade", {

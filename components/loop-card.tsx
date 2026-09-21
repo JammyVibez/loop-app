@@ -62,6 +62,8 @@ export const LoopCard = memo(function LoopCard({
   const [localInteracting, setLocalInteracting] = useState<string | null>(null)
   const [forking, setForking] = useState(false)
   const [chainDialogOpen, setChainDialogOpen] = useState(false)
+  const [branchSettingsOpen, setBranchSettingsOpen] = useState(false)
+  const [togglingLinkPreview, setTogglingLinkPreview] = useState(false)
   const [boostDialogOpen, setBoostDialogOpen] = useState(false)
   const [shareDmOpen, setShareDmOpen] = useState(false)
   const [shareCircleOpen, setShareCircleOpen] = useState(false)
@@ -392,6 +394,55 @@ export const LoopCard = memo(function LoopCard({
     }
   }
 
+  // Author-controlled link previews: the flag lives on the post, so turning
+  // it on/off changes what every viewer sees.
+  const handleToggleLinkPreview = async () => {
+    if (!currentUser?.token || currentUser.id !== loop.author_id || togglingLinkPreview) return
+    setTogglingLinkPreview(true)
+    const next = !loop.link_preview_disabled
+    try {
+      const response = await fetch(`/api/loops/${loop.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentUser.access_token || currentUser.token}`,
+        },
+        body: JSON.stringify({ link_preview_disabled: next }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "Could not update link preview")
+      setLoop((prev) => ({
+        ...prev,
+        link_preview_disabled: Boolean(data.loop?.link_preview_disabled ?? next),
+      }))
+      onEdited?.(data.loop)
+      toast({
+        title: next ? "Link preview hidden" : "Link preview shown",
+        description: next
+          ? "Nobody sees the embedded link card until you show it again."
+          : "Viewers can see the embedded link card again.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Couldn't update link preview",
+        description: error?.message || "Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setTogglingLinkPreview(false)
+    }
+  }
+
+  const handleBranchSettingsSaved = (updated: any) => {
+    if (!updated) return
+    setLoop((prev) => ({
+      ...prev,
+      max_branch_depth: updated.max_branch_depth ?? null,
+      max_branches_per_user: updated.max_branches_per_user ?? null,
+    }))
+    onEdited?.(updated)
+  }
+
   const confirmDelete = async () => {
     if (!currentUser?.token || currentUser.id !== loop.author_id) return
 
@@ -502,6 +553,9 @@ export const LoopCard = memo(function LoopCard({
             isBoosted={isBoosted}
             togglingPin={togglingPin}
             onTogglePin={handleTogglePin}
+            onToggleLinkPreview={handleToggleLinkPreview}
+            togglingLinkPreview={togglingLinkPreview}
+            onOpenBranchSettings={() => setBranchSettingsOpen(true)}
             onEdit={handleEdit}
             onDelete={handleDelete}
             onGift={() => setShowGiftModal(true)}
@@ -615,6 +669,9 @@ export const LoopCard = memo(function LoopCard({
         coAuthors={coAuthors}
         chainDialogOpen={chainDialogOpen}
         setChainDialogOpen={setChainDialogOpen}
+        branchSettingsOpen={branchSettingsOpen}
+        setBranchSettingsOpen={setBranchSettingsOpen}
+        onBranchSettingsSaved={handleBranchSettingsSaved}
         boostDialogOpen={boostDialogOpen}
         setBoostDialogOpen={setBoostDialogOpen}
         boostCoinsCurrent={boostCoinsCurrent}

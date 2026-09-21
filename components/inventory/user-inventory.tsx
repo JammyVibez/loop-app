@@ -66,7 +66,14 @@ function toShopItem(item: InventoryItem): ShopPreviewItem {
   const shop = item.shop_item || {}
   return {
     id: item.item_id || item.id,
-    name: item.item_name || shop.name || "Item",
+    // The API no longer returns rows that name nothing, and the item_type is
+    // still a readable last resort — but never the literal word "Item".
+    name:
+      item.item_name ||
+      shop.name ||
+      String(item.item_type || item.category || "item")
+        .replace(/[_-]+/g, " ")
+        .replace(/^\w/, (c) => c.toUpperCase()),
     description: shop.description || "",
     price: shop.price || 0,
     price_coins: shop.price_coins || shop.price || 0,

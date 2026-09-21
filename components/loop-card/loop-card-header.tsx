@@ -15,6 +15,9 @@ import {
   Unlock,
   Users,
   Rocket,
+  Link2,
+  Link2Off,
+  SlidersHorizontal,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -44,6 +47,9 @@ interface LoopCardHeaderProps {
   isBoosted: boolean
   togglingPin: boolean
   onTogglePin: () => void
+  onToggleLinkPreview: () => void
+  togglingLinkPreview?: boolean
+  onOpenBranchSettings: () => void
   onEdit: () => void
   onDelete: () => void
   onGift: () => void
@@ -60,6 +66,9 @@ export function LoopCardHeader({
   isBoosted,
   togglingPin,
   onTogglePin,
+  onToggleLinkPreview,
+  togglingLinkPreview = false,
+  onOpenBranchSettings,
   onEdit,
   onDelete,
   onGift,
@@ -337,6 +346,23 @@ export function LoopCardHeader({
                     <><Lock className="h-4 w-4 mr-2" /> Lock Comments</>
                   )}
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={onToggleLinkPreview}
+                  disabled={togglingLinkPreview}
+                >
+                  {loop.link_preview_disabled ? (
+                    <><Link2 className="h-4 w-4 mr-2" /> Show Link Preview</>
+                  ) : (
+                    <><Link2Off className="h-4 w-4 mr-2" /> Hide Link Preview</>
+                  )}
+                </DropdownMenuItem>
+                {/* Branch limits belong to the root post of a tree, so a
+                    branch only shows this when it has no parent. */}
+                {!loop.parent_loop_id && (
+                  <DropdownMenuItem onClick={onOpenBranchSettings}>
+                    <SlidersHorizontal className="h-4 w-4 mr-2" /> Branch Settings
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={onDelete}
                   className="text-red-500 focus:text-red-500"

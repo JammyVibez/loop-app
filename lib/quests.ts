@@ -332,10 +332,26 @@ export async function creditQuestRewards(
 
   // Credit item to inventory.
   if (item) {
+    // The catalogue row supplies the real item_type: "shop_item" is not a type
+    // any shelf or cosmetic slot recognises, so the reward landed in the wrong
+    // place and could not be equipped.
+    const { data: reward } = await supabase
+      .from("shop_items")
+      .select("id, name, item_type, category, rarity, item_data, preview_data")
+      .eq("id", item.id)
+      .maybeSingle()
+
     const { error: invErr } = await supabase.from("user_inventory").insert({
       user_id: userId,
       item_id: item.id,
-      item_type: "shop_item",
+      item_type: reward?.item_type || reward?.category || "accessory",
+      category: reward?.category || null,
+      rarity: reward?.rarity || "common",
+      item_name: reward?.name || null,
+      item_data: reward?.item_data || {},
+      preview_data: reward?.preview_data || {},
+      acquired_from: "quest",
+      source: "quest",
       is_active: false,
       acquired_at: new Date().toISOString(),
     })

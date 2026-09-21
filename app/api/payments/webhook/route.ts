@@ -124,6 +124,14 @@ export async function POST(request: NextRequest) {
           const itemType = String(metadata.item_type || "item")
           const txId = `stripe_${session.id}`
 
+          // The catalogue row is the source for everything but the id: the
+          // session metadata does not carry a name or a payload.
+          const { data: item } = await supabase
+            .from("shop_items")
+            .select("id, name, item_type, category, rarity, item_data, preview_data")
+            .eq("id", itemId)
+            .maybeSingle()
+
           if (session.payment_status !== "paid") {
             console.warn(`Shop checkout ${session.id} completed but payment_status=${session.payment_status}`)
             break
@@ -145,6 +153,13 @@ export async function POST(request: NextRequest) {
               user_id: userId,
               item_id: itemId,
               item_type: itemType,
+              category: item?.category || null,
+              rarity: item?.rarity || "common",
+              item_name: item?.name || null,
+              item_data: item?.item_data || {},
+              preview_data: item?.preview_data || {},
+              acquired_from: "stripe",
+              source: "stripe",
               is_active: false,
               purchased_at: new Date().toISOString(),
               payment_method: "stripe",
@@ -284,12 +299,36 @@ export async function POST(request: NextRequest) {
         }
 
         if (paymentIntent.metadata?.user_id && paymentIntent.metadata?.item_id) {
-          await supabase.from("user_inventory").upsert({
-            user_id: paymentIntent.metadata.user_id,
-            item_id: paymentIntent.metadata.item_id,
-            acquired_at: new Date().toISOString(),
-            source: "stripe",
-          })
+          // This write used to omit item_type, which is NOT NULL with no
+          // default — so the insert failed and a card payment for an item never
+          // reached the buyer's inventory. The catalogue supplies it now.
+          const { data: purchased } = await supabase
+            .from("shop_items")
+            .select("id, name, item_type, category, rarity, item_data, preview_data")
+            .eq("id", paymentIntent.metadata.item_id)
+            .maybeSingle()
+
+          const { error: grantError } = await supabase.from("user_inventory").upsert(
+            {
+              user_id: paymentIntent.metadata.user_id,
+              item_id: paymentIntent.metadata.item_id,
+              item_type: purchased?.item_type || purchased?.category || "accessory",
+              category: purchased?.category || null,
+              rarity: purchased?.rarity || "common",
+              item_name: purchased?.name || null,
+              item_data: purchased?.item_data || {},
+              preview_data: purchased?.preview_data || {},
+              acquired_from: "stripe",
+              acquired_at: new Date().toISOString(),
+              purchased_at: new Date().toISOString(),
+              payment_method: "stripe",
+              source: "stripe",
+            },
+            { onConflict: "user_id,item_id" },
+          )
+          if (grantError) {
+            console.error("Failed to grant purchased item from payment intent:", grantError)
+          }
         }
         break
       case "customer.subscription.created":

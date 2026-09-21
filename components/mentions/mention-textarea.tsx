@@ -25,6 +25,8 @@ type Props = {
   disabled?: boolean
   id?: string
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
+  /** Bump this number to programmatically focus and place the caret at the end. */
+  focusSignal?: number
 }
 
 /**
@@ -40,6 +42,7 @@ export function MentionTextarea({
   disabled,
   id,
   onKeyDown,
+  focusSignal,
 }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const [query, setQuery] = useState<string | null>(null)
@@ -64,6 +67,19 @@ export function MentionTextarea({
     setOpen(true)
     setActive(0)
   }, [])
+
+  useEffect(() => {
+    if (!focusSignal) return
+    const el = ref.current
+    if (!el) return
+    el.focus()
+    const end = el.value.length
+    try {
+      el.setSelectionRange(end, end)
+    } catch {
+      /* ignore */
+    }
+  }, [focusSignal])
 
   useEffect(() => {
     if (query === null) return

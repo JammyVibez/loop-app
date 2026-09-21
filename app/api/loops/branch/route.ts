@@ -4,6 +4,12 @@ import { normalizeLoop } from "@/lib/normalize-loop";
 import { uploadFileToCloudinary } from "@/lib/cloudinary-upload";
 import { isCloudinaryConfigured } from "@/lib/env-check";
 import { getUserFromRequest } from "@/lib/server-auth";
+import {
+  countBranchesByUser,
+  exceedsDepthLimit,
+  exceedsPerUserLimit,
+  resolveBranchLimits,
+} from "@/lib/branch-limits";
 
 export const dynamic = "force-dynamic"
 
@@ -48,8 +54,25 @@ export async function POST(request: NextRequest) {
     }
 
     const parentDepth = parentLoop.tree_depth ?? 0
-    if (parentDepth >= 10) {
-      return NextResponse.json({ error: "Maximum branch depth reached" }, { status: 400 })
+
+    // The post owner decides how deep their tree may grow and how many
+    // branches one account may add. Limits are read from the top-most post
+    // of the tree (see lib/branch-limits.ts).
+    const limits = await resolveBranchLimits(supabase, parentId)
+    if (exceedsDepthLimit(parentDepth, limits.maxDepth)) {
+      return NextResponse.json(
+        { error: `This post allows branches up to ${limits.maxDepth} levels deep.`, code: "BRANCH_DEPTH_LIMIT" },
+        { status: 400 },
+      )
+    }
+    if (limits.rootId && limits.maxPerUser != null) {
+      const used = await countBranchesByUser(supabase, limits.rootId, user.id)
+      if (exceedsPerUserLimit(used, limits.maxPerUser)) {
+        return NextResponse.json(
+          { error: `You've reached the branch limit (${limits.maxPerUser}) for this post.`, code: "BRANCH_USER_LIMIT" },
+          { status: 400 },
+        )
+      }
     }
 
     // Rebranch passthrough: if parent has media, carry it forward

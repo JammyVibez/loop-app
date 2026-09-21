@@ -146,16 +146,28 @@ export async function POST(request: NextRequest) {
           })
           .eq("id", recipientId)
       } else {
-        await supabase.from("user_inventory").upsert(
+        // This upsert used to fail every time: it names an ON CONFLICT target
+        // that had no matching unique index, so no gift item was ever
+        // delivered. The index exists now, and the row carries its own
+        // snapshot so it survives a catalogue change.
+        const { error: giftGrantError } = await supabase.from("user_inventory").upsert(
           {
             user_id: recipientId,
             item_id: giftItem.id,
             item_type: giftItem.item_type || giftType || "gift_item",
+            category: giftItem.category || null,
+            rarity: giftItem.rarity || "common",
+            item_name: giftItem.name || null,
+            item_data: giftItem.item_data || {},
+            preview_data: giftItem.preview_data || {},
+            acquired_from: "gift",
+            source: "gift",
             is_active: true,
             acquired_at: new Date().toISOString(),
           },
           { onConflict: "user_id,item_id,item_type" },
         )
+        if (giftGrantError) throw giftGrantError
       }
     } catch (deliveryError) {
       console.error("Gift delivery error:", deliveryError)

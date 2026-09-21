@@ -796,7 +796,11 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           {loop.title ? (
             <h1 className="text-xl font-bold leading-tight tracking-tight text-foreground sm:text-2xl">{loop.title}</h1>
           ) : null}
-          <RichContent text={loop.content} className="text-[15px] leading-relaxed text-foreground/90" />
+          <RichContent
+            text={loop.content}
+            className="text-[15px] leading-relaxed text-foreground/90"
+            showPreviewCard={!(loop as any).link_preview_disabled}
+          />
 
           {/* Full Media Set Carousel */}
           {loop.mediaUrls && loop.mediaUrls.length > 0 && (

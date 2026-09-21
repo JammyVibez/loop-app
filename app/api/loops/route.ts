@@ -8,6 +8,12 @@ import { filterPrivateContent, getFollowingIds } from "@/lib/privacy"
 import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats"
 import { getUserFromRequest } from "@/lib/server-auth";
 import { enforceUserRateLimit } from "@/lib/rate-limit-settings"
+import {
+  countBranchesByUser,
+  exceedsDepthLimit,
+  exceedsPerUserLimit,
+  resolveBranchLimits,
+} from "@/lib/branch-limits"
 
 
 function parseHashtags(value: unknown) {
@@ -174,6 +180,25 @@ export async function POST(request: NextRequest) {
       if (!parent) {
         return NextResponse.json({ error: "Parent loop not found" }, { status: 404 })
       }
+
+      // Honour the root post's branch limits instead of an arbitrary fixed cap.
+      const limits = await resolveBranchLimits(supabase, parentLoopId)
+      if (exceedsDepthLimit(parent.tree_depth ?? 0, limits.maxDepth)) {
+        return NextResponse.json(
+          { error: `This post allows branches up to ${limits.maxDepth} levels deep.`, code: "BRANCH_DEPTH_LIMIT" },
+          { status: 400 },
+        )
+      }
+      if (limits.rootId && limits.maxPerUser != null) {
+        const used = await countBranchesByUser(supabase, limits.rootId, user.id)
+        if (exceedsPerUserLimit(used, limits.maxPerUser)) {
+          return NextResponse.json(
+            { error: `You've reached the branch limit (${limits.maxPerUser}) for this post.`, code: "BRANCH_USER_LIMIT" },
+            { status: 400 },
+          )
+        }
+      }
+
       treeDepth = (parent.tree_depth ?? 0) + 1
     }
 

@@ -21,6 +21,7 @@ import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
 import { AnimatedCardFrame } from "@/components/cosmetics/animated-card-frame"
 import { type CosmeticItem, type ActiveCosmetics, resolveEffectData } from "@/lib/cosmetics"
 import { useTheme3D } from "@/providers/theme-3d-provider"
+import { useAuth } from "@/hooks/use-auth"
 import { Coins, Crown, Eye, Gift, Heart, MessageCircle, Zap, Wand2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -119,6 +120,23 @@ function fontStackFor(item: ShopPreviewItem): string | null {
   if (preset?.family) return preset.family
   if (typeof data.font_family === "string" && data.font_family) return data.font_family
   return null
+}
+
+/**
+ * The typeface's real name, for the font specimen: the preset's own label
+ * ("Poppins") or, when the item carries a raw family stack, the family itself.
+ */
+function fontLabelFor(item: ShopPreviewItem): string {
+  const data = item.item_data && typeof item.item_data === "object" ? item.item_data : {}
+  const preset =
+    (data.font_preset && COSMETIC_FONT_PRESETS[data.font_preset as string]) ||
+    fontPresetForFamily(String(data.font_family || ""))
+  if (preset?.family) return preset.family.split(",")[0].replace(/['"]/g, "").trim()
+  const raw = String(data.font_family || "").split(",")[0].replace(/['"]/g, "").trim()
+  if (raw) return raw
+  // No font metadata at all — the item's name is still honest, minus the word
+  // "Font" that every one of them carries.
+  return item.name.replace(/\s*font\s*$/i, "").trim() || item.name
 }
 
 /**
@@ -304,16 +322,19 @@ export function ShopItemMiniPreview({ item, className }: { item: ShopPreviewItem
   }
 
   if (variant === "font") {
+    // The sample is the typeface's own name set in the typeface — a real
+    // specimen rather than the words "Your name here", which told a buyer
+    // nothing about the font they were looking at.
     return (
       <div className={cn("flex h-full w-full flex-col items-center justify-center gap-1", className)}>
         <span className="text-4xl leading-none text-foreground" style={{ fontFamily: fontStack || undefined }}>
           Aa
         </span>
         <span
-          className="text-xs text-muted-foreground"
+          className="max-w-[92%] truncate text-xs font-medium text-muted-foreground"
           style={{ fontFamily: fontStack || undefined }}
         >
-          Your name here
+          {fontLabelFor(item)}
         </span>
       </div>
     )
@@ -387,14 +408,16 @@ export function ShopItemMiniPreview({ item, className }: { item: ShopPreviewItem
     )
   }
 
+  // Nothing matched a keyword, so draw the item's own cosmetic on an anonymous
+  // avatar. This used to be a stock photo that does not exist plus the initial
+  // "L", which is where the lettered circles in the inventory came from.
   return (
     <div className={cn("flex h-full w-full items-center justify-center", className)}>
       <CosmeticAvatar
-        src="/placeholder-user.jpg"
         alt={item.name}
-        fallback="L"
         size="lg"
-        cosmetics={{ frame: cosmetic, aura: cosmetic?.glow ? cosmetic : null } as ActiveCosmetics}
+        silhouette
+        cosmetics={{ frame: cosmetic, aura: cosmetic } as ActiveCosmetics}
       />
     </div>
   )
@@ -421,6 +444,11 @@ export function ShopItemPreviewDialog({
   locked?: boolean
 }) {
   const { applyTheme } = useTheme3D()
+  // Previews are drawn on the viewer's own avatar and name wherever possible:
+  // a stranger's stock photo and a placeholder name made every item look like
+  // a template rather than something about to happen to your profile.
+  const { user } = useAuth()
+  const sampleName = user?.display_name || user?.username || "Your profile"
   const variant = item ? previewVariantFor(item) : "avatar"
   const isFont = variant === "font"
   const isTheme = variant === "theme"
@@ -530,7 +558,7 @@ export function ShopItemPreviewDialog({
                 className="text-center text-lg text-muted-foreground"
                 style={{ fontFamily: fontStack || undefined }}
               >
-                Your display name, everywhere it appears
+                {sampleName}, everywhere your name appears
               </span>
             </div>
           ) : isTheme ? (
@@ -544,12 +572,12 @@ export function ShopItemPreviewDialog({
                 }}
               >
                 <div className="flex items-center gap-2.5">
-                  <CosmeticAvatar src="/placeholder-user.jpg" alt="" fallback="L" size="md" />
+                  <CosmeticAvatar src={user?.avatar_url} alt="" size="md" silhouette />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold" style={{ color: themePayload?.colors?.text }}>
-                      Your name
+                      {sampleName}
                     </p>
-                    <p className="truncate text-[11px] opacity-70">@yourhandle</p>
+                    <p className="truncate text-[11px] opacity-70">@{user?.username || "you"}</p>
                   </div>
                   <span className="ml-auto h-2 w-2 rounded-full" style={{ background: primary, boxShadow: `0 0 8px ${primary}` }} />
                 </div>
@@ -570,9 +598,9 @@ export function ShopItemPreviewDialog({
               <AnimatedCardFrame effect={cosmetic} rounded="rounded-2xl" className="w-full max-w-[300px]">
                 <div className="rounded-2xl border border-border bg-card p-4 shadow-lg">
                   <div className="flex items-center gap-2">
-                    <CosmeticAvatar src="/placeholder-user.jpg" alt="" fallback="L" size="sm" />
+                    <CosmeticAvatar src={user?.avatar_url} alt="" size="sm" silhouette />
                     <div className="min-w-0">
-                      <p className="truncate text-xs font-bold text-foreground">Creator name</p>
+                      <p className="truncate text-xs font-bold text-foreground">{sampleName}</p>
                       <p className="text-[10px] text-muted-foreground">just now</p>
                     </div>
                   </div>
@@ -588,11 +616,11 @@ export function ShopItemPreviewDialog({
           ) : (
             <div className="relative flex flex-col items-center gap-3">
               <CosmeticAvatar
-                src="/placeholder-user.jpg"
+                src={user?.avatar_url}
                 alt={item.name}
-                fallback="L"
                 size="xl"
-                cosmetics={{ frame: cosmetic, aura: cosmetic?.glow ? cosmetic : null } as ActiveCosmetics}
+                silhouette
+                cosmetics={{ frame: cosmetic, aura: cosmetic } as ActiveCosmetics}
               />
               <p className="max-w-[260px] text-center text-xs text-muted-foreground">
                 {item.name} runs on your avatar everywhere — feed, profile, chat and comments. Tap your avatar to feel the micro-interaction.

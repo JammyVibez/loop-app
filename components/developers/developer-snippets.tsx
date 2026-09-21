@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { useLoginGate } from "@/hooks/use-login-gate"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
@@ -242,7 +243,15 @@ export function DeveloperSnippets() {
   }
 
   const deleteSnippet = async (snippet: Snippet) => {
-    if (!window.confirm(`Delete "${snippet.title}"? This can't be undone.`)) return
+    if (
+      !(await confirmDialog({
+        title: `Delete "${snippet.title}"?`,
+        description: "This can't be undone.",
+        confirmLabel: "Delete snippet",
+        destructive: true,
+      }))
+    )
+      return
     setBusyId(snippet.id)
     try {
       const res = await fetch(`/api/developers/snippets/${snippet.id}`, {

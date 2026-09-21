@@ -14,7 +14,9 @@ const supabase = createClient(
 async function refreshActiveCosmetics(userId: string) {
   const { data: activeItems } = await supabase
     .from("user_inventory")
-    .select("id, item_id, item_type, is_active, shop_item:shop_items(id, name, category, item_type, item_data, preview_data, icon_url, preview_url, rarity)")
+    .select(
+      "id, item_id, item_type, is_active, item_name, item_data, preview_data, category, rarity, shop_item:shop_items(id, name, category, item_type, item_data, preview_data, icon_url, preview_url, rarity)",
+    )
     .eq("user_id", userId)
     .eq("is_active", true)
     .limit(24)
@@ -46,9 +48,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Inventory item ID is required" }, { status: 400 })
     }
 
+    // Plain select — see the note in the apply route: the FK embed is an
+    // enrichment, and it is null for anything whose catalogue row is gone.
     const { data: inventoryItem, error: itemError } = await supabase
       .from("user_inventory")
-      .select(`*, shop_item:shop_items(*)`)
+      .select("*")
       .eq("id", inventoryItemId)
       .eq("user_id", user.id)
       .maybeSingle()
@@ -66,9 +70,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to remove item" }, { status: 500 })
     }
 
-    const shopItem = Array.isArray(inventoryItem.shop_item) ? inventoryItem.shop_item[0] : inventoryItem.shop_item
-    const itemType = String(inventoryItem.item_type || shopItem?.item_type || shopItem?.category || "")
-    const isTheme = /theme/i.test(itemType) || /theme/i.test(shopItem?.category || "")
+    const itemType = String(inventoryItem.item_type || inventoryItem.category || "")
+    const isTheme = /theme/i.test(itemType) || /theme/i.test(inventoryItem.category || "")
 
     if (isTheme) {
       await supabase

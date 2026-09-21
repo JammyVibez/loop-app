@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
 import { Header } from "@/components/header"
@@ -249,7 +250,15 @@ function NotificationsContent() {
   }
 
   const clearAllNotifs = async () => {
-    if (!confirm("Are you sure you want to clear all notifications?")) return
+    if (
+      !(await confirmDialog({
+        title: "Clear all notifications?",
+        description: "Everything in this list is removed. This cannot be undone.",
+        confirmLabel: "Clear all",
+        destructive: true,
+      }))
+    )
+      return
     await fetch("/api/notifications?clear_all=true", {
       method: "DELETE",
       headers: { ...getAuthHeader() },

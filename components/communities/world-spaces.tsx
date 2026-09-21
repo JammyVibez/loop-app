@@ -56,6 +56,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { Spinner } from "@/components/ui/skeletons"
 
 function timeAgo(iso?: string | null) {
@@ -130,7 +131,14 @@ export function WorldSpaces({ communityId, spaces, canModerate, onChanged }: { c
   }
 
   const archive = async (s: any) => {
-    if (!confirm(`Archive "${s.name}"? Posts move to General.`)) return
+    if (
+      !(await confirmDialog({
+        title: `Archive "${s.name}"?`,
+        description: "Its posts move to General. Nothing is deleted, and you can restore it later.",
+        confirmLabel: "Archive",
+      }))
+    )
+      return
     try {
       const res = await fetch(`/api/communities/${communityId}/spaces/${s.id}`, {
         method: "PATCH",
@@ -149,7 +157,15 @@ export function WorldSpaces({ communityId, spaces, canModerate, onChanged }: { c
   }
 
   const remove = async (s: any) => {
-    if (!confirm(`Delete "${s.name}"? This cannot be undone.`)) return
+    if (
+      !(await confirmDialog({
+        title: `Delete "${s.name}"?`,
+        description: "This cannot be undone.",
+        confirmLabel: "Delete space",
+        destructive: true,
+      }))
+    )
+      return
     try {
       const res = await fetch(`/api/communities/${communityId}/spaces/${s.id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete")

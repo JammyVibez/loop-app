@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -383,7 +384,15 @@ export function AdminQuestsPanel() {
   }
 
   const remove = async (q: AdminQuest) => {
-    if (!window.confirm(`Delete quest "${q.title}"? Completion history is kept for analytics.`)) return
+    if (
+      !(await confirmDialog({
+        title: `Delete quest "${q.title}"?`,
+        description: "Completion history is kept for analytics, but nobody can claim it again.",
+        confirmLabel: "Delete quest",
+        destructive: true,
+      }))
+    )
+      return
     try {
       const res = await fetch(`/api/admin/quests/${q.id}`, { method: "DELETE", headers: getAuthHeaders() })
       const data = await res.json()

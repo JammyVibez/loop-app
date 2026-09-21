@@ -370,10 +370,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const loginWithGoogle = async (callbackURL?: string) => {
-    await authClient.signIn.social({
+    const result = await authClient.signIn.social({
       provider: "google",
       callbackURL: callbackURL || `${window.location.origin}/onboarding`,
     })
+    // Surface provider/config failures to the caller instead of silently
+    // leaving the user on the login page.
+    if (result?.error) {
+      throw new Error(result.error.message || "Could not start Google sign-in")
+    }
   }
 
   const refreshUser = async () => {

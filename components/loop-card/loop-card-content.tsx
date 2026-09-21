@@ -86,6 +86,9 @@ export function LoopCardContent({
                 // X sets post copy at 15px with tight leading — dense but
                 // readable, and it keeps more of a post above the fold.
                 className="text-[15px] leading-[1.45]"
+                // The post author controls whether the rich link card shows
+                // for everyone viewing the post.
+                showPreviewCard={!loop.link_preview_disabled}
               />
               {content.length > 200 && (
                 <Button

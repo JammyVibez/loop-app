@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -123,7 +124,15 @@ export function AwardsAdminPanel() {
   }
 
   const deleteAward = async (award: AwardDef) => {
-    if (!window.confirm(`Delete the "${award.name}" award? All grants of it will be removed too.`)) return
+    if (
+      !(await confirmDialog({
+        title: `Delete the "${award.name}" award?`,
+        description: "Every grant of it is removed from every profile that earned one.",
+        confirmLabel: "Delete award",
+        destructive: true,
+      }))
+    )
+      return
     try {
       const res = await fetch(`/api/admin/awards?id=${award.id}`, {
         method: "DELETE",

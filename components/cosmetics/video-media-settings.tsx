@@ -6,14 +6,13 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { toast } from "sonner"
+import { useToast } from "@/hooks/use-toast"
 import {
   Crown,
   Film,
   Image as ImageIcon,
   Upload,
   Trash2,
-  
   Play,
   X,
 } from "lucide-react"
@@ -27,6 +26,7 @@ import { Spinner } from "@/components/ui/skeletons"
  */
 export function VideoMediaSettings() {
   const { user, getAuthHeader, refreshUser } = useAuth()
+  const { toast } = useToast()
   const [uploading, setUploading] = useState<"avatar" | "cover" | null>(null)
   const [previewAvatar, setPreviewAvatar] = useState<string | null>(null)
   const [previewCover, setPreviewCover] = useState<string | null>(null)
@@ -37,21 +37,25 @@ export function VideoMediaSettings() {
 
   const handleUpload = async (mediaType: "avatar" | "cover", file: File) => {
     if (!isPremium) {
-      toast.error("Video media is a Pro feature. Upgrade to use animated avatars and covers.")
+      toast({ title: "Pro feature", description: "Upgrade to use animated avatars and covers.", variant: "warning" })
       return
     }
 
     // Validate file type
     const validTypes = ["video/mp4", "video/webm", "video/quicktime", "image/gif", "image/webp"]
     if (!validTypes.includes(file.type)) {
-      toast.error("Unsupported format. Use MP4, WebM, GIF, or WebP.")
+      toast({ title: "Unsupported format", description: "Use MP4, WebM, GIF, or WebP.", variant: "error" })
       return
     }
 
     // Validate size
     const maxSize = file.type.startsWith("video/") ? 15 * 1024 * 1024 : 5 * 1024 * 1024
     if (file.size > maxSize) {
-      toast.error(`File too large. Max ${file.type.startsWith("video/") ? "15MB" : "5MB"}.`)
+      toast({
+        title: "File too large",
+        description: `The maximum is ${file.type.startsWith("video/") ? "15MB" : "5MB"}.`,
+        variant: "error",
+      })
       return
     }
 
@@ -69,15 +73,18 @@ export function VideoMediaSettings() {
 
       const data = await res.json()
       if (data.success) {
-        toast.success(`${mediaType === "avatar" ? "Profile picture" : "Cover photo"} updated!`)
+        toast({
+          title: `${mediaType === "avatar" ? "Profile picture" : "Cover photo"} updated`,
+          variant: "success",
+        })
         if (mediaType === "avatar") setPreviewAvatar(data.url)
         else setPreviewCover(data.url)
         await refreshUser()
       } else {
-        toast.error(data.error || "Upload failed")
+        toast({ title: "Couldn't upload", description: data.error || "Try again in a moment.", variant: "error" })
       }
     } catch (err: any) {
-      toast.error(err.message || "Upload failed")
+      toast({ title: "Couldn't upload", description: err.message || "Try again in a moment.", variant: "error" })
     } finally {
       setUploading(null)
     }
@@ -92,13 +99,16 @@ export function VideoMediaSettings() {
       })
       const data = await res.json()
       if (data.success) {
-        toast.success(`${mediaType === "avatar" ? "Video profile picture" : "Video cover"} removed`)
+        toast({
+          title: `${mediaType === "avatar" ? "Video profile picture" : "Video cover"} removed`,
+          variant: "success",
+        })
         if (mediaType === "avatar") setPreviewAvatar(null)
         else setPreviewCover(null)
         await refreshUser()
       }
     } catch (err: any) {
-      toast.error(err.message || "Failed to remove")
+      toast({ title: "Couldn't remove that", description: err.message, variant: "error" })
     }
   }
 

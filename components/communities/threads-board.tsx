@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { useAuth } from "@/hooks/use-auth"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { cn } from "@/lib/utils"
@@ -536,7 +537,15 @@ function ThreadDetail({
   }
 
   const deleteThread = async () => {
-    if (!window.confirm("Delete this thread? Its posts stay, but they detach from it. This cannot be undone.")) return
+    if (
+      !(await confirmDialog({
+        title: "Delete this thread?",
+        description: "Its posts stay in the community but detach from it. This cannot be undone.",
+        confirmLabel: "Delete thread",
+        destructive: true,
+      }))
+    )
+      return
     setDeleting(true)
     try {
       const res = await fetch(`/api/communities/${communityId}/threads/${threadId}`, { method: "DELETE" })

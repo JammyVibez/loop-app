@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { ShareToDmModal } from "@/components/messages/share-to-dm-modal"
@@ -662,7 +663,15 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
   }
 
   const deleteReel = async (reel: Reel) => {
-    if (!window.confirm("Delete this tree? This can't be undone.")) return
+    if (
+      !(await confirmDialog({
+        title: "Delete this tree?",
+        description: "Every post on it is gone too. This can't be undone.",
+        confirmLabel: "Delete tree",
+        destructive: true,
+      }))
+    )
+      return
     setDeleting(true)
     try {
       const response = await fetch(`/api/trees/${reel.id}`, {
@@ -817,7 +826,15 @@ export function TreeReels({ category = "trending" }: TreeReelsProps) {
 
   const deleteComment = async (comment: any) => {
     if (!user || !commentOpen) return
-    if (!window.confirm("Delete this comment? This can't be undone.")) return
+    if (
+      !(await confirmDialog({
+        title: "Delete this comment?",
+        description: "This can't be undone.",
+        confirmLabel: "Delete",
+        destructive: true,
+      }))
+    )
+      return
     setDeletingCommentId(comment.id)
     try {
       const response = await fetch(`/api/trees/${commentOpen.id}/comments/${comment.id}`, {

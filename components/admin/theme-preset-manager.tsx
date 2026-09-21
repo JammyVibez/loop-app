@@ -19,7 +19,8 @@ import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { toast } from "sonner"
+import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import {
   Plus,
   Pencil,
@@ -65,6 +66,7 @@ export function ThemePresetManager() {
   const [formDesc, setFormDesc] = useState("")
   const [formConfig, setFormConfig] = useState<CircleThemeConfig>(structuredClone(emptyConfig))
   const [saving, setSaving] = useState(false)
+  const { toast } = useToast()
 
   const loadPresets = useCallback(async () => {
     try {
@@ -72,7 +74,7 @@ export function ThemePresetManager() {
       const data = await res.json()
       if (data.success) setPresets(data.presets)
     } catch {
-      toast.error("Failed to load presets")
+      toast({ title: "Couldn't load presets", variant: "error" })
     } finally {
       setLoading(false)
     }
@@ -100,7 +102,7 @@ export function ThemePresetManager() {
 
   const handleSave = async () => {
     if (!formName.trim()) {
-      toast.error("Name is required")
+      toast({ title: "Name is required", variant: "warning" })
       return
     }
     setSaving(true)
@@ -119,14 +121,14 @@ export function ThemePresetManager() {
       })
       const data = await res.json()
       if (data.success) {
-        toast.success(isEdit ? "Preset updated" : "Preset created")
+        toast({ title: isEdit ? "Preset updated" : "Preset created", variant: "success" })
         setShowEditor(false)
         loadPresets()
       } else {
-        toast.error(data.error || "Failed to save")
+        toast({ title: "Couldn't save", description: data.error, variant: "error" })
       }
     } catch {
-      toast.error("Failed to save preset")
+      toast({ title: "Couldn't save preset", variant: "error" })
     } finally {
       setSaving(false)
     }
@@ -142,21 +144,29 @@ export function ThemePresetManager() {
       const data = await res.json()
       if (data.success) loadPresets()
     } catch {
-      toast.error("Failed to update")
+      toast({ title: "Couldn't update", variant: "error" })
     }
   }
 
   const handleDelete = async (preset: Preset) => {
-    if (!confirm(`Deactivate "${preset.name}"?`)) return
+    if (
+      !(await confirmDialog({
+        title: `Deactivate "${preset.name}"?`,
+        description: "It stays in the catalog but stops being offered. Nothing already using it changes.",
+        confirmLabel: "Deactivate",
+        destructive: true,
+      }))
+    )
+      return
     try {
       const res = await fetch(`/api/admin/theme-presets?id=${preset.id}`, { method: "DELETE" })
       const data = await res.json()
       if (data.success) {
-        toast.success("Preset deactivated")
+        toast({ title: "Preset deactivated", variant: "success" })
         loadPresets()
       }
     } catch {
-      toast.error("Failed to delete")
+      toast({ title: "Couldn't delete", variant: "error" })
     }
   }
 

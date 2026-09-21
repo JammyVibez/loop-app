@@ -33,6 +33,7 @@ import {
   Crown,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 interface LinkedAccount {
@@ -154,7 +155,15 @@ export function AccountSwitcher({ variant = "dropdown" }: AccountSwitcherProps) 
   }
 
   const handleRemoveAccount = async (account: LinkedAccount) => {
-    if (!confirm(`Remove ${account.display_name || account.username}?`)) return
+    if (
+      !(await confirmDialog({
+        title: `Remove ${account.display_name || account.username}?`,
+        description: "It is unlinked from this device. The account itself is not deleted, and you can sign back in to it any time.",
+        confirmLabel: "Unlink",
+        destructive: true,
+      }))
+    )
+      return
     try {
       const res = await fetch("/api/accounts", {
         method: "DELETE",

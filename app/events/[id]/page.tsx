@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Radio, Users, Send, ArrowLeft, Mic, MicOff, Video, VideoOff, Gift, MessageSquare, RefreshCw, Crown, UserX, Shield, Square, Trash2, Volume2, VolumeX, Lock, ShieldCheck } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { GiftModal } from "@/components/gifting/gift-modal"
@@ -117,7 +118,15 @@ export default function SingleEventPage({ params }: { params: Promise<{ id: stri
   }, [joinedStage, videoEnabled, micMuted])
 
   const handleEndEvent = async () => {
-    if (!confirm("Are you sure you want to end this live event for everyone?")) return
+    if (
+      !(await confirmDialog({
+        title: "End this live event for everyone?",
+        description: "The stream stops for every viewer and nobody can rejoin.",
+        confirmLabel: "End event",
+        destructive: true,
+      }))
+    )
+      return
     setEndingEvent(true)
     try {
       const token = user?.access_token

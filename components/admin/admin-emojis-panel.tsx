@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { formatDistanceToNow } from "date-fns"
 import { Smile, Plus, RefreshCw, Trash2, Eye, EyeOff, Search, Upload, X } from "lucide-react"
 import { Spinner } from "@/components/ui/skeletons"
@@ -184,7 +185,15 @@ export function AdminEmojisPanel() {
   }
 
   const removeEmoji = async (emoji: CuratedEmoji) => {
-    if (!confirm(`Remove :${emoji.shortcode}: from the emoji library?`)) return
+    if (
+      !(await confirmDialog({
+        title: `Remove :${emoji.shortcode}: from the emoji library?`,
+        description: "Messages that already use it keep working; it stops being offered in the picker.",
+        confirmLabel: "Remove",
+        destructive: true,
+      }))
+    )
+      return
     setBusyId(`${emoji.id}:delete`)
     try {
       const res = await fetch(`/api/admin/emojis?id=${emoji.id}`, {

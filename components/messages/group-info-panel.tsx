@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { useAuth } from "@/hooks/use-auth"
 
 import { Spinner } from "@/components/ui/skeletons"
@@ -160,7 +161,15 @@ export function GroupInfoPanel({ conversationId, onClose, onMemberRemoved }: Gro
   }
 
   const leaveGroup = async () => {
-    if (!confirm("Leave this group?")) return
+    if (
+      !(await confirmDialog({
+        title: "Leave this group?",
+        description: "You stop receiving its messages and it disappears from your chat list. You can be added back later.",
+        confirmLabel: "Leave group",
+        destructive: true,
+      }))
+    )
+      return
     try {
       const res = await fetch(`/api/conversations/${conversationId}/group/members`, {
         method: "DELETE",
@@ -380,7 +389,16 @@ export function GroupInfoPanel({ conversationId, onClose, onMemberRemoved }: Gro
                           className="h-6 w-6 p-0 text-red-500"
                           title="Remove"
                           onClick={() => {
-                            if (confirm(`Remove ${m.user?.display_name || m.user?.username}?`)) removeMember(m.user_id)
+                            void (async () => {
+                              const name = m.user?.display_name || m.user?.username || "this member"
+                              const ok = await confirmDialog({
+                                title: `Remove ${name}?`,
+                                description: "They are removed from the group and a notice is posted for everyone.",
+                                confirmLabel: "Remove",
+                                destructive: true,
+                              })
+                              if (ok) void removeMember(m.user_id)
+                            })()
                           }}
                         >
                           <UserMinus className="h-3 w-3" />

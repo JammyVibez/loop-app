@@ -37,6 +37,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/skeletons"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 
 interface CommunityAdminProps {
   open: boolean
@@ -122,7 +123,14 @@ export function CommunityAdminModal({
   }, [open, load])
 
   const updateMemberRole = async (userId: string, newRole: string, displayName: string) => {
-    if (!confirm(`Change ${displayName}'s role to ${newRole}?`)) return
+    if (
+      !(await confirmDialog({
+        title: `Change ${displayName}'s role to ${newRole}?`,
+        description: "Their permissions change immediately.",
+        confirmLabel: "Change role",
+      }))
+    )
+      return
     setActing(userId)
     try {
       const res = await fetch(`/api/communities/${communityId}/members`, {
@@ -147,7 +155,15 @@ export function CommunityAdminModal({
   }
 
   const removeMember = async (userId: string, displayName: string) => {
-    if (!confirm(`Remove ${displayName} from this community?`)) return
+    if (
+      !(await confirmDialog({
+        title: `Remove ${displayName} from this community?`,
+        description: "They lose access to every space in it. You can invite them back later.",
+        confirmLabel: "Remove",
+        destructive: true,
+      }))
+    )
+      return
     setActing(userId)
     try {
       const res = await fetch(`/api/communities/${communityId}/members`, {
@@ -171,7 +187,19 @@ export function CommunityAdminModal({
 
   const muteMember = async (userId: string, displayName: string, muted: boolean) => {
     const action = muted ? "mute" : "unmute"
-    if (!confirm(`${action === "mute" ? "Mute" : "Unmute"} ${displayName}?`)) return
+    const muteTitle = `${action === "mute" ? "Mute" : "Unmute"} ${displayName}?`
+    if (
+      !(await confirmDialog({
+        title: muteTitle,
+        description:
+          action === "mute"
+            ? "They can still read, but they can't post until you unmute them."
+            : "They can post again right away.",
+        confirmLabel: action === "mute" ? "Mute" : "Unmute",
+        destructive: action === "mute",
+      }))
+    )
+      return
     setActing(userId)
     try {
       const res = await fetch(`/api/communities/${communityId}/members`, {

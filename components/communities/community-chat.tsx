@@ -138,6 +138,55 @@ export function CommunityChat({
       longPressTimer.current = null
     }
   }
+  // ── Swipe-to-reply (touch) ──────────────────────────────────────────────
+  // A horizontal drag on a bubble reveals a reply arrow and, past the
+  // threshold, starts a quoted reply. Vertical drags stay a scroll.
+  const SWIPE_THRESHOLD = 56
+  const [swipe, setSwipe] = useState<{ id: string; dx: number; settling: boolean } | null>(null)
+  const swipeRef = useRef<{
+    id: string
+    target: ChatMessage
+    startX: number
+    startY: number
+    dx: number
+    locked: "h" | "v" | null
+  } | null>(null)
+
+  const beginSwipe = (msg: ChatMessage, e: React.TouchEvent) => {
+    const t = e.touches[0]
+    swipeRef.current = { id: msg.id, target: msg, startX: t.clientX, startY: t.clientY, dx: 0, locked: null }
+  }
+
+  const moveSwipe = (e: React.TouchEvent) => {
+    const s = swipeRef.current
+    if (!s) return
+    const t = e.touches[0]
+    const dx = t.clientX - s.startX
+    const dy = t.clientY - s.startY
+    // Decide once whether this gesture is horizontal (ours) or vertical (scroll).
+    if (!s.locked) {
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2) s.locked = "h"
+      else if (Math.abs(dy) > 10) s.locked = "v"
+    }
+    if (s.locked !== "h") return
+    s.dx = Math.max(-72, Math.min(72, dx))
+    setSwipe({ id: s.id, dx: s.dx, settling: false })
+  }
+
+  const endSwipe = () => {
+    const s = swipeRef.current
+    swipeRef.current = null
+    if (!s) return
+    if (s.locked === "h" && Math.abs(s.dx) >= SWIPE_THRESHOLD) {
+      setReplyTo(s.target)
+      inputRef.current?.focus()
+      setActiveActionsId(null)
+    }
+    // Spring back regardless of whether the threshold was crossed.
+    setSwipe({ id: s.id, dx: 0, settling: true })
+    setTimeout(() => setSwipe(null), 240)
+  }
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -465,14 +514,38 @@ export function CommunityChat({
                         setActiveActionsId(msg.id)
                       }
                     }}
-                    onTouchStart={() => {
+                    onTouchStart={(e) => {
                       cancelLongPress()
+                      beginSwipe(msg, e)
                       longPressTimer.current = setTimeout(() => setActiveActionsId(msg.id), LONG_PRESS_MS)
                     }}
-                    onTouchEnd={cancelLongPress}
-                    onTouchMove={cancelLongPress}
-                    onTouchCancel={cancelLongPress}
+                    onTouchEnd={() => {
+                      cancelLongPress()
+                      endSwipe()
+                    }}
+                    onTouchMove={(e) => {
+                      moveSwipe(e)
+                      // A horizontal drag is a swipe, not a long-press.
+                      if (swipeRef.current?.locked === "h") cancelLongPress()
+                    }}
+                    onTouchCancel={() => {
+                      cancelLongPress()
+                      endSwipe()
+                    }}
                   >
+                    {/* Swipe-to-reply affordance — fades in as the bubble moves */}
+                    {swipe?.id === msg.id && Math.abs(swipe.dx) > 4 && (
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "pointer-events-none absolute top-1/2 z-0 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-indigo-500/15 text-indigo-500",
+                          swipe.dx > 0 ? "left-1" : "right-1",
+                        )}
+                        style={{ opacity: Math.min(1, Math.abs(swipe.dx) / SWIPE_THRESHOLD) }}
+                      >
+                        <Reply className="h-4 w-4" />
+                      </span>
+                    )}
                     {/* Avatar gutter — bottom aligned, only on the last message of a run */}
                     {!isOwn && (
                       <div className="w-7 shrink-0 self-end">
@@ -486,7 +559,18 @@ export function CommunityChat({
                         )}
                       </div>
                     )}
-                    <div className="min-w-0 max-w-[min(85%,calc(100vw-3rem))] sm:max-w-[min(72%,calc(100vw-4rem))]">
+                    <div
+                      className="min-w-0 max-w-[min(85%,calc(100vw-3rem))] sm:max-w-[min(72%,calc(100vw-4rem))]"
+                      style={
+                        swipe?.id === msg.id
+                          ? {
+                              transform: `translateX(${swipe.dx}px)`,
+                              transition: swipe.settling ? "transform 0.22s cubic-bezier(0.22,1,0.36,1)" : "none",
+                              touchAction: "pan-y",
+                            }
+                          : undefined
+                      }
+                    >
                       {/* Your own messages don't repeat your name above the bubble */}
                       {isFirstOfGroup && !isOwn && (
                         <div className="mb-0.5 flex items-center gap-1.5">

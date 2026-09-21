@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Switch } from "@/components/ui/switch"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { Plus, Edit, Trash2, Coins, TrendingUp, Eye, EyeOff, Copy, Film, X, Search, Upload } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/skeletons"
@@ -312,7 +313,16 @@ export function ShopManagement() {
   }
 
   const deleteItem = async (item: ShopItem) => {
-    if (!confirm(`Delete "${item.name}"?`)) return
+    if (
+      !(await confirmDialog({
+        title: `Delete "${item.name}"?`,
+        description:
+          "Buyers keep what they paid for — their inventory row stores its own copy of the item — but it leaves the shop permanently.",
+        confirmLabel: "Delete item",
+        destructive: true,
+      }))
+    )
+      return
     try {
       const res = await fetch(`/api/admin/shop-items?id=${item.id}`, { method: "DELETE", headers: authHeaders() })
       if (!res.ok) throw new Error("Failed")

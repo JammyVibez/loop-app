@@ -16,6 +16,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { GiftModal } from "@/components/gifting/gift-modal"
 import { CreateBranchDialog } from "@/components/create-branch-dialog"
+import { BranchSettingsDialog } from "@/components/loops/branch-settings-dialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { LoopChainDialog } from "@/components/loops/loop-chain-dialog"
 import { BoostLoopDialog } from "@/components/loops/boost-loop-dialog"
@@ -58,6 +59,10 @@ interface LoopCardModalsProps {
   // Chain
   chainDialogOpen: boolean
   setChainDialogOpen: (v: boolean) => void
+  // Branch settings
+  branchSettingsOpen: boolean
+  setBranchSettingsOpen: (v: boolean) => void
+  onBranchSettingsSaved?: (loop: any) => void
   // Boost
   boostDialogOpen: boolean
   setBoostDialogOpen: (v: boolean) => void
@@ -101,6 +106,9 @@ export function LoopCardModals({
   coAuthors,
   chainDialogOpen,
   setChainDialogOpen,
+  branchSettingsOpen,
+  setBranchSettingsOpen,
+  onBranchSettingsSaved,
   boostDialogOpen,
   setBoostDialogOpen,
   boostCoinsCurrent,
@@ -144,6 +152,14 @@ export function LoopCardModals({
         onOpenChange={setShowBranchDialog}
         parentLoop={loop}
         onBranchCreated={(branchId) => router.push(`/loop/${branchId}`)}
+      />
+
+      {/* Branch settings (owner only) */}
+      <BranchSettingsDialog
+        loop={loop}
+        open={branchSettingsOpen}
+        onOpenChange={setBranchSettingsOpen}
+        onSaved={onBranchSettingsSaved}
       />
 
       {/* Delete Confirmation */}

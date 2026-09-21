@@ -65,10 +65,29 @@ export const authClient: any = {
       provider: string
       callbackURL?: string
     }) => {
-      const params = new URLSearchParams({ provider })
-      if (callbackURL) params.set("callbackURL", callbackURL)
-      // This redirects the browser to the OAuth provider
-      window.location.href = `${AUTH_BASE}/sign-in/social?${params.toString()}`
+      // Better Auth's `/sign-in/social` is a POST endpoint: it stores the OAuth
+      // state/PKCE verifier in a cookie and returns the provider's authorize
+      // URL. Navigating the browser straight at the endpoint with a GET (the
+      // old behaviour) hit a POST-only route and surfaced as a dead page, so
+      // start the flow with a POST and follow the returned URL.
+      const res = await authFetch("/sign-in/social", {
+        method: "POST",
+        body: JSON.stringify({ provider, callbackURL }),
+      })
+
+      if (res.error) return res
+
+      const url: string | undefined = res.data?.url
+      if (!url) {
+        return {
+          data: null,
+          error: { message: `${provider} sign-in is not available right now.` },
+        }
+      }
+
+      // This redirects the browser to the OAuth provider.
+      window.location.href = url
+      return { data: { url, redirect: true }, error: null }
     },
   },
 

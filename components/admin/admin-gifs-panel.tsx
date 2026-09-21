@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { formatDistanceToNow } from "date-fns"
 import { Film, Plus, RefreshCw, Trash2, Eye, EyeOff, Search, Link2, Upload, X } from "lucide-react"
 import { Spinner } from "@/components/ui/skeletons"
@@ -188,7 +189,15 @@ export function AdminGifsPanel() {
   }
 
   const removeGif = async (gif: CuratedGif) => {
-    if (!confirm(`Remove "${gif.title}" from the app's GIF library?`)) return
+    if (
+      !(await confirmDialog({
+        title: `Remove "${gif.title}" from the app's GIF library?`,
+        description: "It disappears from the picker immediately. Re-uploading it adds it back.",
+        confirmLabel: "Remove",
+        destructive: true,
+      }))
+    )
+      return
     setBusyId(`${gif.id}:delete`)
     try {
       const res = await fetch(`/api/admin/gifs?id=${gif.id}`, {

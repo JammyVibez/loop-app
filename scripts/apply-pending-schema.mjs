@@ -32,6 +32,10 @@ const DEFAULT_FILES = [
   "scripts/pro-circle-polls-checkins-schema.sql",
   // 100ms realtime calls: call_sessions + live_streams hms columns.
   "scripts/100ms-calls-schema.sql",
+  // Inventory integrity repairs (orphaned/mismatched items).
+  "scripts/user-inventory-integrity.sql",
+  // Per-post link-preview toggle + owner-configurable branch limits.
+  "scripts/loop-preview-and-branch-limits-schema.sql",
 ]
 
 // Allow a targeted run: node apply-pending-schema.mjs scripts/foo.sql …

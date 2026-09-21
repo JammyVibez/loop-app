@@ -15,6 +15,7 @@ import { ThemeSync } from "../providers/theme-sync"
 import { Theme3DProvider } from "../providers/theme-3d-provider"
 import { RealtimeProvider } from "@/providers/realtime-provider"
 import { Toaster } from "@/components/ui/toaster"
+import { ConfirmDialogHost } from "@/components/ui/confirm-dialog"
 import { OnboardingRedirect } from "@/components/onboarding-redirect"
 import { AppChrome } from "@/components/layout/app-chrome"
 import { LeftSidebar } from "@/components/left-sidebar"
@@ -257,6 +258,7 @@ export default function RootLayout({
                       <NotificationAutoPrompt />
                       <NativeShell />
                       <Toaster />
+                      <ConfirmDialogHost />
                       <OfflineIndicator />
                       <Analytics />
                       <SpeedInsights />

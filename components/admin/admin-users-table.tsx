@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import {
   ArrowDown,
   ArrowUp,
@@ -319,7 +320,16 @@ export function AdminUsersTable({
             className="rounded-full"
             disabled={bulkBusy}
             onClick={() => {
-              if (window.confirm(`Ban ${selected.size} users?`)) runBulk("ban", { reason: "Violated community guidelines" })
+              void (async () => {
+                const ok = await confirmDialog({
+                  title: `Ban ${selected.size} ${selected.size === 1 ? "user" : "users"}?`,
+                  description:
+                    "They lose access immediately and are told the reason is a community-guidelines violation.",
+                  confirmLabel: "Ban",
+                  destructive: true,
+                })
+                if (ok) runBulk("ban", { reason: "Violated community guidelines" })
+              })()
             }}
           >
             <Ban className="mr-1 h-3.5 w-3.5" /> Ban

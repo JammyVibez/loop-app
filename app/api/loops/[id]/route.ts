@@ -4,6 +4,7 @@ import { normalizeLoop } from "@/lib/normalize-loop"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { canViewProfile } from "@/lib/privacy"
 import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats" 
+import { normalizeBranchLimit } from "@/lib/branch-limits"
 
 export const dynamic = "force-dynamic"
 
@@ -161,6 +162,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (body.visibility === "public" || body.visibility === "private") {
       updates.visibility = body.visibility
     }
+    // Link previews are author-controlled: turning this on hides the rich
+    // card for every viewer until the author turns it back off.
+    if (typeof body.link_preview_disabled === "boolean") {
+      updates.link_preview_disabled = body.link_preview_disabled
+    }
+
+    // Owner-configurable branch tree limits. `null` or 0 means unlimited.
+    if (body.max_branch_depth !== undefined) {
+      updates.max_branch_depth = normalizeBranchLimit(body.max_branch_depth)
+    }
+    if (body.max_branches_per_user !== undefined) {
+      updates.max_branches_per_user = normalizeBranchLimit(body.max_branches_per_user)
+    }
+
     if (typeof body.is_pinned === "boolean") {
       if (body.is_pinned) {
         const { count } = await supabase
@@ -175,16 +190,35 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       updates.is_pinned = body.is_pinned
     }
 
-    const { data: loop, error } = await supabase
-      .from("loops")
-      .update(updates)
-      .eq("id", id)
-      .select(`
+    const loopSelect = `
         *,
         author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, active_cosmetics, cosmetics, badge_id),
         loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
-      `)
+      `
+
+    let { data: loop, error } = await supabase
+      .from("loops")
+      .update(updates)
+      .eq("id", id)
+      .select(loopSelect)
       .single()
+
+    // Pre-migration database: the newer optional columns don't exist yet, so
+    // drop just those keys and retry rather than failing the whole edit.
+    if (error?.code === "PGRST204") {
+      const OPTIONAL_COLUMNS = ["link_preview_disabled", "max_branch_depth", "max_branches_per_user"]
+      const optionalKeys = OPTIONAL_COLUMNS.filter((column) => column in updates)
+      if (optionalKeys.length && new RegExp(optionalKeys.join("|"), "i").test(error.message || "")) {
+        const fallback = { ...updates }
+        for (const key of optionalKeys) delete fallback[key]
+        ;({ data: loop, error } = await supabase
+          .from("loops")
+          .update(fallback)
+          .eq("id", id)
+          .select(loopSelect)
+          .single())
+      }
+    }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

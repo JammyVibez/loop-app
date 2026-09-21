@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { GiftModal } from "@/components/gifting/gift-modal"
 import { CallSheet } from "@/components/calls/call-sheet"
@@ -291,6 +292,52 @@ export function MessagesWorkspace() {
       clearTimeout(longPressTimer.current)
       longPressTimer.current = null
     }
+  }
+
+  // ── Swipe-to-reply (touch) ──────────────────────────────────────────────
+  // Telegram-style: drag a bubble sideways to reveal a reply arrow and, past
+  // the threshold, start a quoted reply. Vertical drags remain a scroll.
+  const SWIPE_THRESHOLD = 56
+  const [swipe, setSwipe] = useState<{ id: string; dx: number; settling: boolean } | null>(null)
+  const swipeRef = useRef<{
+    id: string
+    target: ChatMessage
+    startX: number
+    startY: number
+    dx: number
+    locked: "h" | "v" | null
+  } | null>(null)
+
+  const beginSwipe = (message: ChatMessage, e: React.TouchEvent) => {
+    const t = e.touches[0]
+    swipeRef.current = { id: message.id, target: message, startX: t.clientX, startY: t.clientY, dx: 0, locked: null }
+  }
+
+  const moveSwipe = (e: React.TouchEvent) => {
+    const s = swipeRef.current
+    if (!s) return
+    const t = e.touches[0]
+    const dx = t.clientX - s.startX
+    const dy = t.clientY - s.startY
+    if (!s.locked) {
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2) s.locked = "h"
+      else if (Math.abs(dy) > 10) s.locked = "v"
+    }
+    if (s.locked !== "h") return
+    s.dx = Math.max(-72, Math.min(72, dx))
+    setSwipe({ id: s.id, dx: s.dx, settling: false })
+  }
+
+  const endSwipe = () => {
+    const s = swipeRef.current
+    swipeRef.current = null
+    if (!s) return
+    if (s.locked === "h" && Math.abs(s.dx) >= SWIPE_THRESHOLD) {
+      setReplyTo(s.target)
+      setActiveActionsId(null)
+    }
+    setSwipe({ id: s.id, dx: 0, settling: true })
+    setTimeout(() => setSwipe(null), 240)
   }
   const [pinnedMessages, setPinnedMessages] = useState<Array<{id: string; content: string; author_id: string; created_at: string}>>([])
   const [pinnedExpanded, setPinnedExpanded] = useState(false)
@@ -1123,7 +1170,8 @@ export function MessagesWorkspace() {
       mode === "clear"
         ? "Every message in this chat will be permanently removed from the database for both of you."
         : "This removes the chat from your inbox. If the other person has also deleted it, the whole conversation is removed."
-    if (!window.confirm(`${label}\n\n${description}`)) return
+    if (!(await confirmDialog({ title: label, description, confirmLabel: mode === "clear" ? "Clear chat" : "Delete", destructive: true })))
+      return
     try {
       const res = await fetch(`/api/conversations?conversation_id=${target.id}&mode=${mode}`, {
         method: "DELETE",
@@ -1971,17 +2019,41 @@ export function MessagesWorkspace() {
                     setActiveActionsId(message.id)
                   }
                 }}
-                onTouchStart={() => {
+                onTouchStart={(e) => {
                   cancelLongPress()
+                  beginSwipe(message, e)
                   longPressTimer.current = setTimeout(
                     () => setActiveActionsId(message.id),
                     LONG_PRESS_MS,
                   )
                 }}
-                onTouchEnd={cancelLongPress}
-                onTouchMove={cancelLongPress}
-                onTouchCancel={cancelLongPress}
+                onTouchEnd={() => {
+                  cancelLongPress()
+                  endSwipe()
+                }}
+                onTouchMove={(e) => {
+                  moveSwipe(e)
+                  // A horizontal drag is a swipe, not a long-press.
+                  if (swipeRef.current?.locked === "h") cancelLongPress()
+                }}
+                onTouchCancel={() => {
+                  cancelLongPress()
+                  endSwipe()
+                }}
               >
+                {/* Swipe-to-reply affordance — fades in as the bubble moves */}
+                {swipe?.id === message.id && Math.abs(swipe.dx) > 4 && (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "pointer-events-none absolute top-1/2 z-0 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-cyan-500/15 text-cyan-500",
+                      swipe.dx > 0 ? "left-1" : "right-1",
+                    )}
+                    style={{ opacity: Math.min(1, Math.abs(swipe.dx) / SWIPE_THRESHOLD) }}
+                  >
+                    <Reply className="h-4 w-4" />
+                  </span>
+                )}
                 <div
                   className={cn(
                     // Bubble width is capped as a % of the chat pane AND of the
@@ -1989,6 +2061,15 @@ export function MessagesWorkspace() {
                     // bubble past the screen edge on narrow phones.
                     "min-w-0 max-w-[min(85%,calc(100vw-3rem))] sm:max-w-[min(70%,calc(100vw-4rem))]",
                   )}
+                  style={
+                    swipe?.id === message.id
+                      ? {
+                          transform: `translateX(${swipe.dx}px)`,
+                          transition: swipe.settling ? "transform 0.22s cubic-bezier(0.22,1,0.36,1)" : "none",
+                          touchAction: "pan-y",
+                        }
+                      : undefined
+                  }
                 >
                 <div
                   className={cn(

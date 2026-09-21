@@ -77,7 +77,10 @@ function getSecurityHeaders(isApi: boolean): Record<string, string> {
       "img-src 'self' data: blob: https://*.supabase.co https://res.cloudinary.com https://*.cloudinary.com https://images.unsplash.com https://*.vercel.app https://*.run.app",
       "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com",
       "media-src 'self' blob: https://*.supabase.co https://res.cloudinary.com https://*.cloudinary.com",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://checkout.stripe.com https://va.vercel-scripts.com https://vitals.vercel-insights.com https://vercel.live",
+      // LiveKit/100ms signalling is a WebSocket (wss://) — without these hosts
+      // the browser blocks it and calls die with "could not establish signal
+      // connection: Failed to fetch". REST + ICE hosts are allowed too.
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.livekit.cloud wss://*.livekit.cloud https://*.livekit.io wss://*.livekit.io https://*.100ms.live wss://*.100ms.live https://api.stripe.com https://checkout.stripe.com https://va.vercel-scripts.com https://vitals.vercel-insights.com https://vercel.live",
       "frame-src https://js.stripe.com https://checkout.stripe.com https://vercel.live",
       "worker-src 'self' blob:",
       "base-uri 'self'",

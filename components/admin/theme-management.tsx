@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { Spinner } from "@/components/ui/skeletons"
@@ -162,7 +163,15 @@ export function ThemeManagement() {
   };
 
   const removeTheme = async (theme: Theme) => {
-    if (!window.confirm(`Delete "${theme.name}"? This cannot be undone.`)) return;
+    if (
+      !(await confirmDialog({
+        title: `Delete "${theme.name}"?`,
+        description: "This cannot be undone. Anyone wearing it is switched back to the default theme.",
+        confirmLabel: "Delete theme",
+        destructive: true,
+      }))
+    )
+      return;
     try {
       const res = await fetch(`/api/admin/themes?id=${theme.id}`, {
         method: "DELETE",

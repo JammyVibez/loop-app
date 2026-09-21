@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -175,7 +176,15 @@ export function WorldModeration({ communityId }: { communityId: string }) {
   }
 
   const removePost = async (report: any) => {
-    if (!confirm("Remove this post permanently?")) return
+    if (
+      !(await confirmDialog({
+        title: "Remove this post permanently?",
+        description: "It is deleted for everyone and the author is notified.",
+        confirmLabel: "Remove post",
+        destructive: true,
+      }))
+    )
+      return
     const res = await fetch(`/api/communities/${communityId}/moderation`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

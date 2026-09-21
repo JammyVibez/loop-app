@@ -13,6 +13,7 @@ import {
   accessoryFromItem,
 } from "@/lib/cosmetics"
 import { AccessoryIcon, BadgeStarIcon } from "@/components/cosmetics/accessory-icons"
+import { UserRound } from "lucide-react"
 
 type Props = {
   src?: string | null
@@ -21,6 +22,8 @@ type Props = {
   className?: string
   cosmetics?: ActiveCosmetics | null
   size?: "sm" | "md" | "lg" | "xl"
+  /** Show an anonymous avatar instead of an initial — for shop previews. */
+  silhouette?: boolean
 }
 
 const sizeMap = {
@@ -39,6 +42,7 @@ export function CosmeticAvatar({
   className,
   cosmetics,
   size = "md",
+  silhouette = false,
 }: Props) {
   const frame = cosmetics?.frame
   const aura = cosmetics?.aura || cosmetics?.effect
@@ -211,7 +215,14 @@ export function CosmeticAvatar({
         >
           <AvatarImage src={src || undefined} alt={alt} />
           <AvatarFallback className={size === "lg" || size === "xl" ? "text-3xl font-bold" : "text-sm"}>
-            {(fallback || "U").charAt(0).toUpperCase()}
+            {silhouette ? (
+              // A shop preview shows an effect, not a person: an anonymous
+              // silhouette reads as "your avatar here", where a stray initial
+              // reads as somebody else's profile picture.
+              <UserRound className="h-[45%] w-[45%] text-muted-foreground/60" aria-hidden />
+            ) : (
+              (fallback || "U").charAt(0).toUpperCase()
+            )}
           </AvatarFallback>
         </Avatar>
       </div>

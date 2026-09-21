@@ -19,8 +19,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserBadges } from "@/components/user-badge"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 
 interface OrgConfig {
   coin_rate_multiplier: number
@@ -143,7 +145,15 @@ export function OrgManagementPanel() {
   }
 
   const handleRevoke = async (userId: string, username: string) => {
-    if (!confirm(`Are you sure you want to revoke Organization status from @${username}?`)) return
+    if (
+      !(await confirmDialog({
+        title: `Revoke Organization status from @${username}?`,
+        description: "Their org badge and organization perks are turned off. The account itself is untouched.",
+        confirmLabel: "Revoke",
+        destructive: true,
+      }))
+    )
+      return
     try {
       const res = await fetch("/api/admin/organizations", {
         method: "POST",
@@ -331,11 +341,12 @@ export function OrgManagementPanel() {
                 <div key={candidate.id} className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col justify-between gap-3">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <img
-                        src={candidate.avatar_url || "/placeholder-user.jpg"}
-                        alt={candidate.display_name}
-                        className="w-10 h-10 rounded-full object-cover border border-slate-700"
-                      />
+                      <Avatar className="h-10 w-10 border border-slate-700">
+                        <AvatarImage src={candidate.avatar_url || undefined} alt={candidate.display_name} />
+                        <AvatarFallback className="bg-slate-800 text-xs font-semibold text-slate-300">
+                          {(candidate.display_name || candidate.username || "?").charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
                       <div>
                         <div className="flex items-center gap-1.5">
                           <span className="font-bold text-white text-sm">{candidate.display_name}</span>
@@ -400,11 +411,12 @@ export function OrgManagementPanel() {
             {organizations.map((org) => (
               <div key={org.id} className="bg-slate-950/80 border border-emerald-500/20 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <img
-                    src={org.avatar_url || "/placeholder-user.jpg"}
-                    alt={org.display_name}
-                    className="w-12 h-12 rounded-full object-cover border-2 border-emerald-500/40"
-                  />
+                  <Avatar className="h-12 w-12 border-2 border-emerald-500/40">
+                    <AvatarImage src={org.avatar_url || undefined} alt={org.display_name} />
+                    <AvatarFallback className="bg-slate-800 text-sm font-semibold text-slate-300">
+                      {(org.display_name || org.username || "?").charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-white text-base">{org.organization_name || org.display_name}</span>

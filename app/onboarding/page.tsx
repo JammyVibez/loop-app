@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { PageLoading } from "@/components/loading-states"
@@ -9,14 +9,28 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Check, ChevronLeft, ChevronRight, Sparkles, Tags, UserPlus, UserRound } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Compass,
+  Lock,
+  Sparkles,
+  Tags,
+  UserPlus,
+  UserRound,
+  Users,
+} from "lucide-react"
 import { AppLogo } from "@/components/brand/app-logo"
 import { Spinner } from "@/components/ui/skeletons"
+import { cn } from "@/lib/utils"
 
 const STEPS = [
   { id: 1, label: "Profile", icon: UserRound },
   { id: 2, label: "Interests", icon: Tags },
   { id: 3, label: "Follow", icon: UserPlus },
+  { id: 4, label: "Communities", icon: Compass },
 ]
 
 const INTEREST_OPTIONS = [
@@ -50,6 +64,17 @@ interface Suggestion {
   reason?: string
 }
 
+interface CommunitySuggestion {
+  id: string
+  name: string
+  description?: string | null
+  avatar_url?: string | null
+  member_count?: number
+  is_member?: boolean
+  is_private?: boolean
+  category?: string | null
+}
+
 export default function OnboardingPage() {
   const router = useRouter()
   const { user, loading, refreshUser } = useAuth()
@@ -63,6 +88,10 @@ export default function OnboardingPage() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [following, setFollowing] = useState<Set<string>>(new Set())
   const [requested, setRequested] = useState<Set<string>>(new Set())
+  const [communities, setCommunities] = useState<CommunitySuggestion[]>([])
+  const [joinedCommunities, setJoinedCommunities] = useState<Set<string>>(new Set())
+  const [pendingCommunities, setPendingCommunities] = useState<Set<string>>(new Set())
+  const [communitiesLoading, setCommunitiesLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [finishing, setFinishing] = useState(false)
@@ -89,7 +118,7 @@ export default function OnboardingPage() {
     }
   }, [loading, user, router])
 
-  // Load follow suggestions when reaching the last step
+  // Load follow suggestions when reaching that step
   useEffect(() => {
     if (step !== 3 || suggestions.length > 0) return
     let cancelled = false
@@ -105,6 +134,45 @@ export default function OnboardingPage() {
       cancelled = true
     }
   }, [step, suggestions.length])
+
+  // Load community suggestions for the final step — popular circles plus any
+  // that match the interests picked in step 2.
+  useEffect(() => {
+    if (step !== 4 || communities.length > 0) return
+    let cancelled = false
+    setCommunitiesLoading(true)
+
+    const urls = ["/api/circles?limit=8"]
+    for (const interest of interests.slice(0, 2)) {
+      urls.push(`/api/circles?limit=4&search=${encodeURIComponent(interest)}`)
+    }
+
+    Promise.all(
+      urls.map((url) =>
+        fetch(url)
+          .then((res) => res.json())
+          .then((data) => (Array.isArray(data?.circles) ? data.circles : []))
+          .catch(() => []),
+      ),
+    )
+      .then((lists) => {
+        if (cancelled) return
+        const byId = new Map<string, CommunitySuggestion>()
+        for (const list of lists) {
+          for (const circle of list as CommunitySuggestion[]) {
+            if (circle?.id && !byId.has(circle.id)) byId.set(circle.id, circle)
+          }
+        }
+        setCommunities(Array.from(byId.values()).slice(0, 12))
+      })
+      .finally(() => {
+        if (!cancelled) setCommunitiesLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [step, interests, communities.length])
 
   const toggleInterest = useCallback((tag: string) => {
     setInterests((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
@@ -169,6 +237,25 @@ export default function OnboardingPage() {
     [following, requested],
   )
 
+  const handleJoinCommunity = useCallback(
+    async (community: CommunitySuggestion) => {
+      if (joinedCommunities.has(community.id) || pendingCommunities.has(community.id)) return
+      try {
+        const res = await fetch(`/api/circles/${community.id}/join`, { method: "POST" })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return
+        if (data?.status === "pending" || community.is_private) {
+          setPendingCommunities((prev) => new Set(prev).add(community.id))
+        } else {
+          setJoinedCommunities((prev) => new Set(prev).add(community.id))
+        }
+      } catch {
+        // Non-fatal — joining is optional
+      }
+    },
+    [joinedCommunities, pendingCommunities],
+  )
+
   const handleFinish = useCallback(async () => {
     setError(null)
     setFinishing(true)
@@ -195,63 +282,73 @@ export default function OnboardingPage() {
     }
   }, [interests, refreshUser, router])
 
+  const joinedCount = joinedCommunities.size + pendingCommunities.size
+  const stepLabel = useMemo(() => STEPS[step - 1], [step])
+
   if (loading) {
     return <PageLoading message="Setting things up..." />
   }
 
-  const stepLabel = STEPS[step - 1]
-
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#0B0F19] px-4 py-10 relative overflow-hidden">
-      {/* ambient glows */}
-      <div className="pointer-events-none absolute -top-32 -right-24 h-[480px] w-[480px] rounded-full bg-violet-600/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 -left-24 h-[480px] w-[480px] rounded-full bg-cyan-500/15 blur-3xl" />
-      <div className="pointer-events-none absolute top-1/3 left-1/2 h-[360px] w-[360px] -translate-x-1/2 rounded-full bg-pink-600/10 blur-3xl" />
+    <div className="relative min-h-screen w-full overflow-hidden bg-background px-4 py-10 text-foreground">
+      {/* Ambient theme glows — built from the app's own tokens, never a fixed palette. */}
+      <div className="pointer-events-none absolute -top-40 right-[-6rem] h-[460px] w-[460px] rounded-full bg-primary/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-44 left-[-6rem] h-[460px] w-[460px] rounded-full bg-primary/[0.07] blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.035]" style={{
+        backgroundImage:
+          "linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)",
+        backgroundSize: "56px 56px",
+      }} />
 
-      <div className="relative w-full max-w-xl">
+      <div className="relative z-10 mx-auto w-full max-w-xl">
         {/* brand */}
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <div className="flex items-center gap-3">
-            <AppLogo className="h-11 w-11 rounded-2xl shadow-lg shadow-violet-500/20" />
+            <AppLogo className="h-11 w-11 rounded-2xl shadow-lg shadow-primary/20" />
             <div className="text-left">
-              <p className="text-lg font-extrabold leading-none tracking-tight text-white">loopapp.me</p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.22em] text-violet-400">Social OS</p>
+              <p className="text-lg font-extrabold leading-none tracking-tight">loopapp.me</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Social OS</p>
             </div>
           </div>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-white">
-            Welcome to <span className="bg-gradient-to-r from-violet-400 to-cyan-300 bg-clip-text text-transparent">loopapp.me</span>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight">
+            Welcome to <span className="text-primary">Loop</span>
           </h1>
-          <p className="text-sm text-slate-400">Set up your profile in a minute — the feed is waiting.</p>
+          <p className="text-sm text-muted-foreground">
+            Set up your profile in a minute — the feed is waiting.
+          </p>
         </div>
 
         {/* step progress */}
-        <div className="mb-6 flex items-center justify-center gap-2">
+        <div className="mb-6 flex items-center justify-center gap-1.5">
           {STEPS.map((s) => {
             const done = step > s.id
             const active = step === s.id
             return (
-              <div key={s.id} className="flex items-center gap-2">
+              <div key={s.id} className="flex items-center gap-1.5">
                 <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold transition-all ${
+                  className={cn(
+                    "flex h-9 items-center gap-1.5 rounded-full border px-2.5 text-xs font-bold transition-all",
                     done
-                      ? "border-emerald-400 bg-emerald-400/15 text-emerald-300"
+                      ? "border-primary/40 bg-primary/10 text-primary"
                       : active
-                        ? "border-violet-400 bg-violet-500/20 text-violet-200 shadow-lg shadow-violet-500/20"
-                        : "border-slate-700 bg-slate-900/60 text-slate-500"
-                  }`}
+                        ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                        : "border-border bg-muted/40 text-muted-foreground",
+                  )}
                 >
-                  {done ? <Check className="h-4 w-4" /> : <s.icon className="h-4 w-4" />}
+                  {done ? <Check className="h-3.5 w-3.5" /> : <s.icon className="h-3.5 w-3.5" />}
+                  <span className={cn("hidden sm:inline", !active && !done && "sm:inline")}>{s.label}</span>
                 </div>
-                <span className={`text-xs font-medium ${active ? "text-slate-200" : "text-slate-500"}`}>{s.label}</span>
-                {s.id < STEPS.length && <div className={`h-px w-6 ${step > s.id ? "bg-emerald-400/50" : "bg-slate-700"}`} />}
+                {s.id < STEPS.length && (
+                  <div className={cn("h-px w-3 sm:w-5", step > s.id ? "bg-primary/50" : "bg-border")} />
+                )}
               </div>
             )
           })}
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-8 shadow-2xl shadow-black/40 backdrop-blur-xl">
+        <div className="rounded-3xl border border-border bg-card p-6 shadow-xl shadow-foreground/[0.04] sm:p-8">
           {error && (
-            <div className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            <div className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {error}
             </div>
           )}
@@ -260,7 +357,7 @@ export default function OnboardingPage() {
           {step === 1 && (
             <div className="space-y-5">
               <div>
-                <Label htmlFor="display-name" className="text-sm font-medium text-slate-300">
+                <Label htmlFor="display-name" className="text-sm font-medium">
                   Display name
                 </Label>
                 <Input
@@ -269,11 +366,11 @@ export default function OnboardingPage() {
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Your name"
                   maxLength={50}
-                  className="mt-1.5 border-white/10 bg-slate-900/60 text-white placeholder:text-slate-500"
+                  className="mt-1.5"
                 />
               </div>
               <div>
-                <Label htmlFor="username" className="text-sm font-medium text-slate-300">
+                <Label htmlFor="username" className="text-sm font-medium">
                   Username
                 </Label>
                 <Input
@@ -282,13 +379,15 @@ export default function OnboardingPage() {
                   onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
                   placeholder="your_handle"
                   maxLength={20}
-                  className="mt-1.5 border-white/10 bg-slate-900/60 text-white placeholder:text-slate-500"
+                  className="mt-1.5"
                 />
-                <p className="mt-1 text-xs text-slate-500">3–20 characters. Lowercase letters, numbers, underscores.</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  3–20 characters. Lowercase letters, numbers, underscores.
+                </p>
               </div>
               <div>
-                <Label htmlFor="bio" className="text-sm font-medium text-slate-300">
-                  Bio <span className="text-slate-500">(optional)</span>
+                <Label htmlFor="bio" className="text-sm font-medium">
+                  Bio <span className="text-muted-foreground">(optional)</span>
                 </Label>
                 <Textarea
                   id="bio"
@@ -297,22 +396,25 @@ export default function OnboardingPage() {
                   placeholder="What are you about?"
                   maxLength={220}
                   rows={3}
-                  className="mt-1.5 resize-none border-white/10 bg-slate-900/60 text-white placeholder:text-slate-500"
+                  className="mt-1.5 resize-none"
                 />
               </div>
               <div>
-                <Label className="text-sm font-medium text-slate-300">Pronouns <span className="text-slate-500">(optional)</span></Label>
+                <Label className="text-sm font-medium">
+                  Pronouns <span className="text-muted-foreground">(optional)</span>
+                </Label>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {PRONOUN_OPTIONS.map((p) => (
                     <button
                       key={p}
                       type="button"
                       onClick={() => setPronouns(pronouns === p ? "" : p)}
-                      className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all ${
+                      className={cn(
+                        "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
                         pronouns === p
-                          ? "border-violet-400 bg-violet-500/20 text-violet-200"
-                          : "border-white/10 bg-slate-900/50 text-slate-400 hover:border-white/25 hover:text-slate-200"
-                      }`}
+                          ? "border-primary/50 bg-primary/10 text-primary"
+                          : "border-border bg-muted/40 text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                      )}
                     >
                       {p}
                     </button>
@@ -325,8 +427,8 @@ export default function OnboardingPage() {
           {/* Step 2 — interests */}
           {step === 2 && (
             <div className="space-y-5">
-              <p className="text-sm text-slate-400">
-                Pick a few things you like — Loop uses them to shape your feed and suggest people.
+              <p className="text-sm text-muted-foreground">
+                Pick a few things you like — Loop uses them to shape your feed, suggest people, and match communities.
               </p>
               <div className="flex flex-wrap gap-2">
                 {INTEREST_OPTIONS.map((tag) => {
@@ -336,11 +438,12 @@ export default function OnboardingPage() {
                       key={tag}
                       type="button"
                       onClick={() => toggleInterest(tag)}
-                      className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-all ${
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-all",
                         on
-                          ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-200 shadow-md shadow-cyan-500/10"
-                          : "border-white/10 bg-slate-900/50 text-slate-400 hover:border-white/25 hover:text-slate-200"
-                      }`}
+                          ? "border-primary/50 bg-primary/10 text-primary"
+                          : "border-border bg-muted/40 text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                      )}
                     >
                       {on && <Check className="h-3.5 w-3.5" />}
                       {tag}
@@ -348,7 +451,7 @@ export default function OnboardingPage() {
                   )
                 })}
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 {interests.length === 0 ? "No interests selected yet — you can skip this." : `${interests.length} selected`}
               </p>
             </div>
@@ -357,11 +460,13 @@ export default function OnboardingPage() {
           {/* Step 3 — follow people */}
           {step === 3 && (
             <div className="space-y-4">
-              <p className="text-sm text-slate-400">Follow a few people to fill your feed. You can always change this later.</p>
+              <p className="text-sm text-muted-foreground">
+                Follow a few people to fill your feed. You can always change this later.
+              </p>
               {suggestions.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-white/10 py-10 text-center">
-                  <Sparkles className="h-6 w-6 text-violet-400" />
-                  <p className="text-sm text-slate-400">Nothing to suggest yet — that's fine.</p>
+                <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-10 text-center">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                  <p className="text-sm text-muted-foreground">Nothing to suggest yet — that&apos;s fine.</p>
                 </div>
               ) : (
                 <div className="space-y-2.5">
@@ -372,38 +477,35 @@ export default function OnboardingPage() {
                     return (
                       <div
                         key={s.id}
-                        className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/50 p-3 transition-colors hover:border-white/20"
+                        className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 transition-colors hover:border-primary/30"
                       >
-                        <Avatar className="h-10 w-10 border border-white/10">
+                        <Avatar className="h-10 w-10 border border-border">
                           <AvatarImage src={s.avatar_url || undefined} alt={name} />
-                          <AvatarFallback className="bg-violet-500/30 text-sm font-bold text-violet-100">
+                          <AvatarFallback className="bg-primary/15 text-sm font-bold text-primary">
                             {name.charAt(0).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
-                            <p className="truncate text-sm font-semibold text-white">{name}</p>
+                            <p className="truncate text-sm font-semibold">{name}</p>
                             {s.is_verified && (
-                              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[10px] text-white">
+                              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
                                 ✓
                               </span>
                             )}
                           </div>
-                          <p className="truncate text-xs text-slate-500">@{s.username}</p>
-                          {s.reason && <p className="mt-0.5 text-[11px] text-violet-300/80">{s.reason}</p>}
+                          <p className="truncate text-xs text-muted-foreground">@{s.username}</p>
+                          {s.reason && <p className="mt-0.5 text-[11px] text-primary/80">{s.reason}</p>}
                         </div>
                         <Button
                           size="sm"
                           variant={isFollowing || isRequested ? "outline" : "default"}
                           disabled={isFollowing || isRequested}
                           onClick={() => handleFollow(s)}
-                          className={
-                            isFollowing
-                              ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300"
-                              : isRequested
-                                ? "border-amber-400/40 bg-amber-500/10 text-amber-300"
-                                : "bg-violet-500 hover:bg-violet-400 text-white"
-                          }
+                          className={cn(
+                            isFollowing && "border-primary/40 bg-primary/10 text-primary",
+                            isRequested && "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                          )}
                         >
                           {isFollowing ? (
                             <>
@@ -423,41 +525,135 @@ export default function OnboardingPage() {
             </div>
           )}
 
+          {/* Step 4 — communities (optional) */}
+          {step === 4 && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Want to jump straight into a space? Join the communities you&apos;re into — totally optional, and
+                you can leave any time.
+              </p>
+
+              {communitiesLoading && communities.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-10 text-center">
+                  <Spinner className="h-5 w-5 text-primary" />
+                  <p className="text-sm text-muted-foreground">Finding communities for you…</p>
+                </div>
+              ) : communities.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-10 text-center">
+                  <Compass className="h-6 w-6 text-primary" />
+                  <p className="text-sm text-muted-foreground">
+                    No communities to show yet — head to Explore once you&apos;re in.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  {communities.map((c) => {
+                    const joined = joinedCommunities.has(c.id)
+                    const pending = pendingCommunities.has(c.id)
+                    return (
+                      <div
+                        key={c.id}
+                        className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-3 transition-colors hover:border-primary/30"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Avatar className="h-10 w-10 rounded-xl border border-border">
+                            <AvatarImage src={c.avatar_url || undefined} alt={c.name} />
+                            <AvatarFallback className="rounded-xl bg-primary/15 text-sm font-bold text-primary">
+                              {c.name.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <p className="truncate text-sm font-semibold">{c.name}</p>
+                              {c.is_private && <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                            </div>
+                            <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <Users className="h-3 w-3" />
+                              {(c.member_count || 0).toLocaleString()} members
+                            </p>
+                          </div>
+                        </div>
+                        {c.description && (
+                          <p className="line-clamp-2 text-xs text-muted-foreground">{c.description}</p>
+                        )}
+                        <Button
+                          size="sm"
+                          variant={joined || pending ? "outline" : "default"}
+                          disabled={joined || pending}
+                          onClick={() => handleJoinCommunity(c)}
+                          className={cn(
+                            "mt-auto w-full",
+                            joined && "border-primary/40 bg-primary/10 text-primary",
+                            pending && "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                          )}
+                        >
+                          {joined ? (
+                            <>
+                              <Check className="mr-1 h-3.5 w-3.5" /> Joined
+                            </>
+                          ) : pending ? (
+                            "Requested"
+                          ) : (
+                            "Join"
+                          )}
+                        </Button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {joinedCount > 0 && (
+                <Badge variant="outline" className="gap-1 border-primary/40 text-primary">
+                  <Check className="h-3 w-3" />
+                  {joinedCount} {joinedCount === 1 ? "community" : "communities"} joined
+                </Badge>
+              )}
+            </div>
+          )}
+
           {/* nav */}
-          <div className="mt-7 flex items-center justify-between gap-3 border-t border-white/5 pt-5">
+          <div className="mt-7 flex items-center justify-between gap-3 border-t border-border pt-5">
             <Button
               variant="ghost"
               onClick={() => setStep((s) => Math.max(1, s - 1))}
               disabled={step === 1 || saving || finishing}
-              className="text-slate-400 hover:text-white"
+              className="text-muted-foreground hover:text-foreground"
             >
               <ChevronLeft className="mr-1 h-4 w-4" /> Back
             </Button>
 
-            {step < 3 ? (
-              <Button
-                onClick={step === 1 ? handleSaveProfile : () => setStep(3)}
-                disabled={saving}
-                className="bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-lg shadow-violet-500/25 hover:from-violet-400 hover:to-pink-400"
-              >
-                {saving ? <Spinner className="mr-2 h-4 w-4" /> : null}
-                Continue <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
+            {step < 4 ? (
+              <div className="flex items-center gap-2">
+                {step >= 2 && (
+                  <Button variant="ghost" onClick={() => setStep((s) => s + 1)} disabled={saving}>
+                    Skip
+                  </Button>
+                )}
+                <Button
+                  onClick={step === 1 ? handleSaveProfile : () => setStep((s) => s + 1)}
+                  disabled={saving}
+                >
+                  {saving ? <Spinner className="mr-2 h-4 w-4" /> : null}
+                  Continue <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </div>
             ) : (
-              <Button
-                onClick={handleFinish}
-                disabled={finishing}
-                className="bg-gradient-to-r from-violet-500 to-cyan-400 text-white shadow-lg shadow-cyan-500/20 hover:from-violet-400 hover:to-cyan-300"
-              >
-                {finishing ? <Spinner className="mr-2 h-4 w-4" /> : null}
-                {finishing ? "Finishing..." : "Enter Loop"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" onClick={handleFinish} disabled={finishing}>
+                  Skip
+                </Button>
+                <Button onClick={handleFinish} disabled={finishing}>
+                  {finishing ? <Spinner className="mr-2 h-4 w-4" /> : null}
+                  {finishing ? "Finishing..." : "Enter Loop"}
+                </Button>
+              </div>
             )}
           </div>
         </div>
 
-        <p className="mt-5 text-center text-xs text-slate-600">
-          Step {step} of 3 · {stepLabel?.label}
+        <p className="mt-5 text-center text-xs text-muted-foreground">
+          Step {step} of {STEPS.length} · {stepLabel?.label}
         </p>
       </div>
     </div>

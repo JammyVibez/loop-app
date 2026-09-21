@@ -155,11 +155,12 @@ export const supabase = new Proxy({} as SupabaseClient<Database>, {
 
 export const signInWithGoogle = async () => {
   try {
-    await authClient.signIn.social({
+    const result = await authClient.signIn.social({
       provider: "google",
       callbackURL: `${window.location.origin}/onboarding`,
     })
-    return { data: { url: null }, error: null }
+    if (result?.error) return { data: null, error: result.error }
+    return { data: { url: result?.data?.url ?? null }, error: null }
   } catch (error: any) {
     return { data: null, error }
   }

@@ -111,10 +111,22 @@ export async function POST(request: NextRequest) {
       }
 
       if (!isCoinPack) {
+        // Carries its own snapshot so the item survives the catalogue row being
+        // deleted later — the foreign key clears item_id, and without a
+        // snapshot the purchase became an unnameable "Item".
         const inventoryPayload = {
           user_id: user.id,
           item_id: itemId,
           item_type: itemType,
+          category: item.category || null,
+          rarity: item.rarity || "common",
+          item_name: item.name || null,
+          item_data: item.item_data || {},
+          preview_data: item.preview_data || {},
+          acquired_from: "purchase",
+          source: "purchase",
+          payment_method: "coins",
+          purchased_at: new Date().toISOString(),
           is_active: false,
           acquired_at: new Date().toISOString(),
         }

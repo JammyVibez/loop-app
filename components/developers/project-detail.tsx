@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { useLoginGate } from "@/hooks/use-login-gate"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
@@ -141,7 +142,15 @@ export function ProjectDetail({ project }: { project: any }) {
   }
 
   const deleteComment = async (comment: ProjectComment) => {
-    if (!window.confirm("Delete this comment? Replies will be removed too.")) return
+    if (
+      !(await confirmDialog({
+        title: "Delete this comment?",
+        description: "Replies to it are removed too.",
+        confirmLabel: "Delete",
+        destructive: true,
+      }))
+    )
+      return
     setDeletingId(comment.id)
     try {
       const res = await fetch(`/api/developers/projects/${projectId}/comments/${comment.id}`, {
@@ -271,9 +280,14 @@ export function ProjectDetail({ project }: { project: any }) {
   const removeCollaborator = async (collab: Collaborator) => {
     const leavingSelf = collab.user_id === user?.id
     if (
-      !window.confirm(
-        leavingSelf ? "Leave this project?" : `Remove @${collab.user?.username || "this user"} from the project?`,
-      )
+      !(await confirmDialog({
+        title: leavingSelf ? "Leave this project?" : `Remove @${collab.user?.username || "this user"}?`,
+        description: leavingSelf
+          ? "You lose access to the project and its history."
+          : "They lose access to the project and its history.",
+        confirmLabel: leavingSelf ? "Leave" : "Remove",
+        destructive: true,
+      }))
     ) {
       return
     }

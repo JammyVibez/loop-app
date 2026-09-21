@@ -350,7 +350,11 @@ export function CommunityPostCard({
               if (e.key === "Enter") window.location.href = `/communities/${communityId}/posts/${post.id}`
             }}
           >
-            <RichContent text={post.content} showPreviewCard className="text-[15px] leading-relaxed" />
+            <RichContent
+              text={post.content}
+              showPreviewCard={!(post as any).link_preview_disabled}
+              className="text-[15px] leading-relaxed"
+            />
           </div>
         )}
 

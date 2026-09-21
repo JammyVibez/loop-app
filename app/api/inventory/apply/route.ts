@@ -77,10 +77,36 @@ function isCosmeticItem(shopItem: any, itemType: string) {
   )
 }
 
+/**
+ * The catalogue fields a cosmetic needs, taken from the inventory row's own
+ * snapshot. Used when the shop row is gone — which is the normal state for
+ * anything bought before the catalogue was last re-seeded, because the foreign
+ * key clears `item_id` on delete.
+ */
+function snapshotAsShopItem(row: any) {
+  const name = row?.item_name || null
+  if (!name) return null
+  return {
+    id: row.item_id || row.id,
+    name,
+    category: row.category || row.item_type,
+    item_type: row.item_type,
+    item_data: row.item_data || {},
+    preview_data: row.preview_data || {},
+    rarity: row.rarity || "common",
+    icon_url: null,
+    preview_url: null,
+    // Marks the source so a caller can tell the two apart when debugging.
+    from_snapshot: true,
+  }
+}
+
 async function refreshActiveCosmetics(userId: string) {
   const { data: activeItems } = await supabase
     .from("user_inventory")
-    .select("id, item_id, item_type, is_active, shop_item:shop_items(id, name, category, item_type, item_data, preview_data, icon_url, preview_url, rarity)")
+    .select(
+      "id, item_id, item_type, is_active, item_name, item_data, preview_data, category, rarity, shop_item:shop_items(id, name, category, item_type, item_data, preview_data, icon_url, preview_url, rarity)",
+    )
     .eq("user_id", userId)
     .eq("is_active", true)
     .limit(24)
@@ -109,10 +135,14 @@ export async function POST(request: NextRequest) {
 
     let inventoryItem: any = null
 
+    // Deliberately a plain select: embedding shop_items through the foreign key
+    // depends on the schema cache and silently returns null whenever item_id
+    // has been cleared, which is what produced "Shop item missing" for items
+    // the user could see in their inventory.
     if (inventoryItemId) {
       const { data, error } = await supabase
         .from("user_inventory")
-        .select(`*, shop_item:shop_items(*)`)
+        .select("*")
         .eq("id", inventoryItemId)
         .eq("user_id", user.id)
         .maybeSingle()
@@ -121,7 +151,7 @@ export async function POST(request: NextRequest) {
     } else if (shopItemId) {
       const { data, error } = await supabase
         .from("user_inventory")
-        .select(`*, shop_item:shop_items(*)`)
+        .select("*")
         .eq("user_id", user.id)
         .eq("item_id", shopItemId)
         .order("acquired_at", { ascending: false })
@@ -133,8 +163,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "inventory_item_id or item_id is required" }, { status: 400 })
     }
 
-    const shopItem = Array.isArray(inventoryItem.shop_item) ? inventoryItem.shop_item[0] : inventoryItem.shop_item
-    if (!shopItem) return NextResponse.json({ error: "Shop item missing" }, { status: 404 })
+    // The live catalogue row wins when it exists (an admin may have retuned the
+    // colours); the row's own snapshot is the fallback when it does not.
+    let shopItem: any = null
+    if (inventoryItem.item_id) {
+      const { data } = await supabase.from("shop_items").select("*").eq("id", inventoryItem.item_id).maybeSingle()
+      shopItem = data || null
+    }
+
+    const fromSnapshot = !shopItem
+    if (!shopItem) shopItem = snapshotAsShopItem(inventoryItem)
+
+    if (!shopItem) {
+      // Nothing names this item anywhere. Say so plainly, and leave it
+      // unequipped rather than activating a blank slot.
+      return NextResponse.json(
+        { error: "This item is no longer in the catalogue, so it can't be equipped." },
+        { status: 409 },
+      )
+    }
+
+    // Self-heal: rows written before the snapshot columns existed still resolve
+    // once, and then carry their own identity for good.
+    if (!fromSnapshot) {
+      await supabase
+        .from("user_inventory")
+        .update({
+          item_name: inventoryItem.item_name || shopItem.name,
+          item_data: inventoryItem.item_data || shopItem.item_data || {},
+          preview_data: inventoryItem.preview_data || shopItem.preview_data || {},
+          category: inventoryItem.category || shopItem.category,
+          rarity: inventoryItem.rarity || shopItem.rarity,
+        })
+        .eq("id", inventoryItem.id)
+    }
 
     const itemType = inventoryItem.item_type || shopItem.item_type || shopItem.category
 

@@ -67,6 +67,13 @@ export type NormalizedLoop = {
   is_featured?: boolean
   is_pinned?: boolean
   comments_disabled?: boolean
+  /** Author hid the rich link-preview card — applies to every viewer. */
+  link_preview_disabled?: boolean
+  /** Depth of this post in its branch tree (0 = original post). */
+  tree_depth?: number
+  /** Branch-tree limits owned by the root post. `null` = unlimited. */
+  max_branch_depth?: number | null
+  max_branches_per_user?: number | null
   engagement_score?: number
   gifts_received?: number
   total_gift_value?: number
@@ -188,6 +195,12 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
     is_featured: row?.is_featured,
     is_pinned: Boolean(row?.is_pinned),
     comments_disabled: Boolean(row?.comments_disabled),
+    link_preview_disabled: Boolean(row?.link_preview_disabled),
+    tree_depth: Number(row?.tree_depth ?? 0),
+    max_branch_depth:
+      row?.max_branch_depth == null ? null : Number(row.max_branch_depth) || null,
+    max_branches_per_user:
+      row?.max_branches_per_user == null ? null : Number(row.max_branches_per_user) || null,
     engagement_score: Number(
       row?.engagement_score ??
         (Number(stats?.likes_count ?? 0) * 3 + Number(stats?.comments_count ?? 0) * 4 + Number(stats?.branches_count ?? 0) * 5 + Number(stats?.views_count ?? 0)),

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { useAuth } from "@/hooks/use-auth"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { Spinner } from "@/components/ui/skeletons"
@@ -146,7 +147,15 @@ export function AdminFramesTab() {
   }
 
   const handleDelete = async (frame: PfpFrame) => {
-    if (!confirm(`Delete "${frame.name}"? This cannot be undone.`)) return
+    if (
+      !(await confirmDialog({
+        title: `Delete "${frame.name}"?`,
+        description: "Collectors who already own it lose it. This cannot be undone.",
+        confirmLabel: "Delete frame",
+        destructive: true,
+      }))
+    )
+      return
 
     try {
       setDeleting(frame.id)

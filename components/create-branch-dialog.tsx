@@ -20,7 +20,6 @@ import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { Spinner } from "@/components/ui/skeletons"
 
 const MAX_BRANCH_CHARS = 1000;
-const MAX_TREE_DEPTH = 10;
 
 interface CreateBranchDialogProps {
   open: boolean
@@ -81,8 +80,47 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
   const authorHandle = author?.username ? `@${author.username}` : ""
   const parentMedia = parentLoop?.media_url || parentLoop?.media_urls?.[0] || parentLoop?.content_media_url || ""
   const parentMediaIsVideo = /\.(mp4|webm|mov|ogg|m4v)(\?|$)/i.test(parentMedia)
-  const treeDepth = Math.min(Number(parentLoop?.tree_depth || 0) + 1, MAX_TREE_DEPTH)
-  const atMaxDepth = Number(parentLoop?.tree_depth || 0) >= MAX_TREE_DEPTH
+  // Branch limits are owned by the root post of the tree; fetch the resolved
+  // values so the dialog reflects the author's choice instead of a fixed cap.
+  const [branchLimits, setBranchLimits] = useState<{
+    maxDepth: number | null
+    maxPerUser: number | null
+    used: number
+  }>({
+    maxDepth: Number(parentLoop?.max_branch_depth) > 0 ? Number(parentLoop.max_branch_depth) : null,
+    maxPerUser: Number(parentLoop?.max_branches_per_user) > 0 ? Number(parentLoop.max_branches_per_user) : null,
+    used: 0,
+  })
+
+  useEffect(() => {
+    if (!open || !parentLoop?.id) return
+    let cancelled = false
+    fetch(`/api/loops/${parentLoop.id}/branch-limits`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled || !data?.success) return
+        setBranchLimits({
+          maxDepth: Number(data.max_depth) > 0 ? Number(data.max_depth) : null,
+          maxPerUser: Number(data.max_branches_per_user) > 0 ? Number(data.max_branches_per_user) : null,
+          used: Number(data.branches_used || 0),
+        })
+      })
+      .catch(() => { /* fall back to the seeded/uncapped values */ })
+    return () => {
+      cancelled = true
+    }
+  }, [open, parentLoop?.id])
+
+  const parentDepth = Number(parentLoop?.tree_depth || 0)
+  const treeDepth = parentDepth + 1
+  const atMaxDepth = branchLimits.maxDepth != null && parentDepth >= branchLimits.maxDepth
+  const perUserReached =
+    branchLimits.maxPerUser != null && branchLimits.used >= branchLimits.maxPerUser
+  const branchBlocked = atMaxDepth || perUserReached
+  const depthBadge =
+    branchLimits.maxDepth == null
+      ? `level ${treeDepth}`
+      : `level ${treeDepth}/${branchLimits.maxDepth}`
 
   const filePreviewUrl = useMemo(
     () => (selectedFile ? URL.createObjectURL(selectedFile) : null),
@@ -109,7 +147,19 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
 
   const handleSubmit = async () => {
     if (atMaxDepth) {
-      toast({ title: "Branch limit reached", description: "This loop's tree is already 10 levels deep.", variant: "destructive" })
+      toast({
+        title: "Branch depth limit reached",
+        description: `This post allows branches up to ${branchLimits.maxDepth} levels deep.`,
+        variant: "destructive",
+      })
+      return
+    }
+    if (perUserReached) {
+      toast({
+        title: "Branch limit reached",
+        description: `You've used your ${branchLimits.maxPerUser} branches on this post.`,
+        variant: "destructive",
+      })
       return
     }
     if (!content.trim() && !selectedFile) {
@@ -170,8 +220,14 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
   const mediaTab = activeTab === "image" || activeTab === "video" || activeTab === "audio" || activeTab === "file"
 
   const handleRebranch = async () => {
-    if (atMaxDepth) {
-      toast({ title: "Branch limit reached", description: "This loop's tree is already 10 levels deep.", variant: "destructive" })
+    if (branchBlocked) {
+      toast({
+        title: atMaxDepth ? "Branch depth limit reached" : "Branch limit reached",
+        description: atMaxDepth
+          ? `This post allows branches up to ${branchLimits.maxDepth} levels deep.`
+          : `You've used your ${branchLimits.maxPerUser} branches on this post.`,
+        variant: "destructive",
+      })
       return
     }
     if (!user) {
@@ -458,7 +514,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
                 {authorHandle && <p className="truncate text-[10px] text-muted-foreground">{authorHandle}</p>}
               </div>
               <Badge variant="outline" className="shrink-0 gap-1 border-emerald-500/40 text-[10px] text-emerald-600 dark:text-emerald-400">
-                <GitBranch className="h-3 w-3" /> level {treeDepth}/{MAX_TREE_DEPTH}
+                <GitBranch className="h-3 w-3" /> {depthBadge}
               </Badge>
             </div>
 
@@ -612,12 +668,26 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
             <div className="mb-1.5 flex items-center gap-1.5">
               <GitBranch className="h-3.5 w-3.5 text-emerald-500" />
               <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                {atMaxDepth ? "Branch limit reached" : `This branch will be level ${treeDepth} of ${MAX_TREE_DEPTH}`}
+                {atMaxDepth
+                  ? `Branch depth limit reached (${branchLimits.maxDepth} levels)`
+                  : perUserReached
+                    ? `You've used all ${branchLimits.maxPerUser} of your branches on this post`
+                    : branchLimits.maxDepth == null
+                      ? `This branch will be level ${treeDepth} — no depth limit`
+                      : `This branch will be level ${treeDepth} of ${branchLimits.maxDepth}`}
               </span>
             </div>
             <ul className="space-y-1 text-[11px] leading-relaxed text-muted-foreground">
               <li>• Connected to the original loop — your take grows the tree</li>
-              <li>• Anyone can branch from your branch (up to {MAX_TREE_DEPTH} levels deep)</li>
+              <li>
+                • Anyone can branch from your branch
+                {branchLimits.maxDepth == null
+                  ? " — this tree has no depth limit"
+                  : ` up to ${branchLimits.maxDepth} levels deep`}
+              </li>
+              {branchLimits.maxPerUser != null && (
+                <li>• You&apos;ve used {branchLimits.used} of {branchLimits.maxPerUser} branches on this post</li>
+              )}
               <li>• You get credit when others interact with your branch</li>
             </ul>
           </div>
@@ -634,7 +704,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
             </Button>
             <Button
               onClick={() => void handleSubmit()}
-              disabled={isSubmitting || (!content.trim() && !selectedFile) || atMaxDepth}
+              disabled={isSubmitting || (!content.trim() && !selectedFile) || branchBlocked}
               className="flex-1 gap-1.5 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
             >
               {isSubmitting ? (
@@ -643,7 +713,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
                 </>
               ) : (
                 <>
-                  <GitBranch className="h-4 w-4" /> {atMaxDepth ? "Limit reached" : "Create branch"}
+                  <GitBranch className="h-4 w-4" /> {branchBlocked ? "Limit reached" : "Create branch"}
                 </>
               )}
             </Button>

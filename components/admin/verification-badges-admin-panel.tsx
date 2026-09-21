@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -132,7 +133,15 @@ export function VerificationBadgesAdminPanel() {
   }
 
   const handleDelete = async (badge: BadgeRow) => {
-    if (!confirm(`Delete "${badge.name}"? It will be removed from every user.`)) return
+    if (
+      !(await confirmDialog({
+        title: `Delete "${badge.name}"?`,
+        description: "It is removed from every user wearing it, immediately.",
+        confirmLabel: "Delete badge",
+        destructive: true,
+      }))
+    )
+      return
     try {
       const res = await fetch(`/api/admin/verification-badges/${badge.id}`, {
         method: "DELETE",
