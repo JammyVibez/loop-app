@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -74,6 +74,20 @@ interface CoinPackage {
 }
 
 export default function WalletPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-dvh items-center justify-center bg-background">
+          <Spinner className="h-6 w-6 text-muted-foreground" />
+        </div>
+      }
+    >
+      <WalletContent />
+    </Suspense>
+  )
+}
+
+function WalletContent() {
   const { user } = useAuth()
   const { toast } = useToast()
   const router = useRouter()

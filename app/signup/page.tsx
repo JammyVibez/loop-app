@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,20 @@ import { Eye, EyeOff, ArrowRight, Zap, Check, X, Users } from "lucide-react"
 import { Spinner } from "@/components/ui/skeletons"
 
 export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-dvh items-center justify-center bg-background">
+          <Spinner className="h-6 w-6 text-muted-foreground" />
+        </div>
+      }
+    >
+      <SignupContent />
+    </Suspense>
+  )
+}
+
+function SignupContent() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")

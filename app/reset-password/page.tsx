@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,8 +11,23 @@ import { Label } from "@/components/ui/label"
 import { CheckCircle, XCircle, Lock, ArrowLeft, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 import { authClient } from "@/lib/auth-client"
+import { Spinner } from "@/components/ui/skeletons"
 
 export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-dvh items-center justify-center bg-background">
+          <Spinner className="h-6 w-6 text-muted-foreground" />
+        </div>
+      }
+    >
+      <ResetPasswordContent />
+    </Suspense>
+  )
+}
+
+function ResetPasswordContent() {
   const searchParams = useSearchParams()
   // Better Auth's reset link appends `?token=...` to the redirect URL.
   const token = searchParams.get("token")

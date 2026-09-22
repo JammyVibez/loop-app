@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect } from "react"
+import { Suspense, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Header } from "@/components/header"
 import { AdminDashboard } from "@/components/admin/admin-dashboard"
 import { useAuth } from "@/hooks/use-auth"
 import { PageLoading } from "@/components/loading-states"
+import { Spinner } from "@/components/ui/skeletons"
 import { Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -58,7 +59,15 @@ export default function LoopAdminPage() {
             Manage users, verification, premium, quests, and platform settings.
           </p>
         </div>
-        <AdminDashboard />
+        <Suspense
+          fallback={
+            <div className="flex min-h-[50vh] items-center justify-center">
+              <Spinner className="h-6 w-6 text-muted-foreground" />
+            </div>
+          }
+        >
+          <AdminDashboard />
+        </Suspense>
       </main>
     </div>
   )
