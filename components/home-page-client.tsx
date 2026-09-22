@@ -3,18 +3,15 @@
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { Header } from "@/components/header"
-import { WelcomeBanner } from "@/components/welcome-banner"
-import { ReturnRecap } from "@/components/return-recap"
-import { CircleActivityStrip } from "@/components/circle-activity-strip"
+import { HomeHighlights } from "@/components/home/home-highlights"
 import { FeedTabs } from "@/components/feed-tabs"
 import { TrendingSidebar } from "@/components/trending-sidebar"
 import { UserSuggestions } from "@/components/users/user-suggestions"
 import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt"
 import { AppDownloadBadges } from "@/components/app-download-badges"
-import { DailyPulse } from "@/components/engagement/daily-pulse"
 import { FeedTour } from "@/components/tour/feed-tour"
 import { Button } from "@/components/ui/button"
-import { Compass, Users, Video, Plus, Bookmark, LogIn, Search, Smartphone, ArrowRight, Download, CheckCircle } from "lucide-react"
+import { LogIn, Smartphone, ArrowRight, Download, CheckCircle } from "lucide-react"
 import { useEffect, useState, useCallback } from "react"
 
 export function HomePageClient() {
@@ -65,70 +62,45 @@ export function HomePageClient() {
               </section>
             ) : (
               <>
-                <WelcomeBanner />
-                <ReturnRecap />
-                <CircleActivityStrip />
-                <DailyPulse />
+                {/*
+                 * One row of chrome, not five stacked cards: the quick actions
+                 * stay visible and the promotional cards live behind the
+                 * Highlights toggle (see HomeHighlights).
+                 */}
+                <HomeHighlights />
                 {/* One-time coach-mark tour over the real feed UI */}
                 <FeedTour />
               </>
             )}
 
-            {/* Quick Filter & Nav Chips with Horizontal Scroll and Fade Edges */}
-            <div className="relative group">
-              <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-background to-transparent z-10" />
-              <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent z-10" />
-              <div className="scrollbar-none flex gap-1.5 overflow-x-auto pb-0.5 px-0.5 scroll-smooth">
-                {!isGuest && (
+            {/* Guests still get the nav chips — their quick actions have no
+                other home; signed-in users get them from HomeHighlights. */}
+            {isGuest && (
+              <div className="relative group">
+                <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-background to-transparent z-10" />
+                <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent z-10" />
+                <div className="scrollbar-none flex gap-1.5 overflow-x-auto pb-0.5 px-0.5 scroll-smooth">
                   <Link
-                    href="/create"
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                    href="/explore"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
                   >
-                    <Plus className="h-3.5 w-3.5" />
-                    New loop
+                    Explore
                   </Link>
-                )}
-                <Link
-                  href="/explore"
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
-                >
-                  <Compass className="h-3.5 w-3.5" />
-                  Explore
-                </Link>
-                <Link
-                  href="/search"
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
-                >
-                  <Search className="h-3.5 w-3.5" />
-                  Search
-                </Link>
-                <Link
-                  href="/trees"
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
-                >
-                  <Video className="h-3.5 w-3.5" />
-                  Trees
-                </Link>
-                {!isGuest && (
-                  <>
-                    <Link
-                      href="/circles"
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
-                    >
-                      <Users className="h-3.5 w-3.5" />
-                      Circles
-                    </Link>
-                    <Link
-                      href="/bookmarks"
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
-                    >
-                      <Bookmark className="h-3.5 w-3.5" />
-                      Saved
-                    </Link>
-                  </>
-                )}
+                  <Link
+                    href="/trees"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                  >
+                    Trees
+                  </Link>
+                  <Link
+                    href="/landing"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                  >
+                    What is Loop?
+                  </Link>
+                </div>
               </div>
-            </div>
+            )}
 
             <FeedTabs guestMode={isGuest} />
 

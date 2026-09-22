@@ -90,6 +90,17 @@ export function LoopCardHeader({
   const parentAuthorName =
     parentAuthor?.username?.trim() || parentAuthor?.display_name?.trim() || ""
 
+  // Status pills are the exception, not the rule: a normal post has none, so
+  // the author row stays a single line. Level and the Pro crown were moved to
+  // the profile and post-detail views — they showed on every card before.
+  const showStatusRow =
+    Boolean(loop.comments_disabled) ||
+    Number(loop.engagement_score) > 80 ||
+    Boolean(loop.is_featured) ||
+    isBoosted ||
+    boostCoinsCurrent >= 100 ||
+    (Array.isArray(loop.media_urls) && loop.media_urls.length > 1)
+
   return (
     <div className="flex flex-col gap-1 px-3.5 pb-1.5 pt-3.5 sm:px-5">
       {LoginGateDialog}
@@ -191,19 +202,19 @@ export function LoopCardHeader({
             </Link>
           )}
 
-          {/* Author name + meta */}
+          {/* Author line — name, check, handle and timestamp on one row. */}
           <div className="min-w-0 flex-1">
-            <div className="flex items-center space-x-1 flex-wrap">
+            <div className="flex min-w-0 items-center gap-1 text-[15px]">
               {isCoLoop ? (
-                <div className="flex items-center gap-1 flex-wrap font-semibold text-[15px]">
+                <div className="flex min-w-0 items-center gap-1 truncate font-semibold">
                   <Link
                     href={`/profile/${loop.author.username}`}
-                    className="hover:underline text-cyan-400"
+                    className="truncate hover:underline text-cyan-400"
                   >
                     @{loop.author.username}
                   </Link>
                   {coAuthors.map((ca: any) => (
-                    <span key={ca.id || ca.username} className="flex items-center gap-1">
+                    <span key={ca.id || ca.username} className="flex shrink-0 items-center gap-1">
                       <span className="text-muted-foreground font-normal">x</span>
                       <Link
                         href={`/profile/${ca.username}`}
@@ -217,7 +228,7 @@ export function LoopCardHeader({
               ) : (
                 <Link href={`/profile/${loop.author.username}`} className="min-w-0">
                   <span
-                    className="font-semibold hover:underline text-[15px] truncate block max-w-[120px] sm:max-w-none"
+                    className="block truncate font-semibold hover:underline"
                     style={fontStyle(
                       (loop.author.cosmetics || loop.author.active_cosmetics)?.font
                     )}
@@ -227,11 +238,12 @@ export function LoopCardHeader({
                 </Link>
               )}
 
+              {/* Pro crown is intentionally omitted here — it lives on the
+                  profile and post-detail views now. */}
               <UserBadges
                 is_verified={loop.author.is_verified}
                 is_team_member={loop.author.is_team_member}
                 is_sponsor={loop.author.is_sponsor}
-                is_premium={loop.author.is_premium}
                 is_organization={loop.author.is_organization}
                 organization_badge_url={loop.author.organization_badge_url}
                 organization_name={loop.author.organization_name}
@@ -240,51 +252,38 @@ export function LoopCardHeader({
                 size="sm"
               />
 
-              {loop.author.level && loop.author.level > 1 && (
-                <Badge className="border-0 bg-foreground/[0.06] text-[10px] font-semibold text-muted-foreground px-1.5 flex-shrink-0 shadow-none">
-                  L{loop.author.level}
-                </Badge>
-              )}
-
-              {loop.media_urls && loop.media_urls.length > 1 && (
-                <Badge
-                  className="border-0 bg-purple-500/12 text-[10px] font-semibold text-purple-400 px-1.5 flex-shrink-0 shadow-none"
-                >
-                  {loop.media_urls.length} files
-                </Badge>
-              )}
-            </div>
-
-            <div className="flex items-center space-x-1 sm:space-x-2 text-[13px] text-muted-foreground flex-wrap">
-              <span className="truncate max-w-[80px] sm:max-w-none">@{loop.author.username}</span>
-              <span>&middot;</span>
-              <FreshnessTimestamp date={loop.created_at} showIcon />
-              {loop.comments_disabled && (
-                <span className="inline-flex items-center gap-0.5 text-amber-500" title="Comments locked">
-                  <Lock className="h-3 w-3" />
+              {/* The co-loop branch above already prints every @handle. */}
+              {!isCoLoop && (
+                <span className="min-w-0 truncate text-[13px] text-muted-foreground">
+                  @{loop.author.username}
                 </span>
               )}
-              {loop.engagement_score && loop.engagement_score > 80 && (
-                <>
-                  <span>&middot;</span>
+              <span className="shrink-0 text-muted-foreground">&middot;</span>
+              <FreshnessTimestamp date={loop.created_at} className="shrink-0" />
+            </div>
+
+            {/* Secondary/status badges render on their own line only when the
+                post actually has one — most posts show none. */}
+            {showStatusRow && (
+              <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[13px] text-muted-foreground">
+                {Boolean(loop.comments_disabled) && (
+                  <span className="inline-flex items-center gap-0.5 text-amber-500" title="Comments locked">
+                    <Lock className="h-3 w-3" />
+                  </span>
+                )}
+                {Number(loop.engagement_score) > 80 && (
                   <Badge className="border-0 bg-orange-500/12 text-[10px] font-semibold text-orange-400 px-1.5 shadow-none">
                     <Zap className="h-2.5 w-2.5 mr-0.5" />
                     Hot
                   </Badge>
-                </>
-              )}
-              {loop.is_featured && (
-                <>
-                  <span>&middot;</span>
+                )}
+                {Boolean(loop.is_featured) && (
                   <Badge className="border-0 bg-amber-400/12 text-[10px] font-semibold text-amber-400 px-1.5 shadow-none">
                     <Star className="h-2.5 w-2.5 mr-0.5" />
                     Featured
                   </Badge>
-                </>
-              )}
-              {(isBoosted || boostCoinsCurrent >= 100) && (
-                <>
-                  <span>&middot;</span>
+                )}
+                {(isBoosted || boostCoinsCurrent >= 100) && (
                   <Badge className="border-0 bg-cyan-500/12 text-[10px] font-semibold text-cyan-400 px-1.5 shadow-none">
                     <Rocket className="h-2.5 w-2.5 mr-0.5" />
                     Boosted{" "}
@@ -294,9 +293,14 @@ export function LoopCardHeader({
                       ? "(Tier 2)"
                       : "(Tier 1)"}
                   </Badge>
-                </>
-              )}
-            </div>
+                )}
+                {Array.isArray(loop.media_urls) && loop.media_urls.length > 1 && (
+                  <Badge className="border-0 bg-purple-500/12 text-[10px] font-semibold text-purple-400 px-1.5 shadow-none">
+                    {loop.media_urls.length} files
+                  </Badge>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

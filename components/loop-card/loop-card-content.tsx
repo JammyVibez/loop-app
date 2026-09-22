@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
 import { GitBranch, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -20,6 +19,7 @@ interface LoopCardContentProps {
   rawLoop: any
   content: string
   contentPreview: string
+  /** Kept for callers; the inline renderer reads tags from the post text. */
   hashtags: string[]
   onLike: (opts?: { fromDoubleTap?: boolean }) => void
   onFork: () => void
@@ -31,7 +31,6 @@ export function LoopCardContent({
   rawLoop,
   content,
   contentPreview,
-  hashtags,
   onLike,
   onFork,
   forking,
@@ -104,23 +103,9 @@ export function LoopCardContent({
           )}
         </div>
 
-        {hashtags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {hashtags.slice(0, 3).map((tag: string) => (
-              <Link key={tag} href={`/hashtag/${tag}`}>
-                {/* Borderless chips — X renders tags as plain tinted text. */}
-                <Badge className="border-0 bg-[var(--theme-primary)]/12 text-[12px] font-medium text-[var(--theme-primary)] shadow-none transition-colors hover:bg-[var(--theme-primary)]/20">
-                  #{tag}
-                </Badge>
-              </Link>
-            ))}
-            {hashtags.length > 3 && (
-              <Badge className="border-0 bg-foreground/[0.06] text-[12px] font-medium text-muted-foreground shadow-none">
-                +{hashtags.length - 3}
-              </Badge>
-            )}
-          </div>
-        )}
+        {/* Hashtags are not repeated as a chip row beneath the post —
+            RichContent already tints each #tag inline in the accent color
+            inside the post text, which is where people read and tap them. */}
 
         {/* Render Poll Widget if loop is a poll */}
         {(loop.poll ||

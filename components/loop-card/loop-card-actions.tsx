@@ -14,18 +14,21 @@ import {
   Users,
   Lock,
   BarChart3,
+  MoreHorizontal,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { SaveToDevice } from "@/components/download/save-to-device"
 import { useAuth } from "@/hooks/use-auth"
 import { useLoginGate } from "@/hooks/use-login-gate"
 import { isCodeLoop } from "@/lib/pro-features"
+import { shouldShowCount } from "@/lib/feed-density"
 import { Spinner } from "@/components/ui/skeletons"
 
 interface LoopCardActionsProps {
@@ -55,11 +58,17 @@ interface LoopCardActionsProps {
 }
 
 /**
- * X-style action row: one dense line of icon + count pairs directly under the
- * post, muted by default and tinted on hover — no pill backgrounds, no borders
- * and no second meta strip, so a post keeps a single row of chrome. Every Loop
- * action is still here (like, comment, branch, share, boost, gift, fork,
- * bookmark) and the view count lives at the end of the row the way X shows it.
+ * X-density action row.
+ *
+ * Four actions earn permanent space on a feed card — like, comment, branch and
+ * share — because they are what people actually do from the feed, and the
+ * secondary weight of a post is what makes a feed feel heavy. Boost, gift,
+ * bookmark, fork and the view/analytics count all still work, but they moved
+ * behind the overflow menu (and remain on the post-detail view) instead of
+ * sitting in the row as five more icons.
+ *
+ * Counts are only rendered when they're greater than zero, so a fresh post
+ * shows four quiet icons rather than "0 0 0 0".
  */
 export function LoopCardActions({
   loop,
@@ -91,15 +100,27 @@ export function LoopCardActions({
 
   const viewsCount = Number(loop.stats?.views_count || 0)
   const giftsCount = Number(loop.gifts_received || 0)
+  const isCode = isCodeLoop(loop) || isCodeLoop(rawLoop)
+  const canFork = isCode && currentUser?.id !== loop.author_id
+  const mediaUrl =
+    (loop as any).content_media_url ||
+    (loop as any).media_url ||
+    ((loop as any).content_metadata?.media_urls as string[] | undefined)?.[0] ||
+    ""
 
   // Shared X-like button styling: quiet by default, the hover tint lives on the
   // icon color only (never a filled pill), with a small press-in feedback.
   const action =
     "h-8 rounded-full px-1.5 font-normal text-muted-foreground transition-colors active:scale-[0.97]"
+  const count = "text-[13px] tabular-nums font-medium"
+
+  /** Counts only earn space when they're actually non-zero. */
+  const Count = ({ value }: { value: unknown }) =>
+    shouldShowCount(value) ? <span className={count}>{Number(value)}</span> : null
 
   return (
     <div className="mt-1 flex items-center justify-between gap-1">
-      {/* Primary engagement — the counts read as one tight cluster. */}
+      {/* Primary engagement — the four things people do from the feed. */}
       <div className="flex min-w-0 items-center gap-2 sm:gap-4">
         <Button
           variant="ghost"
@@ -119,7 +140,7 @@ export function LoopCardActions({
           ) : (
             <Heart className={`h-[18px] w-[18px] transition-transform ${isLiked ? "fill-current scale-105" : ""}`} />
           )}
-          <span className="text-[13px] tabular-nums font-medium">{likesCount}</span>
+          <Count value={likesCount} />
         </Button>
 
         <Link href={`/loop/${loop.id}`} aria-label="View comments on this loop">
@@ -133,7 +154,7 @@ export function LoopCardActions({
             ) : (
               <MessageCircle className="h-[18px] w-[18px]" />
             )}
-            <span className="text-[13px] tabular-nums font-medium">{commentsCount}</span>
+            <Count value={commentsCount} />
           </Button>
         </Link>
 
@@ -147,7 +168,7 @@ export function LoopCardActions({
               aria-label="Branch this loop or view the chain"
             >
               <GitBranch className="h-[18px] w-[18px]" />
-              <span className="text-[13px] tabular-nums font-medium">{branchesCount}</span>
+              <Count value={branchesCount} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="bg-popover border-border text-foreground">
@@ -167,7 +188,7 @@ export function LoopCardActions({
               aria-label="Share this loop"
             >
               <Share className="h-[18px] w-[18px]" />
-              <span className="text-[13px] tabular-nums font-medium">{sharesCount}</span>
+              <Count value={sharesCount} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52 rounded-xl bg-card border-border shadow-xl">
@@ -205,17 +226,10 @@ export function LoopCardActions({
               <Share2 className="h-4 w-4 text-fuchsia-500" />
               <span>Share as image</span>
             </DropdownMenuItem>
-            {((loop as any).content_media_url ||
-              (loop as any).media_url ||
-              ((loop as any).content_metadata?.media_urls as string[] | undefined)?.length) && (
+            {mediaUrl && (
               <DropdownMenuItem asChild className="cursor-pointer py-0">
                 <SaveToDevice
-                  mediaUrl={
-                    (loop as any).content_media_url ||
-                    (loop as any).media_url ||
-                    ((loop as any).content_metadata?.media_urls as string[] | undefined)?.[0] ||
-                    ""
-                  }
+                  mediaUrl={mediaUrl}
                   contentType={
                     (loop as any).content_type === "video"
                       ? "video"
@@ -233,74 +247,95 @@ export function LoopCardActions({
         </DropdownMenu>
       </div>
 
-      {/* Secondary actions + view count, right-aligned like X's analytics slot. */}
-      <div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5">
-        {(isCodeLoop(loop) || isCodeLoop(rawLoop)) && currentUser?.id !== loop.author_id && (
+      {/* Everything else — one overflow menu instead of five more icons. */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
             size="sm"
-            className={`${action} hover:text-violet-500`}
-            onClick={onFork}
-            disabled={forking}
-            title="Fork code"
-            aria-label="Fork this code"
+            className={`${action} hover:text-foreground`}
+            title="More actions"
+            aria-label="More actions for this loop"
           >
-            {forking ? <Spinner className="h-[18px] w-[18px]" /> : <GitFork className="h-[18px] w-[18px]" />}
+            <MoreHorizontal className="h-[18px] w-[18px]" />
           </Button>
-        )}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56 rounded-xl bg-card border-border shadow-xl">
+          <DropdownMenuItem
+            onClick={onBookmark}
+            disabled={activeInteracting === `${loop.id}-save`}
+            className="cursor-pointer gap-2 py-2 text-xs"
+          >
+            <Bookmark className={`h-4 w-4 text-sky-500 ${isSaved ? "fill-current" : ""}`} />
+            <span>{isSaved ? "Remove bookmark" : "Bookmark"}</span>
+          </DropdownMenuItem>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`${action} gap-1.5 hover:text-[var(--theme-primary)]`}
-          onClick={onBoost}
-          title="Boost Loop with Coins"
-          aria-label="Boost this loop with coins"
-        >
-          <Rocket className="h-[18px] w-[18px]" />
-        </Button>
+          <DropdownMenuItem onClick={onBoost} className="cursor-pointer gap-2 py-2 text-xs">
+            <Rocket className="h-4 w-4 text-[var(--theme-primary)]" />
+            <span>Boost with coins</span>
+            {shouldShowCount(boostCoinsCurrent) && (
+              <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
+                {Number(boostCoinsCurrent).toLocaleString()}
+              </span>
+            )}
+          </DropdownMenuItem>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`${action} ${giftsCount > 0 ? "gap-1.5" : ""} hover:text-[var(--theme-primary)]`}
-          onClick={onGift}
-          title="Send a gift"
-          aria-label="Send a gift for this loop"
-        >
-          <Gift className="h-[18px] w-[18px]" />
-          {giftsCount > 0 && (
-            <span className="text-[13px] tabular-nums font-medium">{giftsCount}</span>
+          <DropdownMenuItem
+            onClick={() => {
+              if (!requireAuth("gift")) return
+              onGift()
+            }}
+            className="cursor-pointer gap-2 py-2 text-xs"
+          >
+            <Gift className="h-4 w-4 text-fuchsia-500" />
+            <span>Send a gift</span>
+            {shouldShowCount(giftsCount) && (
+              <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
+                {giftsCount}
+              </span>
+            )}
+          </DropdownMenuItem>
+
+          {canFork && (
+            <DropdownMenuItem
+              onClick={onFork}
+              disabled={forking}
+              className="cursor-pointer gap-2 py-2 text-xs"
+            >
+              {forking ? (
+                <Spinner className="h-4 w-4" />
+              ) : (
+                <GitFork className="h-4 w-4 text-violet-500" />
+              )}
+              <span>Fork this code</span>
+            </DropdownMenuItem>
           )}
-        </Button>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`${action} ${isSaved ? "text-sky-500" : "hover:text-sky-500"}`}
-          onClick={onBookmark}
-          disabled={activeInteracting === `${loop.id}-save`}
-          title="Bookmark"
-          aria-label={isSaved ? "Remove bookmark" : "Bookmark this loop"}
-        >
-          {activeInteracting === `${loop.id}-save` ? (
-            <Spinner className="h-[18px] w-[18px]" />
-          ) : (
-            <Bookmark className={`h-[18px] w-[18px] ${isSaved ? "fill-current" : ""}`} />
+          {(shouldShowCount(viewsCount) || isBoosted) && <DropdownMenuSeparator />}
+          {shouldShowCount(viewsCount) && (
+            <DropdownMenuItem
+              asChild
+              className="cursor-pointer gap-2 py-2 text-xs text-muted-foreground"
+            >
+              <Link href={`/loop/${loop.id}`} aria-label="View post analytics">
+                <BarChart3 className="h-4 w-4" />
+                <span>Analytics</span>
+                <span className="ml-auto text-[11px] tabular-nums">
+                  {viewsCount >= 1000
+                    ? `${(viewsCount / 1000).toFixed(viewsCount >= 10000 ? 0 : 1)}K views`
+                    : `${viewsCount} views`}
+                </span>
+              </Link>
+            </DropdownMenuItem>
           )}
-        </Button>
-
-        {/* View count sits last, dimmed, exactly where X places it. */}
-        <span
-          className="ml-0.5 inline-flex cursor-default items-center gap-1.5 px-1.5 text-muted-foreground"
-          title={`${viewsCount.toLocaleString()} views`}
-        >
-          <BarChart3 className="h-[18px] w-[18px]" />
-          <span className="text-[13px] tabular-nums font-medium">
-            {viewsCount >= 1000 ? `${(viewsCount / 1000).toFixed(viewsCount >= 10000 ? 0 : 1)}K` : viewsCount}
-          </span>
-        </span>
-      </div>
+          {isBoosted && (
+            <DropdownMenuItem className="cursor-pointer gap-2 py-2 text-xs text-cyan-400" disabled>
+              <Rocket className="h-4 w-4" />
+              <span>Boosted</span>
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }

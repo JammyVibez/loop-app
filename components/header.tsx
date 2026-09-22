@@ -13,7 +13,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -22,14 +27,16 @@ import {
   Settings,
   User,
   LogOut,
-  Plus,
   Coins,
-  Radio,
-  Bookmark,
-  Zap,
-  Shield,
   X,
+  Sun,
+  Moon,
+  Circle,
+  Flower2,
+  TreePine,
+  Palette,
 } from "lucide-react"
+import { useTheme } from "next-themes"
 import { useAuth } from "@/hooks/use-auth"
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -42,11 +49,25 @@ function LogoMark() {
   )
 }
 
+/**
+ * Bar density: the header carries only the brand, search, the coins balance and
+ * notifications. Everything used less often (theme, chat) lives in the profile
+ * menu below instead of occupying permanent space in the bar.
+ */
+const THEME_OPTIONS = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "midnight", label: "Midnight", icon: Circle },
+  { value: "sakura", label: "Sakura", icon: Flower2 },
+  { value: "forest", label: "Forest", icon: TreePine },
+] as const
+
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("")
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
   const { user, signOut } = useAuth()
+  const { theme, setTheme } = useTheme()
   const router = useRouter()
 
   useEffect(() => {
@@ -182,9 +203,7 @@ export function Header() {
             </Button>
           )}
 
-          <ThemeToggle />
-
-          {/* Loop Coins — wallet indicator (feature tour anchor) */}
+          {/* Loop Coins — the balance users check constantly, kept in the bar. */}
           <Link
             href="/wallet"
             data-tour="wallet"
@@ -199,18 +218,6 @@ export function Header() {
           <span data-tour="notifications" className="inline-flex">
             <NotificationDropdown />
           </span>
-
-          {/* Messages */}
-          <Link href="/messages" className="relative">
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" title="Messages">
-              <MessageCircle className="h-4 w-4 text-muted-foreground" />
-            </Button>
-            {unreadMessages > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-background">
-                {unreadMessages > 99 ? "99+" : unreadMessages}
-              </span>
-            )}
-          </Link>
 
           {/* Consolidated User Profile Avatar Dropdown */}
           <DropdownMenu>
@@ -257,6 +264,55 @@ export function Header() {
                   <span className="text-xs font-medium">Your Profile</span>
                 </Link>
               </DropdownMenuItem>
+
+              {/* Chat moved out of the bar — still one tap away, now with its
+                  unread count where the bar used to show it. */}
+              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                <Link href="/messages" className="flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-medium">Messages</span>
+                  {unreadMessages > 0 && (
+                    <span className="ml-auto inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                      {unreadMessages > 99 ? "99+" : unreadMessages}
+                    </span>
+                  )}
+                </Link>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                <Link href="/wallet" className="flex items-center gap-2">
+                  <Coins className="h-4 w-4 text-amber-500" />
+                  <span className="text-xs font-medium">Wallet</span>
+                  <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
+                    {Number(user.loop_coins || 0).toLocaleString()}
+                  </span>
+                </Link>
+              </DropdownMenuItem>
+
+              {/* Theme submenu replaces the bar's theme button. */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="rounded-xl">
+                  <Palette className="h-4 w-4 text-muted-foreground" />
+                  <span className="ml-2 text-xs font-medium">Theme</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-40 rounded-xl p-1">
+                  <DropdownMenuRadioGroup value={theme ?? "system"} onValueChange={setTheme}>
+                    {THEME_OPTIONS.map((option) => {
+                      const Icon = option.icon
+                      return (
+                        <DropdownMenuRadioItem
+                          key={option.value}
+                          value={option.value}
+                          className="gap-2 rounded-xl text-xs font-medium"
+                        >
+                          <Icon className="h-4 w-4" />
+                          {option.label}
+                        </DropdownMenuRadioItem>
+                      )
+                    })}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
 
               <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
                 <Link href="/settings" className="flex items-center gap-2">

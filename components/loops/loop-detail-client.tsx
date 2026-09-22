@@ -26,6 +26,7 @@ import {
   Film,
   Copy,
   Volume2,
+  Gift,
 } from "lucide-react"
 import { CommentsSection } from "@/components/comments/comments-section"
 import { CreateBranchDialog } from "@/components/create-branch-dialog"
@@ -39,6 +40,7 @@ import { LoopDetailCodeBlock } from "@/components/loops/loop-detail-code-block"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { useVerificationBadges } from "@/hooks/use-verification-badges"
 import { LoopDetailBoostBar } from "@/components/loops/loop-detail-boost-bar"
+import { GiftModal } from "@/components/gifting/gift-modal"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -141,6 +143,8 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
   const [isFollowingAuthor, setIsFollowingAuthor] = useState(false)
   const [followLoading, setFollowLoading] = useState(false)
   const [activeReaction, setActiveReaction] = useState<string | null>(null)
+  // Gifting moved off the feed card's action row and onto the detail view.
+  const [giftOpen, setGiftOpen] = useState(false)
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
@@ -783,6 +787,18 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                   <DropdownMenuItem onClick={handleBookmark} className="cursor-pointer">
                     <Bookmark className="h-4 w-4 mr-2" /> {loop.isBookmarked ? "Remove Bookmark" : "Save Bookmark"}
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!user) {
+                        toast({ title: "Sign in to send a gift", variant: "destructive" })
+                        return
+                      }
+                      setGiftOpen(true)
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Gift className="h-4 w-4 mr-2 text-fuchsia-500" /> Send a Gift
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleCopyLink} className="cursor-pointer">
                     <Copy className="h-4 w-4 mr-2" /> Copy Link
                   </DropdownMenuItem>
@@ -1195,6 +1211,22 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+
+      {loop && (
+        <GiftModal
+          open={giftOpen}
+          onOpenChange={setGiftOpen}
+          recipient={{
+            id: loop.author.id,
+            username: loop.author.username,
+            display_name: loop.author.displayName,
+            avatar_url: loop.author.avatar,
+            video_avatar_url: loop.author.videoAvatarUrl || null,
+            is_premium: loop.author.premium,
+          }}
+          context={{ type: "post", id: loop.id, title: loop.title }}
+        />
       )}
     </div>
   )

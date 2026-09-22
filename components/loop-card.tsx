@@ -498,15 +498,13 @@ export const LoopCard = memo(function LoopCard({
     return `${baseStyle} ${className} ${themeStyle} ${hoverStyle} ${featuredStyle} ${coLoopStyle}`
   }
 
-  const getAvatarStyle = () => {
-    if (loop.author.is_premium) {
-      return "ring-2 ring-gradient-to-r from-purple-400 to-pink-400 ring-offset-2"
-    }
-    if (currentTheme?.effects?.glow) {
-      return "ring-2 ring-[var(--theme-primary)]/30 ring-offset-2"
-    }
-    return ""
-  }
+  /**
+   * Feed avatars carry no decorative ring. A cosmetic frame the author
+   * actually equipped still renders (AvatarWithFrame handles that from
+   * `equipped_frame_id`), but Pro status and the active theme no longer add a
+   * ring to every post — that belongs on the profile and the shop showcase.
+   */
+  const getAvatarStyle = () => ""
 
   return (
     <>
@@ -526,7 +524,7 @@ export const LoopCard = memo(function LoopCard({
           onMouseLeave={() => setIsHovered(false)}
         >
           {/* Featured badge */}
-          {loop.is_featured && (
+          {Boolean(loop.is_featured) && (
             <div className="absolute top-2 right-2 z-10">
               <div className="inline-flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-medium px-2 py-0.5 rounded-full">
                 &#9733; Featured
@@ -587,7 +585,7 @@ export const LoopCard = memo(function LoopCard({
             />
 
             {/* Gift indicators */}
-            {loop.gifts_received && loop.gifts_received > 0 && (
+            {Number(loop.gifts_received) > 0 && (
               <div className="flex items-center space-x-2 mt-2">
                 <div className="flex items-center space-x-1 px-2 py-1 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/20 dark:to-pink-900/20 rounded-full">
                   <span className="text-purple-600">&#127873;</span>
@@ -595,7 +593,7 @@ export const LoopCard = memo(function LoopCard({
                     {loop.gifts_received}
                   </span>
                 </div>
-                {loop.total_gift_value && loop.total_gift_value > 0 && (
+                {Number(loop.total_gift_value) > 0 && (
                   <div className="flex items-center space-x-1 px-2 py-1 bg-amber-100 dark:bg-amber-900/30 rounded-full">
                     <span className="text-amber-600 dark:text-amber-400">&#127873;</span>
                     <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
