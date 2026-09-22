@@ -32,6 +32,24 @@ const DEFAULTS: Record<string, unknown> = {
 export async function GET(request: NextRequest) {
   try {
     const supabase = createServerClient()
+
+    // This route cannot be admin-only: the maintenance gate, the logo and the
+    // shop banner all read it before anyone is signed in. But "public read of
+    // maintenance + logo" has to mean exactly that — it used to return every
+    // row in admin_settings to every caller, including the rows that are NOT in
+    // DEFAULTS (economy, rate limits, monetization config). Signed-in admins
+    // keep the full read; everyone else gets the public keys only.
+    const user = await getUserFromRequest(request)
+    let isAdmin = false
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .maybeSingle()
+      isAdmin = Boolean(profile?.is_admin)
+    }
+
     const { data: rows } = await supabase
       .from("admin_settings")
       .select("setting_key, setting_value, updated_at")
@@ -44,8 +62,10 @@ export async function GET(request: NextRequest) {
     for (const key of Object.keys(DEFAULTS)) {
       merged[key] = { ...(DEFAULTS[key] as object), ...((all[key] as object) || {}) }
     }
-    for (const key of Object.keys(all)) {
-      if (!(key in DEFAULTS)) merged[key] = all[key]
+    if (isAdmin) {
+      for (const key of Object.keys(all)) {
+        if (!(key in DEFAULTS)) merged[key] = all[key]
+      }
     }
 
     return NextResponse.json({

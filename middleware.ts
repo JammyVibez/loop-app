@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server"
 import { hasSessionCookie, isAuthRequiredPath } from "@/lib/guest"
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 import { INTERNAL_RATE_LIMIT_PATH, loadEdgeRateLimitSettings, planApiRateLimit } from "@/lib/middleware-rate-limit"
+import { securityHeadersFor } from "@/lib/security-headers"
 
 const alwaysPublic = new Set([
   "/",
@@ -19,40 +20,12 @@ const alwaysPublic = new Set([
 ])
 
 // ─── Security Headers ──────────────────────────────────────────────
-
-function getSecurityHeaders(isApi: boolean): Record<string, string> {
-  const headers: Record<string, string> = {
-    "X-Frame-Options": "DENY",
-    "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Permissions-Policy": "camera=(self), microphone=(self), geolocation=(), payment=(self), usb=(), magnetometer=(), gyroscope=(), accelerometer=()",
-    "X-XSS-Protection": "1; mode=block",
-    "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-  }
-
-  // CSP for page routes only (not API)
-  if (!isApi) {
-    headers["Content-Security-Policy"] = [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://vercel.live https://js.stripe.com https://checkout.stripe.com https://fonts.googleapis.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https://*.supabase.co https://res.cloudinary.com https://*.cloudinary.com https://images.unsplash.com https://*.vercel.app https://*.run.app",
-      "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com",
-      "media-src 'self' blob: https://*.supabase.co https://res.cloudinary.com https://*.cloudinary.com",
-      // LiveKit/100ms signalling is a WebSocket (wss://) — without these hosts
-      // the browser blocks it and calls die with "could not establish signal
-      // connection: Failed to fetch". REST + ICE hosts are allowed too.
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.livekit.cloud wss://*.livekit.cloud https://*.livekit.io wss://*.livekit.io https://*.100ms.live wss://*.100ms.live https://api.stripe.com https://checkout.stripe.com https://va.vercel-scripts.com https://vitals.vercel-insights.com https://vercel.live",
-      "frame-src https://js.stripe.com https://checkout.stripe.com https://vercel.live",
-      "worker-src 'self' blob:",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "upgrade-insecure-requests",
-    ].join("; ")
-  }
-
-  return headers
-}
+//
+// The policy itself lives in lib/security-headers.ts. It has to be able to
+// differ per route — /preview/{id} is embedded in third-party pages, everything
+// else refuses to be framed — and it used to be written twice, once here and
+// once in next.config.mjs with different values, where only this copy reached
+// the browser. One source, applied to every response this middleware returns.
 
 // ─── Input Validation ──────────────────────────────────────────────
 
@@ -131,7 +104,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/api/")
   ) {
     const response = NextResponse.next()
-    const headers = getSecurityHeaders(isApi)
+    const headers = securityHeadersFor(pathname, isApi)
     for (const [key, value] of Object.entries(headers)) {
       response.headers.set(key, value)
     }
@@ -141,7 +114,7 @@ export async function middleware(request: NextRequest) {
   // ── 4. Public routes ──
   if (alwaysPublic.has(pathname)) {
     const response = NextResponse.next()
-    const headers = getSecurityHeaders(false)
+    const headers = securityHeadersFor(pathname, isApi)
     for (const [key, value] of Object.entries(headers)) {
       response.headers.set(key, value)
     }
@@ -151,7 +124,7 @@ export async function middleware(request: NextRequest) {
   // ── 5. Auth-required routes ──
   if (!isAuthRequiredPath(pathname)) {
     const response = NextResponse.next()
-    const headers = getSecurityHeaders(false)
+    const headers = securityHeadersFor(pathname, isApi)
     for (const [key, value] of Object.entries(headers)) {
       response.headers.set(key, value)
     }
@@ -165,7 +138,7 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL("/login", request.url)
     loginUrl.searchParams.set("redirect", pathname)
     const response = NextResponse.redirect(loginUrl)
-    const headers = getSecurityHeaders(false)
+    const headers = securityHeadersFor(pathname, isApi)
     for (const [key, value] of Object.entries(headers)) {
       response.headers.set(key, value)
     }
@@ -174,7 +147,7 @@ export async function middleware(request: NextRequest) {
 
   // ── 7. Apply security headers ──
   const response = NextResponse.next()
-  const headers = getSecurityHeaders(false)
+  const headers = securityHeadersFor(pathname, isApi)
   for (const [key, value] of Object.entries(headers)) {
     response.headers.set(key, value)
   }
