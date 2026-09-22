@@ -17,7 +17,7 @@ export default function AdminQuestsPage() {
 
   useEffect(() => {
     if (!loading) {
-      if (!user) router.replace("/login?redirect=/admin/quests")
+      if (!user) router.replace("/login?redirect=/loopadmin/quests")
       setChecked(true)
     }
   }, [loading, user, router])

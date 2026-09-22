@@ -23,7 +23,7 @@ const EXCLUDED_PREFIXES = [
   "/circles",
   "/streams",
   "/settings",
-  "/admin",
+  "/loopadmin",
   "/verify-email",
   "/verification",
   "/reset-password",

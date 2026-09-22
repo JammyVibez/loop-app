@@ -144,10 +144,10 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
 
             {isAdmin && (
               <Link
-                href="/admin"
+                href="/loopadmin"
                 onClick={onLinkClick}
                 className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
-                  pathname.startsWith("/admin")
+                  pathname.startsWith("/loopadmin")
                     ? "bg-amber-500 text-white shadow-sm"
                     : "text-amber-500 hover:bg-amber-500/10"
                 }`}

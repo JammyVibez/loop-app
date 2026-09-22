@@ -151,7 +151,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Admin-tuneable comment throttle (see /admin → Rate limits).
+    // Admin-tuneable comment throttle (see /loopadmin → Rate limits).
     const guard = await enforceUserRateLimit(createServerClient(), "comment", user.id)
     if (!guard.ok) {
       return NextResponse.json(

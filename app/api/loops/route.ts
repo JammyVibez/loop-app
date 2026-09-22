@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Admin-tuneable posting throttle (see /admin → Rate limits).
+    // Admin-tuneable posting throttle (see /loopadmin → Rate limits).
     const rlSupabase = createServerClient()
     const guard = await enforceUserRateLimit(rlSupabase, "post", user.id)
     if (!guard.ok) {

@@ -38,7 +38,7 @@ export const AUTH_REQUIRED_PREFIXES = [
   "/notifications",
   "/create",
   "/onboarding",
-  "/admin",
+  "/loopadmin",
   "/organization",
   "/bookmarks",
   "/premium",

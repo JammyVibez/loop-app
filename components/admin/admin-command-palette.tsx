@@ -101,7 +101,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
       description: "Platform analytics dashboard",
       icon: BarChart3,
       category: "Navigation",
-      action: () => { onNavigate ? onNavigate("analytics") : router.push("/admin"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("analytics") : router.push("/loopadmin"); onOpenChange(false) },
       keywords: ["stats", "metrics", "data"],
     },
     {
@@ -110,7 +110,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
       description: "Search, ban, verify users",
       icon: Users,
       category: "Navigation",
-      action: () => { onNavigate ? onNavigate("users") : router.push("/admin?tab=users"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("users") : router.push("/loopadmin?tab=users"); onOpenChange(false) },
       keywords: ["people", "accounts"],
     },
     {
@@ -119,7 +119,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
       description: "Platform revenue overview",
       icon: Coins,
       category: "Navigation",
-      action: () => { onNavigate ? onNavigate("revenue") : router.push("/admin?tab=revenue"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("revenue") : router.push("/loopadmin?tab=revenue"); onOpenChange(false) },
       keywords: ["money", "earnings", "payouts"],
     },
     {
@@ -128,7 +128,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
       description: "Review flagged content",
       icon: Flag,
       category: "Navigation",
-      action: () => { onNavigate ? onNavigate("moderation") : router.push("/admin?tab=moderation"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("moderation") : router.push("/loopadmin?tab=moderation"); onOpenChange(false) },
       keywords: ["reports", "flags", "content"],
     },
     {
@@ -137,7 +137,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
       description: "Create and manage rewarded quests",
       icon: Target,
       category: "Navigation",
-      action: () => { onNavigate ? onNavigate("quests") : router.push("/admin?tab=quests"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("quests") : router.push("/loopadmin?tab=quests"); onOpenChange(false) },
       keywords: ["rewards", "engagement", "ads", "survey", "games"],
     },
     {
@@ -146,7 +146,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
       description: "Coin pricing, balances, Pro grants",
       icon: Coins,
       category: "Navigation",
-      action: () => { onNavigate ? onNavigate("monetization") : router.push("/admin?tab=monetization"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("monetization") : router.push("/loopadmin?tab=monetization"); onOpenChange(false) },
       keywords: ["pricing", "coins", "premium", "pro", "stripe"],
     },
     {
@@ -155,7 +155,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
       description: "Server status and metrics",
       icon: Zap,
       category: "Navigation",
-      action: () => { onNavigate ? onNavigate("health") : router.push("/admin?tab=health"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("health") : router.push("/loopadmin?tab=health"); onOpenChange(false) },
       keywords: ["status", "uptime", "performance"],
     },
     {
@@ -164,7 +164,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
       description: "Manage shop themes and cosmetics",
       icon: Palette,
       category: "Navigation",
-      action: () => { onNavigate ? onNavigate("catalog") : router.push("/admin?tab=catalog"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("catalog") : router.push("/loopadmin?tab=catalog"); onOpenChange(false) },
       keywords: ["shop", "cosmetics", "effects"],
     },
     {
@@ -173,7 +173,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
       description: "Manage platform events",
       icon: Calendar,
       category: "Navigation",
-      action: () => { onNavigate ? onNavigate("events") : router.push("/admin?tab=events"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("events") : router.push("/loopadmin?tab=events"); onOpenChange(false) },
       keywords: ["happening", "live"],
     },
     // Quick Actions
@@ -183,7 +183,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
       description: "Grant blue checkmark",
       icon: CheckCircle,
       category: "Quick Actions",
-      action: () => { onNavigate ? onNavigate("checkmarks") : router.push("/admin?tab=checkmarks"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("checkmarks") : router.push("/loopadmin?tab=checkmarks"); onOpenChange(false) },
       keywords: ["badge", "verified", "check"],
     },
     {
@@ -192,7 +192,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
       description: "Send announcement to all users",
       icon: MessageSquare,
       category: "Quick Actions",
-      action: () => { onNavigate ? onNavigate("broadcast") : router.push("/admin?tab=broadcast"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("broadcast") : router.push("/loopadmin?tab=broadcast"); onOpenChange(false) },
       keywords: ["announce", "notify", "message"],
     },
     {
@@ -201,7 +201,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
       description: "Pin content to explore page",
       icon: Heart,
       category: "Quick Actions",
-      action: () => { onNavigate ? onNavigate("featured") : router.push("/admin?tab=featured"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("featured") : router.push("/loopadmin?tab=featured"); onOpenChange(false) },
       keywords: ["pin", "highlight", "showcase"],
     },
     {
@@ -210,7 +210,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
       description: "Ban a user account",
       icon: Ban,
       category: "Quick Actions",
-      action: () => { onNavigate ? onNavigate("users") : router.push("/admin?tab=users"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("users") : router.push("/loopadmin?tab=users"); onOpenChange(false) },
       keywords: ["block", "suspend", "remove"],
     },
     {
@@ -219,7 +219,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
       description: "Enable/disable maintenance mode",
       icon: Settings,
       category: "Quick Actions",
-      action: () => { onNavigate ? onNavigate("maintenance") : router.push("/admin?tab=maintenance"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("maintenance") : router.push("/loopadmin?tab=maintenance"); onOpenChange(false) },
       keywords: ["downtime", "offline", "mode"],
     },
     {
@@ -228,7 +228,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
       description: "Approve pending withdrawals",
       icon: Gift,
       category: "Quick Actions",
-      action: () => { onNavigate ? onNavigate("payouts") : router.push("/admin?tab=payouts"); onOpenChange(false) },
+      action: () => { onNavigate ? onNavigate("payouts") : router.push("/loopadmin?tab=payouts"); onOpenChange(false) },
       keywords: ["withdraw", "approve", "money"],
     },
     // External Links
@@ -354,7 +354,7 @@ export function AdminCommandPalette({ open, onOpenChange, onNavigate }: AdminCom
                   <button
                     key={u.id}
                     onClick={() => {
-                      onNavigate ? onNavigate("users") : router.push("/admin?tab=users")
+                      onNavigate ? onNavigate("users") : router.push("/loopadmin?tab=users")
                       onOpenChange(false)
                     }}
                     className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-muted/50"

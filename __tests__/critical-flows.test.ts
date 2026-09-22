@@ -31,7 +31,7 @@ describe("1. Guest / auth path gating", () => {
     expect(isAuthRequiredPath("/wallet")).toBe(true)
     expect(isAuthRequiredPath("/earnings")).toBe(true)
     expect(isAuthRequiredPath("/settings")).toBe(true)
-    expect(isAuthRequiredPath("/admin")).toBe(true)
+    expect(isAuthRequiredPath("/loopadmin")).toBe(true)
     expect(isAuthRequiredPath("/circles")).toBe(true)
     expect(isAuthRequiredPath("/create")).toBe(true)
   })
