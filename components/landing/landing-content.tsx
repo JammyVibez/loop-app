@@ -109,6 +109,7 @@ function Magnetic({
       style={{
         transform: `translate(${t.x}px, ${t.y}px)`,
         transition: "transform 0.25s cubic-bezier(0.22,1,0.36,1)",
+        transformOrigin: "center",
       }}
     >
       {children}
@@ -312,7 +313,7 @@ function InteractiveMock() {
         aria-hidden
       />
 
-      <div className="relative overflow-hidden rounded-[22px] border border-white/[0.1] bg-[#0a0a0d] shadow-[0_50px_120px_-40px_rgba(0,0,0,0.95),0_0_60px_-20px_rgba(91,141,239,0.25)]">
+      <div className="relative overflow-hidden rounded-[22px] border border-white/[0.1] bg-[#0a0a0d] shadow-[0_50px_120px_-40px_rgba(0,0,0,.95),0_0_60px_-20px_rgba(91,141,239,.25)]">
         <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3">
           <div className="flex gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-white/[0.12]" />
