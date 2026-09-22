@@ -11,10 +11,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  typecheck:
-    name: Type Check
+  verify:
+    name: Verify
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Install + typecheck + the unit suite. The previous 5 minutes was sized for
+    # a bare `tsc`; this job now also runs the tests.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,7 +24,9 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci --legacy-peer-deps
-      - run: npx tsc --noEmit
+      # Same command as local (`npm run verify`) so CI and a developer's
+      # machine cannot drift. The unit suite was previously never run in CI.
+      - run: npm run verify
 
   build:
     name: Build

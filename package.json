@@ -11,6 +11,7 @@
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test": "npm run test:critical && npm run test:unit",
+    "verify": "tsc --noEmit && vitest run",
     "db:setup:production": "node scripts/run-production-setup.mjs",
     "db:setup:production:seed": "node scripts/run-production-setup.mjs --with-seed",
     "db:apply:pending": "node scripts/apply-pending-schema.mjs"
