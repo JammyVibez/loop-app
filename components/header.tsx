@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { AppLogo } from "@/components/brand/app-logo"
@@ -41,6 +41,8 @@ import { useAuth } from "@/hooks/use-auth"
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UserBadges } from "@/components/user-badge"
+import { useUnreadMessages } from "@/hooks/use-unread-messages"
+import { formatUnreadBadge } from "@/lib/unread-messages"
 import { AccountSwitcher } from "@/components/accounts/account-switcher"
 
 function LogoMark() {
@@ -65,29 +67,10 @@ const THEME_OPTIONS = [
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("")
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
-  const [unreadMessages, setUnreadMessages] = useState(0)
+  const unreadMessages = useUnreadMessages()
   const { user, signOut } = useAuth()
   const { theme, setTheme } = useTheme()
   const router = useRouter()
-
-  useEffect(() => {
-    if (!user) return
-    const fetchUnread = () => {
-      fetch("/api/messages/unread-count", {
-        headers: { Authorization: `Bearer ${user.access_token}` },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && typeof data.count === "number") {
-            setUnreadMessages(data.count)
-          }
-        })
-        .catch(() => {})
-    }
-    fetchUnread()
-    const interval = setInterval(fetchUnread, 15000)
-    return () => clearInterval(interval)
-  }, [user])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -234,6 +217,18 @@ export function Header() {
                   size={32}
                   alt={user.display_name}
                 />
+
+                {/* Messages live behind this menu now, so the unread count has
+                    to be visible while the menu is shut — otherwise a new DM
+                    is silent until someone happens to open their profile. */}
+                {unreadMessages > 0 && (
+                  <span
+                    aria-label={`${unreadMessages} unread messages`}
+                    className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-background bg-rose-500 px-0.5 text-[9px] font-bold leading-none text-white"
+                  >
+                    {formatUnreadBadge(unreadMessages)}
+                  </span>
+                )}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 p-1.5 rounded-2xl">
@@ -273,7 +268,7 @@ export function Header() {
                   <span className="text-xs font-medium">Messages</span>
                   {unreadMessages > 0 && (
                     <span className="ml-auto inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
-                      {unreadMessages > 99 ? "99+" : unreadMessages}
+                      {formatUnreadBadge(unreadMessages)}
                     </span>
                   )}
                 </Link>

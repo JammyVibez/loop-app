@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Home, Search, Video, MessageCircle, User, LogIn, Compass, Menu } from "lucide-react"
@@ -8,6 +8,8 @@ import { useAuth } from "@/hooks/use-auth"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { cn } from "@/lib/utils"
 import { useLoginGate } from "@/hooks/use-login-gate"
+import { useUnreadMessages } from "@/hooks/use-unread-messages"
+import { formatUnreadBadge } from "@/lib/unread-messages"
 import { MobileSidebarSheet } from "@/components/left-sidebar"
 
 const HIDDEN_PREFIXES = [
@@ -26,26 +28,7 @@ export function MobileBottomNav() {
   const { user, loading } = useAuth()
   const { requireAuth, LoginGateDialog } = useLoginGate()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [unreadCount, setUnreadCount] = useState(0)
-
-  useEffect(() => {
-    if (!user) return
-    const fetchUnread = () => {
-      fetch("/api/messages/unread-count", {
-        headers: { Authorization: `Bearer ${user.access_token}` },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && typeof data.count === "number") {
-            setUnreadCount(data.count)
-          }
-        })
-        .catch(() => {})
-    }
-    fetchUnread()
-    const interval = setInterval(fetchUnread, 15000)
-    return () => clearInterval(interval)
-  }, [user])
+  const unreadCount = useUnreadMessages()
 
   if (loading) return null
   if (HIDDEN_PREFIXES.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {
@@ -112,7 +95,7 @@ export function MobileBottomNav() {
                   <item.icon className="h-5 w-5" />
                   {item.href === "/messages" && unreadCount > 0 && (
                     <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
-                      {unreadCount > 99 ? "99+" : unreadCount}
+                      {formatUnreadBadge(unreadCount)}
                     </span>
                   )}
                 </div>

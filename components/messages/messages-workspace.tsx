@@ -95,6 +95,7 @@ import {
   unsubscribeFromPush,
 } from "@/lib/push-client"
 import { unlockAudio } from "@/lib/audio-unlock"
+import { refreshUnreadMessages } from "@/hooks/use-unread-messages"
 
 interface Conversation {
   id: string
@@ -552,7 +553,11 @@ export function MessagesWorkspace() {
           method: "POST",
           headers: { "Content-Type": "application/json", ...getAuthHeader() },
           body: JSON.stringify({ conversation_id: selectedId }),
-        }).catch(() => {})
+        })
+          // Re-read only once the receipt has landed, otherwise the badge can
+          // fetch the old total and sit stale until the next poll.
+          .then(() => refreshUnreadMessages())
+          .catch(() => {})
         clearUnread(selectedId)
         void channelRef.current?.send({
           type: "broadcast",
@@ -655,7 +660,9 @@ export function MessagesWorkspace() {
             method: "POST",
             headers: { "Content-Type": "application/json", ...getAuthHeader() },
             body: JSON.stringify({ conversation_id: selectedId }),
-          }).catch(() => {})
+          })
+            .then(() => refreshUnreadMessages())
+            .catch(() => {})
           clearUnread(selectedId)
           void channel.send({
             type: "broadcast",
