@@ -34,6 +34,17 @@ const securityHeaders = [
 ]
 
 const nextConfig = {
+  experimental: {
+    // How long the client router may reuse an already-fetched route payload
+    // before re-requesting it from the server. The default for dynamic routes
+    // is 0, which made every revisit (back button, tab switch, re-tapping a
+    // nav item) a fresh server round-trip and re-render. A short window keeps
+    // navigation instant while still picking up new data quickly.
+    staleTimes: {
+      dynamic: 30,
+      static: 300,
+    },
+  },
   // NOTE: Do not set `output: "standalone"` here — the deploy targets are
   // Vercel (which ignores it) and Render (whose `next start` start command is
   // incompatible with standalone output). There is no Docker/VPS target that

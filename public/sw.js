@@ -1,12 +1,16 @@
-const CACHE_VERSION = "loop-social-v3.0"
-const STATIC_CACHE = "loop-static-v3.0"
-const DYNAMIC_CACHE = "loop-dynamic-v3.0"
-const IMAGE_CACHE = "loop-images-v3.0"
-const FONT_CACHE = "loop-fonts-v3.0"
+// Bumped whenever the fetch strategy changes: `activate` deletes every cache
+// not in this set, which is how older clients drop rules that were wrong.
+const CACHE_VERSION = "loop-social-v3.1"
+const STATIC_CACHE = "loop-static-v3.1"
+const DYNAMIC_CACHE = "loop-dynamic-v3.1"
+const IMAGE_CACHE = "loop-images-v3.1"
+const FONT_CACHE = "loop-fonts-v3.1"
 
-// Static assets to cache immediately on install
+// Static assets to cache immediately on install.
+// NOTE: "/" is deliberately absent. Caching the home document meant a failed
+// or slow navigation could render the home page at whatever URL the user
+// asked for. Documents are network-only now; "/offline" is the fallback.
 const PRECACHE_ASSETS = [
-  "/",
   "/offline",
   "/manifest.json",
   "/icons/icon.svg",
@@ -90,6 +94,28 @@ self.addEventListener("activate", (event) => {
 })
 
 // ─── Fetch ─────────────────────────────────────────────────────────
+
+/**
+ * Next.js owns its own transport — never intercept it.
+ *
+ * The App Router "soft-navigates" by fetching an RSC payload for the target
+ * route. When that request is answered from the Cache API the router cannot
+ * trust the payload and falls back to a full document load — which is exactly
+ * the "the whole app refreshed when I opened a page" symptom. Chunk and asset
+ * requests must also reach the network so a stale entry can never surface as a
+ * ChunkLoadError.
+ */
+function isNextInternal(request, url) {
+  if (url.pathname.startsWith("/_next/")) return true
+  if (url.pathname === "/sw.js") return true
+  // RSC payload fetches and router prefetches, by header or by query param.
+  if (request.headers.get("RSC")) return true
+  if (request.headers.get("Next-Router-Prefetch")) return true
+  if (request.headers.get("Next-Router-State-Tree")) return true
+  if (url.searchParams.has("_rsc")) return true
+  return false
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event
   const url = new URL(request.url)
@@ -98,6 +124,16 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return
   if (url.origin !== self.location.origin) return
   if (url.protocol === "chrome-extension:") return
+
+  // Hand Next.js navigation data and build output straight to the network.
+  if (isNextInternal(request, url)) return
+
+  // Document requests are network-only: they fall back to the offline screen,
+  // never to a cached document for a different URL.
+  if (request.mode === "navigate") {
+    event.respondWith(navigationWithOfflineFallback(request))
+    return
+  }
 
   // Route to appropriate strategy
   if (FONT_PATTERN.test(url.pathname)) {
@@ -112,10 +148,10 @@ self.addEventListener("fetch", (event) => {
     } else {
       event.respondWith(networkFirst(request, DYNAMIC_CACHE))
     }
-  } else if (request.mode === "navigate") {
-    event.respondWith(networkFirstWithOffline(request))
   } else {
-    event.respondWith(cacheFirst(request, STATIC_CACHE))
+    // Everything else (manifest, icons, public files): always try the network
+    // first so nothing can be pinned stale, and fall back to the cache offline.
+    event.respondWith(networkFirst(request, STATIC_CACHE))
   }
 })
 
@@ -201,19 +237,12 @@ async function networkOnly(request) {
   }
 }
 
-async function networkFirstWithOffline(request) {
+async function navigationWithOfflineFallback(request) {
   try {
-    const response = await fetch(request)
-    if (response.ok) {
-      const cache = await caches.open(DYNAMIC_CACHE)
-      cache.put(request, response.clone())
-    }
-    return response
+    // Deliberately not cached: a stored document goes stale the moment it is
+    // written, and serving it at a different URL is worse than being offline.
+    return await fetch(request)
   } catch {
-    const cache = await caches.open(STATIC_CACHE)
-    const cached = await cache.match(request)
-    if (cached) return cached
-
     // Try offline page
     const offlineCache = await caches.open(STATIC_CACHE)
     const offlinePage = await offlineCache.match("/offline")

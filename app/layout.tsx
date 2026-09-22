@@ -33,7 +33,17 @@ import { checkEnvironmentVariables, logEnvironmentStatus, validateEnvironment } 
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const dynamic = "force-dynamic"
+// NOTE: no `export const dynamic = "force-dynamic"` here.
+//
+// Segment config in the root layout applies to every route below it, and
+// forcing the whole app dynamic meant a server render on every navigation:
+// <Link> prefetches are reduced to the nearest loading boundary, the client
+// router cache can never reuse anything, and switching tabs re-rendered the
+// entire tree from scratch — which reads to users as the app reloading.
+//
+// Pages that genuinely need per-request data opt in themselves: every route
+// that reads cookies, searchParams or the service-role Supabase key declares
+// its own `export const dynamic = "force-dynamic"`.
 
 // ✅ Moved themeColor + viewport here.
 // NOTE: no maximumScale / user-scalable restriction — pinching to zoom must
