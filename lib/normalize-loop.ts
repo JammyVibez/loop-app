@@ -192,7 +192,9 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
     post_type: row?.post_type ?? row?.content_type ?? "standard",
     poll: row?.poll ?? (Array.isArray(row?.loop_polls) ? row?.loop_polls[0] : row?.loop_polls) ?? undefined,
     duel: row?.duel ?? (Array.isArray(row?.loop_duels) ? row?.loop_duels[0] : row?.loop_duels) ?? undefined,
-    is_featured: row?.is_featured,
+    // Coerced to a real boolean: these feed straight into `{value && <Badge/>}`
+    // JSX guards, where a numeric 0 renders a literal "0" on the post row.
+    is_featured: Boolean(row?.is_featured),
     is_pinned: Boolean(row?.is_pinned),
     comments_disabled: Boolean(row?.comments_disabled),
     link_preview_disabled: Boolean(row?.link_preview_disabled),

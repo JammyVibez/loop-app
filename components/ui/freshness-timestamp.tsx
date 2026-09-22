@@ -29,7 +29,7 @@ export function FreshnessTimestamp({
 
   const parsedDate = new Date(date)
   if (isNaN(parsedDate.getTime())) {
-    return <span className={`text-slate-400 text-xs ${className}`}>Unknown date</span>
+    return <span className={`text-muted-foreground text-xs ${className}`}>Unknown date</span>
   }
 
   const diffMs = Date.now() - parsedDate.getTime()
@@ -70,36 +70,40 @@ export function FreshnessTimestamp({
   // Exact date/time representation on hover/tap
   const fullDateTime = format(parsedDate, "EEEE, MMMM d, yyyy 'at' h:mm a")
 
-  // Color & freshness badge styling
-  let freshnessClass = "text-slate-400 hover:text-slate-300"
-  let dotColor = null
+  // Freshness styling.
+  //
+  // This used to colour the timestamp itself (glowing cyan under an hour, with
+  // a drop-shadow and a pinging dot) and hardcoded Tailwind slate values, which
+  // ignored the theme tokens and looked wrong in the light themes. Recency is
+  // now signalled by a small dot only — the text stays muted like the rest of
+  // the post meta, and drop-shadows/pings are gone.
+  let freshnessClass = "text-muted-foreground hover:text-foreground"
+  let dotColor: string | null = null
 
   if (isFuture) {
-    // Future dates — always show as an active countdown
+    // A live countdown genuinely deserves emphasis — but only via colour.
     if (absMinutes < 60) {
-      freshnessClass = "text-amber-400 font-semibold hover:text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]"
-      dotColor = "bg-amber-400 shadow-[0_0_6px_#fbbf24] animate-pulse"
+      freshnessClass = "text-amber-600 dark:text-amber-400 font-semibold"
+      dotColor = "bg-amber-500"
     } else if (absHours < 24) {
-      freshnessClass = "text-cyan-400 font-semibold hover:text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]"
-      dotColor = "bg-cyan-400 shadow-[0_0_6px_#22d3ee]"
+      freshnessClass = "text-cyan-700 dark:text-cyan-400 font-semibold"
+      dotColor = "bg-cyan-500"
     } else {
-      freshnessClass = "text-teal-300 font-medium hover:text-teal-200"
-      dotColor = "bg-teal-400"
+      freshnessClass = "text-teal-700 dark:text-teal-400 font-medium"
+      dotColor = "bg-teal-500"
     }
   } else if (diffMinutes < 60) {
-    // Under 1hr: Bright glowing cyan
-    freshnessClass = "text-cyan-400 font-semibold hover:text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]"
-    dotColor = "bg-cyan-400 shadow-[0_0_6px_#22d3ee] animate-ping"
+    // Under 1hr
+    dotColor = "bg-emerald-500"
   } else if (diffHours < 6) {
-    // 1hr - 6hr: Vivid teal
-    freshnessClass = "text-teal-300 font-medium hover:text-teal-200"
-    dotColor = "bg-teal-400"
+    // 1hr - 6hr
+    dotColor = "bg-emerald-500/70"
   } else if (diffHours < 24) {
-    // 6hr - 24hr: Fading soft cyan-gray
-    freshnessClass = "text-slate-300/90 font-normal hover:text-slate-200"
+    // 6hr - 24hr
+    dotColor = "bg-amber-500/60"
   } else {
-    // 24hr+: Standard muted gray
-    freshnessClass = "text-slate-400/80 font-normal hover:text-slate-300"
+    // 24hr+ — no dot at all, nothing to signal.
+    freshnessClass = "text-muted-foreground/80 hover:text-foreground"
   }
 
   return (
@@ -115,7 +119,7 @@ export function FreshnessTimestamp({
             <span>{relativeText}</span>
           </span>
         </TooltipTrigger>
-        <TooltipContent side="top" className="bg-slate-900/95 border border-white/10 text-slate-100 text-xs shadow-xl">
+        <TooltipContent side="top" className="border border-border bg-popover text-popover-foreground text-xs shadow-xl">
           <p className="font-medium">{fullDateTime}</p>
         </TooltipContent>
       </Tooltip>

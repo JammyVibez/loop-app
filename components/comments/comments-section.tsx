@@ -548,7 +548,7 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
                   @{comment.author?.username}
                 </Link>
                 <FreshnessTimestamp date={comment.created_at} showIcon />
-                {comment.is_edited && <span className="text-xs text-muted-foreground">(edited)</span>}
+                {Boolean(comment.is_edited) && <span className="text-xs text-muted-foreground">(edited)</span>}
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
