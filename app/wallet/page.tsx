@@ -519,7 +519,7 @@ function WalletContent() {
       const data = await res.json()
       if (res.ok && data.success) {
         toast({
-          title: "Item Equipped ✨",
+          title: "Item Equipped",
           description: data.message,
         })
       }

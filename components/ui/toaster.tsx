@@ -19,10 +19,10 @@ export function Toaster() {
 
   return (
     <ToastProvider swipeDirection="right">
-      {toasts?.map(function ({ id, title, description, action, variant, ...props }) {
+      {toasts?.map(function ({ id, title, description, action, variant, icon, ...props }) {
         return (
           <Toast key={id} variant={variant} {...props}>
-            <ToastIcon variant={variant} />
+            <ToastIcon variant={variant} icon={icon} />
             <div className="grid min-w-0 flex-1 gap-0.5">
               {title && <ToastTitle>{title}</ToastTitle>}
               {description && (

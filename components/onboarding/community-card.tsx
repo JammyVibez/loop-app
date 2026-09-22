@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { Check, Loader2, Lock, Sparkles, Users } from "lucide-react"
+import { Check, Crown, Loader2, Lock, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
@@ -191,7 +191,7 @@ export function CommunityCard({ community, index = 0, joined, pending, onJoin }:
             </>
           ) : community.is_premium ? (
             <>
-              <Sparkles className="h-3.5 w-3.5" /> Join Pro space
+              <Crown className="h-3.5 w-3.5" /> Join Pro space
             </>
           ) : (
             <>Join</>

@@ -9,7 +9,7 @@ import {
   Flame,
   History,
   Radio,
-  Sparkles,
+  CheckCircle2,
   Trophy,
   Vote,
 } from "lucide-react"
@@ -452,7 +452,7 @@ export function CircleCanvas({
                   "Powers decide who can moderate, invite and run threads.",
                 ].map((line) => (
                   <p key={line} className="flex items-start gap-2.5 text-xs leading-relaxed text-muted-foreground">
-                    <Sparkles className="mt-px h-3 w-3 shrink-0 text-muted-foreground/60" />
+                    <CheckCircle2 className="mt-px h-3 w-3 shrink-0 text-muted-foreground/60" />
                     {line}
                   </p>
                 ))}

@@ -25,7 +25,8 @@ import {
   MonitorPlay,
   Pause,
   Play,
-  Sparkles,
+  Gift,
+  Package,
   Target,
   Zap,
 } from "lucide-react"
@@ -238,7 +239,7 @@ export default function QuestDetailClient({ questId }: { questId: string }) {
               <span className="inline-flex items-center gap-1 text-violet-500"><Zap className="h-4 w-4" /> {quest.reward_xp.toLocaleString()} XP</span>
             )}
             {quest.reward_item_preview && (
-              <span className="inline-flex items-center gap-1 text-pink-500"><Sparkles className="h-4 w-4" /> {quest.reward_item_preview.name}</span>
+              <span className="inline-flex items-center gap-1 text-pink-500"><Package className="h-4 w-4" /> {quest.reward_item_preview.name}</span>
             )}
             {!quest.reward_coins && !quest.reward_xp && !quest.reward_item_preview && (
               <span>{quest.reward_label || "Quest reward"}</span>
@@ -291,7 +292,7 @@ export default function QuestDetailClient({ questId }: { questId: string }) {
           <div className="mt-4">
             {quest.state === "claimable" ? (
               <Button size="lg" className="w-full rounded-full" disabled={claiming} onClick={claim}>
-                {claiming ? <Spinner className="h-4 w-4" /> : <Sparkles className="mr-1.5 h-4 w-4" />}
+                {claiming ? <Spinner className="h-4 w-4" /> : <Gift className="mr-1.5 h-4 w-4" />}
                 Claim reward
               </Button>
             ) : quest.state === "claimed" ? (
@@ -310,7 +311,7 @@ export default function QuestDetailClient({ questId }: { questId: string }) {
       {/* Mission claim */}
       {quest.quest_kind === "mission" && quest.state === "claimable" && (
         <Button size="lg" className="w-full rounded-full" disabled={claiming} onClick={claim}>
-          {claiming ? <Spinner className="h-4 w-4" /> : <Sparkles className="mr-1.5 h-4 w-4" />}
+          {claiming ? <Spinner className="h-4 w-4" /> : <Gift className="mr-1.5 h-4 w-4" />}
           Claim mission reward
         </Button>
       )}

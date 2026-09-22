@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Coins, Edit, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Pin, PinOff, Plus, Share2, Sparkles, Zap, Trophy, Upload, Users, Package, Building2, } from "lucide-react"
+import { ArrowLeft, Calendar, Coins, Edit, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Pin, PinOff, Plus, Palette, Share2, Wand2, Zap, Trophy, Upload, Users, Package, Building2, } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -831,7 +831,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             {(cosmetics.badge || cosmetics.frame || cosmetics.aura || cosmetics.effect || cosmetics.font || cosmetics.cardEffect) && (
               <div className="rounded-xl border border-border/60 bg-gradient-to-br from-violet-500/5 via-transparent to-cyan-500/5 p-3 space-y-2.5">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Sparkles className="h-3 w-3 text-violet-400" /> Equipped Cosmetics
+                  <Palette className="h-3 w-3 text-violet-400" /> Equipped Cosmetics
                 </p>
                 <div className="flex flex-col gap-1.5">
                   {cosmetics.frame && (
@@ -872,7 +872,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                   {cosmetics.cardEffect && (
                     <div className="flex items-center gap-2 rounded-lg bg-background/80 px-2.5 py-1.5">
                       <div className="flex h-5 w-5 items-center justify-center rounded-full bg-pink-500/20">
-                        <Sparkles className="h-3 w-3 text-pink-400" />
+                        <Wand2 className="h-3 w-3 text-pink-400" />
                       </div>
                       <span className="text-xs font-medium">{cosmetics.cardEffect.name || 'Card Effect'}</span>
                       <Badge variant="outline" className="ml-auto text-[10px] px-1.5 py-0">Card</Badge>

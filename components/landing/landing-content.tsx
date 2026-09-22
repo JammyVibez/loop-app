@@ -13,7 +13,7 @@ import {
   BarChart3,
   Trophy,
   Play,
-  Sparkles,
+  Users,
   Smartphone,
 } from "lucide-react"
 import Link from "next/link"
@@ -526,7 +526,7 @@ export function LandingContent() {
             <div className="mx-auto mt-14 grid max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3">
               {[
                 {
-                  icon: Sparkles,
+                  icon: Users,
                   title: "Creators",
                   description: "Grow an audience, earn real money, and own every piece of content you put on Loop.",
                 },

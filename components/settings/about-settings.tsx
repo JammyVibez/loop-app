@@ -10,7 +10,6 @@ import { useAuth } from "@/hooks/use-auth"
 import { persistFeatureTourSeen, resetFeatureTourLocally } from "@/lib/feature-tour"
 import {
   Info,
-  Sparkles,
   FileText,
   ShieldCheck,
   HeartHandshake,
@@ -84,7 +83,7 @@ export function AboutSettings() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <Info className="h-5 w-5 text-primary" />
             About Loop
           </CardTitle>
           <CardDescription>Loop is a social platform for sharing loops, communities, reels, and more.</CardDescription>

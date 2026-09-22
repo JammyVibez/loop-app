@@ -13,7 +13,7 @@ import {
   Pin,
   Radio,
   Scale,
-  Sparkles,
+  Eye,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { timeAgo } from "@/lib/community-engine"
@@ -23,7 +23,7 @@ export const THREAD_KINDS = [
   { id: "make", label: "Make", hint: "Build or ship something together", icon: Hammer },
   { id: "decide", label: "Decide", hint: "Settle a question and record the answer", icon: Scale },
   { id: "ask", label: "Ask", hint: "Get help or a second opinion", icon: HelpCircle },
-  { id: "show", label: "Show", hint: "Share work in progress", icon: Sparkles },
+  { id: "show", label: "Show", hint: "Share work in progress", icon: Eye },
 ] as const
 
 export type ThreadKindId = (typeof THREAD_KINDS)[number]["id"]

@@ -10,7 +10,7 @@ import {
   Plus,
   Search,
   Video,
-  Sparkles,
+  Star,
   X,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
@@ -105,7 +105,7 @@ export function HomeHighlights() {
               aria-expanded={state.expanded}
               className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
             >
-              <Sparkles className="h-3.5 w-3.5" />
+              <Star className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Highlights</span>
               <ChevronDown
                 className={cn(

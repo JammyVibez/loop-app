@@ -17,7 +17,7 @@ import {
   Upload,
   Trash2,
   Image as ImageIcon,
-  Sparkles,
+  Frame,
   Crown,
   GripVertical,
   Plus,
@@ -194,7 +194,7 @@ export function AdminFramesTab() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-amber-500" /> PFP Frames
+            <Frame className="h-5 w-5 text-amber-500" /> PFP Frames
           </h3>
           <p className="text-sm text-muted-foreground">
             Manage profile picture frames. Users can acquire and equip these.

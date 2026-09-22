@@ -421,7 +421,7 @@ export function UserInventory() {
           on this page too — an avatar ring nobody can find is not an inventory. */}
       <section className="space-y-3">
         <div className="flex items-center gap-2 px-0.5">
-          <Sparkles className="h-4 w-4 text-violet-400" />
+          <Layers className="h-4 w-4 text-violet-400" />
           <span className="text-sm font-semibold text-foreground">Profile frames</span>
         </div>
         <ProfileFramesPanel ownedOnly compact avatarUrl={user?.avatar_url} />

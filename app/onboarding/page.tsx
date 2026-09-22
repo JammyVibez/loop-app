@@ -15,7 +15,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Compass,
-  Sparkles,
   Tags,
   UserPlus,
   UserRound,
@@ -464,7 +463,7 @@ export default function OnboardingPage() {
               </p>
               {suggestions.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-10 text-center">
-                  <Sparkles className="h-6 w-6 text-primary" />
+                  <Compass className="h-6 w-6 text-primary" />
                   <p className="text-sm text-muted-foreground">Nothing to suggest yet — that&apos;s fine.</p>
                 </div>
               ) : (

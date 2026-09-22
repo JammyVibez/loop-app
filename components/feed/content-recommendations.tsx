@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 
 import { useAuth } from "@/hooks/use-auth"
 import {
-  Sparkles,
+  Compass,
   TrendingUp,
   Users,
   RefreshCw,
@@ -137,7 +137,7 @@ export function ContentRecommendations({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-cyan-500">
-            <Sparkles className="h-4 w-4 text-white" />
+            <Compass className="h-4 w-4 text-white" />
           </div>
           <h3 className="text-base font-bold">Discover More</h3>
         </div>

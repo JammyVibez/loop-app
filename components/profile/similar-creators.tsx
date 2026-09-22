@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
-import { Users, Check, ArrowRight, Sparkles } from "lucide-react"
+import { Users, Check, ArrowRight } from "lucide-react"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 interface SimilarCreatorsProps {
@@ -139,7 +139,7 @@ export function SimilarCreators({ currentUserId, circles = [] }: SimilarCreators
     <Card className="border-border/50 overflow-hidden">
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-3">
-          <Sparkles className="h-4 w-4 text-primary" />
+          <Users className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold">Similar Creators</h3>
         </div>
 

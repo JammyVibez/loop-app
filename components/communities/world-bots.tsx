@@ -32,7 +32,6 @@ import {
   ExternalLink,
   ShieldCheck,
   Globe2,
-  Sparkles,
   Send,
   X,
   ArrowUpRight,
@@ -492,7 +491,7 @@ function BotFormDialog({ communityId, onClose, onSaved }: { communityId: string;
       <DialogContent className="max-h-[90vh] overflow-y-auto max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-indigo-500" /> Add a bot
+            <Bot className="h-5 w-5 text-indigo-500" /> Add a bot
           </DialogTitle>
           <DialogDescription>Deploy a live bot or drop in code buyers can self-host.</DialogDescription>
         </DialogHeader>

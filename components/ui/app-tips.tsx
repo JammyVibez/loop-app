@@ -7,7 +7,7 @@ import {
   GitBranch,
   Gift,
   Users,
-  Sparkles,
+  Rocket,
   Shield,
   Trophy,
   MessageCircle,
@@ -16,7 +16,6 @@ import {
   Eye,
   Palette,
   Radio,
-  Rocket,
   Heart,
 } from "lucide-react"
 
@@ -101,7 +100,7 @@ const APP_TIPS: Tip[] = [
     color: "text-red-500",
   },
   {
-    icon: Sparkles,
+    icon: Rocket,
     title: "Content Boosts",
     description: "Boost your posts with coins to get more visibility. Spend smart, grow faster.",
     color: "text-indigo-500",

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { Download, Crown, Wallet, ShoppingBag, Sparkles, Loader2, User } from "lucide-react"
+import { Download, Crown, Wallet, ShoppingBag, Loader2, User } from "lucide-react"
 
 export function AccountSettings() {
   const { user, getAuthHeader } = useAuth()
@@ -83,7 +83,7 @@ export function AccountSettings() {
               {!user.is_premium && (
                 <Button asChild size="sm" variant="outline" className="mt-2 w-full rounded-full text-xs">
                   <Link href="/premium">
-                    <Sparkles className="mr-1 h-3 w-3" /> Go Pro
+                    <Crown className="mr-1 h-3 w-3" /> Go Pro
                   </Link>
                 </Button>
               )}

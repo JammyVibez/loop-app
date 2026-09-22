@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Hash, Search, TrendingUp, Users, X, Clock, ArrowRight, Flame, Sparkles, Zap } from "lucide-react"
+import { Hash, Search, TrendingUp, Users, X, Clock, ArrowRight, Flame, UserPlus, Zap } from "lucide-react"
 import { Header } from "@/components/header"
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav"
 import { Input } from "@/components/ui/input"
@@ -292,7 +292,7 @@ export default function SearchLandingPage() {
         {trendingUsers.length > 0 && q.trim().length < 2 && (
           <section>
             <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              <Sparkles className="h-3.5 w-3.5" /> Suggested users
+              <UserPlus className="h-3.5 w-3.5" /> Suggested users
             </h2>
             <div className="space-y-1 rounded-2xl border border-border/60 bg-card/40 divide-y divide-border/50">
               {trendingUsers.map((u) => (

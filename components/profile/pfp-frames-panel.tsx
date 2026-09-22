@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { Check, Crown, Lock, Sparkles, UserRound } from "lucide-react"
+import { Check, Crown, Frame, Lock, UserRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
@@ -379,7 +379,7 @@ export function ProfileFramesPanel({
   if (available.length === 0) {
     return (
       <div className={cn("rounded-2xl border border-border bg-card p-8 text-center", className)}>
-        <Sparkles className="mx-auto h-5 w-5 text-violet-500" aria-hidden />
+        <Frame className="mx-auto h-5 w-5 text-violet-500" aria-hidden />
         <p className="mt-2 text-sm font-semibold text-foreground">
           {ownedOnly ? "You don't own a frame yet" : "No frames on the rack yet"}
         </p>
@@ -497,7 +497,7 @@ export function ProfileFramesPanel({
                 ) : selected.price_coins > 0 ? (
                   <Crown className="mr-1.5 h-3.5 w-3.5" />
                 ) : (
-                  <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                  <Frame className="mr-1.5 h-3.5 w-3.5" />
                 )}
                 {selected.price_coins > 0 ? `Get for ${selected.price_coins.toLocaleString()}` : "Get free"}
               </Button>

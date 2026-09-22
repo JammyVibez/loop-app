@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, Check, Settings, Heart, MessageCircle, UserPlus, GitBranch, AtSign, Gift, Mail, BellRing, ChevronRight, Lock, Coins, Megaphone, Radio, Phone, Trophy, Users, Sparkles, Swords, ShieldCheck, Zap } from "lucide-react"
+import { Bell, Check, Settings, Heart, MessageCircle, UserPlus, GitBranch, AtSign, Gift, Mail, BellRing, ChevronRight, Lock, Coins, Megaphone, Radio, Phone, Trophy, Users, Crown, Info, Swords, ShieldCheck, Zap } from "lucide-react"
 import { NotificationQuickReply } from "@/components/notifications/notification-quick-reply";
 import { getNotificationCopy, SYSTEM_SENDER } from "@/lib/notification-copy";
 import { useAuth } from "@/hooks/use-auth";
@@ -64,7 +64,7 @@ const TYPE_CONFIG: Record<string, { icon: typeof Heart; color: string; bg: strin
   broadcast: { icon: Megaphone, color: "text-primary", bg: "bg-primary/10", label: "Announcement" },
   award: { icon: Trophy, color: "text-amber-500", bg: "bg-amber-500/10", label: "Award" },
   coin_reward: { icon: Coins, color: "text-amber-500", bg: "bg-amber-500/10", label: "Coins" },
-  pro_grant: { icon: Sparkles, color: "text-primary", bg: "bg-primary/10", label: "Pro" },
+  pro_grant: { icon: Crown, color: "text-primary", bg: "bg-primary/10", label: "Pro" },
   live_stream_started: { icon: Radio, color: "text-red-500", bg: "bg-red-500/10", label: "Live" },
   creator_live: { icon: Radio, color: "text-red-500", bg: "bg-red-500/10", label: "Live" },
   call_incoming: { icon: Phone, color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Call" },
@@ -429,7 +429,7 @@ export function NotificationDropdown() {
                             <FreshnessTimestamp date={notification.updated_at || notification.created_at} showIcon />
                             {copy.system && (
                               <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground">
-                                <Sparkles className="h-2.5 w-2.5" />
+                                <Info className="h-2.5 w-2.5" />
                                 {SYSTEM_SENDER}
                               </span>
                             )}

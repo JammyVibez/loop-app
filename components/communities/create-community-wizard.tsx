@@ -17,7 +17,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  Sparkles,
+  LayoutTemplate,
   Globe2,
   ImagePlus,
   Lock,
@@ -308,7 +308,7 @@ export function CreateCommunityWizard() {
                 className={`rounded-2xl border p-4 text-left transition ${template === "accept" ? "border-indigo-500 bg-indigo-500/10 ring-2 ring-indigo-500/30" : "border-border hover:border-indigo-500/40"}`}
               >
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-indigo-500" />
+                  <LayoutTemplate className="h-4 w-4 text-indigo-500" />
                   <p className="font-semibold text-sm">Full template</p>
                   {template === "accept" && <Check className="ml-auto h-4 w-4 text-indigo-500" />}
                 </div>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Header } from "@/components/header";
 import { ExploreContent } from "@/components/explore/explore-content";
-import { Sparkles } from "lucide-react";
+import { Film } from "lucide-react";
 
 export default function ExplorePage() {
   return (
@@ -22,7 +22,7 @@ export default function ExplorePage() {
           >
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-teal-500 text-white shadow-md shadow-violet-500/20">
-                <Sparkles className="h-5 w-5" />
+                <Film className="h-5 w-5" />
               </span>
               <div>
                 <p className="font-bold">Explore Reels</p>

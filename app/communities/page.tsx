@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Header } from "@/components/header"
 import { DiscoverCommunities } from "@/components/communities/discover-communities"
 import { AdSlot } from "@/components/ads/ad-slot"
-import { Globe2, Sparkles, Users, Flame } from "lucide-react"
+import { Globe2, Plus, Users, Flame } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 
 export const dynamic = "force-dynamic"
@@ -56,7 +56,7 @@ export default async function CommunitiesPage() {
                   href="/communities/create"
                   className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-500"
                 >
-                  <Sparkles className="h-4 w-4" />
+                  <Plus className="h-4 w-4" />
                   Create a Community
                 </Link>
                 <div className="flex items-center gap-4 text-xs text-muted-foreground">

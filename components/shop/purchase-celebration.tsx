@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, Coins, Sparkles } from "lucide-react"
+import { ArrowRight, Coins, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Lottie } from "@/components/ui/lottie"
@@ -84,7 +84,7 @@ export function PurchaseCelebration({
           {payload?.hasInventoryEntry ? (
             <Button asChild className="rounded-full">
               <Link href="/inventory" onClick={onClose}>
-                <Sparkles className="mr-1.5 h-4 w-4" />
+                <Package className="mr-1.5 h-4 w-4" />
                 Open inventory
               </Link>
             </Button>

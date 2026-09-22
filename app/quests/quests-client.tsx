@@ -17,7 +17,7 @@ import {
   ListChecks,
   MessagesSquare,
   MonitorPlay,
-  Sparkles,
+  Package,
   Star,
   Target,
   TrendingUp,
@@ -215,7 +215,7 @@ export default function QuestsClient() {
     const featuredRest = active.filter(
       (q) => q.featured && !featuredMission.includes(q) && !daily.includes(q) && !weekly.includes(q) && !limited.includes(q) && !games.includes(q) && !surveys.includes(q) && !watch.includes(q) && !community.includes(q) && !missions.includes(q),
     )
-    if (featuredRest.length > 0) out.push({ key: "featured", label: "Featured", icon: Sparkles, quests: featuredRest })
+    if (featuredRest.length > 0) out.push({ key: "featured", label: "Featured", icon: Star, quests: featuredRest })
 
     if (claimed.length > 0) out.push({ key: "completed", label: "Completed", icon: Trophy, quests: claimed })
 
@@ -504,7 +504,7 @@ function QuestCard({
           )}
           {quest.reward_item_preview && (
             <span className="inline-flex items-center gap-1 font-semibold text-pink-500">
-              <Sparkles className="h-3 w-3" /> {quest.reward_item_preview.name}
+              <Package className="h-3 w-3" /> {quest.reward_item_preview.name}
             </span>
           )}
           {est && <span>{est}</span>}
@@ -607,7 +607,7 @@ function FeaturedMissionCard({
           )}
           {quest.reward_item_preview && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-pink-500/10 px-3 py-1 text-sm font-bold text-pink-500">
-              <Sparkles className="h-4 w-4" /> {quest.reward_item_preview.name}
+              <Package className="h-4 w-4" /> {quest.reward_item_preview.name}
             </span>
           )}
           <div className="ml-auto">

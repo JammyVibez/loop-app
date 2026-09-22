@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Coins, LayoutGrid, Sparkles, Wallet } from "lucide-react"
+import { Coins, LayoutGrid, ShoppingBag, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Lottie } from "@/components/ui/lottie"
 import { COIN } from "@/components/shop/shop-art"
@@ -45,7 +45,7 @@ export function ShopHero({ coins, ownedCount, availableCount, onBrowseCoins, onB
       <div className="relative grid gap-8 p-6 sm:p-8 md:grid-cols-[1.5fr_1fr] md:items-center">
         <div className="min-w-0">
           <p className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
-            <Sparkles className="h-3 w-3 text-violet-500" />
+            <ShoppingBag className="h-3 w-3 text-violet-500" />
             Loop Shop
           </p>
 

@@ -58,6 +58,12 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (existingSession) {
+      // A retired room can never be rejoined — the published Loop it produced
+      // is the durable artifact, not the studio session.
+      if (existingSession.deleted_at) {
+        return NextResponse.json({ error: "This room has been deleted", deleted: true }, { status: 410 })
+      }
+
       // Caller is not the owner and not already a co-author — persist them as
       // a real co-author of this session (this is the durable roster that
       // both the Primary Creator's and every Co-Author's studio view read
@@ -83,7 +89,13 @@ export async function POST(request: NextRequest) {
         owner_username: existingSession.owner_username,
         inviter: existingSession.owner || { id: existingSession.owner_id, username: existingSession.owner_username },
         is_owner: existingSession.owner_id === callingUser.id,
+        locked: Boolean(existingSession.locked),
         co_authors: coAuthors,
+        draft: {
+          title: existingSession.draft_title || "",
+          content: existingSession.draft_content || "",
+          updated_at: existingSession.draft_updated_at || null,
+        },
       })
     }
 
@@ -111,7 +123,13 @@ export async function POST(request: NextRequest) {
       owner_username: ownerUsername,
       inviter: callerProfile || newSession?.owner || { id: callingUser.id, username: ownerUsername },
       is_owner: true,
+      locked: Boolean(newSession?.locked),
       co_authors: newSession?.co_authors || [],
+      draft: {
+        title: newSession?.draft_title || "",
+        content: newSession?.draft_content || "",
+        updated_at: newSession?.draft_updated_at || null,
+      },
     })
   } catch (error: any) {
     console.error("Session info POST error:", error)
@@ -132,21 +150,49 @@ export async function PATCH(request: NextRequest) {
     const session_id = body.session_id || body.sessionId
     const status = body.status
     const published_loop_id = body.published_loop_id || body.publishedLoopId || null
+    const hasDraft =
+      typeof body.draft_title === "string" || typeof body.draft_content === "string"
 
-    if (!session_id || !["active", "published", "ended"].includes(status)) {
-      return NextResponse.json({ error: "session_id and a valid status are required" }, { status: 400 })
+    if (!session_id) {
+      return NextResponse.json({ error: "session_id is required" }, { status: 400 })
+    }
+    if (!hasDraft && !["active", "published", "ended"].includes(status)) {
+      return NextResponse.json({ error: "A valid status is required" }, { status: 400 })
     }
 
-    const { error } = await supabase
+    // While the host has the room locked, nobody else may write the draft or
+    // change session state — the lock is enforced server-side, not just in the UI.
+    const { data: current } = await supabase
       .from("co_loop_sessions")
-      .update({ status, published_loop_id, updated_at: new Date().toISOString() })
+      .select("owner_id, locked, deleted_at")
       .eq("session_id", session_id)
+      .maybeSingle()
+    if (current?.deleted_at) {
+      return NextResponse.json({ error: "This room has been deleted" }, { status: 410 })
+    }
+    if (current?.locked && current.owner_id !== callingUser.id) {
+      return NextResponse.json({ error: "The host has locked this room" }, { status: 403 })
+    }
+
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    if (status) patch.status = status
+    if (published_loop_id) patch.published_loop_id = published_loop_id
+    if (hasDraft) {
+      // Autosave of the shared draft — durable so the room can rehydrate it.
+      if (typeof body.draft_title === "string") patch.draft_title = body.draft_title.slice(0, 500)
+      if (typeof body.draft_content === "string") patch.draft_content = body.draft_content.slice(0, 40_000)
+      patch.draft_updated_at = new Date().toISOString()
+    }
+
+    const { error } = await supabase.from("co_loop_sessions").update(patch).eq("session_id", session_id)
 
     if (error) {
-      console.warn("co_loop_sessions status update failed:", error.message)
+      // Older deployments may not have the draft columns yet.
+      console.warn("co_loop_sessions update failed:", error.message)
+      if (hasDraft) return NextResponse.json({ success: true, session_id, draft_persisted: false })
     }
 
-    return NextResponse.json({ success: true, session_id, status })
+    return NextResponse.json({ success: true, session_id, status, draft_persisted: hasDraft ? !error : undefined })
   } catch (error: any) {
     console.error("Session info PATCH error:", error)
     return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 })

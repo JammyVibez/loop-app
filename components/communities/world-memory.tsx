@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { formatDate } from "@/lib/community-engine"
-import { History, Plus, Trophy, Star, Megaphone, Sparkles } from "lucide-react"
+import { History, Plus, Trophy, Star, Megaphone, Bot } from "lucide-react"
 import { Spinner } from "@/components/ui/skeletons"
 
 const KIND_META: Record<string, { emoji: string; label: string }> = {
@@ -130,7 +130,7 @@ export function WorldMemory({
                     {m.description && <p className="mt-1 text-xs text-muted-foreground">{m.description}</p>}
                     {m.is_auto && (
                       <span className="mt-1.5 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide text-indigo-500">
-                        <Sparkles className="h-2.5 w-2.5" /> auto-recorded
+                        <Bot className="h-2.5 w-2.5" /> auto-recorded
                       </span>
                     )}
                   </div>

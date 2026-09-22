@@ -51,6 +51,13 @@ const DEFAULT_FILES = [
   // every community event RSVP failed. Repairs the FK, adds the constraint
   // the route's ON CONFLICT needs, and resyncs attendee counts.
   "scripts/fix-circle-event-participants.sql",
+  // Co-Loop version history is now stored server-side (was localStorage-only,
+  // so the timeline vanished on refresh and co-authors never shared it).
+  "scripts/co-loop-versions-schema.sql",
+  // Draft text for a Co-Loop session, so a shared draft survives reloads.
+  "scripts/co-loop-draft-schema.sql",
+  // Per-session activity feed (who wrote what) + host lock/delete room controls.
+  "scripts/co-loop-room-controls.sql",
 ]
 
 // Allow a targeted run: node apply-pending-schema.mjs scripts/foo.sql …

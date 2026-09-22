@@ -5,9 +5,9 @@ import * as ToastPrimitives from "@radix-ui/react-toast";
 import { cva, type VariantProps } from "class-variance-authority";
 import {
   AlertTriangle,
+  Bell,
   CheckCircle2,
   Info,
-  Sparkles,
   X,
   XCircle,
   type LucideIcon,
@@ -85,9 +85,17 @@ Toast.displayName = ToastPrimitives.Root.displayName
 
 type ToastVariant = NonNullable<VariantProps<typeof toastVariants>["variant"]>
 
-/** Icon, tint and accent per kind of notice. */
+/**
+ * Icon, tint and accent per kind of notice.
+ *
+ * `default` deliberately uses a neutral bell rather than the old violet
+ * sparkles: a generic notice that borrows the "AI/feature" sparkle reads as
+ * something it isn't, and it made every untinted toast in the app look the
+ * same. Callers that want a subject-specific mark (coins, gifts, live) pass
+ * `icon` to `toast()` and override this.
+ */
 const TONE: Record<ToastVariant, { icon: LucideIcon; chip: string; ring: string }> = {
-  default: { icon: Sparkles, chip: "bg-violet-500/15 text-violet-500", ring: "text-violet-500" },
+  default: { icon: Bell, chip: "bg-muted text-foreground", ring: "text-foreground" },
   success: { icon: CheckCircle2, chip: "bg-emerald-500/15 text-emerald-500", ring: "text-emerald-500" },
   error: { icon: XCircle, chip: "bg-rose-500/15 text-rose-500", ring: "text-rose-500" },
   destructive: { icon: XCircle, chip: "bg-rose-500/15 text-rose-500", ring: "text-rose-500" },
@@ -100,9 +108,16 @@ export function toastTone(variant?: ToastVariant | null) {
 }
 
 /** The mark that says what kind of notice this is before a word is read. */
-export function ToastIcon({ variant }: { variant?: ToastVariant | null }) {
+export function ToastIcon({
+  variant,
+  icon,
+}: {
+  variant?: ToastVariant | null
+  /** Call-site override — lets a specific notice say what it is about. */
+  icon?: LucideIcon | null
+}) {
   const tone = toastTone(variant)
-  const Icon = tone.icon
+  const Icon = icon || tone.icon
   return (
     <span
       aria-hidden

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { TreePine, Camera, ArrowRight, Sparkles, Zap, Palette, Music, Gamepad2, Camera as CameraIcon, Rocket } from "lucide-react"
+import { TreePine, Camera, ArrowRight, Star, Zap, Palette, Music, Gamepad2, Camera as CameraIcon, Rocket } from "lucide-react"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { getDiceBearUrl } from "@/lib/dicebear"
 import { useAuth } from "@/hooks/use-auth"
@@ -19,7 +19,7 @@ const FLOATING_ICONS = [
   { Icon: Music, color: "text-rose-400" },
   { Icon: Gamepad2, color: "text-cyan-400" },
   { Icon: CameraIcon, color: "text-sky-400" },
-  { Icon: Sparkles, color: "text-yellow-400" },
+  { Icon: Star, color: "text-yellow-400" },
   { Icon: Rocket, color: "text-orange-400" },
 ]
 
@@ -102,14 +102,14 @@ export function OnboardingWelcome({ onComplete }: OnboardingWelcomeProps) {
               animate={{ rotate: 360 }}
               transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
             >
-              <Sparkles className="text-white/40 h-6 w-6" />
+              <Star className="text-white/40 h-6 w-6" />
             </motion.div>
             <motion.div
               className="absolute bottom-4 left-8"
               animate={{ rotate: -360 }}
               transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
             >
-              <Sparkles className="text-white/30 h-4 w-4" />
+              <Star className="text-white/30 h-4 w-4" />
             </motion.div>
           </div>
 

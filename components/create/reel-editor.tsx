@@ -7,7 +7,7 @@ import {
   RotateCcw, Video, Image as ImageIcon,  Volume2, VolumeX,
   Undo2, Redo2, Crop, RotateCw, FlipHorizontal, FlipVertical,
   Sun, Contrast, Droplets, Frame, Mic, CircleDot, RectangleHorizontal,
-  RectangleVertical, SquareIcon, Sparkles, Sliders, Wand2, Paintbrush,
+  RectangleVertical, SquareIcon, Sliders, Wand2, Paintbrush,
   LayoutTemplate, Repeat, Timer, Layers
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"

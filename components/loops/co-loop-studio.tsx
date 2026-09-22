@@ -1,84 +1,78 @@
 "use client"
 
-import { ProtectedMedia } from "@/components/media-protection"
-
-import { useState, useEffect, useRef, useMemo } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
-import { createClient } from "@/lib/supabase"
-import { uploadMediaFile } from "@/lib/client-media-upload"
+import { useToast } from "@/hooks/use-toast"
 import { absoluteAppUrl, shareContent } from "@/lib/share"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { useToast } from "@/components/ui/use-toast"
-import {
-  Users,
-  Send,
-  Image as ImageIcon,
-  Share2,
-  CheckCircle2,
-  Lock,
-  MessageSquare,
-  Plus,
-  Trash2,
-  
-  Radio,
-  History,
-  UserPlus,
-  Copy,
-  Check,
-  Crown,
-  Coins,
-  X,
-  Flame,
-  Zap,
-  Rocket,
-  ShieldCheck,
-  ExternalLink,
-  Layers,
-  Upload,
-  Paperclip,
-  Power,
-  Globe,
-  List,
-} from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog"
-import { CoLoopVersionHistory, CoLoopVersion } from "./co-loop-version-history"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Spinner } from "@/components/ui/skeletons"
+import { Check, Coins, Crown, Globe, Lock, Rocket, Save, Unlock, Users, UserPlus } from "lucide-react"
+import { CoLoopVersionHistory, type CoLoopVersion } from "./co-loop-version-history"
+import { CoLoopCanvas, type RemoteEdit } from "./studio/co-loop-canvas"
+import { CoLoopActivityRail } from "./studio/co-loop-activity-rail"
+import { StudioCommandBar } from "./studio/studio-command-bar"
+import { StudioDialogs } from "./studio/studio-dialogs"
+import { useCoLoopRealtime } from "./studio/use-co-loop-realtime"
+import {
+  MAX_CO_AUTHORS,
+  colorForParticipant,
+  type StudioActivityAction,
+  type StudioActivityEntry,
+  type StudioChatMessage,
+  type StudioDocState,
+  type StudioField,
+  type StudioMediaType,
+  type StudioMetaPatch,
+  type StudioParticipant,
+  type StudioRoomEvent,
+} from "./studio/studio-types"
 
-interface Collaborator {
-  id: string
-  username: string
-  display_name: string
-  avatar_url?: string
-  role?: string
-  typingField?: string | null
-  color?: string
+const EMPTY_DOC: StudioDocState = {
+  title: "",
+  content: "",
+  hashtags: [],
+  mediaUrl: "",
+  mediaUrls: [],
+  mediaType: "text",
 }
 
-interface ChatMessage {
-  id: string
-  sender_id: string
-  sender_name: string
-  sender_avatar?: string
-  text: string
-  timestamp: string
+/** How long after the last keystroke the shared draft is persisted. */
+const DRAFT_SAVE_MS = 3000
+/** Minimum gap between one author's "edited the draft" entries in the feed. */
+const EDIT_ENTRY_COOLDOWN_MS = 10 * 60 * 1000
+
+function formatStamp(value?: string | null) {
+  if (!value) return "just now"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "just now"
+  return date.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
 }
 
-const AVATAR_COLORS = ["#22d3ee", "#a855f7", "#34d399", "#f43f5e", "#fbbf24"]
-const MAX_CO_AUTHORS = 4 // 1 primary creator + up to 4 invited co-authors
+function mapServerVersion(row: any): CoLoopVersion {
+  return {
+    id: String(row.id),
+    versionNumber: Number(row.version_number) || 1,
+    title: row.title || "",
+    content: row.content || "",
+    hashtags: Array.isArray(row.hashtags) ? row.hashtags : [],
+    mediaUrl: row.media_url || "",
+    mediaUrls: Array.isArray(row.media_urls) ? row.media_urls : [],
+    mediaType: (row.media_type || "text") as StudioMediaType,
+    coAuthors: Array.isArray(row.co_authors) ? row.co_authors : [],
+    timestamp: formatStamp(row.created_at),
+    createdAt: row.created_at ? Date.parse(row.created_at) : Date.now(),
+    label: row.label || undefined,
+    savedBy: {
+      id: row.saved_by_id || "",
+      name: row.saved_by_name || "Collaborator",
+      avatar: row.saved_by_avatar || null,
+    },
+  }
+}
 
 export function CoLoopStudio() {
   const { user, getAuthHeader } = useAuth()
@@ -86,2136 +80,1226 @@ export function CoLoopStudio() {
   const router = useRouter()
   const { toast } = useToast()
 
-  // Ensure every session has a unique session ID
   const paramSession = searchParams.get("session")
-  const [sessionId, setSessionId] = useState<string>(() => {
-    return paramSession || `session-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
-  })
+  const [sessionId, setSessionId] = useState(
+    () => paramSession || `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+  )
 
-  // Keep URL searchParam in sync with active sessionId
+  // Keep the URL in sync so an invite link always points at the live room.
   useEffect(() => {
-    const currentParam = searchParams.get("session")
-    if (!currentParam && sessionId) {
+    const current = searchParams.get("session")
+    if (!current && sessionId) {
       router.replace(`/co-loop/studio?session=${encodeURIComponent(sessionId)}`)
-    } else if (currentParam && currentParam !== sessionId) {
-      setSessionId(currentParam)
+    } else if (current && current !== sessionId) {
+      setSessionId(current)
     }
   }, [searchParams, sessionId, router])
 
-  // Live Post State
-  const [postTitle, setPostTitle] = useState("")
-  const [postContent, setPostContent] = useState("")
-  const [hashtags, setHashtags] = useState<string[]>([])
-  const [hashtagInput, setHashtagInput] = useState("")
-  const [mediaUrl, setMediaUrl] = useState("")
-  const [mediaUrls, setMediaUrls] = useState<string[]>([])
-  const [mediaType, setMediaType] = useState<"text" | "image" | "video">("text")
-  const [uploadingMedia, setUploadingMedia] = useState(false)
-  const [dragActive, setDragActive] = useState(false)
-  const dragDepthRef = useRef(0)
-
-  // Real-time Collaboration & Version History State
-  const [collaborators, setCollaborators] = useState<Collaborator[]>([])
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
-  const [chatInput, setChatInput] = useState("")
-  const [publishing, setPublishing] = useState(false)
-  const [invitedUserInput, setInvitedUserInput] = useState("")
-  const [coAuthors, setCoAuthors] = useState<Collaborator[]>([])
-  const [userSuggestions, setUserSuggestions] = useState<any[]>([])
-  const [searchingUsers, setSearchingUsers] = useState(false)
-  const [showSuggestions, setShowSuggestions] = useState(false)
-
-  // Side Chat Thread Drawer State
-  const [isChatOpen, setIsChatOpen] = useState(false)
-  const [unreadChatCount, setUnreadChatCount] = useState(0)
-  // Mirrors isChatOpen for use inside the realtime channel's broadcast
-  // handlers without making the channel-setup effect depend on it (see
-  // isChatOpenRef usage below for why).
-  const isChatOpenRef = useRef(false)
+  /* ── Document ─────────────────────────────────────────────────── */
+  const [doc, setDoc] = useState<StudioDocState>(EMPTY_DOC)
+  const docRef = useRef<StudioDocState>(EMPTY_DOC)
   useEffect(() => {
-    isChatOpenRef.current = isChatOpen
-  }, [isChatOpen])
+    docRef.current = doc
+  }, [doc])
 
-  // Real-time Typing Status State
-  const [typingUsers, setTypingUsers] = useState<Record<string, { username: string; display_name: string; field: "title" | "content" }>>({})
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [remoteEdit, setRemoteEdit] = useState<RemoteEdit | null>(null)
+  const remoteSeqRef = useRef(0)
+  const bumpRemoteEdit = useCallback((field: StudioField, ops: RemoteEdit["ops"]) => {
+    remoteSeqRef.current += 1
+    setRemoteEdit({ field, ops, seq: remoteSeqRef.current })
+  }, [])
 
-  // Ceremonial Publish State
-  const [publishCeremonyOpen, setPublishCeremonyOpen] = useState(false)
-  const [publishedLoopData, setPublishedLoopData] = useState<any>(null)
-
-  // Version History & Modals State
+  /* ── Session / roster / versions ──────────────────────────────── */
+  const [owner, setOwner] = useState<{
+    id?: string
+    username?: string
+    display_name?: string
+    avatar_url?: string | null
+  } | null>(null)
+  const [roster, setRoster] = useState<StudioParticipant[]>([])
+  const [isOwner, setIsOwner] = useState(false)
+  const [sessionReady, setSessionReady] = useState(false)
+  const [draftLoaded, setDraftLoaded] = useState(false)
   const [versions, setVersions] = useState<CoLoopVersion[]>([])
+  const [versionsLoading, setVersionsLoading] = useState(true)
   const [historyOpen, setHistoryOpen] = useState(false)
-  const [inviteModalOpen, setInviteModalOpen] = useState(false)
-  const [giftModalOpen, setGiftModalOpen] = useState(false)
+  const [savingVersion, setSavingVersion] = useState(false)
+  const [activityFeed, setActivityFeed] = useState<StudioActivityEntry[]>([])
+  const [activityLoading, setActivityLoading] = useState(false)
+  const [locked, setLocked] = useState(false)
+  const lastEditEntryRef = useRef(0)
+
+  /* ── UI ───────────────────────────────────────────────────────── */
+  const [uploadingMedia, setUploadingMedia] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [giftOpen, setGiftOpen] = useState(false)
+  const [openInviteOpen, setOpenInviteOpen] = useState(false)
+  const [ceremonyOpen, setCeremonyOpen] = useState(false)
+  const [publishedAuthors, setPublishedAuthors] = useState(1)
+  const [activityOpen, setActivityOpen] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
-  const [isSendingGift, setIsSendingGift] = useState(false)
   const [sendingInvite, setSendingInvite] = useState(false)
-  const [openInviteModal, setOpenInviteModal] = useState(false)
+  const [sendingGift, setSendingGift] = useState(false)
+  const [publishingOpenInvite, setPublishingOpenInvite] = useState(false)
+  const [inviteQuery, setInviteQuery] = useState("")
+  const [inviteResults, setInviteResults] = useState<any[]>([])
+  const [searchingInvite, setSearchingInvite] = useState(false)
   const [openInviteTopic, setOpenInviteTopic] = useState("")
   const [openInviteMax, setOpenInviteMax] = useState(4)
-  const [publishingOpenInvite, setPublishingOpenInvite] = useState(false)
+  const [savedAt, setSavedAt] = useState<number | null>(null)
 
-  const supabaseRef = useRef<any>(null)
-  const channelRef = useRef<any>(null)
-  const chatEndRef = useRef<HTMLDivElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  /* ── Realtime callbacks ───────────────────────────────────────── */
+  const handleRemoteText = useCallback(
+    (field: StudioField, text: string, ops: RemoteEdit["ops"]) => {
+      bumpRemoteEdit(field, ops)
+      setDoc((prev) => (prev[field] === text ? prev : { ...prev, [field]: text }))
+    },
+    [bumpRemoteEdit]
+  )
 
-  // Load saved versions from local storage for session
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(`co-loop-versions:${sessionId}`)
-      if (stored) {
-        setVersions(JSON.parse(stored))
-      }
-    } catch (err) {
-      console.error("Failed loading local version history:", err)
-    }
-  }, [sessionId])
+  const handleAdoptSnapshot = useCallback(
+    (field: StudioField, text: string) => {
+      bumpRemoteEdit(field, [])
+      setDoc((prev) => (prev[field] === text ? prev : { ...prev, [field]: text }))
+    },
+    [bumpRemoteEdit]
+  )
 
-  // Live user search effect for co-author matching
-  useEffect(() => {
-    const q = invitedUserInput.trim().replace(/^@/, "")
-    if (!q) {
-      setUserSuggestions([])
-      setShowSuggestions(false)
-      return
-    }
+  const handleMeta = useCallback((patch: StudioMetaPatch) => {
+    setDoc((prev) => ({
+      ...prev,
+      hashtags: patch.hashtags ?? prev.hashtags,
+      mediaUrl: patch.mediaUrl ?? prev.mediaUrl,
+      mediaUrls: patch.mediaUrls ?? prev.mediaUrls,
+      mediaType: patch.mediaType ?? prev.mediaType,
+    }))
+  }, [])
 
-    const timer = setTimeout(async () => {
-      setSearchingUsers(true)
-      try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&type=users&limit=6`)
-        if (res.ok) {
-          const data = await res.json()
-          setUserSuggestions(data.users || [])
-          setShowSuggestions(true)
+  const handleRoomEvent = useCallback(
+    (event: StudioRoomEvent) => {
+      switch (event.type) {
+        case "joined":
+          toast({
+            title: `${event.participant.display_name} joined the room`,
+            description:
+              event.participant.role === "Primary Creator"
+                ? "The host is back in the studio."
+                : "They can now write with you in real time.",
+          })
+          break
+        case "left":
+          toast({ title: `${event.participant.display_name} left the room` })
+          break
+        case "version-saved": {
+          const version = event.version as unknown as CoLoopVersion
+          setVersions((prev) => [version, ...prev.filter((v) => v.id !== version.id)])
+          toast({
+            title: `Version v${version.versionNumber} saved`,
+            description: `${version.savedBy?.name || "A collaborator"} captured a checkpoint.`,
+          })
+          break
         }
-      } catch (err) {
-        console.error("Co-author search error:", err)
-      } finally {
-        setSearchingUsers(false)
+        case "version-restored": {
+          const version = event.version as unknown as CoLoopVersion
+          if (!version) break
+          bumpRemoteEdit("content", [])
+          setDoc((prev) => ({
+            ...prev,
+            title: version.title || "",
+            content: version.content || "",
+            hashtags: version.hashtags || [],
+            mediaUrl: version.mediaUrl || "",
+            mediaUrls: version.mediaUrls?.length ? version.mediaUrls : version.mediaUrl ? [version.mediaUrl] : [],
+            mediaType: version.mediaType || "text",
+          }))
+          toast({
+            title: `Reverted to v${version.versionNumber}`,
+            description: `${event.by} restored an earlier checkpoint.`,
+          })
+          break
+        }
+        case "gift":
+          toast({
+            title: `Gift from ${event.senderName}`,
+            description: `${event.amount} coins split — each author received ${event.splitAmount}.`,
+          })
+          break
+        case "session-ended":
+          toast({ title: "Session ended", description: `${event.by} closed this Co-Loop room.` })
+          setTimeout(() => router.push("/"), 1200)
+          break
+        case "published":
+          toast({
+            title: "Co-Loop published",
+            description: `${event.by} published this collaboration — the session is now closed.`,
+          })
+          setTimeout(() => router.push("/"), 1200)
+          break
+        case "room-lock":
+          setLocked(event.locked)
+          toast({
+            title: event.locked ? "Room locked" : "Room unlocked",
+            description: event.locked
+              ? `${event.by} froze the draft — everyone can read, only the host can edit.`
+              : `${event.by} opened the draft for everyone again.`,
+            variant: event.locked ? "warning" : "success",
+            icon: event.locked ? Lock : Unlock,
+          })
+          break
+        case "room-deleted":
+          toast({
+            title: "Room deleted",
+            description: `${event.by} retired this studio room. Taking you back to the feed.`,
+          })
+          setTimeout(() => router.push("/"), 1400)
+          break
+        case "activity":
+          setActivityFeed((prev) =>
+            prev.some((e) => e.id === event.entry.id) ? prev : [event.entry, ...prev].slice(0, 50)
+          )
+          break
+        case "error":
+          toast({ title: "Studio problem", description: event.message, variant: "destructive" })
+          break
       }
-    }, 200)
+    },
+    [bumpRemoteEdit, router, toast]
+  )
 
-    return () => clearTimeout(timer)
-  }, [invitedUserInput])
-
-  // Session Owner & Ownership State
-  const [sessionOwner, setSessionOwner] = useState<{ id?: string; username?: string; display_name?: string; avatar_url?: string } | null>(null)
-  const [isOwner, setIsOwner] = useState<boolean>(false)
-  const [isSessionOwnerLoading, setIsSessionOwnerLoading] = useState<boolean>(true)
-
-  // Ref to hold latest doc state for doc-sync broadcasts without re-subscribing channel
-  const docStateRef = useRef({
-    title: "",
-    content: "",
-    hashtags: [] as string[],
-    mediaUrl: "",
-    mediaUrls: [] as string[],
-    mediaType: "text" as "text" | "image" | "video",
-    coAuthors: [] as Collaborator[],
-    chatMessages: [] as ChatMessage[],
+  const realtime = useCoLoopRealtime({
+    sessionId,
+    enabled: Boolean(user && sessionReady),
+    self: user
+      ? {
+          id: user.id,
+          username: user.username,
+          display_name: user.display_name,
+          avatar_url: (user as any).avatar_url ?? null,
+          video_avatar_url: (user as any).video_avatar_url ?? null,
+          is_premium: user.is_premium,
+        }
+      : null,
+    isOwner,
+    role: isOwner ? "Primary Creator" : "Co-Author",
+    onRemoteText: handleRemoteText,
+    onAdoptSnapshot: handleAdoptSnapshot,
+    onMeta: handleMeta,
+    onRoomEvent: handleRoomEvent,
   })
 
-  useEffect(() => {
-    docStateRef.current = {
-      title: postTitle,
-      content: postContent,
-      hashtags,
-      mediaUrl,
-      mediaUrls,
-      mediaType,
-      coAuthors,
-      chatMessages,
-    }
-  }, [postTitle, postContent, hashtags, mediaUrl, mediaUrls, mediaType, coAuthors, chatMessages])
+  const { seedField, publishField, flushField, focusField, announceMeta, announceVersionSaved } = realtime
 
-  // Fetch Session Info to resolve Primary Creator vs Co-Author
+  /* ── Activity feed ────────────────────────────────────────────────
+   * One durable record per meaningful room event — who saved, restored,
+   * gifted, invited, locked, published, and (coarsely) who wrote what.
+   */
+  const recordActivity = useCallback(
+    async (action: StudioActivityAction, summary?: string) => {
+      if (!user) return
+      try {
+        const res = await fetch("/api/co-loop/activity", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ session_id: sessionId, action, summary }),
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        const entry = data.entry as StudioActivityEntry | undefined
+        if (entry?.id) {
+          setActivityFeed((prev) => [entry, ...prev.filter((e) => e.id !== entry.id)].slice(0, 50))
+          realtime.announceActivity(entry)
+        }
+      } catch {
+        /* the feed is supplementary — never block the action it describes */
+      }
+    },
+    [getAuthHeader, realtime, sessionId, user]
+  )
+
+  /* ── Resolve session: owner, roster, shared draft ─────────────── */
   useEffect(() => {
     if (!user || !sessionId) return
+    let cancelled = false
 
-    const resolveSessionInfo = async () => {
+    const resolve = async () => {
       try {
-        setIsSessionOwnerLoading(true)
-        const authHeaders = getAuthHeader()
-
-        // POST is used for both the owner (creates the session record) and
-        // any invited co-author (durably joins the session's co_authors
-        // roster). This is the single source of truth both the Primary
-        // Creator's and every Co-Author's studio view read from — it used to
-        // be presence-only, which meant the Primary Creator could miss a
-        // co-author whose "join" broadcast arrived before their own
-        // subscription settled, or after a reconnect.
         const res = await fetch("/api/co-loop/session-info", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...authHeaders,
-          },
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
           body: JSON.stringify({ session_id: sessionId }),
         })
         const data = await res.json()
+        if (cancelled) return
 
-        if (data.owner_id || data.inviter) {
-          const ownerObj = data.inviter || { id: data.owner_id, username: data.owner_username }
-          setSessionOwner(ownerObj)
-          const isCallerOwner = Boolean(
-            (data.owner_id && data.owner_id === user.id) ||
-            (ownerObj.id && ownerObj.id === user.id) ||
-            (ownerObj.username && user.username && ownerObj.username.toLowerCase() === user.username.toLowerCase())
+        // The host retired this room — there is nothing left to studio in.
+        if (res.status === 410 || data.deleted) {
+          toast({ title: "Room deleted", description: "This studio room no longer exists." })
+          router.push("/")
+          return
+        }
+        setLocked(Boolean(data.locked))
+
+        const ownerObj = data.inviter || (data.owner_id ? { id: data.owner_id, username: data.owner_username } : null)
+        setOwner(ownerObj)
+        setIsOwner(
+          Boolean(
+            ownerObj?.id
+              ? ownerObj.id === user.id
+              : ownerObj?.username && user.username && ownerObj.username.toLowerCase() === user.username.toLowerCase()
           )
-          setIsOwner(isCallerOwner)
-        } else {
-          setSessionOwner({
-            id: user.id,
-            username: user.username,
-            display_name: user.display_name || user.username,
-          })
-          setIsOwner(true)
+        )
+
+        if (Array.isArray(data.co_authors)) {
+          setRoster(
+            data.co_authors.map((entry: any) => ({
+              id: entry.id,
+              username: entry.username || "collaborator",
+              display_name: entry.display_name || entry.username || "Co-author",
+              avatar_url: entry.avatar_url ?? null,
+              video_avatar_url: entry.video_avatar_url ?? null,
+              is_premium: Boolean(entry.is_premium),
+              role: "Co-Author" as const,
+              color: colorForParticipant(entry.id),
+            }))
+          )
         }
 
-        if (Array.isArray(data.co_authors) && data.co_authors.length > 0) {
-          setCoAuthors((prev) => {
-            const map = new Map<string, Collaborator>()
-            prev.forEach((c) => map.set(c.id, c))
-            data.co_authors.forEach((c: Collaborator) => map.set(c.id, { ...c, role: "Co-Author" }))
-            return Array.from(map.values())
-          })
+        // Rehydrate the shared draft. Realtime still wins once peers are in the
+        // room: an authoritative snapshot replaces this without a typing fight.
+        const draft = data.draft || {}
+        if ((draft.title || draft.content) && !draftLoaded) {
+          setDoc((prev) => ({
+            ...prev,
+            title: prev.title || draft.title || "",
+            content: prev.content || draft.content || "",
+          }))
+          seedField("title", draft.title || "")
+          seedField("content", draft.content || "")
         }
+        setDraftLoaded(true)
       } catch (err) {
-        console.error("Session info fetch error:", err)
+        console.error("Co-Loop session resolve failed:", err)
       } finally {
-        setIsSessionOwnerLoading(false)
+        if (!cancelled) setSessionReady(true)
       }
     }
 
-    resolveSessionInfo()
-  }, [sessionId, searchParams, user, getAuthHeader])
+    void resolve()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, user, getAuthHeader])
 
-  const currentUserRole = isOwner ? "Primary Creator" : "Co-Author"
-
-  // Pull the durable co-author roster from the server. Called on mount (via
-  // resolveSessionInfo) and again whenever a realtime "join" fires, so the
-  // Primary Creator's view self-heals even if a presence event was missed.
-  const refetchCoAuthors = async () => {
-    if (!user || !sessionId) return
+  /* ── Load the shared version timeline ─────────────────────────── */
+  const loadVersions = useCallback(async () => {
+    setVersionsLoading(true)
     try {
-      const res = await fetch("/api/co-loop/session-info", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ session_id: sessionId }),
+      const res = await fetch(`/api/co-loop/versions?session_id=${encodeURIComponent(sessionId)}`, {
+        headers: getAuthHeader(),
       })
       const data = await res.json()
-      if (Array.isArray(data.co_authors) && data.co_authors.length > 0) {
-        setCoAuthors((prev) => {
-          const map = new Map<string, Collaborator>()
-          prev.forEach((c) => map.set(c.id, c))
-          data.co_authors.forEach((c: Collaborator) => map.set(c.id, { ...c, role: "Co-Author" }))
-          return Array.from(map.values())
-        })
-      }
+      setVersions(Array.isArray(data.versions) ? data.versions.map(mapServerVersion) : [])
     } catch {
-      /* best-effort — presence sync remains the primary live path */
+      setVersions([])
+    } finally {
+      setVersionsLoading(false)
     }
-  }
+  }, [sessionId, getAuthHeader])
 
-  // Initialize Supabase Client
   useEffect(() => {
-    supabaseRef.current = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-    )
-  }, [])
+    if (!sessionReady) return
+    void loadVersions()
+  }, [sessionReady, loadVersions])
 
-  // Join Realtime Channel for Studio Presence & Broadcast
+  /* ── Load the room's activity feed ────────────────────────────── */
+  const loadActivity = useCallback(async () => {
+    setActivityLoading(true)
+    try {
+      const res = await fetch(`/api/co-loop/activity?session_id=${encodeURIComponent(sessionId)}`, {
+        headers: getAuthHeader(),
+      })
+      const data = await res.json()
+      setActivityFeed(Array.isArray(data.entries) ? data.entries : [])
+    } catch {
+      setActivityFeed([])
+    } finally {
+      setActivityLoading(false)
+    }
+  }, [sessionId, getAuthHeader])
+
   useEffect(() => {
-    if (!user || !supabaseRef.current || isSessionOwnerLoading) return
+    if (!sessionReady) return
+    void loadActivity()
+  }, [sessionReady, loadActivity])
 
-    const supabase = supabaseRef.current
-    const channel = supabase.channel(`co-loop-studio:${sessionId}`, {
-      config: {
-        presence: {
-          key: user.id,
-        },
-      },
+  /* ── Autosave the shared draft ───────────────────────────────── */
+  const draftSnapshotRef = useRef("")
+  useEffect(() => {
+    if (!sessionReady || !draftLoaded) return
+    const signature = JSON.stringify([doc.title, doc.content])
+    if (signature === draftSnapshotRef.current) return
+    const timer = setTimeout(async () => {
+      // Captured before the snapshot advances — the very first save after
+      // hydration is a rehydrate, not someone typing.
+      const hadPriorDraft = draftSnapshotRef.current !== ""
+      draftSnapshotRef.current = signature
+      try {
+        await fetch("/api/co-loop/session-info", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ session_id: sessionId, draft_title: doc.title, draft_content: doc.content }),
+        })
+        setSavedAt(Date.now())
+
+        // Paper trail: who was writing, and roughly what, without logging a
+        // row per keystroke — one entry per author per cooldown window.
+        const excerpt = (doc.title || doc.content).trim().replace(/\s+/g, " ").slice(0, 120)
+        if (
+          hadPriorDraft &&
+          excerpt &&
+          Date.now() - lastEditEntryRef.current > EDIT_ENTRY_COOLDOWN_MS
+        ) {
+          lastEditEntryRef.current = Date.now()
+          void recordActivity("edited", `“${excerpt}”`)
+        }
+      } catch {
+        /* offline — realtime peers still hold the document */
+      }
+    }, DRAFT_SAVE_MS)
+    return () => clearTimeout(timer)
+  }, [doc.title, doc.content, sessionReady, draftLoaded, sessionId, getAuthHeader, recordActivity])
+
+  /* ── Editing ──────────────────────────────────────────────────── */
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setDoc((prev) => ({ ...prev, title: value }))
+      publishField("title", value)
+    },
+    [publishField]
+  )
+
+  const handleContentChange = useCallback(
+    (value: string) => {
+      setDoc((prev) => ({ ...prev, content: value }))
+      publishField("content", value)
+    },
+    [publishField]
+  )
+
+  const handleFieldFocus = useCallback(
+    (field: StudioField | null) => {
+      if (field === null) {
+        flushField("title")
+        flushField("content")
+        realtime.publishCursor(null, 0)
+      }
+      focusField(field)
+    },
+    [flushField, focusField, realtime]
+  )
+
+  const handleCursorMove = useCallback(
+    (field: StudioField | null, offset: number) => realtime.publishCursor(field, offset),
+    [realtime]
+  )
+
+  /* ── Hashtags & media ─────────────────────────────────────────── */
+  const handleAddHashtag = useCallback(
+    (tag: string) => {
+      setDoc((prev) => {
+        if (!tag || prev.hashtags.includes(tag)) return prev
+        const hashtags = [...prev.hashtags, tag]
+        announceMeta({ hashtags })
+        return { ...prev, hashtags }
+      })
+    },
+    [announceMeta]
+  )
+
+  const handleRemoveHashtag = useCallback(
+    (tag: string) => {
+      setDoc((prev) => {
+        const hashtags = prev.hashtags.filter((t) => t !== tag)
+        announceMeta({ hashtags })
+        return { ...prev, hashtags }
+      })
+    },
+    [announceMeta]
+  )
+
+  const handleUploadFiles = useCallback(
+    async (files: FileList | null) => {
+      if (!files || files.length === 0 || !user) return
+      const isPro = Boolean(user.is_premium)
+      const list = Array.from(files)
+      if (!isPro && list.length > 1) {
+        toast({ title: "Pro feature", description: "Multiple attachments need Pro — uploading the first file only." })
+      }
+      const selected = isPro ? list.slice(0, 4) : [list[0]]
+      setUploadingMedia(true)
+      try {
+        const { uploadMediaFile } = await import("@/lib/client-media-upload")
+        const uploaded: string[] = []
+        let detected: StudioMediaType = "image"
+        for (const file of selected) {
+          const kind = file.type.startsWith("video/") ? "video" : "image"
+          if (kind === "video") detected = "video"
+          const result = await uploadMediaFile(file, {
+            authHeaders: getAuthHeader(),
+            type: kind as "image" | "video",
+            folder: "co-loops",
+          })
+          if (result.url) uploaded.push(result.url)
+        }
+        if (uploaded.length === 0) return
+
+        const current = docRef.current
+        const existing = current.mediaUrls?.length ? current.mediaUrls : current.mediaUrl ? [current.mediaUrl] : []
+        const mediaUrls = isPro ? [...existing, ...uploaded].slice(0, 4) : [uploaded[0]]
+        setDoc((prev) => ({ ...prev, mediaUrls, mediaUrl: mediaUrls[0] || "", mediaType: detected }))
+        announceMeta({ mediaUrls, mediaUrl: mediaUrls[0] || "", mediaType: detected })
+        toast({
+          title: "Attached",
+          description: `${uploaded.length} file${uploaded.length > 1 ? "s" : ""} added to the draft.`,
+        })
+      } catch (err: any) {
+        toast({ title: "Upload failed", description: err?.message || "Could not attach that file.", variant: "destructive" })
+      } finally {
+        setUploadingMedia(false)
+      }
+    },
+    [announceMeta, getAuthHeader, toast, user]
+  )
+
+  const handleRemoveMedia = useCallback(
+    (index: number) => {
+      setDoc((prev) => {
+        const mediaUrls = prev.mediaUrls.filter((_, i) => i !== index)
+        const mediaType: StudioMediaType = mediaUrls.length === 0 ? "text" : prev.mediaType
+        announceMeta({ mediaUrls, mediaUrl: mediaUrls[0] || "", mediaType })
+        return { ...prev, mediaUrls, mediaUrl: mediaUrls[0] || "", mediaType }
+      })
+    },
+    [announceMeta]
+  )
+
+  const handleAddMediaUrl = useCallback(
+    (url: string) => {
+      setDoc((prev) => {
+        if (prev.mediaUrls.includes(url)) return prev
+        const mediaUrls = [...prev.mediaUrls, url].slice(0, 4)
+        const mediaType: StudioMediaType = /\.(mp4|webm|ogg|mov|m4v|avi)(\?|$)/i.test(url)
+          ? "video"
+          : prev.mediaType === "text"
+            ? "image"
+            : prev.mediaType
+        announceMeta({ mediaUrls, mediaUrl: mediaUrls[0] || url, mediaType })
+        return { ...prev, mediaUrls, mediaUrl: mediaUrls[0] || url, mediaType }
+      })
+    },
+    [announceMeta]
+  )
+
+  /* ── Version snapshots ────────────────────────────────────────── */
+  const handleSaveSnapshot = useCallback(
+    async (label?: string) => {
+      if (!doc.title.trim() && !doc.content.trim()) {
+        toast({ title: "Nothing to snapshot", description: "Write something first.", variant: "destructive" })
+        return
+      }
+      setSavingVersion(true)
+      try {
+        const res = await fetch("/api/co-loop/versions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({
+            session_id: sessionId,
+            title: doc.title,
+            content: doc.content,
+            hashtags: doc.hashtags,
+            media_url: doc.mediaUrl,
+            media_urls: doc.mediaUrls,
+            media_type: doc.mediaType,
+            co_authors: roster.map((c) => ({
+              id: c.id,
+              username: c.username,
+              display_name: c.display_name,
+              avatar_url: c.avatar_url,
+            })),
+            label,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || "Could not save this snapshot")
+
+        const version = mapServerVersion(data.version)
+        setVersions((prev) => [version, ...prev.filter((v) => v.id !== version.id)])
+        announceVersionSaved(version)
+        void recordActivity("version_saved", `v${version.versionNumber}${label ? ` — ${label}` : ""}`)
+        toast({ title: `Version v${version.versionNumber} saved`, description: version.label, variant: "success", icon: Save })
+      } catch (err: any) {
+        toast({ title: "Snapshot failed", description: err?.message || "Try again.", variant: "destructive" })
+      } finally {
+        setSavingVersion(false)
+      }
+    },
+    [announceVersionSaved, doc, getAuthHeader, recordActivity, roster, sessionId, toast]
+  )
+
+  const handleRestoreVersion = useCallback(
+    (version: CoLoopVersion) => {
+      const mediaUrls = version.mediaUrls?.length ? version.mediaUrls : version.mediaUrl ? [version.mediaUrl] : []
+      setDoc((prev) => ({
+        ...prev,
+        title: version.title || "",
+        content: version.content || "",
+        hashtags: version.hashtags || [],
+        mediaUrl: version.mediaUrl || "",
+        mediaUrls,
+        mediaType: version.mediaType || "text",
+      }))
+      // Authoritative: the room adopts the restored text, or merges it on top of
+      // whatever anyone is typing right now.
+      realtime.publishSnapshot("title", version.title || "")
+      realtime.publishSnapshot("content", version.content || "")
+      announceMeta({
+        hashtags: version.hashtags || [],
+        mediaUrl: version.mediaUrl || "",
+        mediaUrls,
+        mediaType: version.mediaType || "text",
+      })
+      realtime.announceVersionRestored(version, user?.display_name || user?.username || "A collaborator")
+      void recordActivity("version_restored", `v${version.versionNumber}`)
+      toast({ title: `Reverted to v${version.versionNumber}`, description: version.label })
+    },
+    [announceMeta, recordActivity, realtime, toast, user]
+  )
+
+  /* ── Invites ──────────────────────────────────────────────────── */
+  const inviteUrl = useMemo(
+    () =>
+      typeof window === "undefined"
+        ? ""
+        : absoluteAppUrl(
+            `/co-loop/join/${sessionId}${user?.username ? `?invitedBy=${encodeURIComponent(user.username)}` : ""}`
+          ),
+    [sessionId, user?.username]
+  )
+
+  const coAuthorCount = roster.filter((c) => c.id !== user?.id).length
+
+  const handleCopyInviteLink = useCallback(async () => {
+    if (coAuthorCount >= MAX_CO_AUTHORS) {
+      toast({
+        title: "Room full",
+        description: `A Co-Loop takes ${MAX_CO_AUTHORS} invited co-authors plus the host.`,
+        variant: "destructive",
+      })
+      return
+    }
+    const result = await shareContent({
+      url: inviteUrl,
+      title: "Join my Co-Loop session",
+      text: `Write with @${user?.username || "me"} on Loop`,
     })
-
-    channelRef.current = channel
-
-    // Handle Presence state updates
-    channel
-      .on("presence", { event: "sync" }, () => {
-        const state = channel.presenceState()
-        const activeUsers: Collaborator[] = []
-        Object.keys(state).forEach((key) => {
-          const presences = state[key] as any[]
-          if (presences && presences[0]) {
-            activeUsers.push(presences[0])
-          }
-        })
-        setCollaborators(activeUsers)
-
-        // Automatically list active non-owner participants as co-authors
-        const coAuthList = activeUsers.filter(
-          (u) => u.role === "Co-Author" || (sessionOwner?.id && u.id !== sessionOwner.id)
-        )
-        if (coAuthList.length > 0) {
-          setCoAuthors((prev) => {
-            const map = new Map<string, Collaborator>()
-            prev.forEach((c) => map.set(c.id, c))
-            coAuthList.forEach((c) => map.set(c.id, { ...c, role: "Co-Author" }))
-            return Array.from(map.values())
-          })
-        }
-      })
-      .on("presence", { event: "join" }, ({ newPresences }: any) => {
-        if (newPresences?.[0]?.display_name) {
-          const joinedUser = newPresences[0]
-          toast({
-            title: `${joinedUser.role === "Primary Creator" ? "Primary Creator" : "Co-Author"} Entered Room! 🚀`,
-            description: `${joinedUser.display_name} joined the live studio table.`,
-          })
-        }
-        // Belt-and-suspenders: re-pull the durable co-author roster from the
-        // server whenever anyone joins, instead of relying solely on
-        // presence state (which is what caused the Primary Creator's view to
-        // sometimes miss a co-author the co-author's own view already showed).
-        void refetchCoAuthors()
-      })
-      .on("presence", { event: "leave" }, ({ leftPresences }: any) => {
-        if (leftPresences?.[0]?.display_name) {
-          toast({
-            title: "Collaborator Left Room",
-            description: `${leftPresences[0].display_name} disconnected from studio.`,
-          })
-        }
-      })
-      // Request doc sync when a co-author enters
-      .on("broadcast", { event: "request-doc-sync" }, () => {
-        if (isOwner && channelRef.current) {
-          const st = docStateRef.current
-          channelRef.current.send({
-            type: "broadcast",
-            event: "doc-update",
-            payload: {
-              title: st.title,
-              content: st.content,
-              hashtags: st.hashtags,
-              mediaUrl: st.mediaUrl,
-              mediaUrls: st.mediaUrls,
-              mediaType: st.mediaType,
-              coAuthors: st.coAuthors,
-              chatMessages: st.chatMessages,
-            },
-          })
-        }
-      })
-      // Handle Studio Broadcast Edits
-      .on("broadcast", { event: "doc-update" }, ({ payload }: any) => {
-        if (payload.title !== undefined) setPostTitle(payload.title)
-        if (payload.content !== undefined) setPostContent(payload.content)
-        if (payload.hashtags !== undefined) setHashtags(payload.hashtags)
-        if (payload.mediaUrl !== undefined) setMediaUrl(payload.mediaUrl)
-        if (payload.mediaUrls !== undefined) setMediaUrls(payload.mediaUrls)
-        if (payload.mediaType !== undefined) setMediaType(payload.mediaType)
-        if (payload.chatMessages !== undefined && Array.isArray(payload.chatMessages)) {
-          setChatMessages(payload.chatMessages)
-        }
-        if (payload.coAuthors !== undefined) {
-          setCoAuthors((prev) => {
-            const map = new Map<string, Collaborator>()
-            prev.forEach((c) => map.set(c.id, c))
-            payload.coAuthors.forEach((c: Collaborator) => map.set(c.id, { ...c, role: "Co-Author" }))
-            return Array.from(map.values())
-          })
-        }
-      })
-      // Handle Typing Status Broadcast
-      .on("broadcast", { event: "typing-status" }, ({ payload }: any) => {
-        if (!payload?.userId || payload.userId === user?.id) return
-        setTypingUsers((prev) => {
-          const next = { ...prev }
-          if (payload.field) {
-            next[payload.userId] = {
-              username: payload.username || "collaborator",
-              display_name: payload.display_name || payload.username || "Collaborator",
-              field: payload.field,
-            }
-          } else {
-            delete next[payload.userId]
-          }
-          return next
-        })
-      })
-      .on("broadcast", { event: "co-author-accepted" }, ({ payload }: any) => {
-        if (payload?.user) {
-          const acceptedUser = payload.user
-          setCoAuthors((prev) => {
-            if (prev.some((c) => c.id === acceptedUser.id)) return prev
-            if (prev.length >= MAX_CO_AUTHORS) return prev
-            const updated = [...prev, { ...acceptedUser, role: "Co-Author" }]
-            toast({
-              title: "Invite Accepted! 🎉",
-              description: `@${acceptedUser.username} joined as an official co-author!`,
-            })
-            return updated
-          })
-        }
-      })
-      .on("broadcast", { event: "co-loop-gift" }, ({ payload }: any) => {
-        if (payload) {
-          toast({
-            title: "Co-Loop Split Gift! 🎁",
-            description: `${payload.senderName} gifted ${payload.amount} coins! Each co-author received ${payload.splitAmount} Loop Coins!`,
-          })
-        }
-      })
-      // Handle Studio Chat Messages
-      .on("broadcast", { event: "chat-msg" }, ({ payload }: any) => {
-        setChatMessages((prev) => [...prev, payload])
-        if (!isChatOpenRef.current) {
-          setUnreadChatCount((prev) => prev + 1)
-        }
-      })
-      // Handle Session Ended Broadcast
-      .on("broadcast", { event: "session_ended" }, ({ payload }: any) => {
-        toast({
-          title: "Co-Loop Session Ended 🛑",
-          description: `${payload?.endedBy || "The Primary Creator"} has closed this Co-Loop session.`,
-        })
-        setTimeout(() => {
-          router.push("/")
-        }, 1500)
-      })
-      // Publishing closes the session for everyone still in the room — only
-      // the publisher sees the ceremony modal (set locally in
-      // handlePublishCoLoop); every other participant gets redirected home
-      // automatically since there's nothing left to collaborate on.
-      .on("broadcast", { event: "coloop_published" }, ({ payload }: any) => {
-        toast({
-          title: "Co-Loop Published! 🚀",
-          description: `${payload?.publishedBy || "A collaborator"} published this Co-Loop. This session has ended — taking you to the community feed…`,
-        })
-        setTimeout(() => {
-          router.push("/")
-        }, 1500)
-      })
-      // Handle Studio Version Snapshots
-      .on("broadcast", { event: "version-saved" }, ({ payload }: any) => {
-        setVersions((prev) => [payload, ...prev.filter((v) => v.id !== payload.id)])
-        toast({
-          title: "Version Snapshot Saved 📸",
-          description: `${payload.savedBy?.name || "Collaborator"} created Version v${payload.versionNumber}`,
-        })
-      })
-      .on("broadcast", { event: "version-restored" }, ({ payload }: any) => {
-        if (payload.version) {
-          const v = payload.version
-          setPostTitle(v.title || "")
-          setPostContent(v.content || "")
-          setHashtags(v.hashtags || [])
-          setMediaUrl(v.mediaUrl || "")
-          setMediaUrls(v.mediaUrls || (v.mediaUrl ? [v.mediaUrl] : []))
-          setMediaType(v.mediaType || "text")
-          if (v.coAuthors) {
-            setCoAuthors(v.coAuthors.map((ca: any) => ({ ...ca, role: ca.role || "Co-Author" })))
-          }
-          toast({
-            title: "Version Restored 🔄",
-            description: `${payload.restoredBy || "Collaborator"} restored Version v${v.versionNumber}`,
-          })
-        }
-      })
-      .subscribe(async (status: string) => {
-        if (status === "SUBSCRIBED") {
-          const myProfile: Collaborator = {
-            id: user.id,
-            username: user.username || "creator",
-            display_name: user.display_name || user.username || "Creator",
-            avatar_url: user.avatar_url,
-            role: currentUserRole,
-            color: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
-          }
-          await channel.track(myProfile)
-
-          // If joining as Co-Author, request current document state from Primary Creator
-          if (!isOwner) {
-            channel.send({
-              type: "broadcast",
-              event: "request-doc-sync",
-              payload: { requesterId: user.id },
-            })
-          }
-        }
-      })
-
-    return () => {
-      channel.unsubscribe()
+    if (result === "aborted") return
+    if (result === "failed") {
+      toast({ title: "Couldn't share", description: "Copy the link from the address bar instead.", variant: "destructive" })
+      return
     }
-    // isChatOpen is intentionally excluded — it's read via isChatOpenRef inside
-    // the chat-msg handler so toggling the chat drawer never tears down and
-    // recreates this presence channel (that used to fire spurious "left the
-    // room" / "entered the room" toasts for every other collaborator on every
-    // open/close).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, sessionId, isSessionOwnerLoading, isOwner, currentUserRole, sessionOwner, router, toast])
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2500)
+    toast({
+      title: result === "shared" ? "Invite shared" : "Join link copied",
+      description: "Anyone with the link can write in this room.",
+    })
+  }, [coAuthorCount, inviteUrl, toast, user?.username])
 
-  // Handle accepting invitation when arriving via invite link
   useEffect(() => {
-    if (!user || searchParams.get("invited") !== "true") return
+    const query = inviteQuery.trim().replace(/^@/, "")
+    if (!query) {
+      setInviteResults([])
+      return
+    }
+    const timer = setTimeout(async () => {
+      setSearchingInvite(true)
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&type=users&limit=6`)
+        if (res.ok) {
+          const data = await res.json()
+          setInviteResults(data.users || [])
+        }
+      } finally {
+        setSearchingInvite(false)
+      }
+    }, 220)
+    return () => clearTimeout(timer)
+  }, [inviteQuery])
 
-    const acceptInvitation = async () => {
+  const handleSendInvite = useCallback(
+    async (target: any) => {
+      if (coAuthorCount >= MAX_CO_AUTHORS) {
+        toast({ title: "Room full", variant: "destructive" })
+        return
+      }
+      setSendingInvite(true)
+      try {
+        const res = await fetch("/api/co-loop/invite", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({
+            session_id: sessionId,
+            session_title: doc.title || "New collaborative Loop",
+            invitee_id: target.id,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || "Could not send that invite")
+        toast({ title: "Invitation sent", description: `@${target.username} got a DM and a notification.`, variant: "success", icon: UserPlus })
+        void recordActivity("invite_sent", `@${target.username}`)
+        setInviteQuery("")
+        setInviteResults([])
+        setInviteOpen(false)
+      } catch (err: any) {
+        toast({ title: "Invite failed", description: err?.message || "Try again.", variant: "destructive" })
+      } finally {
+        setSendingInvite(false)
+      }
+    },
+    [coAuthorCount, doc.title, getAuthHeader, recordActivity, sessionId, toast]
+  )
+
+  // Arriving through an invite link auto-accepts the invitation.
+  useEffect(() => {
+    if (!user || !sessionReady || searchParams.get("invited") !== "true") return
+    const accept = async () => {
       try {
         await fetch("/api/co-loop/invitation", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...getAuthHeader() },
           body: JSON.stringify({ sessionId, status: "accepted" }),
         })
-
-        const joiningUser: Collaborator = {
-          id: user.id,
-          username: user.username || "coauthor",
-          display_name: user.display_name || user.username || "Co-Author",
-          avatar_url: user.avatar_url,
-          role: "Co-Author",
-        }
-
-        setCoAuthors((prev) => {
-          if (prev.some((c) => c.id === joiningUser.id)) return prev
-          if (prev.length >= MAX_CO_AUTHORS) return prev
-          return [...prev, joiningUser]
-        })
-
-        if (channelRef.current) {
-          channelRef.current.send({
-            type: "broadcast",
-            event: "co-author-accepted",
-            payload: { user: joiningUser },
-          })
-        }
-
-        toast({
-          title: "Invitation Accepted! 🎉",
-          description: "You have joined this Co-Loop session as an official co-author.",
-        })
-      } catch (err) {
-        console.error("Failed accepting co-loop invite:", err)
+        toast({ title: "You're in", description: "You joined this Co-Loop as a co-author." })
+      } catch {
+        /* the roster refreshes on the next session resolve */
       }
     }
+    void accept()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, sessionReady, searchParams, sessionId])
 
-    acceptInvitation()
-  }, [user, sessionId, searchParams, getAuthHeader, toast])
-
-  // Scroll chat to bottom
-  useEffect(() => {
-    if (isChatOpen) {
-      chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
-    }
-  }, [chatMessages, isChatOpen])
-
-  // Clear unread count when chat drawer opens
-  useEffect(() => {
-    if (isChatOpen) {
-      setUnreadChatCount(0)
-    }
-  }, [isChatOpen])
-
-  // Save version snapshot
-  const handleSaveSnapshot = (label?: string) => {
-    if (!user) return
-    const nextVerNum = versions.length > 0 ? Math.max(...versions.map((v) => v.versionNumber)) + 1 : 1
-
-    const newVersion: CoLoopVersion = {
-      id: `ver-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      versionNumber: nextVerNum,
-      title: postTitle,
-      content: postContent,
-      hashtags,
-      mediaUrl,
-      mediaUrls,
-      mediaType,
-      coAuthors,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", month: "short", day: "numeric" }),
-      savedBy: {
-        id: user.id,
-        name: user.display_name || user.username || "Creator",
-        avatar: user.avatar_url,
-      },
-      label: label || (nextVerNum === 1 ? "Initial Draft" : `Checkpoint #${nextVerNum}`),
-    }
-
-    const updated = [newVersion, ...versions]
-    setVersions(updated)
-    try {
-      localStorage.setItem(`co-loop-versions:${sessionId}`, JSON.stringify(updated))
-    } catch (err) {
-      console.error("Localstorage snapshot save error:", err)
-    }
-
-    if (channelRef.current) {
-      channelRef.current.send({
-        type: "broadcast",
-        event: "version-saved",
-        payload: newVersion,
-      })
-    }
-
-    toast({
-      title: "Snapshot Saved! 📸",
-      description: `Version v${nextVerNum} ("${newVersion.label}") recorded.`,
-    })
-  }
-
-  // Restore previous version
-  const handleRestoreVersion = (version: CoLoopVersion) => {
-    setPostTitle(version.title || "")
-    setPostContent(version.content || "")
-    setHashtags(version.hashtags || [])
-    setMediaUrl(version.mediaUrl || "")
-    setMediaUrls(version.mediaUrls || (version.mediaUrl ? [version.mediaUrl] : []))
-    setMediaType(version.mediaType || "text")
-    if (version.coAuthors) {
-      setCoAuthors(version.coAuthors.map((ca: any) => ({ ...ca, role: ca.role || "Co-Author" })))
-    }
-
-    const docUpdatePayload = {
-      title: version.title || "",
-      content: version.content || "",
-      hashtags: version.hashtags || [],
-      mediaUrl: version.mediaUrl || "",
-      mediaUrls: version.mediaUrls || (version.mediaUrl ? [version.mediaUrl] : []),
-      mediaType: version.mediaType || "text",
-      coAuthors: version.coAuthors || [],
-    }
-
-    if (channelRef.current) {
-      channelRef.current.send({
-        type: "broadcast",
-        event: "doc-update",
-        payload: docUpdatePayload,
-      })
-      channelRef.current.send({
-        type: "broadcast",
-        event: "version-restored",
-        payload: {
-          version,
-          restoredBy: user?.display_name || user?.username || "Collaborator",
-        },
-      })
-    }
-
-    toast({
-      title: "Version Restored! 🔄",
-      description: `Reverted post to Version v${version.versionNumber}`,
-    })
-  }
-
-  // Broadcast Live Changes
-  const broadcastDocUpdate = (update: Record<string, any>) => {
-    if (!channelRef.current) return
-    channelRef.current.send({
-      type: "broadcast",
-      event: "doc-update",
-      payload: update,
-    })
-  }
-
-  // Broadcast Live Typing Signal
-  const sendTypingSignal = (field: "title" | "content") => {
-    if (!channelRef.current || !user) return
-    channelRef.current.send({
-      type: "broadcast",
-      event: "typing-status",
-      payload: {
-        userId: user.id,
-        username: user.username || "creator",
-        display_name: user.display_name || user.username || "Collaborator",
-        field,
-      },
-    })
-
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
-    typingTimeoutRef.current = setTimeout(() => {
-      if (channelRef.current && user) {
-        channelRef.current.send({
-          type: "broadcast",
-          event: "typing-status",
-          payload: {
-            userId: user.id,
-            username: user.username || "creator",
-            display_name: user.display_name || user.username || "Collaborator",
-            field: null,
-          },
-        })
+  /* ── Split gift ───────────────────────────────────────────────── */
+  const handleSendGift = useCallback(
+    async (amount: number) => {
+      const recipients = roster.filter((c) => c.id !== user?.id)
+      if (recipients.length === 0) {
+        toast({ title: "No co-authors yet", description: "Invite someone before splitting a gift.", variant: "destructive" })
+        return
       }
-    }, 2500)
-  }
-
-  const handleTitleChange = (val: string) => {
-    setPostTitle(val)
-    broadcastDocUpdate({ title: val })
-    sendTypingSignal("title")
-  }
-
-  const handleContentChange = (val: string) => {
-    setPostContent(val)
-    broadcastDocUpdate({ content: val })
-    sendTypingSignal("content")
-  }
-
-  const handleAddHashtag = () => {
-    const tag = hashtagInput.trim().replace(/^#/, "")
-    if (!tag || hashtags.includes(tag)) return
-    const nextTags = [...hashtags, tag]
-    setHashtags(nextTags)
-    setHashtagInput("")
-    broadcastDocUpdate({ hashtags: nextTags })
-  }
-
-  const handleRemoveHashtag = (tagToRemove: string) => {
-    const nextTags = hashtags.filter((t) => t !== tagToRemove)
-    setHashtags(nextTags)
-    broadcastDocUpdate({ hashtags: nextTags })
-  }
-
-  // Handle Media File Uploads for all co-authors (with Pro multi-file support)
-  const handleFileUpload = async (files: FileList | File[] | null) => {
-    if (!files || files.length === 0) return
-    const isPro = Boolean(user?.is_premium)
-    const fileArray = Array.from(files)
-
-    // Non-Pro users are limited to 1 file upload; Pro users can upload multiple files (max 4)
-    if (!isPro && fileArray.length > 1) {
-      toast({
-        title: "Pro Feature",
-        description: "Multiple media uploads are available for Pro members! Single file uploaded.",
-      })
-    }
-
-    const filesToUpload = isPro ? fileArray.slice(0, 4) : [fileArray[0]]
-    setUploadingMedia(true)
-
-    try {
-      const uploadedUrls: string[] = []
-      let detectedType: "image" | "video" = "image"
-
-      for (const file of filesToUpload) {
-        const type = file.type.startsWith("video/") ? "video" : "image"
-        if (type === "video") detectedType = "video"
-
-        const res = await uploadMediaFile(file, {
-          authHeaders: getAuthHeader(),
-          type,
-          folder: "co-loops",
+      setSendingGift(true)
+      try {
+        const res = await fetch("/api/co-loop/gift", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ session_id: sessionId, gift_amount: amount, recipients: recipients.map((c) => c.id) }),
         })
-
-        if (res.url) {
-          uploadedUrls.push(res.url)
-        }
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || "Could not send the gift")
+        realtime.announceGift({
+          senderName: user?.display_name || user?.username || "A supporter",
+          amount,
+          splitAmount: data.split_amount || Math.floor(amount / recipients.length),
+        })
+        toast({ title: "Gift sent", description: `${amount} coins split across ${recipients.length} co-author(s).`, variant: "success", icon: Coins })
+        void recordActivity("gifted", `${amount} coins across ${recipients.length} co-author${recipients.length === 1 ? "" : "s"}`)
+        setGiftOpen(false)
+      } catch (err: any) {
+        toast({ title: "Gift failed", description: err?.message || "Try again.", variant: "destructive" })
+      } finally {
+        setSendingGift(false)
       }
+    },
+    [getAuthHeader, recordActivity, realtime, roster, sessionId, toast, user]
+  )
 
-      if (uploadedUrls.length > 0) {
-        const newUrls = isPro ? [...mediaUrls, ...uploadedUrls].slice(0, 4) : [uploadedUrls[0]]
-        setMediaUrls(newUrls)
-        setMediaUrl(newUrls[0] || "")
-        setMediaType(detectedType)
-
-        broadcastDocUpdate({
-          mediaUrls: newUrls,
-          mediaUrl: newUrls[0] || "",
-          mediaType: detectedType,
-        })
-
-        toast({
-          title: "Media Attached! 📸",
-          description: `${uploadedUrls.length} file(s) attached by ${user?.display_name || "co-author"}.`,
-        })
-      }
-    } catch (err: any) {
-      console.error("Co-loop media upload error:", err)
-      toast({
-        title: "Upload Failed",
-        description: err.message || "Failed to upload media attachment.",
-        variant: "destructive",
-      })
-    } finally {
-      setUploadingMedia(false)
-      if (fileInputRef.current) fileInputRef.current.value = ""
-    }
-  }
-
-  const handleRemoveMedia = (index: number) => {
-    const updated = mediaUrls.filter((_, i) => i !== index)
-    setMediaUrls(updated)
-    setMediaUrl(updated[0] || "")
-    if (updated.length === 0) setMediaType("text")
-
-    broadcastDocUpdate({
-      mediaUrls: updated,
-      mediaUrl: updated[0] || "",
-      mediaType: updated.length === 0 ? "text" : mediaType,
-    })
-  }
-
-  // Share / copy shareable session link
-  const handleCopyInviteLink = async () => {
-    if (coAuthors.length >= MAX_CO_AUTHORS) {
-      toast({
-        title: "Collaborator Limit Reached",
-        description: `Maximum limit of ${MAX_CO_AUTHORS} invited co-authors per Co-Loop has been reached.`,
-        variant: "destructive",
-      })
+  /* ── Publish ──────────────────────────────────────────────────── */
+  const handlePublish = useCallback(async () => {
+    if (!doc.content.trim() && !doc.title.trim()) {
+      toast({ title: "Nothing to publish", description: "Write something first.", variant: "destructive" })
       return
     }
-
-    const inviterNameParam = user?.username ? `?invitedBy=${encodeURIComponent(user.username)}` : ""
-    const url = absoluteAppUrl(`/co-loop/join/${sessionId}${inviterNameParam}`)
-    const result = await shareContent({
-      url,
-      title: "Join my Co-Loop session",
-      text: `Collaborate with @${user?.username || "me"} on Loop`,
-    })
-    if (result === "aborted" || result === "failed") {
-      if (result === "failed") toast({ title: "Couldn't share", variant: "destructive" })
-      return
-    }
-    setLinkCopied(true)
-    toast({
-      title: result === "shared" ? "Invite shared" : "Session invite link copied",
-      description: "Anyone with the link can join your Co-Loop session.",
-    })
-    setTimeout(() => setLinkCopied(false), 3000)
-  }
-
-  // Send Direct Invite to User
-  const handleSendInviteToUser = async (targetUser: any) => {
-    if (coAuthors.length >= MAX_CO_AUTHORS) {
-      toast({
-        title: "Collaborator Limit Reached",
-        description: `Maximum limit of ${MAX_CO_AUTHORS} invited co-authors per Co-Loop has been reached.`,
-        variant: "destructive",
-      })
-      return
-    }
-
-    setSendingInvite(true)
-    try {
-      const res = await fetch("/api/co-loop/invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({
-          session_id: sessionId,
-          session_title: postTitle || "New Collaborative Loop",
-          invitee_id: targetUser.id,
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to send invitation")
-
-      toast({
-        title: "Invitation Sent! 🚀",
-        description: `Direct invite sent to @${targetUser.username} via DM & Notification.`,
-      })
-
-      setInvitedUserInput("")
-      setShowSuggestions(false)
-      setInviteModalOpen(false)
-    } catch (err: any) {
-      toast({
-        title: "Invite Failed",
-        description: err.message || "Could not send invite",
-        variant: "destructive",
-      })
-    } finally {
-      setSendingInvite(false)
-    }
-  }
-
-  // Send In-Studio Chat Message
-  const handleSendChatMessage = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!chatInput.trim() || !user) return
-
-    const msg: ChatMessage = {
-      id: `chat-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      sender_id: user.id,
-      sender_name: user.display_name || user.username || "Creator",
-      sender_avatar: user.avatar_url,
-      text: chatInput.trim(),
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    }
-
-    setChatMessages((prev) => [...prev, msg])
-    setChatInput("")
-
-    if (channelRef.current) {
-      channelRef.current.send({
-        type: "broadcast",
-        event: "chat-msg",
-        payload: msg,
-      })
-    }
-  }
-
-  // Send Split Gift to Co-Authors
-  const handleSendSplitGift = async (amount: number) => {
-    if (!user) return
-    setIsSendingGift(true)
-    try {
-      const res = await fetch("/api/co-loop/gift", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({
-          session_id: sessionId,
-          gift_amount: amount,
-          recipients: coAuthors.map((c) => c.id),
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to send split gift")
-
-      if (channelRef.current) {
-        channelRef.current.send({
-          type: "broadcast",
-          event: "co-loop-gift",
-          payload: {
-            senderName: user.display_name || user.username,
-            amount,
-            splitAmount: data.split_amount || Math.floor(amount / (coAuthors.length + 1)),
-          },
-        })
-      }
-
-      toast({
-        title: "Split Gift Sent! 🎁",
-        description: `Successfully distributed ${amount} Loop Coins equally across active co-authors!`,
-      })
-      setGiftModalOpen(false)
-    } catch (err: any) {
-      toast({
-        title: "Gift Failed",
-        description: err.message || "Could not send gift",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSendingGift(false)
-    }
-  }
-
-  // Handle Ceremonial Publish
-  const handlePublishCoLoop = async () => {
-    if (!postContent.trim()) {
-      toast({ title: "Content required", description: "Write something for your co-loop post!", variant: "destructive" })
-      return
-    }
-
     setPublishing(true)
     try {
-      const coAuthorsMetadata = coAuthors.map((ca) => ({
-        id: ca.id,
-        username: ca.username,
-        display_name: ca.display_name,
-        avatar_url: ca.avatar_url,
-        role: ca.role || "Co-Author",
-      }))
+      flushField("title")
+      flushField("content")
 
-      const payload = {
-        content: postContent,
-        content_title: postTitle || null,
-        media_url: mediaUrls[0] || mediaUrl || null,
-        media_urls: mediaUrls,
-        media_type: mediaType,
-        hashtags,
-        is_co_loop: true,
-        co_authors: coAuthorsMetadata,
-        content_metadata: {
-          is_co_loop: true,
-          co_authors: coAuthorsMetadata,
-          studio_session_id: sessionId,
-          media_urls: mediaUrls,
-        },
-      }
+      const coAuthorsMetadata = roster
+        .filter((c) => c.id !== user?.id)
+        .map((c) => ({
+          id: c.id,
+          username: c.username,
+          display_name: c.display_name,
+          avatar_url: c.avatar_url,
+          role: c.role || "Co-Author",
+        }))
 
       const res = await fetch("/api/loops", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
-        },
-        body: JSON.stringify(payload),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to publish co-loop")
-
-      const publishedLoopId = data.loop?.id
-
-      // Tell every other participant still in the room — they don't get a
-      // ceremony modal, they just get redirected since the session is over.
-      if (channelRef.current) {
-        channelRef.current.send({
-          type: "broadcast",
-          event: "coloop_published",
-          payload: {
-            publishedBy: user?.display_name || user?.username || "A collaborator",
-            loopId: publishedLoopId,
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({
+          content: doc.content,
+          content_title: doc.title || null,
+          media_url: doc.mediaUrls[0] || doc.mediaUrl || null,
+          media_urls: doc.mediaUrls,
+          media_type: doc.mediaType,
+          hashtags: doc.hashtags,
+          is_co_loop: true,
+          co_authors: coAuthorsMetadata,
+          content_metadata: {
+            is_co_loop: true,
+            co_authors: coAuthorsMetadata,
+            studio_session_id: sessionId,
+            media_urls: doc.mediaUrls,
           },
-        })
-      }
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Could not publish this Co-Loop")
 
-      // Mark the session closed server-side so it can't be re-joined/reused.
+      realtime.announcePublished(user?.display_name || user?.username || "A collaborator")
+      void recordActivity("published", doc.title || "Untitled draft")
+
       try {
         await fetch("/api/co-loop/session-info", {
           method: "PATCH",
           headers: { "Content-Type": "application/json", ...getAuthHeader() },
-          body: JSON.stringify({ session_id: sessionId, status: "published", published_loop_id: publishedLoopId }),
+          body: JSON.stringify({
+            session_id: sessionId,
+            status: "published",
+            published_loop_id: data.loop?.id,
+          }),
         })
       } catch {
-        /* best-effort */
+        /* best effort */
       }
 
-      // If this was an open invite session, update the feed post status so the card
-      // shows "Published" and disables the Join button for everyone else.
+      // Close out the open-invite card in the feed, if this room had one.
       try {
-        const sessionInfoRes = await fetch("/api/co-loop/session-info?session_id=" + encodeURIComponent(sessionId), {
+        const infoRes = await fetch(`/api/co-loop/session-info?session_id=${encodeURIComponent(sessionId)}`, {
           headers: getAuthHeader(),
         })
-        const sessionInfo = await sessionInfoRes.json()
-        if (sessionInfo?.session?.feed_post_id) {
+        const info = await infoRes.json()
+        const feedPostId = info?.session?.feed_post_id
+        if (feedPostId) {
           const { getSupabaseBrowserClient } = await import("@/lib/supabase-browser")
-          const supabaseBrowser = getSupabaseBrowserClient()
-          const existingMeta = sessionInfo.session.open_invite_topic ? {
-            is_open_coloop_invite: true,
-            session_id: sessionId,
-            max_collaborators: sessionInfo.session.max_collaborators || 4,
-            topic: sessionInfo.session.open_invite_topic || "",
-            current_participants: (coAuthors.length + 1),
-            status: "published",
-          } : undefined
-          if (existingMeta) {
-            await supabaseBrowser
-              .from("loops")
-              .update({ content_metadata: existingMeta })
-              .eq("id", sessionInfo.session.feed_post_id)
-          }
+          await getSupabaseBrowserClient()
+            .from("loops")
+            .update({
+              content_metadata: {
+                is_open_coloop_invite: true,
+                session_id: sessionId,
+                max_collaborators: info?.session?.max_collaborators || 4,
+                topic: info?.session?.open_invite_topic || "",
+                current_participants: roster.length + 1,
+                status: "published",
+              },
+            })
+            .eq("id", feedPostId)
         }
       } catch {
-        /* best-effort — open invite status update */
+        /* best effort */
       }
 
-      // Trigger ceremonial publish modal celebration
-      setPublishedLoopData({
-        ...data,
-        title: postTitle || "Co-Loop Collaboration",
-        coAuthorsCount: coAuthors.length + 1,
-      })
-      setPublishCeremonyOpen(true)
+      setPublishedAuthors(roster.length + 1)
+      setCeremonyOpen(true)
     } catch (err: any) {
-      toast({
-        title: "Publish failed",
-        description: err.message || "Try again",
-        variant: "destructive",
-      })
+      toast({ title: "Publish failed", description: err?.message || "Try again.", variant: "destructive" })
     } finally {
       setPublishing(false)
     }
-  }
+  }, [doc, flushField, getAuthHeader, realtime, roster, sessionId, toast, user])
 
-  // Combine session owner and collaborators for the Studio Presence Ring.
-  // Computed unconditionally (before the `!user` early return below) — this
-  // used to be called after that return, which violated React's Rules of
-  // Hooks (a hook can never be called conditionally).
-  const activeParticipants = useMemo(() => {
-    const list: (Collaborator & { isCreator: boolean })[] = []
-    const seenIds = new Set<string>()
-
-    // 1. Session Owner
-    if (sessionOwner?.id) {
-      list.push({
-        id: sessionOwner.id,
-        username: sessionOwner.username || "creator",
-        display_name: sessionOwner.display_name || sessionOwner.username || "Primary Creator",
-        avatar_url: sessionOwner.avatar_url,
-        role: "Primary Creator",
-        isCreator: true,
-      })
-      seenIds.add(sessionOwner.id)
-    } else if (isOwner && user) {
-      list.push({
-        id: user.id,
-        username: user.username || "creator",
-        display_name: user.display_name || user.username || "Primary Creator",
-        avatar_url: user.avatar_url,
-        role: "Primary Creator",
-        isCreator: true,
-      })
-      seenIds.add(user.id)
-    }
-
-    // 2. Collaborators from Supabase Presence
-    collaborators.forEach((c) => {
-      if (!seenIds.has(c.id)) {
-        const isThisOwner = sessionOwner?.id ? c.id === sessionOwner.id : c.role === "Primary Creator"
-        list.push({
-          ...c,
-          role: isThisOwner ? "Primary Creator" : "Co-Author",
-          isCreator: isThisOwner,
-        })
-        seenIds.add(c.id)
-      }
-    })
-
-    // 3. Co-Authors list
-    coAuthors.forEach((ca) => {
-      if (!seenIds.has(ca.id)) {
-        list.push({
-          ...ca,
-          role: "Co-Author",
-          isCreator: false,
-        })
-        seenIds.add(ca.id)
-      }
-    })
-
-    // 4. Current user if not yet listed
-    if (user && !seenIds.has(user.id)) {
-      list.push({
-        id: user.id,
-        username: user.username || "collaborator",
-        display_name: user.display_name || user.username || (isOwner ? "Primary Creator" : "Co-Author"),
-        avatar_url: user.avatar_url,
-        role: isOwner ? "Primary Creator" : "Co-Author",
-        isCreator: isOwner,
-      })
-    }
-
-    return list
-  }, [sessionOwner, isOwner, user, collaborators, coAuthors])
-
-  if (!user) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center p-6 text-center">
-        <Card className="max-w-md p-6 border-cyan-500/30 bg-card text-card-foreground dark:bg-[#090d1a] dark:text-slate-100 shadow-2xl">
-          <Lock className="mx-auto h-12 w-12 text-cyan-400 mb-3 animate-pulse" />
-          <h2 className="text-xl font-bold">Studio Authentication Required</h2>
-          <p className="text-sm text-muted-foreground mt-2">Log in to collaborate live in the Co-Loop Studio.</p>
-        </Card>
-      </div>
-    )
-  }
-
-  // Handle Primary Creator Ending the Co-Loop Session
-  const handleEndSession = async () => {
-    if (!isOwner) return
-    try {
-      if (channelRef.current) {
-        channelRef.current.send({
-          type: "broadcast",
-          event: "session_ended",
-          payload: { endedBy: user?.display_name || user?.username || "Primary Creator" },
-        })
-      }
-      toast({
-        title: "Session Ended 🛑",
-        description: "You closed this Co-Loop studio room.",
-      })
-      setTimeout(() => {
-        router.push("/")
-      }, 1000)
-    } catch (err: any) {
-      console.error("End session error:", err)
-    }
-  }
-
-
-  // Create public open invite from studio
-  const handlePublishOpenInvite = async () => {
+  /* ── Open invite + end session ────────────────────────────────── */
+  const handlePublishOpenInvite = useCallback(async () => {
     if (!isOwner || !openInviteTopic.trim()) return
     setPublishingOpenInvite(true)
     try {
       const res = await fetch("/api/co-loop/open-invite", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({
-          session_id: sessionId,
-          topic: openInviteTopic.trim(),
-          max_collaborators: openInviteMax,
-        }),
+        body: JSON.stringify({ session_id: sessionId, topic: openInviteTopic.trim(), max_collaborators: openInviteMax }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to create open invite")
-      toast({
-        title: "Open Co-Loop Published! 🤝",
-        description: "Your open invite is now live in the feed. Anyone can join!",
-      })
-      setOpenInviteModal(false)
+      if (!res.ok) throw new Error(data.error || "Could not publish the open invite")
+      toast({ title: "Open invite is live", description: "Anyone can now join this room from the feed.", variant: "success", icon: Globe })
+      setOpenInviteOpen(false)
       setOpenInviteTopic("")
     } catch (err: any) {
-      toast({
-        title: "Failed to publish",
-        description: err.message || "Try again",
-        variant: "destructive",
-      })
+      toast({ title: "Failed to publish", description: err?.message || "Try again.", variant: "destructive" })
     } finally {
       setPublishingOpenInvite(false)
     }
+  }, [getAuthHeader, isOwner, openInviteMax, openInviteTopic, sessionId, toast])
+
+  const handleEndSession = useCallback(() => {
+    if (!isOwner) return
+    realtime.announceSessionEnded(user?.display_name || user?.username || "The Primary Creator")
+    toast({ title: "Session ended", description: "Everyone has been sent back to the feed." })
+    setTimeout(() => router.push("/"), 900)
+  }, [isOwner, realtime, router, toast, user])
+
+  /* ── Host room controls: lock / delete ────────────────────────── */
+  const handleToggleLock = useCallback(async () => {
+    if (!isOwner) return
+    const next = !locked
+    setLocked(next)
+    try {
+      const res = await fetch("/api/co-loop/room-control", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ session_id: sessionId, action: next ? "lock" : "unlock" }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Could not change the lock")
+      const name = user?.display_name || user?.username || "The host"
+      realtime.announceRoomLock(next, name)
+      void recordActivity(
+        next ? "locked" : "unlocked",
+        next ? "Only the host can edit now" : "Editing is open to everyone"
+      )
+      toast({
+        title: next ? "Room locked" : "Room unlocked",
+        description: next ? "Everyone can still read — only you can edit." : "Co-authors can write again.",
+        variant: "success",
+        icon: next ? Lock : Unlock,
+      })
+    } catch (err: any) {
+      setLocked(!next)
+      toast({ title: "Could not change the lock", description: err?.message || "Try again.", variant: "destructive" })
+    }
+  }, [getAuthHeader, isOwner, locked, realtime, recordActivity, sessionId, toast, user])
+
+  const handleDeleteRoom = useCallback(async () => {
+    if (!isOwner) return
+    const confirmed = await confirmDialog({
+      title: "Delete this room?",
+      description:
+        "The studio session is retired for everyone: the shared draft, versions and room history stop being reachable. Anything you already published stays on the feed.",
+      confirmLabel: "Delete room",
+      destructive: true,
+    })
+    if (!confirmed) return
+    try {
+      const res = await fetch("/api/co-loop/room-control", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ session_id: sessionId, action: "delete" }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Could not delete this room")
+      realtime.announceRoomDeleted(user?.display_name || user?.username || "The host")
+      toast({ title: "Room deleted", description: "Your published Co-Loop stays on the feed.", variant: "success" })
+      setTimeout(() => router.push("/"), 900)
+    } catch (err: any) {
+      toast({ title: "Could not delete the room", description: err?.message || "Try again.", variant: "destructive" })
+    }
+  }, [getAuthHeader, isOwner, realtime, router, sessionId, toast, user])
+
+  /* ── ⌘/Ctrl+S snapshots the draft ─────────────────────────────── */
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault()
+        void handleSaveSnapshot()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [handleSaveSnapshot])
+
+  /* ── Derived ──────────────────────────────────────────────────── */
+  const liveParticipants = useMemo(() => {
+    const map = new Map<string, StudioParticipant>()
+    for (const participant of realtime.participants) map.set(participant.id, participant)
+    if (owner?.id && !map.has(owner.id)) {
+      map.set(owner.id, {
+        id: owner.id,
+        username: owner.username || "creator",
+        display_name: owner.display_name || owner.username || "Primary Creator",
+        avatar_url: owner.avatar_url ?? null,
+        role: "Primary Creator",
+        color: colorForParticipant(owner.id),
+      })
+    }
+    if (user && !map.has(user.id)) {
+      map.set(user.id, {
+        id: user.id,
+        username: user.username || "creator",
+        display_name: user.display_name || user.username || "You",
+        avatar_url: (user as any).avatar_url ?? null,
+        video_avatar_url: (user as any).video_avatar_url ?? null,
+        is_premium: user.is_premium,
+        role: isOwner ? "Primary Creator" : "Co-Author",
+        color: colorForParticipant(user.id),
+      })
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.role === "Primary Creator") return -1
+      if (b.role === "Primary Creator") return 1
+      return a.display_name.localeCompare(b.display_name)
+    })
+  }, [realtime.participants, owner, user, isOwner])
+
+  const editingFields = useMemo(() => {
+    const title: StudioParticipant[] = []
+    const content: StudioParticipant[] = []
+    for (const participant of liveParticipants) {
+      if (participant.id === user?.id) continue
+      if (participant.editing === "title") title.push(participant)
+      else if (participant.editing === "content") content.push(participant)
+    }
+    return { title, content }
+  }, [liveParticipants, user?.id])
+
+  const handleSendChat = useCallback(
+    (text: string) => {
+      if (!user) return
+      const message: StudioChatMessage = {
+        id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        sender_id: user.id,
+        sender_name: user.display_name || user.username || "Collaborator",
+        sender_avatar: (user as any).avatar_url ?? null,
+        sender_video_avatar_url: (user as any).video_avatar_url ?? null,
+        sender_is_premium: user.is_premium,
+        text,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        createdAt: Date.now(),
+      }
+      realtime.sendChat(message)
+    },
+    [realtime, user]
+  )
+
+  const openActivity = useCallback(() => {
+    setActivityOpen(true)
+    realtime.clearUnread()
+  }, [realtime])
+
+  if (!user) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center p-6">
+        <Card className="max-w-md p-6 text-center">
+          <Lock className="mx-auto mb-3 h-10 w-10 text-primary" />
+          <h2 className="text-lg font-semibold">Sign in to use the Studio</h2>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            The Co-Loop Studio is a live writing room. Sign in to collaborate in real time.
+          </p>
+          <Button className="mt-4" onClick={() => router.push("/auth?returnTo=/co-loop/studio")}>
+            Sign in
+          </Button>
+        </Card>
+      </div>
+    )
   }
 
-  const wordCount = postContent.trim() ? postContent.trim().split(/\s+/).length : 0
-  const charCount = postContent.length
+  const rail = (
+    <CoLoopActivityRail
+      participants={liveParticipants}
+      selfId={user.id}
+      chatMessages={realtime.chatMessages}
+      onSendChat={handleSendChat}
+      onInvite={() => {
+        setActivityOpen(false)
+        setInviteOpen(true)
+      }}
+      onCopyLink={() => void handleCopyInviteLink()}
+      linkCopied={linkCopied}
+      coAuthorCount={coAuthorCount}
+      activity={activityFeed}
+      activityLoading={activityLoading}
+    />
+  )
 
   return (
-    <div className="relative min-h-[92vh] overflow-hidden rounded-3xl border border-cyan-500/20 bg-background text-foreground dark:bg-[#030712] dark:text-slate-100 p-3 sm:p-6 shadow-2xl">
-      <div className="landing-grid-bg pointer-events-none absolute inset-0 opacity-[0.04]" />
-      <div className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-64 w-64 rounded-full bg-cyan-600/[0.06]" />
-      <div className="pointer-events-none absolute -bottom-32 -right-32 h-64 w-64 rounded-full bg-violet-600/[0.05]" />
+    <div className="mx-auto w-full max-w-7xl space-y-4 px-3 pb-8 pt-4 sm:px-5">
+      <StudioCommandBar
+        sessionId={sessionId}
+        isOwner={isOwner}
+        ownerUsername={owner?.username}
+        connection={realtime.connection}
+        participants={liveParticipants}
+        versionCount={versions.length}
+        unreadCount={realtime.unreadCount}
+        linkCopied={linkCopied}
+        locked={locked}
+        onOpenHistory={() => setHistoryOpen(true)}
+        onOpenActivity={openActivity}
+        onOpenGift={() => setGiftOpen(true)}
+        onOpenInvite={() => setInviteOpen(true)}
+        onCopyLink={() => void handleCopyInviteLink()}
+        onRequestSync={() => realtime.requestSync()}
+        onOpenOpenInvite={() => {
+          setOpenInviteTopic(doc.title || doc.content.slice(0, 120))
+          setOpenInviteOpen(true)
+        }}
+        onToggleLock={() => void handleToggleLock()}
+        onDeleteRoom={() => void handleDeleteRoom()}
+        onEndSession={handleEndSession}
+        onLeave={() => router.push("/")}
+      />
 
-      <div className="relative z-10 max-w-6xl mx-auto space-y-6">
-        {/* Studio Control Header */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-2xl border border-cyan-500/30 bg-card/85 dark:bg-[#080d1e]/80 p-4 sm:p-5 backdrop-blur-xl shadow-lg shadow-cyan-950/20 text-card-foreground">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-bold shadow-sm">
-              <Radio className="h-6 w-6 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-foreground">
-                  Co-Loop Studio Room
-                </h1>
-                <Badge className="bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 border-cyan-500/40 text-[10px] font-bold px-2 py-0.5">
-                  <Radio className="h-3 w-3 mr-1 text-cyan-500 animate-pulse" />
-                  LIVE STAGE
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Real-time collaborative room • Session #{sessionId}
-              </p>
-            </div>
-          </div>
-
-          {/* Action Tools */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto justify-end">
-            {isOwner && (
-              <Button
-                variant="outline"
-                onClick={handleEndSession}
-                className="rounded-xl border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-300 hover:bg-rose-500/20 text-xs font-bold gap-1.5 shadow-sm"
-              >
-                <Power className="h-4 w-4 text-rose-500" />
-                End Co-Loop
-              </Button>
-            )}
-
-            <Button
-              variant="outline"
-              onClick={() => setGiftModalOpen(true)}
-              className="rounded-xl border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-300 hover:bg-amber-500/20 text-xs font-bold gap-1.5 shadow-sm"
-            >
-              <Coins className="h-4 w-4 text-amber-500" />
-              Split Gift
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => setHistoryOpen(true)}
-              className="rounded-xl border-cyan-500/40 bg-cyan-500/10 text-cyan-600 dark:text-cyan-300 hover:bg-cyan-500/20 text-xs font-bold gap-1.5 shadow-sm"
-            >
-              <History className="h-4 w-4 text-cyan-500" />
-              History
-              {versions.length > 0 && (
-                <Badge className="bg-cyan-500 text-black text-[10px] px-1.5 py-0 rounded-full font-extrabold ml-1">
-                  {versions.length}
-                </Badge>
-              )}
-            </Button>
-
-            {/* Slide-In Chat Toggle Button */}
-            <Button
-              onClick={() => setIsChatOpen(!isChatOpen)}
-              className={`rounded-xl text-xs font-bold gap-1.5 transition-all shadow-md ${
-                isChatOpen
-                  ? "bg-cyan-500 text-black hover:bg-cyan-400"
-                  : "border border-cyan-500/50 bg-cyan-500/10 text-cyan-600 dark:text-cyan-300 hover:bg-cyan-500/20"
-              }`}
-            >
-              <MessageSquare className="h-4 w-4" />
-              In-Studio Chat
-              {unreadChatCount > 0 && !isChatOpen && (
-                <Badge className="bg-rose-500 text-white text-[10px] px-1.5 py-0 rounded-full font-black animate-bounce">
-                  {unreadChatCount}
-                </Badge>
-              )}
-            </Button>
-          </div>
-        </div>
-
-        {/* PRESENCE STAGE ORBS ("Sitting Around the Table") */}
-        <div className="relative rounded-3xl border border-cyan-500/30 bg-card/85 dark:bg-gradient-to-b dark:from-[#0a1128]/90 dark:via-[#060b18]/80 dark:to-[#080e22]/90 p-4 sm:p-6 backdrop-blur-xl shadow-sm text-card-foreground">
-          <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-cyan-500" />
-              <span className="text-xs font-extrabold tracking-wider uppercase text-cyan-600 dark:text-cyan-300">
-                Collaborators Around the Room ({activeParticipants.length}/5)
-              </span>
-            </div>
-            <p className="text-[11px] text-muted-foreground hidden sm:block italic">
-              Avatars pulse live as creators co-write together
-            </p>
-          </div>
-
-          {/* Glowing Orbs Grid/Arc */}
-          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 py-2">
-            {activeParticipants.map((participant, idx) => {
-              const isMe = participant.id === user.id
-              const orbColor = AVATAR_COLORS[idx % AVATAR_COLORS.length]
-              const userTyping = typingUsers[participant.id]
-
-              return (
-                <div
-                  key={participant.id}
-                  className="group relative flex flex-col items-center transition-all duration-300 hover:scale-105"
-                >
-                  {/* Typing Indicator Pill on Avatar */}
-                  {userTyping && (
-                    <div className="absolute -top-3 z-30 flex items-center gap-1 rounded-full bg-cyan-400 px-2 py-0.5 text-[9px] font-black text-slate-950 shadow-lg shadow-cyan-500/50 animate-bounce">
-                      <span>✍️</span>
-                      <span>{userTyping.field === "title" ? "Title" : "Writing"}</span>
-                    </div>
-                  )}
-
-                  {/* Glowing Aura Orb Ring */}
-                  <div className="relative">
-                    <div
-                      className={`absolute -inset-1.5 rounded-full blur-md transition-opacity ${
-                        userTyping ? "opacity-100 bg-cyan-400 animate-ping" : "opacity-75 group-hover:opacity-100 animate-pulse"
-                      }`}
-                      style={{ backgroundColor: userTyping ? "#22d3ee" : orbColor }}
-                    />
-                    <VideoAvatar
-                      src={participant.avatar_url}
-                      videoSrc={(participant as any).video_avatar_url}
-                      isPremium={(participant as any).is_premium}
-                      fallback={participant.display_name?.charAt(0) || "C"}
-                      size="lg"
-                      className="relative h-14 w-14 sm:h-16 sm:w-16 border-2 border-white/20 ring-4 ring-cyan-500/50 shadow-2xl rounded-full shrink-0"
-                    />
-
-                    {/* Role / Crown Badge */}
-                    {participant.isCreator ? (
-                      <div className="absolute -top-1 -right-1 bg-amber-500 text-black p-1 rounded-full shadow-lg border border-amber-300">
-                        <Crown className="h-3 w-3" />
-                      </div>
-                    ) : (
-                      <div className="absolute -bottom-1 -right-1 bg-cyan-500 text-black px-1.5 py-0.5 rounded-full text-[9px] font-black border border-cyan-200">
-                        Co
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Name Tag */}
-                  <div className="mt-2 text-center max-w-[100px]">
-                    <p className="text-xs font-extrabold text-foreground truncate">
-                      {participant.display_name} {isMe && "(You)"}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground truncate">
-                      {userTyping ? (
-                        <span className="text-cyan-500 font-bold animate-pulse">typing...</span>
-                      ) : (
-                        `@${participant.username}`
-                      )}
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
-
-            {/* Quick Invite Orb Button */}
-            <button
-              type="button"
-              onClick={() => {
-                if (coAuthors.length >= MAX_CO_AUTHORS) {
-                  toast({
-                    title: "Collaborator Limit Reached",
-                    description: `Maximum limit of ${MAX_CO_AUTHORS} invited co-authors per Co-Loop has been reached.`,
-                    variant: "destructive",
-                  })
-                  return
-                }
-                setInviteModalOpen(true)
-              }}
-              disabled={coAuthors.length >= MAX_CO_AUTHORS}
-              className={`group flex flex-col items-center justify-center transition-all ${
-                coAuthors.length >= MAX_CO_AUTHORS ? "opacity-50 cursor-not-allowed" : "hover:scale-105"
-              }`}
-            >
-              <div className="relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full border-2 border-dashed border-cyan-500/60 bg-cyan-500/10 text-cyan-600 dark:text-cyan-300 hover:border-cyan-400 hover:bg-cyan-500/20 shadow-sm">
-                <Plus className="h-6 w-6 group-hover:scale-110 transition-transform" />
-              </div>
-              <span className="mt-2 text-xs font-bold text-cyan-600 dark:text-cyan-300">
-                {coAuthors.length >= MAX_CO_AUTHORS ? "Limit Reached" : "Add Co-Author"}
-              </span>
-            </button>
-
-            {/* Quick Link Orb Button */}
-            <button
-              type="button"
-              onClick={handleCopyInviteLink}
-              className="group flex flex-col items-center justify-center transition-all hover:scale-105"
-            >
-              <div className="relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full border-2 border-border bg-muted/60 text-foreground hover:border-cyan-400 hover:text-cyan-500 shadow-sm">
-                {linkCopied ? <Check className="h-5 w-5 text-emerald-500" /> : <Copy className="h-5 w-5" />}
-              </div>
-              <span className="mt-2 text-xs font-bold text-muted-foreground">{linkCopied ? "Copied Link!" : "Copy Invite"}</span>
-            </button>
-          </div>
-
-            {/* Quick Open Invite Orb Button (owner only) */}
-            {isOwner && (
-              <button
-                type="button"
-                onClick={() => {
-                  setOpenInviteTopic(postContent || postTitle || "")
-                  setOpenInviteModal(true)
-                }}
-                className="group flex flex-col items-center justify-center transition-all hover:scale-105"
-              >
-                <div className="relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full border-2 border-amber-500/50 bg-amber-500/10 text-amber-500 hover:border-amber-400 hover:bg-amber-500/20 shadow-sm">
-                  <Globe className="h-5 w-5" />
-                </div>
-                <span className="mt-2 text-xs font-bold text-amber-500">Open Invite</span>
-              </button>
-            )}
-
-            {/* View All Sessions Link */}
-            <button
-              type="button"
-              onClick={() => window.open('/co-loop', '_blank')}
-              className="group flex flex-col items-center justify-center transition-all hover:scale-105"
-            >
-              <div className="relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full border-2 border-violet-500/50 bg-violet-500/10 text-violet-500 hover:border-violet-400 hover:bg-violet-500/20 shadow-sm">
-                <List className="h-5 w-5" />
-              </div>
-              <span className="mt-2 text-xs font-bold text-violet-500">All Sessions</span>
-            </button>
-        </div>
-
-        {/* FLOATING GLASS PANEL EDITOR (CENTERED CANVAS) */}
-        <div className="relative mx-auto max-w-4xl">
-          <Card className="border-border bg-card p-5 sm:p-8 shadow-sm rounded-3xl space-y-6 text-card-foreground">
-            {/* Live Synchronized Notice */}
-            <div className="flex items-center justify-between border-b border-border pb-4">
-              <div className="flex items-center gap-2">
-                <Radio className="h-4 w-4 text-cyan-500 animate-pulse" />
-                <span className="text-xs font-black uppercase tracking-wider text-cyan-600 dark:text-cyan-300">
-                  Interactive Collaborative Canvas
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span>{wordCount} words</span>
-                <span>•</span>
-                <span>{charCount} characters</span>
-              </div>
-            </div>
-
-            {/* Post Title Field */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
-                  Co-Loop Title (Optional)
-                </label>
-                {Object.values(typingUsers).filter((u) => u.field === "title").length > 0 && (
-                  <span className="flex items-center gap-1.5 text-[11px] font-black text-cyan-600 dark:text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 rounded-full px-2.5 py-0.5 animate-pulse">
-                    <span className="inline-block animate-bounce">✍️</span>
-                    <span>
-                      {Object.values(typingUsers)
-                        .filter((u) => u.field === "title")
-                        .map((u) => `@${u.username}`)
-                        .join(", ")}{" "}
-                      is typing title...
-                    </span>
-                  </span>
-                )}
-              </div>
-              <Input
-                value={postTitle}
-                onChange={(e) => handleTitleChange(e.target.value)}
-                placeholder="e.g. Next-Gen Collaborative Social OS..."
-                className="rounded-2xl border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30 text-base font-bold h-12"
-              />
-            </div>
-
-            {/* Main Content Area */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
-                  Story / Post Content
-                </label>
-                {Object.values(typingUsers).filter((u) => u.field === "content").length > 0 && (
-                  <span className="flex items-center gap-1.5 text-[11px] font-black text-cyan-600 dark:text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 rounded-full px-2.5 py-0.5 animate-pulse">
-                    <span className="inline-block animate-bounce">✍️</span>
-                    <span>
-                      {Object.values(typingUsers)
-                        .filter((u) => u.field === "content")
-                        .map((u) => `@${u.username}`)
-                        .join(", ")}{" "}
-                      is co-writing story...
-                    </span>
-                  </span>
-                )}
-              </div>
-              <Textarea
-                value={postContent}
-                onChange={(e) => handleContentChange(e.target.value)}
-                placeholder="Co-author your story, announcement, or code snippet live in real-time..."
-                className="min-h-[220px] rounded-2xl border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30 text-sm sm:text-base leading-relaxed p-4"
-              />
-            </div>
-
-            {/* Hashtags & Media Attachments (Allowing image/video upload for creator and co-authors) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              {/* Hashtags */}
-              <div className="space-y-2">
-                <label className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
-                  Hashtags
-                </label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={hashtagInput}
-                    onChange={(e) => setHashtagInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddHashtag())}
-                    placeholder="e.g. #CoLoop #Innovation"
-                    className="rounded-xl border-border bg-background text-foreground placeholder:text-muted-foreground text-xs h-9"
-                  />
-                  <Button type="button" onClick={handleAddHashtag} size="sm" className="rounded-xl bg-cyan-600 text-white font-bold h-9">
-                    Add
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-1.5 min-h-[28px]">
-                  {hashtags.map((tag) => (
-                    <Badge
-                      key={tag}
-                      className="bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 border-cyan-500/40 text-xs py-1 px-2.5 rounded-lg flex items-center gap-1"
-                    >
-                      #{tag}
-                      <button type="button" onClick={() => handleRemoveHashtag(tag)} className="hover:text-rose-400 ml-1">
-                        ×
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              {/* Media Attachments Section (All Co-Authors Upload Images/Videos) */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <ImageIcon className="h-3.5 w-3.5 text-cyan-400" />
-                    Media Attachments
-                  </label>
-                  {user?.is_premium && (
-                    <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] font-bold">
-                      PRO Multi-File Enabled
-                    </Badge>
-                  )}
-                </div>
-
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={(e) => handleFileUpload(e.target.files)}
-                  multiple={Boolean(user?.is_premium)}
-                  accept="image/*,video/*"
-                  className="hidden"
-                />
-
-                {/* Drag & drop zone */}
-                <div
-                  onDragEnter={(e) => {
-                    e.preventDefault()
-                    dragDepthRef.current += 1
-                    setDragActive(true)
-                  }}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDragLeave={(e) => {
-                    e.preventDefault()
-                    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
-                    if (dragDepthRef.current === 0) setDragActive(false)
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault()
-                    dragDepthRef.current = 0
-                    setDragActive(false)
-                    void handleFileUpload(e.dataTransfer.files)
-                  }}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-3 py-4 text-center transition-colors ${
-                    dragActive
-                      ? "border-cyan-400 bg-cyan-500/15"
-                      : "border-cyan-500/30 bg-cyan-500/5 hover:border-cyan-400/60 hover:bg-cyan-500/10"
-                  }`}
-                >
-                  {uploadingMedia ? (
-                    <Spinner className="h-5 w-5 text-cyan-400" />
-                  ) : dragActive ? (
-                    <Upload className="h-5 w-5 text-cyan-300" />
-                  ) : (
-                    <ImageIcon className="h-5 w-5 text-cyan-400" />
-                  )}
-                  <p className="text-[11px] font-semibold text-cyan-700 dark:text-cyan-300">
-                    {uploadingMedia ? "Uploading..." : dragActive ? "Drop to attach" : "Click or drag image / video here"}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {user?.is_premium ? "Pro — up to 4 files" : "Free — 1 file"} · JPEG, PNG, GIF, HEIC, MP4, WebM
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      fileInputRef.current?.click()
-                    }}
-                    disabled={uploadingMedia}
-                    variant="outline"
-                    className="rounded-xl border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 dark:bg-cyan-950/30 hover:bg-cyan-500/20 text-xs font-bold gap-1.5 h-9"
-                  >
-                    <Paperclip className="h-4 w-4 text-cyan-400" />
-                    Browse files
-                  </Button>
-
-                  {/* URL Fallback */}
-                  <Input
-                    value={mediaUrl}
-                    onChange={(e) => {
-                      setMediaUrl(e.target.value)
-                      if (e.target.value && !mediaUrls.includes(e.target.value)) {
-                        const updated = [e.target.value, ...mediaUrls]
-                        setMediaUrls(updated)
-                        broadcastDocUpdate({ mediaUrls: updated, mediaUrl: e.target.value })
-                      } else {
-                        broadcastDocUpdate({ mediaUrl: e.target.value })
-                      }
-                    }}
-                    placeholder="or paste URL..."
-                    className="rounded-xl border-border bg-muted text-foreground placeholder:text-muted-foreground dark:border-white/10 dark:bg-slate-950/60 dark:text-white text-xs h-9 flex-1 min-w-[120px]"
-                  />
-                </div>
-
-                {/* Media Previews List */}
-                {mediaUrls.length > 0 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                    {mediaUrls.map((url, index) => {
-                      const isVid = url.match(/\.(mp4|webm|ogg|mov|m4v|avi)(\?|$)/i) || mediaType === "video"
-                      return (
-                        <div key={url + index} className="relative group rounded-xl overflow-hidden border border-cyan-500/30 bg-muted dark:bg-slate-900 h-20">
-                          {isVid ? (
-                            // eslint-disable-next-line jsx-a11y/media-has-caption
-                            <video src={url} muted preload="metadata" playsInline className="h-full w-full object-cover" />
-                          ) : (
-                            <ProtectedMedia type="image" src={url} alt="Media attachment" className="h-full w-full object-cover" />
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveMedia(index)}
-                            className="absolute top-1 right-1 bg-rose-600 text-white rounded-full p-1 opacity-80 hover:opacity-100 transition-opacity"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* INLINE IN-STUDIO DISCUSSION SPACE */}
-            <div className="pt-3 border-t border-border space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-cyan-500" />
-                  <span className="text-xs font-black uppercase tracking-wider text-cyan-600 dark:text-cyan-300">
-                    In-Studio Thread Discussion ({chatMessages.length})
-                  </span>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsChatOpen(!isChatOpen)}
-                  className="text-xs text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 font-bold h-7 px-2"
-                >
-                  {isChatOpen ? "Close Side Panel" : "Expand Side Panel →"}
-                </Button>
-              </div>
-
-              {/* Embedded Chat Stream Box */}
-              <div className="rounded-2xl border border-cyan-500/20 bg-muted/40 p-3.5 space-y-3 max-h-56 overflow-y-auto">
-                {chatMessages.length === 0 ? (
-                  <div className="text-center py-6 text-muted-foreground space-y-1">
-                    <MessageSquare className="h-6 w-6 text-cyan-500 mx-auto opacity-60" />
-                    <p className="text-xs font-semibold">No in-studio thread messages yet.</p>
-                    <p className="text-[11px] text-muted-foreground/80">
-                      Discuss ideas live with your co-authors sitting in the room!
-                    </p>
-                  </div>
-                ) : (
-                  chatMessages.map((msg) => {
-                    const isMe = msg.sender_id === user.id
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex gap-2 text-xs ${isMe ? "flex-row-reverse" : "flex-row"}`}
-                      >
-                        <VideoAvatar src={msg.sender_avatar} videoSrc={(msg as any).sender_video_avatar_url} isPremium={(msg as any).sender_is_premium} fallback={msg.sender_name.charAt(0)} size="sm" className="h-7 w-7 border border-cyan-500/30 shrink-0 rounded-full" />
-                        <div
-                          className={`rounded-2xl px-3.5 py-2 max-w-[85%] shadow-md ${
-                            isMe
-                              ? "bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-medium"
-                              : "bg-card border border-border text-card-foreground"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2 mb-0.5">
-                            <span className="text-[10px] font-bold opacity-80">{msg.sender_name}</span>
-                            <span className="text-[9px] opacity-60">{msg.timestamp}</span>
-                          </div>
-                          <p className="text-xs leading-relaxed">{msg.text}</p>
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-
-              {/* Inline Chat Input Form */}
-              <form onSubmit={handleSendChatMessage} className="flex gap-2">
-                <Input
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Discuss live with co-authors..."
-                  className="rounded-xl border-border bg-background text-foreground text-xs h-10"
-                />
-                <Button type="submit" className="rounded-xl bg-cyan-500 text-black hover:bg-cyan-400 font-extrabold h-10 px-4 text-xs gap-1 shrink-0">
-                  <Send className="h-3.5 w-3.5" />
-                  <span>Send</span>
-                </Button>
-              </form>
-            </div>
-
-            {/* CEREMONIAL PUBLISH BAR */}
-            <div className="pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                <span>Stacked co-author credits will display on feed with +50 activation bonus</span>
-              </div>
-
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <Button
-                  type="button"
-                  onClick={() => handleSaveSnapshot()}
-                  variant="outline"
-                  className="rounded-xl border-cyan-500/40 text-cyan-600 dark:text-cyan-300 hover:bg-cyan-500/10 text-xs font-bold h-11"
-                >
-                  Save Snapshot
-                </Button>
-
-                <Button
-                  onClick={handlePublishCoLoop}
-                  disabled={publishing}
-                  className="flex-1 sm:flex-initial rounded-xl bg-primary text-primary-foreground font-bold shadow-sm px-8 h-11 hover:scale-105 transition-all"
-                >
-                  {publishing ? (
-                    <>
-                      <Spinner className="mr-2 h-4 w-4" /> Publishing...
-                    </>
-                  ) : (
-                    <>
-                      <Rocket className="mr-2 h-4 w-4" /> Publish Co-Loop
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      {/* Floating Chat Drawer Trigger Button (Bottom Right) */}
-      {!isChatOpen && (
-        <button
-          type="button"
-          onClick={() => setIsChatOpen(true)}
-          className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-40 flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 px-4 py-3 text-black font-extrabold shadow-2xl shadow-cyan-500/50 hover:scale-105 transition-transform"
-        >
-          <MessageSquare className="h-5 w-5" />
-          <span>In-Studio Chat</span>
-          {unreadChatCount > 0 && (
-            <Badge className="bg-rose-500 text-white text-xs px-2 py-0.5 rounded-full font-black animate-bounce">
-              {unreadChatCount}
-            </Badge>
-          )}
-        </button>
-      )}
-
-      {/* Mobile Drawer Backdrop Overlay */}
-      {isChatOpen && (
-        <div
-          onClick={() => setIsChatOpen(false)}
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm sm:hidden transition-opacity"
-        />
-      )}
-
-      {/* SLIDE-IN SIDE CHAT THREAD DRAWER */}
-      <div
-        className={`fixed inset-y-0 right-0 z-50 w-full sm:w-96 border-l border-cyan-500/30 bg-card text-card-foreground backdrop-blur-2xl shadow-2xl p-4 flex flex-col h-full max-h-screen transition-transform duration-300 ease-in-out ${
-          isChatOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        <div className="flex items-center justify-between border-b border-border pb-3 shrink-0">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-cyan-500" />
-            <h3 className="text-sm font-extrabold text-foreground">In-Studio Thread</h3>
-          </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => setIsChatOpen(false)}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <ScrollArea className="flex-1 min-h-0 py-4 pr-2">
-          <div className="space-y-3">
-            {chatMessages.length === 0 ? (
-              <div className="text-center py-12 px-4 text-muted-foreground space-y-2">
-                <MessageSquare className="h-8 w-8 text-cyan-400 mx-auto opacity-70" />
-                <p className="text-xs font-semibold">No thread messages yet.</p>
-                <p className="text-[11px] text-muted-foreground/80">
-                  Discuss ideas live with your co-authors sitting in the room!
-                </p>
-              </div>
-            ) : (
-              chatMessages.map((msg) => {
-                const isMe = msg.sender_id === user.id
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex gap-2 text-xs ${isMe ? "flex-row-reverse" : "flex-row"}`}
-                  >
-                    <VideoAvatar src={msg.sender_avatar} videoSrc={(msg as any).sender_video_avatar_url} isPremium={(msg as any).sender_is_premium} fallback={msg.sender_name.charAt(0)} size="sm" className="h-7 w-7 border border-cyan-500/30 rounded-full" />
-                    <div
-                      className={`rounded-2xl px-3.5 py-2.5 max-w-[82%] shadow-md ${
-                        isMe
-                          ? "bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-medium"
-                          : "bg-muted border-border text-foreground dark:bg-slate-900 dark:border-white/10 dark:text-slate-100"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <span className="text-[10px] font-bold opacity-80">{msg.sender_name}</span>
-                        <span className="text-[9px] opacity-60">{msg.timestamp}</span>
-                      </div>
-                      <p className="text-xs leading-relaxed">{msg.text}</p>
-                    </div>
-                  </div>
-                )
-              })
-            )}
-            <div ref={chatEndRef} />
-          </div>
-        </ScrollArea>
-
-        {/* Chat Input Form - Anchored at bottom */}
-        <form onSubmit={handleSendChatMessage} className="pt-2 border-t border-border flex gap-2 shrink-0 pb-2">
-          <Input
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Type message to room..."
-            className="rounded-xl border-border bg-muted text-foreground placeholder:text-muted-foreground dark:border-white/10 dark:bg-slate-900 dark:text-white text-xs h-10"
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-4">
+          <CoLoopCanvas
+            title={doc.title}
+            content={doc.content}
+            onTitleChange={handleTitleChange}
+            onContentChange={handleContentChange}
+            onFieldFocus={handleFieldFocus}
+            onCursorMove={handleCursorMove}
+            cursors={realtime.cursors}
+            remoteEdit={remoteEdit}
+            editingTitle={editingFields.title}
+            editingContent={editingFields.content}
+            hashtags={doc.hashtags}
+            onAddHashtag={handleAddHashtag}
+            onRemoveHashtag={handleRemoveHashtag}
+            mediaUrls={doc.mediaUrls}
+            mediaType={doc.mediaType}
+            uploadingMedia={uploadingMedia}
+            isPro={Boolean(user.is_premium)}
+            onUploadFiles={handleUploadFiles}
+            onRemoveMedia={handleRemoveMedia}
+            onAddMediaUrl={handleAddMediaUrl}
+            disabled={publishing || (locked && !isOwner)}
           />
-          <Button type="submit" className="rounded-xl bg-cyan-500 text-black hover:bg-cyan-400 font-bold h-10 px-4">
-            <Send className="h-4 w-4" />
-          </Button>
-        </form>
-      </div>
 
-      {/* CEREMONIAL PUBLISH CELEBRATION MODAL */}
-      <Dialog open={publishCeremonyOpen} onOpenChange={setPublishCeremonyOpen}>
-        <DialogContent className="sm:max-w-lg border-cyan-500/40 dark:bg-[#080d1e] dark:text-slate-100 p-6 overflow-hidden">
-          {/* Background Ring Effects */}
-          <div className="pointer-events-none absolute -inset-10 rounded-full border border-cyan-500/30 animate-ping opacity-20" />
-          <div className="pointer-events-none absolute -inset-20 rounded-full border border-purple-500/20 animate-pulse opacity-20" />
-
-          <DialogHeader className="text-center space-y-3 relative z-10">
-            <div className="flex justify-center">
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg">
-                <Rocket className="h-10 w-10 text-white animate-bounce" />
-              </div>
+          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 text-card-foreground shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                {liveParticipants.length} in the room
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Crown className="h-3.5 w-3.5" />
+                {coAuthorCount} co-author{coAuthorCount === 1 ? "" : "s"}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Check className="h-3.5 w-3.5 text-emerald-500" />
+                {savedAt
+                  ? `Draft saved ${new Date(savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                  : "Draft autosaves"}
+              </span>
             </div>
 
-            <DialogTitle className="text-2xl font-black text-foreground dark:text-white tracking-tight">
-              Co-Loop Broadcasted Live! 🚀
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground dark:text-slate-300 text-xs sm:text-sm">
-              Your collaborative creation is officially published to the community feed with stacked co-author credit!
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-3 relative z-10">
-            {/* Reward Highlight */}
-            <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-950/60 via-amber-900/30 to-amber-950/60 p-3.5 text-center shadow-lg">
-              <p className="text-xs font-bold text-amber-300 flex items-center justify-center gap-1.5">
-                <Coins className="h-4 w-4 text-amber-400" />
-                Collaboration Bonus Unlocked!
-              </p>
-              <p className="text-xs text-amber-200/90 mt-1">
-                +50 Loop Coins awarded to all {publishedLoopData?.coAuthorsCount || coAuthors.length + 1} active co-authors!
-              </p>
-            </div>
-
-            {/* Stacked Co-Authors Credit */}
-            <div className="rounded-2xl border border-cyan-500/30 bg-muted/80 dark:bg-slate-900/80 p-3.5 space-y-2">
-              <p className="text-xs font-bold uppercase tracking-wider text-cyan-300">Official Co-Authors</p>
-              <div className="flex items-center -space-x-3 overflow-hidden py-1">
-                <VideoAvatar src={user.avatar_url} videoSrc={(user as any).video_avatar_url} isPremium={(user as any).is_premium} fallback={user.username?.charAt(0)} size="sm" className="h-9 w-9 ring-2 ring-cyan-400 rounded-full" />
-                {coAuthors.map((ca) => (
-                  <VideoAvatar key={ca.id} src={ca.avatar_url} videoSrc={(ca as any).video_avatar_url} isPremium={(ca as any).is_premium} fallback={ca.display_name?.charAt(0)} size="sm" className="h-9 w-9 ring-2 ring-purple-500 rounded-full" />
-                ))}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col gap-2 pt-2">
-              <Button
-                onClick={() => {
-                  setPublishCeremonyOpen(false)
-                  router.push("/")
-                }}
-                className="w-full bg-primary text-primary-foreground font-bold h-11 rounded-xl shadow-sm"
-              >
-                View in Community Feed <ExternalLink className="ml-2 h-4 w-4" />
-              </Button>
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
-                onClick={() => {
-                  setPublishCeremonyOpen(false)
-                  // This session is published/closed — start a genuinely new
-                  // one rather than reusing this (now-stale) session id.
-                  router.push("/co-loop/studio")
-                }}
-                className="w-full border-border text-foreground hover:bg-muted dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 rounded-xl h-10 text-xs"
+                disabled={savingVersion}
+                onClick={() => void handleSaveSnapshot()}
+                className="gap-1.5"
               >
-                Start Another Co-Loop Session
+                {savingVersion ? <Spinner className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+                Save version
+              </Button>
+              <Button disabled={publishing} onClick={() => void handlePublish()} className="gap-1.5">
+                {publishing ? <Spinner className="h-4 w-4" /> : <Rocket className="h-4 w-4" />}
+                {publishing ? "Publishing…" : "Publish Co-Loop"}
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
 
-      {/* Version History Sidebar Drawer */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-4 h-[calc(100vh-8rem)]">{rail}</div>
+        </aside>
+      </div>
+
+      {/* Mobile room sheet */}
+      <Sheet
+        open={activityOpen}
+        onOpenChange={(open) => {
+          setActivityOpen(open)
+          if (open) realtime.clearUnread()
+        }}
+      >
+        <SheetContent side="right" className="w-full p-3 sm:max-w-sm">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Studio room</SheetTitle>
+            <SheetDescription>Live participants and chat</SheetDescription>
+          </SheetHeader>
+          <div className="h-[calc(100vh-2rem)]">{rail}</div>
+        </SheetContent>
+      </Sheet>
+
       <CoLoopVersionHistory
         isOpen={historyOpen}
         onClose={() => setHistoryOpen(false)}
+        loading={versionsLoading}
         versions={versions}
         currentDraft={{
-          title: postTitle,
-          content: postContent,
-          hashtags,
-          mediaUrl,
-          mediaUrls,
-          mediaType,
-          coAuthors,
+          title: doc.title,
+          content: doc.content,
+          hashtags: doc.hashtags,
+          mediaUrl: doc.mediaUrl,
+          mediaUrls: doc.mediaUrls,
+          mediaType: doc.mediaType,
+          coAuthors: roster,
         }}
-        onSaveSnapshot={handleSaveSnapshot}
+        onSaveSnapshot={(label) => void handleSaveSnapshot(label)}
         onRestoreVersion={handleRestoreVersion}
       />
 
-      {/* Invite Collaborator Dialog */}
-      <Dialog open={inviteModalOpen} onOpenChange={setInviteModalOpen}>
-        <DialogContent className="sm:max-w-md border-cyan-500/40 dark:bg-[#080d1e] dark:text-slate-100">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-cyan-400">
-              <UserPlus className="h-5 w-5" /> Invite Collaborator to Co-Loop
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground dark:text-slate-400">
-              Generate a shareable live session link or search a creator to send an invitation via DM and Notification. (Maximum {MAX_CO_AUTHORS} invited co-authors per Co-Loop).
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            {coAuthors.length >= MAX_CO_AUTHORS ? (
-              <div className="rounded-xl border border-rose-500/40 bg-rose-950/40 p-3 text-center text-xs text-rose-200">
-                ⚠️ Collaborator Limit Reached ({MAX_CO_AUTHORS}/{MAX_CO_AUTHORS} invited co-authors). You cannot invite additional collaborators to this Co-Loop session.
-              </div>
-            ) : (
-              <>
-                {/* Shareable Link Box */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground dark:text-slate-400 block">
-                    Shareable Asymmetric Session Link
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      readOnly
-                      value={
-                        typeof window !== "undefined"
-                          ? `${window.location.origin}/co-loop/join/${sessionId}${user?.username ? `?invitedBy=${encodeURIComponent(user.username)}` : ""}`
-                          : ""
-                      }
-                      className="rounded-xl border-cyan-500/30 bg-muted text-foreground dark:bg-slate-900 dark:text-cyan-200 text-xs font-mono"
-                    />
-                    <Button
-                      onClick={() => void handleCopyInviteLink()}
-                      className="rounded-xl font-bold shrink-0 text-xs gap-1"
-                    >
-                      {linkCopied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
-                      {linkCopied ? "Done!" : "Share"}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Direct DM Search */}
-                <div className="space-y-1.5 relative">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground dark:text-slate-400 block">
-                    Invite via DM & Notification
-                  </label>
-                  <Input
-                    value={invitedUserInput}
-                    onChange={(e) => setInvitedUserInput(e.target.value)}
-                    onFocus={() => invitedUserInput.trim() && setShowSuggestions(true)}
-                    placeholder="Search @username..."
-                    className="rounded-xl border-border bg-muted text-foreground placeholder:text-muted-foreground dark:border-white/10 dark:bg-slate-900 dark:text-slate-100 text-xs"
-                  />
-
-                  {showSuggestions && userSuggestions.length > 0 && (
-                    <div className="rounded-xl border border-cyan-500/30 bg-card dark:bg-slate-900 p-2 space-y-1 shadow-xl max-h-48 overflow-y-auto">
-                      {userSuggestions.map((u) => (
-                        <div
-                          key={u.id}
-                          className="flex items-center justify-between p-2 hover:bg-cyan-500/10 rounded-lg text-xs"
-                        >
-                          <div className="flex items-center gap-2">
-                            <VideoAvatar src={u.avatar_url} videoSrc={u.video_avatar_url} isPremium={u.is_premium} fallback={u.username?.charAt(0)} size="sm" className="h-7 w-7 rounded-full" />
-                            <div>
-                              <p className="font-bold">{u.display_name || u.username}</p>
-                              <p className="text-[10px] text-muted-foreground dark:text-slate-400">@{u.username}</p>
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            disabled={sendingInvite || coAuthors.length >= MAX_CO_AUTHORS}
-                            onClick={() => handleSendInviteToUser(u)}
-                            className="rounded-lg bg-cyan-500 text-black font-bold text-[11px] h-7"
-                          >
-                            {sendingInvite ? <Spinner className="h-3 w-3" /> : "Send Invite"}
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Split Gift Dialog */}
-      <Dialog open={giftModalOpen} onOpenChange={setGiftModalOpen}>
-        <DialogContent className="sm:max-w-md border-amber-500/40 dark:bg-[#080d1e] dark:text-slate-100">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-400">
-              <Coins className="h-5 w-5" /> Co-Loop Split Gift 🎁
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground dark:text-slate-400">
-              Gift Loop Coins to this Co-Loop! Coins will be split equally among all ({coAuthors.length + 1}) active co-authors sitting in the room.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-3">
-            <div className="grid grid-cols-2 gap-3">
-              {[100, 500, 1000, 5000].map((amount) => {
-                const perAuthor = Math.floor(amount / (coAuthors.length + 1))
-                return (
-                  <Button
-                    key={amount}
-                    disabled={isSendingGift}
-                    onClick={() => handleSendSplitGift(amount)}
-                    className="flex flex-col items-center justify-center h-20 rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-card to-amber-500/5 dark:from-amber-950/40 dark:via-slate-900 dark:to-amber-900/20 hover:border-amber-400 text-amber-700 dark:text-amber-300 font-bold"
-                  >
-                    <span className="text-lg font-extrabold flex items-center gap-1">
-                      <Coins className="h-4 w-4 text-amber-400" /> {amount} Coins
-                    </span>
-                    <span className="text-[10px] text-muted-foreground dark:text-slate-400 mt-0.5">
-                      ({perAuthor} coins each)
-                    </span>
-                  </Button>
-                )
-              })}
-            </div>
-          </div>
-        </DialogContent>
-
-      {/* Open Invite Dialog */}
-      <Dialog open={openInviteModal} onOpenChange={setOpenInviteModal}>
-        <DialogContent className="sm:max-w-lg border-cyan-500/30 bg-card">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5 text-amber-500" />
-              Create Public Open Invite
-            </DialogTitle>
-            <DialogDescription>
-              Publish an open call in the feed. Anyone on Loop can join your session.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 mt-4">
-            <div>
-              <label className="text-sm font-semibold mb-1.5 block">Topic / Prompt</label>
-              <Textarea
-                value={openInviteTopic}
-                onChange={(e) => setOpenInviteTopic(e.target.value)}
-                placeholder="What should we create together?"
-                rows={3}
-                className="resize-none"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold mb-1.5 block">Max Collaborators</label>
-              <div className="flex gap-2">
-                {[2, 3, 4].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setOpenInviteMax(n)}
-                    className={`flex-1 rounded-xl border-2 px-3 py-2 text-center font-bold transition-all ${
-                      openInviteMax === n
-                        ? "border-amber-500 bg-amber-500/15 text-amber-300"
-                        : "border-white/10 bg-white/5 text-muted-foreground"
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <Button
-              onClick={() => void handlePublishOpenInvite()}
-              disabled={publishingOpenInvite || !openInviteTopic.trim()}
-              className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 font-bold text-white shadow-lg"
-            >
-              {publishingOpenInvite ? "Publishing..." : "Publish Open Invite"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      </Dialog>
+      <StudioDialogs
+        invite={{
+          open: inviteOpen,
+          onOpenChange: setInviteOpen,
+          url: inviteUrl,
+          linkCopied,
+          onCopyLink: () => void handleCopyInviteLink(),
+          query: inviteQuery,
+          onQueryChange: setInviteQuery,
+          results: inviteResults,
+          searching: searchingInvite,
+          sending: sendingInvite,
+          onSend: (target) => void handleSendInvite(target),
+        }}
+        gift={{
+          open: giftOpen,
+          onOpenChange: setGiftOpen,
+          coAuthorCount,
+          sending: sendingGift,
+          onSend: (amount) => void handleSendGift(amount),
+        }}
+        openInvite={{
+          open: openInviteOpen,
+          onOpenChange: setOpenInviteOpen,
+          topic: openInviteTopic,
+          onTopicChange: setOpenInviteTopic,
+          max: openInviteMax,
+          onMaxChange: setOpenInviteMax,
+          publishing: publishingOpenInvite,
+          onPublish: () => void handlePublishOpenInvite(),
+        }}
+        ceremony={{
+          open: ceremonyOpen,
+          onOpenChange: setCeremonyOpen,
+          title: doc.title || "Co-Loop collaboration",
+          authors: publishedAuthors,
+          self: user,
+          roster: roster.filter((c) => c.id !== user.id),
+          onViewFeed: () => {
+            setCeremonyOpen(false)
+            router.push("/")
+          },
+          onStartNew: () => {
+            setCeremonyOpen(false)
+            router.push("/co-loop/studio")
+          },
+        }}
+      />
     </div>
   )
 }

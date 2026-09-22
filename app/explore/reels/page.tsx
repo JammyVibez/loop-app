@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Eye, Heart, Sparkles, Film } from "lucide-react"
+import { ArrowLeft, Eye, Heart, Film } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { Spinner, SkeletonBlock } from "@/components/ui/skeletons"
@@ -127,7 +127,7 @@ export default function ExploreReelsPage() {
         <div className="min-w-0 flex-1">
           <h1 className="flex items-center gap-1.5 text-base font-bold">
             Explore Reels
-            <Sparkles className="h-4 w-4 text-amber-400" />
+            <Film className="h-4 w-4 text-amber-400" />
           </h1>
           <p className="truncate text-[11px] text-white/50">Trending and fresh clips, all in one grid</p>
         </div>

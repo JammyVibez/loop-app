@@ -17,7 +17,6 @@ import {
   Users,
   Flame,
   TrendingUp,
-  Sparkles,
   Plus,
   ArrowRight,
   Lock,
@@ -50,7 +49,7 @@ interface CommunityItem {
 const SORTS = [
   { id: "trending", label: "Trending", icon: Flame },
   { id: "growing", label: "Growing", icon: TrendingUp },
-  { id: "new", label: "New", icon: Sparkles },
+  { id: "new", label: "New", icon: Clock },
   { id: "active", label: "Active Now", icon: Activity },
   { id: "recommended", label: "For You", icon: Zap },
 ] as const

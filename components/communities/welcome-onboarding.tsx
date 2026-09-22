@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Sparkles, Check } from "lucide-react"
+import { PartyPopper, Check } from "lucide-react"
 import { iconForSpace } from "@/components/communities/world-spaces"
 import { Spinner } from "@/components/ui/skeletons"
 
@@ -86,7 +86,7 @@ export function WelcomeOnboarding({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white">
-              <Sparkles className="h-4 w-4" />
+              <PartyPopper className="h-4 w-4" />
             </span>
             Welcome to {communityName}
           </DialogTitle>

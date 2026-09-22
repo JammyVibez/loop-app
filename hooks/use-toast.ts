@@ -7,6 +7,7 @@ import type {
   ToastActionElement,
   ToastProps,
 } from "@/components/ui/toast";
+import type { LucideIcon } from "lucide-react";
 
 /**
  * Three notices can stack; a fourth pushes the oldest out. One at a time hid
@@ -39,6 +40,8 @@ type ToasterToast = ToastProps & {
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
+  /** Optional lucide icon that replaces the variant's default mark. */
+  icon?: LucideIcon | null
 }
 
 const actionTypes = {
