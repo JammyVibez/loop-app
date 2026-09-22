@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
+import Link from "next/link"
 import { GitBranch, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -26,11 +27,17 @@ interface LoopCardContentProps {
   forking: boolean
 }
 
+/** Tags already typed inline in the body so we never repeat them as chips. */
+function escapeTag(tag: string) {
+  return tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
 export function LoopCardContent({
   loop,
   rawLoop,
   content,
   contentPreview,
+  hashtags,
   onLike,
   onFork,
   forking,
@@ -39,6 +46,18 @@ export function LoopCardContent({
   const { user: currentUser } = useAuth()
   const { requireAuth, LoginGateDialog } = useLoginGate()
   const { toast } = useToast()
+
+  // Tags added through the composer's hashtag field live in the post's
+  // `hashtags` array — not in the body text — so RichContent can't render
+  // them. Show the ones that aren't already visible inline as chips.
+  const chipTags = useMemo(() => {
+    if (!Array.isArray(hashtags) || hashtags.length === 0) return []
+    const body = String(content || "")
+    return hashtags
+      .map((t) => String(t).replace(/^#/, "").trim())
+      .filter(Boolean)
+      .filter((t) => !new RegExp(`#${escapeTag(t)}\\b`, "i").test(body))
+  }, [hashtags, content])
 
   return (
     <>
@@ -103,9 +122,23 @@ export function LoopCardContent({
           )}
         </div>
 
-        {/* Hashtags are not repeated as a chip row beneath the post —
-            RichContent already tints each #tag inline in the accent color
-            inside the post text, which is where people read and tap them. */}
+        {/* Hashtags added via the composer's tag field (not written inline in
+            the body) render here as tappable chips — otherwise they'd be
+            invisible, since RichContent only tints #tags that are in the text. */}
+        {chipTags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {chipTags.map((tag) => (
+              <Link
+                key={tag}
+                href={`/hashtag/${encodeURIComponent(tag.toLowerCase())}`}
+                onClick={(e) => e.stopPropagation()}
+                className="rounded-full bg-[var(--theme-primary,#0ea5e9)]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[var(--theme-primary,#0ea5e9)] ring-1 ring-inset ring-[var(--theme-primary,#0ea5e9)]/20 transition hover:bg-[var(--theme-primary,#0ea5e9)]/20"
+              >
+                #{tag}
+              </Link>
+            ))}
+          </div>
+        )}
 
         {/* Render Poll Widget if loop is a poll */}
         {(loop.poll ||

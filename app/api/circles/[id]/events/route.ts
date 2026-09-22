@@ -54,9 +54,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 })
     }
 
+    // Tell the client which of these the viewer has already RSVP'd to, so the
+    // Events tab doesn't need one participants request per card.
+    const viewer = await getUserFromRequest(request)
+    const attending = new Set<string>()
+    if (viewer && events && events.length > 0) {
+      const { data: rows } = await supabase
+        .from("circle_event_participants")
+        .select("event_id")
+        .eq("user_id", viewer.id)
+        .in("event_id", events.map((e: any) => e.id))
+      for (const row of rows || []) attending.add(String((row as any).event_id))
+    }
+
     return NextResponse.json({
       success: true,
-      events: events || [],
+      events: (events || []).map((e: any) => ({ ...e, is_attending: attending.has(String(e.id)) })),
       hasMore: events?.length === limit,
     })
   } catch (error) {

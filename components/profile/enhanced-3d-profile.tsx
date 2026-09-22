@@ -42,6 +42,7 @@ import { RichContent } from "@/components/content/rich-content"
 import { BioCommunityTags } from "@/components/profile/bio-community-tags"
 import { ProfileAwards, ProfileAwardsGrid } from "@/components/profile/profile-awards"
 import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
+import { EnhancedMediaViewer } from "@/components/media/enhanced-media-viewer"
 
 interface Achievement {
   id: string
@@ -127,6 +128,12 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const [canViewFull, setCanViewFull] = useState(true)
   const [uploadingCover, setUploadingCover] = useState(false)
   const [showGiftModal, setShowGiftModal] = useState(false)
+  // Tapping the profile photo or cover opens it full-screen (zoom / swipe).
+  const [photoViewer, setPhotoViewer] = useState<{
+    url: string
+    type: "image" | "video"
+    alt: string
+  } | null>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
   const profileFrame = usePfpFrame((profile as any)?.equipped_frame_id)
 
@@ -462,6 +469,34 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       <div className="lg:px-4 lg:pt-4">
       {/* Banner — animated cover with upload button */}
       <div className="relative">
+      <div
+        role={profile.banner_url || (profile as any).video_cover_url ? "button" : undefined}
+        tabIndex={profile.banner_url || (profile as any).video_cover_url ? 0 : -1}
+        aria-label="View cover photo"
+        className={cn(
+          "block w-full",
+          (profile.banner_url || (profile as any).video_cover_url) && "cursor-zoom-in"
+        )}
+        onClick={() => {
+          const video = (profile as any).video_cover_url as string | null
+          const image = profile.banner_url
+          const url = video || image
+          if (!url) return
+          setPhotoViewer({
+            url,
+            type: video ? "video" : "image",
+            alt: `${displayName}'s cover photo`,
+          })
+        }}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter" && e.key !== " ") return
+          e.preventDefault()
+          const video = (profile as any).video_cover_url as string | null
+          const url = video || profile.banner_url
+          if (!url) return
+          setPhotoViewer({ url, type: video ? "video" : "image", alt: `${displayName}'s cover photo` })
+        }}
+      >
       <VideoCover
         src={profile.banner_url}
         videoSrc={(profile as any).video_cover_url || null}
@@ -469,6 +504,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         height="h-36 sm:h-56 lg:h-64 lg:rounded-2xl"
         className=""
       />
+      </div>
         {isOwnProfile && (
           <>
             <input
@@ -485,7 +521,10 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               variant="secondary"
               className="absolute bottom-2 right-2 z-20 rounded-full bg-black/55 px-3 text-white hover:bg-black/70 sm:bottom-3 sm:right-3"
               disabled={uploadingCover}
-              onClick={() => coverInputRef.current?.click()}
+              onClick={(e) => {
+                e.stopPropagation()
+                coverInputRef.current?.click()
+              }}
             >
               <Upload className="mr-1.5 h-3.5 w-3.5" />
               {uploadingCover ? "Uploading…" : "Edit cover"}
@@ -503,7 +542,29 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       <div className="relative z-10 px-3 pb-3 sm:px-4 lg:px-0 lg:pb-0">
         <div className="lg:sticky lg:top-28 lg:pb-8">
         <div className="-mt-10 flex flex-col gap-3 pointer-events-none sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
-          <div className="relative self-start pointer-events-auto">
+          <div
+            className={cn(
+              "relative self-start pointer-events-auto rounded-full",
+              (profile.avatar_url || (profile as any).video_avatar_url) && "cursor-zoom-in"
+            )}
+            role={(profile.avatar_url || (profile as any).video_avatar_url) ? "button" : undefined}
+            tabIndex={(profile.avatar_url || (profile as any).video_avatar_url) ? 0 : -1}
+            aria-label="View profile photo"
+            onClick={() => {
+              const video = (profile as any).video_avatar_url as string | null
+              const url = video || profile.avatar_url
+              if (!url) return
+              setPhotoViewer({ url, type: video ? "video" : "image", alt: `${displayName}'s profile photo` })
+            }}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" && e.key !== " ") return
+              e.preventDefault()
+              const video = (profile as any).video_avatar_url as string | null
+              const url = video || profile.avatar_url
+              if (!url) return
+              setPhotoViewer({ url, type: video ? "video" : "image", alt: `${displayName}'s profile photo` })
+            }}
+          >
             <VideoAvatar
               src={profile.avatar_url}
               videoSrc={(profile as any).video_avatar_url || null}
@@ -1057,6 +1118,19 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             avatar_url: profile.avatar_url,
           }}
           context={{ type: "profile", id: profile.id, title: profile.display_name }}
+        />
+      )}
+
+      {/* Tap the profile photo or cover → full-screen viewer (pinch/double-tap
+          zoom, swipe, Escape to close) reusing the app's media viewer. */}
+      {photoViewer && (
+        <EnhancedMediaViewer
+          open
+          onOpenChange={(open) => {
+            if (!open) setPhotoViewer(null)
+          }}
+          media={[{ url: photoViewer.url, type: photoViewer.type, alt: photoViewer.alt }]}
+          alt={photoViewer.alt}
         />
       )}
     </div>

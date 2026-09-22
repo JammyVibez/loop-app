@@ -46,6 +46,11 @@ const DEFAULT_FILES = [
   // `invalid input syntax for type uuid: "6"` (no profiles for new signups,
   // onboarding step 1 always erroring).
   "scripts/fix-pro-circle-membership-trigger.sql",
+  // circle_event_participants.event_id referenced its own table instead of
+  // circle_events, and (event_id, user_id) had no unique constraint — so
+  // every community event RSVP failed. Repairs the FK, adds the constraint
+  // the route's ON CONFLICT needs, and resyncs attendee counts.
+  "scripts/fix-circle-event-participants.sql",
 ]
 
 // Allow a targeted run: node apply-pending-schema.mjs scripts/foo.sql …

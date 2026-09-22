@@ -23,6 +23,7 @@ import { WorldPowers } from "@/components/communities/world-powers"
 import { WelcomeOnboarding } from "@/components/communities/welcome-onboarding"
 import { CommunityBookmarks } from "@/components/communities/community-bookmarks"
 import { CommunityChat } from "@/components/communities/community-chat"
+import { WorldEvents } from "@/components/communities/world-events"
 import { CommunityAdminModal } from "@/components/communities/community-admin-modal"
 import { spaceIcon } from "@/components/communities/world-spaces"
 import type { ThreadRecord } from "@/components/communities/thread-row"
@@ -48,6 +49,7 @@ import {
   X,
   Bookmark,
   Crown,
+  CalendarDays,
 } from "lucide-react"
 import Link from "next/link"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
@@ -69,6 +71,7 @@ const RENDERED_TABS = [
   "threads",
   "feed",
   "chat",
+  "events",
   "members",
   "powers",
   "moderation",
@@ -243,20 +246,30 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
     [openTab, router]
   )
 
+  /**
+   * Feature switches saved from Settings → Features. Absent means on, so a
+   * community that never touched them keeps every surface it had before.
+   */
+  const featureOn = useCallback(
+    (key: string) => (bundle?.community?.enabled_features || {})[key] !== false,
+    [bundle]
+  )
+
   const tabs = useMemo(() => {
     if (!bundle) return []
     const items: Array<{ id: string; label: string; icon: any }> = [
       { id: "canvas", label: "Canvas", icon: LayoutGrid },
       { id: "threads", label: "Threads", icon: Layers },
       { id: "feed", label: "Feed", icon: MessageSquare },
-      { id: "chat", label: "Chat", icon: MessageCircle },
-      { id: "members", label: "Members", icon: Users },
     ]
+    if (featureOn("chat")) items.push({ id: "chat", label: "Chat", icon: MessageCircle })
+    if (featureOn("events")) items.push({ id: "events", label: "Events", icon: CalendarDays })
+    items.push({ id: "members", label: "Members", icon: Users })
     if (bundle.is_member) items.push({ id: "powers", label: "Powers", icon: Sparkles })
     if (bundle.is_moderator) items.push({ id: "moderation", label: "Moderation", icon: ShieldCheck })
     if (bundle.is_admin) items.push({ id: "settings", label: "Settings", icon: Settings })
     return items
-  }, [bundle])
+  }, [bundle, featureOn])
 
   const threads = (bundle?.threads || []) as ThreadRecord[]
   const openThreads = threads.filter((t) => (t.state || "open") === "open").length
@@ -475,6 +488,14 @@ export function CommunityWorld({ communityId }: { communityId: string }) {
               <p className="text-sm font-semibold">Join this community to chat</p>
               <p className="mt-1 text-xs text-muted-foreground">You must be a member to take part in chat.</p>
             </div>
+          )}
+
+          {tab === "events" && (
+            <WorldEvents
+              communityId={communityId}
+              isMember={bundle.is_member}
+              canManage={Boolean(bundle.is_admin || bundle.is_moderator)}
+            />
           )}
 
           {tab === "powers" && <WorldPowers communityId={communityId} canManageHint={bundle.is_admin} />}
