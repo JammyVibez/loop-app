@@ -204,10 +204,10 @@ export function GlobalEventsHub() {
           {user?.is_admin && (
             <div className="pt-2">
               <Button asChild className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-black font-bold shadow-lg hover:brightness-110">
-                <a href="/loopadmin?tab=events">
+                <Link href="/loopadmin?tab=events">
                   <Zap className="mr-2 h-4 w-4" />
                   Admin: Create & Manage Global Events
-                </a>
+                </Link>
               </Button>
             </div>
           )}

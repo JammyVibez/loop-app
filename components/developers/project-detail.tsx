@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Badge } from "@/components/ui/badge"
@@ -63,6 +64,7 @@ function timeAgo(iso?: string) {
 }
 
 export function ProjectDetail({ project }: { project: any }) {
+  const router = useRouter()
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const { requireAuth, LoginGateDialog } = useLoginGate()
@@ -326,7 +328,7 @@ export function ProjectDetail({ project }: { project: any }) {
     <>
       {LoginGateDialog}
       <div className="space-y-6">
-        <CodeLoopCard project={project} onDeleted={() => (window.location.href = "/developers")} />
+        <CodeLoopCard project={project} onDeleted={() => router.push("/developers")} />
 
         {/* GitHub-style repo browser for ZIP-based projects */}
         {Array.isArray(project.file_tree) && project.file_tree.length > 0 && (

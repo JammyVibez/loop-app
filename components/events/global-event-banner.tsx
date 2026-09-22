@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Zap, Trophy, Video, Users, ArrowRight, Star, Calendar, Clock } from "lucide-react"
@@ -126,9 +127,9 @@ export function GlobalEventBanner() {
             variant="outline"
             className="rounded-full border-border bg-background/60 text-xs text-foreground hover:bg-muted"
           >
-            <a href="/explore">
+            <Link href="/explore">
               Events Hub <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-            </a>
+            </Link>
           </Button>
         </div>
       </div>

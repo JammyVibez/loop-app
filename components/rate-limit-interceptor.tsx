@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 /**
  * Intercepts fetch 429 responses and stores the retry-after timestamp
@@ -8,6 +9,8 @@ import { useEffect } from "react"
  * Also intercepts Next.js router pushes that result in 429.
  */
 export function RateLimitInterceptor() {
+  const router = useRouter()
+
   useEffect(() => {
     const originalFetch = window.fetch
     window.fetch = async (...args) => {
@@ -19,7 +22,9 @@ export function RateLimitInterceptor() {
         // Only redirect for non-API navigation requests
         const url = typeof args[0] === "string" ? args[0] : args[0] instanceof Request ? args[0].url : String(args[0])
         if (!url.startsWith("/api/")) {
-          window.location.href = "/ratelimit"
+          // Route client-side so the throttled page swaps in without a full
+          // document reload.
+          router.push("/ratelimit")
         }
       }
       return response
@@ -27,7 +32,7 @@ export function RateLimitInterceptor() {
     return () => {
       window.fetch = originalFetch
     }
-  }, [])
+  }, [router])
 
   return null
 }

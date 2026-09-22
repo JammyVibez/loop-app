@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -101,6 +102,7 @@ export function CommunityPostCard({
   liking,
   flashId,
 }: CommunityPostCardProps) {
+  const router = useRouter()
   const badges = useVerificationBadges()
   const [showComments, setShowComments] = useState(false)
   const [localVoting, setLocalVoting] = useState(false)
@@ -344,10 +346,12 @@ export function CommunityPostCard({
               // Don't hijack clicks on hashtags/mentions/link previews inside the body.
               const t = e.target as HTMLElement
               if (t.closest("a, button")) return
-              window.location.href = `/communities/${communityId}/posts/${post.id}`
+              // Client-side: clicking a post used to reload the entire document,
+              // which looked like the app crashing back to a blank screen.
+              router.push(`/communities/${communityId}/posts/${post.id}`)
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter") window.location.href = `/communities/${communityId}/posts/${post.id}`
+              if (e.key === "Enter") router.push(`/communities/${communityId}/posts/${post.id}`)
             }}
           >
             <RichContent

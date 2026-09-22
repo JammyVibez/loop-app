@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useMemo, useState, useEffect } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -203,10 +204,10 @@ export function DevelopersContent() {
               variant="outline"
               className="rounded-full border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 font-semibold"
             >
-              <a href="/developers/docs">
+              <Link href="/developers/docs">
                 <BookOpen className="w-4 h-4 mr-2 shrink-0" />
                 Developer Docs
-              </a>
+              </Link>
             </Button>
           </div>
         </div>
@@ -402,7 +403,7 @@ export function DevelopersContent() {
                       ))}
                     </div>
                     <Button asChild variant="outline" size="sm" className="mt-4 rounded-full">
-                      <a href="/developers/docs">Read the docs</a>
+                      <Link href="/developers/docs">Read the docs</Link>
                     </Button>
                   </div>
 
@@ -424,7 +425,7 @@ export function DevelopersContent() {
                       ))}
                     </div>
                     <Button asChild variant="outline" size="sm" className="mt-4 rounded-full">
-                      <a href="/developers/community-layouts">View the spec</a>
+                      <Link href="/developers/community-layouts">View the spec</Link>
                     </Button>
                   </div>
                 </div>

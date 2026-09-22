@@ -78,7 +78,9 @@ export function Header() {
   const handleLogout = async () => {
     try {
       await signOut()
-      window.location.href = "/landing"
+      // Client-side navigation: a full reload here threw away every cached
+      // client state for no reason and made signing out feel like a crash.
+      router.push("/landing")
     } catch (error) {
       console.error("Logout error:", error)
     }

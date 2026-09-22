@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Search, Users } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -27,6 +27,7 @@ type Person = {
 
 export default function FollowersPage() {
   const params = useParams()
+  const router = useRouter()
   const username = params.username as string
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
@@ -161,7 +162,7 @@ export default function FollowersPage() {
                     className="rounded-full"
                     onClick={() => {
                       if (!user) {
-                        window.location.href = "/login"
+                        router.push("/login")
                         return
                       }
                       void toggleFollow(person)

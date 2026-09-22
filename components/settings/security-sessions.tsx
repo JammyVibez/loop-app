@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -43,6 +44,7 @@ interface SecuritySessionsProps {
 
 export function SecuritySessions({ activeTab }: SecuritySessionsProps) {
   const { user, getAuthHeader } = useAuth()
+  const router = useRouter()
   const { toast } = useToast()
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
@@ -136,7 +138,7 @@ export function SecuritySessions({ activeTab }: SecuritySessionsProps) {
       })
       if (res.ok) {
         toast({ title: "Account deleted" })
-        window.location.href = "/"
+        router.push("/")
       } else {
         toast({ title: "Failed to delete account", variant: "destructive" })
       }

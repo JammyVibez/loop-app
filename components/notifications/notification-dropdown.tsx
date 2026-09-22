@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -103,6 +104,7 @@ function groupByTime(notifications: Notification[]): { label: string; items: Not
 }
 
 export function NotificationDropdown() {
+  const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -363,7 +365,12 @@ export function NotificationDropdown() {
                         }`}
                         onClick={() => {
                           if (isUnread) void markAsRead(notification.id)
-                          if (href) window.location.assign(href)
+                          // Internal targets route client-side; only genuinely
+                          // external ones need a document navigation.
+                          if (href) {
+                            if (href.startsWith("/")) router.push(href)
+                            else window.location.assign(href)
+                          }
                         }}
                       >
                         {/* Actor avatar(s) */}
