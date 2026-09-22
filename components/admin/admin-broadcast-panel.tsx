@@ -16,6 +16,9 @@ export function AdminBroadcastPanel() {
   const { toast } = useToast()
   const [title, setTitle] = useState("")
   const [message, setMessage] = useState("")
+  const [previewText, setPreviewText] = useState("")
+  const [ctaLabel, setCtaLabel] = useState("Open Loop")
+  const [brandName, setBrandName] = useState("loopapp.me")
   const [actionUrl, setActionUrl] = useState("")
   const [scope, setScope] = useState<"all" | "random">("all")
   const [sampleSize, setSampleSize] = useState(100)
@@ -23,7 +26,17 @@ export function AdminBroadcastPanel() {
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<string | null>(null)
 
-  const sendBroadcast = async (type: "announcement" | "trending", preset?: { title: string; message: string; url?: string }) => {
+  const sendBroadcast = async (
+    type: "announcement" | "trending",
+    preset?: {
+      title?: string
+      message?: string
+      url?: string
+      previewText?: string
+      ctaLabel?: string
+      brandName?: string
+    },
+  ) => {
     if (sending) return
     setSending(true)
     setResult(null)
@@ -34,6 +47,9 @@ export function AdminBroadcastPanel() {
         body: JSON.stringify({
           title: preset?.title ?? title,
           message: preset?.message ?? message,
+          preview_text: preset?.previewText ?? previewText,
+          cta_label: preset?.ctaLabel ?? ctaLabel,
+          brand_name: preset?.brandName ?? brandName,
           action_url: (preset?.url ?? actionUrl) || null,
           type,
           scope,
@@ -51,6 +67,10 @@ export function AdminBroadcastPanel() {
       toast({ title: "Broadcast sent", description: `${data.notified} users notified` })
       setTitle("")
       setMessage("")
+      setPreviewText("")
+      setCtaLabel("Open Loop")
+      setBrandName("loopapp.me")
+      setActionUrl("")
     } catch (error: any) {
       toast({ title: "Broadcast failed", description: error.message, variant: "destructive" })
     } finally {
@@ -91,16 +111,49 @@ export function AdminBroadcastPanel() {
               />
             </div>
           </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="b-preview">Preview text</Label>
+              <Input
+                id="b-preview"
+                value={previewText}
+                onChange={(e) => setPreviewText(e.target.value)}
+                placeholder="Something important is happening on Loop — jump in while it’s live."
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="b-cta">CTA label</Label>
+              <Input
+                id="b-cta"
+                value={ctaLabel}
+                onChange={(e) => setCtaLabel(e.target.value || "Open Loop")}
+                placeholder="Open Loop"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="b-brand">Brand / sender name</Label>
+            <Input
+              id="b-brand"
+              value={brandName}
+              onChange={(e) => setBrandName(e.target.value || "loopapp.me")}
+              placeholder="loopapp.me"
+            />
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="b-msg">Message</Label>
             <Textarea
               id="b-msg"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              rows={3}
+              rows={4}
               placeholder="What should everyone know?"
             />
           </div>
+
           <div className="flex flex-wrap items-end gap-4">
             <div className="space-y-1.5">
               <Label>Audience</Label>
@@ -118,6 +171,7 @@ export function AdminBroadcastPanel() {
                 ))}
               </div>
             </div>
+
             {scope === "random" && (
               <div className="space-y-1.5">
                 <Label htmlFor="b-size">Sample size</Label>
@@ -132,6 +186,7 @@ export function AdminBroadcastPanel() {
                 />
               </div>
             )}
+
             <Button
               type="button"
               size="sm"
@@ -140,7 +195,8 @@ export function AdminBroadcastPanel() {
             >
               Email: {sendEmail ? "ON" : "OFF"}
             </Button>
-            <div className="flex gap-2">
+
+            <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() => void sendBroadcast("announcement")}
                 disabled={sending || !title.trim() || !message.trim()}
@@ -150,7 +206,15 @@ export function AdminBroadcastPanel() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => void sendBroadcast("trending", { title: "🔥 Check out what's trending on loopapp.me", message: "A big conversation is happening right now — jump in before it wraps up!" })}
+                onClick={() =>
+                  void sendBroadcast("trending", {
+                    title: "🔥 Check out what's trending on loopapp.me",
+                    message: "A big conversation is happening right now — jump in before it wraps up!",
+                    previewText: "Your community is already in the app — see what's moving right now.",
+                    ctaLabel: "See what's happening",
+                    brandName: "loopapp.me",
+                  })
+                }
                 disabled={sending}
               >
                 <TrendingUp className="mr-2 h-4 w-4" />
@@ -158,7 +222,12 @@ export function AdminBroadcastPanel() {
               </Button>
             </div>
           </div>
-          {result && <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-300">{result}</p>}
+
+          {result && (
+            <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-300">
+              {result}
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
