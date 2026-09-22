@@ -239,7 +239,10 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
   }
 
   return (
-    <Card className="border border-cyan-500/30 bg-gradient-to-b from-card to-background shadow-2xl rounded-3xl overflow-hidden my-6">
+    <Card
+      data-tour="duels"
+      className="border border-cyan-500/30 bg-gradient-to-b from-card to-background shadow-2xl rounded-3xl overflow-hidden my-6"
+    >
       <CardHeader className="p-5 border-b border-border bg-cyan-500/5">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">

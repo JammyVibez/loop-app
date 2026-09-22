@@ -50,7 +50,8 @@ export async function POST(request: NextRequest) {
           user_id,
           type: "verification_badge",
           title: "New checkmark! 🎖️",
-          message: `An admin awarded you the "${badge_id}" checkmark. It now shows next to your name across Loop.`,
+          // Platform voice — never expose that staff granted it manually.
+          message: `You've been awarded the "${badge_id}" checkmark. It now shows next to your name across Loop.`,
           data: { badge_id },
         })
       } catch {

@@ -820,3 +820,21 @@ html.loop-reduced-motion *::after {
   70% { transform: scale(1.05) rotate(-4deg); opacity: 1; }
   100% { transform: scale(1.5) rotate(0deg); opacity: 0; }
 }
+
+/* ---- Feature tour (coach marks): auto-advance progress bar ---- */
+@keyframes loop-tour-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.loop-tour-progress {
+  transform-origin: left center;
+  animation-name: loop-tour-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .loop-tour-progress {
+    animation: none;
+    transform: scaleX(1);
+  }
+}

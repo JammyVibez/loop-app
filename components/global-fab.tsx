@@ -85,6 +85,7 @@ export function GlobalFab() {
     >
       <Link
         href="/create"
+        data-tour="create-loop"
         className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-110 active:scale-95 transition-transform duration-200 focus:outline-none focus:ring-4 focus:ring-cyan-500/40 border border-white/20"
         title="Create New Post / Loop"
       >

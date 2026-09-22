@@ -72,7 +72,7 @@ export function FeedTabs({ guestMode = false }: FeedTabsProps) {
   const hasSecondaryFilters = activeTopic !== "all" || searchQuery.trim().length > 0 || viewMode !== "stream"
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-3">
+    <Tabs value={activeTab} onValueChange={setActiveTab} data-tour="feed-tabs" className="w-full space-y-3">
       {/* Non-sticky compact toolbar — scrolls with the feed */}
       <div className="space-y-2 rounded-2xl border border-border/70 bg-card/60 p-2.5 sm:p-3">
         <div className="flex items-center gap-2">

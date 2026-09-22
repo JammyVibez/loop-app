@@ -43,6 +43,7 @@ interface User {
   notification_settings?: Record<string, unknown>
   verification_level?: string
   onboarding_completed?: boolean
+  has_seen_feature_tour?: boolean
   token?: string
   access_token?: string
   user_metadata?: {
@@ -165,6 +166,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active_cosmetics: profileData.active_cosmetics ?? previous?.active_cosmetics ?? null,
       equipped_frame_id: profileData.equipped_frame_id ?? previous?.equipped_frame_id ?? null,
       onboarding_completed: preservedOnboarding,
+      has_seen_feature_tour:
+        typeof profileData.has_seen_feature_tour === "boolean"
+          ? profileData.has_seen_feature_tour
+          : previous?.has_seen_feature_tour ?? false,
       token,
       access_token: token,
       user_metadata: {

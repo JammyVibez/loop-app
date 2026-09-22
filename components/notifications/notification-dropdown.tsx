@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, Check, Settings, Heart, MessageCircle, UserPlus, GitBranch, AtSign, Gift, Mail, BellRing, ChevronRight, Lock } from "lucide-react"
+import { Bell, Check, Settings, Heart, MessageCircle, UserPlus, GitBranch, AtSign, Gift, Mail, BellRing, ChevronRight, Lock, Coins, Megaphone, Radio, Phone, Trophy, Users, Sparkles, Swords, ShieldCheck, Zap } from "lucide-react"
 import { NotificationQuickReply } from "@/components/notifications/notification-quick-reply";
+import { getNotificationCopy, SYSTEM_SENDER } from "@/lib/notification-copy";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp";
@@ -49,9 +50,27 @@ const TYPE_CONFIG: Record<string, { icon: typeof Heart; color: string; bg: strin
   mention: { icon: AtSign, color: "text-amber-500", bg: "bg-amber-500/10", label: "Mention" },
   gift: { icon: Gift, color: "text-pink-500", bg: "bg-pink-500/10", label: "Gift" },
   message: { icon: Mail, color: "text-cyan-500", bg: "bg-cyan-500/10", label: "Message" },
+  chat_message: { icon: Mail, color: "text-cyan-500", bg: "bg-cyan-500/10", label: "Message" },
+  follow_request: { icon: UserPlus, color: "text-violet-500", bg: "bg-violet-500/10", label: "Follow request" },
+  boost: { icon: Zap, color: "text-fuchsia-500", bg: "bg-fuchsia-500/10", label: "Boost" },
+  circle_join: { icon: Users, color: "text-sky-500", bg: "bg-sky-500/10", label: "Circle" },
+  circle_join_request: { icon: Users, color: "text-sky-500", bg: "bg-sky-500/10", label: "Circle request" },
+  circle_join_approved: { icon: Users, color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Circle" },
+  circle_post_like: { icon: Heart, color: "text-rose-500", bg: "bg-rose-500/10", label: "Like" },
+  circle_post_comment: { icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-500/10", label: "Comment" },
   system: { icon: BellRing, color: "text-sky-500", bg: "bg-sky-500/10", label: "System" },
+  announcement: { icon: Megaphone, color: "text-primary", bg: "bg-primary/10", label: "Announcement" },
+  broadcast: { icon: Megaphone, color: "text-primary", bg: "bg-primary/10", label: "Announcement" },
+  award: { icon: Trophy, color: "text-amber-500", bg: "bg-amber-500/10", label: "Award" },
+  coin_reward: { icon: Coins, color: "text-amber-500", bg: "bg-amber-500/10", label: "Coins" },
+  pro_grant: { icon: Sparkles, color: "text-primary", bg: "bg-primary/10", label: "Pro" },
+  live_stream_started: { icon: Radio, color: "text-red-500", bg: "bg-red-500/10", label: "Live" },
+  creator_live: { icon: Radio, color: "text-red-500", bg: "bg-red-500/10", label: "Live" },
+  call_incoming: { icon: Phone, color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Call" },
   co_loop_invite: { icon: GitBranch, color: "text-cyan-400", bg: "bg-cyan-400/10", label: "Co-Loop" },
-  clutch_duel_result: { icon: Heart, color: "text-orange-500", bg: "bg-orange-500/10", label: "Duel" },
+  co_loop_open_join: { icon: GitBranch, color: "text-cyan-400", bg: "bg-cyan-400/10", label: "Co-Loop" },
+  clutch_duel_result: { icon: Swords, color: "text-orange-500", bg: "bg-orange-500/10", label: "Duel" },
+  admin_action: { icon: ShieldCheck, color: "text-muted-foreground", bg: "bg-muted", label: "Loop" },
 }
 
 function getTypeConfig(type: string) {
@@ -215,14 +234,14 @@ export function NotificationDropdown() {
         >
           <Bell className="h-[18px] w-[18px] text-muted-foreground" />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-background">
+            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground ring-2 ring-background">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-[360px] max-w-[calc(100vw-1.5rem)] p-0 overflow-hidden rounded-xl border border-border/60"
+        className="w-[360px] max-w-[calc(100vw-1.5rem)] p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-lg"
         align="end"
         sideOffset={8}
         forceMount
@@ -232,7 +251,7 @@ export function NotificationDropdown() {
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-bold text-foreground">Notifications</h3>
             {unreadCount > 0 && (
-              <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold bg-rose-500/10 text-rose-500 border-0">
+              <Badge variant="secondary" className="h-5 border-0 bg-muted px-1.5 text-[10px] font-bold text-foreground">
                 {unreadCount}
               </Badge>
             )}
@@ -322,35 +341,25 @@ export function NotificationDropdown() {
                       ? groupedActors[0]?.display_name || groupedActors[0]?.username || ""
                       : actor?.display_name || actor?.username || ""
 
-                    const actionText = isGrouped
-                      ? groupCount === 2
-                        ? ` and ${groupedActors[1]?.display_name || groupedActors[1]?.username || "someone"} `
-                        : ` and ${groupCount - 1} others `
-                      : ""
-
-                    const verb = notification.type === "like" ? "liked"
-                      : notification.type === "follow" ? "followed"
-                      : notification.type === "boost" ? "boosted"
-                      : notification.type === "branch" ? "branched"
-                      : notification.type === "comment" ? "commented on"
-                      : notification.type === "reply" ? "replied to"
-                      : notification.type === "message" ? "sent you a message about"
-                      : notification.type === "gift" ? "sent you a gift"
-                      : notification.type === "mention" ? "mentioned you in"
-                      : "interacted with"
-
-                    const targetText = notification.type === "comment" || notification.type === "reply"
-                      ? " your post"
-                      : notification.type === "message"
-                      ? ""
-                      : " your post"
+                    // Every type renders its own copy — platform notifications
+                    // (announcements, coin rewards, admin actions) never fall
+                    // back to "interacted with your post".
+                    const copy = getNotificationCopy({
+                      type: notification.type,
+                      title: notification.title,
+                      message: notification.message,
+                      actorName,
+                      groupCount,
+                      otherActorsLabel:
+                        groupedActors[1]?.display_name || groupedActors[1]?.username || "someone",
+                    })
 
                     return (
                       <button
                         key={notification.id}
                         type="button"
                         className={`w-full text-left px-3 py-2.5 flex items-start gap-2.5 transition-colors hover:bg-muted/40 ${
-                          isUnread ? "bg-primary/[0.03]" : ""
+                          isUnread ? "bg-muted/40" : ""
                         }`}
                         onClick={() => {
                           if (isUnread) void markAsRead(notification.id)
@@ -393,18 +402,30 @@ export function NotificationDropdown() {
 
                         {/* Content */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] leading-snug text-foreground">
-                            <span className="font-semibold">{actorName}</span>
-                            {!isGrouped && actor?.is_verified && (
-                              <VerifiedSeal size={14} className="ml-0.5" title="Verified Creator" />
-                            )}
-                            <span className="text-muted-foreground">{actionText}{verb}{targetText}</span>
-                          </p>
-                          {notification.message && notification.message !== notification.title && !isGrouped && (
+                          {copy.system ? (
+                            <p className="text-[13px] font-semibold leading-snug text-foreground">
+                              {copy.action}
+                            </p>
+                          ) : (
+                            <p className="text-[13px] leading-snug text-foreground">
+                              <span className="font-semibold">{copy.sender}</span>
+                              {!isGrouped && actor?.is_verified && (
+                                <VerifiedSeal size={14} className="ml-0.5" title="Verified Creator" />
+                              )}
+                              <span className="text-muted-foreground"> {copy.action}</span>
+                            </p>
+                          )}
+                          {notification.message && notification.message !== notification.title && !isGrouped && !copy.system && (
                             <p className="text-[11px] text-muted-foreground/80 mt-0.5 line-clamp-1">{notification.message}</p>
                           )}
                           <div className="flex items-center gap-1.5 mt-1">
                             <FreshnessTimestamp date={notification.updated_at || notification.created_at} showIcon />
+                            {copy.system && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground">
+                                <Sparkles className="h-2.5 w-2.5" />
+                                {SYSTEM_SENDER}
+                              </span>
+                            )}
                             {isUnread && (
                               <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
                             )}

@@ -122,9 +122,11 @@ export async function POST(request: NextRequest) {
         .from('notifications')
         .insert({
           user_id: premiumRequest.user_id,
-          type: 'premium_approved',
-          title: 'Premium Approved!',
-          message: `Your ${premiumRequest.plan_type} premium subscription has been activated.`,
+          // Platform voice — a user-facing notification must never imply that
+          // someone manually approved it.
+          type: 'pro_grant',
+          title: 'Loop Pro unlocked',
+          message: `Your ${premiumRequest.plan_type} premium subscription is now active.`,
           data: { plan_type: premiumRequest.plan_type, expires_at: expiresAt.toISOString() }
         })
     } else if (action === 'rejected') {

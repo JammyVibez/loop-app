@@ -2,6 +2,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { sendWebPushToUser, sendWebPushToUsers, type PushCategory, type PushPayload } from "@/lib/web-push"
 import { sendFcmToUser } from "@/lib/fcm"
+import { isSystemNotificationType, maskAdminCopy } from "@/lib/notification-copy"
 
 export type NotifyInput = {
   userId: string
@@ -32,13 +33,19 @@ export async function notifyUser(
   let notificationId: string | undefined
   let pushDelivered = 0
 
+  // Platform-originated notifications must never reveal that a human admin
+  // acted — they read as coming from Loop itself ("You received 100 coins").
+  const platformOriginated = isSystemNotificationType(input.type) || input.pushCategory === "system"
+  const title = platformOriginated ? maskAdminCopy(input.title) : input.title
+  const message = platformOriginated ? maskAdminCopy(input.message) : input.message
+
   try {
     if (!input.pushOnly) {
       const row: Record<string, unknown> = {
         user_id: input.userId,
         type: input.type,
-        title: input.title,
-        message: input.message,
+        title,
+        message,
         data: {
           ...(input.data || {}),
           ...(input.actionUrl ? { url: input.actionUrl, action_url: input.actionUrl } : {}),
@@ -56,8 +63,8 @@ export async function notifyUser(
           .insert({
             user_id: input.userId,
             type: input.type,
-            title: input.title,
-            message: input.message,
+            title,
+            message,
             data: row.data,
           })
           .select("id")
@@ -77,8 +84,8 @@ export async function notifyUser(
     // Low: skip push, in-app only — generic likes, follows, boosts
     if (!input.inAppOnly && input.priority !== "low") {
       const payload: PushPayload = {
-        title: input.title,
-        body: input.message,
+        title,
+        body: message,
         url: input.actionUrl || "/",
         tag: `${input.type}-${input.userId}`,
         data: {
@@ -105,8 +112,8 @@ export async function notifyUser(
       pushDelivered = result.delivered
       // Native Capacitor shells receive the same notification via FCM.
       await sendFcmToUser(supabase, input.userId, {
-        title: input.title,
-        body: input.message,
+        title,
+        body: message,
         url: input.actionUrl || "/",
         icon: payload.icon,
         data: input.data,

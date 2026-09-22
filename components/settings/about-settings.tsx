@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
+import { persistFeatureTourSeen, resetFeatureTourLocally } from "@/lib/feature-tour"
 import {
   Info,
   Sparkles,
@@ -16,14 +18,25 @@ import {
   RefreshCw,
   ExternalLink,
   MessageCircle,
+  Compass,
 } from "lucide-react"
 
 const APP_VERSION = "0.1.0"
 
 export function AboutSettings() {
-  const { user } = useAuth()
+  const { user, getAuthHeader } = useAuth()
+  const router = useRouter()
   const [deviceInfo, setDeviceInfo] = useState("")
   const [pwaMode, setPwaMode] = useState(false)
+  const [replayingTour, setReplayingTour] = useState(false)
+
+  /** Clear the seen flag so the on-feed coach-mark tour plays again. */
+  const replayTour = async () => {
+    setReplayingTour(true)
+    resetFeatureTourLocally()
+    await persistFeatureTourSeen(false, getAuthHeader())
+    router.push("/")
+  }
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -96,6 +109,16 @@ export function AboutSettings() {
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" className="rounded-full" onClick={checkForUpdates}>
               <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Check for updates
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={replayTour}
+              disabled={replayingTour}
+            >
+              <Compass className="mr-1.5 h-3.5 w-3.5" />
+              {replayingTour ? "Starting tour…" : "Replay the tour"}
             </Button>
             <Badge variant={pwaMode ? "default" : "secondary"}>
               {pwaMode ? "Installed app" : "Running in browser"}

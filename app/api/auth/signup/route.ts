@@ -1,9 +1,11 @@
+import { randomUUID } from "node:crypto"
 import { type NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase"
 import { ECONOMY_DEFAULTS } from "@/lib/economy"
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 import { getRateLimitSettings } from "@/lib/rate-limit-settings"
+import { isUuid } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 
@@ -94,13 +96,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to create user" }, { status: 400 })
     }
 
+    // profiles.id is a uuid column while Better Auth owns a free-form text id.
+    // If the auth id isn't a UUID, mint one for the profile row — server routes
+    // bridge back to it via the account email (see lib/server-auth).
+    const profileId = isUuid(createdUser.id) ? createdUser.id : randomUUID()
+    if (profileId !== createdUser.id) {
+      console.warn(`Signup: bridged Better Auth id "${createdUser.id}" to profile ${profileId}`)
+    }
+
     // Auto-assign unique animated PFP and cover for new users
     const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin).replace(/\/$/, "")
-    const defaultAvatar = `${baseUrl}/api/default-avatar?id=${encodeURIComponent(createdUser.id)}&name=${encodeURIComponent(displayName)}`
-    const defaultBanner = `${baseUrl}/api/default-avatar?id=${encodeURIComponent(createdUser.id)}&name=${encodeURIComponent(displayName)}&type=banner`
+    const defaultAvatar = `${baseUrl}/api/default-avatar?id=${encodeURIComponent(profileId)}&name=${encodeURIComponent(displayName)}`
+    const defaultBanner = `${baseUrl}/api/default-avatar?id=${encodeURIComponent(profileId)}&name=${encodeURIComponent(displayName)}&type=banner`
 
     const profilePayload = {
-      id: createdUser.id,
+      id: profileId,
       email,
       username: cleanUsername,
       display_name: displayName,
@@ -126,7 +136,7 @@ export async function POST(request: NextRequest) {
       // the user can still sign in. Surface this loudly server-side though,
       // since a missing profile row breaks most of the app for this user
       // until it's backfilled (e.g. via a misconfigured service role key).
-      console.error("Signup: failed to create profile row for", createdUser.id, profileUpsertError)
+      console.error("Signup: failed to create profile row for", profileId, profileUpsertError)
     }
 
     const token = signUpData.token || signUpData.session?.token || signUpData.session?.id || createdUser.id

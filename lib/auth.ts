@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import { betterAuth } from "better-auth"
 import { stripe } from "@better-auth/stripe"
 import { sendPasswordResetEmail } from "@/lib/resend"
@@ -42,13 +43,15 @@ export const auth = betterAuth({
   database: authDbPool,
   // The app's tables (profiles, messages, circle_members, ...) use uuid
   // columns, but Better Auth's default ID generator emits random alphanumeric
-  // strings. That mismatch silently breaks new signups (no profile row, and
-  // every conversation/membership insert fails). Force UUID ids so new users
-  // are compatible with the rest of the schema — matching the ids the
-  // pre-migration Supabase users already have.
+  // strings (and a number-ish id on some setups). That mismatch silently
+  // breaks new signups — no profile row is created, and every later write
+  // fails with `invalid input syntax for type uuid`. Generate a real UUID v4
+  // here — with an explicit function, which is what Better Auth actually
+  // calls — so new users always match the schema the pre-migration Supabase
+  // users already have.
   advanced: {
     database: {
-      generateId: "uuid",
+      generateId: () => randomUUID(),
     },
   },
   // Secret: must come from BETTER_AUTH_SECRET in production. The dev-only
