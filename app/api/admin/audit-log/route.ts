@@ -47,15 +47,39 @@ export async function GET(request: NextRequest) {
       query = query.eq("action", actionFilter)
     }
 
-    const { data: logs, error } = await query
+    const { data: securityLogs, error } = await query
 
     if (error) {
       console.error("Audit log query error:", error)
       return NextResponse.json({ logs: [] })
     }
 
+    // Merge in admin actions (coin adjustments, premium grants, …) from
+    // admin_action_log so the tab shows the full admin trail, not just
+    // auth/security events.
+    let adminQuery = supabase
+      .from("admin_action_log")
+      .select("*")
+      .gte("created_at", startDate.toISOString())
+      .order("created_at", { ascending: false })
+      .limit(limit)
+    if (actionFilter) adminQuery = adminQuery.eq("action", actionFilter)
+    const { data: adminLogs } = await adminQuery
+
+    const logs = [
+      ...(securityLogs || []),
+      ...(adminLogs || []).map((l: any) => ({
+        ...l,
+        user_id: l.admin_id,
+        ip_address: l.ip_address ?? null,
+        user_agent: null,
+        action: l.action,
+        details: l.details || { reason: l.reason, target_user_id: l.target_user_id },
+      })),
+    ].sort((a: any, b: any) => (a.created_at < b.created_at ? 1 : -1))
+
     // Enrich with user info
-    const userIds = [...new Set((logs || []).map((l: any) => l.user_id).filter(Boolean))]
+    const userIds = [...new Set(logs.map((l: any) => l.user_id).filter(Boolean))]
     let userMap: Record<string, any> = {}
 
     if (userIds.length > 0) {
@@ -72,7 +96,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const enrichedLogs = (logs || []).map((log: any) => ({
+    const enrichedLogs = logs.map((log: any) => ({
       ...log,
       details: log.details ? (typeof log.details === "string" ? JSON.parse(log.details) : log.details) : null,
       username: userMap[log.user_id]?.username || null,

@@ -30,7 +30,8 @@ export async function GET(request: NextRequest) {
           id,
           username,
           display_name,
-          avatar_url
+          avatar_url,
+          is_verified
         )
       `)
       .order('created_at', { ascending: false })
@@ -55,6 +56,16 @@ export async function POST(request: NextRequest) {
       adminNotes?: string
     }
     const { requestId, action, adminNotes } = body
+
+    if (!requestId) {
+      return NextResponse.json({ error: 'requestId is required' }, { status: 400 })
+    }
+    if (action !== 'approved' && action !== 'rejected') {
+      return NextResponse.json({ error: "action must be 'approved' or 'rejected'" }, { status: 400 })
+    }
+    if (action === 'rejected' && !adminNotes?.trim()) {
+      return NextResponse.json({ error: 'A rejection reason is required' }, { status: 400 })
+    }
     
     const user = await getUserFromRequest(request);
     if (!user) {
@@ -77,8 +88,11 @@ export async function POST(request: NextRequest) {
       .update({
         status: action,
         admin_id: user.id,
-        admin_notes: adminNotes,
-        reviewed_at: new Date().toISOString()
+        reviewed_by: user.id,
+        admin_notes: adminNotes || null,
+        rejection_reason: action === 'rejected' ? (adminNotes || null) : null,
+        reviewed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .eq('id', requestId)
       .select('*, user:profiles!verification_requests_user_id_fkey(*)')
@@ -89,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     // If approved, update user profile
-    if (action === 'approved') {
+    if (action === 'approved' && verificationRequest) {
       const { error: profileError } = await supabase
         .from('profiles')
         .update({

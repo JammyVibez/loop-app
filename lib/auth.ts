@@ -20,6 +20,21 @@ export const authDbPool = new Pool({
   ssl: { rejectUnauthorized: false },
 })
 
+/**
+ * The Better Auth signing secret, resolved exactly as betterAuth resolves it.
+ * Exported so server routes that mint signed session cookies (account switch)
+ * use byte-identical HMAC parameters — Better Auth verifies the cookie with
+ * getSignedCookie and silently rejects unsigned/mismatched values.
+ */
+export const authSecret: string = (() => {
+  const fromEnv = process.env.BETTER_AUTH_SECRET
+  if (fromEnv) return fromEnv
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("BETTER_AUTH_SECRET must be set in production — generate one with `openssl rand -base64 48` and add it to your environment/API keys.")
+  }
+  return "loop-better-auth-secret-key-32-chars-long"
+})()
+
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
@@ -40,14 +55,7 @@ export const auth = betterAuth({
   // fallback is intentionally a well-known value so local development works
   // out of the box, but shipping it would let anyone forge sessions — so we
   // refuse to boot in production without a real secret.
-  secret: (() => {
-    const fromEnv = process.env.BETTER_AUTH_SECRET
-    if (fromEnv) return fromEnv
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("BETTER_AUTH_SECRET must be set in production — generate one with `openssl rand -base64 48` and add it to your environment/API keys.")
-    }
-    return "loop-better-auth-secret-key-32-chars-long"
-  })(),
+  secret: authSecret,
   // Dynamic base URL: resolves from each request's host so OAuth redirects,
   // cookies, and trusted-origin checks work on every environment (local dev,
   // preview proxies, production custom domain) instead of pointing at a stale

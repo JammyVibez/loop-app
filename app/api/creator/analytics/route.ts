@@ -58,9 +58,10 @@ export async function GET(request: NextRequest) {
         // Total likes received
         loopIds.length > 0
           ? supabase
-              .from("likes")
+              .from("loop_interactions")
               .select("id", { count: "exact", head: true })
               .in("loop_id", loopIds)
+              .eq("interaction_type", "like")
           : { data: [], error: null, count: 0 },
         // Total comments on user's loops
         loopIds.length > 0

@@ -10,6 +10,7 @@ import {
   isAuthLocked,
 } from "@/lib/rate-limit"
 import { getRateLimitSettings } from "@/lib/rate-limit-settings"
+import { logSecurityEvent, getRequestIp, getRequestUserAgent } from "@/lib/security-audit"
 
 export const dynamic = "force-dynamic"
 
@@ -72,6 +73,12 @@ export async function POST(request: NextRequest) {
       // brute-force / dictionary attacks accumulate even across rotating IPs.
       const errData = await sessionResult.json().catch(() => ({}))
       const failed = recordFailedAuthAttempt(acctKey, failMax, lockBaseMs)
+      void logSecurityEvent({
+        action: "login_failed",
+        details: { email, reason: errData.message || "invalid_credentials" },
+        ip: getRequestIp(request),
+        userAgent: getRequestUserAgent(request),
+      })
       if (failed.locked) {
         return rateLimited(failed.retryAfter, "Too many failed attempts. Try again later.")
       }
@@ -94,6 +101,13 @@ export async function POST(request: NextRequest) {
 
     // Successful login clears the failure counter for this account.
     clearFailedAuthAttempts(acctKey)
+    void logSecurityEvent({
+      userId: user.id,
+      action: "login_success",
+      details: { email },
+      ip: getRequestIp(request),
+      userAgent: getRequestUserAgent(request),
+    })
 
     // Run password migration and profile fetch in parallel — saves ~100-300ms.
     const supabase = createServerClient()

@@ -51,12 +51,12 @@ export async function POST(request: NextRequest) {
       .from('verification_requests')
       .insert({
         user_id: user.id,
-        real_name: realName,
-        username: username,
-        social_links: socialLinks,
-        reason: reason,
-        verification_type: verificationType,
-        documents_url: documents, // This would be a file URL after upload
+        real_name: realName || null,
+        username: username || null,
+        social_links: socialLinks || null,
+        reason: reason || null,
+        verification_type: verificationType || null,
+        documents_url: documents || null, // This would be a file URL after upload
         status: 'pending'
       })
       .select()
@@ -67,12 +67,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Create notification for admins
-    const { data: admins } = await supabase
+    const { data: admins, error: adminsError } = await supabase
       .from('profiles')
       .select('id')
       .eq('is_admin', true)
 
-    if (admins && admins.length > 0) {
+    if (!adminsError && admins && admins.length > 0) {
       const adminNotifications = admins.map(admin => ({
         user_id: admin.id,
         type: 'verification_request',

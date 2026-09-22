@@ -83,6 +83,7 @@ import { ThemePresetManager } from "@/components/admin/theme-preset-manager"
 import { AdminFramesTab } from "@/components/admin/admin-frames-tab"
 import { AdminRevenueTab } from "@/components/admin/admin-revenue-tab"
 import { AuditLogPanel } from "@/components/admin/audit-log-panel"
+import { VerificationRequestsPanel } from "@/components/admin/verification-requests-panel"
 import { AdminMonetizationPanel } from "@/components/admin/admin-monetization-panel"
 import { AdminCommandPalette } from "@/components/admin/admin-command-palette"
 import { AdminUsersTable, type AdminUser } from "@/components/admin/admin-users-table"
@@ -102,6 +103,7 @@ const NAV_GROUPS: {
       { value: "analytics", label: "Analytics", icon: BarChart3 },
       { value: "health", label: "Health", icon: Activity },
       { value: "audit", label: "Audit Log", icon: ScrollText },
+      { value: "verification", label: "Verification", icon: BadgeCheck },
     ],
   },
   {
@@ -162,6 +164,7 @@ const SECTION_DESCRIPTIONS: Record<string, string> = {
   analytics: "Platform-wide engagement and growth metrics.",
   health: "Live system status: API, database, and background jobs.",
   audit: "Every admin action, with actor, reason, and timestamp.",
+  verification: "Review user verification requests — approve or reject with a reason.",
   users: "Manage accounts, roles, balances, and verification.",
   moderation: "Review reported content and take action.",
   appeals: "User-submitted ban appeals awaiting review.",
@@ -462,6 +465,10 @@ export function AdminDashboard() {
 
           <TabsContent value="audit" className="mt-0">
             <AuditLogPanel />
+          </TabsContent>
+
+          <TabsContent value="verification" className="mt-0">
+            <VerificationRequestsPanel />
           </TabsContent>
 
           <TabsContent value="analytics" className="mt-0">

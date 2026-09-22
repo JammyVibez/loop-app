@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       supabase.from("loops").select("*", { count: "exact", head: true }).gte("created_at", sevenDaysAgo),
       supabase.from("comments").select("*", { count: "exact", head: true }),
       supabase.from("comments").select("*", { count: "exact", head: true }).gte("created_at", sevenDaysAgo),
-      supabase.from("likes").select("*", { count: "exact", head: true }),
+      supabase.from("loop_interactions").select("*", { count: "exact", head: true }).eq("interaction_type", "like"),
       supabase.from("circles").select("*", { count: "exact", head: true }),
       supabase.from("circle_members").select("*", { count: "exact", head: true }),
       supabase.from("co_loop_sessions").select("*", { count: "exact", head: true }).eq("status", "active"),
@@ -88,8 +88,8 @@ export async function GET(request: NextRequest) {
       supabase.from("follows").select("*", { count: "exact", head: true }),
       supabase.from("weekly_bonus_claims").select("*", { count: "exact", head: true }).gte("claimed_at", weekStartISO),
       supabase.from("coin_transactions").select("amount").in("transaction_type", ["weekly_bonus", "quest_reward", "admin_grant"]),
-      supabase.from("shop_purchases").select("*", { count: "exact", head: true }),
-      supabase.from("shop_purchases").select("amount").gte("created_at", new Date(now.getFullYear(), now.getMonth(), 1).toISOString()),
+      supabase.from("wallet_transactions").select("*", { count: "exact", head: true }).eq("type", "shop_purchase"),
+      supabase.from("wallet_transactions").select("amount_usd").eq("type", "shop_purchase").gte("created_at", new Date(now.getFullYear(), now.getMonth(), 1).toISOString()),
       supabase.from("notifications").select("*", { count: "exact", head: true }),
       supabase.from("live_streams").select("*", { count: "exact", head: true }).eq("is_live", true),
     ]);
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
       (coinsData?.data || []).reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0);
 
     const revenueThisMonth =
-      (revenueData?.data || []).reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
+      (revenueData?.data || []).reduce((sum: number, item: any) => sum + (item.amount_usd || 0), 0);
 
     const stats = {
       total_users: totalUsers?.count || 0,

@@ -1,10 +1,21 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
+import { getUserFromRequest } from "@/lib/server-auth"
+import { logSecurityEvent, getRequestIp, getRequestUserAgent } from "@/lib/security-audit"
 
 export const dynamic = "force-dynamic"
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getUserFromRequest(request)
+    if (user) {
+      void logSecurityEvent({
+        userId: user.id,
+        action: "logout",
+        ip: getRequestIp(request),
+        userAgent: getRequestUserAgent(request),
+      })
+    }
     await auth.api.signOut({
       headers: request.headers,
     }).catch(() => null)

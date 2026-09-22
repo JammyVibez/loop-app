@@ -36,6 +36,9 @@ const DEFAULT_FILES = [
   "scripts/user-inventory-integrity.sql",
   // Per-post link-preview toggle + owner-configurable branch limits.
   "scripts/loop-preview-and-branch-limits-schema.sql",
+  // Admin tab integrity: audit tables, wallet/circle/notification columns,
+  // and verification_requests (user-submitted, admin-reviewed).
+  "scripts/admin-and-verification-integrity.sql",
 ]
 
 // Allow a targeted run: node apply-pending-schema.mjs scripts/foo.sql …

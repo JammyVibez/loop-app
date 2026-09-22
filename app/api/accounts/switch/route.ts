@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/server-auth';
 import { createClient } from '@supabase/supabase-js';
-import { auth, authDbPool } from '@/lib/auth';
+import { authDbPool, authSecret } from '@/lib/auth';
 import { randomBytes } from 'crypto';
 
 /**
@@ -18,10 +18,36 @@ import { randomBytes } from 'crypto';
  * Auth's session table and set its token as the session cookie. The new
  * token is live from the moment it's issued, so the switch always works.
  *
+ * Cookie format detail: Better Auth stores `better-auth.session_token` as a
+ * SIGNED cookie — `<token>.<base64 HMAC-SHA256>` — and `getSignedCookie`
+ * silently returns null for an unsigned value (signature.length !== 44 check).
+ * Writing a raw unsigned token (the old behaviour) therefore produced a
+ * cookie that Better Auth itself couldn't read: /get-session returned null,
+ * the client treated it as logged out, and the user appeared switched-out
+ * instead of switched-over. We now sign with Better Auth's exact HMAC scheme
+ * and secret so the minted session is accepted everywhere.
+ *
  * Body: { targetUserId: string } — "primary" switches back to the owner.
  */
 function generateSessionToken(): string {
   return randomBytes(32).toString('base64url');
+}
+
+async function signSessionValue(value: string): Promise<string> {
+  // Mirrors better-call's signCookieValue: HMAC-SHA256 over the raw token,
+  // base64 (standard, with padding), appended after a dot.
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(authSecret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value));
+  const base64 = Buffer.from(signature).toString('base64');
+  // better-call's signCookieValue appends the signature then URI-encodes the
+  // whole "token.signature" value before it goes into the Set-Cookie header.
+  return encodeURIComponent(`${value}.${base64}`);
 }
 
 function buildSessionCookie(req: NextRequest, token: string): string {
@@ -34,7 +60,7 @@ function buildSessionCookie(req: NextRequest, token: string): string {
   return `${prefix}better-auth.session_token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secureFlag}`;
 }
 
-async function mintFreshSession(userId: string): Promise<{ token: string; expiresAt: Date } | null> {
+async function mintFreshSession(userId: string): Promise<{ token: string; signedToken: string; expiresAt: Date } | null> {
   // Confirm the target user actually exists.
   const userRes = await authDbPool.query('SELECT id FROM "user" WHERE id = $1 LIMIT 1;', [userId]);
   if (!userRes.rows[0]) return null;
@@ -50,7 +76,9 @@ async function mintFreshSession(userId: string): Promise<{ token: string; expire
     [token, userId, expiresAt.toISOString()]
   );
 
-  return { token, expiresAt };
+  // Sign the cookie value exactly the way Better Auth does.
+  const signedToken = await signSessionValue(token);
+  return { token, signedToken, expiresAt };
 }
 
 export async function POST(req: NextRequest) {
@@ -128,7 +156,7 @@ export async function POST(req: NextRequest) {
       success: true,
       userId: resolvedUserId,
     });
-    response.headers.set('set-cookie', buildSessionCookie(req, session.token));
+    response.headers.set('set-cookie', buildSessionCookie(req, session.signedToken));
     return response;
   } catch (error: any) {
     console.error('Account switch error:', error);

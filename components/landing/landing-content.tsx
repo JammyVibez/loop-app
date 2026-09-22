@@ -14,6 +14,7 @@ import {
   Trophy,
   Play,
   Sparkles,
+  Smartphone,
 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -213,6 +214,10 @@ export function LandingContent() {
             <a href="#community" className="transition-colors hover:text-white">Community</a>
             <a href="#creators" className="transition-colors hover:text-white">Creators</a>
             <a href="#roadmap" className="transition-colors hover:text-white">Roadmap</a>
+            <Link href="/download" className="inline-flex items-center gap-1.5 transition-colors hover:text-white">
+              <Smartphone className="h-3.5 w-3.5" />
+              Get the app
+            </Link>
           </nav>
           <div className="flex items-center gap-2">
             <Link href="/login">
@@ -670,6 +675,7 @@ export function LandingContent() {
             <a href="#creators" className="transition-colors hover:text-white/60">Creators</a>
             <a href="#roadmap" className="transition-colors hover:text-white/60">Roadmap</a>
             <Link href="/status" className="transition-colors hover:text-white/60">Status</Link>
+            <Link href="/download" className="transition-colors hover:text-white/60">Download</Link>
           </div>
         </div>
       </footer>

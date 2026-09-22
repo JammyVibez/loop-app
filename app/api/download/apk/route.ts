@@ -34,3 +34,20 @@ export async function GET(_request: NextRequest) {
     )
   }
 }
+
+/** HEAD support so the download page can cheaply check availability. */
+export async function HEAD(_request: NextRequest) {
+  const apkPath = join(process.cwd(), "public", "apk", "loop.apk")
+  try {
+    const fileStat = await stat(apkPath)
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/vnd.android.package-archive",
+        "Content-Length": fileStat.size.toString(),
+      },
+    })
+  } catch {
+    return new NextResponse(null, { status: 404 })
+  }
+}
