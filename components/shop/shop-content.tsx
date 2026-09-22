@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import {
   ArrowDownUp,
@@ -40,13 +40,14 @@ import { ShopItemCard, RarityChip } from "@/components/shop/shop-item-card"
 import {
   SHOP_SORTS,
   coinPrice,
+  excludeSpotlight,
   matchesQuery,
   shopBucket,
   sortShopItems,
   type ShopCatalogItem,
   type ShopSortId,
 } from "@/lib/shop-catalog"
-import { ShopEmpty, ShopError, ShopLoading } from "@/components/shop/shop-states"
+import { ShopEmpty, ShopError, ShopGridSkeleton } from "@/components/shop/shop-states"
 import { PurchaseCelebration, type CelebrationPayload } from "@/components/shop/purchase-celebration"
 import { ShopHero } from "@/components/shop/shop-hero"
 import { ProfileFramesPanel } from "@/components/profile/pfp-frames-panel"
@@ -123,6 +124,36 @@ const CATEGORIES: CategoryDef[] = [
 
 /** How many cards mount at once. The rest wait behind "Show more". */
 const PAGE_SIZE = 24
+
+/**
+ * One grid rhythm for the whole storefront. Every shelf uses this so cards line
+ * up column-for-column as you move between tabs.
+ */
+const ITEM_GRID = "grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4"
+
+/** A consistent label above each shelf, so sections read as sections. */
+function SectionHeader({
+  icon: Icon,
+  title,
+  hint,
+  aside,
+}: {
+  icon: LucideIcon
+  title: string
+  hint?: string
+  aside?: ReactNode
+}) {
+  return (
+    <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <div className="flex min-w-0 items-center gap-2">
+        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        {hint ? <span className="truncate text-xs text-muted-foreground">{hint}</span> : null}
+      </div>
+      {aside}
+    </header>
+  )
+}
 
 export function ShopContent() {
   const [items, setItems] = useState<ShopItem[]>([])
@@ -336,6 +367,16 @@ export function ShopContent() {
 
   const isFiltered = rarity !== "all" || Boolean(search.trim()) || hideOwned
 
+  // The Spotlight shelf and the main grid used to show the same legendary/epic
+  // cards, so six items appeared twice on one screen. When the shelf is up, its
+  // items come out of the grid below it.
+  const showSpotlight = !isFiltered && activeCategory.id === "featured" && spotlight.length > 0
+
+  const gridItems = useMemo(
+    () => (showSpotlight ? excludeSpotlight(filtered, spotlight) : filtered),
+    [filtered, spotlight, showSpotlight],
+  )
+
   const clearFilters = () => {
     setRarity("all")
     setSearch("")
@@ -358,11 +399,11 @@ export function ShopContent() {
   )
 
   return (
-    <div className="space-y-6 pb-24 sm:pb-10">
+    <div className="space-y-5 pb-24 sm:pb-10">
       <ShopHero
         coins={user ? user.loop_coins || 0 : null}
-        ownedCount={ownedIds.size}
-        availableCount={items.length}
+        ownedCount={status === "ready" ? ownedIds.size : null}
+        availableCount={status === "ready" ? items.length : null}
         onBrowseCoins={() => setCategory("coins")}
         onBrowseAll={() => {
           clearFilters()
@@ -373,7 +414,7 @@ export function ShopContent() {
       {status === "error" ? (
         <ShopError onRetry={() => void loadItems()} />
       ) : status === "loading" ? (
-        <ShopLoading />
+        <ShopGridSkeleton count={8} className={ITEM_GRID} />
       ) : (
         <>
           {/* Category rail */}
@@ -408,19 +449,14 @@ export function ShopContent() {
           </nav>
 
           {activeCategory.custom ? (
-            <section className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  <Sparkle className="h-3 w-3" />
-                  {activeCategory.hint}
-                </span>
-              </div>
+            <section className="space-y-4">
+              <SectionHeader icon={activeCategory.icon} title={activeCategory.label} hint={activeCategory.hint} />
               <ProfileFramesPanel avatarUrl={user?.avatar_url} />
             </section>
           ) : activeCategory.id === "coins" ? (
             <div className="grid gap-4 lg:grid-cols-[1fr_320px] lg:items-start">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{filtered.map((item) => card(item))}</div>
-              <div className="space-y-4">
+              <div className="space-y-4 lg:sticky lg:top-20">
                 <LoopCoinsBalance showDetails />
                 <div className="rounded-2xl border border-border bg-card p-5">
                   <Lottie animation={GIFT} className="h-16 w-16" />
@@ -437,27 +473,30 @@ export function ShopContent() {
             </div>
           ) : (
             <>
-              {spotlight.length > 0 && !isFiltered && activeCategory.id === "featured" ? (
+              {showSpotlight ? (
                 <section className="space-y-3">
-                  <header className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <Lottie animation={SPARKLES} className="h-6 w-6" />
-                      <h2 className="text-sm font-semibold text-foreground">Spotlight</h2>
-                      <span className="text-xs text-muted-foreground">the rarest things here</span>
-                    </div>
-                  </header>
+                  <SectionHeader
+                    icon={Sparkle}
+                    title="Spotlight"
+                    hint="the rarest things here"
+                    aside={<Lottie animation={SPARKLES} className="h-6 w-6" />}
+                  />
                   <div className="-mx-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    <div className="flex w-max gap-3">
+                    <div className="flex w-max gap-3 sm:gap-4">
                       {spotlight.map((item) => card(item, "w-[248px] shrink-0"))}
                     </div>
                   </div>
                 </section>
               ) : null}
 
-              {/* Filters */}
-              <section className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative min-w-[180px] flex-1">
+              {/*
+                Toolbar. Search, the filters and the result count used to be three
+                loose rows of mismatched pills floating over the grid; they now
+                live in one bordered surface with a clear order.
+              */}
+              <section className="rounded-2xl border border-border bg-card p-3">
+                <div className="flex items-center gap-2">
+                  <div className="relative min-w-0 flex-1">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       value={search}
@@ -470,15 +509,21 @@ export function ShopContent() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 rounded-full md:hidden"
+                    className="h-9 shrink-0 rounded-full md:hidden"
                     onClick={() => setFiltersOpen((open) => !open)}
                   >
                     <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                     Filters
                     {isFiltered ? <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-primary" /> : null}
                   </Button>
+                </div>
 
-                  <div className={cn("flex-wrap items-center gap-2", filtersOpen ? "flex" : "hidden md:flex")}>
+                <div
+                  className={cn(
+                    "mt-3 flex-wrap items-center gap-2 border-t border-border pt-3",
+                    filtersOpen ? "flex" : "hidden md:flex",
+                  )}
+                >
                     <Select value={rarity} onValueChange={setRarity}>
                       <SelectTrigger className="h-9 w-[130px] rounded-full text-sm">
                         <SelectValue placeholder="Rarity" />
@@ -521,17 +566,16 @@ export function ShopContent() {
                         Clear
                       </button>
                     ) : null}
-                  </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
+                  <span className="font-medium tabular-nums text-foreground">
+                    {gridItems.length} {gridItems.length === 1 ? "item" : "items"}
+                  </span>
+                  <span aria-hidden>·</span>
                   <span className="inline-flex items-center gap-1.5">
                     <Sparkle className="h-3 w-3" />
                     {activeCategory.hint}
-                  </span>
-                  <span aria-hidden>·</span>
-                  <span className="tabular-nums">
-                    {filtered.length} {filtered.length === 1 ? "item" : "items"}
                   </span>
                   {rarity !== "all" ? (
                     <>
@@ -542,7 +586,7 @@ export function ShopContent() {
                 </div>
               </section>
 
-              {filtered.length === 0 ? (
+              {gridItems.length === 0 ? (
                 <ShopEmpty
                   title={items.length === 0 ? "The shelves are empty" : "Nothing matches those filters"}
                   hint={
@@ -560,17 +604,24 @@ export function ShopContent() {
                 />
               ) : (
                 <>
-                  <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-                    {filtered.slice(0, limit).map((item) => card(item))}
+                  {showSpotlight ? (
+                    <SectionHeader
+                      icon={activeCategory.icon}
+                      title={activeCategory.label}
+                      hint="everything not on the shelf above"
+                    />
+                  ) : null}
+                  <div className={ITEM_GRID}>
+                    {gridItems.slice(0, limit).map((item) => card(item))}
                   </div>
-                  {filtered.length > limit ? (
+                  {gridItems.length > limit ? (
                     <div className="flex justify-center pt-1">
                       <Button
                         variant="outline"
                         className="rounded-full"
                         onClick={() => setLimit((current) => current + PAGE_SIZE)}
                       >
-                        Show {Math.min(PAGE_SIZE, filtered.length - limit)} more
+                        Show {Math.min(PAGE_SIZE, gridItems.length - limit)} more
                       </Button>
                     </div>
                   ) : null}

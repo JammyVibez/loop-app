@@ -127,17 +127,20 @@ export function ShopItemCard({
           <RarityChip rarity={item.rarity} />
         </span>
 
-        {item.premium_only ? (
-          <span className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 backdrop-blur-sm dark:text-amber-400">
-            {locked ? <Lock className="h-2.5 w-2.5" /> : <Crown className="h-2.5 w-2.5" />}
-            Pro
-          </span>
-        ) : null}
-
+        {/*
+          One badge in the top-right corner, never two: "Pro" and "Owned"
+          used to render at identical coordinates and stack on top of each
+          other. Ownership is the more useful fact, so it wins.
+        */}
         {owned ? (
           <span className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 backdrop-blur-sm dark:text-emerald-400">
             <Check className="h-2.5 w-2.5" />
             Owned
+          </span>
+        ) : item.premium_only ? (
+          <span className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 backdrop-blur-sm dark:text-amber-400">
+            {locked ? <Lock className="h-2.5 w-2.5" /> : <Crown className="h-2.5 w-2.5" />}
+            Pro
           </span>
         ) : null}
 
@@ -152,7 +155,9 @@ export function ShopItemCard({
       <div className="flex flex-1 flex-col gap-2.5 p-3.5">
         <div className="min-w-0">
           <h3 className="truncate text-sm font-semibold text-foreground">{item.name}</h3>
-          <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+          {/* Reserved at two lines so one-line and two-line descriptions produce
+              the same card height and the grid rows stay aligned. */}
+          <p className="mt-0.5 line-clamp-2 min-h-[2.25rem] text-xs leading-relaxed text-muted-foreground">
             {item.description}
           </p>
         </div>

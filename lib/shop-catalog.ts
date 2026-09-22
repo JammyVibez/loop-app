@@ -106,6 +106,19 @@ export function sortShopItems(items: ShopCatalogItem[], sort: ShopSortId): ShopC
 }
 
 /** Does an item match a text query? Names, descriptions and both category columns. */
+/**
+ * Remove items that are already displayed on the Spotlight shelf.
+ *
+ * Spotlight renders the rarest cards in a horizontal row directly above the
+ * grid, so without this the same six items appeared twice on one screen and the
+ * storefront read as duplicated rather than curated.
+ */
+export function excludeSpotlight<T extends { id: string }>(items: T[], spotlight: T[]): T[] {
+  if (spotlight.length === 0) return items
+  const onShelf = new Set(spotlight.map((item) => item.id))
+  return items.filter((item) => !onShelf.has(item.id))
+}
+
 export function matchesQuery(item: ShopCatalogItem, query: string): boolean {
   const needle = query.trim().toLowerCase()
   if (!needle) return true

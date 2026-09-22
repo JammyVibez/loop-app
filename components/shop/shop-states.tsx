@@ -39,6 +39,43 @@ export function ShopLoading({ label = "Opening the shop…" }: { label?: string 
   )
 }
 
+/**
+ * Placeholder cards that mirror the real grid's proportions.
+ *
+ * The item list used to be replaced by a bare spinner, which collapsed the
+ * whole page — hero, rail and toolbar all vanished and then re-appeared a
+ * beat later. Reserving the shelf means the layout settles once.
+ */
+export function ShopGridSkeleton({
+  count = 8,
+  className = "grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4",
+}: {
+  count?: number
+  className?: string
+}) {
+  return (
+    <div className={className} aria-hidden>
+      {Array.from({ length: count }).map((_, index) => (
+        <div
+          key={index}
+          className="flex animate-pulse flex-col overflow-hidden rounded-2xl border border-border bg-card"
+        >
+          <div className="aspect-[4/3] w-full border-b border-border bg-muted/40" />
+          <div className="flex flex-1 flex-col gap-2.5 p-3.5">
+            <div className="h-3.5 w-3/5 rounded-full bg-muted" />
+            <div className="h-2.5 w-full rounded-full bg-muted/70" />
+            <div className="h-2.5 w-4/5 rounded-full bg-muted/70" />
+            <div className="mt-auto flex items-center justify-between pt-1">
+              <div className="h-4 w-14 rounded-full bg-muted" />
+              <div className="h-8 w-16 rounded-full bg-muted" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /** Nothing matched — either the shelf is bare or the filters are too narrow. */
 export function ShopEmpty({
   title = "Nothing on this shelf yet",

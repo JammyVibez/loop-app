@@ -9,8 +9,9 @@ import { COIN } from "@/components/shop/shop-art"
 export interface ShopHeroProps {
   /** `null` when signed out. */
   coins: number | null
-  ownedCount: number
-  availableCount: number
+  /** `null` while the catalogue is still loading — shows "—", not a false 0. */
+  ownedCount: number | null
+  availableCount: number | null
   onBrowseCoins: () => void
   onBrowseAll: () => void
 }
@@ -78,8 +79,8 @@ export function ShopHero({ coins, ownedCount, availableCount, onBrowseCoins, onB
 
           <dl className="mt-7 grid grid-cols-3 gap-4 border-t border-border pt-4">
             <Stat label="Your balance" value={coins === null ? "—" : coins.toLocaleString()} />
-            <Stat label="Owned" value={ownedCount.toLocaleString()} />
-            <Stat label="Available" value={availableCount.toLocaleString()} />
+            <Stat label="Owned" value={ownedCount === null ? "—" : ownedCount.toLocaleString()} />
+            <Stat label="Available" value={availableCount === null ? "—" : availableCount.toLocaleString()} />
           </dl>
         </div>
 
