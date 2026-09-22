@@ -1,434 +1,57 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
-import { Button } from "@/components/ui/button"
-import {
-  Users,
-  MessageCircle,
-  ArrowRight,
-  Check,
-  Zap,
-  Swords,
-  Coins,
-  Trophy,
-  Play,
-  Smartphone,
-  Sparkles,
-  Layers,
-} from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { ArrowRight, ArrowUpRight, Check, Coins, Play, Smartphone, Swords, Trophy } from "lucide-react"
 import Link from "next/link"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { AppLogo } from "@/components/brand/app-logo"
+import { cn } from "@/lib/utils"
 
-function useReveal(threshold = 0.1) {
+function Reveal({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
   useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true)
-          obs.disconnect()
-        }
-      },
-      { threshold, rootMargin: "0px 0px -40px 0px" },
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [threshold])
-  return { ref, visible }
-}
-
-function Reveal({
-  children,
-  className,
-  delay = 0,
-}: {
-  children: React.ReactNode
-  className?: string
-  delay?: number
-}) {
-  const { ref, visible } = useReveal()
-  return (
-    <div
-      ref={ref}
-      className={cn(
-        "transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)]",
-        visible ? "translate-y-0 opacity-100 scale-100" : "translate-y-12 opacity-0 scale-[0.98]",
-        className,
-      )}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
-  )
-}
-
-function TiltCard({
-  children,
-  className,
-  intensity = 12,
-}: {
-  children: React.ReactNode
-  className?: string
-  intensity?: number
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [style, setStyle] = useState<React.CSSProperties>({})
-  const onMove = useCallback(
-    (e: React.MouseEvent) => {
-      const el = ref.current
-      if (!el) return
-      const r = el.getBoundingClientRect()
-      const x = (e.clientX - r.left) / r.width
-      const y = (e.clientY - r.top) / r.height
-      setStyle({
-        transform: `perspective(900px) rotateX(${(0.5 - y) * intensity}deg) rotateY(${(x - 0.5) * intensity}deg)`,
-        transition: "transform 0.08s ease-out",
-      })
-    },
-    [intensity],
-  )
-  const onLeave = useCallback(() => {
-    setStyle({
-      transform: "perspective(900px) rotateX(0deg) rotateY(0deg)",
-      transition: "transform 0.5s cubic-bezier(0.16,1,0.3,1)",
-    })
+    const element = ref.current
+    if (!element) return
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setVisible(true)
+        observer.disconnect()
+      }
+    }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" })
+    observer.observe(element)
+    return () => observer.disconnect()
   }, [])
-  return (
-    <div
-      ref={ref}
-      onMouseMove={onMove}
-      onMouseLeave={onLeave}
-      className={cn("will-change-transform", className)}
-      style={style}
-    >
-      {children}
-    </div>
-  )
+  return <div ref={ref} className={cn("transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)]", visible ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0 blur-[2px]", className)} style={{ transitionDelay: `${delay}ms` }}>{children}</div>
 }
 
-function AmbientBackground() {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      <div className="absolute inset-0 bg-[#050508]" />
-      <div
-        className="absolute -left-1/4 top-0 h-[70vh] w-[70vw] rounded-full opacity-40 blur-[120px]"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(99,102,241,0.35) 0%, rgba(56,189,248,0.12) 40%, transparent 70%)",
-        }}
-      />
-      <div
-        className="absolute -right-1/4 top-1/3 h-[60vh] w-[55vw] rounded-full opacity-30 blur-[140px]"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(236,72,153,0.25) 0%, rgba(168,85,247,0.15) 45%, transparent 70%)",
-        }}
-      />
-      <div
-        className="absolute inset-0 opacity-[0.035]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
-          backgroundSize: "64px 64px",
-          maskImage: "radial-gradient(ellipse 80% 60% at 50% 30%, black, transparent)",
-        }}
-      />
-    </div>
-  )
+function Magnetic({ children, strength = 0.35 }: { children: React.ReactNode; strength?: number }) {
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  return <div className="inline-block will-change-transform" onMouseMove={(event) => { const r = event.currentTarget.getBoundingClientRect(); setOffset({ x: (event.clientX - (r.left + r.width / 2)) * strength, y: (event.clientY - (r.top + r.height / 2)) * strength }) }} onMouseLeave={() => setOffset({ x: 0, y: 0 })} style={{ transform: `translate(${offset.x}px, ${offset.y}px)`, transition: "transform .25s cubic-bezier(.22,1,.36,1)" }}>{children}</div>
 }
 
-function ProductStage() {
-  return (
-    <TiltCard intensity={10} className="relative mx-auto w-full max-w-md">
-      <div className="absolute -bottom-8 left-1/2 h-16 w-4/5 -translate-x-1/2 rounded-[100%] bg-violet-500/20 blur-2xl" />
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.1] bg-[#0c0c10]/90 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8),0_0_40px_-10px_rgba(99,102,241,0.25)] backdrop-blur-xl">
-        <div className="flex items-center gap-2 border-b border-white/[0.06] bg-white/[0.03] px-4 py-3">
-          <div className="flex gap-1.5">
-            <div className="h-2.5 w-2.5 rounded-full bg-white/15" />
-            <div className="h-2.5 w-2.5 rounded-full bg-white/15" />
-            <div className="h-2.5 w-2.5 rounded-full bg-white/15" />
-          </div>
-          <div className="mx-auto rounded-md bg-white/[0.06] px-3 py-1 text-[10px] tracking-wide text-white/40">
-            loopapp.me
-          </div>
-        </div>
-        <div className="space-y-4 p-5">
-          <div className="rounded-xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/[0.08] to-transparent p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <div className="flex -space-x-2">
-                {["from-cyan-400 to-blue-500", "from-violet-400 to-purple-500", "from-amber-400 to-orange-500"].map(
-                  (g, i) => (
-                    <div
-                      key={i}
-                      className={cn("h-7 w-7 rounded-full bg-gradient-to-br ring-2 ring-[#0c0c10]", g)}
-                    />
-                  ),
-                )}
-              </div>
-              <span className="text-[11px] font-medium uppercase tracking-wider text-white/50">
-                Co-Loop · 4 live
-              </span>
-              <span className="ml-auto flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                Live
-              </span>
-            </div>
-            <div className="space-y-2">
-              <div className="h-2.5 w-full rounded-full bg-white/[0.06]" />
-              <div className="h-2.5 w-4/5 rounded-full bg-white/[0.06]" />
-              <div className="h-2.5 w-3/5 rounded-full bg-white/[0.06]" />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { v: "147", l: "Posts", c: "text-white" },
-              { v: "12", l: "Duels", c: "text-rose-400" },
-              { v: "23", l: "Circles", c: "text-violet-400" },
-            ].map(({ v, l, c }) => (
-              <div
-                key={l}
-                className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 py-2.5 text-center"
-              >
-                <p className={cn("text-lg font-bold tracking-tight", c)}>{v}</p>
-                <p className="text-[9px] uppercase tracking-widest text-white/30">{l}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </TiltCard>
-  )
+function InteractiveMock() {
+  const [tab, setTab] = useState<"coloop" | "duel" | "circle">("coloop")
+  const tabs = useMemo(() => [{ id: "coloop" as const, label: "Co-Loop" }, { id: "duel" as const, label: "Duel" }, { id: "circle" as const, label: "Circle" }], [])
+  return <div className="relative overflow-hidden rounded-[22px] border border-white/[0.1] bg-[#0a0a0d] shadow-[0_50px_120px_-40px_rgba(0,0,0,.95),0_0_60px_-20px_rgba(91,141,239,.25)]">
+    <div className="flex items-center gap-3 border-b border-white/[.06] px-4 py-3"><div className="flex gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-white/[.12]" /><i className="h-2.5 w-2.5 rounded-full bg-white/[.12]" /><i className="h-2.5 w-2.5 rounded-full bg-white/[.12]" /></div><div className="mx-auto flex gap-1 rounded-lg bg-white/[.04] p-0.5">{tabs.map((item) => <button type="button" key={item.id} onClick={() => setTab(item.id)} className={cn("rounded-md px-3 py-1 text-[11px] font-medium", tab === item.id ? "bg-white/[.1] text-white" : "text-white/35 hover:text-white/60")}>{item.label}</button>)}</div></div>
+    <div className="min-h-[280px] p-4 sm:p-5">{tab === "coloop" && <div className="space-y-3"><div className="rounded-xl border border-white/[.07] bg-[#111114] p-4"><div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2"><div className="flex -space-x-2">{["#4ade80", "#60a5fa", "#f472b6", "#fbbf24"].map((color) => <span key={color} className="h-6 w-6 rounded-full ring-2 ring-[#111114]" style={{ background: color }} />)}</div><span className="text-[12px] text-white/50">4 writing</span></div><span className="text-[11px] font-medium text-emerald-400">● Live</span></div><div className="space-y-2 font-mono text-[12px] leading-relaxed text-white/55"><p><span className="text-sky-400">@kai</span> badge unlock after 3 wins, not 10</p><p><span className="text-pink-400">@mira</span> + show streak on profile</p></div><div className="mt-3 h-1 overflow-hidden rounded-full bg-white/[.06]"><div className="h-full w-[72%] bg-white/40" /></div></div><p className="text-center text-[11px] text-white/25">Real cursors · shared publish · attribution for everyone</p></div>}{tab === "duel" && <div className="space-y-3"><div className="rounded-xl border border-white/[.07] bg-[#111114] p-4"><div className="mb-4 flex items-center gap-2"><Swords className="h-5 w-5 text-rose-400" /><div><p className="text-[13px] font-medium">Is mobile-first killing longform?</p><p className="text-[11px] text-white/35">214 votes · ends in 2h</p></div></div><div className="space-y-2"><div className="h-2 w-[58%] rounded-full bg-sky-400/70" /><div className="h-2 w-[42%] rounded-full bg-rose-400/70" /></div><div className="mt-4 flex gap-2"><button type="button" className="flex-1 rounded-lg border border-white/[.08] py-2 text-[12px]">Stake 50c · Yes</button><button type="button" className="flex-1 rounded-lg border border-white/[.08] py-2 text-[12px]">Stake 50c · No</button></div></div><p className="text-center text-[11px] text-white/25">Stake coins · make the case · crowd decides</p></div>}{tab === "circle" && <div className="space-y-3"><div className="rounded-xl border border-white/[.07] bg-[#111114] p-4"><p className="text-[13px] font-medium">#builders</p><p className="mb-4 text-[11px] text-white/35">1,204 members · 47 online</p>{["Nova · shipped the invite flow", "Rex · co-loop on the docs?", "Ash · tabs vs spaces 👀"].map((message) => <p key={message} className="mb-2 text-[12px] text-white/50">{message}</p>)}</div><p className="text-center text-[11px] text-white/25">Roles · events · moderation that scales</p></div>}</div>
+  </div>
 }
 
 export function LandingContent() {
-  const features = [
-    {
-      icon: Zap,
-      title: "Co-Loop",
-      description: "Write, edit, and publish live with up to 4 collaborators. Real cursors, shared attribution.",
-      iconBg: "from-cyan-500/25 to-cyan-500/5",
-      iconColor: "text-cyan-400",
-    },
-    {
-      icon: Swords,
-      title: "Duels",
-      description: "Stake coins, make your case, and let the community vote on who makes the better argument.",
-      iconBg: "from-rose-500/25 to-rose-500/5",
-      iconColor: "text-rose-400",
-    },
-    {
-      icon: Users,
-      title: "Circles",
-      description: "Build spaces with real-time chat, events, roles, and moderation tools.",
-      iconBg: "from-emerald-500/25 to-emerald-500/5",
-      iconColor: "text-emerald-400",
-    },
-    {
-      icon: Coins,
-      title: "Loop Coins",
-      description: "Earn through gifting, boost your best work, and cash out. Stripe-backed from day one.",
-      iconBg: "from-amber-500/25 to-amber-500/5",
-      iconColor: "text-amber-400",
-    },
-    {
-      icon: Trophy,
-      title: "Quests",
-      description: "Complete missions, play games, unlock rewards. Earn coins and collect limited items.",
-      iconBg: "from-violet-500/25 to-violet-500/5",
-      iconColor: "text-violet-400",
-    },
-    {
-      icon: Play,
-      title: "Reels & Trees",
-      description: "Short-form video with a vertical scroller, reactions, gifts, and Explore.",
-      iconBg: "from-fuchsia-500/25 to-fuchsia-500/5",
-      iconColor: "text-fuchsia-400",
-    },
-  ]
-
-  return (
-    <div className="relative min-h-screen overflow-hidden text-white">
-      <AmbientBackground />
-
-      <header className="relative z-30 border-b border-white/[0.06] bg-[#050508]/70 backdrop-blur-2xl">
-        <div className="container mx-auto flex items-center justify-between px-5 py-4 sm:px-8">
-          <Link href="/" className="group flex items-center gap-2.5">
-            <AppLogo className="h-8 w-8 rounded-xl transition-transform duration-300 group-hover:scale-110" />
-            <span className="text-[15px] font-semibold tracking-tight text-white">loopapp.me</span>
-          </Link>
-          <nav className="hidden items-center gap-7 text-[13px] text-white/45 md:flex">
-            <a href="#features" className="transition-colors hover:text-white">
-              Features
-            </a>
-            <a href="#creators" className="transition-colors hover:text-white">
-              Creators
-            </a>
-            <Link href="/download" className="transition-colors hover:text-white">
-              Get the app
-            </Link>
-          </nav>
-          <div className="flex items-center gap-2">
-            <Link href="/login">
-              <Button variant="ghost" size="sm" className="text-[13px] text-white/55 hover:bg-white/[0.06] hover:text-white">
-                Log in
-              </Button>
-            </Link>
-            <Link href="/signup">
-              <Button
-                size="sm"
-                className="rounded-full bg-white px-4 text-[13px] font-semibold text-black shadow-[0_0_24px_-4px_rgba(255,255,255,0.35)] hover:bg-white/90"
-              >
-                Sign up
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="relative z-10">
-        <section className="container mx-auto px-5 pb-20 pt-16 sm:px-8 sm:pt-24 lg:pb-28 lg:pt-32">
-          <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-16">
-            <div className="max-w-xl">
-              <Reveal>
-                <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                  </span>
-                  <span className="text-[11px] font-medium uppercase tracking-[0.2em] text-white/50">
-                    The social platform for creators
-                  </span>
-                </div>
-                <h1 className="text-4xl font-bold tracking-[-0.03em] text-white sm:text-5xl lg:text-[3.75rem] lg:leading-[1.05]">
-                  Build together.
-                  <br />
-                  <span className="bg-gradient-to-r from-white/50 via-white/35 to-white/20 bg-clip-text text-transparent">
-                    Not into the void.
-                  </span>
-                </h1>
-                <p className="mt-6 text-[16px] leading-relaxed text-white/45">
-                  Co-Loops, Duels, Circles, and coins — social software for people who make things.
-                </p>
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <Link href="/signup">
-                    <Button
-                      size="lg"
-                      className="h-12 rounded-full bg-white px-7 text-[14px] font-semibold text-black hover:bg-white/90"
-                    >
-                      Get started free
-                      <ArrowRight className="ml-1.5 h-4 w-4" />
-                    </Button>
-                  </Link>
-                  <Link href="/download">
-                    <Button
-                      size="lg"
-                      variant="ghost"
-                      className="h-12 rounded-full border border-white/10 px-6 text-[14px] text-white/65 hover:bg-white/[0.06] hover:text-white"
-                    >
-                      See what it looks like
-                    </Button>
-                  </Link>
-                </div>
-                <p className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/30">
-                  {["No waitlist", "Free to start", "Real product"].map((t) => (
-                    <span key={t} className="inline-flex items-center gap-1.5">
-                      <Check className="h-3 w-3 text-emerald-400/80" />
-                      {t}
-                    </span>
-                  ))}
-                </p>
-              </Reveal>
-            </div>
-            <Reveal delay={120}>
-              <ProductStage />
-            </Reveal>
-          </div>
-        </section>
-
-        <section id="features" className="container mx-auto px-5 py-20 sm:px-8 sm:py-28">
-          <Reveal>
-            <p className="text-center text-[12px] font-medium uppercase tracking-[0.2em] text-white/35">
-              What you get
-            </p>
-            <h2 className="mx-auto mt-3 max-w-lg text-center text-3xl font-semibold tracking-tight sm:text-4xl">
-              Everything social software should have been
-            </h2>
-          </Reveal>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((f, i) => (
-              <Reveal key={f.title} delay={i * 60}>
-                <div className="group rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 transition-all hover:border-white/[0.12] hover:bg-white/[0.04]">
-                  <div
-                    className={cn(
-                      "mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br",
-                      f.iconBg,
-                    )}
-                  >
-                    <f.icon className={cn("h-5 w-5", f.iconColor)} />
-                  </div>
-                  <h3 className="text-[15px] font-semibold text-white">{f.title}</h3>
-                  <p className="mt-2 text-[13px] leading-relaxed text-white/40">{f.description}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </section>
-
-        <section id="creators" className="container mx-auto px-5 pb-28 sm:px-8">
-          <Reveal>
-            <div className="relative overflow-hidden rounded-3xl border border-white/[0.1] bg-gradient-to-br from-white/[0.06] to-transparent px-8 py-16 text-center sm:px-16 sm:py-20">
-              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Ready when you are.</h2>
-              <p className="mx-auto mt-4 max-w-sm text-[15px] text-white/40">
-                Free to join. No algorithm deciding you're invisible.
-              </p>
-              <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-                <Link href="/signup">
-                  <Button
-                    size="lg"
-                    className="h-12 rounded-full bg-white px-7 text-[14px] font-semibold text-black hover:bg-white/90"
-                  >
-                    Get started free
-                    <ArrowRight className="ml-1.5 h-4 w-4" />
-                  </Button>
-                </Link>
-                <Link href="/download">
-                  <Button
-                    size="lg"
-                    variant="ghost"
-                    className="h-12 rounded-full px-5 text-[14px] text-white/50 hover:bg-white/[0.05] hover:text-white"
-                  >
-                    Download the app
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </Reveal>
-        </section>
-      </main>
-
-      <footer className="relative z-10 border-t border-white/[0.05] py-10">
-        <div className="container mx-auto flex flex-col items-center justify-between gap-6 px-5 sm:flex-row sm:px-8">
-          <div className="flex items-center gap-2">
-            <AppLogo className="h-5 w-5 rounded-md opacity-70" />
-            <span className="text-[13px] text-white/30">loopapp.me</span>
-          </div>
-          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-[13px] text-white/30">
-            <a href="#features" className="hover:text-white/55">
-              Product
-            </a>
-            <a href="#creators" className="hover:text-white/55">
-              Creators
-            </a>
-            <Link href="/download" className="hover:text-white/55">
-              Download
-            </Link>
-          </div>
-        </div>
-      </footer>
-    </div>
-  )
+  const [heroIn, setHeroIn] = useState(false)
+  const [stats, setStats] = useState<{ total_users: number; total_loops: number; total_circles: number; total_duels: number } | null>(null)
+  useEffect(() => { const frame = requestAnimationFrame(() => setHeroIn(true)); return () => cancelAnimationFrame(frame) }, [])
+  useEffect(() => { fetch("/api/stats").then((response) => response.json()).then((data) => data?.success !== false && setStats({ total_users: Number(data.total_users || 0), total_loops: Number(data.total_loops || 0), total_circles: Number(data.total_circles || 0), total_duels: Number(data.total_duels || 0) })).catch(() => {}) }, [])
+  const features = [{ tag: "Co-Loop", title: "Write with people in the room", body: "Up to four of you, same draft, live cursors. Publish once — everyone gets credit." }, { tag: "Duels", title: "Argue. Stake. Get judged.", body: "Put coins on the line, make the case, let the crowd decide. No vague quote-tweets." }, { tag: "Circles", title: "Rooms that actually run", body: "Chat, roles, events, moderation. Built for communities that outgrow group chats." }, { tag: "Coins", title: "Earn without the middleman tax", body: "Gifts, boosts, cash-outs via Stripe. Your work, your money — from day one." }]
+  return <div className="relative min-h-screen overflow-x-hidden bg-[#060607] text-white"><div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_10%_0%,rgba(91,141,239,.22),transparent_35%),radial-gradient(circle_at_90%_35%,rgba(139,120,255,.13),transparent_35%),#060607]" />
+    <header className="relative z-40 border-b border-white/[.05] bg-[#060607]/70 backdrop-blur-xl"><div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 sm:px-8"><Link href="/" className="flex items-center gap-2.5"><AppLogo className="h-7 w-7 rounded-lg" /><span className="text-[14px] font-semibold">loopapp.me</span></Link><nav className="hidden gap-8 text-[13px] text-white/40 md:flex"><a href="#features">Product</a><a href="#money">Creators</a><a href="#moment">Why Loop</a><Link href="/download">App</Link></nav><div className="flex items-center gap-1.5"><Link href="/login"><Button variant="ghost" size="sm" className="h-8 text-[13px] text-white/50">Log in</Button></Link><Magnetic strength={.45}><Link href="/signup"><Button size="sm" className="h-8 rounded-full bg-white px-3.5 text-black">Sign up</Button></Link></Magnetic></div></div></header>
+    <main className="relative z-10"><section className="mx-auto max-w-6xl px-5 pb-20 pt-20 sm:px-8 sm:pt-28 lg:pb-28 lg:pt-32"><div className="grid items-center gap-16 lg:grid-cols-[1.1fr_.9fr] lg:gap-14"><div><p className={cn("mb-6 text-[13px] text-white/40 transition-all duration-1000", heroIn ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0")}>Social for people who make things</p><h1 className={cn("max-w-[12ch] text-[clamp(2.75rem,7vw,4.25rem)] font-semibold leading-[.98] tracking-[-.045em] transition-all duration-1000", heroIn ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0")}>Stop posting into silence.</h1><p className="mt-7 max-w-md text-[17px] leading-relaxed text-white/45">Co-write live. Settle debates in public. Build circles that work. Creation was never meant to be a solo act.</p><div className="mt-10 flex flex-wrap gap-3"><Magnetic strength={.4}><Link href="/signup"><Button size="lg" className="h-12 rounded-full bg-white px-7 text-black">Get started free <ArrowRight className="ml-1.5 h-4 w-4" /></Button></Link></Magnetic><Link href="/download"><Button size="lg" variant="ghost" className="h-12 rounded-full px-5 text-white/55"><Smartphone className="mr-1.5 h-4 w-4" />Get the app</Button></Link></div><p className="mt-6 flex flex-wrap gap-4 text-[12px] text-white/30"><span><Check className="mr-1 inline h-3 w-3" />No waitlist</span><span><Check className="mr-1 inline h-3 w-3" />Free to start</span><span><Check className="mr-1 inline h-3 w-3" />You keep your content</span></p></div><div className="hidden lg:block"><InteractiveMock /></div></div></section>
+      {stats && Object.values(stats).some((value) => value > 0) && <Reveal><section className="border-y border-white/[.05]"><div className="mx-auto grid max-w-6xl grid-cols-2 sm:grid-cols-4">{[[stats.total_loops, "Loops"], [stats.total_users, "People"], [stats.total_circles, "Circles"], [stats.total_duels, "Duels"]].filter(([value]) => Number(value) > 0).map(([value, label]) => <div key={String(label)} className="py-9 text-center"><b className="block text-2xl tabular-nums sm:text-3xl">{Number(value) >= 1000 ? `${(Number(value) / 1000).toFixed(1)}k` : Number(value).toLocaleString()}</b><span className="text-[12px] text-white/35">{label}</span></div>)}</div></section></Reveal>}
+      <section id="features" className="scroll-mt-20 py-24 sm:py-32"><div className="mx-auto max-w-6xl px-5 sm:px-8"><Reveal><p className="text-[13px] text-white/35">What you get</p><h2 className="mt-3 text-3xl font-semibold sm:text-4xl">Not another infinite feed.</h2></Reveal><div className="mt-16 divide-y divide-white/[.06] border-y border-white/[.06]">{features.map((feature, index) => <Reveal key={feature.tag} delay={index * 60}><div className="grid gap-4 py-10 sm:grid-cols-[140px_1fr] sm:gap-10 lg:grid-cols-[160px_1fr_1.2fr] lg:items-baseline"><span className="text-[13px] uppercase tracking-wider text-white/30">{feature.tag}</span><h3 className="text-xl font-semibold sm:text-2xl">{feature.title}</h3><p className="text-[15px] leading-relaxed text-white/40">{feature.body}</p></div></Reveal>)}</div><div className="mt-10 flex gap-2"><span className="rounded-full border border-white/[.07] px-3.5 py-1.5 text-[13px] text-white/45"><Trophy className="mr-2 inline h-3.5 w-3.5" />Quests & rewards</span><span className="rounded-full border border-white/[.07] px-3.5 py-1.5 text-[13px] text-white/45"><Play className="mr-2 inline h-3.5 w-3.5" />Reels & Trees</span><span className="rounded-full border border-white/[.07] px-3.5 py-1.5 text-[13px] text-white/45"><Coins className="mr-2 inline h-3.5 w-3.5" />Boosts</span></div></div></section>
+      <section id="money" className="scroll-mt-20 border-y border-white/[.05] bg-white/[.015] py-24 sm:py-32"><div className="mx-auto max-w-6xl px-5 sm:px-8"><Reveal><p className="text-[13px] text-white/35">Creator Studio</p><h2 className="mt-3 text-3xl font-semibold sm:text-4xl">Get paid for the work.</h2><p className="mt-5 max-w-md text-[16px] leading-relaxed text-white/40">Fans gift with real money. You boost the posts that matter. Cash out when you want — Stripe handles the rest.</p><ul className="mt-8 space-y-3 text-[14px] text-white/55">{["Stripe payouts, not IOUs", "Boost into discovery without ads", "Gift economy that rewards craft", "You own everything you post"].map((item) => <li key={item}><Check className="mr-2 inline h-4 w-4 text-white/30" />{item}</li>)}</ul><Link href="/signup" className="mt-9 inline-flex text-white/80">Open Creator Studio <ArrowUpRight className="ml-1.5 h-4 w-4" /></Link></Reveal></div></section>
+      <section id="moment" className="mx-auto max-w-6xl px-5 py-28 text-center sm:px-8 sm:py-36"><Reveal><div className="rounded-[28px] border border-white/[.1] bg-[radial-gradient(ellipse_at_top,rgba(91,141,239,.22),transparent_55%),#08080a] px-6 py-20 sm:px-12 sm:py-28"><p className="text-[13px] text-white/40">The whole idea</p><h2 className="mx-auto mt-5 max-w-2xl text-[clamp(2rem,5.5vw,3.75rem)] font-semibold leading-tight">Creation was never<br />meant to be lonely.</h2><p className="mx-auto mt-6 max-w-md text-[16px] leading-relaxed text-white/45">Co-write. Duel. Build rooms. Get paid.<br />Loop is social software for people who make things.</p><div className="mt-10"><Link href="/signup"><Button size="lg" className="h-12 rounded-full bg-white px-8 text-black">Start free <ArrowRight className="ml-1.5 h-4 w-4" /></Button></Link></div></div></Reveal></section></main>
+    <footer className="relative z-10 border-t border-white/[.05] py-10"><div className="mx-auto flex max-w-6xl items-center justify-between px-5 sm:px-8"><span className="text-[13px] text-white/30">loopapp.me</span><div className="flex gap-6 text-[13px] text-white/30"><a href="#features">Product</a><a href="#money">Creators</a><Link href="/download">Download</Link></div></div></footer>
+  </div>
 }
