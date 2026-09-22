@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useId, type ComponentType } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { AppLogo } from "@/components/brand/app-logo"
@@ -12,8 +12,6 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Home,
-  TrendingUp,
-  Video,
   Radio,
   Calendar,
   Users,
@@ -23,15 +21,22 @@ import {
   Zap,
   LogOut,
   Flame,
-  User,
   Compass,
   DollarSign,
   Code2,
   UserPlus,
   Lock,
   Building2,
+  ChevronDown,
 } from "lucide-react"
 import { UserBadges } from "@/components/user-badge"
+import {
+  primarySidebarNav,
+  readSidebarMoreExpanded,
+  secondarySidebarNav,
+  writeSidebarMoreExpanded,
+  type SidebarAudience,
+} from "@/lib/sidebar-nav"
 
 interface CircleItem {
   id: string
@@ -43,10 +48,66 @@ interface CircleItem {
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 
+/** Icons live here rather than in the nav model so `lib/sidebar-nav` stays free
+ *  of React and the "no destination lost" rules can be unit tested. */
+const NAV_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  "/": Home,
+  "/explore": Compass,
+  "/communities": Users,
+  "/streams": Radio,
+  "/wallet": Coins,
+  "/co-loop/studio": Zap,
+  "/earnings": DollarSign,
+  "/developers": Code2,
+  "/events": Calendar,
+  "/bookmarks": Bookmark,
+  "/invite": UserPlus,
+  "/lounge": Lock,
+  "/organization": Building2,
+  "/loopadmin": Shield,
+  "/team": Shield,
+}
+
+/** Guides the new-user tour to real elements. */
+const NAV_TOUR_ANCHORS: Record<string, string> = {
+  "/communities": "nav-circles",
+  "/wallet": "wallet",
+}
+
+function navItemClasses(href: string, active: boolean) {
+  if (active) {
+    return href === "/loopadmin"
+      ? "bg-amber-500 text-white shadow-sm"
+      : href === "/team"
+        ? "bg-blue-500 text-white shadow-sm"
+        : "bg-primary text-primary-foreground shadow-sm"
+  }
+  if (href === "/loopadmin") return "text-amber-500 hover:bg-amber-500/10"
+  if (href === "/team") return "text-blue-500 hover:bg-blue-500/10"
+  return "text-muted-foreground hover:bg-muted hover:text-foreground"
+}
+
 export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   const { user, signOut } = useAuth()
   const pathname = usePathname()
   const [trendingCircles, setTrendingCircles] = useState<CircleItem[]>([])
+
+  // This component renders twice on small screens (desktop rail + the mobile
+  // sheet), so the disclosure needs an id that is unique per instance.
+  const morePanelId = useId()
+
+  // Persisted so someone who opens More keeps it open across visits.
+  const [moreOpen, setMoreOpen] = useState(false)
+  useEffect(() => {
+    setMoreOpen(readSidebarMoreExpanded())
+  }, [])
+
+  const toggleMore = () => {
+    setMoreOpen((prev) => {
+      writeSidebarMoreExpanded(!prev)
+      return !prev
+    })
+  }
 
   useEffect(() => {
     if (!user) return
@@ -65,32 +126,19 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
 
   if (!user) return null
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const discoveryNav = [
-    { href: "/", label: "Home Feed", icon: Zap },
-    // Messages moved to navbar only
-    { href: "/explore", label: "Explore & Search", icon: Compass },
-    { href: "/developers", label: "Developer Hub", icon: Code2 },
-    { href: "/streams", label: "Live Streams", icon: Radio, badge: "LIVE" },
-    { href: "/events", label: "Events Stage", icon: Calendar },
-    { href: "/communities", label: "Communities", icon: Users },
-    { href: "/co-loop/studio", label: "Co-Loop Studio", icon: Zap, badge: "NEW" },
-    { href: "/earnings", label: "Creator Studio", icon: DollarSign },
-    { href: "/wallet", label: "Wallet & Gifts", icon: Coins },
-    { href: "/bookmarks", label: "Saved Bookmarks", icon: Bookmark },
-    { href: "/invite", label: "Invite Friends", icon: UserPlus },
-    // Notifications moved to navbar only
-  ]
-
-  if (user.is_premium) {
-    discoveryNav.push({ href: "/lounge", label: "Pro Lounge", icon: Lock, badge: "PRO" } as any)
-  }
-
-  if (user.is_organization) {
-    discoveryNav.push({ href: "/organization", label: "Organization", icon: Building2, badge: "ORG" } as any)
-  }
-
   const isAdmin = user.is_admin || user.email === "useehamza0@gmail.com"
+
+  const audience: SidebarAudience = {
+    isPremium: Boolean(user.is_premium),
+    isOrganization: Boolean(user.is_organization),
+    isAdmin,
+    isTeamMember: Boolean(user.is_team_member),
+  }
+
+  // Five always-visible destinations; everything else lives behind "More" so
+  // the rail reads as a hierarchy instead of a flat list of a dozen links.
+  const primaryNav = primarySidebarNav(audience)
+  const secondaryNav = secondarySidebarNav(audience)
 
   return (
     <div className="flex h-full flex-col justify-between overflow-hidden">
@@ -108,77 +156,99 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
             <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
               Discover & Tools
             </p>
-            {discoveryNav.map((item) => {
-              const Icon = item.icon
-              const isActive = pathname === item.href
+            {primaryNav.map((item) => {
+              const Icon = NAV_ICONS[item.href]
+              // Prefix match: sub-routes like /communities/123 and /loopadmin/quests
+              // should keep their parent highlighted.
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/" && pathname.startsWith(`${item.href}/`))
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={onLinkClick}
-                  data-tour={
-                    item.href === "/communities"
-                      ? "nav-circles"
-                      : item.href === "/wallet"
-                        ? "wallet"
-                        : undefined
-                  }
-                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
-                    isActive
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
+                  data-tour={NAV_TOUR_ANCHORS[item.href]}
+                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${navItemClasses(item.href, isActive)}`}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className="h-4 w-4" />
+                    {Icon ? <Icon className="h-4 w-4" /> : null}
                     <span>{item.label}</span>
                   </div>
-                  {item.badge && (
+                  {item.badge ? (
                     <Badge className="bg-rose-500 text-[9px] px-1.5 py-0 text-white font-bold animate-pulse">
                       {item.badge}
                     </Badge>
-                  )}
+                  ) : null}
                 </Link>
               )
             })}
 
-            {isAdmin && (
-              <Link
-                href="/loopadmin"
-                onClick={onLinkClick}
-                className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
-                  pathname.startsWith("/loopadmin")
-                    ? "bg-amber-500 text-white shadow-sm"
-                    : "text-amber-500 hover:bg-amber-500/10"
+            {/* Everything else stays reachable from the same rail, just not
+                competing with the primary destinations for attention. */}
+            {secondaryNav.length > 0 && (
+              <button
+                type="button"
+                onClick={toggleMore}
+                aria-expanded={moreOpen}
+                aria-controls={morePanelId}
+                className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
+                  secondaryNav.some(
+                    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+                  )
+                    ? "text-foreground hover:bg-muted"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Shield className="h-4 w-4" />
-                  <span>Admin Dashboard</span>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform duration-200 ${moreOpen ? "rotate-180" : ""}`}
+                  />
+                  <span>More</span>
                 </div>
-                <Badge variant="outline" className="border-amber-500/50 text-[9px]">
-                  ADMIN
-                </Badge>
-              </Link>
+                {!moreOpen && (
+                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[9px] font-bold text-muted-foreground">
+                    {secondaryNav.length}
+                  </span>
+                )}
+              </button>
             )}
-            {(user.is_team_member || isAdmin) && (
-              <Link
-                href="/team"
-                onClick={onLinkClick}
-                className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
-                  pathname.startsWith("/team")
-                    ? "bg-blue-500 text-white shadow-sm"
-                    : "text-blue-500 hover:bg-blue-500/10"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Shield className="h-4 w-4" />
-                  <span>Team Dashboard</span>
-                </div>
-                <Badge variant="outline" className="border-blue-500/50 text-[9px]">
-                  TEAM
-                </Badge>
-              </Link>
+
+            {secondaryNav.length > 0 && moreOpen && (
+              <div id={morePanelId} className="space-y-1 pl-3">
+                {secondaryNav.map((item) => {
+                  const Icon = NAV_ICONS[item.href]
+                  const isActive =
+                    pathname === item.href || pathname.startsWith(`${item.href}/`)
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onLinkClick}
+                      className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${navItemClasses(item.href, isActive)}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {Icon ? <Icon className="h-4 w-4" /> : null}
+                        <span>{item.label}</span>
+                      </div>
+                      {item.badge ? (
+                        item.tone ? (
+                          <Badge
+                            variant="outline"
+                            className={`text-[9px] ${item.tone === "admin" ? "border-amber-500/50" : "border-blue-500/50"}`}
+                          >
+                            {item.badge}
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-rose-500 text-[9px] px-1.5 py-0 text-white font-bold">
+                            {item.badge}
+                          </Badge>
+                        )
+                      ) : null}
+                    </Link>
+                  )
+                })}
+              </div>
             )}
           </div>
 
