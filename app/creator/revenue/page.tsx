@@ -10,14 +10,16 @@ import { ArrowLeft, Coins, TrendingUp } from "lucide-react"
 import { PageLoading } from "@/components/loading-states"
 
 export default function CreatorRevenuePage() {
-  const { user, loading } = useAuth()
+  const { user, loading, authResolved } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && !user) {
+    // Only redirect once the session check is conclusive; a transient failure
+    // used to bounce signed-in creators to the login page on refresh.
+    if (!loading && authResolved && !user) {
       router.replace("/login?returnTo=/creator/revenue")
     }
-  }, [user, loading, router])
+  }, [user, loading, authResolved, router])
 
   if (loading) return <PageLoading message="Loading revenue data..." />
   if (!user) return null

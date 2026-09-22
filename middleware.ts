@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { isAuthRequiredPath } from "@/lib/guest"
+import { hasSessionCookie, isAuthRequiredPath } from "@/lib/guest"
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
+import { INTERNAL_RATE_LIMIT_PATH, loadEdgeRateLimitSettings, planApiRateLimit } from "@/lib/middleware-rate-limit"
 
 const alwaysPublic = new Set([
   "/",
@@ -15,46 +17,6 @@ const alwaysPublic = new Set([
   "/api/auth/signup",
   "/api/auth/callback",
 ])
-
-// ─── Rate Limiting (in-memory, per-instance) ───────────────────────
-
-interface RateLimitEntry {
-  count: number
-  resetAt: number
-}
-
-const rateLimitStore = new Map<string, RateLimitEntry>()
-
-// Cleanup every 5 minutes
-const cleanupInterval = setInterval(() => {
-  const now = Date.now()
-  for (const [key, entry] of rateLimitStore) {
-    if (entry.resetAt < now) rateLimitStore.delete(key)
-  }
-}, 300_000)
-
-function checkRateLimit(key: string, maxRequests: number, windowMs: number): { allowed: boolean; remaining: number; retryAfter?: number } {
-  const now = Date.now()
-  const entry = rateLimitStore.get(key)
-
-  if (!entry || entry.resetAt < now) {
-    rateLimitStore.set(key, { count: 1, resetAt: now + windowMs })
-    return { allowed: true, remaining: maxRequests - 1 }
-  }
-
-  if (entry.count >= maxRequests) {
-    return { allowed: false, remaining: 0, retryAfter: entry.resetAt - now }
-  }
-
-  entry.count++
-  return { allowed: true, remaining: maxRequests - entry.count }
-}
-
-function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for")
-  if (forwarded) return forwarded.split(",")[0].trim()
-  return request.headers.get("x-real-ip") || "unknown"
-}
 
 // ─── Security Headers ──────────────────────────────────────────────
 
@@ -110,7 +72,7 @@ function containsDangerousInput(url: string): boolean {
 
 // ─── Middleware ─────────────────────────────────────────────────────
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // NOTE: no www → apex 301 here. That redirect previously broke domain
@@ -126,52 +88,36 @@ export function middleware(request: NextRequest) {
     return new NextResponse("Forbidden", { status: 403 })
   }
 
-  // ── 2. Rate limiting ──
-  if (isApi) {
-    // Auth endpoints: stricter rate limit
-    if (pathname.startsWith("/api/auth/login") || pathname.startsWith("/api/auth/signup")) {
-      const key = `auth:${ip}`
-      const { allowed } = checkRateLimit(key, 10, 60_000) // 10/min
-      if (!allowed) {
-        return new NextResponse(
-          JSON.stringify({ error: "Too many requests. Try again later." }),
-          { status: 429, headers: { "Content-Type": "application/json" } }
-        )
-      }
-    }
+  // ── 2. Rate limiting (IP-based, anonymous traffic only) ──
+  //
+  // Signed-in callers are throttled per account further down the stack
+  // (enforceUserRateLimit), so they deliberately get no per-IP bucket: a
+  // shared office/NAT IP hitting a page refresh used to exhaust the bucket
+  // mid-hydration and come back looking signed out.
+  //
+  // INTERNAL_RATE_LIMIT_PATH is exempt — middleware fetches it to learn the
+  // admin policy, and throttling (or recursing into) that read would deadlock
+  // the limiter.
+  if (isApi && pathname !== INTERNAL_RATE_LIMIT_PATH) {
+    const sessionCookieNames = request.cookies.getAll().map((cookie) => cookie.name)
+    const hasSession = hasSessionCookie(sessionCookieNames)
+    const settings = await loadEdgeRateLimitSettings(request.nextUrl.origin)
 
-    // Password reset: very strict
-    if (pathname.includes("/auth/forgot-password") || pathname.includes("/auth/reset-password")) {
-      const key = `pwreset:${ip}`
-      const { allowed } = checkRateLimit(key, 3, 3_600_000) // 3/hour
+    const plan = planApiRateLimit({ pathname, ip, hasSession, settings })
+    if (plan) {
+      const { allowed, retryAfter } = checkRateLimit(plan.key, {
+        maxRequests: plan.max,
+        windowMs: plan.windowMs,
+      })
       if (!allowed) {
-        return new NextResponse(
-          JSON.stringify({ error: "Too many reset attempts. Try again later." }),
-          { status: 429, headers: { "Content-Type": "application/json" } }
-        )
-      }
-    }
-
-    // General API: 100/min per IP (skip if admin disabled rate limiting)
-    const generalKey = `api:${ip}`
-    const { allowed, retryAfter } = checkRateLimit(generalKey, 100, 60_000)
-    if (!allowed) {
-      const retryMs = retryAfter || 60_000
-      return new NextResponse(
-        JSON.stringify({ error: "Rate limit exceeded", retry_after: retryMs }),
-        { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.ceil(retryMs / 1000)) } }
-      )
-    }
-
-    // File uploads: 10/min per IP
-    if (pathname.includes("/upload")) {
-      const uploadKey = `upload:${ip}`
-      const { allowed } = checkRateLimit(uploadKey, 10, 60_000)
-      if (!allowed) {
-        return new NextResponse(
-          JSON.stringify({ error: "Upload limit exceeded" }),
-          { status: 429, headers: { "Content-Type": "application/json" } }
-        )
+        const retrySeconds = retryAfter || Math.ceil(plan.windowMs / 1000)
+        return new NextResponse(JSON.stringify({ error: plan.message, retry_after: retrySeconds }), {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": String(retrySeconds),
+          },
+        })
       }
     }
   }
@@ -213,15 +159,7 @@ export function middleware(request: NextRequest) {
   }
 
   // ── 6. Check session cookie ──
-  const hasSession = request.cookies
-    .getAll()
-    .some(
-      (cookie) =>
-        cookie.name.endsWith("better-auth.session_token") ||
-        cookie.name.includes("better-auth") ||
-        cookie.name.includes("supabase") ||
-        cookie.name.startsWith("sb-")
-    )
+  const hasSession = hasSessionCookie(request.cookies.getAll().map((cookie) => cookie.name))
 
   if (!hasSession) {
     const loginUrl = new URL("/login", request.url)

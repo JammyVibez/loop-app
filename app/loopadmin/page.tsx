@@ -11,14 +11,14 @@ import { Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function LoopAdminPage() {
-  const { user, loading } = useAuth()
+  const { user, loading, authResolved } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && authResolved && !user) {
       router.replace("/login?redirect=/loopadmin")
     }
-  }, [loading, user, router])
+  }, [loading, authResolved, user, router])
 
   if (loading) {
     return <PageLoading message="Loading admin…" />

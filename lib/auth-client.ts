@@ -20,16 +20,28 @@ const AUTH_BASE = "/api/auth"
 interface AuthResult {
   data: any
   error: any
+  /** HTTP status, or 0 when the request never completed. */
+  status: number
 }
+
+/**
+ * Ceiling for an auth round-trip. Without it a hung request leaves session
+ * hydration pending forever, which surfaces as a permanent loading state (or,
+ * worse, a signed-out flash) on refresh.
+ */
+const AUTH_TIMEOUT_MS = 12_000
 
 async function authFetch(
   path: string,
   init?: RequestInit,
 ): Promise<AuthResult> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS)
   try {
     const res = await fetch(`${AUTH_BASE}${path}`, {
       credentials: "include",
       ...init,
+      signal: init?.signal ?? controller.signal,
       headers: {
         "Content-Type": "application/json",
         ...init?.headers,
@@ -37,11 +49,32 @@ async function authFetch(
     })
     const body = await res.json().catch(() => null)
     if (!res.ok) {
-      return { data: null, error: body || { message: `HTTP ${res.status}` } }
+      // `status` lets callers tell "definitely signed out" (401) apart from
+      // "the server never got to answer" (429/5xx/offline).
+      return {
+        data: null,
+        error: {
+          ...(body && typeof body === "object" ? body : {}),
+          message: (body && (body.message || body.error)) || `HTTP ${res.status}`,
+          status: res.status,
+        },
+        status: res.status,
+      }
     }
-    return { data: body, error: null }
+    return { data: body, error: null, status: res.status }
   } catch (err: any) {
-    return { data: null, error: { message: err?.message || "Network error" } }
+    const aborted = err?.name === "AbortError"
+    return {
+      data: null,
+      error: {
+        message: aborted ? "Auth check timed out" : err?.message || "Network error",
+        status: 0,
+        transient: true,
+      },
+      status: 0,
+    }
+  } finally {
+    clearTimeout(timer)
   }
 }
 

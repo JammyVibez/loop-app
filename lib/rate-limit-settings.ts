@@ -33,6 +33,13 @@ export const RATE_LIMIT_DEFAULTS = {
   upload_max: 10,
   /** Messages per user per minute. */
   message_max: 60,
+  /**
+   * API requests per IP per minute for signed-OUT visitors only. Signed-in
+   * callers are throttled per account by `enforceUserRateLimit`, so they never
+   * share this bucket — a shared office/NAT IP can no longer throttle (or log
+   * out) a signed-in user browsing normally.
+   */
+  anonymous_api_max: 60,
 } as const
 
 export type RateLimitSettings = {
@@ -47,6 +54,7 @@ export type RateLimitSettings = {
   interaction_max: number
   upload_max: number
   message_max: number
+  anonymous_api_max: number
 }
 
 const SETTING_KEY = "rate_limits"
@@ -71,6 +79,7 @@ export function normalizeRateLimitSettings(raw: unknown): RateLimitSettings {
     interaction_max: clampInt(src.interaction_max, RATE_LIMIT_DEFAULTS.interaction_max, 1, 500),
     upload_max: clampInt(src.upload_max, RATE_LIMIT_DEFAULTS.upload_max, 1, 100),
     message_max: clampInt(src.message_max, RATE_LIMIT_DEFAULTS.message_max, 1, 600),
+    anonymous_api_max: clampInt(src.anonymous_api_max, RATE_LIMIT_DEFAULTS.anonymous_api_max, 5, 1000),
   }
 }
 
@@ -164,4 +173,5 @@ export const RATE_LIMIT_ACTIONS: { key: keyof RateLimitSettings; label: string; 
   { key: "login_fail_max", label: "Failed logins before lockout", window: "per account" },
   { key: "signup_ip_max", label: "Signups / IP", window: "per minute" },
   { key: "signup_email_max", label: "Signups / email", window: "per hour" },
+  { key: "anonymous_api_max", label: "Signed-out API requests / IP", window: "per minute" },
 ]

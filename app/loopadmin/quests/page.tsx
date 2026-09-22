@@ -11,16 +11,16 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
 export default function AdminQuestsPage() {
-  const { user, loading } = useAuth()
+  const { user, loading, authResolved } = useAuth()
   const router = useRouter()
   const [checked, setChecked] = useState(false)
 
   useEffect(() => {
     if (!loading) {
-      if (!user) router.replace("/login?redirect=/loopadmin/quests")
-      setChecked(true)
+      if (authResolved && !user) router.replace("/login?redirect=/loopadmin/quests")
+      if (authResolved) setChecked(true)
     }
-  }, [loading, user, router])
+  }, [loading, authResolved, user, router])
 
   if (loading || !checked) {
     return <PageLoading message="Loading quest management…" />

@@ -3,8 +3,15 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { authClient } from "@/lib/auth-client"
+import { readCachedUser as readCachedUserFromCache, writeCachedUser as writeCachedUserToCache } from "@/lib/auth-cache"
 
 const supabase = getSupabaseBrowserClient()
+
+/** Outcome of a session check. "unknown" = the server never answered. */
+type SessionCheckResult = "authenticated" | "unauthenticated" | "unknown"
+
+const readCachedUser = () => readCachedUserFromCache<User>()
+const writeCachedUser = (user: User | null) => writeCachedUserToCache(user)
 
 interface User {
   id: string
@@ -58,6 +65,11 @@ interface User {
 interface AuthContextType {
   user: User | null
   loading: boolean
+  /**
+   * True once the session check returned a definitive answer. Auth-gated pages
+   * use this to avoid bouncing a signed-in user to /login over a failed check.
+   */
+  authResolved: boolean
   login: (email: string, password: string) => Promise<void>
   loginWithGoogle: (callbackURL?: string) => Promise<void>
   googleSignIn: (callbackURL?: string) => Promise<void>
@@ -83,6 +95,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authResolved, setAuthResolved] = useState(false)
   const userRef = useRef<User | null>(null)
 
   useEffect(() => {
@@ -194,7 +207,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfileViaApi = async (accessToken: string) => {
     try {
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 4000)
+      // A cold server compiles the auth route on first hit — comfortably more
+      // than the old 4s ceiling, which used to abort and read as "no profile".
+      const timeout = setTimeout(() => controller.abort(), 12000)
       const response = await fetch("/api/auth/me", {
         headers: { Authorization: `Bearer ${accessToken}` },
         cache: "no-store",
@@ -210,12 +225,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const hydrateSessionUser = async () => {
+  const hydrateSessionUser = async (): Promise<SessionCheckResult> => {
     const sessionRes = await authClient.getSession().catch(() => null)
-    const sessionData = sessionRes?.data
+
+    // A failed request is NOT proof of being signed out. Only a successful
+    // response that carries no user is. Treating the two the same is what made
+    // a refresh show "logged out" whenever the auth call hiccuped.
+    if (!sessionRes || sessionRes.error) {
+      return "unknown"
+    }
+
+    const sessionData = sessionRes.data
     if (!sessionData?.user) {
       setUser(null)
-      return
+      writeCachedUser(null)
+      return "unauthenticated"
     }
 
     const sessionUser = sessionData.user
@@ -236,7 +260,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!profileData) {
       try {
         const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 3500)
+        const timeout = setTimeout(() => controller.abort(), 6000)
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("*")
@@ -259,6 +283,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(mapSessionUser(sessionData, profileData))
+    return "authenticated"
   }
 
   useEffect(() => {
@@ -272,29 +297,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     }
 
-    // Generous ceiling: the very first get-session call on a cold server can
-    // take ~14s (auth-route module compile + DB roundtrip). A shorter timer
-    // would flip loading=false with user=null mid-check and bounce signed-in
-    // users to /login. If we still have no session by the ceiling, retry once
-    // — the route is warm by then, so the retry resolves in milliseconds —
-    // before giving up and letting the page treat us as a guest.
+    // Held aside rather than applied: the cache carries no credential, so
+    // rendering from it up-front would fire authenticated requests with no
+    // Authorization header. It is a fallback for when the check can't
+    // complete, not a substitute for it.
+    const cachedUser = readCachedUser()
+
+    // Ceiling on the whole check. A cold server can take ~14s on the very first
+    // get-session (auth-route compile + DB roundtrip), but we must never leave
+    // the app in a permanent loading state.
     const safety = setTimeout(() => {
       if (cancelled) return
-      if (!userRef.current) {
-        hydrateSessionUser().then(finish).catch(finish)
+      // Stop loading no matter what. If the check still hasn't answered, hold
+      // onto whatever identity we have rather than demoting a signed-in user
+      // to a guest; only a visitor we have nothing for at all is treated as
+      // signed out.
+      const fallback = userRef.current ?? cachedUser
+      if (fallback) {
+        userRef.current = fallback
+        setUser((prev) => prev ?? fallback)
       } else {
-        finish()
+        setAuthResolved(true)
       }
-    }, 15000)
+      finish()
+    }, 20000)
 
     const checkSession = async () => {
-      try {
-        await hydrateSessionUser()
-      } catch (error) {
-        console.error("Error checking session:", error)
-      } finally {
-        finish()
+      // Retry transient failures (offline, timeout, 429, 5xx). A definitive
+      // answer — signed in or signed out — stops the loop immediately.
+      const retryDelays = [0, 1000, 2500]
+      let result: SessionCheckResult = "unknown"
+
+      for (const delay of retryDelays) {
+        if (cancelled) return
+        if (delay) await new Promise((resolve) => setTimeout(resolve, delay))
+        if (cancelled) return
+        try {
+          result = await hydrateSessionUser()
+        } catch (error) {
+          console.error("Error checking session:", error)
+          result = "unknown"
+        }
+        if (result !== "unknown") break
       }
+
+      if (cancelled) return
+
+      if (result === "unknown") {
+        // Never reached the auth API. A refresh must not downgrade a signed-in
+        // user to a guest because of a network blip, so restore the cached
+        // identity (if any) instead of clearing them.
+        const fallback = userRef.current ?? cachedUser
+        if (fallback) {
+          userRef.current = fallback
+          setUser((prev) => prev ?? fallback)
+        } else {
+          setUser(null)
+        }
+        // Deliberately left unresolved when we fall back to the cache:
+        // auth-gated pages must not redirect to /login on a guess.
+        if (!fallback) setAuthResolved(true)
+      } else {
+        setAuthResolved(true)
+      }
+
+      finish()
     }
 
     checkSession()
@@ -304,6 +371,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(safety)
     }
   }, [])
+
+  // Mirror the session to localStorage for the next hard refresh. Skipped while
+  // the first check is still running so an empty initial state can't wipe it.
+  useEffect(() => {
+    if (loading) return
+    writeCachedUser(user)
+  }, [user, loading])
 
   const login = async (email: string, password: string) => {
     const response = await fetch("/api/auth/login", {
@@ -371,7 +445,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     await authClient.signOut().catch(() => undefined)
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined)
+    // Drop the cached identity too, otherwise the next refresh would briefly
+    // paint the signed-out user as signed in again.
+    writeCachedUser(null)
     setUser(null)
+    setAuthResolved(true)
   }
 
   const loginWithGoogle = async (callbackURL?: string) => {
@@ -387,7 +465,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const refreshUser = async () => {
-    await hydrateSessionUser()
+    const result = await hydrateSessionUser()
+    if (result !== "unknown") setAuthResolved(true)
   }
 
   const getAuthHeader = useCallback((): Record<string, string> => {
@@ -520,6 +599,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         loading,
+        authResolved,
         login,
         loginWithGoogle,
         googleSignIn: loginWithGoogle,

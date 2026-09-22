@@ -90,7 +90,9 @@ export function RateLimitControl() {
           </CardTitle>
           <CardDescription>
             Throttle posting, comments, likes, uploads and messages to stop spam waves and abuse. Limits apply per user,
-            per minute. Auth (login/signup) keeps a security floor even when the master switch is off.
+            per minute. Signed-in users are never throttled per IP — only signed-out visitors are, so a shared network
+            cannot log anyone out mid-browse. Auth (login/signup) keeps a security floor even when the master switch is
+            off.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

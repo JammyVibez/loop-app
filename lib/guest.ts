@@ -62,6 +62,23 @@ export function isAuthRequiredPath(pathname: string) {
   return AUTH_REQUIRED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
 }
 
+/**
+ * True when the request carries a signed-in session cookie.
+ *
+ * Used both for the server-side route guard and for deciding whether an API
+ * request is anonymous traffic (rate limited per IP) or a signed-in caller's
+ * request (throttled per account instead). Pure and dependency-free so the
+ * edge middleware and unit tests can share it.
+ */
+export function hasSessionCookie(cookieNames: readonly string[]) {
+  return cookieNames.some(
+    (name) =>
+      name.includes("better-auth") ||
+      name.includes("supabase") ||
+      name.startsWith("sb-"),
+  )
+}
+
 export function loginHref(nextPath?: string | null, reason?: string) {
   const params = new URLSearchParams()
   if (nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")) {

@@ -31,7 +31,7 @@ interface OrgStatus {
 }
 
 export default function OrganizationDashboardPage() {
-  const { user, loading, getAuthHeader } = useAuth()
+  const { user, loading, authResolved, getAuthHeader } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   const [status, setStatus] = useState<OrgStatus | null>(null)
@@ -40,8 +40,10 @@ export default function OrganizationDashboardPage() {
   const [recentLoops, setRecentLoops] = useState<NormalizedLoop[]>([])
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/login?redirect=/organization")
-  }, [loading, user, router])
+    // Wait for a conclusive session check — a failed lookup must not sign the
+    // visitor out by redirect.
+    if (!loading && authResolved && !user) router.replace("/login?redirect=/organization")
+  }, [loading, authResolved, user, router])
 
   useEffect(() => {
     if (!user?.id) return

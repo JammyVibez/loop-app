@@ -8,14 +8,19 @@ import { useEffect } from "react"
 import { Zap } from "lucide-react"
 
 export function CreatePageContent({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
-  const { user, loading } = useAuth()
+  const { user, loading, authResolved } = useAuth()
   const router = useRouter()
 
+  // Only bounce to sign-in once the session check has actually *concluded*
+  // that nobody is signed in. Firing on `!user` alone redirected signed-in
+  // users to /login whenever their session lookup was still in flight or had
+  // failed transiently — which is exactly what a page refresh used to do.
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login")
+    if (!loading && authResolved && !user) {
+      // Preserve where they were headed so signing in lands them back here.
+      router.replace("/login?redirect=/create")
     }
-  }, [user, loading, router])
+  }, [user, loading, authResolved, router])
 
   if (loading || !user) {
     return (
