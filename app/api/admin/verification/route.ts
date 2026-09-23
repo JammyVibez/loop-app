@@ -102,19 +102,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: updateError.message }, { status: 500 })
     }
 
-    // If approved, update user profile
+    // If approved, update the user's profile.
+    //
+    // `profiles.verification_level` has a closed set of allowed values
+    // (none/basic/influencer/root) while requests carry types like
+    // "creator"/"business"/"public_figure"/"nonprofit". Writing the raw
+    // request type violated the CHECK constraint and the entire update
+    // silently failed — the request showed "approved" but the user never
+    // became verified. Map to an allowed level and fall back through safer
+    // patches so `is_verified` always lands.
     if (action === 'approved' && verificationRequest) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          is_verified: true,
-          verification_level: verificationRequest.verification_type,
-          verified_at: new Date().toISOString()
-        })
-        .eq('id', verificationRequest.user_id)
+      const rawType = String(verificationRequest.verification_type || '')
+      const mappedLevel = rawType === 'root'
+        ? 'root'
+        : rawType === 'influencer'
+          ? 'influencer'
+          : 'basic'
+      const verifiedAt = new Date().toISOString()
+      const attempts: Array<Record<string, unknown>> = [
+        { is_verified: true, verification_level: mappedLevel, verified_at: verifiedAt },
+        { is_verified: true, verification_level: mappedLevel },
+        { is_verified: true, verified_at: verifiedAt },
+        { is_verified: true },
+      ]
 
-      if (profileError) {
-        console.error('Error updating profile:', profileError)
+      let lastProfileError: string | null = null
+      for (const patch of attempts) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update(patch)
+          .eq('id', verificationRequest.user_id)
+        if (!profileError) {
+          lastProfileError = null
+          break
+        }
+        lastProfileError = profileError.message
+      }
+
+      if (lastProfileError) {
+        // Never leave an approved request unverified silently — surface it.
+        console.error('Could not mark user as verified:', lastProfileError)
       }
 
       // Create notification for user

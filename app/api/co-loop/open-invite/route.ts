@@ -41,9 +41,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Only the session owner can create an open invite" }, { status: 403 })
     }
 
-    // If session doesn't exist yet, create it
+    // If session doesn't exist yet, create it — and never ignore a failure
+    // here: a silently-skipped session row leaves an orphan feed post whose
+    // joins all fail with "Session not found".
     if (!session) {
-      await supabase.from("co_loop_sessions").insert({
+      const { error: insertError } = await supabase.from("co_loop_sessions").insert({
         session_id,
         owner_id: user.id,
         owner_username: profile?.username || user.email?.split("@")[0] || "creator",
@@ -52,9 +54,16 @@ export async function POST(request: NextRequest) {
         max_collaborators,
         open_invite_topic: topic.trim(),
       })
+      if (insertError && insertError.code !== "23505") {
+        console.error("Failed to create co_loop_sessions row:", insertError)
+        return NextResponse.json(
+          { error: "Could not create the Co-Loop session: " + insertError.message },
+          { status: 500 },
+        )
+      }
     } else {
       // Update existing session with open invite info
-      await supabase
+      const { error: updateError } = await supabase
         .from("co_loop_sessions")
         .update({
           is_open_invite: true,
@@ -63,6 +72,14 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString(),
         })
         .eq("session_id", session_id)
+
+      if (updateError) {
+        console.error("Failed to update co_loop_sessions row:", updateError)
+        return NextResponse.json(
+          { error: "Could not open the Co-Loop session: " + updateError.message },
+          { status: 500 },
+        )
+      }
     }
 
     // Create the feed post (open co-loop invite card)
@@ -156,18 +173,87 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Get session
-    const { data: session, error: sessionError } = await supabase
+    const { data: foundSession, error: sessionError } = await supabase
       .from("co_loop_sessions")
       .select("*")
       .eq("session_id", session_id)
-      .single()
+      .maybeSingle()
 
-    if (sessionError || !session) {
-      return NextResponse.json({ error: "Session not found" }, { status: 404 })
+    let session: any = sessionError ? null : foundSession
+
+    // Self-heal: the feed post can outlive its session row (the session insert
+    // failed silently on older schemas, or the room row was removed). Rebuild
+    // the session from the post itself so joining works instead of failing
+    // with "Session not found".
+    if (!session || !session.is_open_invite) {
+      const { data: posts } = await supabase
+        .from("loops")
+        .select("id, author_id, content_metadata, author:profiles!author_id(username)")
+        .contains("content_metadata", { session_id })
+        .eq("post_type", "open_coloop_invite")
+        .limit(1)
+      const post: any = posts?.[0]
+      const meta: any = post?.content_metadata || {}
+
+      if (!session && !post) {
+        return NextResponse.json({ error: "Session not found" }, { status: 404 })
+      }
+
+      if (!session && post) {
+        const { data: rebuilt, error: healError } = await supabase
+          .from("co_loop_sessions")
+          .insert({
+            session_id,
+            owner_id: post.author_id,
+            owner_username: post.author?.username || "creator",
+            co_authors: [],
+            is_open_invite: true,
+            max_collaborators: Number(meta.max_collaborators) || 4,
+            open_invite_topic: meta.topic || "",
+            feed_post_id: String(post.id),
+          })
+          .select("*")
+          .maybeSingle()
+
+        if (healError && healError.code !== "23505") {
+          console.error("Failed to rebuild co_loop session:", healError)
+          return NextResponse.json({ error: "Could not open this Co-Loop session" }, { status: 500 })
+        }
+        if (healError?.code === "23505") {
+          const { data: again } = await supabase
+            .from("co_loop_sessions")
+            .select("*")
+            .eq("session_id", session_id)
+            .maybeSingle()
+          session = again
+        } else {
+          session = rebuilt
+        }
+      } else if (session && post) {
+        // Session row exists but was never flagged as an open invite (an
+        // earlier update failed) — flag it from the post's metadata now.
+        const { error: healError } = await supabase
+          .from("co_loop_sessions")
+          .update({
+            is_open_invite: true,
+            max_collaborators: Number(meta.max_collaborators) || session.max_collaborators,
+            feed_post_id: session.feed_post_id || String(post.id),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("session_id", session_id)
+        if (!healError) session = { ...session, is_open_invite: true }
+      }
+
+      if (!session) {
+        return NextResponse.json({ error: "Session not found" }, { status: 404 })
+      }
+      if (!session.is_open_invite) {
+        return NextResponse.json({ error: "This is not an open invite session" }, { status: 400 })
+      }
     }
 
-    if (!session.is_open_invite) {
-      return NextResponse.json({ error: "This is not an open invite session" }, { status: 400 })
+    if (session.deleted_at) {
+      return NextResponse.json({ error: "This room was deleted by its host" }, { status: 410 })
     }
 
     if (session.status === "published") {
@@ -180,9 +266,28 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "This session is no longer active" }, { status: 400 })
     }
 
-    // Already the owner?
+    const successJoinResponse = async (extra: Record<string, unknown> = {}) => {
+      const { count } = await supabase
+        .from("open_co_loop_participants")
+        .select("id", { count: "exact", head: true })
+        .eq("session_id", session_id)
+      const currentCount = (count || 0) + 1 // +1 for the owner
+      const max = session.max_collaborators || 4
+      return NextResponse.json({
+        success: true,
+        message: "You joined the Co-Loop session!",
+        studio_url: `/co-loop/studio?session=${session_id}`,
+        current_count: currentCount,
+        max,
+        is_full: currentCount >= max,
+        ...extra,
+      })
+    }
+
+    // Already the owner? Let them straight back in — joining is idempotent,
+    // not an error (the feed card loses its "joined" state on reload).
     if (session.owner_id === user.id) {
-      return NextResponse.json({ error: "You are the creator of this session" }, { status: 400 })
+      return successJoinResponse({ already_joined: true, is_owner: true })
     }
 
     // Check if already a participant
@@ -194,7 +299,7 @@ export async function PATCH(request: NextRequest) {
       .maybeSingle()
 
     if (existing) {
-      return NextResponse.json({ error: "You have already joined this session" }, { status: 400 })
+      return successJoinResponse({ already_joined: true })
     }
 
     // Count current participants (owner + participants table)
@@ -254,7 +359,6 @@ export async function PATCH(request: NextRequest) {
         .from("loops")
         .update({
           content_metadata: {
-            ...(session.open_invite_topic ? {} : {}),
             is_open_coloop_invite: true,
             session_id,
             max_collaborators: session.max_collaborators,
@@ -311,6 +415,113 @@ export async function PATCH(request: NextRequest) {
     })
   } catch (error: any) {
     console.error("Open co-loop join error:", error)
+    return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 })
+  }
+}
+
+/**
+ * GET – join state for an open invite, so the feed card can restore "Enter
+ * Studio" (and a real participant count) after a reload instead of showing a
+ * Join button that errors out.
+ * Query: ?session_id=...
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const session_id = searchParams.get("session_id") || searchParams.get("session")
+    if (!session_id) {
+      return NextResponse.json({ error: "session_id is required" }, { status: 400 })
+    }
+
+    const supabase = createServerClient()
+    const user = await getUserFromRequest(request).catch(() => null)
+
+    const { data: session } = await supabase
+      .from("co_loop_sessions")
+      .select("*")
+      .eq("session_id", session_id)
+      .maybeSingle()
+
+    if (session) {
+      const max = session.max_collaborators || 4
+      const { count } = await supabase
+        .from("open_co_loop_participants")
+        .select("id", { count: "exact", head: true })
+        .eq("session_id", session_id)
+      const currentCount = (count || 0) + 1 // +1 for the owner
+
+      let joined = false
+      let isOwner = false
+      if (user) {
+        if (session.owner_id === user.id) {
+          joined = true
+          isOwner = true
+        } else {
+          const { data: participant } = await supabase
+            .from("open_co_loop_participants")
+            .select("id")
+            .eq("session_id", session_id)
+            .eq("user_id", user.id)
+            .maybeSingle()
+          joined = Boolean(participant)
+        }
+      }
+
+      const status = session.deleted_at
+        ? "deleted"
+        : session.status === "published"
+          ? "published"
+          : session.status === "ended"
+            ? "ended"
+            : currentCount >= max
+              ? "full"
+              : "open"
+
+      return NextResponse.json({
+        exists: true,
+        session_id,
+        is_open_invite: Boolean(session.is_open_invite),
+        is_owner: isOwner,
+        joined,
+        current_count: currentCount,
+        max,
+        status,
+        is_full: status === "full",
+      })
+    }
+
+    // No session row — fall back to the feed post's metadata so the card can
+    // still render honest numbers (a join attempt will self-heal the session).
+    const { data: posts } = await supabase
+      .from("loops")
+      .select("id, author_id, content_metadata")
+      .contains("content_metadata", { session_id })
+      .eq("post_type", "open_coloop_invite")
+      .limit(1)
+    const post: any = posts?.[0]
+    if (!post) {
+      return NextResponse.json({ exists: false, session_id })
+    }
+
+    const meta: any = post.content_metadata || {}
+    const max = Number(meta.max_collaborators) || 4
+    const currentCount = Number(meta.current_participants) || 1
+    const status = currentCount >= max || meta.status === "full" ? "full" : meta.status || "open"
+
+    return NextResponse.json({
+      exists: true,
+      session_id,
+      is_open_invite: true,
+      is_owner: Boolean(user && user.id === post.author_id),
+      joined: Boolean(user && user.id === post.author_id),
+      current_count: currentCount,
+      max,
+      status,
+      is_full: status === "full",
+      needs_repair: true,
+    })
+  } catch (error: any) {
+    console.error("Open co-loop state error:", error)
     return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 })
   }
 }

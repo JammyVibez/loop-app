@@ -287,6 +287,31 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
     }
   }, [post.id, showComments, supabase, getAuthHeader])
 
+  // Restore join state + real participant counts after a reload. The
+  // "coloop_joined" interaction is never persisted, so without this the card
+  // forgets that the user already joined and re-shows a Join button that
+  // errors out with "You have already joined this session".
+  useEffect(() => {
+    if (!sessionId || !user) return
+    let cancelled = false
+    fetch(`/api/co-loop/open-invite?session_id=${encodeURIComponent(sessionId)}`, {
+      headers: getAuthHeader(),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: any) => {
+        if (cancelled || !d?.exists) return
+        if (d.joined) setJoined(true)
+        if (typeof d.current_count === "number" && d.current_count > 0) setLiveCount(d.current_count)
+        if (typeof d.status === "string" && d.status) setLiveStatus(d.status)
+      })
+      .catch(() => {
+        /* state hydration is best-effort */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [sessionId, user?.id, getAuthHeader])
+
   // Load comments when expanded
   useEffect(() => {
     if (!showComments || !post.id) return
@@ -336,7 +361,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
       setLiveCount(data.current_count || liveCount + 1)
 
       toast({
-        title: "You joined the Co-Loop! 🤝",
+        title: data.already_joined ? "You're already in this Co-Loop" : "You joined the Co-Loop! 🤝",
         description: "Heading to the live studio...",
       })
 
@@ -457,7 +482,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
       )
     }
 
-    if (isEnded) {
+    if (isEnded || liveStatus === "ended" || liveStatus === "deleted") {
       return (
         <Button
           disabled
@@ -469,18 +494,9 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
       )
     }
 
-    if (isFull) {
-      return (
-        <Button
-          disabled
-          className="flex-1 rounded-xl bg-slate-700/50 text-slate-400 text-sm font-bold cursor-not-allowed"
-        >
-          <Lock className="h-4 w-4 mr-2" />
-          Session Full
-        </Button>
-      )
-    }
-
+    // A user who already joined can always re-enter — checked before the
+    // full/ended states so joiners never get stuck behind a disabled button
+    // on a room they're already part of.
     if (joined) {
       return (
         <Button
@@ -491,6 +507,18 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
             <CheckCircle2 className="h-4 w-4 mr-2" />
             Enter Studio
           </Link>
+        </Button>
+      )
+    }
+
+    if (isFull || liveStatus === "full" || liveCount >= maxCollabs) {
+      return (
+        <Button
+          disabled
+          className="flex-1 rounded-xl bg-slate-700/50 text-slate-400 text-sm font-bold cursor-not-allowed"
+        >
+          <Lock className="h-4 w-4 mr-2" />
+          Session Full
         </Button>
       )
     }
@@ -581,9 +609,9 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
             <span className="text-[11px] font-semibold text-muted-foreground">
               {isPublished
                 ? "Published"
-                : isEnded
+                : isEnded || liveStatus === "ended" || liveStatus === "deleted"
                   ? "Ended"
-                  : isFull
+                  : isFull || liveStatus === "full" || liveCount >= maxCollabs
                     ? "Session Full"
                     : "Live · Open"}
             </span>
