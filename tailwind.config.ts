@@ -1,6 +1,11 @@
 import type { Config } from "tailwindcss";
+import { designTokens } from "./lib/design-tokens";
 
 // all in fixtures is set to tailwind v3 as interims solutions
+//
+// Design system: every font, type size, weight, shadow, radius and brand
+// color below is imported from lib/design-tokens.ts (extracted from
+// linear.app's production stylesheets). Add new values there, not here.
 
 const config: Config = {
     darkMode: ["class"],
@@ -21,7 +26,47 @@ const config: Config = {
   		'3xl': '1920px',
   	},
   	extend: {
+  		/* ── Typography: Linear font pairing + type scale (design-tokens) ── */
+  		fontFamily: {
+  			sans: [...designTokens.typography.fontFamily.sans],
+  			mono: [...designTokens.typography.fontFamily.mono],
+  		},
+  		fontSize: Object.fromEntries(
+  			Object.entries(designTokens.typography.fontSize).map(([key, t]) => [
+  				key,
+  				[t.size, { lineHeight: t.lineHeight, letterSpacing: t.letterSpacing }],
+  			])
+  		),
+  		fontWeight: {
+  			medium: String(designTokens.typography.fontWeight.medium),
+  			semibold: String(designTokens.typography.fontWeight.semibold),
+  			bold: String(designTokens.typography.fontWeight.bold),
+  		},
+  		/* ── Elevation: Linear shadow scale (theme-aware via CSS vars) ── */
+  		boxShadow: {
+  			tiny: 'var(--shadow-tiny)',
+  			low: 'var(--shadow-low)',
+  			medium: 'var(--shadow-medium)',
+  			high: 'var(--shadow-high)',
+  			stack: 'var(--shadow-stack)',
+  		},
   		colors: {
+  			/* ── Brand + signal palette (theme-independent, from design-tokens) ── */
+  			brand: {
+  				DEFAULT: designTokens.palette.brand,
+  				light: designTokens.palette.brandLight,
+  				link: designTokens.palette.brandLink,
+  				accent: designTokens.palette.accent,
+  				'accent-hover': designTokens.palette.accentHover,
+  			},
+  			signal: {
+  				blue: designTokens.palette.blue,
+  				green: designTokens.palette.green,
+  				yellow: designTokens.palette.yellow,
+  				orange: designTokens.palette.orange,
+  				red: designTokens.palette.red,
+  				teal: designTokens.palette.teal,
+  			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

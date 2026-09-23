@@ -3,49 +3,120 @@
 @tailwind utilities;
 
 @layer base {
+  /* ════════════════════════════════════════════════════════════════
+     LOOP DESIGN TOKENS — LIGHT (Linear [data-theme=light], linear.app)
+     Source of truth: lib/design-tokens.ts (mirrored here as HSL vars).
+     Components must reference these semantic utilities — never one-off
+     hex/px values:
+       colors  → bg-background text-foreground border-border bg-card
+                 bg-primary text-muted-foreground ring-ring …
+       radius  → rounded-sm(4) rounded-md(6) rounded-lg(8=--radius)
+                 rounded-xl(12) rounded-2xl(16) rounded-full
+       spacing → the 4px grid: p-1=4px … p-6=24px (= --space-N)
+       shadow  → shadow-tiny | shadow-low | shadow-medium | shadow-high
+     ════════════════════════════════════════════════════════════════ */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    /* — Semantic surfaces & text (Linear light) — */
+    --background: 0 0% 100%; /*            #ffffff  bg-level-0 */
+    --foreground: 225 9% 17%; /*           #282a30  text-primary */
+    --card: 0 0% 100%; /*                  #ffffff  bg-level-0 */
+    --card-foreground: 225 9% 17%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.75rem;
+    --popover-foreground: 225 9% 17%;
+    --primary: 240 100% 72%; /*            #7070ff  brand-bg */
+    --primary-foreground: 0 0% 100%; /*    #ffffff  brand-text */
+    --secondary: 0 0% 96%; /*              #f4f4f4  bg-level-2 */
+    --secondary-foreground: 225 9% 17%;
+    --muted: 0 0% 97%; /*                  #f8f8f8  bg-level-1 */
+    --muted-foreground: 247 4% 45%; /*     #6f6e77  text-tertiary */
+    --accent: 240 100% 97%; /*             #f1f1ff  accent-tint */
+    --accent-foreground: 225 9% 17%;
+    --destructive: 0 79% 63%; /*           #eb5757  red */
+    --destructive-foreground: 0 0% 100%;
+    --border: 270 5% 91%; /*               #e9e8ea  border-primary */
+    --input: 270 5% 91%;
+    --ring: 240 100% 72%; /*               #7070ff  brand-bg */
+    --radius: 0.5rem; /* Linear radius-8 → scale 4 / 6 / 8 / 12 / 16 / 24 */
+
+    /* — Raw palette (theme-independent Linear colors) — */
+    --brand: #5e6ad2;
+    --brand-light: #7070ff;
+    --brand-link: #828fff;
+    --brand-accent: #7170ff;
+    --signal-blue: #4ea7fc;
+    --signal-green: #27a644;
+    --signal-yellow: #f0bf00;
+    --signal-orange: #fc7840;
+    --signal-red: #eb5757;
+    --signal-teal: #00b8cc;
+
+    /* — Spacing: Linear 4px grid (Tailwind utilities map 1:1) — */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --gutter: 24px; /*           Linear --page-padding-inline */
+    --page-max-width: 1024px; /* Linear --page-max-width */
+    --header-height: 72px; /*    Linear --header-height */
+
+    /* — Elevation: Linear --shadow-* (light values) — */
+    --shadow-tiny: 0px 1px 1px 0px #00000017;
+    --shadow-low: 0px 1px 4px -1px #00000017;
+    --shadow-medium: 0px 3px 12px #00000017;
+    --shadow-high: 0px 7px 24px #0000000f;
+    --shadow-stack: 0px -1px 1px 0px #0000001c inset, 0px 8px 2px 0px #0000,
+      0px 5px 2px 0px #00000003, 0px 3px 2px 0px #0000000a,
+      0px 1px 1px 0px #00000012, 0px 0px 1px 0px #00000014;
+
+    /* — Signature gradients (palette-derived; used by .loop-grad-*) — */
+    --grad-primary: linear-gradient(100deg, #5e6ad2 0%, #7170ff 100%);
+    --grad-messaging: linear-gradient(100deg, #4ea7fc 0%, #5e6ad2 100%);
+    --grad-social: linear-gradient(100deg, #fc7840 0%, #f0bf00 100%);
+    --grad-commerce: linear-gradient(100deg, #27a644 0%, #00b8cc 100%);
+    --grad-creative: linear-gradient(100deg, #7170ff 0%, #00b8cc 100%);
+    --grad-neutral: linear-gradient(100deg, #282a30 0%, #62666d 100%);
+    --grad-warning: linear-gradient(100deg, #f0bf00 0%, #eb5757 100%);
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 94.1%;
+  /* ════════════════════════════════════════════════════════════════
+     LOOP DESIGN TOKENS — DARK (Linear [data-theme=dark], linear.app)
+     ════════════════════════════════════════════════════════════════ */
+  .dark,
+  html[data-theme="dark"] {
+    --background: 210 11% 4%; /*           #08090a  bg-primary */
+    --foreground: 180 7% 97%; /*           #f7f8f8  text-primary */
+    --card: 210 6% 6%; /*                  #0f1011  bg-panel / level-1 */
+    --card-foreground: 180 7% 97%;
+    --popover: 210 6% 6%;
+    --popover-foreground: 180 7% 97%;
+    --primary: 234 56% 60%; /*             #5e6ad2  brand-bg */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 4% 14%; /*            #232326  bg-tertiary */
+    --secondary-foreground: 180 7% 97%;
+    --muted: 240 5% 12%; /*                #1c1c1f  bg-secondary */
+    --muted-foreground: 219 6% 57%; /*     #8a8f98  text-tertiary */
+    --accent: 240 32% 14%; /*              #18182f  accent-tint */
+    --accent-foreground: 180 7% 97%;
+    --destructive: 0 79% 63%; /*           #eb5757  red */
+    --destructive-foreground: 0 0% 100%;
+    --border: 223 9% 15%; /*               #23252a  border-primary */
+    --input: 223 9% 15%;
+    --ring: 234 56% 60%;
+
+    /* — Elevation: Linear --shadow-* (dark values) — */
+    --shadow-tiny: 0px 1px 1px 0px #00000017;
+    --shadow-low: 0px 2px 4px #0000001a;
+    --shadow-medium: 0px 4px 24px #0003;
+    --shadow-high: 0px 7px 32px #00000059;
+    --shadow-stack: 0px 8px 2px 0px #0000, 0px 5px 2px 0px #00000003,
+      0px 3px 2px 0px #0000000a, 0px 1px 1px 0px #00000012,
+      0px 0px 1px 0px #00000014;
   }
 
   /* Full Dark — pure black, zero gray */
@@ -231,10 +302,10 @@
 @keyframes pulse-glow {
   0%,
   100% {
-    box-shadow: 0 0 5px rgba(139, 92, 246, 0.5);
+    box-shadow: 0 0 5px hsl(var(--primary) / 0.5);
   }
   50% {
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.8), 0 0 30px rgba(139, 92, 246, 0.6);
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.8), 0 0 30px hsl(var(--primary) / 0.6);
   }
 }
 
@@ -302,12 +373,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.3);
-  border-radius: 3px;
+  background: hsl(var(--primary) / 0.3);
+  border-radius: var(--radius);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.5);
+  background: hsl(var(--primary) / 0.5);
 }
 
 /* Glass morphism effect */
@@ -345,7 +416,7 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.1), transparent);
+  background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.1), transparent);
   transition: left 0.5s;
 }
 
@@ -365,7 +436,7 @@
   top: 50%;
   width: 15px;
   height: 2px;
-  background: linear-gradient(to right, rgba(139, 92, 246, 0.5), rgba(6, 182, 212, 0.5));
+  background: linear-gradient(to right, hsl(var(--primary) / 0.5), hsl(186 100% 40% / 0.5));
   transform: translateY(-50%);
 }
 
@@ -394,13 +465,13 @@
 
 /* Custom focus styles */
 .focus-ring {
-  @apply focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2;
+  @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
 }
 
 /* Loading spinner */
 .spinner {
-  border: 2px solid rgba(139, 92, 246, 0.1);
-  border-left: 2px solid rgba(139, 92, 246, 1);
+  border: 2px solid hsl(var(--primary) / 0.15);
+  border-left: 2px solid hsl(var(--primary));
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -487,9 +558,9 @@
   background: linear-gradient(
     110deg,
     hsl(210 40% 96%) 0%,
-    hsl(263 90% 78%) 25%,
-    hsl(190 95% 70%) 50%,
-    hsl(263 90% 78%) 75%,
+    hsl(234 100% 75%) 25%,
+    hsl(186 90% 55%) 50%,
+    hsl(234 100% 75%) 75%,
     hsl(210 40% 96%) 100%
   );
   background-size: 200% auto;
@@ -519,7 +590,7 @@
   .landing-card-3d:hover {
     transform: translateY(-6px) rotateX(4deg) rotateY(-4deg) scale(1.01);
     box-shadow:
-      0 24px 48px -12px rgba(99, 102, 241, 0.35),
+      0 24px 48px -12px hsl(var(--primary) / 0.35),
       0 0 0 1px rgba(255, 255, 255, 0.08) inset;
   }
 }
@@ -545,7 +616,7 @@ html.reduce-motion .landing-card-3d:hover {
 body.theme-glow .bg-primary,
 body.theme-glow button[class*="bg-primary"],
 body.theme-glow .bg-sky-600 {
-  box-shadow: 0 0 18px color-mix(in srgb, var(--theme-primary, #8b5cf6) 45%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--theme-primary, #5e6ad2) 45%, transparent);
 }
 
 body.theme-particles #theme-environment::after {
@@ -554,10 +625,10 @@ body.theme-particles #theme-environment::after {
   inset: 0;
   pointer-events: none;
   background-image:
-    radial-gradient(1.5px 1.5px at 12% 18%, color-mix(in srgb, var(--theme-primary, #8b5cf6) 70%, transparent), transparent),
-    radial-gradient(1.5px 1.5px at 78% 32%, color-mix(in srgb, var(--theme-secondary, #3b82f6) 65%, transparent), transparent),
-    radial-gradient(1px 1px at 42% 72%, color-mix(in srgb, var(--theme-accent, #f59e0b) 60%, transparent), transparent),
-    radial-gradient(1.5px 1.5px at 88% 78%, color-mix(in srgb, var(--theme-primary, #8b5cf6) 55%, transparent), transparent);
+    radial-gradient(1.5px 1.5px at 12% 18%, color-mix(in srgb, var(--theme-primary, #5e6ad2) 70%, transparent), transparent),
+    radial-gradient(1.5px 1.5px at 78% 32%, color-mix(in srgb, var(--theme-secondary, #4ea7fc) 65%, transparent), transparent),
+    radial-gradient(1px 1px at 42% 72%, color-mix(in srgb, var(--theme-accent, #f0bf00) 60%, transparent), transparent),
+    radial-gradient(1.5px 1.5px at 88% 78%, color-mix(in srgb, var(--theme-primary, #5e6ad2) 55%, transparent), transparent);
   opacity: 0.55;
   animation: theme-particle-drift 18s linear infinite;
 }
@@ -809,10 +880,18 @@ html.loop-reduced-motion *::after {
   40% { transform: scaleY(1.6); }
   100% { transform: scaleY(1); }
 }
-@keyframes quest-burst {
-  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.5); }
-  35% { transform: scale(1.03); box-shadow: 0 0 0 14px rgba(139, 92, 246, 0); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+@keyframes quest-burst {  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0.5);
+  }
+  35% {
+    transform: scale(1.03);
+    box-shadow: 0 0 0 14px hsl(var(--primary) / 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+  }
 }
 @keyframes quest-burst-icon {
   0% { transform: scale(0.4) rotate(-30deg); opacity: 0; }
@@ -836,5 +915,42 @@ html.loop-reduced-motion *::after {
   .loop-tour-progress {
     animation: none;
     transform: scaleX(1);
+  }
+}
+
+/* ── Token-driven gradients ────────────────────────────────────────
+   One gradient per intent, built from the palette in lib/design-tokens.ts
+   (exposed as --grad-* vars). Components pick a .loop-grad-* class instead
+   of inventing their own arbitrary gradient hue pairs. Hover = brightness only. */
+@layer components {
+  .loop-grad-primary {
+    background-image: var(--grad-primary);
+  }
+  .loop-grad-messaging {
+    background-image: var(--grad-messaging);
+  }
+  .loop-grad-social {
+    background-image: var(--grad-social);
+  }
+  .loop-grad-commerce {
+    background-image: var(--grad-commerce);
+  }
+  .loop-grad-creative {
+    background-image: var(--grad-creative);
+  }
+  .loop-grad-neutral {
+    background-image: var(--grad-neutral);
+  }
+  .loop-grad-warning {
+    background-image: var(--grad-warning);
+  }
+  .loop-grad-primary:hover,
+  .loop-grad-messaging:hover,
+  .loop-grad-social:hover,
+  .loop-grad-commerce:hover,
+  .loop-grad-creative:hover,
+  .loop-grad-neutral:hover,
+  .loop-grad-warning:hover {
+    filter: brightness(1.08);
   }
 }

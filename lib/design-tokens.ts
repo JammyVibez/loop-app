@@ -1,9 +1,328 @@
 /**
- * Design tokens — shared constants that replace magic numbers throughout the UI.
+ * Loop — Formal Design Tokens
+ * ═══════════════════════════════════════════════════════════════════
+ * Extracted from Linear's production stylesheets (linear.app →
+ * static.linear.app/web/_next/static/css/*.css, all 54 files, scraped
+ * and parsed). These are the exact values Linear ships in its
+ * `[data-theme=light]` / `[data-theme=dark]` blocks — colors, radii,
+ * elevation, type scale, weights and layout constants.
  *
- * Instead of writing `w-[44px] h-[44px]` or `gap-[10px]` everywhere,
- * import these tokens and use them consistently.
+ * This file is the SINGLE SOURCE OF TRUTH for Loop:
+ *
+ *   • tailwind.config.ts   imports it → font, type-scale, weight,
+ *                          shadow and brand/signal utilities
+ *   • app/globals.css      mirrors the semantic colors as CSS
+ *                          variables (HSL triplets) so every existing
+ *                          `bg-background`, `text-foreground`,
+ *                          `border-border`, `rounded-lg`, `shadow-low`
+ *                          class in the app resolves to these tokens
+ *
+ * RULE FOR NEW UI: never pick a hex / px value per component.
+ * Reference a token here (or its Tailwind/CSS alias) instead.
  */
+
+/* ──────────────────────────────────────────────────────────────────
+ * 1. RAW PALETTE — theme independent (Linear --color-*)
+ * ────────────────────────────────────────────────────────────────── */
+export const palette = {
+  /** Linear brand indigo — dark-mode brand-bg, the app's anchor color */
+  brand: "#5e6ad2",
+  /** Linear brand indigo — light-mode brand-bg */
+  brandLight: "#7070ff",
+  /** Linear link-primary (dark) */
+  brandLink: "#828fff",
+  /** Linear --color-accent */
+  accent: "#7170ff",
+  /** Linear --color-accent-hover */
+  accentHover: "#828fff",
+  /** Linear accent-tint (dark) — subtle indigo hover surface */
+  accentTintDark: "#18182f",
+  /** Linear accent-tint (light) */
+  accentTintLight: "#f1f1ff",
+
+  white: "#ffffff",
+  black: "#000000",
+
+  /* Linear status / signal colors — same in both themes */
+  blue: "#4ea7fc",
+  green: "#27a644",
+  yellow: "#f0bf00",
+  orange: "#fc7840",
+  red: "#eb5757",
+  teal: "#00b8cc",
+} as const;
+
+/* ──────────────────────────────────────────────────────────────────
+ * 2. SEMANTIC COLORS — per theme (Linear [data-theme=…] blocks)
+ *    Exposed in CSS as hsl(var(--background)) etc. via app/globals.css
+ * ────────────────────────────────────────────────────────────────── */
+type ThemeColors = {
+  /** page background (bg-level-0) */
+  background: string;
+  /** primary text (text-primary) */
+  foreground: string;
+  /** card / panel / popover surface */
+  card: string;
+  cardForeground: string;
+  /** primary action (brand-bg) */
+  primary: string;
+  primaryForeground: string;
+  /** raised surface (bg-level-2 / bg-tertiary) */
+  secondary: string;
+  secondaryForeground: string;
+  /** subtle surface (bg-level-1 / bg-secondary) */
+  muted: string;
+  mutedForeground: string;
+  /** hover tint (accent-tint) */
+  accent: string;
+  accentForeground: string;
+  /** destructive (Linear red) */
+  destructive: string;
+  destructiveForeground: string;
+  /** hairline border (border-primary) */
+  border: string;
+  input: string;
+  ring: string;
+  /** divider lines (line-primary) */
+  line: string;
+};
+
+export const semanticColors: { light: ThemeColors; dark: ThemeColors } = {
+  light: {
+    background: "#ffffff", //  bg-level-0
+    foreground: "#282a30", //  text-primary
+    card: "#ffffff", //         bg-level-0
+    cardForeground: "#282a30",
+    primary: "#7070ff", //      brand-bg (light)
+    primaryForeground: "#ffffff",
+    secondary: "#f4f4f4", //    bg-level-2
+    secondaryForeground: "#282a30",
+    muted: "#f8f8f8", //        bg-level-1
+    mutedForeground: "#6f6e77", // text-tertiary
+    accent: "#f1f1ff", //       accent-tint
+    accentForeground: "#282a30",
+    destructive: "#eb5757", //  red
+    destructiveForeground: "#ffffff",
+    border: "#e9e8ea", //       border-primary
+    input: "#e9e8ea",
+    ring: "#7070ff",
+    line: "#d4d4d6", //         line-primary
+  },
+  dark: {
+    background: "#08090a", //   bg-primary
+    foreground: "#f7f8f8", //   text-primary
+    card: "#0f1011", //         bg-panel / bg-level-1
+    cardForeground: "#f7f8f8",
+    primary: "#5e6ad2", //      brand-bg (dark)
+    primaryForeground: "#ffffff",
+    secondary: "#232326", //    bg-tertiary
+    secondaryForeground: "#f7f8f8",
+    muted: "#1c1c1f", //        bg-secondary
+    mutedForeground: "#8a8f98", // text-tertiary
+    accent: "#18182f", //       accent-tint
+    accentForeground: "#f7f8f8",
+    destructive: "#eb5757",
+    destructiveForeground: "#ffffff",
+    border: "#23252a", //       border-primary
+    input: "#23252a",
+    ring: "#5e6ad2",
+    line: "#37393a", //         line-primary
+  },
+};
+
+/* Text ramps Linear uses for secondary/tertiary/quaternary copy */
+export const textRamp = {
+  light: {
+    secondary: "#3c4149",
+    tertiary: "#6f6e77",
+    quaternary: "#86848d",
+  },
+  dark: {
+    secondary: "#d0d6e0",
+    tertiary: "#8a8f98",
+    quaternary: "#62666d",
+  },
+} as const;
+
+/** Background level ramp — the subtle surface ladder both themes use */
+export const backgroundLevels = {
+  light: { 0: "#ffffff", 1: "#f8f8f8", 2: "#f4f4f4", 3: "#f0f0f0" },
+  dark: { 0: "#08090a", 1: "#0f1011", 2: "#141516", 3: "#191a1b" },
+} as const;
+
+/* ──────────────────────────────────────────────────────────────────
+ * 3. SPACING — Linear's 4px grid.
+ *    Maps 1:1 onto Tailwind's default utilities:
+ *    space[4] (16px) === p-4 / m-4 / gap-4, etc.
+ *    Use Tailwind utilities in components; use these when writing raw CSS.
+ * ────────────────────────────────────────────────────────────────── */
+export const space = {
+  0: "0px",
+  1: "4px",
+  2: "8px",
+  3: "12px",
+  4: "16px",
+  5: "20px",
+  6: "24px",
+  7: "28px",
+  8: "32px",
+  9: "36px",
+  10: "40px",
+  12: "48px",
+  14: "56px",
+  16: "64px",
+  20: "80px",
+  24: "96px",
+} as const;
+
+/* ──────────────────────────────────────────────────────────────────
+ * 4. RADII — Linear --radius-* scale (4/6/8/12/16/24/32 + pill)
+ *    tailwind.config maps:
+ *      rounded-sm → 4px   rounded-md → 6px   rounded-lg → 8px  (--radius)
+ *      rounded-xl → 12px  rounded-2xl → 16px  rounded-3xl → 24px
+ *      rounded-full → pill
+ * ────────────────────────────────────────────────────────────────── */
+export const radiusScale = {
+  xs: "4px", //   --radius-4
+  sm: "4px",
+  md: "6px", //   --radius-6
+  lg: "8px", //   --radius-8   ← default controls (the `--radius` token)
+  xl: "12px", //  --radius-12  ← cards
+  "2xl": "16px", // --radius-16
+  "3xl": "24px", // --radius-24
+  "4xl": "32px", // --radius-32
+  pill: "9999px", // --radius-rounded
+  circle: "50%", //  --radius-circle
+  /** CSS var consumed by tailwind borderRadius (see app/globals.css) */
+  token: "0.5rem",
+} as const;
+
+/* ──────────────────────────────────────────────────────────────────
+ * 5. ELEVATION — Linear --shadow-* (theme-aware via CSS vars)
+ *    Use: shadow-tiny | shadow-low | shadow-medium | shadow-high | shadow-stack
+ * ────────────────────────────────────────────────────────────────── */
+export const shadow = {
+  light: {
+    tiny: "0px 1px 1px 0px #00000017",
+    low: "0px 1px 4px -1px #00000017",
+    medium: "0px 3px 12px #00000017",
+    high: "0px 7px 24px #0000000f",
+    stack:
+      "0px -1px 1px 0px #0000001c inset, 0px 8px 2px 0px #0000, 0px 5px 2px 0px #00000003, 0px 3px 2px 0px #0000000a, 0px 1px 1px 0px #00000012, 0px 0px 1px 0px #00000014",
+  },
+  dark: {
+    tiny: "0px 1px 1px 0px #00000017",
+    low: "0px 2px 4px #0000001a",
+    medium: "0px 4px 24px #0003",
+    high: "0px 7px 32px #00000059",
+    stack:
+      "0px 8px 2px 0px #0000, 0px 5px 2px 0px #00000003, 0px 3px 2px 0px #0000000a, 0px 1px 1px 0px #00000012, 0px 0px 1px 0px #00000014",
+  },
+} as const;
+
+/* ──────────────────────────────────────────────────────────────────
+ * 6. TYPOGRAPHY — Linear's font pairing + type scale
+ * ────────────────────────────────────────────────────────────────── */
+export const typography = {
+  fontFamily: {
+    /** Linear --font-regular (Inter already powers Loop via next/font) */
+    sans: [
+      '"Inter Variable"',
+      '"SF Pro Display"',
+      "-apple-system",
+      "BlinkMacSystemFont",
+      '"Segoe UI"',
+      "Roboto",
+      '"Helvetica Neue"',
+      "sans-serif",
+    ],
+    /** Linear --font-monospace */
+    mono: [
+      '"Berkeley Mono"',
+      "ui-monospace",
+      '"SF Mono"',
+      "Menlo",
+      "monospace",
+    ],
+  },
+
+  /**
+   * Linear --font-size-* / --text-* scale.
+   * key → [size, { lineHeight, letterSpacing }]
+   * Available as: text-micro text-mini text-small text-regular text-large
+   *               text-title3 text-title2 text-title1
+   */
+  fontSize: {
+    micro: { size: "0.75rem", lineHeight: "1.4", letterSpacing: "0" },
+    mini: { size: "0.8125rem", lineHeight: "1.5", letterSpacing: "-0.01em" },
+    small: { size: "0.875rem", lineHeight: "1.5", letterSpacing: "-0.013em" },
+    regular: { size: "0.9375rem", lineHeight: "1.6", letterSpacing: "-0.011em" },
+    large: { size: "1.0625rem", lineHeight: "1.6", letterSpacing: "0" },
+    title3: { size: "1.25rem", lineHeight: "1.4", letterSpacing: "-0.01em" },
+    title2: { size: "1.5rem", lineHeight: "1.3", letterSpacing: "-0.015em" },
+    title1: { size: "2.25rem", lineHeight: "1.2", letterSpacing: "-0.02em" },
+  },
+
+  /**
+   * Linear --font-weight-* (Inter variable axes — not the stock
+   * 500/600/700). Wired into Tailwind as font-medium/font-semibold/font-bold.
+   */
+  fontWeight: {
+    light: 300,
+    normal: 400,
+    medium: 510,
+    semibold: 590,
+    bold: 680,
+  },
+} as const;
+
+/* ──────────────────────────────────────────────────────────────────
+ * 7. LAYOUT CONSTANTS — Linear --header-height / --page-* / --prose-*
+ * ────────────────────────────────────────────────────────────────── */
+export const layout = {
+  headerHeight: "72px",
+  headerBlur: "20px",
+  pagePadding: "24px", //   --page-padding-inline (the gutter)
+  pageMaxWidth: "1024px", // --page-max-width
+  proseMaxWidth: "624px", // --prose-max-width
+} as const;
+
+/* ──────────────────────────────────────────────────────────────────
+ * 8. SIGNATURE GRADIENTS — built from the palette above, so no
+ *    component ever defines its own one-off gradient.
+ *    (Exposed as CSS vars --grad-* + .loop-grad-* classes.)
+ * ────────────────────────────────────────────────────────────────── */
+export const gradients = {
+  primary: `linear-gradient(100deg, ${palette.brand} 0%, ${palette.accent} 100%)`,
+  messaging: `linear-gradient(100deg, ${palette.blue} 0%, ${palette.brand} 100%)`,
+  social: `linear-gradient(100deg, ${palette.orange} 0%, ${palette.yellow} 100%)`,
+  commerce: `linear-gradient(100deg, ${palette.green} 0%, ${palette.teal} 100%)`,
+  creative: `linear-gradient(100deg, ${palette.accent} 0%, ${palette.teal} 100%)`,
+  neutral: `linear-gradient(100deg, ${semanticColors.light.foreground} 0%, ${textRamp.light.quaternary} 100%)`,
+  warning: `linear-gradient(100deg, ${palette.yellow} 0%, ${palette.red} 100%)`,
+} as const;
+
+/* Bundled export */
+export const designTokens = {
+  palette,
+  color: semanticColors,
+  textRamp,
+  backgroundLevels,
+  space,
+  radius: radiusScale,
+  shadow,
+  typography,
+  layout,
+  gradients,
+} as const;
+
+export default designTokens;
+
+/* ════════════════════════════════════════════════════════════════
+ * LEGACY TOKENS — pre-existing Loop constants, preserved verbatim.
+ * These remain the source of truth for their original purpose; the
+ * Linear-derived tokens above are additive.
+ * ════════════════════════════════════════════════════════════════ */
 
 /** Touch-target minimum sizes (WCAG 2.5.5) */
 export const touchTarget = {
@@ -47,7 +366,7 @@ export const spacing = {
   section: 32,
 } as const;
 
-/** Card and container border radius */
+/** Card and container border radius (Tailwind class names) */
 export const radius = {
   /** Small — badges, tags, chips */
   sm: "rounded-md",

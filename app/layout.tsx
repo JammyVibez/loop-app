@@ -49,7 +49,7 @@ const inter = Inter({ subsets: ["latin"] })
 // NOTE: no maximumScale / user-scalable restriction — pinching to zoom must
 // stay enabled for accessibility (low-vision users).
 export const generateViewport = (): Viewport => ({
-  themeColor: "#6366f1",
+  themeColor: "#5e6ad2",
   width: "device-width",
   initialScale: 1,
   // Shrink the layout viewport when the mobile keyboard opens so the chat
@@ -146,7 +146,7 @@ export const metadata: Metadata = {
     google: "ASTdqmtE7ppj8BX_Mh9QkzU7gEKagXFgBvG435GL584",
   },
   other: {
-    "msapplication-TileColor": "#6366f1",
+    "msapplication-TileColor": "#5e6ad2",
     "msapplication-config": "/icons/browserconfig.xml",
     "mobile-web-app-capable": "yes",
   },
