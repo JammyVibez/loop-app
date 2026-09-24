@@ -78,6 +78,8 @@ export type StudioRoomEvent =
   | { type: "published"; by: string }
   | { type: "joined"; participant: StudioParticipant }
   | { type: "left"; participant: StudioParticipant }
+  | { type: "co-author-joined"; participant: StudioParticipant }
+  | { type: "co-author-kicked"; participant?: StudioParticipant; userId: string; by?: string }
   | { type: "room-lock"; locked: boolean; by: string }
   | { type: "room-deleted"; by: string }
   | { type: "activity"; entry: StudioActivityEntry }
@@ -107,6 +109,7 @@ export type StudioActivityAction =
   | "unlocked"
   | "gifted"
   | "invite_sent"
+  | "kicked"
 
 export interface StudioActivityEntry {
   id: string

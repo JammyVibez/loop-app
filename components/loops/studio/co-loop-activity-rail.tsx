@@ -23,7 +23,9 @@ import {
   Send,
   Unlock,
   UserPlus,
+  UserMinus,
   Users,
+  Loader2,
   type LucideIcon,
 } from "lucide-react"
 import {
@@ -48,6 +50,7 @@ const ACTIVITY_META: Record<
   unlocked: { icon: Unlock, verb: "unlocked the room", chip: "bg-emerald-500/15 text-emerald-500" },
   gifted: { icon: Coins, verb: "sent a coin gift", chip: "bg-amber-500/15 text-amber-500" },
   invite_sent: { icon: UserPlus, verb: "invited a co-author", chip: "bg-violet-500/15 text-violet-500" },
+  kicked: { icon: UserMinus, verb: "removed a co-author", chip: "bg-rose-500/15 text-rose-500" },
 }
 
 interface CoLoopActivityRailProps {
@@ -61,6 +64,10 @@ interface CoLoopActivityRailProps {
   onCopyLink: () => void
   linkCopied: boolean
   coAuthorCount: number
+  /** The host can remove co-authors from the room. */
+  canKick?: boolean
+  onKick?: (participant: StudioParticipant) => void
+  kickingId?: string | null
 }
 
 export function CoLoopActivityRail({
@@ -74,6 +81,9 @@ export function CoLoopActivityRail({
   onCopyLink,
   linkCopied,
   coAuthorCount,
+  canKick = false,
+  onKick,
+  kickingId = null,
 }: CoLoopActivityRailProps) {
   const [tab, setTab] = useState("chat")
   const [draft, setDraft] = useState("")
@@ -279,9 +289,27 @@ export function CoLoopActivityRail({
                         <Crown className="h-3 w-3 text-amber-500" /> Host
                       </Badge>
                     ) : (
-                      <Badge variant="secondary" className="shrink-0 text-[10px]">
-                        Co-author
-                      </Badge>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Badge variant="secondary" className="text-[10px]">
+                          Co-author
+                        </Badge>
+                        {canKick && participant.id !== selfId && onKick && (
+                          <button
+                            type="button"
+                            onClick={() => onKick(participant)}
+                            disabled={kickingId === participant.id}
+                            title={`Remove ${participant.display_name} from the room`}
+                            aria-label={`Remove ${participant.display_name} from the room`}
+                            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-500 disabled:opacity-50"
+                          >
+                            {kickingId === participant.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <UserMinus className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        )}
+                      </div>
                     )}
                   </motion.li>
                 )

@@ -3,71 +3,66 @@
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { AdCard, type AdData } from "@/components/ads/ad-card"
-import { Skeleton } from "@/components/ui/skeleton"
 
 /**
  * A self-contained sponsored slot for any page surface.
  *
- * Flow mirrors the home feed: GET /api/ads/feed?surface=... tells us
- * whether THIS viewer is eligible (Pro/Sponsor users are excluded
- * server-side, and admins can switch any surface off in ad_settings).
- * Only when eligible do we ask for an ad. No ad = nothing renders.
+ * Flow mirrors the home feed: GET /api/ads/feed?surface=… tells us whether
+ * THIS viewer is eligible (Pro/Sponsor users are excluded server-side, and
+ * admins can switch any surface off in ad_settings). Only when eligible do we
+ * ask for a creative, and the creative request carries the surface too so the
+ * server can re-check. No ad = nothing renders — no skeleton flash.
  */
 export function AdSlot({ surface, className }: { surface: string; className?: string }) {
   const { user } = useAuth()
   const [ad, setAd] = useState<AdData | null>(null)
-  const [visible, setVisible] = useState(false)
-  const initRef = useRef(false)
   const sessionIdRef = useRef<string>("")
 
+  if (!sessionIdRef.current && typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    sessionIdRef.current = crypto.randomUUID()
+  }
+
+  // Re-runs when the surface changes or the session flips (guest → signed in,
+  // sign-out, account switch), because eligibility depends on the viewer.
   useEffect(() => {
-    if (initRef.current) return
-    initRef.current = true
-    sessionIdRef.current =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    if (!sessionIdRef.current) {
+      sessionIdRef.current =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    }
 
     let cancelled = false
+    setAd(null)
+
     ;(async () => {
       try {
-        const eligibilityRes = await fetch(`/api/ads/feed?surface=${encodeURIComponent(surface)}`, { cache: "no-store" })
-        const eligibility = await eligibilityRes.json()
+        const eligibilityRes = await fetch(`/api/ads/feed?surface=${encodeURIComponent(surface)}`, {
+          cache: "no-store",
+        })
+        const eligibility = await eligibilityRes.json().catch(() => ({ eligible: false }))
         if (cancelled || !eligibility?.eligible) return
-        setVisible(true)
+
         const adsRes = await fetch("/api/ads/feed", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ count: 1 }),
+          body: JSON.stringify({ count: 1, surface }),
           cache: "no-store",
         })
-        const adsData = await adsRes.json()
+        const adsData = await adsRes.json().catch(() => ({ ads: [] }))
         if (cancelled) return
-        const first = adsData?.ads?.[0]
-        if (first) setAd(first)
-        else setVisible(false)
+        setAd(adsData?.ads?.[0] || null)
       } catch {
-        setVisible(false)
+        if (!cancelled) setAd(null)
       }
     })()
 
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [surface])
+  }, [surface, user?.id])
 
-  // Re-check eligibility when the session flips (guest → signed in).
-  useEffect(() => {
-    if (initRef.current) return
-    if (user) {
-      initRef.current = false
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id])
-
-  if (!visible) return null
-  if (!ad) return <Skeleton className={`h-28 w-full rounded-2xl ${className || ""}`} />
+  if (!ad) return null
 
   return (
     <div className={className}>

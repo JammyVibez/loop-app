@@ -4,11 +4,11 @@ export interface EventBase {
   id: string
   title: string
   description?: string
-  starts_at?: string
-  start_time?: string
-  event_date?: string
-  ends_at?: string
-  end_time?: string
+  starts_at?: string | null
+  start_time?: string | null
+  event_date?: string | null
+  ends_at?: string | null
+  end_time?: string | null
   is_live?: boolean
   is_active?: boolean
   status?: string

@@ -92,7 +92,7 @@ function CommentThread({ comment, user, onReply, depth = 0 }: { comment: Comment
   const maxDepth = 3
   return (
     <div className={depth > 0 ? "ml-6 border-l border-white/5 pl-3" : ""}>
-      <div className="flex gap-2 p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.05] transition-colors">
+      <div className="flex gap-2 p-2 rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors">
         <VideoAvatar
           src={comment.author?.avatar_url}
           videoSrc={(comment.author as any)?.video_avatar_url}
@@ -192,19 +192,33 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
   const [submittingComment, setSubmittingComment] = useState(false)
   const [replyTo, setReplyTo] = useState<Comment | null>(null)
 
-  // Realtime: listen for participants joining + session status changes + likes/comments
+  // Realtime: listen for participants joining + session status changes.
+  // The studio and the join API both broadcast on `co-loop-studio:<session>`,
+  // so the feed card must subscribe to that same channel — it used to listen on
+  // a private channel name nobody ever published to, so counts never updated.
   useEffect(() => {
     if (!sessionId) return
 
     const channel = supabase
-      .channel("open-coloop-feed:" + sessionId)
+      .channel("co-loop-studio:" + sessionId)
       .on("broadcast", { event: "co-author-accepted" }, (payload: any) => {
         if (!mountRef.current) return
+        if (payload?.user?.id && payload.user.id === user?.id) {
+          setJoined(true)
+          return
+        }
         setLiveCount((prev) => {
-          const next = prev + 1
+          const next = Math.min(prev + 1, maxCollabs)
           if (next >= maxCollabs) setLiveStatus("full")
           return next
         })
+      })
+      .on("broadcast", { event: "co-author-kicked" }, (payload: any) => {
+        if (!mountRef.current) return
+        if (payload?.user_id && payload.user_id === user?.id) {
+          setJoined(false)
+        }
+        setLiveCount((prev) => Math.max(prev - 1, 1))
       })
       .on("broadcast", { event: "session_ended" }, () => {
         if (!mountRef.current) return
@@ -219,7 +233,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [sessionId, maxCollabs, supabase])
+  }, [sessionId, maxCollabs, supabase, user?.id])
 
   // Realtime: subscribe to loop_stats changes for this post (likes, comments)
   useEffect(() => {
@@ -335,7 +349,9 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
 
   const handleJoin = useCallback(async () => {
     if (!user) {
-      router.push("/auth?returnTo=" + encodeURIComponent("/"))
+      // Come back to the page they were actually on, not the home feed.
+      const returnTo = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/"
+      router.push("/auth?returnTo=" + encodeURIComponent(returnTo))
       return
     }
 
@@ -456,6 +472,9 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
   const author = post.author
 
   const renderActionButton = () => {
+    const disabledTone =
+      "flex-1 cursor-not-allowed rounded-xl border border-border bg-muted text-sm font-bold text-muted-foreground"
+
     if (isCreator) {
       return (
         <Button
@@ -474,7 +493,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
       return (
         <Button
           disabled
-          className="flex-1 rounded-xl bg-emerald-700/50 text-emerald-300 text-sm font-bold cursor-not-allowed"
+          className="flex-1 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-sm font-bold text-emerald-600 cursor-not-allowed dark:text-emerald-400"
         >
           <PartyPopper className="h-4 w-4 mr-2" />
           Published — Session Complete
@@ -484,10 +503,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
 
     if (isEnded || liveStatus === "ended" || liveStatus === "deleted") {
       return (
-        <Button
-          disabled
-          className="flex-1 rounded-xl bg-slate-700/50 text-slate-400 text-sm font-bold cursor-not-allowed"
-        >
+        <Button disabled className={disabledTone}>
           <Lock className="h-4 w-4 mr-2" />
           Session Ended
         </Button>
@@ -513,10 +529,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
 
     if (isFull || liveStatus === "full" || liveCount >= maxCollabs) {
       return (
-        <Button
-          disabled
-          className="flex-1 rounded-xl bg-slate-700/50 text-slate-400 text-sm font-bold cursor-not-allowed"
-        >
+        <Button disabled className={disabledTone}>
           <Lock className="h-4 w-4 mr-2" />
           Session Full
         </Button>
@@ -540,14 +553,19 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
   }
 
   return (
-    <Card className={"relative overflow-hidden border-2 p-0 shadow-xl " + (
+    // Accents are washes over `bg-card`, never a hard-coded dark surface:
+    // this card renders on every list page (explore, search, bookmarks,
+    // trending, profiles, circles), so it has to stay readable in light mode
+    // too. Opaque `slate-900` gradients with `text-foreground` on top were
+    // invisible outside the dark main feed.
+    <Card className={"relative overflow-hidden border-2 bg-card p-0 shadow-xl " + (
       isPublished
-        ? "border-emerald-500/30 bg-gradient-to-br from-emerald-950/60 via-slate-900/80 to-teal-950/60 shadow-emerald-500/10"
+        ? "border-emerald-500/30 bg-gradient-to-br from-emerald-500/[0.07] via-transparent to-teal-500/[0.07] shadow-emerald-500/10"
         : isEnded
-          ? "border-slate-500/30 bg-gradient-to-br from-slate-800/60 via-slate-900/80 to-slate-800/60 shadow-slate-500/10"
+          ? "border-border bg-gradient-to-br from-muted/40 via-transparent to-muted/40 shadow-sm"
           : isFull
-            ? "border-amber-500/30 bg-gradient-to-br from-amber-950/60 via-slate-900/80 to-orange-950/60 shadow-amber-500/10"
-            : "border-cyan-500/30 bg-gradient-to-br from-cyan-950/60 via-slate-900/80 to-indigo-950/60 shadow-cyan-500/10"
+            ? "border-amber-500/30 bg-gradient-to-br from-amber-500/[0.07] via-transparent to-orange-500/[0.07] shadow-amber-500/10"
+            : "border-cyan-500/30 bg-gradient-to-br from-cyan-500/[0.07] via-transparent to-indigo-500/[0.07] shadow-cyan-500/10"
     )}>
       {/* Decorative top bar */}
       <div className={"h-1 w-full " + (
@@ -675,7 +693,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
           </div>
 
           {/* Progress bar */}
-          <div className="relative h-2 overflow-hidden rounded-full bg-slate-800/80">
+          <div className="relative h-2 overflow-hidden rounded-full bg-muted">
             <div
               className={"absolute inset-y-0 left-0 rounded-full transition-all duration-500 " + (
                 isPublished
@@ -695,7 +713,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
                 <div
                   key={i}
                   className={
-                    "h-6 w-6 rounded-full border-2 border-slate-900 bg-gradient-to-br from-cyan-600 to-indigo-600 ring-1 " +
+                    "h-6 w-6 rounded-full border-2 border-background bg-gradient-to-br from-cyan-600 to-indigo-600 ring-1 " +
                     AVATAR_RING_COLORS[i % AVATAR_RING_COLORS.length]
                   }
                 />
@@ -717,7 +735,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
         </div>
 
         {/* Engagement bar — real-time */}
-        <div className="flex items-center justify-between border-t border-white/5 pt-3">
+        <div className="flex items-center justify-between border-t border-border pt-3">
           <div className="flex items-center gap-4">
             <button
               onClick={handleLike}
@@ -746,7 +764,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
 
         {/* Comments Section */}
         {showComments && (
-          <div className="border-t border-white/5 pt-3 space-y-3">
+          <div className="border-t border-border pt-3 space-y-3">
             {commentsLoading ? (
               <div className="flex items-center justify-center py-4">
                 <Spinner className="h-5 w-5 text-muted-foreground" />
@@ -793,7 +811,7 @@ export function OpenCoLoopInviteCard({ post, onJoin }: OpenCoLoopInviteCardProps
                   size="sm"
                   className="h-7 w-7 shrink-0 rounded-full"
                 />
-                <div className="flex-1 flex items-center gap-2 bg-white/[0.05] rounded-xl px-3 py-1.5">
+                <div className="flex-1 flex items-center gap-2 bg-muted/50 rounded-xl px-3 py-1.5">
                   <Input
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}

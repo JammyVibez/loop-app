@@ -2,7 +2,7 @@
 
 import { ProtectedMedia } from "@/components/media-protection"
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react"
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
@@ -31,6 +31,11 @@ import { cn } from "@/lib/utils"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { MediaEmojiPicker } from "@/components/content/media-emoji-picker"
 import { optimizeImageUrl } from "@/lib/optimize-image"
+import {
+  readChatResumePoint,
+  writeChatResumePoint,
+  type ChatResumePoint,
+} from "@/lib/message-resume"
 import { playChatSound } from "@/lib/chat-sounds"
 import {
   CHAT_WALLPAPER_PRESETS,
@@ -42,6 +47,7 @@ import { Spinner } from "@/components/ui/skeletons"
 import { GroupCreateDialog } from "@/components/messages/group-create-dialog"
 import { GroupInfoPanel } from "@/components/messages/group-info-panel"
 import {
+  ArrowDown,
   ArrowLeft,
   Bell,
   BellOff,
@@ -255,6 +261,7 @@ export function MessagesWorkspace() {
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [draft, setDraft] = useState("")
   const [inboxTab, setInboxTab] = useState<"chats" | "calls">("chats")
+  const [resume, setResume] = useState<ChatResumePoint | null>(null)
   const [search, setSearch] = useState("")
   const [chatSearch, setChatSearch] = useState("")
   const [showChatSearch, setShowChatSearch] = useState(false)
@@ -367,6 +374,14 @@ export function MessagesWorkspace() {
   const [wallpaperUploading, setWallpaperUploading] = useState(false)
   const wallpaperSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  // Message-scroller state: mirrors whether the reader is pinned to the newest
+  // message so incoming messages never yank the view away from history.
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null)
+  const prependAnchorRef = useRef<{ height: number; top: number } | null>(null)
+  const atBottomRef = useRef(true)
+  const lastMessageIdRef = useRef<string | null>(null)
+  const [atBottom, setAtBottom] = useState(true)
+  const [unseenBelow, setUnseenBelow] = useState(0) // messages received while scrolled up
   const fileRef = useRef<HTMLInputElement>(null)
   const cameraFileRef = useRef<HTMLInputElement>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -432,12 +447,23 @@ export function MessagesWorkspace() {
       setMessagesLoading(true)
       setHasMoreMessages(true)
     }
+    // Page backwards from the oldest message we already hold; without a
+    // cursor the endpoint returns the NEWEST window, which is what keeps
+    // freshly received messages from being replaced by stale history.
+    const before = older ? messages[0]?.created_at : undefined
+    if (older && !before) {
+      setLoadingOlder(false)
+      setHasMoreMessages(false)
+      return
+    }
+    if (older) {
+      const el = scrollAreaRef.current
+      prependAnchorRef.current = el ? { height: el.scrollHeight, top: el.scrollTop } : null
+    }
+    const params = new URLSearchParams({ conversation_id: conversationId, limit: String(MESSAGE_PAGE_SIZE) })
+    if (before) params.set("before", before)
     try {
-      const offset = older ? messages.length : 0
-      const response = await fetch(
-        `/api/messages?conversation_id=${conversationId}&limit=${MESSAGE_PAGE_SIZE}&offset=${offset}`,
-        { headers: getAuthHeader() },
-      )
+      const response = await fetch(`/api/messages?${params.toString()}`, { headers: getAuthHeader() })
       const data = await response.json()
       if (req !== loadReq.current || selectedIdRef.current !== conversationId) return
       if (!response.ok) throw new Error(data.error || "Failed to load messages")
@@ -449,10 +475,22 @@ export function MessagesWorkspace() {
         reactions: Array.isArray(m.reactions) ? m.reactions : [],
       }))
       if (older) {
-        setMessages((prev) => [...mapped, ...prev])
+        setMessages((prev) => [...mapped, ...prev.filter((m) => !byId.has(m.id))])
         setHasMoreMessages(list.length >= MESSAGE_PAGE_SIZE)
+      } else if (mapped.length === 0) {
+        // Transient empty response — never blank a conversation that already
+        // has messages on screen.
+        setHasMoreMessages(false)
       } else {
-        setMessages(mapped)
+        // Refresh the newest window but keep any older history the reader
+        // already pulled in, so a live reconciliation can't rewind to the top.
+        const oldest = mapped[0]?.created_at
+        setMessages((prev) => {
+          const kept = oldest ? prev.filter((m) => m.created_at < oldest) : []
+          const byIdAll = new Map(kept.map((m) => [m.id, m]))
+          for (const m of mapped) byIdAll.set(m.id, m)
+          return Array.from(byIdAll.values()).sort((a, b) => a.created_at.localeCompare(b.created_at))
+        })
         setHasMoreMessages(list.length >= MESSAGE_PAGE_SIZE)
       }
     } catch (error: any) {
@@ -469,6 +507,11 @@ export function MessagesWorkspace() {
   useEffect(() => {
     void loadConversations()
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
+
+  // Restore this account's resume point (per-device convenience).
+  useEffect(() => {
+    setResume(readChatResumePoint(user?.id))
   }, [user?.id])
 
   // Keep deep link ?c= in sync with Next search params
@@ -506,6 +549,11 @@ export function MessagesWorkspace() {
     setPeerOnline(false)
     setPeerReadAt(null)
     setFreshMessageIds(new Set())
+    // A fresh conversation always opens pinned to its newest message.
+    atBottomRef.current = true
+    lastMessageIdRef.current = null
+    setAtBottom(true)
+    setUnseenBelow(0)
     setReplyTo(null)
     void loadMessages(selectedId)
     setPinnedMessages([])
@@ -693,9 +741,67 @@ export function MessagesWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, user?.id])
 
+  const resolveScroller = () => {
+    const el = (scrollAreaRef.current ||
+      (bottomRef.current?.parentElement as HTMLDivElement | null)) as HTMLDivElement | null
+    if (el) scrollAreaRef.current = el
+    return el
+  }
+
+  const handleMessagesScroll = () => {
+    const el = scrollAreaRef.current
+    if (!el) return
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 96
+    atBottomRef.current = nearBottom
+    setAtBottom(nearBottom)
+    if (nearBottom) setUnseenBelow(0)
+  }
+
+  const scrollToLatest = () => {
+    const el = scrollAreaRef.current
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
+    else bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    atBottomRef.current = true
+    setAtBottom(true)
+    setUnseenBelow(0)
+  }
+
+  // Track the message scroller (the bottom sentinel's parent) so incoming
+  // messages never yank the view away from history.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages.length, typingPeer])
+    const el = resolveScroller()
+    if (!el) return
+    const onScroll = () => handleMessagesScroll()
+    el.addEventListener("scroll", onScroll, { passive: true })
+    onScroll()
+    return () => el.removeEventListener("scroll", onScroll)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected])
+
+  // Loading older messages restores the reading position instead of jumping to
+  // the bottom; genuinely new messages only pin to the newest when the reader
+  // is already there, otherwise they surface the "latest" pill.
+  useLayoutEffect(() => {
+    const el = resolveScroller()
+    if (!el) return
+    const anchor = prependAnchorRef.current
+    if (anchor) {
+      prependAnchorRef.current = null
+      el.scrollTop = el.scrollHeight - anchor.height + anchor.top
+      return
+    }
+    const last = filteredMessages[filteredMessages.length - 1]
+    const lastId = last?.id ?? null
+    const changed = lastId !== lastMessageIdRef.current
+    lastMessageIdRef.current = lastId
+    if (!changed) return
+    if (atBottomRef.current) {
+      el.scrollTop = el.scrollHeight
+      setUnseenBelow(0)
+    } else {
+      setUnseenBelow((n) => n + 1)
+    }
+  }, [filteredMessages])
 
   const markFresh = (id: string) => {
     setFreshMessageIds((prev) => new Set(prev).add(id))
@@ -790,6 +896,24 @@ export function MessagesWorkspace() {
   }
 
   const openConversation = (id: string) => {
+    // Remember this as the resume point (and stamp the moment we left), so the
+    // inbox can show "continue where you left off" next visit.
+    const convo = conversations.find((c) => String(c.id) === String(id))
+    if (convo) {
+      const point: ChatResumePoint = {
+        id: String(id),
+        name: convo.is_group
+          ? convo.name || "Group"
+          : convo.other_user?.display_name || `@${convo.other_user?.username || "user"}`,
+        avatarUrl: convo.other_user?.avatar_url || null,
+        videoAvatarUrl: (convo.other_user as any)?.video_avatar_url || null,
+        isGroup: convo.is_group,
+        preview: convo.last_message?.content || "",
+        at: new Date().toISOString(),
+      }
+      setResume(point)
+      writeChatResumePoint(user?.id, point)
+    }
     setSelectedId(id)
     setMobileShowChat(true)
     setReplyTo(null)
@@ -1668,13 +1792,13 @@ export function MessagesWorkspace() {
       className="relative flex h-full min-h-0 min-w-0 flex-col bg-background"
       style={chatWallpaperStyle(wallpaper)}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.12),transparent_55%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(34,211,238,0.08),transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,hsl(var(--primary)/0.10),transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,hsl(var(--primary)/0.06),transparent_55%)]" />
       <div className="flex items-center gap-2 border-b border-border/40 bg-background/70 px-1.5 py-2 backdrop-blur-xl sm:px-3">
         <Button variant="ghost" size="icon" className="text-foreground lg:hidden" onClick={backToInbox}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="relative shrink-0 rounded-full ring-2 ring-violet-500/40">
+        <div className="relative shrink-0 rounded-full ring-2 ring-primary/40">
           {selected.is_group ? (
             <div className="relative h-10 w-10">
               {(selected as any).participants?.slice(0, 3).map((p: any, i: number) => (
@@ -1744,6 +1868,16 @@ export function MessagesWorkspace() {
             )}
           </p>
         </div>
+        {/* Search this conversation (surfaced from the hidden More menu). */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`text-muted-foreground hover:text-foreground ${showChatSearch ? "text-foreground" : ""}`}
+          title={showChatSearch ? "Close search" : "Search in conversation"}
+          onClick={() => setShowChatSearch((v) => !v)}
+        >
+          <Search className="h-5 w-5" />
+        </Button>
         {/* Voice + video calls (100ms) — 1:1 and group chats. */}
         <Button
           variant="ghost"
@@ -1758,7 +1892,7 @@ export function MessagesWorkspace() {
         <Button
           variant="ghost"
           size="icon"
-          className="hidden text-muted-foreground hover:text-violet-500 sm:inline-flex"
+          className="hidden text-muted-foreground hover:text-primary sm:inline-flex"
           title="Video call"
           onClick={() => void startCall("video")}
           disabled={Boolean(startingCall) || Boolean(outgoingCall)}
@@ -1849,12 +1983,31 @@ export function MessagesWorkspace() {
 
       {showChatSearch && (
         <div className="border-b border-border/40 bg-background/60 px-3 py-2 backdrop-blur-xl">
-          <Input
-            value={chatSearch}
-            onChange={(e) => setChatSearch(e.target.value)}
-            placeholder="Search this chat…"
-            className="border-border bg-muted text-foreground"
-          />
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={chatSearch}
+              onChange={(e) => setChatSearch(e.target.value)}
+              placeholder="Search this chat…"
+              className="border-border bg-muted pl-9 pr-24 text-foreground"
+            />
+            {chatSearch.trim() && (
+              <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                <span className="text-[10px] font-medium text-muted-foreground">
+                  {filteredMessages.length} result{filteredMessages.length === 1 ? "" : "s"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setChatSearch("")}
+                  title="Clear search"
+                  aria-label="Clear search"
+                  className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted-foreground/15 hover:text-foreground"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -2297,6 +2450,18 @@ export function MessagesWorkspace() {
           </div>
         )}
         <div ref={bottomRef} />
+        {!atBottom && selected && (
+          <div className="sticky bottom-0 z-10 flex justify-center pb-1 pt-2">
+            <button
+              type="button"
+              onClick={scrollToLatest}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-lg backdrop-blur-md transition hover:bg-background"
+            >
+              <ArrowDown className="h-3.5 w-3.5" />
+              {unseenBelow > 0 ? `${unseenBelow} new message${unseenBelow === 1 ? "" : "s"}` : "Jump to latest"}
+            </button>
+          </div>
+        )}
         {/* Load older messages */}
         {hasMoreMessages && !messagesLoading && messages.length >= MESSAGE_PAGE_SIZE && (
           <div className="flex justify-center py-3">

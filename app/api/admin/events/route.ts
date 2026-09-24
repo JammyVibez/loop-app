@@ -2,164 +2,198 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { requireAdmin } from "@/lib/server-auth"
 
+export const dynamic = "force-dynamic"
+
+/**
+ * Admin → Global Events.
+ *
+ * These rows are the platform-wide events shown in the Events hub, on the
+ * home page and in the admin Events tab. They live in `global_events`
+ * (see scripts/global-events-schema.sql).
+ *
+ * Two things used to make this section look broken from the admin panel:
+ *   1. the GET embedded `event_rsvps(count)`, and PostgREST cannot embed
+ *      across the two tables (no FK), so every request errored and fell back
+ *      to a hard-coded demo array — the panel looked populated but was fake;
+ *   2. writes ignored their errors, so create/edit/delete "succeeded" while
+ *      touching nothing.
+ * Both are fixed here: rsvp counts are counted in a separate query and every
+ * write reports what actually happened.
+ */
+
+const MISSING_TABLE_CODES = new Set(["42P01", "PGRST205", "PGRST204"])
+
+function isMissingTable(error: { code?: string; message?: string } | null) {
+  if (!error) return false
+  if (error.code && MISSING_TABLE_CODES.has(error.code)) return true
+  const message = error.message || ""
+  return /does not exist|could not find the table|schema cache/i.test(message)
+}
+
+const SETUP_HINT = "Run scripts/global-events-schema.sql against your database to enable global events."
+
+/** RSVP counts, counted directly — no PostgREST embed, no FK required. */
+async function loadRsvpCounts(
+  supabase: ReturnType<typeof createServerClient>,
+  eventIds: string[],
+): Promise<Record<string, number>> {
+  if (!eventIds.length) return {}
+  const { data, error } = await supabase.from("event_rsvps").select("event_id").in("event_id", eventIds)
+  if (error || !data) return {}
+  return data.reduce<Record<string, number>>((acc, row: any) => {
+    if (!row?.event_id) return acc
+    acc[row.event_id] = (acc[row.event_id] || 0) + 1
+    return acc
+  }, {})
+}
+
 export async function GET(request: NextRequest) {
+  const { response } = await requireAdmin(request)
+  if (response) return response
+
   try {
     const supabase = createServerClient()
     const { data: events, error } = await supabase
       .from("global_events")
-      .select(`
-        *,
-        event_rsvps(count)
-      `)
+      .select("*")
       .order("starts_at", { ascending: true })
 
     if (error) {
-      // Fallback if global_events table isn't created in Supabase yet (return memory mock array)
-      console.warn("Database global_events fetch error, returning default global events:", error.message)
+      // Never fake data. An empty list plus a reason is something the admin
+      // can act on; two invented events are not.
+      const missing = isMissingTable(error)
+      console.error("admin global_events GET:", error.message)
       return NextResponse.json({
-        events: [
-          {
-            id: "event-dev-den",
-            title: "Developers Den Hackathon 2026",
-            description: "Join top developers to build next-gen 3D web apps & smart Loop extensions. Win 5,000 Loop Coins and exclusive badge!",
-            category: "Developer",
-            banner_url: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1200&q=80",
-            location_type: "Virtual Stage",
-            external_link: "",
-            starts_at: new Date(Date.now() + 86400000).toISOString(),
-            ends_at: new Date(Date.now() + 86400000 * 3).toISOString(),
-            reward_coins: 5000,
-            badge_reward: "Dev Den Pioneer",
-            is_featured: true,
-            is_active: true,
-            rsvp_count: 342,
-            tags: ["Developer", "Hackathon", "3D Web", "Coding"]
-          },
-          {
-            id: "event-creator-zone",
-            title: "Content Creator Zone Spotlight",
-            description: "Showcase your short videos, trees, and digital art to the global community! Live feedback and featured promotion.",
-            category: "Creator",
-            banner_url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80",
-            location_type: "Creator Stage",
-            external_link: "",
-            starts_at: new Date(Date.now() + 86400000 * 2).toISOString(),
-            ends_at: new Date(Date.now() + 86400000 * 4).toISOString(),
-            reward_coins: 2500,
-            badge_reward: "Master Creator",
-            is_featured: true,
-            is_active: true,
-            rsvp_count: 518,
-            tags: ["Creators", "Trees", "Art", "Stream"]
-          }
-        ]
+        success: true,
+        events: [],
+        tableReady: !missing,
+        setupRequired: missing,
+        error: missing ? "global_events table is missing" : error.message,
+        hint: missing ? SETUP_HINT : undefined,
       })
     }
 
-    const formattedEvents = events.map((e: any) => ({
-      ...e,
-      rsvp_count: e.event_rsvps?.[0]?.count || e.rsvp_count || 0
-    }))
+    const rows = events || []
+    const counts = await loadRsvpCounts(supabase, rows.map((e: any) => e.id))
 
-    return NextResponse.json({ events: formattedEvents })
-  } catch (err: any) {
-    console.error("Global events GET error:", err)
-    return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 })
+    return NextResponse.json({
+      success: true,
+      tableReady: true,
+      events: rows.map((event: any) => ({
+        ...event,
+        rsvp_count: counts[event.id] ?? event.rsvp_count ?? 0,
+      })),
+    })
+  } catch (error: any) {
+    console.error("admin global_events GET error:", error)
+    return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
+  const { user, response } = await requireAdmin(request)
+  if (response) return response
+
   try {
-    const { user, response } = await requireAdmin(request)
-    if (response) return response
-
     const supabase = createServerClient()
-    const { data: profile } = await supabase.from("profiles").select("username, display_name, avatar_url").eq("id", user.id).single()
+    const body = await request.json().catch(() => ({}))
 
-    const body = await request.json()
-    const {
-      title,
-      description,
-      category = "General",
-      banner_url,
-      location_type = "Virtual Stage",
-      external_link = "",
-      starts_at,
-      ends_at,
-      reward_coins = 500,
-      badge_reward = "Event Participant",
-      is_featured = true,
-      is_active = true,
-      tags = []
-    } = body
-
+    const title = String(body.title || "").trim()
+    const description = String(body.description || "").trim()
     if (!title || !description) {
       return NextResponse.json({ error: "Title and description are required" }, { status: 400 })
     }
 
-    const eventId = `evt-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
-    const hostUsername = profile?.username || user.email?.split("@")[0] || "admin"
-    const hostDisplayName = profile?.display_name || "Admin Host"
-    const hostAvatar = profile?.avatar_url || "/placeholder.svg"
+    const startsAt = body.starts_at ? new Date(body.starts_at) : new Date()
+    const endsAt = body.ends_at ? new Date(body.ends_at) : new Date(Date.now() + 2 * 86400000)
+    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
+      return NextResponse.json({ error: "Start and end times must be valid dates" }, { status: 400 })
+    }
+    if (endsAt.getTime() <= startsAt.getTime()) {
+      return NextResponse.json({ error: "The end time has to be after the start time" }, { status: 400 })
+    }
+
+    const rawTags = Array.isArray(body.tags) ? body.tags : String(body.tags || "").split(",")
+    const tags = rawTags.map((tag: unknown) => String(tag).trim()).filter(Boolean).slice(0, 12)
+    const category = String(body.category || "General").trim() || "General"
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username, display_name, avatar_url")
+      .eq("id", user!.id)
+      .maybeSingle()
+
+    const eventId = `evt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const nowIso = new Date().toISOString()
 
     const newEvent = {
       id: eventId,
       title,
       description,
       category,
-      banner_url: banner_url || "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1200&q=80",
-      location_type,
-      external_link,
-      starts_at: starts_at || new Date().toISOString(),
-      ends_at: ends_at || new Date(Date.now() + 86400000 * 2).toISOString(),
-      reward_coins: Number(reward_coins) || 0,
-      badge_reward,
-      is_featured: Boolean(is_featured),
-      is_active: Boolean(is_active),
-      tags: Array.isArray(tags) ? tags : [category],
-      created_by: user.id,
-      created_at: new Date().toISOString()
+      banner_url:
+        String(body.banner_url || "").trim() ||
+        "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1200&q=80",
+      location_type: String(body.location_type || "Virtual Stage").trim() || "Virtual Stage",
+      external_link: String(body.external_link || "").trim(),
+      starts_at: startsAt.toISOString(),
+      ends_at: endsAt.toISOString(),
+      status: startsAt.getTime() <= Date.now() ? "live" : "upcoming",
+      is_live: startsAt.getTime() <= Date.now(),
+      is_active: body.is_active !== false,
+      is_featured: Boolean(body.is_featured),
+      reward_coins: Math.max(0, Number(body.reward_coins) || 0),
+      badge_reward: String(body.badge_reward || "Event Participant").trim() || "Event Participant",
+      tags: tags.length ? tags : [category],
+      rsvp_count: 0,
+      created_by: user!.id,
+      created_at: nowIso,
+      updated_at: nowIso,
     }
 
-    // Insert into global_events
-    await supabase.from("global_events").insert(newEvent)
+    const { data: created, error } = await supabase.from("global_events").insert(newEvent).select().single()
 
-    // Also insert into main events hub table so it's live across the app
-    const eventHubPayload = {
-      id: eventId,
-      title: title.trim(),
-      description: description.trim(),
-      host_id: user.id,
-      host_name: hostDisplayName,
-      host_avatar: hostAvatar,
-      category,
-      status: "live",
-      start_time: starts_at || new Date().toISOString(),
-      cover_image: banner_url || "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&auto=format&fit=crop&q=80",
-      participants_count: 1,
-      is_live: true,
-      created_at: new Date().toISOString()
+    if (error) {
+      const missing = isMissingTable(error)
+      console.error("admin global_events POST:", error.message)
+      return NextResponse.json(
+        {
+          error: missing
+            ? "The global_events table doesn't exist yet, so this event can't be saved."
+            : error.message || "Could not create the event",
+          setupRequired: missing,
+          hint: missing ? SETUP_HINT : undefined,
+        },
+        { status: missing ? 503 : 500 },
+      )
     }
 
-    await supabase.from("events").insert(eventHubPayload)
-
-    // Auto join admin as host participant
-    await supabase.from("event_participants").insert({
-      id: `p-${user.id}-${eventId}`,
+    // Give the admin a host seat on the roster so the stage isn't empty.
+    // RSVP/participant bookkeeping elsewhere is id-based and doesn't need a
+    // matching row in `events`, so this is the only side record we write.
+    const { error: participantError } = await supabase.from("event_participants").insert({
+      id: `p-${user!.id}-${eventId}`,
       event_id: eventId,
-      user_id: user.id,
-      username: hostUsername,
-      display_name: hostDisplayName,
-      avatar_url: hostAvatar,
+      user_id: user!.id,
+      username: profile?.username || user!.email?.split("@")[0] || "admin",
+      display_name: profile?.display_name || "Admin Host",
+      avatar_url: profile?.avatar_url || "/placeholder.svg",
       role: "host",
       status: "joined",
-      joined_at: new Date().toISOString()
+      joined_at: nowIso,
     })
+    if (participantError) {
+      // The event itself saved — the host seat is a nicety, not a blocker.
+      console.warn("admin global_events POST host seat:", participantError.message)
+    }
 
-    return NextResponse.json({ event: newEvent, message: "Global event created & published live successfully!" })
-  } catch (err: any) {
-    console.error("Global events POST error:", err)
-    return NextResponse.json({ error: "Failed to create event" }, { status: 500 })
+    return NextResponse.json({
+      success: true,
+      event: created || newEvent,
+      message: `"${title}" is live across the app.`,
+    })
+  } catch (error: any) {
+    console.error("admin global_events POST error:", error)
+    return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 })
   }
 }
-

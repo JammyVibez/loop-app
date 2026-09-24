@@ -25,8 +25,18 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const conversationId = searchParams.get("conversation_id")
-    const limit = Number.parseInt(searchParams.get("limit") || "80")
-    const offset = Number.parseInt(searchParams.get("offset") || "0")
+    const limit = Math.min(Math.max(Number.parseInt(searchParams.get("limit") || "80") || 80, 1), 200)
+    // `before` (ISO timestamp) pages backwards from the oldest message the
+    // client already holds. Without it we return the NEWEST window — ordering
+    // ascending and slicing from offset 0 returns the OLDEST messages, which
+    // made freshly received messages vanish on the next reconciliation.
+    const before = searchParams.get("before")
+    const parseIso = (value: string | null) => {
+      if (!value) return null
+      const ts = Date.parse(value)
+      return Number.isFinite(ts) ? new Date(ts).toISOString() : null
+    }
+    const beforeIso = parseIso(before)
 
     if (!conversationId) {
       return NextResponse.json({ error: "Conversation ID is required" }, { status: 400 })
@@ -37,7 +47,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const { data: messages, error } = await supabase
+    // Newest-first ordering, then reverse so callers always receive the page in
+    // chronological (oldest → newest) order.
+    let query = supabase
       .from("messages")
       .select(`
         id,
@@ -62,34 +74,43 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true })
-      .range(offset, offset + limit - 1)
+      .order("created_at", { ascending: false })
+      .limit(limit)
+    if (beforeIso) query = query.lt("created_at", beforeIso)
+
+    const { data: messagesDesc, error } = await query
+
+    const toAscending = <T,>(rows: T[] | null | undefined): T[] => (rows || []).slice().reverse()
 
     if (error) {
       // Fallback without join alias if FK name differs
-      const fallback = await supabase
+      let fallbackQuery = supabase
         .from("messages")
         .select("*")
         .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: true })
-        .range(offset, offset + limit - 1)
+        .order("created_at", { ascending: false })
+        .limit(limit)
+      if (beforeIso) fallbackQuery = fallbackQuery.lt("created_at", beforeIso)
+      const fallback = await fallbackQuery
       if (fallback.error) return NextResponse.json({ error: fallback.error.message }, { status: 500 })
 
+      const rows = toAscending(fallback.data as any[])
       const senderIds = Array.from(
-        new Set((fallback.data || []).map((m) => m.author_id || m.sender_id).filter(Boolean)),
+        new Set(rows.map((m) => m.author_id || m.sender_id).filter(Boolean)),
       )
       const { data: profiles } = senderIds.length
         ? await supabase.from("profiles").select("id, username, display_name, avatar_url, video_avatar_url").in("id", senderIds)
         : { data: [] as any[] }
       const map = new Map((profiles || []).map((p) => [p.id, p]))
-      const hydrated = (fallback.data || []).map((m) => ({
+      const hydrated = rows.map((m) => ({
         ...m,
         sender: map.get(m.author_id || m.sender_id) || null,
       }))
-      return NextResponse.json({ success: true, messages: hydrated, has_more: false })
+      return NextResponse.json({ success: true, messages: hydrated, has_more: rows.length === limit })
     }
 
-    return NextResponse.json({ success: true, messages: messages || [], has_more: (messages || []).length === limit })
+    const messages = toAscending(messagesDesc as any[])
+    return NextResponse.json({ success: true, messages, has_more: messages.length === limit })
   } catch (error) {
     console.error("Error fetching messages:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

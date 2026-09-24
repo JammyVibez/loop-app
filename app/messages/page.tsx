@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { Header } from "@/components/header"
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav"
 import { MessagesWorkspace } from "@/components/messages/messages-workspace"
+import { ResumeChatBanner } from "@/components/messages/resume-chat-banner"
 
 function MessagesShell() {
   const searchParams = useSearchParams()
@@ -19,6 +20,8 @@ function MessagesShell() {
       <div className={inChat ? "hidden" : "hidden lg:block"}>
         <Header />
       </div>
+      {/* Inbox-level memory: offer the chat they were last in, not in-chat. */}
+      {!inChat && <ResumeChatBanner />}
       <main className="chat-workspace mx-auto w-full max-w-6xl min-h-0 flex-1 overflow-hidden px-0 lg:px-4 lg:py-4">
         <MessagesWorkspace />
       </main>

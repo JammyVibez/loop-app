@@ -11,6 +11,7 @@ import { useTheme3D } from "../providers/theme-3d-provider"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/components/ui/use-toast"
 import { normalizeLoop } from "@/lib/normalize-loop"
+import { OpenCoLoopInviteCard } from "@/components/co-loop/open-co-loop-invite-card"
 import { supabase } from "@/lib/supabase"
 import { hapticPress, hapticSuccess } from "@/lib/haptics"
 import { useLoginGate } from "@/hooks/use-login-gate"
@@ -505,6 +506,24 @@ export const LoopCard = memo(function LoopCard({
    * ring to every post — that belongs on the profile and the shop showcase.
    */
   const getAvatarStyle = () => ""
+
+  // Open Co-Loop invites are a distinct post type with their own join/roster
+  // surface. Every page that lists loops (explore, search, hashtags, bookmarks,
+  // trending, profile, circles) renders loops through LoopCard, so the special
+  // card has to live here too — otherwise the invite renders as a broken,
+  // generic post outside the main feed.
+  const isOpenCoLoopInvite = Boolean(
+    rawLoop?.content_metadata?.is_open_coloop_invite ||
+      rawLoop?.post_type === "open_coloop_invite" ||
+      rawLoop?.content_type === "open_coloop_invite"
+  )
+  if (isOpenCoLoopInvite) {
+    return (
+      <div className={className}>
+        <OpenCoLoopInviteCard post={rawLoop} />
+      </div>
+    )
+  }
 
   return (
     <>

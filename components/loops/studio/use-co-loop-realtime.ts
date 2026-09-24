@@ -356,17 +356,27 @@ export function useCoLoopRealtime({
           return kept.length === prev.length ? prev : kept
         })
       })
+      // Supabase batches presences: a reconnect or a second joiner arrives in
+      // the SAME payload. Reading only [0] dropped everyone after the first,
+      // which is why a host could watch someone appear only after a later
+      // event (e.g. publishing) re-synced the room. Walk the whole array.
       .on("presence", { event: "join" }, ({ newPresences }: any) => {
-        const joined = newPresences?.[0] as StudioParticipant | undefined
-        if (joined?.id && joined.id !== selfId) {
-          callbacksRef.current.onRoomEvent({ type: "joined", participant: joined })
+        const joined = (Array.isArray(newPresences) ? newPresences : []) as StudioParticipant[]
+        for (const participant of joined) {
+          if (participant?.id && participant.id !== selfId) {
+            callbacksRef.current.onRoomEvent({ type: "joined", participant })
+          }
         }
       })
       .on("presence", { event: "leave" }, ({ leftPresences }: any) => {
-        const left = leftPresences?.[0] as StudioParticipant | undefined
-        if (left?.id && left.id !== selfId) {
-          setCursors((prev) => prev.filter((c) => c.id !== left.id))
-          callbacksRef.current.onRoomEvent({ type: "left", participant: left })
+        const left = (Array.isArray(leftPresences) ? leftPresences : []) as StudioParticipant[]
+        const leftIds = new Set(left.map((p) => p?.id).filter(Boolean))
+        if (!leftIds.size) return
+        setCursors((prev) => prev.filter((c) => !leftIds.has(c.id)))
+        for (const participant of left) {
+          if (participant?.id && participant.id !== selfId) {
+            callbacksRef.current.onRoomEvent({ type: "left", participant })
+          }
         }
       })
       // ── live co-editing ────────────────────────────────────────────
@@ -508,6 +518,34 @@ export function useCoLoopRealtime({
         callbacksRef.current.onRoomEvent({
           type: "published",
           by: payload?.publishedBy || "A collaborator",
+        })
+      })
+      // ── durable roster changes (open-invite joins + host kicks) ─────
+      .on("broadcast", { event: "co-author-accepted" }, ({ payload }: any) => {
+        const entry = payload?.user || payload?.participant || payload?.co_author
+        if (!entry?.id || entry.id === selfId) return
+        callbacksRef.current.onRoomEvent({
+          type: "co-author-joined",
+          participant: {
+            id: String(entry.id),
+            username: entry.username || "collaborator",
+            display_name: entry.display_name || entry.username || "Co-Author",
+            avatar_url: entry.avatar_url ?? null,
+            video_avatar_url: entry.video_avatar_url ?? null,
+            is_premium: Boolean(entry.is_premium),
+            role: entry.role || "Co-Author",
+            color: colorForParticipant(String(entry.id)),
+          },
+        })
+      })
+      .on("broadcast", { event: "co-author-kicked" }, ({ payload }: any) => {
+        const userId = payload?.user_id || payload?.userId || payload?.participant?.id
+        if (!userId) return
+        callbacksRef.current.onRoomEvent({
+          type: "co-author-kicked",
+          userId: String(userId),
+          by: payload?.by || "The host",
+          participant: payload?.participant,
         })
       })
       // ── host room controls + activity feed ────────────────────────

@@ -1,10 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { requireAdmin } from "@/lib/server-auth"
+import { AD_FREQUENCY_DEFAULT, AD_SURFACES, clampFrequency } from "@/lib/ads"
 
 export const dynamic = "force-dynamic"
 
-const DEFAULT_SURFACES = { home: true, circles: false, explore: false }
+// Every known placement starts on, matching what the API serves when a
+// surface key is absent from ad_settings. Keep this in lockstep with lib/ads.ts
+// so the toggles an admin sees are the surfaces the app renders.
+const DEFAULT_SURFACES: Record<string, boolean> = Object.fromEntries(
+  AD_SURFACES.map((surface) => [surface.key, true]),
+)
 
 export async function GET(_request: NextRequest) {
   try {
@@ -24,8 +30,10 @@ export async function GET(_request: NextRequest) {
       ads: adsRes.data || [],
       settings: {
         enabled: Boolean(settingsRes.data?.enabled),
-        frequency_min: Number(settingsRes.data?.frequency_min ?? 50),
-        frequency_max: Number(settingsRes.data?.frequency_max ?? 70),
+        // Fall back to the shared default, not a local one — a stale 50–70 here
+        // made the admin panel report a pacing the public feed never used.
+        frequency_min: Number(settingsRes.data?.frequency_min ?? AD_FREQUENCY_DEFAULT.min),
+        frequency_max: Number(settingsRes.data?.frequency_max ?? AD_FREQUENCY_DEFAULT.max),
         surfaces: settingsRes.data?.surfaces || DEFAULT_SURFACES,
       },
     })
@@ -46,14 +54,17 @@ export async function POST(request: NextRequest) {
     if (body.type === "settings" || body.settings) {
       const patch = body.settings || body
       const { data: current } = await supabase.from("ad_settings").select("*").eq("id", "default").maybeSingle()
+      const frequency = clampFrequency(
+        patch.frequency_min ?? current?.frequency_min ?? AD_FREQUENCY_DEFAULT.min,
+        patch.frequency_max ?? current?.frequency_max ?? AD_FREQUENCY_DEFAULT.max,
+      )
       const next = {
         enabled: typeof patch.enabled === "boolean" ? patch.enabled : Boolean(current?.enabled),
-        frequency_min: Math.max(5, Math.min(200, Number(patch.frequency_min ?? current?.frequency_min ?? 50))),
-        frequency_max: Math.max(5, Math.min(200, Number(patch.frequency_max ?? current?.frequency_max ?? 70))),
+        frequency_min: frequency.min,
+        frequency_max: frequency.max,
         surfaces: patch.surfaces || current?.surfaces || DEFAULT_SURFACES,
         updated_at: new Date().toISOString(),
       }
-      if (next.frequency_max < next.frequency_min) next.frequency_max = next.frequency_min
       const { data, error } = await supabase
         .from("ad_settings")
         .upsert({ id: "default", ...next }, { onConflict: "id" })

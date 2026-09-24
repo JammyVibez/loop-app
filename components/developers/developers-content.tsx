@@ -87,7 +87,7 @@ export function DevelopersContent() {
         const adsRes = await fetch("/api/ads/feed", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ count: 1 }),
+          body: JSON.stringify({ count: 1, surface: "developers" }),
           cache: "no-store",
         })
         const adsData = await adsRes.json().catch(() => ({ ads: [] }))

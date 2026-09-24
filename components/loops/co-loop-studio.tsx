@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card"
 import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Spinner } from "@/components/ui/skeletons"
-import { Check, Coins, Crown, Globe, Lock, Rocket, Save, Unlock, Users, UserPlus } from "lucide-react"
+import { Check, Coins, Crown, Globe, Lock, Rocket, Save, Unlock, Users, UserPlus, UserMinus } from "lucide-react"
 import { CoLoopVersionHistory, type CoLoopVersion } from "./co-loop-version-history"
 import { CoLoopCanvas, type RemoteEdit } from "./studio/co-loop-canvas"
 import { CoLoopActivityRail } from "./studio/co-loop-activity-rail"
@@ -117,6 +117,8 @@ export function CoLoopStudio() {
     avatar_url?: string | null
   } | null>(null)
   const [roster, setRoster] = useState<StudioParticipant[]>([])
+  // Co-authors the host removed — hidden everywhere until they leave.
+  const [kickedIds, setKickedIds] = useState<Set<string>>(new Set())
   const [isOwner, setIsOwner] = useState(false)
   const [sessionReady, setSessionReady] = useState(false)
   const [draftLoaded, setDraftLoaded] = useState(false)
@@ -141,6 +143,7 @@ export function CoLoopStudio() {
   const [linkCopied, setLinkCopied] = useState(false)
   const [sendingInvite, setSendingInvite] = useState(false)
   const [sendingGift, setSendingGift] = useState(false)
+  const [kickingId, setKickingId] = useState<string | null>(null)
   const [publishingOpenInvite, setPublishingOpenInvite] = useState(false)
   const [inviteQuery, setInviteQuery] = useState("")
   const [inviteResults, setInviteResults] = useState<any[]>([])
@@ -176,10 +179,42 @@ export function CoLoopStudio() {
     }))
   }, [])
 
+  // The durable co-author roster is what the host, the ceremony and gifts all
+  // read from. It must stay live while the studio is open — not just on the
+  // first session resolve — so a joiner shows up for the host immediately.
+  const mergeRosterEntry = useCallback((entry: StudioParticipant) => {
+    setRoster((prev) => {
+      const normalized: StudioParticipant = {
+        ...entry,
+        role: entry.role || "Co-Author",
+        color: entry.color || colorForParticipant(entry.id),
+      }
+      const idx = prev.findIndex((c) => c.id === entry.id)
+      if (idx === -1) return [...prev, normalized]
+      const next = [...prev]
+      next[idx] = { ...prev[idx], ...normalized }
+      return next
+    })
+  }, [])
+
+  const removeRosterEntry = useCallback((id: string) => {
+    setRoster((prev) => prev.filter((c) => c.id !== id))
+    setKickedIds((prev) => {
+      if (prev.has(id)) return prev
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
+  }, [])
+
   const handleRoomEvent = useCallback(
     (event: StudioRoomEvent) => {
       switch (event.type) {
         case "joined":
+          // Presence is enough to add a real collaborator to the durable roster,
+          // so the host sees a joiner immediately even if the explicit
+          // co-author-accepted broadcast was missed while reconnecting.
+          if (event.participant.id !== user?.id) mergeRosterEntry(event.participant)
           toast({
             title: `${event.participant.display_name} joined the room`,
             description:
@@ -190,6 +225,31 @@ export function CoLoopStudio() {
           break
         case "left":
           toast({ title: `${event.participant.display_name} left the room` })
+          break
+        case "co-author-joined":
+          mergeRosterEntry(event.participant)
+          toast({
+            title: `${event.participant.display_name} joined as a co-author`,
+            description: "They're now in your roster and can write with you.",
+          })
+          break
+        case "co-author-kicked":
+          if (event.userId === user?.id) {
+            toast({
+              title: "You were removed",
+              description: `${event.by || "The host"} removed you from this Co-Loop.`,
+              variant: "destructive",
+              icon: UserMinus,
+            })
+            setTimeout(() => router.push("/"), 1200)
+            break
+          }
+          removeRosterEntry(event.userId)
+          toast({
+            title: "Co-author removed",
+            description: `${event.participant?.display_name || "A co-author"} was removed from the room.`,
+            icon: UserMinus,
+          })
           break
         case "version-saved": {
           const version = event.version as unknown as CoLoopVersion
@@ -264,7 +324,7 @@ export function CoLoopStudio() {
           break
       }
     },
-    [bumpRemoteEdit, router, toast]
+    [bumpRemoteEdit, mergeRosterEntry, removeRosterEntry, router, toast, user?.id]
   )
 
   const realtime = useCoLoopRealtime({
@@ -1007,6 +1067,44 @@ export function CoLoopStudio() {
     }
   }, [getAuthHeader, isOwner, realtime, router, sessionId, toast, user])
 
+  /* ── Host room control: remove a co-author ────────────────────── */
+  const handleKick = useCallback(
+    async (participant: StudioParticipant) => {
+      if (!isOwner || participant.id === user?.id) return
+      const confirmed = await confirmDialog({
+        title: `Remove ${participant.display_name}?`,
+        description:
+          "They'll be removed from this Co-Loop and can't rejoin this room. Anything they already wrote stays in the shared draft.",
+        confirmLabel: "Remove co-author",
+        destructive: true,
+      })
+      if (!confirmed) return
+      setKickingId(participant.id)
+      try {
+        const res = await fetch("/api/co-loop/room-control", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ session_id: sessionId, action: "kick", target_user_id: participant.id }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || "Could not remove that co-author")
+        removeRosterEntry(participant.id)
+        toast({
+          title: "Co-author removed",
+          description: `${participant.display_name} can no longer join this room.`,
+          variant: "success",
+          icon: UserMinus,
+        })
+        void recordActivity("kicked", `@${participant.username}`)
+      } catch (err: any) {
+        toast({ title: "Could not remove co-author", description: err?.message || "Try again.", variant: "destructive" })
+      } finally {
+        setKickingId(null)
+      }
+    },
+    [getAuthHeader, isOwner, recordActivity, removeRosterEntry, sessionId, toast, user?.id]
+  )
+
   /* ── ⌘/Ctrl+S snapshots the draft ─────────────────────────────── */
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -1022,8 +1120,22 @@ export function CoLoopStudio() {
   /* ── Derived ──────────────────────────────────────────────────── */
   const liveParticipants = useMemo(() => {
     const map = new Map<string, StudioParticipant>()
-    for (const participant of realtime.participants) map.set(participant.id, participant)
-    if (owner?.id && !map.has(owner.id)) {
+    // Durable co-authors first so the host can see (and manage) everyone in
+    // the roster even while they're offline; live presence overlays on top.
+    for (const coAuthor of roster) {
+      if (kickedIds.has(coAuthor.id)) continue
+      map.set(coAuthor.id, {
+        ...coAuthor,
+        role: coAuthor.role || "Co-Author",
+        color: coAuthor.color || colorForParticipant(coAuthor.id),
+      })
+    }
+    for (const participant of realtime.participants) {
+      if (kickedIds.has(participant.id)) continue
+      const existing = map.get(participant.id)
+      map.set(participant.id, existing ? { ...existing, ...participant } : participant)
+    }
+    if (owner?.id && !kickedIds.has(owner.id) && !map.has(owner.id)) {
       map.set(owner.id, {
         id: owner.id,
         username: owner.username || "creator",
@@ -1050,7 +1162,7 @@ export function CoLoopStudio() {
       if (b.role === "Primary Creator") return 1
       return a.display_name.localeCompare(b.display_name)
     })
-  }, [realtime.participants, owner, user, isOwner])
+  }, [realtime.participants, roster, kickedIds, owner, user, isOwner])
 
   const editingFields = useMemo(() => {
     const title: StudioParticipant[] = []
@@ -1119,6 +1231,9 @@ export function CoLoopStudio() {
       coAuthorCount={coAuthorCount}
       activity={activityFeed}
       activityLoading={activityLoading}
+      canKick={isOwner}
+      onKick={(participant) => void handleKick(participant)}
+      kickingId={kickingId}
     />
   )
 

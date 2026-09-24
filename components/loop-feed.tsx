@@ -24,6 +24,12 @@ import { Spinner } from "@/components/ui/skeletons"
 /** Max candidates the database ML recommendation engine can score per request. */
 const ML_FETCH_LIMIT = 50
 const PAGE_SIZE = 20
+/**
+ * Where the first sponsored slot lands when the configured gap is larger than
+ * this — keeps ads visible on the first page without turning the feed into an
+ * ad board. Subsequent slots honor the admin's min–max spacing.
+ */
+const FIRST_AD_SLOT = 6
 
 /**
  * Where ephemeral Moment cards get interleaved into the For You stream
@@ -129,11 +135,16 @@ export function LoopFeed({
   ])
 
   // --- Admin-controlled ads: server decides eligibility, the client only
-  // places the cards. Frequency is randomized once per session (default
-  // one ad every 50–70 organic posts).
+  // places the cards. Pacing is randomized once per session inside the
+  // admin's min–max range ("one ad every N organic posts").
+  //
+  // The first slot is deliberately primed near the top of the feed instead of
+  // at `gap`: with a 50–70 gap the old code only matched index 50+ *within the
+  // currently rendered list*, so on a 20-post page the ad basically never
+  // appeared and the whole ad system looked broken from the admin's side.
   const [feedAds, setFeedAds] = useState<AdData[]>([])
   const [adsEligible, setAdsEligible] = useState(false)
-  const adInsertIndexRef = useRef<number | null>(null)
+  const [adPacing, setAdPacing] = useState<{ first: number; gap: number } | null>(null)
   const adsInitializedRef = useRef(false)
   const sessionIdRef = useRef<string>(
     typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -396,9 +407,13 @@ export function LoopFeed({
         })
         const adsData = await adsRes.json().catch(() => ({ ads: [] }))
         if (!adsData.ads?.length) return
-        // Randomize the gap within the 50–70 range once per session.
-        const gap = 50 + Math.floor(Math.random() * 21)
-        adInsertIndexRef.current = gap
+        // Randomize the gap inside the admin's range once per session, then
+        // bring the first sponsored slot up near the top so the placement is
+        // actually seen (later slots keep the configured spacing).
+        const min = Math.max(1, Number(eligibility.frequencyMin) || 8)
+        const max = Math.max(min, Number(eligibility.frequencyMax) || min)
+        const gap = min + Math.floor(Math.random() * (max - min + 1))
+        setAdPacing({ first: Math.min(gap, FIRST_AD_SLOT), gap })
         setFeedAds(adsData.ads)
         setAdsEligible(true)
       } catch {
@@ -795,8 +810,13 @@ export function LoopFeed({
         )}
       >
         {filteredLoops.map((loop, idx) => {
-          const showAdHere =
-            adsEligible && feedAds.length > 0 && adInsertIndexRef.current !== null && idx === adInsertIndexRef.current
+          const adSlot =
+            adsEligible && feedAds.length > 0 && adPacing && idx >= adPacing.first
+              ? (idx - adPacing.first) / adPacing.gap
+              : null
+          const showAdHere = adSlot !== null && Number.isInteger(adSlot)
+          // Rotate through the live creatives so a rotation of ads actually rotates.
+          const feedAd = showAdHere ? feedAds[Math.floor((adSlot as number) % feedAds.length)] : null
           const slotIndex = MOMENT_SLOTS.indexOf(idx)
           const momentAtSlot = !guestMode && feedType === "personalized" && slotIndex !== -1 ? moments[slotIndex] : null
           const showMomentCompose =
@@ -806,9 +826,9 @@ export function LoopFeed({
             // hairline) so posts don't collide with the divider, while the
             // stream still reads as one continuous river of posts.
             <div key={loop.id} className={viewMode === "stream" ? "py-1.5" : undefined}>
-              {showAdHere && (
+              {feedAd && (
                 <div className="mb-1.5">
-                  <AdCard ad={feedAds[0]} sessionId={sessionIdRef.current} />
+                  <AdCard ad={feedAd} sessionId={sessionIdRef.current} />
                 </div>
               )}
               {momentAtSlot && (
