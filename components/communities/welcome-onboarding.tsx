@@ -82,10 +82,10 @@ export function WelcomeOnboarding({
   return (
     <Dialog open={open} onOpenChange={(o) => !o && save(false)}>
       <DialogContent className="sm:max-w-md overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-cyan-500" />
+        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary to-primary/40" />
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
               <PartyPopper className="h-4 w-4" />
             </span>
             Welcome to {communityName}
@@ -108,12 +108,12 @@ export function WelcomeOnboarding({
                       key={s.id}
                       onClick={() => toggleSpace(Number(s.id))}
                       className={`flex items-center gap-2 rounded-xl border p-2.5 text-left text-xs font-semibold transition ${
-                        on ? "border-indigo-500 bg-indigo-500/10" : "border-border bg-card hover:border-indigo-500/40"
+                        on ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"
                       }`}
                     >
                       <span>{iconForSpace(s.icon)}</span>
                       <span className="min-w-0 flex-1 truncate">{s.name}</span>
-                      {on && <Check className="h-3.5 w-3.5 shrink-0 text-indigo-500" />}
+                      {on && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
                     </button>
                   )
                 })}
@@ -133,7 +133,7 @@ export function WelcomeOnboarding({
                     variant={on ? "default" : "outline"}
                     onClick={() => toggleInterest(i)}
                     className={`cursor-pointer select-none rounded-full px-3 py-1 text-[11px] font-semibold transition ${
-                      on ? "bg-indigo-600 hover:bg-indigo-500" : "hover:border-indigo-500/50 hover:text-indigo-400"
+                      on ? "bg-primary hover:bg-primary/90" : "hover:border-primary/50 hover:text-primary"
                     }`}
                   >
                     {on && <Check className="mr-1 h-3 w-3" />}

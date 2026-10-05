@@ -12,15 +12,17 @@ interface OnboardingWelcomeProps {
   onComplete: (data: { avatar_url: string; bio: string }) => void
 }
 
+// Decorative only — tinted with the active theme's primary so the panel never
+// clashes with a user's chosen theme (forest, sakura, midnight, …).
 const FLOATING_ICONS = [
-  { Icon: TreePine, color: "text-emerald-400" },
-  { Icon: Zap, color: "text-amber-400" },
-  { Icon: Palette, color: "text-violet-400" },
-  { Icon: Music, color: "text-rose-400" },
-  { Icon: Gamepad2, color: "text-cyan-400" },
-  { Icon: CameraIcon, color: "text-sky-400" },
-  { Icon: Star, color: "text-yellow-400" },
-  { Icon: Rocket, color: "text-orange-400" },
+  { Icon: TreePine, color: "text-primary" },
+  { Icon: Zap, color: "text-primary" },
+  { Icon: Palette, color: "text-primary" },
+  { Icon: Music, color: "text-primary" },
+  { Icon: Gamepad2, color: "text-primary" },
+  { Icon: CameraIcon, color: "text-primary" },
+  { Icon: Star, color: "text-primary" },
+  { Icon: Rocket, color: "text-primary" },
 ]
 
 export function OnboardingWelcome({ onComplete }: OnboardingWelcomeProps) {
@@ -86,15 +88,15 @@ export function OnboardingWelcome({ onComplete }: OnboardingWelcomeProps) {
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="relative z-10"
       >
-        <div className="landing-card-3d border-border bg-card/90 backdrop-blur-xl rounded-3xl shadow-2xl shadow-violet-950/10 overflow-hidden">
-          {/* Gradient header */}
-          <div className="relative h-32 bg-gradient-to-r from-violet-600 via-purple-600 to-cyan-500 flex items-center justify-center">
+        <div className="landing-card-3d border-border bg-card/90 backdrop-blur-xl rounded-3xl shadow-2xl shadow-foreground/5 overflow-hidden">
+          {/* Themed header — built from the app's primary token, not a fixed palette. */}
+          <div className="relative h-32 bg-gradient-to-br from-primary via-primary/80 to-primary/60 flex items-center justify-center">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
             >
-              <TreePine className="text-white w-16 h-16 drop-shadow-lg" />
+              <TreePine className="text-primary-foreground w-16 h-16 drop-shadow-lg" />
             </motion.div>
             {/* Sparkle effects */}
             <motion.div
@@ -102,14 +104,14 @@ export function OnboardingWelcome({ onComplete }: OnboardingWelcomeProps) {
               animate={{ rotate: 360 }}
               transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
             >
-              <Star className="text-white/40 h-6 w-6" />
+              <Star className="text-primary-foreground/40 h-6 w-6" />
             </motion.div>
             <motion.div
               className="absolute bottom-4 left-8"
               animate={{ rotate: -360 }}
               transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
             >
-              <Star className="text-white/30 h-4 w-4" />
+              <Star className="text-primary-foreground/30 h-4 w-4" />
             </motion.div>
           </div>
 
@@ -190,7 +192,7 @@ export function OnboardingWelcome({ onComplete }: OnboardingWelcomeProps) {
                 >
                   <Button
                     onClick={() => onComplete({ avatar_url: avatarUrl, bio })}
-                    className="w-full rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white font-semibold py-6 text-base tap-feedback"
+                    className="w-full rounded-full bg-primary text-primary-foreground font-semibold py-6 text-base tap-feedback"
                     size="lg"
                   >
                     Continue <ArrowRight className="w-4 h-4 ml-2" />
