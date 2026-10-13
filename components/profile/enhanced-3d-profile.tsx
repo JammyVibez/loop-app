@@ -23,6 +23,7 @@ import { supabase } from "@/lib/supabase"
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { VideoCover } from "@/components/cosmetics/video-cover"
+import { ImageCropDialog } from "@/components/ui/image-crop-dialog"
 import { ProfileBanner3D } from "@/components/profile/profile-banner-3d"
 import { cosmeticsFromInventory, fontStyle, type ActiveCosmetics } from "@/lib/cosmetics"
 import { ensureCosmeticFonts } from "@/lib/cosmetic-fonts"
@@ -127,6 +128,8 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const [isPrivateProfile, setIsPrivateProfile] = useState(false)
   const [canViewFull, setCanViewFull] = useState(true)
   const [uploadingCover, setUploadingCover] = useState(false)
+  // Cover picked from the file dialog, waiting to be framed in the cropper.
+  const [coverCrop, setCoverCrop] = useState<File | null>(null)
   const [showGiftModal, setShowGiftModal] = useState(false)
   // Tapping the profile photo or cover opens it full-screen (zoom / swipe).
   const [photoViewer, setPhotoViewer] = useState<{
@@ -363,9 +366,21 @@ export function Enhanced3DProfile({ username }: { username: string }) {
     }
   }
 
-  const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
+    // Reset first so re-picking the same file still fires onChange.
+    event.target.value = ""
     if (!file || !user) return
+    // Videos and animated GIFs keep their frames — everything else is cropped.
+    if (file.type.startsWith("image/") && file.type !== "image/gif" && file.type !== "image/svg+xml") {
+      setCoverCrop(file)
+      return
+    }
+    void uploadCover(file)
+  }
+
+  const uploadCover = async (file: File) => {
+    if (!user) return
     setUploadingCover(true)
     try {
       const uploaded = await uploadMediaFile(file, {
@@ -388,7 +403,6 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       toast({ title: "Cover upload failed", description: error.message, variant: "destructive" })
     } finally {
       setUploadingCover(false)
-      event.target.value = ""
     }
   }
 
@@ -448,7 +462,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
+          {/* No gap: the badge sits tight against the name (a space between them
+              read as a typo in the name). */}
+          <div className="flex items-center gap-0">
             <h1 className="truncate text-base font-bold leading-tight sm:text-lg">{displayName}</h1>
             <UserBadges
               is_verified={profile.is_verified}
@@ -660,21 +676,24 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         <div className="mt-3 space-y-3">
           <div>
             <div className="flex flex-wrap items-center gap-1.5">
-              <h2 className="text-xl font-extrabold tracking-tight" style={fontStyle(cosmetics.font)}>
-                {displayName}
-              </h2>
-              <UserBadges
-                is_verified={profile.is_verified}
-                is_team_member={profile.is_team_member}
-                is_sponsor={profile.is_sponsor}
-                is_organization={profile.is_organization}
-                organization_badge_url={profile.organization_badge_url}
-                organization_name={profile.organization_name}
-                badge={profileBadge}
-                username={profile.username}
-                showText={true}
-                size="md"
-              />
+              {/* Badge group hugs the name — the gap only separates the PRO chip. */}
+              <div className="flex items-center gap-0">
+                <h2 className="text-xl font-extrabold tracking-tight" style={fontStyle(cosmetics.font)}>
+                  {displayName}
+                </h2>
+                <UserBadges
+                  is_verified={profile.is_verified}
+                  is_team_member={profile.is_team_member}
+                  is_sponsor={profile.is_sponsor}
+                  is_organization={profile.is_organization}
+                  organization_badge_url={profile.organization_badge_url}
+                  organization_name={profile.organization_name}
+                  badge={profileBadge}
+                  username={profile.username}
+                  showText={true}
+                  size="md"
+                />
+              </div>
               {profile.is_premium && (
                 <Badge className="rounded-full border-0 bg-amber-400/20 text-amber-300">PRO</Badge>
               )}
@@ -1120,6 +1139,22 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           context={{ type: "profile", id: profile.id, title: profile.display_name }}
         />
       )}
+
+      {/* Frame a freshly picked cover before uploading it. */}
+      <ImageCropDialog
+        open={Boolean(coverCrop)}
+        file={coverCrop}
+        aspect={3}
+        outputWidth={1500}
+        busy={uploadingCover}
+        title="Crop your cover photo"
+        description="Drag and zoom to choose what shows behind your profile picture."
+        onCancel={() => setCoverCrop(null)}
+        onConfirm={async (file) => {
+          setCoverCrop(null)
+          await uploadCover(file)
+        }}
+      />
 
       {/* Tap the profile photo or cover → full-screen viewer (pinch/double-tap
           zoom, swipe, Escape to close) reusing the app's media viewer. */}

@@ -58,6 +58,7 @@ import { AccessibilitySettings } from "@/components/settings/accessibility-setti
 import { AccountSettings } from "@/components/settings/account-settings"
 import { VerificationSettings } from "@/components/settings/verification-settings"
 import { VideoMediaSettings } from "@/components/cosmetics/video-media-settings"
+import { ImageCropDialog } from "@/components/ui/image-crop-dialog"
 import { AccountSwitcher } from "@/components/accounts/account-switcher"
 import { cn } from "@/lib/utils"
 
@@ -81,6 +82,9 @@ export function EnhancedSettings() {
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
+  // Files waiting in the cropper — an avatar (1:1 circle) or a banner (3:1).
+  const [avatarCrop, setAvatarCrop] = useState<File | null>(null)
+  const [coverCrop, setCoverCrop] = useState<File | null>(null)
   const [pushBusy, setPushBusy] = useState(false)
   const [testPushBusy, setTestPushBusy] = useState(false)
   const [pushPermission, setPushPermission] = useState<NotificationPermission | "unsupported">("default")
@@ -341,8 +345,14 @@ export function EnhancedSettings() {
     }
   }
 
-  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  /** Static raster images get the cropper; GIFs and videos keep their frames. */
+  const canCropImage = (file: File) =>
+    file.type.startsWith("image/") && file.type !== "image/gif" && file.type !== "image/svg+xml"
+
+  const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
+    // Reset first so re-picking the same file still fires onChange.
+    event.target.value = ""
     if (!file || !user) return
     // Animated GIF avatars are a Pro-only perk — friendly guard before upload.
     if (file.type === "image/gif" && !user.is_premium) {
@@ -351,9 +361,17 @@ export function EnhancedSettings() {
         description: "Upgrade to Pro to use an animated profile picture. Static images work for everyone.",
         variant: "destructive",
       })
-      event.target.value = ""
       return
     }
+    if (canCropImage(file)) {
+      setAvatarCrop(file)
+      return
+    }
+    void uploadAvatar(file)
+  }
+
+  const uploadAvatar = async (file: File) => {
+    if (!user) return
     setUploading(true)
     try {
       // Phone camera photos routinely exceed Vercel's ~4.5MB request body
@@ -378,12 +396,13 @@ export function EnhancedSettings() {
       toast({ title: "Avatar upload failed", description: error.message, variant: "destructive" })
     } finally {
       setUploading(false)
-      event.target.value = ""
     }
   }
 
-  const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
+    // Reset first so re-picking the same file still fires onChange.
+    event.target.value = ""
     if (!file || !user) return
     // Animated GIF covers are a Pro-only perk — friendly guard before upload.
     if (file.type === "image/gif" && !user.is_premium) {
@@ -392,9 +411,17 @@ export function EnhancedSettings() {
         description: "Upgrade to Pro to use an animated cover photo. Static images work for everyone.",
         variant: "destructive",
       })
-      event.target.value = ""
       return
     }
+    if (canCropImage(file)) {
+      setCoverCrop(file)
+      return
+    }
+    void uploadCover(file)
+  }
+
+  const uploadCover = async (file: File) => {
+    if (!user) return
     setUploadingCover(true)
     try {
       const uploaded = await uploadMediaFile(file, {
@@ -416,7 +443,6 @@ export function EnhancedSettings() {
       toast({ title: "Cover upload failed", description: error.message, variant: "destructive" })
     } finally {
       setUploadingCover(false)
-      event.target.value = ""
     }
   }
 
@@ -532,7 +558,9 @@ export function EnhancedSettings() {
                     <AvatarFallback>{formData.display_name.charAt(0) || "U"}</AvatarFallback>
                   </Avatar>
                   <Button
+                    type="button"
                     size="icon"
+                    aria-label="Change profile picture"
                     className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full"
                     disabled={uploading}
                     onClick={() => document.getElementById("avatar-upload")?.click()}
@@ -555,7 +583,7 @@ export function EnhancedSettings() {
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground">@{formData.username}</p>
-                  <p className="text-xs text-muted-foreground">JPG, PNG, or animated GIF</p>
+                  <p className="text-xs text-muted-foreground">JPG, PNG, or animated GIF — you can crop it before saving</p>
                   {uploading && <p className="text-xs text-muted-foreground">Uploading avatar…</p>}
                 </div>
               </div>
@@ -572,8 +600,10 @@ export function EnhancedSettings() {
                     </div>
                   )}
                   <Button
+                    type="button"
                     size="sm"
                     variant="secondary"
+                    aria-label="Change cover photo"
                     className="absolute bottom-2 right-2 rounded-full"
                     disabled={uploadingCover}
                     onClick={() => document.getElementById("cover-upload")?.click()}
@@ -583,7 +613,7 @@ export function EnhancedSettings() {
                   </Button>
                   <input id="cover-upload" type="file" accept="image/*,.gif,image/gif" className="hidden" onChange={handleCoverUpload} />
                 </div>
-                <p className="text-xs text-muted-foreground">Supports animated GIFs for cover photos.</p>
+                <p className="text-xs text-muted-foreground">Crop it before saving. Animated GIF covers are Pro-only.</p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -1108,12 +1138,48 @@ export function EnhancedSettings() {
         </TabsContent>
       </Tabs>
 
-      <div className="sticky bottom-20 z-20 flex justify-end gap-2 rounded-2xl border border-border bg-background/90 p-3 shadow-lg backdrop-blur lg:bottom-4">
-        <Button onClick={saveSettings} disabled={loading} className="rounded-full px-6">
+      {/* Save bar — full-width sticky footer inside the form column. It used to
+          be a floating rounded pill that overlapped the card behind it. */}
+      <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex items-center gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur lg:bottom-4 lg:mx-0 lg:rounded-2xl lg:border lg:shadow-lg">
+        <p className="hidden text-xs text-muted-foreground sm:block">
+          Applies to your profile, privacy and alerts.
+        </p>
+        <Button onClick={saveSettings} disabled={loading} className="ml-auto rounded-full px-6">
           <Save className="mr-2 h-4 w-4" />
           {loading ? "Saving…" : "Save changes"}
         </Button>
       </div>
+
+      <ImageCropDialog
+        open={Boolean(avatarCrop)}
+        file={avatarCrop}
+        aspect={1}
+        shape="circle"
+        outputWidth={512}
+        busy={uploading}
+        title="Crop your profile picture"
+        description="Drag and zoom so your face fills the circle — this is what people will see."
+        onCancel={() => setAvatarCrop(null)}
+        onConfirm={async (file) => {
+          setAvatarCrop(null)
+          await uploadAvatar(file)
+        }}
+      />
+
+      <ImageCropDialog
+        open={Boolean(coverCrop)}
+        file={coverCrop}
+        aspect={3}
+        outputWidth={1500}
+        busy={uploadingCover}
+        title="Crop your cover photo"
+        description="Drag and zoom to choose what shows behind your profile picture."
+        onCancel={() => setCoverCrop(null)}
+        onConfirm={async (file) => {
+          setCoverCrop(null)
+          await uploadCover(file)
+        }}
+      />
     </div>
   )
 }
