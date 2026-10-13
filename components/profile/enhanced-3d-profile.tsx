@@ -456,8 +456,13 @@ export function Enhanced3DProfile({ username }: { username: string }) {
 
   return (
     <div className="mx-auto w-full max-w-6xl bg-background min-h-screen">
-      {/* Sticky top bar — sit below site Header (h-16) so content doesn't bleed through */}
-      <div className="sticky top-16 z-30 flex items-center gap-3 border-b border-border bg-background px-3 py-2 sm:gap-4">
+      {/* Sticky top bar — sits under the site Header (h-16) and floats over the
+          cover rather than pushing it down. An opaque bar in normal flow left a
+          dead black band above the banner on mobile; -mb-14 cancels the h-14
+          height exactly, so the cover starts right below the header and the bar
+          is drawn on top of it. Translucent + blurred so it still reads over
+          both the cover and page content. */}
+      <div className="sticky top-16 z-30 -mb-14 flex h-14 items-center gap-3 border-b border-border bg-background/75 px-3 backdrop-blur-md sm:gap-4">
         <Link href="/" className="rounded-full p-2 hover:bg-muted">
           <ArrowLeft className="h-5 w-5" />
         </Link>
@@ -517,7 +522,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         src={profile.banner_url}
         videoSrc={(profile as any).video_cover_url || null}
         alt="Cover photo"
-        height="h-36 sm:h-56 lg:h-64 lg:rounded-2xl"
+        height="h-44 sm:h-64 lg:h-80 lg:rounded-2xl"
         className=""
       />
       </div>
@@ -695,7 +700,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 />
               </div>
               {profile.is_premium && (
-                <Badge className="rounded-full border-0 bg-amber-400/20 text-amber-300">PRO</Badge>
+                <Badge className="rounded-full border-0 bg-amber-400/15 px-1.5 py-0 text-[10px] font-bold leading-4 tracking-wide text-amber-300">
+                  PRO
+                </Badge>
               )}
             </div>
             <p className="text-muted-foreground">@{profile.username}</p>

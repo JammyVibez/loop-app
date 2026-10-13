@@ -325,18 +325,21 @@ export function VerifiedSeal({
       className={cn("relative inline-flex shrink-0 align-[-3px]", className)}
       style={{ width: size, height: size }}
     >
-      {/* Soft glow halo — behind the badge, theme-aware opacity */}
+      {/* Soft glow halo — behind the badge, theme-aware opacity.
+          Kept deliberately low: the previous 70% opacity + 5px blur bloomed
+          into a bright blob on small seals, which is what "over-glowing" was.
+          Enough to lift the seal off the background, not enough to glow. */}
       <span
         aria-hidden
         className={cn(
-          "pointer-events-none absolute inset-0 rounded-full blur-[5px]",
+          "pointer-events-none absolute inset-0 rounded-full blur-[3px]",
           !isStatic && "animate-[seal-glow_3.2s_ease-in-out_infinite]",
         )}
         style={{
           background: solid
-            ? `radial-gradient(circle, ${solid}55 55%, transparent 100%)`
-            : `radial-gradient(circle, ${from}${isDark ? "66" : "44"} 55%, transparent 100%)`,
-          opacity: isDark ? 0.7 : 0.55,
+            ? `radial-gradient(circle, ${solid}33 55%, transparent 100%)`
+            : `radial-gradient(circle, ${from}${isDark ? "33" : "22"} 55%, transparent 100%)`,
+          opacity: isDark ? 0.34 : 0.3,
         }}
       />
 
@@ -377,7 +380,7 @@ export function VerifiedSeal({
       {/* Light sweep shimmer (skipped when static) */}
       {!isStatic && (
         <span aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-full">
-          <span className="absolute inset-y-0 -left-full w-1/2 animate-[seal-shimmer_4.5s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/55 to-transparent" />
+          <span className="absolute inset-y-0 -left-full w-1/2 animate-[seal-shimmer_4.5s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/25 to-transparent" />
         </span>
       )}
 
