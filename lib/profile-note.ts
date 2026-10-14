@@ -139,3 +139,24 @@ export function surfaceLabel(surface: NoteSurface): string {
       return "In communities"
   }
 }
+
+/**
+ * Whether a viewer may see a note that lives on a profile page.
+ *
+ * The note sits under the bio, so a profile that hides its bio from strangers
+ * must hide its note too — otherwise the privacy setting quietly stops
+ * meaning anything. The owner and accepted followers always see it; a public
+ * profile shows it to everyone, because that is what the author chose.
+ */
+export function canViewProfileNote(options: {
+  visibility?: string | null
+  viewerId?: string | null
+  ownerId?: string | null
+  isFollower?: boolean
+}): boolean {
+  const { visibility, viewerId, ownerId, isFollower } = options
+  const isRestricted = visibility === "private" || visibility === "followers"
+  if (!isRestricted) return true
+  if (viewerId && ownerId && viewerId === ownerId) return true
+  return Boolean(isFollower)
+}

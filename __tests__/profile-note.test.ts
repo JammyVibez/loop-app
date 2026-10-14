@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest"
 import {
   NOTE_MAX_LENGTH,
   NOTE_TTL_HOURS,
+  canViewProfileNote,
   isNoteLengthValid,
   isNoteLive,
   noteExpiryFrom,
@@ -162,5 +163,27 @@ describe("visibility", () => {
     expect(surfaceLabel("profile")).toBe("On my profile")
     expect(surfaceLabel("posts")).toBe("On my posts")
     expect(surfaceLabel("communities")).toBe("In communities")
+  })
+})
+
+describe("privacy", () => {
+  const owner = "owner-1"
+
+  it("shows a public profile's note to everyone", () => {
+    expect(canViewProfileNote({ visibility: "public", ownerId: owner })).toBe(true)
+    expect(canViewProfileNote({ visibility: undefined, ownerId: owner })).toBe(true)
+  })
+
+  it("hides a private profile's note from strangers", () => {
+    expect(canViewProfileNote({ visibility: "private", ownerId: owner, viewerId: "visitor" })).toBe(false)
+    expect(canViewProfileNote({ visibility: "private", ownerId: owner, viewerId: null })).toBe(false)
+  })
+
+  it("hides a followers-only note from non-followers, but not from followers or the owner", () => {
+    expect(canViewProfileNote({ visibility: "followers", ownerId: owner, viewerId: "stranger" })).toBe(false)
+    expect(
+      canViewProfileNote({ visibility: "followers", ownerId: owner, viewerId: "fan", isFollower: true }),
+    ).toBe(true)
+    expect(canViewProfileNote({ visibility: "followers", ownerId: owner, viewerId: owner })).toBe(true)
   })
 })

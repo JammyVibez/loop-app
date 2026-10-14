@@ -5,6 +5,7 @@ import {
   NOTE_SURFACES,
   type NoteSurface,
   type NoteVisibility,
+  canViewProfileNote,
   isNoteLengthValid,
   sanitizeNoteText,
   surfaceColumn,
@@ -50,10 +51,40 @@ async function handleGet(request: NextRequest) {
   } else if (username) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, privacy_settings")
       .eq("username", username)
       .maybeSingle()
     if (!profile?.id) return NextResponse.json({ note: null, notes: [] })
+
+    // A private or followers-only profile hides its bio from strangers, so it
+    // must hide its note too — the note sits on the same page, and leaking it
+    // would undercut the privacy setting it is supposed to respect.
+    const visibility = (profile as any)?.privacy_settings?.profile_visibility
+    if (visibility === "private" || visibility === "followers") {
+      const viewer = await getUserFromRequest(request)
+      const isOwner = Boolean(viewer && viewer.id === profile.id)
+      const isFollower =
+        viewer && !isOwner
+          ? Boolean(
+              (
+                await supabase
+                  .from("follows")
+                  .select("id")
+                  .eq("follower_id", viewer.id)
+                  .eq("following_id", profile.id)
+                  .maybeSingle()
+              ).data,
+            )
+          : false
+      const allowed = canViewProfileNote({
+        visibility,
+        viewerId: viewer?.id || null,
+        ownerId: String(profile.id),
+        isFollower,
+      })
+      if (!allowed) return NextResponse.json({ note: null, notes: [] })
+    }
+
     userIds = [String(profile.id)]
   } else {
     return NextResponse.json({ error: "user_id, username or user_ids is required" }, { status: 400 })
