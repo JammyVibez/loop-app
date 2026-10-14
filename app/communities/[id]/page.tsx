@@ -3,6 +3,7 @@ import { Header } from "@/components/header"
 import { CommunityWorld } from "@/components/communities/community-world"
 import { createClient } from "@/lib/supabase"
 import { getAbsoluteAppUrl } from "@/lib/app-url"
+import { buildOgMetadata } from "@/lib/og/metadata"
 
 export const dynamic = "force-dynamic"
 
@@ -22,6 +23,8 @@ export async function generateMetadata({ params }: CommunityPageProps): Promise<
   let title = "Community — Loop Social OS"
   let description = "Join a community on Loop Social OS, build together, and watch it evolve."
   let avatarUrl = ""
+  let bannerUrl = ""
+  let communityName = ""
   let category = ""
   let isPrivate = false
   let isVerified = false
@@ -31,7 +34,7 @@ export async function generateMetadata({ params }: CommunityPageProps): Promise<
     const [{ data: circle }, { count }] = await Promise.all([
       supabase
         .from("circles")
-        .select("name, description, avatar_url, category, is_private, is_verified")
+        .select("name, description, avatar_url, banner_url, category, is_private, is_verified")
         .eq("id", id)
         .single(),
       supabase
@@ -45,6 +48,8 @@ export async function generateMetadata({ params }: CommunityPageProps): Promise<
       title = `${circle.name} — Community on Loop`
       if (circle.description) description = circle.description.slice(0, 160)
       avatarUrl = circle.avatar_url || ""
+      communityName = circle.name || ""
+      bannerUrl = (circle as any).banner_url || ""
       category = circle.category || ""
       isPrivate = Boolean(circle.is_private)
       isVerified = Boolean(circle.is_verified)
@@ -54,54 +59,24 @@ export async function generateMetadata({ params }: CommunityPageProps): Promise<
     console.error("Error generating community metadata:", err)
   }
 
-  const ogParams = new URLSearchParams({ type: "community", id, title, description })
-  if (avatarUrl) ogParams.set("avatar", avatarUrl)
-  if (category) ogParams.set("category", category)
-  if (isPrivate) ogParams.set("is_private", "true")
-  if (isVerified) ogParams.set("verified", "true")
-  if (memberCount > 0) {
-    ogParams.set("stat", memberCount.toLocaleString())
-    ogParams.set("stat_label", memberCount === 1 ? "member" : "members")
-  }
-  const ogImageUrl = `${baseUrl}/api/og?${ogParams.toString()}`
-
-  return {
+  return buildOgMetadata({
+    baseUrl,
+    path: `/communities/${id}`,
+    type: "community",
     title,
     description,
-    metadataBase: new URL(baseUrl),
-    alternates: {
-      canonical: `${baseUrl}/communities/${id}`,
+    params: {
+      name: communityName,
+      avatar: avatarUrl,
+      media: bannerUrl,
+      category,
+      is_private: isPrivate,
+      verified: isVerified,
+      stat: memberCount || undefined,
+      stat_label: memberCount === 1 ? "member" : "members",
+      url: `loopapp.me/communities/${id}`,
     },
-    openGraph: {
-      title,
-      description,
-      url: `${baseUrl}/communities/${id}`,
-      type: "website",
-      images: [
-        {
-          url: ogImageUrl,
-          width: 1200,
-          height: 630,
-          type: "image/png",
-          alt: title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [
-        {
-          url: ogImageUrl,
-          width: 1200,
-          height: 630,
-          type: "image/png",
-          alt: title,
-        },
-      ],
-    },
-  }
+  })
 }
 
 export default async function CommunityWorldPage({ params }: { params: Promise<{ id: string }> }) {

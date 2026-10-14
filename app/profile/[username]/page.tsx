@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase"
 import { getAbsoluteAppUrl } from "@/lib/app-url"
 import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
 import { profileStatus } from "@/lib/user-status"
+import { buildOgMetadata } from "@/lib/og/metadata"
 
 export const dynamic = "force-dynamic"
 
@@ -26,6 +27,7 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
   let avatarUrl = ""
   let isVerified = false
   let followersCount = 0
+  let displayName = ""
 
   try {
     const { data: profile } = await supabase
@@ -47,6 +49,7 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
 
     if (profile) {
       const name = profile.display_name || username
+      displayName = name
       title = `${name} (@${username}) — Profile`
       if (profile.bio) description = stripCircleBioTokens(profile.bio).slice(0, 160)
       avatarUrl = profile.avatar_url || ""
@@ -57,51 +60,23 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
     console.error("Error generating profile metadata:", err)
   }
 
-  const ogParams = new URLSearchParams({ type: "profile", title, description, username })
-  if (avatarUrl) ogParams.set("avatar", avatarUrl)
-  if (isVerified) ogParams.set("verified", "true")
-  if (followersCount > 0) {
-    ogParams.set("stat", followersCount.toLocaleString())
-    ogParams.set("stat_label", followersCount === 1 ? "follower" : "followers")
-  }
-  const ogImageUrl = `${baseUrl}/api/og?${ogParams.toString()}`
-
-  return {
+  return buildOgMetadata({
+    baseUrl,
+    path: `/profile/${username}`,
+    type: "profile",
     title,
     description,
-    metadataBase: new URL(baseUrl),
-    alternates: {
-      canonical: `${baseUrl}/profile/${username}`,
+    ogType: "profile",
+    params: {
+      name: displayName,
+      username,
+      avatar: avatarUrl,
+      verified: isVerified,
+      stat: followersCount || undefined,
+      stat_label: followersCount === 1 ? "follower" : "followers",
+      url: `loopapp.me/profile/${username}`,
     },
-    openGraph: {
-      title,
-      description,
-      url: `${baseUrl}/profile/${username}`,
-      type: "profile",
-      images: [
-        {
-          url: ogImageUrl,
-          width: 1200,
-          height: 630,
-          type: "image/png",
-          alt: title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [
-        {
-          url: ogImageUrl,
-          width: 1200,
-          height: 630,
-          alt: title,
-        },
-      ],
-    },
-  }
+  })
 }
 
 export default async function ProfilePage({ params }: ProfilePageProps) {

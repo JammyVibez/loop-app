@@ -2,6 +2,7 @@ import { Metadata } from "next"
 import { LoopDetailClient } from "@/components/loops/loop-detail-client"
 import { createClient } from "@/lib/supabase"
 import { getAbsoluteAppUrl } from "@/lib/app-url"
+import { buildOgMetadata, personParam } from "@/lib/og/metadata"
 
 export const dynamic = "force-dynamic"
 
@@ -32,12 +33,17 @@ export async function generateMetadata({
   let postBody = ""
   let badgeLabel = ""
   let badgeColors: string[] = []
+  let mediaUrl = ""
+  let kicker = "Post"
+  // Posts limited to a circle audience never publish text, media or stats to
+  // a public preview — the crawler only ever sees the branded fallback.
+  let isRestricted = false
 
   try {
     const { data: loop } = await supabase
       .from("loops")
       .select(
-        "content_title, content, author_id, content_type, content_metadata, created_at, loop_stats(likes_count), profiles(username, display_name, avatar_url, is_verified, is_premium, badge_id)",
+        "content_title, content, author_id, content_type, content_metadata, created_at, media_url, media_type, visibility, loop_stats(likes_count), profiles(username, display_name, avatar_url, is_verified, is_premium, badge_id)",
       )
       .eq("id", id)
       .single()
@@ -51,6 +57,9 @@ export async function generateMetadata({
       likeCount = Number((loop as any)?.loop_stats?.likes_count || 0)
       createdAt = (loop as any)?.created_at || ""
       postBody = String(loop.content || "").slice(0, 480)
+      mediaUrl = String((loop as any).media_url || "")
+      const visibility = String((loop as any).visibility || "public")
+      isRestricted = visibility !== "public"
 
       // Custom verification mark (admin badge) — resolved so the share card can
       // paint it next to the standard verified / PRO badges.
@@ -80,6 +89,7 @@ export async function generateMetadata({
         (loop as any)?.content_type === "code" ||
         Boolean((loop as any)?.content_metadata?.is_code) ||
         (loop as any)?.media_type === "code"
+      kicker = isCodeLoop ? "Code" : "Post"
       title = `${loop.content_title || loop.content.slice(0, 50)} by @${authorName}`
       description = loop.content.slice(0, 160)
     }
@@ -87,69 +97,73 @@ export async function generateMetadata({
     console.error("Error generating metadata for loop:", err)
   }
 
-  const ogParams = new URLSearchParams({
-    type: isCodeLoop ? "developer" : "loop",
-    id,
-    title,
-    description,
-    username,
-  })
-  if (avatarUrl) ogParams.set("avatar", avatarUrl)
-  if (authorName) ogParams.set("name", authorName)
-  if (postBody) ogParams.set("body", postBody)
-  if (createdAt) {
-    const d = new Date(createdAt)
-    if (!Number.isNaN(d.getTime())) {
-      ogParams.set("date", d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }))
+  // A duel lives inside its loop, so the share card has to recognise the
+  // debate and render the two sides instead of a generic post.
+  let duelPrompt = ""
+  let side1: string | undefined
+  let side2: string | undefined
+  if (!isRestricted) {
+    try {
+      const { data: duel } = await supabase
+        .from("loop_duels")
+        .select(
+          "prompt, creator:profiles!creator_id(display_name, username, avatar_url), opponent:profiles!opponent_id(display_name, username, avatar_url)",
+        )
+        .eq("loop_id", id)
+        .maybeSingle()
+      if (duel) {
+        const creator = Array.isArray((duel as any).creator) ? (duel as any).creator[0] : (duel as any).creator
+        const opponent = Array.isArray((duel as any).opponent) ? (duel as any).opponent[0] : (duel as any).opponent
+        duelPrompt = String((duel as any).prompt || "")
+        side1 = personParam(creator?.display_name || creator?.username, creator?.avatar_url)
+        side2 = personParam(opponent?.display_name || opponent?.username, opponent?.avatar_url)
+      }
+    } catch (err) {
+      console.error("Error loading duel for loop metadata:", err)
     }
   }
-  if (badgeLabel) ogParams.set("badge_label", badgeLabel)
-  if (badgeColors[0]) ogParams.set("badge_color", badgeColors[0])
-  if (badgeColors[1]) ogParams.set("badge_color2", badgeColors[1])
-  if (isPremium) ogParams.set("premium", "true")
-  if (isVerified) ogParams.set("verified", "true")
-  if (likeCount > 0) {
-    ogParams.set("stat", likeCount.toLocaleString())
-    ogParams.set("stat_label", likeCount === 1 ? "like" : "likes")
-  }
-  const ogImageUrl = `${baseUrl}/api/og?${ogParams.toString()}`
 
-  return {
-    title,
-    description,
-    metadataBase: new URL(baseUrl),
-    alternates: {
-      canonical: `${baseUrl}/loop/${id}`,
+  const type = duelPrompt ? "duel" : isCodeLoop ? "developer" : "post"
+  const shownTitle = duelPrompt ? duelPrompt : title
+  const shownDescription = isRestricted
+    ? "This post is only visible to its audience on Loop."
+    : duelPrompt
+      ? "Two sides, one public vote. Open the duel on Loop."
+      : description
+
+  return buildOgMetadata({
+    baseUrl,
+    path: `/loop/${id}`,
+    type,
+    title: shownTitle,
+    description: shownDescription,
+    ogType: "article",
+    params: {
+      // Restricted posts publish nothing but the branded fallback card.
+      name: isRestricted ? "" : authorName,
+      username: isRestricted ? "" : username,
+      avatar: isRestricted ? "" : avatarUrl,
+      body: isRestricted ? "" : postBody,
+      media: isRestricted ? "" : mediaUrl,
+      category: isRestricted ? "" : kicker,
+      date: createdAt && !isRestricted ? formatOgDate(createdAt) : "",
+      verified: !isRestricted && isVerified,
+      premium: !isRestricted && isPremium,
+      badge_color: badgeColors[0],
+      badge_color2: badgeColors[1],
+      stat: !isRestricted && likeCount > 0 ? likeCount : undefined,
+      stat_label: likeCount === 1 ? "like" : "likes",
+      side1,
+      side2,
+      url: `loopapp.me/loop/${id}`,
     },
-    openGraph: {
-      title,
-      description,
-      url: `${baseUrl}/loop/${id}`,
-      type: "article",
-      images: [
-        {
-          url: ogImageUrl,
-          width: 1200,
-          height: 630,
-          type: "image/png",
-          alt: title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [
-        {
-          url: ogImageUrl,
-          width: 1200,
-          height: 630,
-          alt: title,
-        },
-      ],
-    },
-  }
+  })
+}
+
+function formatOgDate(value: string): string {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ""
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 }
 
 export default async function LoopPage({ params }: { params: Promise<{ id: string }> }) {

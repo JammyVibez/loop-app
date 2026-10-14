@@ -60,7 +60,13 @@ export const generateViewport = (): Viewport => ({
 const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://loopapp.me").replace(/\/$/, "")
 const defaultOgTitle = "Loop — Build Together, Not Just Post Into The Void"
 const defaultOgDesc = "Loop is the collaborative social network where you co-write posts live with friends, settle debates in public Duels, build communities in Circles, and earn rewards for being active. Free to join."
-const defaultOgImage = `${siteUrl}/icons/icon-512x512.png`
+// Every share of the site root gets the designed 1200x630 home card instead
+// of the square app icon (which crawlers cropped or letterboxed).
+const defaultOgImage = `${siteUrl}/api/og?${new URLSearchParams({
+  type: "home",
+  title: defaultOgTitle,
+  description: defaultOgDesc,
+}).toString()}`
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -110,15 +116,15 @@ export const metadata: Metadata = {
     images: [
       {
         url: defaultOgImage,
-        width: 512,
-        height: 512,
+        width: 1200,
+        height: 630,
         type: "image/png",
         alt: "Loop — loopapp.me",
       },
     ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "loopapp.me - Next-Gen Collaborative Social OS",
     description: "Connect, create, and collaborate in the loopapp.me ecosystem with live streams, real-time co-loops, and interactive circles.",
     creator: "@loopappme",
