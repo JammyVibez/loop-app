@@ -1,11 +1,31 @@
 import Link from "next/link"
+import type { Metadata } from "next"
 import { Header } from "@/components/header"
 import { DiscoverCommunities } from "@/components/communities/discover-communities"
 import { AdSlot } from "@/components/ads/ad-slot"
 import { Globe2, Plus, Users, Flame } from "lucide-react"
 import { createClient } from "@/lib/supabase"
+import { getAbsoluteAppUrl } from "@/lib/app-url"
+import { buildOgMetadata } from "@/lib/og/metadata"
 
 export const dynamic = "force-dynamic"
+
+const SEO_TITLE = "Communities on Loop — worlds people build together"
+const SEO_DESCRIPTION =
+  "Find a community to join on Loop: circles with their own spaces, projects, challenges and memory. Post together, build something that outlives a thread."
+
+// The index page inherits the site-default card, which says nothing about
+// communities. Give it its own so a share of /communities looks intentional.
+export async function generateMetadata(): Promise<Metadata> {
+  return buildOgMetadata({
+    baseUrl: await getAbsoluteAppUrl(),
+    path: "/communities",
+    type: "community",
+    title: SEO_TITLE,
+    description: SEO_DESCRIPTION,
+    params: { name: "Communities", category: "Circles", url: "/communities" },
+  })
+}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
