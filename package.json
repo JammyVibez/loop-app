@@ -14,7 +14,8 @@
     "verify": "tsc --noEmit && vitest run",
     "db:setup:production": "node scripts/run-production-setup.mjs",
     "db:setup:production:seed": "node scripts/run-production-setup.mjs --with-seed",
-    "db:apply:pending": "node scripts/apply-pending-schema.mjs"
+    "db:apply:pending": "node scripts/apply-pending-schema.mjs",
+    "check:og": "node scripts/check-og.mjs"
   },
   "dependencies": {
     "@100mslive/react-sdk": "^0.12.7",

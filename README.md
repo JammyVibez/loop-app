@@ -76,6 +76,30 @@ npm run build   # produces .next/ output
 npm start       # starts production server
 ```
 
+Pushes to `main` are picked up by the VPS every minute (`loop-autodeploy.timer`,
+`/var/loop/deploy-production.sh`): fetch → install → build → `pm2 restart
+loop-app` → health check → share-card check.
+
+## Share Cards (OG Images)
+
+Every shareable page points at `/api/og?type=…`, which renders a 1200x630 PNG
+with satori. Check any card by opening its URL, or verify all of them at once:
+
+```bash
+npm run check:og                        # against https://loopapp.me
+npm run check:og -- http://127.0.0.1:3000   # against a local server
+```
+
+To inspect what a real page advertises, view its source and look for
+`og:image` / `twitter:image`, or paste the page URL into the
+[Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) or the
+[X Card Validator](https://cards-dev.twitter.com/validator).
+
+Satori is stricter than a browser: a `<div>` with more than one child node must
+declare `display: flex | none`, and `background` cannot mix a colour with a
+gradient. `__tests__/og-engine.test.ts` walks every template tree and fails if a
+card breaks either rule, so these bugs cannot ship silently.
+
 ## Documentation
 
 Detailed guides are in [`docs/`](./docs/):
