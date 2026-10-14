@@ -16,6 +16,7 @@ import { CommentThread } from "./comment-thread"
 import { ReportModal } from "./report-modal"
 import { PostReactions } from "./post-reactions"
 import { GiftModal } from "@/components/gifting/gift-modal"
+import { NoteChip } from "@/components/notes/note-chip"
 import { ShareToDmModal } from "@/components/messages/share-to-dm-modal"
 import { ShareToCircleModal } from "@/components/messages/share-to-circle-modal"
 import { ShareAsImageModal } from "@/components/engagement/share-as-image-modal"
@@ -291,6 +292,8 @@ export function CommunityPostCard({
                 </span>
               )}
               <span className="text-[11px] text-muted-foreground">@{author?.username}</span>
+              {/* The author's live note, when they chose to show it in communities. */}
+              <NoteChip userId={author?.id} username={author?.username} surface="communities" />
               {(post as any).gift_count > 0 && (
                 <span className="flex items-center gap-0.5 text-[10px] font-bold text-fuchsia-500 bg-fuchsia-500/10 px-1.5 py-0.5 rounded" title={`${(post as any).gift_count} gifts received`}>
                   <Gift className="h-2.5 w-2.5" /> {(post as any).gift_count}

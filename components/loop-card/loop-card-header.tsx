@@ -37,6 +37,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useLoginGate } from "@/hooks/use-login-gate"
 import { useVerificationBadges } from "@/hooks/use-verification-badges"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { NoteChip } from "@/components/notes/note-chip"
 
 interface LoopCardHeaderProps {
   loop: any
@@ -260,6 +261,13 @@ export function LoopCardHeader({
               )}
               <span className="shrink-0 text-muted-foreground">&middot;</span>
               <FreshnessTimestamp date={loop.created_at} className="shrink-0" />
+
+              {/* The author's live note, when they chose to show it on posts. */}
+              <NoteChip
+                userId={loop.author_id || loop.author?.id}
+                username={loop.author.username}
+                surface="posts"
+              />
             </div>
 
             {/* Secondary/status badges render on their own line only when the

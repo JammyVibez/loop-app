@@ -1,0 +1,166 @@
+/**
+ * Profile notes: the 60-character, 24-hour line under your name.
+ *
+ * The interesting rules are the ones the UI can't enforce on its own — text
+ * that survives a paste, expiry that reads never trust, and the author's
+ * per-note choice of where it shows. All of that lives in pure helpers so it
+ * can be pinned down here.
+ */
+
+import { describe, expect, it } from "vitest"
+import {
+  NOTE_MAX_LENGTH,
+  NOTE_TTL_HOURS,
+  isNoteLengthValid,
+  isNoteLive,
+  noteExpiryFrom,
+  noteExpiryLabel,
+  noteHoursLeft,
+  noteVisibleFor,
+  sanitizeNoteText,
+  surfaceColumn,
+  surfaceLabel,
+  visibilityFlags,
+  visibilityFromRow,
+  type ProfileNote,
+} from "@/lib/profile-note"
+
+const HOUR = 3_600_000
+
+function note(overrides: Partial<ProfileNote> = {}): ProfileNote {
+  const now = Date.now()
+  return {
+    id: "n1",
+    user_id: "u1",
+    content: "shipping tonight",
+    show_on_profile: true,
+    show_on_posts: true,
+    show_on_communities: true,
+    created_at: new Date(now).toISOString(),
+    expires_at: new Date(now + 6 * HOUR).toISOString(),
+    ...overrides,
+  }
+}
+
+describe("sanitizeNoteText", () => {
+  it("collapses whitespace and trims", () => {
+    expect(sanitizeNoteText("  hello    world \n")).toBe("hello world")
+  })
+
+  it("drops control characters but keeps emoji", () => {
+    expect(sanitizeNoteText("ship\u0000 it 🚀")).toBe("ship it 🚀")
+  })
+
+  it("cuts at the limit", () => {
+    expect(sanitizeNoteText("x".repeat(200))).toHaveLength(NOTE_MAX_LENGTH)
+  })
+
+  it("returns empty for non-strings", () => {
+    expect(sanitizeNoteText(null)).toBe("")
+    expect(sanitizeNoteText(undefined)).toBe("")
+    expect(sanitizeNoteText(42)).toBe("")
+  })
+})
+
+describe("isNoteLengthValid", () => {
+  it("accepts 1 to 60 characters", () => {
+    expect(isNoteLengthValid("a")).toBe(true)
+    expect(isNoteLengthValid("a".repeat(NOTE_MAX_LENGTH))).toBe(true)
+  })
+
+  it("rejects empty, whitespace-only and over-long input", () => {
+    expect(isNoteLengthValid("")).toBe(false)
+    expect(isNoteLengthValid("   ")).toBe(false)
+    expect(isNoteLengthValid("a".repeat(NOTE_MAX_LENGTH + 1))).toBe(false)
+  })
+
+  it("measures the sanitized text, so padded input is not rejected", () => {
+    expect(isNoteLengthValid(`  ${"a".repeat(NOTE_MAX_LENGTH)}  `)).toBe(true)
+  })
+})
+
+describe("expiry", () => {
+  it("a note lives for 24 hours from creation", () => {
+    const created = Date.now()
+    expect(noteExpiryFrom(created).getTime() - created).toBe(NOTE_TTL_HOURS * HOUR)
+  })
+
+  it("is live until the expiry instant and not after", () => {
+    const created = 1_700_000_000_000
+    const live = note({ expires_at: new Date(created + HOUR).toISOString() })
+    expect(isNoteLive(live, created)).toBe(true)
+    expect(isNoteLive(live, created + HOUR)).toBe(false)
+    expect(isNoteLive(live, created + HOUR + 1)).toBe(false)
+  })
+
+  it("treats a missing or unparseable expiry as not live", () => {
+    expect(isNoteLive(null)).toBe(false)
+    expect(isNoteLive(note({ expires_at: "not a date" }))).toBe(false)
+  })
+
+  it("reports hours left and a compact label", () => {
+    const created = Date.now()
+    const live = note({ expires_at: new Date(created + 6 * HOUR).toISOString() })
+    expect(noteHoursLeft(live, created)).toBe(6)
+    expect(noteExpiryLabel(live, created)).toBe("6h")
+  })
+
+  it("never reports a negative countdown", () => {
+    const expired = note({ expires_at: new Date(Date.now() - HOUR).toISOString() })
+    expect(noteHoursLeft(expired)).toBe(0)
+    expect(noteExpiryLabel(expired)).toBe("1h")
+  })
+})
+
+describe("visibility", () => {
+  it("defaults to every surface", () => {
+    expect(visibilityFlags({})).toEqual({
+      show_on_profile: true,
+      show_on_posts: true,
+      show_on_communities: true,
+    })
+  })
+
+  it("honours per-surface opt-outs", () => {
+    expect(visibilityFlags({ posts: false, communities: false })).toEqual({
+      show_on_profile: true,
+      show_on_posts: false,
+      show_on_communities: false,
+    })
+  })
+
+  it("maps surfaces onto the right column", () => {
+    expect(surfaceColumn("profile")).toBe("show_on_profile")
+    expect(surfaceColumn("posts")).toBe("show_on_posts")
+    expect(surfaceColumn("communities")).toBe("show_on_communities")
+  })
+
+  it("round-trips row flags back to a visibility object", () => {
+    const flags = visibilityFlags({ communities: false })
+    expect(visibilityFromRow(flags)).toEqual({ profile: true, posts: true, communities: false })
+  })
+
+  it("shows a note only where the author opted in", () => {
+    const hiddenFromCommunities = note({ show_on_communities: false })
+    expect(noteVisibleFor(hiddenFromCommunities, "profile")).toBe(true)
+    expect(noteVisibleFor(hiddenFromCommunities, "posts")).toBe(true)
+    expect(noteVisibleFor(hiddenFromCommunities, "communities")).toBe(false)
+  })
+
+  it("hides an expired note on every surface", () => {
+    const expired = note({ expires_at: new Date(Date.now() - 1).toISOString() })
+    expect(noteVisibleFor(expired, "profile")).toBe(false)
+    expect(noteVisibleFor(expired, "posts")).toBe(false)
+    expect(noteVisibleFor(expired, "communities")).toBe(false)
+  })
+
+  it("hides nothing when there is no note at all", () => {
+    expect(noteVisibleFor(null, "profile")).toBe(false)
+  })
+
+  it("labels each surface for the composer", () => {
+    expect(surfaceLabel("profile")).toBe("On my profile")
+    expect(surfaceLabel("posts")).toBe("On my posts")
+    expect(surfaceLabel("communities")).toBe("In communities")
+  })
+})

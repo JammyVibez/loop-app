@@ -58,6 +58,9 @@ const DEFAULT_FILES = [
   "scripts/co-loop-draft-schema.sql",
   // Per-session activity feed (who wrote what) + host lock/delete room controls.
   "scripts/co-loop-room-controls.sql",
+  // Profile notes: 60-character line under your name, gone after 24 hours,
+  // with per-note control over profile/posts/communities visibility.
+  "scripts/profile-notes-schema.sql",
 ]
 
 // Allow a targeted run: node apply-pending-schema.mjs scripts/foo.sql …

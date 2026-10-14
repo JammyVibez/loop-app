@@ -41,6 +41,9 @@ import { SimilarCreators } from "@/components/profile/similar-creators"
 import { AccountStatusScreen } from "@/components/profile/account-status-screen"
 import { RichContent } from "@/components/content/rich-content"
 import { BioCommunityTags } from "@/components/profile/bio-community-tags"
+import { useProfileNote } from "@/hooks/use-profile-note"
+import { NoteBubble } from "@/components/notes/note-bubble"
+import { NoteComposer } from "@/components/notes/note-composer"
 import { ProfileAwards, ProfileAwardsGrid } from "@/components/profile/profile-awards"
 import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
 import { EnhancedMediaViewer } from "@/components/media/enhanced-media-viewer"
@@ -139,6 +142,12 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   } | null>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
   const profileFrame = usePfpFrame((profile as any)?.equipped_frame_id)
+  // The short 24h note under the name. Owner and visitors read the same row;
+  // whether it is visible at all is the author's per-note choice.
+  const {
+    note: profileNote,
+    refresh: refreshProfileNote,
+  } = useProfileNote({ userId: (profile as any)?.id, surface: "profile", enabled: Boolean((profile as any)?.id) })
 
   const fetchProfileRef = useRef<{ inFlight?: boolean; lastUsername?: string }>({})
 
@@ -745,6 +754,21 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/40 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                   {profile.pronouns}
                 </span>
+              </div>
+            )}
+
+            {/* The live 24h note: shown when the author opted this surface in,
+                with the composer for the owner (add / edit / delete). */}
+            {(profileNote || isOwnProfile) && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {profileNote && <NoteBubble note={profileNote} variant="profile" />}
+                {isOwnProfile && (
+                  <NoteComposer
+                    userId={(profile as any).id}
+                    note={profileNote}
+                    onSaved={() => refreshProfileNote()}
+                  />
+                )}
               </div>
             )}
           </div>
