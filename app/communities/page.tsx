@@ -5,7 +5,6 @@ import { DiscoverCommunities } from "@/components/communities/discover-communiti
 import { AdSlot } from "@/components/ads/ad-slot"
 import { Globe2, Plus, Users, Flame } from "lucide-react"
 import { createClient } from "@/lib/supabase"
-import { getAbsoluteAppUrl } from "@/lib/app-url"
 import { buildOgMetadata } from "@/lib/og/metadata"
 
 export const dynamic = "force-dynamic"
@@ -16,16 +15,17 @@ const SEO_DESCRIPTION =
 
 // The index page inherits the site-default card, which says nothing about
 // communities. Give it its own so a share of /communities looks intentional.
-export async function generateMetadata(): Promise<Metadata> {
-  return buildOgMetadata({
-    baseUrl: await getAbsoluteAppUrl(),
-    path: "/communities",
-    type: "community",
-    title: SEO_TITLE,
-    description: SEO_DESCRIPTION,
-    params: { name: "Communities", category: "Circles", url: "/communities" },
-  })
-}
+// Static (not generateMetadata) on purpose: this page streams its shell while
+// Supabase is still working, and only metadata known before the first byte is
+// guaranteed to land in the head, where crawlers read it.
+export const metadata: Metadata = buildOgMetadata({
+  baseUrl: (process.env.NEXT_PUBLIC_APP_URL || "https://loopapp.me").replace(/\/$/, ""),
+  path: "/communities",
+  type: "community",
+  title: SEO_TITLE,
+  description: SEO_DESCRIPTION,
+  params: { name: "Communities", category: "Circles", url: "/communities" },
+})
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
