@@ -249,7 +249,10 @@ export function AvatarGroup({
   return (
     <div style={{ display: "flex", alignItems: "center" }}>
       {shown.map((p, i) => (
-        <div key={i} style={{ marginLeft: i === 0 ? 0 : -size * 0.3, zIndex: shown.length - i }}>
+        <div
+          key={i}
+          style={{ display: "flex", marginLeft: i === 0 ? 0 : -Math.round(size * 0.3) }}
+        >
           <Avatar src={p.src} name={p.name} size={size} ring={ring || palette.ink} />
         </div>
       ))}
@@ -327,6 +330,13 @@ export function Clamp({
   letterSpacing?: string
   style?: CSSProperties
 }) {
+  // satori only treats `display: flex | none` as a flex container, so a
+  // clamped block must collapse to exactly one text child — otherwise a
+  // multi-node children array trips its "explicit display" guard.
+  const content = Array.isArray(children)
+    ? children.filter((child) => child !== null && child !== undefined && child !== false).join(" ")
+    : ((children ?? "") as ReactNode)
+
   return (
     <div
       style={{
@@ -343,7 +353,7 @@ export function Clamp({
         ...style,
       }}
     >
-      {children}
+      {content}
     </div>
   )
 }
@@ -444,9 +454,12 @@ export function MediaPanel({
         borderRadius: 24,
         overflow: "hidden",
         border: `1px solid ${palette.hairline}`,
-        background: src
+        // satori rejects the `background` shorthand when it mixes a colour
+        // with a gradient, so colour and image stay separate properties.
+        backgroundColor: palette.panel,
+        backgroundImage: src
           ? `linear-gradient(135deg, ${palette.panelHigh}, ${palette.panel})`
-          : `repeating-linear-gradient(135deg, ${withAlpha(accent.base, 0.1)} 0 2px, transparent 2px 16px), ${palette.panel}`,
+          : `repeating-linear-gradient(135deg, ${withAlpha(accent.base, 0.1)} 0 2px, transparent 2px 16px)`,
       }}
     >
       {src ? (
@@ -465,7 +478,9 @@ export function MediaPanel({
         />
       ) : null}
 
-      {overlay ? <div style={{ position: "absolute", left: 24, right: 24, bottom: 22 }}>{overlay}</div> : null}
+      {overlay ? (
+        <div style={{ position: "absolute", display: "flex", left: 24, right: 24, bottom: 22 }}>{overlay}</div>
+      ) : null}
     </div>
   )
 }

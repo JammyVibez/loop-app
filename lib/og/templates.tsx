@@ -178,7 +178,7 @@ export function ProfileTemplate({ p }: { p: OgPayload }) {
               {p.premium ? <ProBadge /> : null}
             </div>
             {p.username ? (
-              <div style={{ fontSize: 26, fontWeight: 600, color: p.accent.base }}>@{p.username}</div>
+              <div style={{ display: "flex", fontSize: 26, fontWeight: 600, color: p.accent.base }}>{`@${p.username}`}</div>
             ) : null}
             {p.category ? (
               <div style={{ fontSize: 20, color: palette.textMuted, letterSpacing: "0.04em" }}>
@@ -209,18 +209,23 @@ export function CommunityTemplate({ p }: { p: OgPayload }) {
         style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, justifyContent: "center", gap: 26 }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
+          {/* satori errors on `backgroundImage: undefined`, so the image and
+              the gradient fallback are two separate elements. */}
           <div
             style={{
-              width: 116,
-              height: 116,
-              borderRadius: 34,
-              backgroundImage: p.avatar ? `url(${p.avatar})` : undefined,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              background: p.avatar ? undefined : `linear-gradient(135deg, ${p.accent.base}, ${p.accent.second})`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              width: 116,
+              height: 116,
+              borderRadius: 34,
+              overflow: "hidden",
+              backgroundColor: withAlpha(p.accent.base, 0.18),
+              backgroundImage: p.avatar
+                ? `url(${p.avatar})`
+                : `linear-gradient(135deg, ${p.accent.base}, ${p.accent.second})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
               fontSize: 46,
               fontWeight: 800,
               border: `1px solid ${palette.hairline}`,
@@ -402,7 +407,9 @@ export function ReelTemplate({ p }: { p: OgPayload }) {
                 </div>
                 {p.verified ? <Seal size={25} colors={p.badgeColors} /> : null}
               </div>
-              {p.username ? <div style={{ fontSize: 20, color: palette.textFaint }}>@{p.username}</div> : null}
+              {p.username ? (
+                <div style={{ display: "flex", fontSize: 20, color: palette.textFaint }}>{`@${p.username}`}</div>
+              ) : null}
             </div>
           </div>
 
@@ -413,7 +420,7 @@ export function ReelTemplate({ p }: { p: OgPayload }) {
           <Chips items={[p.date, p.category]} accent={p.accent} />
         </div>
 
-        <div style={{ width: 430, height: "100%" }}>
+        <div style={{ display: "flex", width: 430, height: "100%" }}>
           <MediaPanel
             src={p.media}
             accent={p.accent}
@@ -559,8 +566,8 @@ export function ChallengeTemplate({ p }: { p: OgPayload }) {
               }}
             >
               <div>{truncate(progress.label, 40).toUpperCase()}</div>
-              <div style={{ color: p.accent.base }}>
-                {formatCount(progress.value)} / {formatCount(progress.max)}
+              <div style={{ display: "flex", color: p.accent.base }}>
+                {`${formatCount(progress.value)} / ${formatCount(progress.max)}`}
               </div>
             </div>
             <div
@@ -599,9 +606,9 @@ export function SpaceTemplate({ p }: { p: OgPayload }) {
       <div
         style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, justifyContent: "center", gap: 22 }}
       >
-        <div style={{ position: "relative", width: "100%", height: 162 }}>
+        <div style={{ position: "relative", display: "flex", width: "100%", height: 162 }}>
           <MediaPanel src={p.media} accent={p.accent} />
-          <div style={{ position: "absolute", left: 26, bottom: -38 }}>
+          <div style={{ position: "absolute", display: "flex", left: 26, bottom: -38 }}>
             <Avatar src={p.avatar} name={p.name} size={96} ring={p.accent.base} />
           </div>
         </div>

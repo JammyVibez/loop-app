@@ -10,6 +10,22 @@ import { describe, expect, it } from "vitest"
 import { cleanText, formatCount, initials, parseBool, parseColors, parseStat, truncate } from "@/lib/og/text"
 import { DEFAULT_TITLE, normalizeType, parseOgParams } from "@/lib/og/params"
 import { buildOgMetadata, ogImageUrl, personParam } from "@/lib/og/metadata"
+import { accentFor } from "@/lib/og/theme"
+import {
+  ChallengeTemplate,
+  CoLoopTemplate,
+  CommunityTemplate,
+  DuelTemplate,
+  EventTemplate,
+  FallbackTemplate,
+  HomeTemplate,
+  type OgPayload,
+  PostTemplate,
+  ProfileTemplate,
+  ProjectTemplate,
+  ReelTemplate,
+  SpaceTemplate,
+} from "@/lib/og/templates"
 
 const params = (query: string) => new URLSearchParams(query)
 
@@ -160,7 +176,7 @@ describe("og metadata", () => {
     expect(og[0].width).toBe(1200)
     expect(og[0].height).toBe(630)
     expect(tw[0].width).toBe(1200)
-    expect(meta.twitter!.card).toBe("summary_large_image")
+    expect((meta.twitter as { card?: string }).card).toBe("summary_large_image")
     expect(meta.alternates!.canonical).toBe("https://loopapp.me/loop/42")
   })
 
@@ -174,5 +190,86 @@ describe("og metadata", () => {
       robots: { index: false, follow: false },
     })
     expect(meta.robots).toEqual({ index: false, follow: false })
+  })
+})
+
+/*
+ * Satori only accepts a <div> with more than one child (or a single non-string
+ * child) when it declares an explicit `display`. Getting this wrong throws at
+ * render time, so the whole card 500s. Walking the trees here catches it in CI
+ * instead of in production.
+ */
+function flattenChildren(children: unknown): unknown[] {
+  const out: unknown[] = []
+  const push = (child: unknown) => {
+    if (child === null || child === undefined || typeof child === "boolean" || child === "") return
+    if (Array.isArray(child)) {
+      child.forEach(push)
+      return
+    }
+    out.push(child)
+  }
+  push(children)
+  return out
+}
+
+interface ElementLike {
+  type?: unknown
+  props?: { children?: unknown; style?: Record<string, unknown> }
+}
+
+function findFlexViolations(node: unknown, path: string, acc: string[]): void {
+  if (node === null || node === undefined || typeof node !== "object") return
+  if (Array.isArray(node)) {
+    node.forEach((child, i) => findFlexViolations(child, `${path}[${i}]`, acc))
+    return
+  }
+  const el = node as ElementLike
+  if (typeof el.type === "function") {
+    const name = (el.type as { name?: string }).name || "Component"
+    findFlexViolations((el.type as (props: unknown) => unknown)(el.props), `${path}<${name}>`, acc)
+    return
+  }
+  const children = flattenChildren(el.props?.children)
+  const display = el.props?.style?.display
+  if (el.type === "div") {
+    const needsFlex = children.length > 1 || (children.length === 1 && typeof children[0] !== "string")
+    if (needsFlex && display !== "flex" && display !== "none") {
+      acc.push(`${path} (${children.length} child nodes, display=${String(display)})`)
+    }
+  }
+  children.forEach((child, i) => {
+    if (typeof child !== "string") findFlexViolations(child, `${path}/${String(el.type)}.${i}`, acc)
+  })
+}
+
+describe("og template layout guard", () => {
+  const payload = (type: string, over: Partial<OgPayload> = {}): OgPayload => ({
+    accent: accentFor(type),
+    title: "Title here",
+    description: "Description here",
+    ...over,
+  })
+
+  const cases: [string, (props: { p: OgPayload }) => unknown, OgPayload][] = [
+    ["home", HomeTemplate, payload("home")],
+    ["post", PostTemplate, payload("post", { name: "Real", username: "real_io", body: "Hello", stat: 445, statLabel: "likes", verified: true })],
+    ["profile", ProfileTemplate, payload("profile", { name: "Real", username: "real_io", description: "bio", stat: 57, statLabel: "followers", verified: true, premium: true })],
+    ["community", CommunityTemplate, payload("community", { name: "Loop Builders", category: "Gaming", stat: 1204, statLabel: "members" })],
+    ["space", SpaceTemplate, payload("space", { name: "Design Space", category: "Design" })],
+    ["duel", DuelTemplate, payload("duel", { sides: [{ name: "Ada" }, { name: "Grace" }], date: "Live now" })],
+    ["coloop", CoLoopTemplate, payload("coloop", { people: [{ name: "Ada" }, { name: "Grace" }], date: "Open invite" })],
+    ["reel", ReelTemplate, payload("reel", { name: "Real", username: "real_io", body: "clip", stat: 812, statLabel: "views" })],
+    ["reel/nomedia", ReelTemplate, payload("reel", { name: "Real", body: "no media" })],
+    ["project", ProjectTemplate, payload("project", { name: "Real", extraStats: [{ value: "128", label: "stars" }], category: "TypeScript" })],
+    ["event", EventTemplate, payload("event", { dateBlock: { day: "9", month: "Mar" }, category: "Community", stat: 42, statLabel: "going" })],
+    ["challenge", ChallengeTemplate, payload("challenge", { progress: { value: 57, max: 100, label: "Followers" } })],
+    ["fallback", FallbackTemplate, payload("fallback", { name: "Something", category: "Loop" })],
+  ]
+
+  it.each(cases)("%s declares display on every multi-child div", (_label, Template, p) => {
+    const violations: string[] = []
+    findFlexViolations(Template({ p }), _label as string, violations)
+    expect(violations).toEqual([])
   })
 })
