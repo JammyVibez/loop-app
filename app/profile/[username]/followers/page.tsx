@@ -107,7 +107,7 @@ export default function FollowersPage() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="mx-auto max-w-xl border-x border-border/60 min-h-screen">
-        <div className="sticky top-16 z-20 flex items-center gap-3 border-b border-border bg-background px-3 py-3">
+        <div className="sticky top-14 z-20 flex items-center gap-3 border-b border-border bg-background px-3 py-3">
           <Link href={`/profile/${username}`} className="rounded-full p-2 hover:bg-muted">
             <ArrowLeft className="h-5 w-5" />
           </Link>

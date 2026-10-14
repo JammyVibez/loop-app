@@ -419,6 +419,16 @@ export function Enhanced3DProfile({ username }: { username: string }) {
     ensureCosmeticFonts(cosmetics.font)
   }, [cosmetics.font])
 
+  // The profile's top bar only materialises once the page is scrolled. At rest
+  // it would otherwise be a strip drawn straight across the cover photo.
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 16)
+    onScroll()
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [])
+
   if (loading) return <ProfileSkeleton />
 
   // Deleted / suspended accounts render a placeholder — no profile data,
@@ -456,17 +466,41 @@ export function Enhanced3DProfile({ username }: { username: string }) {
 
   return (
     <div className="mx-auto w-full max-w-6xl bg-background min-h-screen">
-      {/* Sticky top bar — sits under the site Header (h-16) and floats over the
-          cover rather than pushing it down. An opaque bar in normal flow left a
-          dead black band above the banner on mobile; -mb-14 cancels the h-14
-          height exactly, so the cover starts right below the header and the bar
-          is drawn on top of it. Translucent + blurred so it still reads over
-          both the cover and page content. */}
-      <div className="sticky top-16 z-30 -mb-14 flex h-14 items-center gap-3 border-b border-border bg-background/75 px-3 backdrop-blur-md sm:gap-4">
-        <Link href="/" className="rounded-full p-2 hover:bg-muted">
+      {/* Profile top bar. It is stretched under the site Header (h-14, so
+          top-14 keeps it flush — a mismatch here left a gap of page content
+          showing between the two bars) and -mb-14 cancels its own h-14 out of
+          the flow, so the cover starts right below the header instead of being
+          pushed down.
+
+          Nothing is painted here until the page scrolls: at rest the cover is
+          unobstructed apart from the back button, and only the part that is
+          actually pinned gets a background, so no strip is ever drawn across
+          the cover. */}
+      <div
+        className={cn(
+          "sticky top-14 z-30 -mb-14 flex h-14 items-center gap-3 border-b px-3 transition-colors duration-200 sm:gap-4",
+          scrolled ? "border-border bg-background" : "border-transparent bg-transparent"
+        )}
+      >
+        <Link
+          href="/"
+          aria-label="Back"
+          className={cn(
+            "rounded-full p-2 transition-colors",
+            scrolled
+              ? "hover:bg-muted"
+              : "bg-black/45 text-white backdrop-blur-sm hover:bg-black/60"
+          )}
+        >
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <div className="min-w-0 flex-1">
+        <div
+          aria-hidden={!scrolled}
+          className={cn(
+            "min-w-0 flex-1 transition-opacity duration-200",
+            scrolled ? "opacity-100" : "pointer-events-none opacity-0"
+          )}
+        >
           {/* No gap: the badge sits tight against the name (a space between them
               read as a typo in the name). */}
           <div className="flex items-center gap-0">
