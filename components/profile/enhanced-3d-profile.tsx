@@ -569,6 +569,25 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         className=""
       />
       </div>
+        {/* The author's live note floats over the banner, pinned just above the
+            avatar. Absolute so it never fights the avatar's negative margin
+            over the cover, and clear of the cover controls in the corners. */}
+        {(profileNote || isOwnProfile) && (
+          <div className="pointer-events-none absolute bottom-12 left-3 z-30 flex flex-wrap items-start gap-2 sm:bottom-16 sm:left-4">
+            {profileNote && (
+              <NoteBubble note={profileNote} variant="profile" className="pointer-events-auto" />
+            )}
+            {isOwnProfile && (
+              <div className="pointer-events-auto">
+                <NoteComposer
+                  userId={(profile as any).id}
+                  note={profileNote}
+                  onSaved={() => refreshProfileNote()}
+                />
+              </div>
+            )}
+          </div>
+        )}
         {isOwnProfile && (
           <>
             <input
@@ -754,21 +773,6 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/40 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                   {profile.pronouns}
                 </span>
-              </div>
-            )}
-
-            {/* The live 24h note: shown when the author opted this surface in,
-                with the composer for the owner (add / edit / delete). */}
-            {(profileNote || isOwnProfile) && (
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                {profileNote && <NoteBubble note={profileNote} variant="profile" />}
-                {isOwnProfile && (
-                  <NoteComposer
-                    userId={(profile as any).id}
-                    note={profileNote}
-                    onSaved={() => refreshProfileNote()}
-                  />
-                )}
               </div>
             )}
           </div>

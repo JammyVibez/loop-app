@@ -292,8 +292,6 @@ export function CommunityPostCard({
                 </span>
               )}
               <span className="text-[11px] text-muted-foreground">@{author?.username}</span>
-              {/* The author's live note, when they chose to show it in communities. */}
-              <NoteChip userId={author?.id} username={author?.username} surface="communities" />
               {(post as any).gift_count > 0 && (
                 <span className="flex items-center gap-0.5 text-[10px] font-bold text-fuchsia-500 bg-fuchsia-500/10 px-1.5 py-0.5 rounded" title={`${(post as any).gift_count} gifts received`}>
                   <Gift className="h-2.5 w-2.5" /> {(post as any).gift_count}
@@ -328,6 +326,15 @@ export function CommunityPostCard({
                 </span>
               )}
             </div>
+
+            {/* The author's live note — a floating bubble under the author
+                line, only when they chose to show it in communities. */}
+            <NoteChip
+              userId={author?.id}
+              username={author?.username}
+              surface="communities"
+              className="mt-1"
+            />
           </div>
 
           {post.status === "pending" && (

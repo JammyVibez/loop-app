@@ -261,14 +261,16 @@ export function LoopCardHeader({
               )}
               <span className="shrink-0 text-muted-foreground">&middot;</span>
               <FreshnessTimestamp date={loop.created_at} className="shrink-0" />
-
-              {/* The author's live note, when they chose to show it on posts. */}
-              <NoteChip
-                userId={loop.author_id || loop.author?.id}
-                username={loop.author.username}
-                surface="posts"
-              />
             </div>
+
+            {/* The author's live note — a floating bubble tucked under the
+                author line, only when they chose to show it on posts. */}
+            <NoteChip
+              userId={loop.author_id || loop.author?.id}
+              username={loop.author.username}
+              surface="posts"
+              className="mt-1"
+            />
 
             {/* Secondary/status badges render on their own line only when the
                 post actually has one — most posts show none. */}

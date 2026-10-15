@@ -103,7 +103,7 @@ export function NoteComposer({
         <Button
           variant={hasExisting ? "outline" : "default"}
           size="sm"
-          className="gap-1.5 rounded-full"
+          className="gap-1.5 rounded-full border-indigo-400/35 bg-indigo-500/15 shadow-sm backdrop-blur-sm hover:bg-indigo-500/25"
         >
           <MessageCircle className="h-3.5 w-3.5" />
           {hasExisting ? "Edit note" : "Add note"}

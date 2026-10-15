@@ -14,10 +14,12 @@ export function NoteChip({
   userId,
   username,
   surface,
+  className,
 }: {
   userId?: string | null
   username?: string | null
   surface: NoteSurface
+  className?: string
 }) {
   const { note } = useProfileNote({
     userId: userId ? String(userId) : undefined,
@@ -27,5 +29,5 @@ export function NoteChip({
   })
 
   if (!note) return null
-  return <NoteLink note={note} username={username} variant="card" />
+  return <NoteLink note={note} username={username} variant="card" className={className} />
 }
