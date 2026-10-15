@@ -7,16 +7,24 @@
  * can be pinned down here.
  */
 
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 import {
+  DEFAULT_NOTE_THEME,
   NOTE_MAX_LENGTH,
+  NOTE_THEMES,
+  NOTE_THEME_STYLES,
   NOTE_TTL_HOURS,
   canViewProfileNote,
   isNoteLengthValid,
   isNoteLive,
+  isNoteTheme,
   noteExpiryFrom,
   noteExpiryLabel,
   noteHoursLeft,
+  noteThemeFromRow,
+  noteThemeStyle,
   noteVisibleFor,
   sanitizeNoteText,
   surfaceColumn,
@@ -34,6 +42,7 @@ function note(overrides: Partial<ProfileNote> = {}): ProfileNote {
     id: "n1",
     user_id: "u1",
     content: "shipping tonight",
+    theme: "indigo",
     show_on_profile: true,
     show_on_posts: true,
     show_on_communities: true,
@@ -185,5 +194,63 @@ describe("privacy", () => {
       canViewProfileNote({ visibility: "followers", ownerId: owner, viewerId: "fan", isFollower: true }),
     ).toBe(true)
     expect(canViewProfileNote({ visibility: "followers", ownerId: owner, viewerId: owner })).toBe(true)
+  })
+})
+
+describe("themes", () => {
+  it("starts new notes on a theme that exists", () => {
+    expect(isNoteTheme(DEFAULT_NOTE_THEME)).toBe(true)
+  })
+
+  it("styles every theme it offers, with nothing left blank", () => {
+    for (const theme of NOTE_THEMES) {
+      const style = NOTE_THEME_STYLES[theme]
+      expect(style, `missing styles for ${theme}`).toBeTruthy()
+      for (const value of Object.values(style)) expect(String(value).trim()).not.toBe("")
+    }
+  })
+
+  it("gives every theme a colour nobody else has", () => {
+    const swatches = NOTE_THEMES.map((theme) => NOTE_THEME_STYLES[theme].swatch)
+    expect(new Set(swatches).size).toBe(NOTE_THEMES.length)
+  })
+
+  it("falls back to the default for rows written before themes existed", () => {
+    expect(noteThemeFromRow("violet")).toBe("violet")
+    for (const junk of [null, undefined, "", "chartreuse", 42, {}, [], true]) {
+      expect(noteThemeFromRow(junk)).toBe(DEFAULT_NOTE_THEME)
+    }
+  })
+
+  it("paints unknown themes in the default palette rather than nothing", () => {
+    expect(noteThemeStyle("chartreuse")).toEqual(NOTE_THEME_STYLES[DEFAULT_NOTE_THEME])
+    expect(noteThemeStyle(undefined)).toEqual(NOTE_THEME_STYLES[DEFAULT_NOTE_THEME])
+    expect(noteThemeStyle("amber")).toEqual(NOTE_THEME_STYLES.amber)
+  })
+
+  it("rejects themes outside the list", () => {
+    expect(isNoteTheme("indigo")).toBe(true)
+    expect(isNoteTheme("INDIGO")).toBe(false)
+    expect(isNoteTheme("chartreuse")).toBe(false)
+    expect(isNoteTheme(null)).toBe(false)
+  })
+
+  /**
+   * The picker and the database CHECK have to agree: a colour the UI offers but
+   * the constraint refuses would fail the save, and a colour the constraint
+   * allows but the UI never shows would be dead weight.
+   */
+  it("keeps the migration's allowlist in step with the picker", () => {
+    const sql = readFileSync(
+      resolve(process.cwd(), "scripts/profile-note-themes-schema.sql"),
+      "utf8",
+    )
+    const check = /CHECK\s*\(theme IN \(([^)]*)\)\)/.exec(sql)
+    expect(check, "migration has no theme allowlist").toBeTruthy()
+    const allowed = (check![1].match(/'[^']+'/g) || []).map((value) => value.replace(/'/g, ""))
+    expect(allowed).toEqual([...NOTE_THEMES])
+
+    const fallback = /ADD COLUMN IF NOT EXISTS theme TEXT NOT NULL DEFAULT '([a-z]+)'/.exec(sql)
+    expect(fallback?.[1]).toBe(DEFAULT_NOTE_THEME)
   })
 })

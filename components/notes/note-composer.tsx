@@ -8,11 +8,16 @@
  * posts, and appears in community threads. A note that is switched off
  * everywhere is just a deleted note, so the API refuses that combination and
  * the UI offers Delete instead.
+ *
+ * It is also where the note gets its colour: eight themes, previewed on the
+ * real bubble before it is saved, so the author sees what their followers
+ * will.
  */
 
 import { useEffect, useState } from "react"
-import { MessageCircle, Trash2 } from "lucide-react"
+import { Check, MessageCircle, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import {
   Dialog,
   DialogContent,
@@ -27,12 +32,18 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import {
+  DEFAULT_NOTE_THEME,
   NOTE_MAX_LENGTH,
   NOTE_SURFACES,
+  NOTE_THEMES,
+  NOTE_THEME_STYLES,
   type NoteSurface,
+  type NoteTheme,
   type NoteVisibility,
   type ProfileNote,
   isNoteLengthValid,
+  noteThemeFromRow,
+  noteThemeStyle,
   sanitizeNoteText,
   surfaceLabel,
   visibilityFromRow,
@@ -54,6 +65,7 @@ export function NoteComposer({
   const [open, setOpen] = useState(false)
   const [content, setContent] = useState("")
   const [visibility, setVisibility] = useState<NoteVisibility>(DEFAULT_VISIBILITY)
+  const [theme, setTheme] = useState<NoteTheme>(DEFAULT_NOTE_THEME)
   const [saving, setSaving] = useState(false)
 
   // Re-seed the form each time it opens so it always reflects the live note.
@@ -61,16 +73,18 @@ export function NoteComposer({
     if (!open) return
     setContent(note?.content || "")
     setVisibility(note ? visibilityFromRow(note) : DEFAULT_VISIBILITY)
+    setTheme(note ? noteThemeFromRow(note.theme) : DEFAULT_NOTE_THEME)
   }, [open, note])
 
   const text = sanitizeNoteText(content)
   const canSave = isNoteLengthValid(content) && Object.values(visibility).some(Boolean)
   const hasExisting = Boolean(note)
+  const style = noteThemeStyle(theme)
 
   async function handleSave() {
     if (!canSave || saving) return
     setSaving(true)
-    const result = await saveProfileNote(text, visibility)
+    const result = await saveProfileNote(text, visibility, theme)
     setSaving(false)
 
     if (!result.ok) {
@@ -103,9 +117,14 @@ export function NoteComposer({
         <Button
           variant={hasExisting ? "outline" : "default"}
           size="sm"
-          className="gap-1.5 rounded-full border-indigo-400/35 bg-indigo-500/15 shadow-sm backdrop-blur-sm hover:bg-indigo-500/25"
+          className={cn(
+            "gap-1.5 rounded-full shadow-sm backdrop-blur-sm transition hover:brightness-125",
+            // The trigger wears the note's own colour, so the author can see
+            // which note they are about to edit before they open it.
+            noteThemeStyle(note?.theme ?? theme).chip,
+          )}
         >
-          <MessageCircle className="h-3.5 w-3.5" />
+          <MessageCircle className={cn("h-3.5 w-3.5", noteThemeStyle(note?.theme ?? theme).icon)} />
           {hasExisting ? "Edit note" : "Add note"}
         </Button>
       </DialogTrigger>
@@ -118,6 +137,28 @@ export function NoteComposer({
             history.
           </DialogDescription>
         </DialogHeader>
+
+        {/* The preview is the point of the picker: it is the actual bubble, in
+            the actual theme, before anything is saved. */}
+        <div className="space-y-2 rounded-xl border border-border/60 bg-muted/30 p-3">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Preview
+          </p>
+          <div
+            className={cn(
+              "relative flex max-w-full items-start gap-2 rounded-2xl rounded-bl-sm border px-3 py-2 shadow-lg backdrop-blur-md",
+              style.profile,
+            )}
+          >
+            <MessageCircle className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", style.icon)} />
+            <div className="min-w-0">
+              <p className="text-sm leading-snug text-foreground">
+                {text || "Your note appears here"}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{style.label} · 24h left</p>
+            </div>
+          </div>
+        </div>
 
         <div className="space-y-4">
           <div className="space-y-2">
@@ -134,6 +175,35 @@ export function NoteComposer({
               <span className={content.length > NOTE_MAX_LENGTH ? "text-destructive" : ""}>
                 {content.length}/{NOTE_MAX_LENGTH}
               </span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Colour</p>
+            <div className="flex flex-wrap gap-2.5">
+              {NOTE_THEMES.map((option) => {
+                const optionStyle = NOTE_THEME_STYLES[option]
+                const selected = option === theme
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setTheme(option)}
+                    aria-pressed={selected}
+                    aria-label={optionStyle.label}
+                    title={optionStyle.label}
+                    className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-full border shadow-sm transition",
+                      optionStyle.swatch,
+                      selected
+                        ? "scale-110 border-white/80 ring-2 ring-white/40"
+                        : "border-transparent hover:scale-105 hover:ring-2 hover:ring-white/20",
+                    )}
+                  >
+                    {selected && <Check className="h-4 w-4 text-white drop-shadow" />}
+                  </button>
+                )
+              })}
             </div>
           </div>
 

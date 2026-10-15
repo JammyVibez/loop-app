@@ -61,6 +61,9 @@ const DEFAULT_FILES = [
   // Profile notes: 60-character line under your name, gone after 24 hours,
   // with per-note control over profile/posts/communities visibility.
   "scripts/profile-notes-schema.sql",
+  // Note colour themes: the author's chosen bubble colour, constrained to the
+  // list mirrored in lib/profile-note.ts.
+  "scripts/profile-note-themes-schema.sql",
 ]
 
 // Allow a targeted run: node apply-pending-schema.mjs scripts/foo.sql …

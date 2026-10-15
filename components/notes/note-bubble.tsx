@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { MessageCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { type ProfileNote, noteExpiryLabel } from "@/lib/profile-note"
+import { type ProfileNote, noteExpiryLabel, noteThemeStyle } from "@/lib/profile-note"
 
 interface NoteBubbleProps {
   note: ProfileNote
@@ -14,24 +14,27 @@ interface NoteBubbleProps {
 }
 
 /**
- * The note itself — a short line in a soft pill. Deliberately quieter than a
- * post: it is a status, not content, and it must not out-shout the card it
- * sits on.
+ * The note itself — a short line in a soft pill, wearing the colour its author
+ * picked. Deliberately quieter than a post: it is a status, not content, and
+ * it must not out-shout the card it sits on.
  */
 export function NoteBubble({ note, variant = "card", className }: NoteBubbleProps) {
   const content = note.content
   if (!content) return null
 
+  const style = noteThemeStyle(note.theme)
+
   if (variant === "profile") {
     return (
       <div
         className={cn(
-          "relative flex max-w-[19rem] items-start gap-2 rounded-2xl rounded-bl-sm border border-indigo-400/40 bg-gradient-to-br from-indigo-500/25 to-cyan-500/20 px-3 py-2 shadow-lg shadow-indigo-950/40 backdrop-blur-md",
+          "relative flex max-w-[19rem] items-start gap-2 rounded-2xl rounded-bl-sm border px-3 py-2 shadow-lg backdrop-blur-md",
+          style.profile,
           className,
         )}
         title={`Note · expires in ${noteExpiryLabel(note)}`}
       >
-        <MessageCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-300" />
+        <MessageCircle className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", style.icon)} />
         <div className="min-w-0">
           <p className="text-sm leading-snug text-foreground">{content}</p>
           <p className="mt-0.5 text-[11px] text-muted-foreground">{noteExpiryLabel(note)} left</p>
@@ -43,12 +46,13 @@ export function NoteBubble({ note, variant = "card", className }: NoteBubbleProp
   return (
     <span
       className={cn(
-        "inline-flex max-w-full -translate-y-1.5 items-center gap-1 rounded-full border border-indigo-400/35 bg-indigo-500/15 px-2 py-0.5 shadow-sm backdrop-blur-sm",
+        "inline-flex max-w-full -translate-y-1.5 items-center gap-1 rounded-full border px-2 py-0.5 shadow-sm backdrop-blur-sm",
+        style.chip,
         className,
       )}
       title={`Note: ${content}`}
     >
-      <MessageCircle className="h-3 w-3 shrink-0 text-indigo-400" />
+      <MessageCircle className={cn("h-3 w-3 shrink-0", style.icon)} />
       <span className="truncate text-[11px] leading-tight text-foreground/90">{content}</span>
     </span>
   )

@@ -25,11 +25,11 @@ const target = profiles[0]
 
 await client.query("DELETE FROM profile_notes WHERE user_id = $1", [target.id])
 await client.query(
-  `INSERT INTO profile_notes (user_id, content, show_on_profile, show_on_posts, show_on_communities, expires_at)
-   VALUES ($1, $2, true, false, false, NOW() + INTERVAL '2 hours')`,
+  `INSERT INTO profile_notes (user_id, content, theme, show_on_profile, show_on_posts, show_on_communities, expires_at)
+   VALUES ($1, $2, 'rose', true, false, false, NOW() + INTERVAL '2 hours')`,
   [target.id, "smoke test note — profile only"],
 )
-console.log("seeded a profile-only note for", target.username)
+console.log("seeded a profile-only, rose-themed note for", target.username)
 
 const base = "https://loopapp.me/api/profile-note"
 const expected = { profile: true, posts: false, communities: false }
@@ -57,6 +57,28 @@ const missing = await fetch(`${base}?username=definitely-not-a-user-xyz`)
 const missingOk = missing.status === 200
 if (!missingOk) failed++
 console.log(`${missingOk ? "OK  " : "BAD "} unknown username -> ${missing.status} (expected 200, empty note)`)
+
+// Colour theme: the migration added the column, the API carries the colour out
+// to readers, and the CHECK refuses a colour the picker never offers.
+const themed = await (
+  await fetch(`${base}?username=${encodeURIComponent(target.username)}&surface=profile`)
+).json().catch(() => ({}))
+const themeOk = themed?.note?.theme === "rose"
+if (!themeOk) failed++
+console.log(`${themeOk ? "OK  " : "BAD "} note theme -> ${JSON.stringify(themed?.note?.theme)} (expected "rose")`)
+
+let rejected = false
+let rejectionMessage = ""
+try {
+  await client.query("UPDATE profile_notes SET theme = 'chartreuse' WHERE user_id = $1", [target.id])
+} catch (err) {
+  rejected = true
+  rejectionMessage = String(err?.message || "").slice(0, 60)
+}
+if (!rejected) failed++
+console.log(
+  `${rejected ? "OK  " : "BAD "} off-list theme rejected by the database${rejected ? ` (${rejectionMessage})` : " (the CHECK is missing!)"}`,
+)
 
 await client.query("DELETE FROM profile_notes WHERE user_id = $1", [target.id])
 const { rows: left } = await client.query("SELECT count(*)::int AS n FROM profile_notes WHERE user_id = $1", [target.id])

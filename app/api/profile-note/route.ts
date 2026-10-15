@@ -2,11 +2,13 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
 import {
+  DEFAULT_NOTE_THEME,
   NOTE_SURFACES,
   type NoteSurface,
   type NoteVisibility,
   canViewProfileNote,
   isNoteLengthValid,
+  isNoteTheme,
   sanitizeNoteText,
   surfaceColumn,
   visibilityFlags,
@@ -19,8 +21,35 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder",
 )
 
-const SELECT_COLUMNS =
+// Columns that have existed since the feature shipped.
+const BASE_COLUMNS =
   "id, user_id, content, show_on_profile, show_on_posts, show_on_communities, created_at, expires_at"
+const SELECT_COLUMNS = `${BASE_COLUMNS}, theme`
+
+/**
+ * Read notes for a set of authors on one surface.
+ *
+ * `theme` arrived with the colour picker, so a database that hasn't run the
+ * migration yet must still hand back its notes: the fallback query drops the
+ * new column and paints everything in the default palette rather than hiding
+ * every note on the site.
+ */
+async function selectNotes(userIds: string[], surface: NoteSurface) {
+  const query = (columns: string) =>
+    supabase
+      .from("profile_notes")
+      .select(columns)
+      .in("user_id", userIds)
+      .eq(surfaceColumn(surface), true)
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+
+  const { data, error } = await query(SELECT_COLUMNS)
+  if (!error) return (data || []) as any[]
+
+  const fallback = await query(BASE_COLUMNS)
+  return ((fallback.data || []) as any[]).map((row) => ({ ...row, theme: DEFAULT_NOTE_THEME }))
+}
 
 function isSurface(value: unknown): value is NoteSurface {
   return typeof value === "string" && (NOTE_SURFACES as readonly string[]).includes(value)
@@ -92,21 +121,15 @@ async function handleGet(request: NextRequest) {
 
   if (!userIds.length) return NextResponse.json({ note: null, notes: [] })
 
-  const { data, error } = await supabase
-    .from("profile_notes")
-    .select(SELECT_COLUMNS)
-    .in("user_id", userIds)
-    .eq(surfaceColumn(surface), true)
-    .gt("expires_at", new Date().toISOString())
-    .order("created_at", { ascending: false })
-
-  if (error) {
-    // A missing table (migration not applied yet) must not break profiles —
-    // the note simply isn't there.
-    return NextResponse.json({ note: null, notes: [] })
+  // A missing table (migration not applied yet) must not break profiles — the
+  // note simply isn't there.
+  let notes: any[] = []
+  try {
+    notes = await selectNotes(userIds, surface)
+  } catch {
+    notes = []
   }
 
-  const notes = (data || []) as any[]
   // One note per account, but be defensive about the batch shape.
   const deduped = new Map<string, any>()
   for (const note of notes) if (!deduped.has(note.user_id)) deduped.set(note.user_id, note)
@@ -138,6 +161,12 @@ async function handlePost(request: NextRequest) {
   }
   const content = sanitizeNoteText(rawContent)
 
+  const requestedTheme = body?.theme
+  if (requestedTheme !== undefined && requestedTheme !== null && !isNoteTheme(requestedTheme)) {
+    return NextResponse.json({ error: "That note colour isn't available." }, { status: 400 })
+  }
+  const theme = isNoteTheme(requestedTheme) ? requestedTheme : DEFAULT_NOTE_THEME
+
   const requested: Partial<NoteVisibility> = body?.visibility || {}
   const flags = visibilityFlags({
     profile: requested.profile !== false,
@@ -152,29 +181,40 @@ async function handlePost(request: NextRequest) {
   }
 
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+  const payload = {
+    user_id: user.id,
+    content,
+    theme,
+    ...flags,
+    created_at: new Date().toISOString(),
+    expires_at: expiresAt,
+  }
+
   const { data, error } = await supabase
     .from("profile_notes")
-    .upsert(
-      {
-        user_id: user.id,
-        content,
-        ...flags,
-        created_at: new Date().toISOString(),
-        expires_at: expiresAt,
-      },
-      { onConflict: "user_id" },
-    )
+    .upsert(payload, { onConflict: "user_id" })
     .select(SELECT_COLUMNS)
     .single()
 
-  if (error) {
+  if (!error) return NextResponse.json({ note: data })
+
+  // Pre-migration database: losing the colour is survivable, losing the note
+  // is not — retry with the columns that certainly exist.
+  const { theme: _dropped, ...withoutTheme } = payload
+  const retry = await supabase
+    .from("profile_notes")
+    .upsert(withoutTheme, { onConflict: "user_id" })
+    .select(BASE_COLUMNS)
+    .single()
+
+  if (retry.error) {
     return NextResponse.json(
       { error: "We couldn't save your note just now. Please try again." },
       { status: 500 },
     )
   }
 
-  return NextResponse.json({ note: data })
+  return NextResponse.json({ note: { ...retry.data, theme: DEFAULT_NOTE_THEME } })
 }
 
 /** Remove the signed-in user's note. */

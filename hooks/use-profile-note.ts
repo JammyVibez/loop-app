@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
   type NoteSurface,
+  type NoteTheme,
   type NoteVisibility,
   type ProfileNote,
   isNoteLive,
@@ -150,12 +151,13 @@ export interface SaveNoteResult {
 export async function saveProfileNote(
   content: string,
   visibility: Partial<NoteVisibility>,
+  theme: NoteTheme,
 ): Promise<SaveNoteResult> {
   try {
     const response = await fetch("/api/profile-note", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content, visibility }),
+      body: JSON.stringify({ content, visibility, theme }),
     })
     const data = await response.json().catch(() => ({}))
     if (!response.ok) {
