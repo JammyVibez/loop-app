@@ -14,7 +14,6 @@ import {
   DEFAULT_NOTE_THEME,
   NOTE_MAX_LENGTH,
   NOTE_THEMES,
-  NOTE_THEME_STYLES,
   NOTE_TTL_HOURS,
   canViewProfileNote,
   isNoteLengthValid,
@@ -24,7 +23,6 @@ import {
   noteExpiryLabel,
   noteHoursLeft,
   noteThemeFromRow,
-  noteThemeStyle,
   noteVisibleFor,
   sanitizeNoteText,
   surfaceColumn,
@@ -33,6 +31,7 @@ import {
   visibilityFromRow,
   type ProfileNote,
 } from "@/lib/profile-note"
+import { NOTE_THEME_STYLES, noteThemeStyle } from "@/components/notes/note-theme-styles"
 
 const HOUR = 3_600_000
 

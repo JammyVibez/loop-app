@@ -1,7 +1,8 @@
 import Link from "next/link"
 import { MessageCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { type ProfileNote, noteExpiryLabel, noteThemeStyle } from "@/lib/profile-note"
+import { type ProfileNote, noteExpiryLabel } from "@/lib/profile-note"
+import { noteThemeStyle } from "./note-theme-styles"
 
 interface NoteBubbleProps {
   note: ProfileNote

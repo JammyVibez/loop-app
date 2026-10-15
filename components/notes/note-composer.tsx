@@ -36,18 +36,17 @@ import {
   NOTE_MAX_LENGTH,
   NOTE_SURFACES,
   NOTE_THEMES,
-  NOTE_THEME_STYLES,
   type NoteSurface,
   type NoteTheme,
   type NoteVisibility,
   type ProfileNote,
   isNoteLengthValid,
   noteThemeFromRow,
-  noteThemeStyle,
   sanitizeNoteText,
   surfaceLabel,
   visibilityFromRow,
 } from "@/lib/profile-note"
+import { NOTE_THEME_STYLES, noteThemeStyle } from "./note-theme-styles"
 import { deleteProfileNote, saveProfileNote } from "@/hooks/use-profile-note"
 
 const DEFAULT_VISIBILITY: NoteVisibility = { profile: true, posts: true, communities: true }
