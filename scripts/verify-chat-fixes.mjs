@@ -31,8 +31,10 @@ await db.connect()
 const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 const password = `Codebuff-${stamp}-Aa1!`
 const createdUserIds = []
+const createdEmails = []
 const createdConversationIds = []
 const createdSessionIds = []
+const createdMessageIds = []
 const coLoopSessionId = `verify-chat-${stamp}`
 const liveEvents = []
 let listener = null
@@ -63,6 +65,7 @@ async function makeUser(label) {
   )
 
   // A Better Auth session the API will accept as this user.
+  createdEmails.push(email)
   const token = `codebuff-${label}-${stamp}-${Math.random().toString(36).slice(2)}`
   const sessionId = `codebuff-sess-${label}-${stamp}`
   await db.query(
@@ -128,6 +131,7 @@ try {
   const sendData = await sendRes.json().catch(() => ({}))
   check("sender POST /api/messages", sendRes.status === 200 && Boolean(sendData?.message?.id), `status ${sendRes.status}`)
   const messageId = sendData?.message?.id
+  if (messageId) createdMessageIds.push(messageId)
 
   await new Promise((r) => setTimeout(r, 1500))
   check(
@@ -248,6 +252,15 @@ try {
   await admin.from("co_loop_chat_messages").delete().eq("session_id", coLoopSessionId)
   if (createdSessionIds.length) {
     await db.query(`DELETE FROM session WHERE id = ANY($1::text[])`, [createdSessionIds])
+  }
+  // Reactions have no FK to messages, so they outlive the thread unless they
+  // are removed by hand.
+  if (createdMessageIds.length) {
+    await db.query(`DELETE FROM message_reactions WHERE message_id = ANY($1::bigint[])`, [createdMessageIds])
+  }
+  if (createdEmails.length) {
+    await db.query(`DELETE FROM "user" WHERE email = ANY($1::text[])`, [createdEmails])
+    await db.query(`DELETE FROM profiles WHERE email = ANY($1::text[])`, [createdEmails])
   }
   for (const id of createdUserIds) {
     await admin.auth.admin.deleteUser(id).catch(() => {})

@@ -22,7 +22,9 @@ const admin = createClient(url, service, { auth: { persistSession: false } })
 const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 const password = `Codebuff-${stamp}-Aa1!`
 const createdUserIds = []
+const createdEmails = []
 const createdConversationIds = []
+const createdMessageIds = []
 let failures = 0
 
 const check = (name, ok, detail = "") => {
@@ -40,6 +42,7 @@ async function makeUser(label) {
   })
   if (error) throw new Error(`create ${label}: ${error.message}`)
   createdUserIds.push(data.user.id)
+  createdEmails.push(email)
   return { id: data.user.id, email }
 }
 
@@ -108,6 +111,7 @@ try {
     .select("id")
     .single()
   if (sendError) throw new Error(`send: ${sendError.message}`)
+  createdMessageIds.push(inserted.id)
 
   const payload = await received
   check(
@@ -150,10 +154,19 @@ try {
   console.error("verify-chat-realtime failed:", error?.message || error)
   failures += 1
 } finally {
+  for (const id of createdMessageIds) {
+    await admin.from("message_reactions").delete().eq("message_id", id)
+  }
   for (const id of createdConversationIds) {
     await admin.from("messages").delete().eq("conversation_id", id)
     await admin.from("conversation_participants").delete().eq("conversation_id", id)
     await admin.from("conversations").delete().eq("id", id)
+  }
+  // The API resolves sessions through Better Auth's own user row, so remove
+  // the mirrored account too or it lingers after the auth user is gone.
+  for (const email of createdEmails) {
+    await admin.from("user").delete().eq("email", email)
+    await admin.from("profiles").delete().eq("email", email)
   }
   for (const id of createdUserIds) {
     await admin.auth.admin.deleteUser(id).catch(() => {})
