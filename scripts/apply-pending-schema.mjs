@@ -64,6 +64,13 @@ const DEFAULT_FILES = [
   // Note colour themes: the author's chosen bubble colour, constrained to the
   // list mirrored in lib/profile-note.ts.
   "scripts/profile-note-themes-schema.sql",
+  // DM chat: reactions storage repairs + the participant SELECT policy that
+  // lets Postgres Changes deliver a message to the other person's open thread.
+  "scripts/messages-realtime-schema-fix.sql",
+  "scripts/messages-chat-realtime-schema.sql",
+  // Co-Loop Studio chat: durable room messages (with reactions) instead of a
+  // broadcast-only feed that vanished on reload.
+  "scripts/co-loop-chat-schema.sql",
 ]
 
 // Allow a targeted run: node apply-pending-schema.mjs scripts/foo.sql …

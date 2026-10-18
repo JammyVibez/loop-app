@@ -34,6 +34,10 @@ export interface StudioChatMessage {
   text: string
   timestamp: string
   createdAt?: number
+  /** `{ "<emoji>": ["<user_id>", …] }` — persisted with the message. */
+  reactions?: Record<string, string[]>
+  /** Local-only: still being written to the server. */
+  pending?: boolean
 }
 
 export interface StudioDocState {

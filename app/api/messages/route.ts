@@ -2,10 +2,64 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { checkBlockStatus } from "@/lib/user-blocks"
+import { broadcastRealtime } from "@/lib/realtime-server"
 
 export const dynamic = "force-dynamic"
 
 const getUser = getUserFromRequest
+
+export interface GroupedReaction {
+  emoji: string
+  count: number
+  users: string[]
+}
+
+/**
+ * Reactions live in `message_reactions` (one row per user + emoji). The thread
+ * used to read only `messages.reactions`, which the write path no longer
+ * touches, so a saved reaction vanished on the next load. Attach the grouped
+ * form here so every reader — the sender, the peer, a reload — sees the same
+ * state.
+ */
+async function attachReactions(
+  supabase: ReturnType<typeof createServerClient>,
+  rows: any[],
+): Promise<any[]> {
+  if (!rows.length) return rows
+  // `messages.id` is numeric while `message_reactions.message_id` is text —
+  // stringifying keeps PostgREST comparing against the right column type.
+  const ids = rows.map((row) => (row?.id == null ? null : String(row.id))).filter(Boolean) as string[]
+  if (!ids.length) return rows
+
+  const { data, error } = await supabase
+    .from("message_reactions")
+    .select("message_id, emoji, user_id")
+    .in("message_id", ids)
+
+  if (error || !data) return rows
+
+  const grouped = new Map<string, Map<string, string[]>>()
+  for (const row of data as Array<{ message_id: string | number; emoji: string | null; user_id: string | null }>) {
+    if (row?.message_id == null || !row.emoji || !row.user_id) continue
+    const key = String(row.message_id)
+    const perEmoji = grouped.get(key) || new Map<string, string[]>()
+    const users = perEmoji.get(row.emoji) || []
+    if (!users.includes(row.user_id)) users.push(row.user_id)
+    perEmoji.set(row.emoji, users)
+    grouped.set(key, perEmoji)
+  }
+
+  return rows.map((row) => {
+    const perEmoji = grouped.get(String(row.id))
+    if (!perEmoji) return { ...row, reactions: [] }
+    const reactions: GroupedReaction[] = Array.from(perEmoji.entries()).map(([emoji, users]) => ({
+      emoji,
+      count: users.length,
+      users,
+    }))
+    return { ...row, reactions }
+  })
+}
 
 async function assertMember(supabase: ReturnType<typeof createServerClient>, conversationId: string, userId: string) {
   const { data } = await supabase
@@ -106,10 +160,11 @@ export async function GET(request: NextRequest) {
         ...m,
         sender: map.get(m.author_id || m.sender_id) || null,
       }))
-      return NextResponse.json({ success: true, messages: hydrated, has_more: rows.length === limit })
+      const withReactions = await attachReactions(supabase, hydrated)
+      return NextResponse.json({ success: true, messages: withReactions, has_more: rows.length === limit })
     }
 
-    const messages = toAscending(messagesDesc as any[])
+    const messages = await attachReactions(supabase, toAscending(messagesDesc as any[]))
     return NextResponse.json({ success: true, messages, has_more: messages.length === limit })
   } catch (error) {
     console.error("Error fetching messages:", error)
@@ -272,13 +327,9 @@ export async function POST(request: NextRequest) {
       },
     }
 
-    try {
-      await supabase.channel(`conversation:${conversationId}`).send({
-        type: "broadcast",
-        event: "new_message",
-        payload: enriched,
-      })
-    } catch { /* intentionally silent */ }
+    // Fan out over Realtime REST: the peer's open thread appends this without
+    // waiting for the next poll. Never blocks the send if Realtime is down.
+    await broadcastRealtime(`conversation:${conversationId}`, "new_message", enriched)
 
     // Notify other participants (in-app + real Web Push) so a new DM is
     // never silent, matching the same pattern used for mentions/gifts.

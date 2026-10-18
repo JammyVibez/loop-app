@@ -404,9 +404,9 @@ export function MessagesWorkspace() {
     return messages.filter((m) => m.content?.toLowerCase().includes(q))
   }, [messages, chatSearch])
 
-  const loadConversations = async () => {
+  const loadConversations = async (silent = false) => {
     if (!user) return
-    setLoading(true)
+    if (!silent) setLoading(true)
     try {
       const response = await fetch("/api/conversations", { headers: getAuthHeader() })
       const data = await response.json()
@@ -428,9 +428,10 @@ export function MessagesWorkspace() {
         router.replace(`/messages?c=${id}`, { scroll: false })
       }
     } catch (error: any) {
-      toast({ title: "Chat unavailable", description: error.message, variant: "destructive" })
+      // A background refresh must not hijack the screen with a toast.
+      if (!silent) toast({ title: "Chat unavailable", description: error.message, variant: "destructive" })
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
@@ -438,12 +439,12 @@ export function MessagesWorkspace() {
   const [loadingOlder, setLoadingOlder] = useState(false)
   const MESSAGE_PAGE_SIZE = 80
 
-  const loadMessages = async (conversationId: string, older = false) => {
+  const loadMessages = async (conversationId: string, older = false, silent = false) => {
     if (!user) return
     const req = ++loadReq.current
     if (older) {
       setLoadingOlder(true)
-    } else {
+    } else if (!silent) {
       setMessagesLoading(true)
       setHasMoreMessages(true)
     }
@@ -495,9 +496,9 @@ export function MessagesWorkspace() {
       }
     } catch (error: any) {
       if (req !== loadReq.current) return
-      toast({ title: "Messages unavailable", description: error.message, variant: "destructive" })
+      if (!silent) toast({ title: "Messages unavailable", description: error.message, variant: "destructive" })
     } finally {
-      if (req === loadReq.current) {
+      if (req === loadReq.current && !silent) {
         setMessagesLoading(false)
         setLoadingOlder(false)
       }
@@ -506,6 +507,19 @@ export function MessagesWorkspace() {
 
   useEffect(() => {
     void loadConversations()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
+
+  // Cheap safety net for the inbox: a message that lands while realtime is
+  // reconnecting still shows up (with its unread badge) within a few seconds.
+  // Silent — no spinner, no toast, no scroll jump.
+  useEffect(() => {
+    if (!user?.id) return
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return
+      void loadConversations(true)
+    }, 20000)
+    return () => clearInterval(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
 
@@ -663,8 +677,18 @@ export function MessagesWorkspace() {
           ),
         )
       })
-      .on("broadcast", { event: "reaction" }, () => {
-        if (selectedIdRef.current === selectedId) void loadMessages(selectedId)
+      .on("broadcast", { event: "reaction" }, ({ payload }: { payload: any }) => {
+        if (!payload?.message_id) return
+        if (payload?.user_id === user.id) return
+        // The server sends the authoritative grouped counts, so the peer does
+        // not need a full thread reload to see the change.
+        if (Array.isArray(payload.reactions)) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === payload.message_id ? { ...m, reactions: payload.reactions } : m)),
+          )
+          return
+        }
+        if (selectedIdRef.current === selectedId) void loadMessages(selectedId, false, true)
       })
       .on("broadcast", { event: "coloop" }, ({ payload }: { payload: any }) => {
         if (!payload || payload.user_id === user.id) return
@@ -728,8 +752,19 @@ export function MessagesWorkspace() {
       })
     }, 20000)
 
+    // Delivery net: if the socket is down (mobile sleep, flaky network, a
+    // dropped Realtime connection) the open thread still refreshes. This is
+    // what makes a message from the other person appear even when neither the
+    // broadcast nor Postgres Changes arrives.
+    const reconcile = setInterval(() => {
+      if (selectedIdRef.current !== selectedId) return
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return
+      void loadMessages(selectedId, false, true)
+    }, 8000)
+
     return () => {
       clearInterval(heartbeat)
+      clearInterval(reconcile)
       void channel.send({
         type: "broadcast",
         event: "presence",
@@ -1141,11 +1176,14 @@ export function MessagesWorkspace() {
         body: JSON.stringify({ message_id: message.id, emoji, action: reacted ? "remove" : "add" }),
       })
       if (!response.ok) throw new Error("Reaction failed")
-      void channelRef.current?.send({
-        type: "broadcast",
-        event: "reaction",
-        payload: { message_id: message.id, emoji },
-      })
+      const data = await response.json().catch(() => null)
+      // Adopt the server's grouped counts (it re-reads the reactions table), so
+      // the bubble can never drift from what everyone else sees.
+      if (Array.isArray(data?.reactions)) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === message.id ? { ...m, reactions: data.reactions } : m)),
+        )
+      }
     } catch {
       setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, reactions: snapshot } : m)))
       toast({ title: "Couldn’t react", variant: "destructive" })

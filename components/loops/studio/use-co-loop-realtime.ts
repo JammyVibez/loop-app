@@ -44,6 +44,8 @@ interface UseCoLoopRealtimeOptions {
   self: CoLoopRealtimeSelf | null
   isOwner: boolean
   role: StudioRole
+  /** The app's auth header — chat history and sends go through the API. */
+  getAuthHeader: () => Record<string, string>
   /** A peer's ops were applied; adopt the resulting text. */
   onRemoteText: (field: StudioField, text: string, appliedOps: TextOp[]) => void
   /** A peer published an authoritative snapshot that should replace local text. */
@@ -76,7 +78,10 @@ export interface CoLoopRealtimeApi {
   publishSnapshot: (field: StudioField, text: string) => void
   /** Publish discrete document fields to the room (last-writer-wins). */
   announceMeta: (patch: StudioMetaPatch) => void
-  sendChat: (message: StudioChatMessage) => void
+  /** Store a chat message in the room and fan it out to everyone. */
+  sendChat: (text: string) => void
+  /** Toggle an emoji reaction on a stored chat message. */
+  reactToChat: (messageId: string, emoji: string) => void
   clearUnread: () => void
   announceVersionSaved: (version: unknown) => void
   announceVersionRestored: (version: unknown, by: string) => void
@@ -97,6 +102,7 @@ export function useCoLoopRealtime({
   self,
   isOwner,
   role,
+  getAuthHeader,
   onRemoteText,
   onAdoptSnapshot,
   onMeta,
@@ -247,6 +253,36 @@ export function useCoLoopRealtime({
     },
     [flushField]
   )
+
+  /**
+   * Room chat is stored server-side, so a late joiner, a reload, or a second
+   * device sees everything that was said before they connected. Merged by id
+   * so the live broadcast and this fetch cannot duplicate a bubble.
+   */
+  const loadChatHistory = useCallback(async () => {
+    if (!sessionId) return
+    try {
+      const res = await fetch(`/api/co-loop/chat?session_id=${encodeURIComponent(sessionId)}`, {
+        headers: getAuthHeader(),
+        cache: "no-store",
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      const incoming = Array.isArray(data?.messages) ? (data.messages as StudioChatMessage[]) : []
+      if (!incoming.length) return
+      setChatMessages((prev) => {
+        const map = new Map(prev.filter((m) => !m.pending).map((m) => [m.id, m]))
+        incoming.forEach((m) => {
+          if (m?.id) map.set(m.id, { ...map.get(m.id), ...m })
+        })
+        return Array.from(map.values())
+          .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
+          .slice(-MAX_CHAT_MESSAGES)
+      })
+    } catch {
+      /* chat history is best-effort — live broadcast still works */
+    }
+  }, [getAuthHeader, sessionId])
 
   const sendChatBacklog = useCallback(
     (delayMs: number) => {
@@ -469,10 +505,27 @@ export function useCoLoopRealtime({
       .on("broadcast", { event: "chat-msg" }, ({ payload }: any) => {
         const message = payload as StudioChatMessage
         if (!message?.id) return
-        setChatMessages((prev) =>
-          prev.some((m) => m.id === message.id) ? prev : [...prev, message].slice(-MAX_CHAT_MESSAGES)
-        )
+        setChatMessages((prev) => {
+          const existing = prev.find((m) => m.id === message.id)
+          if (existing) {
+            return prev.map((m) => (m.id === message.id ? { ...m, ...message, pending: false } : m))
+          }
+          // A peer re-sent a message this client already rendered optimistically
+          // under a temporary id — replace it instead of showing it twice.
+          return [...prev, message].slice(-MAX_CHAT_MESSAGES)
+        })
         if (message.sender_id !== selfId) setUnreadCount((prev) => prev + 1)
+      })
+      .on("broadcast", { event: "chat-reaction" }, ({ payload }: any) => {
+        if (!payload?.message_id || !payload?.reactions) return
+        if (payload.user_id === selfId) return
+        setChatMessages((prev) =>
+          prev.map((m) =>
+            m.id === payload.message_id
+              ? { ...m, reactions: payload.reactions as Record<string, string[]> }
+              : m,
+          ),
+        )
       })
       .on("broadcast", { event: "chat-sync" }, ({ payload }: any) => {
         const incoming = Array.isArray(payload?.messages) ? (payload.messages as StudioChatMessage[]) : []
@@ -575,8 +628,10 @@ export function useCoLoopRealtime({
           connectionRef.current = "live"
           trackPresence()
           flushOutbox()
-          // A fresh join or a reconnect needs the room's current document.
+          // A fresh join or a reconnect needs the room's current document and
+          // the chat that was written before we connected.
           requestSync()
+          void loadChatHistory()
           if (reconnected) {
             send("doc-hash", {
               from: selfId,
@@ -624,6 +679,21 @@ export function useCoLoopRealtime({
       window.removeEventListener("online", onOnline)
     }
   }, [enabled])
+
+  /* ------------------------------------------------------------------ *
+   * Chat history + delivery net
+   * ------------------------------------------------------------------ */
+  useEffect(() => {
+    if (!enabled || !selfId || !sessionId) return
+    void loadChatHistory()
+    // A dropped socket or a sleeping tab must not hide a collaborator's
+    // message: the stored chat is re-read on a slow beat as a fallback.
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return
+      void loadChatHistory()
+    }, 15000)
+    return () => clearInterval(timer)
+  }, [enabled, selfId, sessionId, loadChatHistory])
 
   /* ------------------------------------------------------------------ *
    * Drift reconciliation heartbeat
@@ -736,13 +806,99 @@ export function useCoLoopRealtime({
   )
 
   const sendChat = useCallback(
-    (message: StudioChatMessage) => {
-      setChatMessages((prev) =>
-        prev.some((m) => m.id === message.id) ? prev : [...prev, message].slice(-MAX_CHAT_MESSAGES)
-      )
-      send("chat-msg", message as unknown as Record<string, unknown>)
+    (text: string) => {
+      const content = text.trim().slice(0, 1000)
+      if (!content || !selfId || !sessionId) return
+      const tempId = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+      const optimistic: StudioChatMessage = {
+        id: tempId,
+        sender_id: selfId,
+        sender_name: self?.display_name || self?.username || "You",
+        sender_avatar: self?.avatar_url ?? null,
+        sender_video_avatar_url: self?.video_avatar_url ?? null,
+        sender_is_premium: Boolean(self?.is_premium),
+        text: content,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        createdAt: Date.now(),
+        reactions: {},
+        pending: true,
+      }
+      setChatMessages((prev) => [...prev, optimistic].slice(-MAX_CHAT_MESSAGES))
+
+      void (async () => {
+        try {
+          const res = await fetch("/api/co-loop/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...getAuthHeader() },
+            body: JSON.stringify({ session_id: sessionId, content }),
+          })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) throw new Error(data?.error || "Could not send that message")
+          const stored = data.message as StudioChatMessage
+          if (!stored?.id) throw new Error("Could not send that message")
+          setChatMessages((prev) => {
+            const withoutTemp = prev.filter((m) => m.id !== tempId && m.id !== stored.id)
+            return [...withoutTemp, stored]
+              .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
+              .slice(-MAX_CHAT_MESSAGES)
+          })
+        } catch (err: any) {
+          setChatMessages((prev) => prev.filter((m) => m.id !== tempId))
+          callbacksRef.current.onRoomEvent({
+            type: "error",
+            message: err?.message || "Could not send that message",
+          })
+        }
+      })()
     },
-    [send]
+    [self, selfId, sessionId, getAuthHeader]
+  )
+
+  const reactToChat = useCallback(
+    (messageId: string, emoji: string) => {
+      if (!messageId || !sessionId) return
+      // Optimistic toggle, then adopt the server's map.
+      setChatMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageId) return m
+          const current = m.reactions || {}
+          const reactors = current[emoji] || []
+          const next = { ...current }
+          if (reactors.includes(selfId)) {
+            const remaining = reactors.filter((id) => id !== selfId)
+            if (remaining.length) next[emoji] = remaining
+            else delete next[emoji]
+          } else {
+            next[emoji] = [...reactors, selfId]
+          }
+          return { ...m, reactions: next }
+        }),
+      )
+
+      void (async () => {
+        try {
+          const res = await fetch("/api/co-loop/chat", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", ...getAuthHeader() },
+            body: JSON.stringify({ message_id: messageId, emoji }),
+          })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) throw new Error(data?.error || "Could not save that reaction")
+          if (data?.reactions) {
+            setChatMessages((prev) =>
+              prev.map((m) => (m.id === messageId ? { ...m, reactions: data.reactions } : m)),
+            )
+          }
+        } catch (err: any) {
+          callbacksRef.current.onRoomEvent({
+            type: "error",
+            message: err?.message || "Could not save that reaction",
+          })
+          void loadChatHistory()
+        }
+      })()
+    },
+    [getAuthHeader, loadChatHistory, selfId, sessionId]
   )
 
   const clearUnread = useCallback(() => setUnreadCount(0), [])
@@ -787,6 +943,7 @@ export function useCoLoopRealtime({
       publishSnapshot,
       announceMeta,
       sendChat,
+      reactToChat,
       clearUnread,
       announceVersionSaved,
       announceVersionRestored,
@@ -812,6 +969,7 @@ export function useCoLoopRealtime({
       publishSnapshot,
       announceMeta,
       sendChat,
+      reactToChat,
       clearUnread,
       announceVersionSaved,
       announceVersionRestored,

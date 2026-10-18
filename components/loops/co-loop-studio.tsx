@@ -22,7 +22,6 @@ import {
   colorForParticipant,
   type StudioActivityAction,
   type StudioActivityEntry,
-  type StudioChatMessage,
   type StudioDocState,
   type StudioField,
   type StudioMediaType,
@@ -342,6 +341,7 @@ export function CoLoopStudio() {
       : null,
     isOwner,
     role: isOwner ? "Primary Creator" : "Co-Author",
+    getAuthHeader,
     onRemoteText: handleRemoteText,
     onAdoptSnapshot: handleAdoptSnapshot,
     onMeta: handleMeta,
@@ -1175,21 +1175,12 @@ export function CoLoopStudio() {
     return { title, content }
   }, [liveParticipants, user?.id])
 
+  // Room chat is stored by the API, so the sender and every peer (including
+  // anyone who joins later) read the same thread.
   const handleSendChat = useCallback(
     (text: string) => {
       if (!user) return
-      const message: StudioChatMessage = {
-        id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        sender_id: user.id,
-        sender_name: user.display_name || user.username || "Collaborator",
-        sender_avatar: (user as any).avatar_url ?? null,
-        sender_video_avatar_url: (user as any).video_avatar_url ?? null,
-        sender_is_premium: user.is_premium,
-        text,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        createdAt: Date.now(),
-      }
-      realtime.sendChat(message)
+      realtime.sendChat(text)
     },
     [realtime, user]
   )
@@ -1222,6 +1213,7 @@ export function CoLoopStudio() {
       selfId={user.id}
       chatMessages={realtime.chatMessages}
       onSendChat={handleSendChat}
+      onReact={(messageId, emoji) => realtime.reactToChat(messageId, emoji)}
       onInvite={() => {
         setActivityOpen(false)
         setInviteOpen(true)

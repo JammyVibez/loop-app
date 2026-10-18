@@ -1,10 +1,32 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { broadcastRealtime } from "@/lib/realtime-server"
 
 export const dynamic = "force-dynamic"
 
 const getUser = getUserFromRequest
+
+interface GroupedReaction {
+  emoji: string
+  count: number
+  users: string[]
+}
+
+function groupRows(rows: Array<{ emoji: string | null; user_id: string | null }>): GroupedReaction[] {
+  const perEmoji = new Map<string, string[]>()
+  for (const row of rows) {
+    if (!row?.emoji || !row.user_id) continue
+    const users = perEmoji.get(row.emoji) || []
+    if (!users.includes(row.user_id)) users.push(row.user_id)
+    perEmoji.set(row.emoji, users)
+  }
+  return Array.from(perEmoji.entries()).map(([emoji, users]) => ({
+    emoji,
+    count: users.length,
+    users,
+  }))
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,14 +45,11 @@ export async function GET(request: NextRequest) {
       .eq("message_id", messageId)
 
     if (!error) {
-      const grouped: Record<string, { emoji: string; count: number; users: string[]; reacted: boolean }> = {}
-      for (const row of rows || []) {
-        if (!grouped[row.emoji]) grouped[row.emoji] = { emoji: row.emoji, count: 0, users: [], reacted: false }
-        grouped[row.emoji].count += 1
-        grouped[row.emoji].users.push(row.user_id)
-        if (row.user_id === user.id) grouped[row.emoji].reacted = true
-      }
-      return NextResponse.json({ success: true, reactions: Object.values(grouped) })
+      const grouped = groupRows(rows || []).map((reaction) => ({
+        ...reaction,
+        reacted: reaction.users.includes(user.id),
+      }))
+      return NextResponse.json({ success: true, reactions: grouped })
     }
 
     const { data: message } = await supabase.from("messages").select("reactions").eq("id", messageId).maybeSingle()
@@ -65,6 +84,8 @@ export async function POST(request: NextRequest) {
 
     if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 })
 
+    let reactions: GroupedReaction[] | null = null
+
     // Try dedicated table first
     if (action === "add") {
       const { error } = await supabase.from("message_reactions").upsert(
@@ -76,20 +97,7 @@ export async function POST(request: NextRequest) {
         },
         { onConflict: "message_id,user_id,emoji" },
       )
-
-      if (error) {
-        // JSONB fallback on messages.reactions
-        const current = Array.isArray(message.reactions) ? [...message.reactions] : []
-        const idx = current.findIndex((r: any) => r.emoji === emoji)
-        if (idx >= 0) {
-          const users = new Set<string>(current[idx].users || [])
-          users.add(user.id)
-          current[idx] = { emoji, count: users.size, users: Array.from(users) }
-        } else {
-          current.push({ emoji, count: 1, users: [user.id] })
-        }
-        await supabase.from("messages").update({ reactions: current }).eq("id", messageId)
-      }
+      if (error) console.warn("message_reactions insert:", error.message)
     } else {
       const { error } = await supabase
         .from("message_reactions")
@@ -97,31 +105,54 @@ export async function POST(request: NextRequest) {
         .eq("message_id", messageId)
         .eq("user_id", user.id)
         .eq("emoji", emoji)
+      if (error) console.warn("message_reactions delete:", error.message)
+    }
 
-      if (error) {
-        const current = Array.isArray(message.reactions) ? [...message.reactions] : []
-        const next = current
-          .map((r: any) => {
-            if (r.emoji !== emoji) return r
-            const users = (r.users || []).filter((id: string) => id !== user.id)
-            return users.length ? { emoji, count: users.length, users } : null
-          })
-          .filter(Boolean)
-        await supabase.from("messages").update({ reactions: next }).eq("id", messageId)
+    // Re-read the table so the response (and the mirror) is the real state,
+    // not an optimistic guess.
+    const { data: rows, error: readError } = await supabase
+      .from("message_reactions")
+      .select("emoji, user_id")
+      .eq("message_id", messageId)
+
+    if (!readError) {
+      reactions = groupRows(rows || [])
+    } else {
+      // JSONB fallback on messages.reactions
+      const current: GroupedReaction[] = Array.isArray(message.reactions) ? [...message.reactions] : []
+      const idx = current.findIndex((r: any) => r.emoji === emoji)
+      if (action === "add") {
+        if (idx >= 0) {
+          const users = Array.from(new Set<string>([...(current[idx].users || []), user.id]))
+          current[idx] = { emoji, count: users.length, users }
+        } else {
+          current.push({ emoji, count: 1, users: [user.id] })
+        }
+      } else if (idx >= 0) {
+        const users = (current[idx].users || []).filter((id: string) => id !== user.id)
+        if (users.length) current[idx] = { emoji, count: users.length, users }
+        else current.splice(idx, 1)
       }
+      reactions = current
     }
 
-    try {
-      await supabase.channel(`conversation:${message.conversation_id}`).send({
-        type: "broadcast",
-        event: "reaction",
-        payload: { message_id: messageId, emoji, action, user_id: user.id },
-      })
-    } catch {
-      /* ignore */
-    }
+    // Mirror the grouped counts so readers using the legacy column agree.
+    const mirror = await supabase.from("messages").update({ reactions }).eq("id", messageId)
+    if (mirror.error) console.warn("message reaction mirror:", mirror.error.message)
 
-    return NextResponse.json({ success: true, message: action === "add" ? "Reaction added" : "Reaction removed" })
+    await broadcastRealtime(`conversation:${message.conversation_id}`, "reaction", {
+      message_id: messageId,
+      emoji,
+      action,
+      user_id: user.id,
+      reactions,
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: action === "add" ? "Reaction added" : "Reaction removed",
+      reactions,
+    })
   } catch (error) {
     console.error("Message reaction error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

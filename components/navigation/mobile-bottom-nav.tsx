@@ -3,9 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Search, Video, MessageCircle, User, LogIn, Compass, Menu } from "lucide-react"
+import { Home, Search, Video, MessageCircle, Compass, Menu } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { cn } from "@/lib/utils"
 import { useLoginGate } from "@/hooks/use-login-gate"
 import { useUnreadMessages } from "@/hooks/use-unread-messages"
@@ -23,6 +22,13 @@ const HIDDEN_PREFIXES = [
   "/privacy",
 ]
 
+/**
+ * Mobile tab bar: the four destinations worth a thumb tap, plus the drawer
+ * for everything else. The profile lives in the header's avatar menu, so it
+ * does not need a permanent tab here — that slot now carries Messages, the
+ * one surface people check constantly and the only way to reach an unread DM
+ * without opening the avatar dropdown first.
+ */
 export function MobileBottomNav() {
   const pathname = usePathname()
   const { user, loading } = useAuth()
@@ -35,9 +41,6 @@ export function MobileBottomNav() {
     return null
   }
 
-  const profileHref = user
-    ? `/profile/${user.username || user.user_metadata?.username || ""}`
-    : "/login"
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`)
 
@@ -45,8 +48,8 @@ export function MobileBottomNav() {
     ? [
         { href: "/", icon: Home, label: "Home" },
         { href: "/search", icon: Search, label: "Search" },
+        { href: "/messages", icon: MessageCircle, label: "Messages", auth: true as const },
         { href: "/trees", icon: Video, label: "Trees" },
-        { href: "/messages", icon: MessageCircle, label: "Chat", auth: true as const },
       ]
     : [
         { href: "/", icon: Home, label: "Home" },
@@ -64,38 +67,48 @@ export function MobileBottomNav() {
         className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
         aria-label="Mobile navigation"
       >
-        <div className="grid grid-cols-5 px-1 py-1.5">
+        <div className="grid grid-cols-5 items-stretch px-1 py-1.5">
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
-            className="flex flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors"
+            className="flex flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[10px] font-medium text-muted-foreground transition-colors hover:text-primary"
           >
             <Menu className="h-5 w-5 text-cyan-400" />
             <span>Menu</span>
           </button>
 
-          {items.slice(0, 3).map((item) => {
+          {items.map((item) => {
             const active = isActive(item.href)
             const needsAuth = "auth" in item && Boolean(item.auth)
+            const badge = item.href === "/messages" ? unreadCount : 0
             return (
               <Link
-                key={item.href + item.label}
+                key={item.href}
                 href={needsAuth && !user ? "#" : item.href}
                 onClick={(e) => {
                   if (needsAuth && !requireAuth("message")) {
                     e.preventDefault()
                   }
                 }}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[10px] font-medium transition-colors",
+                  "group relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[10px] font-medium transition-colors",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
+                {/* A quiet pill behind the current tab — easier to read at a
+                    glance than a colour change alone in bright outdoor light. */}
+                <span
+                  className={cn(
+                    "absolute inset-x-2 inset-y-1 -z-10 rounded-xl transition-colors",
+                    active ? "bg-primary/10" : "bg-transparent",
+                  )}
+                />
                 <div className="relative">
-                  <item.icon className="h-5 w-5" />
-                  {item.href === "/messages" && unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
-                      {formatUnreadBadge(unreadCount)}
+                  <item.icon className={cn("h-5 w-5", active && "stroke-[2.4]")} />
+                  {badge > 0 && (
+                    <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-background">
+                      {formatUnreadBadge(badge)}
                     </span>
                   )}
                 </div>
@@ -103,37 +116,6 @@ export function MobileBottomNav() {
               </Link>
             )
           })}
-
-          {user ? (
-            <Link
-              href={profileHref}
-              className={cn(
-                "flex flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[10px] font-medium transition-colors",
-                pathname.startsWith("/profile") ? "text-primary" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {user.avatar_url || user.user_metadata?.avatar_url || (user as any).video_avatar_url ? (
-                <VideoAvatar
-                  src={user.avatar_url || user.user_metadata?.avatar_url}
-                  videoSrc={(user as any).video_avatar_url || null}
-                  isPremium={user.is_premium}
-                  alt={user.display_name || user.username}
-                  size="sm"
-                />
-              ) : (
-                <User className="h-5 w-5" />
-              )}
-              <span>You</span>
-            </Link>
-          ) : (
-            <Link
-              href="/login"
-              className="flex flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[10px] font-medium text-sky-600"
-            >
-              <LogIn className="h-5 w-5" />
-              <span>Log in</span>
-            </Link>
-          )}
         </div>
       </nav>
     </>

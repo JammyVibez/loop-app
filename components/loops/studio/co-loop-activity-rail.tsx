@@ -21,6 +21,7 @@ import {
   Rocket,
   Save,
   Send,
+  SmilePlus,
   Unlock,
   UserPlus,
   UserMinus,
@@ -60,6 +61,8 @@ interface CoLoopActivityRailProps {
   activity: StudioActivityEntry[]
   activityLoading?: boolean
   onSendChat: (text: string) => void
+  /** Toggle an emoji reaction; the message carries its own reaction map. */
+  onReact?: (messageId: string, emoji: string) => void
   onInvite: () => void
   onCopyLink: () => void
   linkCopied: boolean
@@ -77,6 +80,7 @@ export function CoLoopActivityRail({
   activity,
   activityLoading,
   onSendChat,
+  onReact,
   onInvite,
   onCopyLink,
   linkCopied,
@@ -87,6 +91,7 @@ export function CoLoopActivityRail({
 }: CoLoopActivityRailProps) {
   const [tab, setTab] = useState("chat")
   const [draft, setDraft] = useState("")
+  const [reactingTo, setReactingTo] = useState<string | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -141,8 +146,14 @@ export function CoLoopActivityRail({
               <div className="space-y-3">
                 {chatMessages.map((message) => {
                   const isMe = message.sender_id === selfId
+                  const reactions = Object.entries(message.reactions || {}).filter(
+                    ([, users]) => Array.isArray(users) && users.length > 0,
+                  )
                   return (
-                    <div key={message.id} className={`flex gap-2 ${isMe ? "flex-row-reverse" : ""}`}>
+                    <div
+                      key={message.id}
+                      className={`group/msg flex gap-2 ${isMe ? "flex-row-reverse" : ""}`}
+                    >
                       <VideoAvatar
                         src={message.sender_avatar}
                         videoSrc={message.sender_video_avatar_url}
@@ -151,20 +162,85 @@ export function CoLoopActivityRail({
                         size="sm"
                         className="mt-0.5 h-7 w-7 shrink-0 rounded-full"
                       />
-                      <div className={`max-w-[82%] ${isMe ? "items-end text-right" : ""}`}>
-                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <div className={`relative max-w-[82%] ${isMe ? "items-end text-right" : ""}`}>
+                        <div
+                          className={`flex items-center gap-1.5 text-[10px] text-muted-foreground ${
+                            isMe ? "flex-row-reverse" : ""
+                          }`}
+                        >
                           <span className="font-medium">{isMe ? "You" : message.sender_name}</span>
                           <span>{message.timestamp}</span>
+                          {message.pending && <span className="italic opacity-70">sending…</span>}
+                          {onReact && !message.pending && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setReactingTo((prev) => (prev === message.id ? null : message.id))
+                              }
+                              className="rounded-full p-0.5 text-muted-foreground opacity-100 transition-opacity hover:text-foreground sm:opacity-0 sm:group-hover/msg:opacity-100"
+                              aria-label="React to message"
+                            >
+                              <SmilePlus className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
+
                         <p
                           className={`mt-0.5 inline-block rounded-2xl px-3 py-2 text-xs leading-relaxed ${
                             isMe
                               ? "bg-primary text-primary-foreground"
                               : "bg-muted text-foreground"
-                          }`}
+                          } ${message.pending ? "opacity-70" : ""}`}
                         >
                           {message.text}
                         </p>
+
+                        {reactingTo === message.id && onReact && (
+                          <div
+                            className={`mt-1 flex items-center gap-0.5 rounded-full border border-border bg-popover px-1.5 py-0.5 shadow-sm ${
+                              isMe ? "ml-auto w-fit" : "w-fit"
+                            }`}
+                          >
+                            {["👍", "❤️", "😂", "🔥", "🎉"].map((emoji) => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => {
+                                  onReact(message.id, emoji)
+                                  setReactingTo(null)
+                                }}
+                                className="px-0.5 text-sm transition-transform hover:scale-125"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {reactions.length > 0 && (
+                          <div
+                            className={`mt-1 flex flex-wrap gap-1 ${isMe ? "justify-end" : ""}`}
+                          >
+                            {reactions.map(([emoji, users]) => {
+                              const mine = users.includes(selfId)
+                              return (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  disabled={!onReact || message.pending}
+                                  onClick={() => onReact?.(message.id, emoji)}
+                                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-inset transition-transform active:scale-95 ${
+                                    mine
+                                      ? "bg-primary/15 text-primary ring-primary/30"
+                                      : "bg-muted text-muted-foreground ring-border/60"
+                                  }`}
+                                >
+                                  {emoji} {users.length}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
