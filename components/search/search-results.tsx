@@ -350,7 +350,7 @@ function CircleCard({
   formatNumber: (n: number) => string
 }) {
   return (
-    <Link href={`/circles/${circle.id}`}>
+    <Link href={`/communities/${circle.id}`}>
       <Card className="transition hover:bg-muted/40">
         <CardContent className="flex items-center gap-3 p-4">
           <Avatar className="h-12 w-12">

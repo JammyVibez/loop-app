@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false, "noEmit": true },
+  "include": [
+    "next-env.d.ts",
+    "app/communities/**/*.tsx",
+    "app/circles/**/*.tsx",
+    "app/api/communities/**/*.ts",
+    "app/api/circles/**/*.ts",
+    "components/communities/**/*.tsx",
+    "components/duels/**/*.tsx",
+    "lib/community-*.ts",
+    "lib/community-feed-share.ts",
+    "__tests__/**/*.ts"
+  ]
+}

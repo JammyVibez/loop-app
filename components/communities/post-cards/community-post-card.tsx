@@ -82,6 +82,10 @@ interface CommunityPostCardProps {
   onEdit?: (id: number, content: string) => void
   liking?: number | null
   flashId?: number | null
+  /** Public community → the author may opt this post into the Loop feed. */
+  canShareToFeed?: boolean
+  onToggleFeedShare?: (id: number) => void
+  sharingToFeed?: boolean
 }
 
 export function CommunityPostCard({
@@ -102,6 +106,9 @@ export function CommunityPostCard({
   onEdit,
   liking,
   flashId,
+  canShareToFeed,
+  onToggleFeedShare,
+  sharingToFeed,
 }: CommunityPostCardProps) {
   const router = useRouter()
   const badges = useVerificationBadges()
@@ -504,6 +511,9 @@ export function CommunityPostCard({
           }}
           liking={liking != null && liking === post.id ? true : undefined}
           commentCount={(post.comment_count || 0) + extraComments}
+          canShareToFeed={canShareToFeed}
+          onToggleFeedShare={onToggleFeedShare}
+          sharingToFeed={sharingToFeed}
         />
 
         {/* Report Modal */}

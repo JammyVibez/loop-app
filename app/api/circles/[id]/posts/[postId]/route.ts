@@ -30,8 +30,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Post not found" }, { status: 404 })
     }
 
-    // Get interaction counts
     const viewer = await getUserFromRequest(request)
+
+    // Hidden content is invisible to everyone; moderators restore it from the
+    // management panel, not by opening the post.
+    if (post.status === "hidden") {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 })
+    }
+
     const { data: interactions } = await supabase
       .from("circle_post_interactions")
       .select("interaction_type, user_id")

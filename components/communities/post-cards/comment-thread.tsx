@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Lock } from "lucide-react"
 import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
 import { cn } from "@/lib/utils"
 import { timeAgo } from "@/lib/community-engine"
@@ -73,6 +74,8 @@ interface CommentThreadProps {
   isModerator?: boolean
   initialCommentCount?: number
   onCommented?: () => void
+  /** Replies are closed by a moderator — the thread stays readable. */
+  locked?: boolean
 }
 
 export function CommentThread({
@@ -83,6 +86,7 @@ export function CommentThread({
   isModerator,
   initialCommentCount,
   onCommented,
+  locked = false,
 }: CommentThreadProps) {
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
@@ -340,7 +344,13 @@ export function CommentThread({
             </Button>
           )}
 
-          {isMember && (
+          {locked && !isModerator ? (
+            <p className="mt-3 flex items-center gap-1.5 rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              <Lock className="h-3 w-3" /> Replies are closed on this discussion.
+            </p>
+          ) : null}
+
+          {isMember && !(locked && !isModerator) && (
             <div className="mt-3 flex gap-2">
               <Textarea
                 value={newComment}

@@ -1,6 +1,6 @@
 import { Metadata } from "next"
 import { Header } from "@/components/header"
-import { CommunityWorld } from "@/components/communities/community-world"
+import { CommunityHome } from "@/components/communities/community-home"
 import { createClient } from "@/lib/supabase"
 import { getAbsoluteAppUrl } from "@/lib/app-url"
 import { buildOgMetadata } from "@/lib/og/metadata"
@@ -79,13 +79,13 @@ export async function generateMetadata({ params }: CommunityPageProps): Promise<
   })
 }
 
-export default async function CommunityWorldPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CommunityPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header />
-      <main className="mx-auto w-full max-w-7xl">
-        <CommunityWorld communityId={id} />
+      <main className="w-full">
+        <CommunityHome communityId={id} />
       </main>
     </div>
   )

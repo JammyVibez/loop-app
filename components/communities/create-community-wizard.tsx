@@ -298,7 +298,7 @@ export function CreateCommunityWizard() {
             <div>
               <h2 className="text-lg font-bold">Choose your starting template</h2>
               <p className="text-sm text-muted-foreground">
-                Based on <strong>{cfg.label}</strong>, here's what your world starts with. You can change everything later in settings.
+                Based on <strong>{cfg.label}</strong>, here&apos;s what your world starts with. You can change everything later in settings.
               </p>
             </div>
 

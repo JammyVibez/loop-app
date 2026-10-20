@@ -18,6 +18,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       `,
       )
       .eq("post_id", postId)
+      .is("hidden_at", null)
       .order("created_at", { ascending: true })
 
     if (error) {
@@ -47,20 +48,72 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const { data: post } = await supabase
       .from("circle_posts")
-      .select("id, comment_count, author_id")
+      .select("id, comment_count, author_id, status, comments_locked")
       .eq("id", postId)
       .eq("circle_id", circleId)
       .maybeSingle()
     if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 })
+    if (post.status === "hidden") {
+      return NextResponse.json({ error: "This discussion is no longer available" }, { status: 403 })
+    }
 
     const { data: member } = await supabase
       .from("circle_members")
-      .select("id")
+      .select("id, role")
       .eq("circle_id", circleId)
       .eq("user_id", user.id)
       .in("status", ["active", "approved"])
       .maybeSingle()
     if (!member) return NextResponse.json({ error: "Join the circle to comment" }, { status: 403 })
+
+    // Members can report a reply; it lands in the same queue the moderators
+    // review discussions in, so replies are reviewable too.
+    if (body.action === "report") {
+      const commentId = body.comment_id
+      if (!commentId) return NextResponse.json({ error: "Missing reply" }, { status: 400 })
+      const { data: reportedComment } = await supabase
+        .from("circle_post_comments")
+        .select("id, author_id")
+        .eq("id", commentId)
+        .eq("circle_id", circleId)
+        .maybeSingle()
+      if (!reportedComment) return NextResponse.json({ error: "Reply not found" }, { status: 404 })
+
+      const { error: reportError } = await supabase.from("community_reports").insert({
+        circle_id: circleId,
+        reporter_id: user.id,
+        target_type: "comment",
+        target_id: String(commentId),
+        target_author_id: reportedComment.author_id || null,
+        reason: String(body.reason || "other").slice(0, 120),
+        details: String(body.details || "").slice(0, 1000) || null,
+        status: "open",
+      })
+      if (reportError) {
+        console.error("Community reply report insert error:", reportError)
+        return NextResponse.json({ error: "Failed to submit report" }, { status: 500 })
+      }
+      try {
+        await supabase.from("community_moderation_logs").insert({
+          circle_id: circleId,
+          moderator_id: null,
+          action: "comment_reported",
+          target_user_id: reportedComment.author_id || null,
+          target_type: "comment",
+          target_id: String(commentId),
+          reason: String(body.reason || "other").slice(0, 120),
+        })
+      } catch {
+        /* audit log is best-effort */
+      }
+      return NextResponse.json({ success: true, message: "Report submitted" })
+    }
+
+    // A locked discussion stays readable; only staff can still reply.
+    const isStaffRole = ["owner", "admin", "moderator"].includes(member.role || "")
+    if (post.comments_locked && !isStaffRole) {
+      return NextResponse.json({ error: "Replies are closed on this discussion" }, { status: 403 })
+    }
 
     const { data: comment, error } = await supabase
       .from("circle_post_comments")
@@ -86,9 +139,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: error.message || "Failed to create comment" }, { status: 500 })
     }
 
+    // Bumping last_activity_at here keeps the community discussion list's
+    // "Most active" ordering correct even before the DB trigger migration runs.
+    const activityStamp = new Date().toISOString()
     await supabase
       .from("circle_posts")
-      .update({ comment_count: Number(post.comment_count || 0) + 1, updated_at: new Date().toISOString() })
+      .update({
+        comment_count: Number(post.comment_count || 0) + 1,
+        updated_at: activityStamp,
+        last_activity_at: activityStamp,
+      })
       .eq("id", postId)
 
     // Commenting counts toward the circle leaderboard.

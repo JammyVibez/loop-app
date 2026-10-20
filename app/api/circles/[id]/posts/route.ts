@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase";
 import { checkCirclePrivateAccess } from "@/lib/circle-access";
 import { getUserFromRequest } from "@/lib/server-auth";
 import { getMediaLimit } from "@/lib/circle-limits";
+import { canShareCircle, isShareablePost, sharePostToLoopFeed } from "@/lib/community-feed-share";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
 
@@ -288,15 +289,38 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Optional space scoping — validate the space belongs to this circle
     let spaceId: number | null = null
+    let spaceName: string | null = null
     if (body.space_id) {
       const { data: space } = await supabase
         .from("community_spaces")
-        .select("id")
+        .select("id, name")
         .eq("id", body.space_id)
         .eq("circle_id", circleId)
         .maybeSingle()
-      if (space) spaceId = space.id
+      if (space) {
+        spaceId = space.id
+        spaceName = space.name || null
+      }
     }
+
+    // Discussion kind. Anything unknown lands as a plain discussion rather
+    // than being rejected — the community can also start Co-Loops and Duels,
+    // and those carry their own metadata below.
+    const POST_TYPES = new Set([
+      "discussion",
+      "question",
+      "media",
+      "poll",
+      "announcement",
+      "resource",
+      "coloop",
+      "duel",
+    ])
+    const postType = POST_TYPES.has(String(body.post_type || "")) ? String(body.post_type) : poll?.question ? "poll" : "discussion"
+    const contentMetadata =
+      body.content_metadata && typeof body.content_metadata === "object" && !Array.isArray(body.content_metadata)
+        ? { ...body.content_metadata }
+        : {}
 
     // Optional thread attachment — a post can land inside a community thread,
     // which is how a thread shows real contributions instead of a counter.
@@ -312,6 +336,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // Create post
+    const nowIso = new Date().toISOString()
     const { data: post, error: insertError } = await supabase
       .from("circle_posts")
       .insert({
@@ -325,10 +350,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         tags: validTags,
         space_id: spaceId,
         thread_id: threadId,
+        post_type: postType,
+        content_metadata: contentMetadata,
         status: postStatus,
         moderation_note: postStatus === "pending" ? "Awaiting moderator approval" : null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        created_at: nowIso,
+        updated_at: nowIso,
+        last_activity_at: nowIso
       })
       .select(`
         *,
@@ -368,6 +396,37 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         .select()
         .single()
       createdPoll = pollRow
+    }
+
+    // ── Optional share to the global Loop feed ──
+    // Community content is community-only unless the author explicitly asks
+    // for it, and a private community can never be shared at all.
+    let feedLoopId: string | null = null
+    if (body.share_to_feed) {
+      const { data: circleRow } = await supabase
+        .from("circles")
+        .select("id, name, handle, is_private")
+        .eq("id", circleId)
+        .maybeSingle()
+      if (!canShareCircle(circleRow)) {
+        // Silently stay community-only rather than failing the post.
+        feedLoopId = null
+      } else if (isShareablePost({ ...post, status: postStatus })) {
+        feedLoopId = await sharePostToLoopFeed(supabase, {
+          circle: circleRow!,
+          postId: post.id,
+          authorId: user.id,
+          content: post.content || "",
+          mediaUrl: post.media_url,
+          mediaUrls: post.media_urls,
+          mediaType: post.media_type,
+          spaceName,
+        })
+        if (feedLoopId) {
+          await supabase.from("circle_posts").update({ feed_loop_id: feedLoopId }).eq("id", post.id)
+          post.feed_loop_id = feedLoopId
+        }
+      }
     }
 
     // Update circle post count + this author's leaderboard score (published only)
@@ -474,7 +533,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     return NextResponse.json({
       success: true,
-      post: { ...post, poll: createdPoll },
+      post: { ...post, poll: createdPoll, shared_to_feed: Boolean(feedLoopId) },
       message: "Post created successfully"
     })
   } catch (error) {

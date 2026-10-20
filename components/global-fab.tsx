@@ -20,6 +20,7 @@ const EXCLUDED_PREFIXES = [
   "/co-loop",
   "/messages",
   "/trees",
+  "/communities",
   "/circles",
   "/streams",
   "/settings",

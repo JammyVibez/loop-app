@@ -28,6 +28,7 @@ import {
   ChevronUp,
   Hourglass,
   Lock,
+  Globe2,
   ExternalLink,
   Gift,
   Link2,
@@ -78,6 +79,9 @@ export interface CommunityPost {
   hashtags?: string[] | null
   tags?: string[] | null
   created_at: string
+  /** Set once the discussion is deliberately shared to the Loop feed. */
+  feed_loop_id?: string | null
+  content_metadata?: Record<string, any> | null
   author?: PostAuthor
 }
 
@@ -101,6 +105,13 @@ interface PostActionsProps {
   communityId?: string
   /** Opens the share-suite (DM/circle/image) for this post, like the feed loop card. */
   onShareSuite?: (post: CommunityPost, kind: "dm" | "circle" | "image") => void
+  /**
+   * The explicit community → Loop feed control. Community content is
+   * community-only by default; only a public community offers this.
+   */
+  canShareToFeed?: boolean
+  onToggleFeedShare?: (id: number) => void
+  sharingToFeed?: boolean
 }
 
 export function PostActions({
@@ -121,6 +132,9 @@ export function PostActions({
   commentCount,
   communityId,
   onShareSuite,
+  canShareToFeed,
+  onToggleFeedShare,
+  sharingToFeed,
 }: PostActionsProps) {
   const isAuthor = currentUserId === post.author?.id
   const canModerate = isModerator || isAuthor
@@ -233,6 +247,22 @@ export function PostActions({
               {copied ? <Check className="h-3.5 w-3.5 mr-2 text-emerald-500" /> : <Link2 className="h-3.5 w-3.5 mr-2" />}
               {copied ? "Link copied" : "Copy link"}
             </DropdownMenuItem>
+            {canShareToFeed && onToggleFeedShare && (isAuthor || isModerator) ? (
+              <DropdownMenuItem
+                onClick={() => onToggleFeedShare(post.id)}
+                disabled={sharingToFeed}
+                className="cursor-pointer"
+              >
+                {sharingToFeed ? (
+                  <Hourglass className="h-3.5 w-3.5 mr-2" />
+                ) : Boolean((post as any).feed_loop_id) ? (
+                  <Lock className="h-3.5 w-3.5 mr-2" />
+                ) : (
+                  <Globe2 className="h-3.5 w-3.5 mr-2" />
+                )}
+                {Boolean((post as any).feed_loop_id) ? "Stop sharing to Loop feed" : "Share to Loop feed"}
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem onClick={() => onShare(post.id)} className="cursor-pointer">
               <Share2 className="h-3.5 w-3.5 mr-2" /> More options…
             </DropdownMenuItem>

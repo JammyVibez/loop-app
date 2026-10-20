@@ -226,7 +226,7 @@ export default function OrganizationDashboardPage() {
                     </Link>
                   </Button>
                   <Button asChild variant="outline" className="w-full rounded-full">
-                    <Link href="/circles">
+                    <Link href="/communities">
                       <Users className="mr-1.5 h-4 w-4" /> Manage your Circles
                     </Link>
                   </Button>

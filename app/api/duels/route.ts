@@ -38,7 +38,23 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ duels: duels || [] })
+    let rows = duels || []
+
+    // The global list of duels is public. Duels created inside a private
+    // community must never surface there — only when the caller is asking for
+    // one specific duel (loop_id / id), which the community itself does.
+    if (!loopId && !duelId && rows.length > 0) {
+      const circleIds = [...new Set(rows.map((d: any) => d.circle_id).filter((id: any) => id != null))]
+      if (circleIds.length > 0) {
+        const { data: circles } = await supabase.from("circles").select("id, is_private").in("id", circleIds)
+        const privateIds = new Set((circles || []).filter((c: any) => c.is_private).map((c: any) => String(c.id)))
+        if (privateIds.size > 0) {
+          rows = rows.filter((d: any) => !privateIds.has(String(d.circle_id)))
+        }
+      }
+    }
+
+    return NextResponse.json({ duels: rows })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
@@ -60,6 +76,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Prompt and your argument content are required" }, { status: 400 })
     }
 
+    // ── Community context ──
+    // A Duel launched from a community belongs to that community and is
+    // community-only unless the member explicitly shares it to the Loop feed.
+    // Private communities can never produce a public Duel.
+    const circleId = body.circle_id ?? body.circleId ?? null
+    const shareToFeed = Boolean(body.share_to_feed)
+    let community: { id: string | number; name?: string | null; handle?: string | null } | null = null
+    let communityIsPrivate = false
+    if (circleId) {
+      const { data: circleRow } = await supabase
+        .from("circles")
+        .select("id, name, handle, is_private")
+        .eq("id", circleId)
+        .maybeSingle()
+      if (circleRow) {
+        communityIsPrivate = Boolean(circleRow.is_private)
+        const { data: membership } = await supabase
+          .from("circle_members")
+          .select("status")
+          .eq("circle_id", circleRow.id)
+          .eq("user_id", userId)
+          .maybeSingle()
+        const isMember = Boolean(membership && ["active", "approved"].includes(String(membership.status)))
+        if (isMember) community = { id: circleRow.id, name: circleRow.name, handle: circleRow.handle }
+      }
+    }
+
     // Resolve opponent profile if username provided
     let opponentId: string | null = null
     if (opponentUsername) {
@@ -78,6 +121,8 @@ export async function POST(req: NextRequest) {
 
     // 1. Create parent loop record so the duel post displays in feed and profile pages
     const fullText = `${prompt}\n\n${creatorContent}${opponentUsername ? ` @${opponentUsername.replace("@", "")}` : ""}`
+    // Community-only by default; a private community is always community-only.
+    const loopVisibility = !community ? "public" : shareToFeed && !communityIsPrivate ? "public" : "private"
     const { data: loopRecord, error: loopErr } = await supabase
       .from("loops")
       .insert({
@@ -87,8 +132,12 @@ export async function POST(req: NextRequest) {
         content_title: prompt.slice(0, 80),
         content_type: "duel",
         post_type: "duel",
-        visibility: "public",
+        visibility: loopVisibility,
         category: "general",
+        ...(community ? { circle_id: community.id } : {}),
+        content_metadata: community
+          ? { community: { id: community.id, name: community.name || null, handle: community.handle || null } }
+          : undefined,
       })
       .select()
       .single()
@@ -109,6 +158,7 @@ export async function POST(req: NextRequest) {
         side_a_label: sideA_label || null,
         side_b_label: sideB_label || null,
         status: "active",
+        ...(community ? { circle_id: community.id } : {}),
       })
       .select()
       .single()

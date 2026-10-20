@@ -10,14 +10,19 @@ import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { DeviceMediaPicker, type PickedMedia } from "@/components/communities/device-media-picker"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface CreateDuelDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onDuelCreated?: () => void
+  /** When set, the duel belongs to this community and is community-only by default. */
+  circleId?: string
+  /** Whether the community may be shared to the public Loop feed at all. */
+  canShareToFeed?: boolean
 }
 
-export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDuelDialogProps) {
+export function CreateDuelDialog({ open, onOpenChange, onDuelCreated, circleId, canShareToFeed = true }: CreateDuelDialogProps) {
   const router = useRouter()
   const [prompt, setPrompt] = useState("")
   const [opponent, setOpponent] = useState("")
@@ -26,6 +31,7 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
   const [stakeCoins, setStakeCoins] = useState(50)
   const [durationHours, setDurationHours] = useState(24)
   const [durationMinutes, setDurationMinutes] = useState(0)
+  const [shareToFeed, setShareToFeed] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const { getAuthHeader } = useAuth()
@@ -53,6 +59,7 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
           durationHours: durationHours + durationMinutes / 60,
           creatorContent,
           creatorMediaUrl: creatorMedia[0]?.url || null,
+          ...(circleId ? { circle_id: circleId, share_to_feed: canShareToFeed ? shareToFeed : false } : {}),
         }),
       })
 
@@ -174,6 +181,28 @@ export function CreateDuelDialog({ open, onOpenChange, onDuelCreated }: CreateDu
               <p className="text-[10px] text-muted-foreground dark:text-slate-500">Total: {durationHours + (durationMinutes > 0 ? 1 : 0)}h{durationMinutes > 0 ? ` ${durationMinutes}m` : ''} — up to 7 days</p>
             </div>
           </div>
+
+          {circleId ? (
+            <button
+              type="button"
+              disabled={!canShareToFeed}
+              aria-pressed={canShareToFeed && shareToFeed}
+              onClick={() => canShareToFeed && setShareToFeed(!shareToFeed)}
+              className="flex w-full items-start gap-2 rounded-xl border border-border bg-muted/30 p-2.5 text-left transition-colors hover:bg-muted/50 disabled:opacity-60"
+            >
+              <Checkbox checked={canShareToFeed && shareToFeed} className="pointer-events-none mt-0.5" />
+              <span>
+                <span className="block text-xs font-semibold">
+                  {canShareToFeed ? "Share this Duel to the Loop feed" : "This community is private"}
+                </span>
+                <span className="mt-0.5 block text-[10px] leading-snug text-muted-foreground">
+                  {canShareToFeed
+                    ? "Off by default — the Duel lives in this community until you choose this."
+                    : "Duel votes stay inside the community. Nothing here can reach the public feed."}
+                </span>
+              </span>
+            </button>
+          ) : null}
 
           <DialogFooter className="pt-4">
             <Button

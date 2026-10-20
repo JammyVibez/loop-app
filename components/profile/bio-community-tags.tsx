@@ -29,7 +29,7 @@ export function BioCommunityTags({
       {list.map((tag) => (
         <Link
           key={tag.id}
-          href={`/circles/${tag.id}`}
+          href={`/communities/${tag.id}`}
           className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
         >
           <Avatar className="h-4 w-4">

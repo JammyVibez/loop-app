@@ -80,6 +80,10 @@ export function CoLoopStudio() {
   const { toast } = useToast()
 
   const paramSession = searchParams.get("session")
+  // Launched from a community: the finished Co-Loop belongs to that community
+  // and stays community-only unless the member explicitly chose to share it.
+  const paramCircle = searchParams.get("circle")
+  const communityOnly = searchParams.get("community_only") === "1"
   const [sessionId, setSessionId] = useState(
     () => paramSession || `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
   )
@@ -917,6 +921,9 @@ export function CoLoopStudio() {
           hashtags: doc.hashtags,
           is_co_loop: true,
           co_authors: coAuthorsMetadata,
+          ...(paramCircle
+            ? { circle_id: paramCircle, visibility: communityOnly ? "private" : "public" }
+            : {}),
           content_metadata: {
             is_co_loop: true,
             co_authors: coAuthorsMetadata,
@@ -979,7 +986,7 @@ export function CoLoopStudio() {
     } finally {
       setPublishing(false)
     }
-  }, [doc, flushField, getAuthHeader, realtime, roster, sessionId, toast, user])
+  }, [doc, flushField, getAuthHeader, realtime, roster, sessionId, toast, user, paramCircle, communityOnly])
 
   /* ── Open invite + end session ────────────────────────────────── */
   const handlePublishOpenInvite = useCallback(async () => {

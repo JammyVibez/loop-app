@@ -31,3 +31,7 @@ next-env.d.ts
 # local-only generated marketing assets (not app code)
 marketing/
 core
+
+# local-only DB snapshots and sandbox scratch copies (never commit)
+backups/
+isolate/

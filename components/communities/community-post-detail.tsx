@@ -22,11 +22,13 @@ export function CommunityPostDetail({ communityId, postId }: { communityId: stri
   const { user, getAuthHeader } = useAuth()
   const badges = useVerificationBadges()
   const router = useRouter()
-  const [post, setPost] = useState<CommunityPost | null>(null)
+  const [post, setPost] = useState<(CommunityPost & { comments_locked?: boolean }) | null>(null)
   const [circle, setCircle] = useState<{ name: string } | null>(null)
   const [spaces, setSpaces] = useState<Array<{ id: string | number; name: string }>>([])
   const [isMember, setIsMember] = useState(false)
   const [isModerator, setIsModerator] = useState(false)
+  const [canShareToFeed, setCanShareToFeed] = useState(false)
+  const [sharingToFeed, setSharingToFeed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [liking, setLiking] = useState(false)
@@ -63,9 +65,11 @@ export function CommunityPostDetail({ communityId, postId }: { communityId: stri
       ])
       if (circleRes.ok) {
         const cd = await circleRes.json()
-        setCircle({ name: cd.circle?.name || cd.name || "Community" })
-        setIsMember(Boolean(cd.is_member || cd.circle?.is_member))
-        const role = cd.user_role || cd.circle?.user_role || null
+        const circleRow = cd.circle || cd.community || cd
+        setCircle({ name: circleRow?.name || "Community" })
+        setIsMember(Boolean(cd.is_member || circleRow?.is_member))
+        setCanShareToFeed(!circleRow?.is_private)
+        const role = cd.user_role || circleRow?.user_role || null
         setIsModerator(role === "owner" || role === "admin" || role === "moderator")
       }
       if (spacesRes && spacesRes.ok) {
@@ -121,6 +125,29 @@ export function CommunityPostDetail({ communityId, postId }: { communityId: stri
       load()
     } finally {
       setLiking(false)
+    }
+  }
+
+  // The explicit community → Loop feed control. Off by default; only a public
+  // community offers it.
+  const toggleFeedShare = async (id: number) => {
+    if (!user || sharingToFeed) return
+    const shared = Boolean((post as any)?.feed_loop_id)
+    setSharingToFeed(true)
+    try {
+      const res = await fetch(`/api/circles/${communityId}/posts/${id}/feed-share`, {
+        method: shared ? "DELETE" : "POST",
+        headers: getAuthHeader(),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Couldn't update sharing")
+      setPost((prev: CommunityPost | null) =>
+        prev ? { ...prev, feed_loop_id: shared ? null : data.loop_id || null } : prev,
+      )
+    } catch {
+      /* the card keeps its previous state; the API error is non-destructive */
+    } finally {
+      setSharingToFeed(false)
     }
   }
 
@@ -210,6 +237,9 @@ export function CommunityPostDetail({ communityId, postId }: { communityId: stri
         onVote={handleVote}
         voting={voting ? post.id : null}
         liking={liking ? post.id : null}
+        canShareToFeed={canShareToFeed}
+        onToggleFeedShare={toggleFeedShare}
+        sharingToFeed={sharingToFeed}
       />
       </div>
 
@@ -225,6 +255,7 @@ export function CommunityPostDetail({ communityId, postId }: { communityId: stri
         <CommentThread
           communityId={communityId}
           postId={post.id}
+          locked={Boolean((post as any).comments_locked)}
           isMember={isMember}
           currentUserId={user?.id}
           isModerator={isModerator}

@@ -96,7 +96,7 @@ export function ProfileCompletionIndicator({ profile }: ProfileCompletionProps) 
       completed: Boolean(profile.tagged_circles && profile.tagged_circles.length > 0),
       action: "Browse",
       icon: Users,
-      href: "/circles",
+      href: "/communities",
     },
     {
       id: "first_post",

@@ -253,7 +253,7 @@ export function ParticipationDiscovery() {
               {data.circles.map((circle) => (
                 <Link
                   key={circle.id}
-                  href={`/circles/${circle.id}`}
+                  href={`/communities/${circle.id}`}
                   className="flex items-center gap-2.5 rounded-xl border border-border/50 bg-muted/30 p-2.5 transition-all hover:border-emerald-500/40 hover:bg-emerald-500/5"
                 >
                   <Avatar className="h-8 w-8 border border-border">

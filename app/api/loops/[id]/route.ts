@@ -140,7 +140,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const supabase = createServerClient()
     const { data: existingLoop, error: fetchError } = await supabase
       .from("loops")
-      .select("author_id")
+      .select("author_id, circle_id")
       .eq("id", id)
       .single()
 
@@ -160,6 +160,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       updates.hashtags = body.hashtags.map((tag: unknown) => String(tag).replace(/^#/, "").toLowerCase().trim()).filter(Boolean)
     }
     if (body.visibility === "public" || body.visibility === "private") {
+      // A Loop that belongs to a private community can never be made public,
+      // no matter who asks.
+      if (body.visibility === "public" && existingLoop.circle_id) {
+        const { data: circle } = await supabase
+          .from("circles")
+          .select("is_private")
+          .eq("id", existingLoop.circle_id)
+          .maybeSingle()
+        if (circle?.is_private) {
+          return NextResponse.json({
+            error: "Content in a private community can never be shared to the Loop feed",
+          }, { status: 403 })
+        }
+      }
       updates.visibility = body.visibility
     }
     // Link previews are author-controlled: turning this on hides the rich

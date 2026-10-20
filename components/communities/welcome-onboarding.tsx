@@ -91,7 +91,7 @@ export function WelcomeOnboarding({
             Welcome to {communityName}
           </DialogTitle>
           <DialogDescription>
-            Make this world yours — follow the spaces you care about and tell us what you're into.
+            Make this world yours — follow the spaces you care about and tell us what you&apos;re into.
           </DialogDescription>
         </DialogHeader>
 
@@ -99,7 +99,7 @@ export function WelcomeOnboarding({
           {active.length > 0 && (
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Follow spaces</p>
-              <p className="text-[11px] text-muted-foreground">We'll surface these first in your feed.</p>
+              <p className="text-[11px] text-muted-foreground">We&apos;ll surface these first in your feed.</p>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 {active.map((s) => {
                   const on = followed.includes(Number(s.id))

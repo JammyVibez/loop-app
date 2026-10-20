@@ -71,6 +71,13 @@ const DEFAULT_FILES = [
   // Co-Loop Studio chat: durable room messages (with reactions) instead of a
   // broadcast-only feed that vanished on reload.
   "scripts/co-loop-chat-schema.sql",
+  // Discussion-first community home: post_type, reply activity, and the
+  // explicit community → Loop feed link. Community content stays
+  // community-only unless a member opts it in.
+  "scripts/community-discussions-schema.sql",
+  // Community content moderation: hide / restore / lock discussions and
+  // replies from the unified management panel.
+  "scripts/community-moderation-schema.sql",
 ]
 
 // Allow a targeted run: node apply-pending-schema.mjs scripts/foo.sql …

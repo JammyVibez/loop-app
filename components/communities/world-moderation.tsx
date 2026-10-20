@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
@@ -25,10 +26,36 @@ import {
   Settings2,
   Check,
   Save,
+  Eye,
+  EyeOff,
+  Lock,
+  Unlock,
+  Pin,
+  PinOff,
 } from "lucide-react"
+
+const CONTENT_LABELS: Record<string, string> = {
+  hide_post: "Discussion hidden",
+  restore_post: "Discussion restored",
+  lock_post: "Replies locked",
+  unlock_post: "Replies unlocked",
+  pin_post: "Discussion pinned",
+  unpin_post: "Discussion unpinned",
+  hide_comment: "Reply hidden",
+  restore_comment: "Reply restored",
+  remove_comment: "Reply removed",
+}
+
+const MEMBER_LABELS: Record<string, string> = {
+  warn: "Member warned",
+  mute: "Member muted",
+  ban: "Member banned",
+  unban: "Member reinstated",
+}
 
 export function WorldModeration({ communityId }: { communityId: string }) {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [reports, setReports] = useState<any[]>([])
   const [log, setLog] = useState<any[]>([])
   const [pending, setPending] = useState<any[]>([])
@@ -118,6 +145,7 @@ export function WorldModeration({ communityId }: { communityId: string }) {
       setError(data.error || "Failed")
       return
     }
+    toast({ title: status === "resolved" ? "Report resolved" : "Report dismissed" })
     setReason("")
     load()
   }
@@ -137,6 +165,7 @@ export function WorldModeration({ communityId }: { communityId: string }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed")
+      toast({ title: action === "approve_post" ? "Discussion approved" : "Discussion rejected" })
       setReason("")
       load()
     } catch (e: any) {
@@ -166,6 +195,7 @@ export function WorldModeration({ communityId }: { communityId: string }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed")
+      toast({ title: MEMBER_LABELS[action] || "Member updated" })
       setReason("")
       load()
     } catch (e: any) {
@@ -195,8 +225,33 @@ export function WorldModeration({ communityId }: { communityId: string }) {
       setError(data.error || "Failed")
       return
     }
+    toast({ title: "Discussion removed" })
     setReason("")
     load()
+  }
+
+  /** Hide / restore / lock / pin a reported discussion or reply. */
+  const contentAction = async (action: string, target: { post_id?: string | number; comment_id?: string | number }, confirm?: { title: string; description: string; confirmLabel: string }) => {
+    if (confirm && !(await confirmDialog({ ...confirm, destructive: true }))) return
+    const ref = target.post_id ?? target.comment_id
+    setActing(`${action}-${ref}`)
+    setError("")
+    try {
+      const res = await fetch(`/api/communities/${communityId}/moderation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...target, reason }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed")
+      toast({ title: CONTENT_LABELS[action] || "Content updated" })
+      setReason("")
+      load()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setActing(null)
+    }
   }
 
   const openReports = reports.filter((r) => r.status === "open")
@@ -391,14 +446,72 @@ export function WorldModeration({ communityId }: { communityId: string }) {
                     {r.details && <p className="mt-0.5 text-[11px] text-muted-foreground">{r.details}</p>}
                     {r.reporter && <p className="mt-1 text-[10px] text-muted-foreground">Reported by {r.reporter.username}</p>}
 
+                    {/* What was actually reported, with its current state. */}
+                    {r.target?.content ? (
+                      <div className="mt-2 rounded-xl bg-muted/40 p-2.5">
+                        <p className="line-clamp-4 whitespace-pre-wrap text-[11px] text-foreground/90">{r.target.content}</p>
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          {r.target_type === "post"
+                            ? `Discussion · ${r.target.status || "published"}${r.target.comments_locked ? " · locked" : ""}${r.target.is_pinned ? " · pinned" : ""}`
+                            : `Reply · ${r.target.hidden_at ? "hidden" : "visible"}`}
+                        </p>
+                      </div>
+                    ) : null}
+
                     {r.status === "open" && (
                       <div className="mt-3 space-y-2">
                         <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Moderation note (optional)…" className="rounded-xl text-xs min-h-[50px]" />
                         <div className="flex flex-wrap gap-2">
-                          {r.target_type === "post" && (
-                            <Button size="sm" variant="destructive" className="rounded-full h-8 text-[11px]" onClick={() => removePost(r)}>
-                              <Trash2 className="h-3 w-3 mr-1" /> Remove post
-                            </Button>
+                          {r.target_type === "post" ? (
+                            <>
+                              {r.target?.status === "hidden" ? (
+                                <Button size="sm" variant="outline" className="rounded-full h-8 text-[11px]" onClick={() => contentAction("restore_post", { post_id: r.target_id })}>
+                                  <Eye className="h-3 w-3 mr-1" /> Restore
+                                </Button>
+                              ) : (
+                                <Button size="sm" variant="outline" className="rounded-full h-8 text-[11px]" onClick={() => contentAction("hide_post", { post_id: r.target_id }, { title: "Hide this discussion?", description: "It disappears for everyone until a moderator restores it. The author is not notified.", confirmLabel: "Hide" })}>
+                                  <EyeOff className="h-3 w-3 mr-1" /> Hide
+                                </Button>
+                              )}
+                              <Button size="sm" variant="outline" className="rounded-full h-8 text-[11px]" onClick={() => contentAction(r.target?.comments_locked ? "unlock_post" : "lock_post", { post_id: r.target_id })}>
+                                {r.target?.comments_locked ? <Unlock className="h-3 w-3 mr-1" /> : <Lock className="h-3 w-3 mr-1" />}
+                                {r.target?.comments_locked ? "Unlock replies" : "Lock replies"}
+                              </Button>
+                              <Button size="sm" variant="outline" className="rounded-full h-8 text-[11px]" onClick={() => contentAction(r.target?.is_pinned ? "unpin_post" : "pin_post", { post_id: r.target_id })}>
+                                {r.target?.is_pinned ? <PinOff className="h-3 w-3 mr-1" /> : <Pin className="h-3 w-3 mr-1" />}
+                                {r.target?.is_pinned ? "Unpin" : "Pin"}
+                              </Button>
+                              <Button size="sm" variant="destructive" className="rounded-full h-8 text-[11px]" onClick={() => removePost(r)}>
+                                <Trash2 className="h-3 w-3 mr-1" /> Remove
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              {r.target?.hidden_at ? (
+                                <Button size="sm" variant="outline" className="rounded-full h-8 text-[11px]" onClick={() => contentAction("restore_comment", { comment_id: r.target_id })}>
+                                  <Eye className="h-3 w-3 mr-1" /> Restore reply
+                                </Button>
+                              ) : (
+                                <Button size="sm" variant="outline" className="rounded-full h-8 text-[11px]" onClick={() => contentAction("hide_comment", { comment_id: r.target_id }, { title: "Hide this reply?", description: "It disappears for everyone until a moderator restores it.", confirmLabel: "Hide" })}>
+                                  <EyeOff className="h-3 w-3 mr-1" /> Hide reply
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="rounded-full h-8 text-[11px]"
+                                disabled={acting === `remove_comment-${r.target_id}`}
+                                onClick={() =>
+                                  contentAction("remove_comment", { comment_id: r.target_id }, {
+                                    title: "Remove this reply permanently?",
+                                    description: "It is deleted for everyone.",
+                                    confirmLabel: "Remove reply",
+                                  })
+                                }
+                              >
+                                <Trash2 className="h-3 w-3 mr-1" /> Remove reply
+                              </Button>
+                            </>
                           )}
                           <Button size="sm" className="rounded-full h-8 text-[11px] bg-emerald-600 hover:bg-emerald-500" onClick={() => resolve(r.id, "resolved")}>
                             <CheckCircle2 className="h-3 w-3 mr-1" /> Resolve

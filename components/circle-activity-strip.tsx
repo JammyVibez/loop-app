@@ -73,7 +73,7 @@ export function CircleActivityStrip() {
           Your circles are active
         </h2>
         <Link
-          href="/circles"
+          href="/communities"
           className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-500 hover:underline"
         >
           Open circles <ArrowRight className="h-3 w-3" />
@@ -84,7 +84,7 @@ export function CircleActivityStrip() {
         {circles.map((circle) => (
           <Link
             key={circle.id}
-            href={`/circles/${circle.id}`}
+            href={`/communities/${circle.id}`}
             className="group rounded-xl border border-border/60 bg-muted/30 p-2.5 transition-all hover:border-cyan-500/40 hover:bg-cyan-500/5"
           >
             <div className="flex items-center gap-2.5">

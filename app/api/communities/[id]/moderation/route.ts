@@ -46,8 +46,34 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       sb.from("circles").select("moderation_settings, settings").eq("id", id).maybeSingle(),
     ])
 
+    // Attach the reported content itself, so a moderator can read what was
+    // reported and see its current state (hidden, locked, pinned) before acting.
+    const reportRows = reports || []
+    const postIds = [...new Set(reportRows.filter((r: any) => r.target_type === "post").map((r: any) => String(r.target_id)))]
+    const commentIds = [...new Set(reportRows.filter((r: any) => r.target_type === "comment").map((r: any) => String(r.target_id)))]
+    const [postTargets, commentTargets] = await Promise.all([
+      postIds.length
+        ? sb
+            .from("circle_posts")
+            .select("id, content, status, comments_locked, is_pinned, hidden_at, author:profiles!author_id(id, username, display_name, avatar_url)")
+            .in("id", postIds)
+        : Promise.resolve({ data: [] as any[] }),
+      commentIds.length
+        ? sb
+            .from("circle_post_comments")
+            .select("id, content, post_id, hidden_at, author:profiles!author_id(id, username, display_name, avatar_url)")
+            .in("id", commentIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ])
+    const postMap = new Map(((postTargets as any).data || []).map((p: any) => [String(p.id), p]))
+    const commentMap = new Map(((commentTargets as any).data || []).map((p: any) => [String(p.id), p]))
+    const enrichedReports = reportRows.map((r: any) => ({
+      ...r,
+      target: (r.target_type === "comment" ? commentMap : postMap).get(String(r.target_id)) || null,
+    }))
+
     return NextResponse.json({
-      reports: reports || [],
+      reports: enrichedReports,
       log: log || [],
       pending: pendingPosts || [],
       role: membership?.role || "member",
@@ -212,6 +238,90 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       })
       await logCommunityActivity(sb, id, actor.id, "post_removed", "post", post_id)
       return NextResponse.json({ success: true })
+    }
+
+    // ── Content controls (hide / restore / lock / pin) ──
+    // Reports can point at a discussion or at a single reply, so both are
+    // handled here and every change is written to the moderation log.
+    if (action === "hide_post" || action === "restore_post" || action === "lock_post" || action === "unlock_post" || action === "pin_post" || action === "unpin_post") {
+      const { post_id, reason = "" } = body
+      if (!post_id) return NextResponse.json({ error: "Missing post" }, { status: 400 })
+      const { data: post } = await sb.from("circle_posts").select("author_id").eq("id", post_id).eq("circle_id", id).maybeSingle()
+      if (!post) return NextResponse.json({ error: "Discussion not found" }, { status: 404 })
+
+      const patch: Record<string, any> = { updated_at: new Date().toISOString() }
+      if (action === "hide_post") {
+        patch.status = "hidden"
+        patch.hidden_at = new Date().toISOString()
+        patch.hidden_by = actor.id
+      } else if (action === "restore_post") {
+        patch.status = "published"
+        patch.hidden_at = null
+        patch.hidden_by = null
+      } else if (action === "lock_post") {
+        patch.comments_locked = true
+      } else if (action === "unlock_post") {
+        patch.comments_locked = false
+      } else if (action === "pin_post") {
+        patch.is_pinned = true
+      } else {
+        patch.is_pinned = false
+      }
+
+      const { error } = await sb.from("circle_posts").update(patch).eq("id", post_id).eq("circle_id", id)
+      if (error) return NextResponse.json({ error: "Failed to update the discussion" }, { status: 500 })
+
+      await sb.from("community_moderation_logs").insert({
+        circle_id: id,
+        moderator_id: actor.id,
+        action,
+        target_user_id: post.author_id,
+        target_type: "post",
+        target_id: String(post_id),
+        reason: reason.slice(0, 300),
+      })
+      await logCommunityActivity(sb, id, actor.id, action, "post", post_id, { reason })
+      return NextResponse.json({ success: true, action })
+    }
+
+    if (action === "hide_comment" || action === "restore_comment" || action === "remove_comment") {
+      const { comment_id, reason = "" } = body
+      if (!comment_id) return NextResponse.json({ error: "Missing reply" }, { status: 400 })
+      const { data: comment } = await sb
+        .from("circle_post_comments")
+        .select("id, author_id, post_id")
+        .eq("id", comment_id)
+        .eq("circle_id", id)
+        .maybeSingle()
+      if (!comment) return NextResponse.json({ error: "Reply not found" }, { status: 404 })
+
+      if (action === "remove_comment") {
+        await sb.from("circle_post_comments").delete().eq("id", comment_id).eq("circle_id", id)
+        // Keep the visible reply count honest after a removal.
+        const { data: parent } = await sb.from("circle_posts").select("comment_count").eq("id", comment.post_id).maybeSingle()
+        await sb
+          .from("circle_posts")
+          .update({ comment_count: Math.max(0, Number(parent?.comment_count || 1) - 1) })
+          .eq("id", comment.post_id)
+      } else {
+        const patch: Record<string, any> =
+          action === "hide_comment"
+            ? { hidden_at: new Date().toISOString(), hidden_by: actor.id }
+            : { hidden_at: null, hidden_by: null }
+        await sb.from("circle_post_comments").update(patch).eq("id", comment_id).eq("circle_id", id)
+      }
+
+      await sb.from("community_moderation_logs").insert({
+        circle_id: id,
+        moderator_id: actor.id,
+        action,
+        target_user_id: comment.author_id,
+        target_type: "comment",
+        target_id: String(comment_id),
+        reason: reason.slice(0, 300),
+      })
+      await logCommunityActivity(sb, id, actor.id, action, "comment", comment_id, { reason })
+      return NextResponse.json({ success: true, action })
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 })

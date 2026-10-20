@@ -242,7 +242,7 @@ function StatsBlock() {
             </Link>
           ))}
           {recentCircles.map((c: any) => (
-            <Link key={c.id} href={`/circles/${c.id}`} className="block text-sm text-foreground/90 hover:underline">
+            <Link key={c.id} href={`/communities/${c.id}`} className="block text-sm text-foreground/90 hover:underline">
               {c.name}
               <div className="text-xs text-muted-foreground">{c.member_count ?? "Active"} active</div>
             </Link>

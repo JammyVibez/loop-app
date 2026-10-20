@@ -131,7 +131,7 @@ export function ProCirclePanel() {
                   </p>
                 </div>
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/circles/${circle.id}`}>
+                  <Link href={`/communities/${circle.id}`}>
                     <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Open workspace
                   </Link>
                 </Button>

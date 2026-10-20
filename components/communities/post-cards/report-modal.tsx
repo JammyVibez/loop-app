@@ -68,7 +68,7 @@ export function ReportModal({ open, onOpenChange, postId, communityId }: ReportM
             Report Post
           </DialogTitle>
           <DialogDescription>
-            Help us understand what's wrong with this post.
+            Help us understand what&apos;s wrong with this post.
           </DialogDescription>
         </DialogHeader>
 

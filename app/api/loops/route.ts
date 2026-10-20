@@ -111,6 +111,12 @@ export async function POST(request: NextRequest) {
     let hashtags: string[] = []
     let parentLoopId: string | null = null
     let visibility = "public"
+    // Whether the caller actually chose a visibility, versus inheriting the
+    // default. Community content defaults to community-only.
+    let visibilityChosen = false
+    // When a Loop is created from inside a community, the community id travels
+    // with it so the community home can list it and the feed can attribute it.
+    let communityCircleId: string | number | null = null
     let mediaMetadata: Record<string, unknown> | null = null
     // Already-uploaded media (e.g. Co-Loop Studio, which uploads to
     // Cloudinary during the session and publishes a JSON payload with the
@@ -132,18 +138,21 @@ export async function POST(request: NextRequest) {
       category = String(formData.get("category") || "general")
       hashtags = parseHashtags(formData.get("hashtags"))
       parentLoopId = (formData.get("parent_loop_id") as string | null) || null
+      visibilityChosen = formData.get("visibility") != null || formData.get("is_public") != null
       visibility = String(formData.get("visibility") || (formData.get("is_public") === "false" ? "private" : "public"))
       const rawMeta = formData.get("media_metadata") || formData.get("content_metadata")
       mediaMetadata = rawMeta ? JSON.parse(String(rawMeta)) : null
       isSpoiler = formData.get("is_spoiler") === "true"
     } else {
       const body = await request.json().catch(() => ({}))
+      communityCircleId = body.circle_id ?? body.circleId ?? null
       contentText = String(body.content_text ?? body.content ?? "")
       contentTitle = body.content_title ?? body.title ?? null
       loopType = body.content_type ?? body.type ?? body.media_type ?? "text"
       category = body.category ?? "general"
       hashtags = parseHashtags(body.hashtags)
       parentLoopId = body.parent_loop_id ?? null
+      visibilityChosen = body.visibility != null || body.is_public != null
       visibility = body.visibility ?? (body.is_public === false ? "private" : "public")
       mediaMetadata = body.content_metadata ?? body.media_metadata ?? null
       isSpoiler = Boolean(body.is_spoiler)
@@ -169,6 +178,36 @@ export async function POST(request: NextRequest) {
     let mediaUrl: string | null = preUploadedMediaUrl
     let mediaType = loopType || "text"
     let treeDepth = 0
+
+    // ── Community context ──
+    // Only real members can attach a Loop to a community, and community
+    // content is community-only (private Loop visibility) unless the author
+    // explicitly publishes it publicly. A private community can never
+    // produce a public Loop.
+    let community: { id: string | number; name?: string | null; handle?: string | null } | null = null
+    if (communityCircleId) {
+      const { data: circleRow } = await supabase
+        .from("circles")
+        .select("id, name, handle, is_private")
+        .eq("id", communityCircleId)
+        .maybeSingle()
+      if (circleRow) {
+        const { data: membership } = await supabase
+          .from("circle_members")
+          .select("status")
+          .eq("circle_id", circleRow.id)
+          .eq("user_id", user.id)
+          .maybeSingle()
+        const isMember = Boolean(membership && ["active", "approved"].includes(String(membership.status)))
+        if (isMember) {
+          community = { id: circleRow.id, name: circleRow.name, handle: circleRow.handle }
+          // Community-only by default; an explicit choice can still publish it.
+          if (!visibilityChosen) visibility = "private"
+          // A private community's content never becomes a public Loop.
+          if (circleRow.is_private) visibility = "private"
+        }
+      }
+    }
 
     if (parentLoopId) {
       const { data: parent } = await supabase
@@ -267,6 +306,11 @@ export async function POST(request: NextRequest) {
     const mergedMetadata = {
       ...(mediaMetadata || {}),
       media_urls: mediaUrls.length > 0 ? mediaUrls : undefined,
+      ...(community
+        ? {
+            community: { id: community.id, name: community.name || null, handle: community.handle || null },
+          }
+        : {}),
     }
 
     // Live DB has NOT NULL `content` (text) plus normalized content_* columns.
@@ -283,6 +327,7 @@ export async function POST(request: NextRequest) {
       category,
       hashtags,
       parent_loop_id: parentLoopId,
+      ...(community ? { circle_id: community.id } : {}),
       visibility,
       tree_depth: treeDepth,
       content_metadata: mergedMetadata,

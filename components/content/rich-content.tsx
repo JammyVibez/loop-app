@@ -83,7 +83,7 @@ export function RichContent({
             return (
               <Link
                 key={`${i}-${part}`}
-                href={`/circles/${circleId}`}
+                href={`/communities/${circleId}`}
                 className="mx-0.5 inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary transition hover:bg-primary/20"
                 onClick={(e) => e.stopPropagation()}
               >

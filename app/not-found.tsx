@@ -50,7 +50,7 @@ export default function NotFound() {
             <Link href="/trending" className="text-purple-600 hover:text-purple-500 dark:text-purple-400">
               Trending
             </Link>
-            <Link href="/circles" className="text-purple-600 hover:text-purple-500 dark:text-purple-400">
+            <Link href="/communities" className="text-purple-600 hover:text-purple-500 dark:text-purple-400">
               Circles
             </Link>
             <Link href="/developers" className="text-purple-600 hover:text-purple-500 dark:text-purple-400">

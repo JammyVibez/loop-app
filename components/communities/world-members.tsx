@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { formatNumber, timeAgo } from "@/lib/community-engine"
 import { MemberReputation } from "./member-reputation"
 import { useToast } from "@/hooks/use-toast"
@@ -94,6 +95,15 @@ export function WorldMembers({
   }, [load])
 
   const changeRole = async (member: any, role: string) => {
+    if (role !== member.role) {
+      const name = member.profile?.display_name || member.profile?.username || "this member"
+      const ok = await confirmDialog({
+        title: `Change ${name}'s role?`,
+        description: `They move from ${member.role || "member"} to ${role}. Role changes take effect immediately.`,
+        confirmLabel: "Change role",
+      })
+      if (!ok) return
+    }
     const res = await fetch(`/api/communities/${communityId}/members`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -108,6 +118,7 @@ export function WorldMembers({
       })
       return
     }
+    toast({ title: "Role updated", description: `They are now ${role}.` })
     load()
   }
 
@@ -148,6 +159,7 @@ export function WorldMembers({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to approve")
+      toast({ title: "Join request approved", description: "They can now take part in the community." })
       setMembers((prev) => prev.filter((m) => m.user_id !== member.user_id))
     } catch (e: any) {
       setError(e.message)
@@ -157,6 +169,14 @@ export function WorldMembers({
   }
 
   const rejectJoin = async (member: any) => {
+    const name = member.profile?.display_name || member.profile?.username || "this person"
+    const ok = await confirmDialog({
+      title: "Decline this join request?",
+      description: `${name} stays out of the community. They can request to join again later.`,
+      confirmLabel: "Decline request",
+      destructive: true,
+    })
+    if (!ok) return
     setBusyId(member.user_id)
     setError("")
     try {
@@ -167,6 +187,7 @@ export function WorldMembers({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to reject")
+      toast({ title: "Join request declined" })
       setMembers((prev) => prev.filter((m) => m.user_id !== member.user_id))
     } catch (e: any) {
       setError(e.message)
@@ -393,7 +414,7 @@ export function WorldMembers({
           </DialogHeader>
           <div className="space-y-3 py-2">
             <p className="text-[11px] text-muted-foreground">
-              Pick one of this community's roles, or type a custom label. Roles render as gradient badges next to the member's name in chat, the member list, and post cards.
+              Pick one of this community&apos;s roles, or type a custom label. Roles render as gradient badges next to the member&apos;s name in chat, the member list, and post cards.
             </p>
             {customRoles.length > 0 && (
               <div className="space-y-1.5">
@@ -449,7 +470,7 @@ export function WorldMembers({
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-2 py-2">
-            <p className="text-[11px] text-muted-foreground">Recognitions are community badges of appreciation - they don't grant admin powers.</p>
+            <p className="text-[11px] text-muted-foreground">Recognitions are community badges of appreciation - they don&apos;t grant admin powers.</p>
             {RECOGNITIONS.map((r) => {
               const Icon = r.icon
               return (
