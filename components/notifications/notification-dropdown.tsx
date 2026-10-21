@@ -320,8 +320,11 @@ export function NotificationDropdown() {
                       const inviterDisplayName =
                         notification.data?.inviter_name ||
                         notification.data?.inviter_username ||
+                        (notification as any).actor_name ||
+                        actor?.display_name ||
+                        actor?.username ||
                         notification.message?.split(" invited")[0] ||
-                        "A Collaborator"
+                        "A member"
                       return (
                         <div key={notification.id} className="px-3 py-2">
                           <CoLoopInviteCard
@@ -341,7 +344,7 @@ export function NotificationDropdown() {
 
                     const actorName = isGrouped
                       ? groupedActors[0]?.display_name || groupedActors[0]?.username || ""
-                      : actor?.display_name || actor?.username || ""
+                      : actor?.display_name || actor?.username || (notification as any).actor_name || ""
 
                     // Every type renders its own copy — platform notifications
                     // (announcements, coin rewards, admin actions) never fall

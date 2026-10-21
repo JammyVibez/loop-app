@@ -1101,8 +1101,27 @@ export function MessagesWorkspace() {
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to send")
-      setMessages((prev) => (prev.some((m) => m.id === data.message.id) ? prev : [...prev, data.message]))
-      markFresh(data.message.id)
+      // Keep the quote on the bubble that was just sent. The API normally
+      // returns `reply_to`, but a realtime insert can land first and this
+      // merge guarantees the replied-to message is still shown either way.
+      const fallbackReply = replySnapshot
+        ? {
+            id: replySnapshot.id,
+            content: replySnapshot.content,
+            media_type: replySnapshot.media_type ?? null,
+            author_id: replySnapshot.author_id,
+            sender: replySnapshot.sender || null,
+          }
+        : null
+      const sent = { ...data.message, reply_to: data.message.reply_to ?? fallbackReply }
+      setMessages((prev) => {
+        const existing = prev.find((m) => m.id === sent.id)
+        if (existing) {
+          return prev.map((m) => (m.id === sent.id ? { ...m, reply_to: m.reply_to ?? sent.reply_to } : m))
+        }
+        return [...prev, sent]
+      })
+      markFresh(sent.id)
       playChatSound("send")
       // Peer delivery via postgres_changes; also nudge broadcast channel for same-tab peers
       void channelRef.current?.send({

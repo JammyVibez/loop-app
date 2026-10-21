@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   Search,
-  MessageCircle,
   Settings,
   User,
   LogOut,
@@ -41,8 +40,6 @@ import { useAuth } from "@/hooks/use-auth"
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UserBadges } from "@/components/user-badge"
-import { useUnreadMessages } from "@/hooks/use-unread-messages"
-import { formatUnreadBadge } from "@/lib/unread-messages"
 import { AccountSwitcher } from "@/components/accounts/account-switcher"
 
 function LogoMark() {
@@ -67,7 +64,6 @@ const THEME_OPTIONS = [
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("")
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
-  const unreadMessages = useUnreadMessages()
   const { user, signOut } = useAuth()
   const { theme, setTheme } = useTheme()
   const router = useRouter()
@@ -217,18 +213,6 @@ export function Header() {
                   size={32}
                   alt={user.display_name}
                 />
-
-                {/* Messages live behind this menu now, so the unread count has
-                    to be visible while the menu is shut — otherwise a new DM
-                    is silent until someone happens to open their profile. */}
-                {unreadMessages > 0 && (
-                  <span
-                    aria-label={`${unreadMessages} unread messages`}
-                    className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-background bg-rose-500 px-0.5 text-[9px] font-bold leading-none text-white"
-                  >
-                    {formatUnreadBadge(unreadMessages)}
-                  </span>
-                )}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 p-1.5 rounded-2xl">
@@ -260,20 +244,8 @@ export function Header() {
                 </Link>
               </DropdownMenuItem>
 
-              {/* Chat moved out of the bar — still one tap away, now with its
-                  unread count where the bar used to show it. */}
-              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                <Link href="/messages" className="flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs font-medium">Messages</span>
-                  {unreadMessages > 0 && (
-                    <span className="ml-auto inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
-                      {formatUnreadBadge(unreadMessages)}
-                    </span>
-                  )}
-                </Link>
-              </DropdownMenuItem>
-
+              {/* Messages are reached from the bottom nav / inbox, not the top
+                  bar — the bar stays brand, search, coins and notifications. */}
               <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
                 <Link href="/wallet" className="flex items-center gap-2">
                   <Coins className="h-4 w-4 text-amber-500" />

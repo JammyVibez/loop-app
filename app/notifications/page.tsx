@@ -473,7 +473,7 @@ function NotifRow({
     type: n.type,
     title: n.title,
     message: n.message,
-    actorName: actor?.display_name || actor?.username || "",
+    actorName: actor?.display_name || actor?.username || (n as any).actor_name || "",
     groupCount: (n as any).count,
   })
 
@@ -503,7 +503,9 @@ function NotifRow({
           <div className="min-w-0 flex-1">
             <p className="text-sm">
               <span className="font-semibold">
-                {copy.system ? SYSTEM_SENDER : actor?.display_name || actor?.username || "Someone"}
+                {copy.system
+                  ? SYSTEM_SENDER
+                  : actor?.display_name || actor?.username || (n as any).actor_name || "A member"}
               </span>
               {" "}
               <span className="text-muted-foreground">

@@ -61,6 +61,52 @@ async function attachReactions(
   })
 }
 
+/**
+ * Attach the quoted message behind every `reply_to_id`.
+ *
+ * `reply_to_id` is only a pointer. The bubble needs the parent's text and
+ * author, so the parents are fetched here instead of leaving the client to
+ * hunt for them in the current page — that way a quote survives reloads and
+ * stays visible when the replied-to message is older than the loaded window.
+ */
+async function attachReplyPreviews(
+  supabase: ReturnType<typeof createServerClient>,
+  rows: any[],
+): Promise<any[]> {
+  const ids = Array.from(
+    new Set(rows.map((m) => m.reply_to_id).filter(Boolean).map((v) => String(v))),
+  )
+  if (!ids.length) return rows.map((m) => ({ ...m, reply_to: m.reply_to || null }))
+
+  const { data: parents } = await supabase
+    .from("messages")
+    .select("id, content, media_type, author_id, sender_id")
+    .in("id", ids)
+
+  const authorIds = Array.from(
+    new Set((parents || []).map((p: any) => p.author_id || p.sender_id).filter(Boolean)),
+  )
+  const { data: profiles } = authorIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, username, display_name, avatar_url")
+        .in("id", authorIds)
+    : { data: [] as any[] }
+
+  const profileMap = new Map((profiles || []).map((p: any) => [String(p.id), p]))
+  const parentMap = new Map(
+    (parents || []).map((p: any) => [
+      String(p.id),
+      { ...p, sender: profileMap.get(String(p.author_id || p.sender_id)) || null },
+    ]),
+  )
+
+  return rows.map((m) => ({
+    ...m,
+    reply_to: m.reply_to || (m.reply_to_id ? parentMap.get(String(m.reply_to_id)) || null : null),
+  }))
+}
+
 async function assertMember(supabase: ReturnType<typeof createServerClient>, conversationId: string, userId: string) {
   const { data } = await supabase
     .from("conversation_participants")
@@ -160,11 +206,17 @@ export async function GET(request: NextRequest) {
         ...m,
         sender: map.get(m.author_id || m.sender_id) || null,
       }))
-      const withReactions = await attachReactions(supabase, hydrated)
+      const withReactions = await attachReplyPreviews(
+        supabase,
+        await attachReactions(supabase, hydrated),
+      )
       return NextResponse.json({ success: true, messages: withReactions, has_more: rows.length === limit })
     }
 
-    const messages = await attachReactions(supabase, toAscending(messagesDesc as any[]))
+    const messages = await attachReplyPreviews(
+      supabase,
+      await attachReactions(supabase, toAscending(messagesDesc as any[])),
+    )
     return NextResponse.json({ success: true, messages, has_more: messages.length === limit })
   } catch (error) {
     console.error("Error fetching messages:", error)
@@ -302,7 +354,16 @@ export async function POST(request: NextRequest) {
         .select("id, content, sender_id, author_id, media_type")
         .eq("id", replyToId)
         .maybeSingle()
-      replyPreview = replied
+      if (replied) {
+        // Include the author so the freshly sent bubble shows *who* it quotes
+        // immediately, not only after the next refresh.
+        const { data: repliedAuthor } = await supabase
+          .from("profiles")
+          .select("id, username, display_name, avatar_url")
+          .eq("id", replied.author_id || replied.sender_id)
+          .maybeSingle()
+        replyPreview = { ...replied, sender: repliedAuthor || null }
+      }
     }
 
     await supabase

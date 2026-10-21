@@ -132,10 +132,12 @@ export function getNotificationCopy(input: NotificationCopyInput): NotificationC
   }
 
   const grouped = (input.groupCount || 1) > 1
+  // Never invent an identity. If the actor profile could not be resolved we
+  // say "A member" rather than mislabelling the notification "Someone".
   const sender = grouped
     ? input.groupCount === 2
-      ? `${input.actorName || "Someone"} and ${input.otherActorsLabel || "someone"}`
-      : `${input.actorName || "Someone"} and ${(input.groupCount || 1) - 1} others`
+      ? `${input.actorName || "A member"} and ${input.otherActorsLabel || "another member"}`
+      : `${input.actorName || "A member"} and ${(input.groupCount || 1) - 1} others`
     : input.actorName || ""
 
   const action = ACTION_BY_TYPE[type]

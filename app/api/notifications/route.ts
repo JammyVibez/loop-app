@@ -45,9 +45,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Enrich notifications with actor profile data (avatar, username)
+    // notifyUser() stores the actor in the notifications row's `actor_id`
+    // column, while a few older writers only put it inside `data`. Reading
+    // just `data` left every notification from the modern writer with no
+    // actor, so the dropdown rendered an empty name ("Someone").
     const actorIds = new Set<string>()
     for (const n of notifications || []) {
       const d = n.data || {}
+      if (n.actor_id) actorIds.add(n.actor_id)
       if (d.user_id) actorIds.add(d.user_id)
       if (d.sender_id) actorIds.add(d.sender_id)
       if (d.actor_id) actorIds.add(d.actor_id)
@@ -70,11 +75,16 @@ export async function GET(request: NextRequest) {
     // Attach actor info to each notification
     const enriched = (notifications || []).map((n) => {
       const d = n.data || {}
-      const actorId = d.user_id || d.sender_id || d.actor_id
+      const actorId = n.actor_id || d.user_id || d.sender_id || d.actor_id
       const actor = actorId ? actorMap[actorId] : null
       return {
         ...n,
         actor: actor || null,
+        // Legacy writers only kept the name in data — surface it so the UI
+        // never has to fall back to "Someone".
+        actor_name: actor
+          ? actor.display_name || actor.username
+          : d.actor_name || d.user_name || d.sender_name || d.actor_username || d.sender_username || null,
       }
     })
 
@@ -105,7 +115,7 @@ export async function GET(request: NextRequest) {
       if (existing) {
         existing.count += 1
         existing.updated_at = n.created_at // bump to newest
-        const actorId = d.user_id || d.sender_id || d.actor_id
+        const actorId = n.actor_id || d.user_id || d.sender_id || d.actor_id
         if (actorId && !existing.actor_ids.includes(actorId)) {
           existing.actor_ids.push(actorId)
           const actor = actorId ? actorMap[actorId] : null
@@ -123,7 +133,7 @@ export async function GET(request: NextRequest) {
         existing.actor_ids = existing.actor_ids.slice(0, 10)
         existing.actors = existing.actors.slice(0, 10)
       } else {
-        const actorId = d.user_id || d.sender_id || d.actor_id
+        const actorId = n.actor_id || d.user_id || d.sender_id || d.actor_id
         const actor = actorId ? actorMap[actorId] : null
         groupMap.set(groupKey, {
           ...n,
