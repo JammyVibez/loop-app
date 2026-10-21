@@ -1,6 +1,6 @@
 import { Metadata } from "next"
 import { Header } from "@/components/header"
-import { CommunityPostDetail } from "@/components/communities/community-post-detail"
+import { ForumThread } from "@/components/communities/forum/thread-view"
 import { createClient } from "@/lib/supabase"
 import { getAbsoluteAppUrl } from "@/lib/app-url"
 import { buildOgMetadata } from "@/lib/og/metadata"
@@ -31,21 +31,22 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
   try {
     const { data: post } = await supabase
         .from("circle_posts")
-        .select("content, author:profiles!author_id(display_name, username, avatar_url, is_verified)")
+        .select("content, content_metadata, author:profiles!author_id(display_name, username, avatar_url, is_verified)")
         .eq("id", postId)
         .eq("circle_id", id)
         .maybeSingle()
 
     if (post) {
       const author = Array.isArray(post.author) ? post.author[0] : post.author
+      const threadTitle = (post.content_metadata as any)?.title
       const preview = (post.content || "").slice(0, 120)
       authorName = author?.display_name || author?.username || ""
       authorHandle = author?.username || ""
       avatarUrl = author?.avatar_url || ""
       isVerified = Boolean(author?.is_verified)
       body = (post.content || "").slice(0, 480)
-      title = author?.display_name ? `${author.display_name} — Loop Community` : title
-      description = preview || description
+      title = threadTitle ? `${threadTitle} — Loop Community` : author?.display_name ? `${author.display_name} — Loop Community` : title
+      description = threadTitle || preview || description
     }
   } catch {
     /* metadata is best-effort */
@@ -76,8 +77,8 @@ export default async function CommunityPostPage({ params }: PostPageProps) {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto max-w-2xl px-4 py-6">
-        <CommunityPostDetail communityId={id} postId={postId} />
+      <main className="container mx-auto max-w-4xl px-3 py-4 sm:px-5 sm:py-6">
+        <ForumThread communityId={id} threadId={postId} />
       </main>
     </div>
   )

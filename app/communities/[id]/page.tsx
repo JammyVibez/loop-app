@@ -1,6 +1,6 @@
 import { Metadata } from "next"
 import { Header } from "@/components/header"
-import { CommunityHome } from "@/components/communities/community-home"
+import { ForumHome } from "@/components/communities/forum/forum-home"
 import { createClient } from "@/lib/supabase"
 import { getAbsoluteAppUrl } from "@/lib/app-url"
 import { buildOgMetadata } from "@/lib/og/metadata"
@@ -84,8 +84,8 @@ export default async function CommunityPage({ params }: { params: Promise<{ id: 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header />
-      <main className="w-full">
-        <CommunityHome communityId={id} />
+      <main className="w-full py-4">
+        <ForumHome communityId={id} />
       </main>
     </div>
   )

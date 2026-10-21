@@ -7,10 +7,18 @@
     "app/circles/**/*.tsx",
     "app/api/communities/**/*.ts",
     "app/api/circles/**/*.ts",
+    "app/api/messages/**/*.ts",
+    "app/api/notifications/**/*.ts",
+    "app/notifications/**/*.tsx",
     "components/communities/**/*.tsx",
     "components/duels/**/*.tsx",
+    "components/messages/**/*.tsx",
+    "components/notifications/**/*.tsx",
+    "components/header.tsx",
+    "components/content/**/*.tsx",
     "lib/community-*.ts",
     "lib/community-feed-share.ts",
+    "lib/notification-copy.ts",
     "__tests__/**/*.ts"
   ]
 }
