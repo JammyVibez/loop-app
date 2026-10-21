@@ -23,7 +23,7 @@ import { LoopCardContent } from "./loop-card/loop-card-content"
 import { LoopCardActions } from "./loop-card/loop-card-actions"
 import { LoopCardBoostBar } from "./loop-card/loop-card-boost-bar"
 import { LoopCardModals } from "./loop-card/loop-card-modals"
-import { QuotedLoopCard } from "@/components/loops/quoted-loop-card"
+import { QuotedLoopCard, useQuotedLoop } from "@/components/loops/quoted-loop-card"
 
 interface LoopCardProps {
   loop: any
@@ -65,6 +65,8 @@ export const LoopCard = memo(function LoopCard({
   const [forking, setForking] = useState(false)
   const [chainDialogOpen, setChainDialogOpen] = useState(false)
   const [branchSettingsOpen, setBranchSettingsOpen] = useState(false)
+  /** Resolved original post for a quote rebranch — feeds the share-as-image card. */
+  const quoted = useQuotedLoop(rawLoop?.quoted_loop_id || null)
   const [togglingLinkPreview, setTogglingLinkPreview] = useState(false)
   const [boostDialogOpen, setBoostDialogOpen] = useState(false)
   const [shareDmOpen, setShareDmOpen] = useState(false)
@@ -666,6 +668,7 @@ export const LoopCard = memo(function LoopCard({
 
       {/* ── All Modals ── */}
       <LoopCardModals
+        quoted={quoted}
         loop={loop}
         rawLoop={rawLoop}
         content={content}

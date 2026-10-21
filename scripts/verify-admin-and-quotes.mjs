@@ -62,6 +62,9 @@ check("loops.quoted_loop_id exists", loopCols.includes("quoted_loop_id"))
 check("loops.quote_count exists", loopCols.includes("quote_count"))
 
 await c.query("begin")
+const { rows: [{ n: quotesBefore }] } = await c.query(
+  `select count(*)::int n from loops where quoted_loop_id is not null`,
+)
 try {
   const { rows: [original] } = await c.query(
     `select l.id, l.author_id, l.content_text, l.quote_count, l.branch_count
@@ -136,9 +139,14 @@ try {
   await c.query("rollback")
 }
 
-// Nothing leaked out of the rollback.
-const { rows: [{ n: liveQuotes }] } = await c.query(`select count(*)::int n from loops where quoted_loop_id is not null`)
-check("verification wrote nothing (no quote posts persisted)", liveQuotes === 0, `${liveQuotes} rows`)
+// Nothing leaked out of the rollback. The feature is live, so quote posts
+// legitimately exist — this asserts the *verification run* persisted nothing.
+const { rows: [{ n: quotesAfter }] } = await c.query(`select count(*)::int n from loops where quoted_loop_id is not null`)
+check(
+  "verification wrote nothing (quote post count unchanged)",
+  quotesAfter === quotesBefore,
+  `${quotesBefore} before → ${quotesAfter} after`,
+)
 
 // ── 4. Admin lists exclude deleted accounts ──────────────────────────────
 const { rows: [{ n: listedDeleted }] } = await c.query(

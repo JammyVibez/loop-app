@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { VideoAvatar } from "@/components/cosmetics/video-avatar";
-import { GitBranch, Type, ImageIcon, Video, Music, FileText, Upload, X, CheckCircle2, ArrowUpRight, Zap, Flame, Vote } from "lucide-react";
+import { GitBranch, Type, ImageIcon, Video, Music, FileText, Upload, X, CheckCircle2, ArrowUpRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
@@ -422,72 +422,84 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
                   </div>
                   <div>
                     <p className="text-sm font-bold text-foreground">Rebranch this loop</p>
-                    <p className="text-xs text-muted-foreground">Reposts everything — media, audio, duels, polls, links — credited to {authorName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Add a quote and it posts as your own post with the original embedded. Leave it empty to
+                      simply repost it, credited to {authorName}.
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* Parent media preview */}
-              {parentMedia && (
-                <div className="overflow-hidden rounded-xl border border-border/70 bg-black/40">
-                  {parentMediaIsVideo ? (
-                    <video src={parentMedia} className="max-h-40 w-full object-contain" muted playsInline preload="metadata" />
-                  ) : (
-                    <img src={parentMedia} alt="Original media" className="max-h-40 w-full object-contain" loading="lazy" />
-                  )}
-                </div>
-              )}
-
-              {/* Parent content preview — text + any media/duels/clutch/polls */}
-              <div className="rounded-xl border border-border/70 bg-muted/30 p-3 space-y-2">
-                {parentPreview && (
-                  <p className="text-xs text-foreground/80">{parentPreview}</p>
-                )}
-                {!parentPreview && !parentMedia && (
-                  <p className="text-xs text-muted-foreground italic">(no text content)</p>
-                )}
-                {/* Duel preview */}
-                {parentLoop?.duel && (
-                  <div className="flex items-center gap-2 rounded-lg bg-rose-500/10 border border-rose-500/20 px-3 py-2">
-                    <Zap className="h-3.5 w-3.5 text-rose-400 shrink-0" />
-                    <span className="text-[11px] font-semibold text-rose-300">Duel: {parentLoop.duel.title || parentLoop.duel.question || "Creative challenge"}</span>
-                  </div>
-                )}
-                {/* Clutch Duel preview */}
-                {parentLoop?.clutch_duel && (
-                  <div className="flex items-center gap-2 rounded-lg bg-orange-500/10 border border-orange-500/20 px-3 py-2">
-                    <Flame className="h-3.5 w-3.5 text-orange-400 shrink-0" />
-                    <span className="text-[11px] font-semibold text-orange-300">Clutch Duel: {parentLoop.clutch_duel.prompt || "Quick prediction"}</span>
-                  </div>
-                )}
-                {/* Poll preview */}
-                {parentLoop?.poll && (
-                  <div className="flex items-center gap-2 rounded-lg bg-violet-500/10 border border-violet-500/20 px-3 py-2">
-                    <Vote className="h-3.5 w-3.5 text-violet-400 shrink-0" />
-                    <span className="text-[11px] font-semibold text-violet-300">Poll: {parentLoop.poll.question || "Vote now"}</span>
-                  </div>
-                )}
-                {/* Link preview */}
-                {parentLoop?.content_metadata?.link_url && (
-                  <div className="flex items-center gap-2 rounded-lg bg-sky-500/10 border border-sky-500/20 px-3 py-2">
-                    <ArrowUpRight className="h-3.5 w-3.5 text-sky-400 shrink-0" />
-                    <span className="text-[11px] font-semibold text-sky-300 truncate">{parentLoop.content_metadata.link_url}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Quote textarea — tight spacing */}
+              {/* Quote composer — the outer post is yours */}
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-foreground">Add a quote (optional)</Label>
+                <Label className="text-xs font-semibold text-foreground">Your commentary (optional)</Label>
                 <Textarea
                   value={rebranchQuote}
                   onChange={(e) => setRebranchQuote(e.target.value)}
-                  placeholder="Add your take — with a quote this posts as your own post with the original embedded…"
+                  placeholder="Add your take — this becomes the post, with the original embedded below it…"
                   rows={2}
                   maxLength={500}
                   className="resize-none bg-background border-border text-foreground placeholder:text-muted-foreground text-sm"
                 />
                 <p className="text-[10px] text-muted-foreground text-right">{rebranchQuote.length}/500</p>
+              </div>
+
+              {/* Live preview — exactly how the finished quote post will read */}
+              <div className="rounded-2xl border border-border/70 bg-card p-3.5">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Preview — your post
+                </p>
+                <div className="flex items-center gap-2">
+                  <VideoAvatar
+                    src={user?.avatar_url || undefined}
+                    className="h-7 w-7"
+                    fallback={(user?.display_name || user?.username || "Y").charAt(0).toUpperCase()}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-1 truncate text-xs font-semibold text-foreground">
+                      {user?.display_name || user?.username || "You"}
+                      {user?.is_verified && <VerifiedSeal size={13} title="Verified Creator" />}
+                    </p>
+                    <p className="truncate text-[10px] text-muted-foreground">
+                      @{user?.username || "you"}
+                    </p>
+                  </div>
+                </div>
+                <p className={`mt-2 whitespace-pre-wrap text-[13px] leading-relaxed ${rebranchQuote.trim() ? "text-foreground/90" : "text-muted-foreground/60 italic"}`}>
+                  {rebranchQuote.trim() || "Your commentary will appear here…"}
+                </p>
+
+                {/* Embedded original — the same nested card the feed renders */}
+                <div className="mt-2.5 overflow-hidden rounded-xl border border-border/70 bg-muted/20">
+                  <div className="flex items-center gap-2 px-3 pt-2.5">
+                    <VideoAvatar
+                      src={author?.avatar_url || undefined}
+                      className="h-5 w-5"
+                      fallback={authorName.charAt(0).toUpperCase()}
+                    />
+                    <span className="truncate text-[11px] font-semibold text-foreground">{authorName}</span>
+                    {author?.is_verified && <VerifiedSeal size={12} title="Verified" />}
+                    {authorHandle && <span className="truncate text-[10px] text-muted-foreground">{authorHandle}</span>}
+                  </div>
+                  <div className="space-y-1.5 px-3 pb-2.5 pt-1">
+                    {parentPreview ? (
+                      <p className="line-clamp-4 whitespace-pre-wrap text-[12px] leading-relaxed text-foreground/80">
+                        {parentPreview}
+                      </p>
+                    ) : (
+                      <p className="text-[12px] italic text-muted-foreground">(media post)</p>
+                    )}
+                    {parentMedia && (
+                      <div className="overflow-hidden rounded-lg bg-black/30">
+                        {parentMediaIsVideo ? (
+                          <video src={parentMedia} className="max-h-40 w-full object-contain" muted playsInline preload="metadata" />
+                        ) : (
+                          <img src={parentMedia} alt="Original media" className="max-h-40 w-full object-contain" loading="lazy" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <Button

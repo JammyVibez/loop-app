@@ -25,6 +25,7 @@ import { ShareToCircleModal } from "@/components/messages/share-to-circle-modal"
 import { ShareAsImageModal } from "@/components/engagement/share-as-image-modal"
 import { EnhancedShareSheet } from "@/components/engagement/enhanced-share-sheet"
 import { ProtectedMedia } from "@/components/media-protection"
+import type { QuotedLoop } from "@/components/loops/quoted-loop-card"
 
 interface LoopCardModalsProps {
   loop: any
@@ -78,6 +79,8 @@ interface LoopCardModalsProps {
   setShareImageOpen: (v: boolean) => void
   shareSheetOpen: boolean
   setShareSheetOpen: (v: boolean) => void
+  /** The original post a quote rebranch embeds, when this post is one. */
+  quoted?: QuotedLoop | null
 }
 
 export function LoopCardModals({
@@ -122,6 +125,7 @@ export function LoopCardModals({
   setShareImageOpen,
   shareSheetOpen,
   setShareSheetOpen,
+  quoted,
 }: LoopCardModalsProps) {
   const router = useRouter()
 
@@ -408,6 +412,22 @@ export function LoopCardModals({
       <ShareAsImageModal
         open={shareImageOpen}
         onOpenChange={setShareImageOpen}
+        quoted={
+          quoted && quoted.author && !quoted.restricted && !quoted.author.is_deleted
+            ? {
+                text: quoted.text || "",
+                created_at: quoted.created_at || undefined,
+                media_url: quoted.media_url || undefined,
+                media_type: quoted.media_type || undefined,
+                author: {
+                  username: quoted.author.username,
+                  display_name: quoted.author.display_name,
+                  avatar_url: quoted.author.avatar_url || undefined,
+                  is_verified: Boolean(quoted.author.is_verified),
+                },
+              }
+            : undefined
+        }
         post={{
           id: loop.id,
           content: content,

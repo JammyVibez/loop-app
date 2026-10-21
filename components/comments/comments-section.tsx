@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react"
+import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from "react"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { FileText, Heart, Lock, MoreHorizontal, Paperclip, Pencil, Reply, Trash2, X } from "lucide-react"
+import { FileText, Heart, Lock, MessagesSquare, MoreHorizontal, Paperclip, Pencil, Reply, Trash2, X } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -267,6 +267,18 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
     return count(commentsData)
   }, [commentsData])
 
+  /** Id of the comment whose full thread is open in the focused panel. */
+  const [threadId, setThreadId] = useState<string | null>(null)
+  const threadRoot = useMemo(
+    () => commentsData.find((c) => c.id === threadId) || null,
+    [commentsData, threadId],
+  )
+  /** Open the whole conversation under a comment in a focused panel. */
+  const openThread = (id: string) => {
+    setThreadId(id)
+    setReplyingTo(id)
+  }
+
   const visibleComments = useMemo(() => {
     const list = [...commentsData]
     if (sort === "top") {
@@ -521,20 +533,16 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
     }
   }
 
-  const renderComment = (comment: Comment, depth = 0) => {
+  const renderComment = (comment: Comment, opts?: { compact?: boolean }) => {
     const authorId = comment.author_id || comment.author?.id
     const isOwner = user?.id === authorId
     const likes = comment.like_count ?? comment.likes ?? 0
-    const isReply = depth > 0
+    const compact = Boolean(opts?.compact)
+    const replies = comment.replies || []
+    const previewReplies = compact ? [] : replies.slice(0, 2)
 
     return (
-      <div key={comment.id} className={`${isReply ? "relative pl-8 sm:pl-10" : ""}`}>
-        {isReply && (
-          <span
-            aria-hidden
-            className="absolute left-3 top-1 h-[calc(100%-0.75rem)] w-px rounded-full bg-border/70 sm:left-4"
-          />
-        )}
+      <div key={comment.id}>
         <div className="group/comment flex gap-2.5 rounded-2xl px-1.5 py-2 transition-colors hover:bg-muted/40 sm:gap-3 sm:px-2">
           <Link href={`/profile/${comment.author?.username || ""}`} className="mt-0.5 shrink-0">
             <AvatarWithFrame
@@ -542,7 +550,7 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
               videoAvatarUrl={comment.author?.video_avatar_url || null}
               frameId={(comment.author as any)?.equipped_frame_id ?? null}
               seed={comment.author?.username}
-              size={isReply ? 28 : 34}
+              size={compact ? 26 : 34}
               alt={comment.author?.display_name || ""}
             />
           </Link>
@@ -649,6 +657,10 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
 
             {replyingTo === comment.id && (
               <div className="mt-2 space-y-2 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm">
+                <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Reply className="h-3 w-3" /> Replying to
+                  <span className="font-semibold text-foreground">@{comment.author?.username || "this comment"}</span>
+                </p>
                 <div className="relative">
                   <MentionTextarea
                     value={replyContent}
@@ -692,9 +704,35 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
             )}
           </div>
         </div>
-        {(comment.replies || []).map((reply) => renderComment(reply, depth + 1))}
+
+        {/* Replies: a short preview under the comment, the full thread one
+            click away — no stack of rails narrowing the text at every level. */}
+        {!compact && replies.length > 0 && (
+          <div className="ml-3 space-y-0.5 border-l border-border/60 pl-3 sm:ml-4 sm:pl-3.5">
+            {previewReplies.map((reply) => renderComment(reply, { compact: true }))}
+            <button
+              type="button"
+              onClick={() => openThread(comment.id)}
+              className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+            >
+              <MessagesSquare className="h-3.5 w-3.5" />
+              {replies.length === previewReplies.length
+                ? `View ${replies.length} ${replies.length === 1 ? "reply" : "replies"}`
+                : `View all ${replies.length} replies`}
+            </button>
+          </div>
+        )}
       </div>
     )
+  }
+
+  /** Full conversation for the focused thread panel (nested replies kept). */
+  const renderThreadReplies = (comment: Comment, prefix = "t"): ReactNode[] => {
+    const replies = comment.replies || []
+    return replies.flatMap((reply, index) => [
+      <div key={`${prefix}${reply.id}`}>{renderComment(reply, { compact: true })}</div>,
+      ...renderThreadReplies(reply, `${prefix}${reply.id}-${index}`),
+    ])
   }
 
   return (
@@ -798,6 +836,82 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
       ) : (
         <div className="space-y-1 divide-y divide-border/50">{visibleComments.map((comment) => renderComment(comment))}</div>
       )}
+
+      {/* Focused thread panel: full conversation under one comment. */}
+      <Dialog
+        open={Boolean(threadRoot)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setThreadId(null)
+            setReplyingTo(null)
+          }
+        }}
+      >
+        <DialogContent className="flex max-h-[86dvh] w-full gap-0 overflow-hidden p-0 sm:max-w-xl">
+          <DialogHeader className="border-b border-border/70 px-4 py-3 text-left sm:px-5">
+            <DialogTitle className="text-base font-semibold">Replies</DialogTitle>
+            <DialogDescription className="sr-only">The full conversation under this comment</DialogDescription>
+          </DialogHeader>
+
+          <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 py-2 sm:px-3">
+            {threadRoot && (
+              <>
+                {renderComment(threadRoot, { compact: true })}
+                {renderThreadReplies(threadRoot)}
+              </>
+            )}
+          </div>
+
+          <div className="border-t border-border/70 px-3 py-3 sm:px-4">
+            {threadRoot && replyingTo === threadRoot.id ? (
+              <div className="space-y-2 rounded-2xl border border-border/70 bg-card p-2.5">
+                <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Reply className="h-3 w-3" /> Replying to
+                  <span className="font-semibold text-foreground">@{threadRoot.author?.username || "this comment"}</span>
+                </p>
+                <div className="relative">
+                  <MentionTextarea
+                    value={replyContent}
+                    onChange={setReplyContent}
+                    placeholder={`Reply to @${threadRoot.author?.username || "comment"}… use @ to tag`}
+                    className="min-h-[64px] rounded-xl border-border/60 bg-muted/30 pr-20 text-sm text-foreground"
+                  />
+                  <div className="absolute right-2 bottom-2 flex items-center gap-0.5">
+                    <AttachButton onClick={() => openFilePicker(threadRoot.id)} busy={uploadingFor === threadRoot.id} />
+                    <MediaEmojiPicker onSelectEmoji={(emoji) => setReplyContent((prev) => prev + emoji)} />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-1.5">
+                  <Button size="sm" variant="ghost" className="h-7 rounded-full px-3 text-xs" onClick={() => setReplyingTo(null)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-7 rounded-full px-3 text-xs font-semibold"
+                    onClick={() => handleSubmitReply(threadRoot.id)}
+                    disabled={submittingReplyId === threadRoot.id || !replyContent.trim()}
+                  >
+                    {submittingReplyId === threadRoot.id ? "Replying…" : "Reply"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <p className="truncate text-xs text-muted-foreground">
+                  {threadRoot?.replies?.length || 0} in this conversation
+                </p>
+                <Button
+                  size="sm"
+                  className="h-7 rounded-full px-3 text-xs font-semibold"
+                  onClick={() => threadRoot && setReplyingTo(threadRoot.id)}
+                >
+                  <Reply className="mr-1 h-3.5 w-3.5" /> Reply
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={Boolean(deleteId)}

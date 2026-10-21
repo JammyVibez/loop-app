@@ -29,6 +29,7 @@ import {
   Gift,
 } from "lucide-react"
 import { CommentsSection } from "@/components/comments/comments-section"
+import { QuotedLoopCard } from "@/components/loops/quoted-loop-card"
 import { CreateBranchDialog } from "@/components/create-branch-dialog"
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp"
 import { LoopChainDialog } from "@/components/loops/loop-chain-dialog"
@@ -117,6 +118,8 @@ interface LoopData {
   isFollowing: boolean
   isCoLoop: boolean
   coAuthors: CoAuthor[]
+  /** Id of the post this one quotes (quote rebranches are top-level posts). */
+  quotedLoopId?: string | null
 }
 
 const supabase = createClient(
@@ -218,6 +221,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
         isFollowing: false,
         isCoLoop: Boolean(loopData.is_co_loop),
         coAuthors: Array.isArray(loopData.co_authors) ? loopData.co_authors : [],
+        quotedLoopId: (loopData as any).quoted_loop_id ?? null,
       })
 
       // Load persisted Quick React counts + current user's reaction
@@ -817,6 +821,10 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
             className="text-[15px] leading-relaxed text-foreground/90"
             showPreviewCard={!(loop as any).link_preview_disabled}
           />
+
+          {/* Quote rebranch: the original post, embedded by reference — the
+              same card the feed renders, opening the original's own page. */}
+          {loop.quotedLoopId && <QuotedLoopCard loopId={loop.quotedLoopId} />}
 
           {/* Full Media Set Carousel */}
           {loop.mediaUrls && loop.mediaUrls.length > 0 && (

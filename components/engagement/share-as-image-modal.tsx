@@ -15,9 +15,25 @@ export interface ShareCardBadge {
   colors?: string[] | null
 }
 
+/** The embedded original of a quote rebranch. */
+export interface ShareCardQuote {
+  text: string
+  created_at?: string
+  media_url?: string
+  media_type?: string
+  author: {
+    username: string
+    display_name: string
+    avatar_url?: string
+    is_verified?: boolean
+  }
+}
+
 interface ShareAsImageModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Original post embedded inside this one (quote rebranch). */
+  quoted?: ShareCardQuote | null
   post: {
     id: string
     content: string
@@ -88,11 +104,48 @@ const MEDIA_W = CARD_W - PAD * 2
 const MEDIA_MIN_H = 280
 const MEDIA_MAX_H = 620
 
-/** Total card height for a given number of wrapped body lines (+ media). */
-function cardHeight(lineCount: number, mediaH: number | null) {
+/* ── Quote block (quote rebranch) ──
+ * The embedded original sits below the commentary in a lifted panel: small
+ * avatar + attribution row, then the original's text, then its media when it
+ * can be drawn.
+ */
+const QUOTE_BLOCK_GAP = 44
+const QUOTE_PAD = 36
+const QUOTE_AV = 64
+const QUOTE_NAME_FONT = 30
+const QUOTE_TEXT_FONT = 32
+const QUOTE_TEXT_LINE = 1.45
+const QUOTE_MAX_LINES = 6
+const QUOTE_HEADER_GAP = 18
+const QUOTE_MEDIA_GAP = 26
+const QUOTE_MEDIA_MIN_H = 160
+const QUOTE_MEDIA_MAX_H = 300
+const QUOTE_TEXT_LINE_H = QUOTE_TEXT_FONT * QUOTE_TEXT_LINE
+const QUOTE_TEXT_W = CARD_W - PAD * 2 - QUOTE_PAD * 2
+
+/** Height of the quote panel (including the gap above it). */
+function quotePanelHeight(lineCount: number, mediaH: number | null) {
+  return (
+    QUOTE_BLOCK_GAP +
+    QUOTE_PAD * 2 +
+    QUOTE_AV +
+    QUOTE_HEADER_GAP +
+    Math.max(1, lineCount) * QUOTE_TEXT_LINE_H +
+    (mediaH ? QUOTE_MEDIA_GAP + mediaH : 0)
+  )
+}
+
+/** Total card height for a given number of wrapped body lines (+ media, + quote). */
+function cardHeight(
+  lineCount: number,
+  mediaH: number | null,
+  quoteLines = 0,
+  quoteMediaH: number | null = null,
+) {
   return (
     BODY_TOP +
     Math.max(1, lineCount) * BODY_LINE_H +
+    (quoteLines ? quotePanelHeight(quoteLines, quoteMediaH) : 0) +
     (mediaH ? MEDIA_GAP + mediaH : 0) +
     ENGAGE_GAP +
     ICON +
@@ -523,13 +576,13 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxW: number, ma
 }
 
 /** Wraps the body with a throwaway canvas so both renderers agree on height. */
-function measureLines(body: string): string[] | null {
+function measureLines(body: string, fontPx = BODY_FONT, maxW = CARD_W - PAD * 2, maxLines = MAX_LINES): string[] | null {
   if (typeof document === "undefined") return null
   const c = document.createElement("canvas")
   const ctx = c.getContext("2d")
   if (!ctx) return null
-  ctx.font = font(500, BODY_FONT)
-  return wrapLines(ctx, body, CARD_W - PAD * 2, MAX_LINES)
+  ctx.font = font(500, fontPx)
+  return wrapLines(ctx, body, maxW, maxLines)
 }
 
 interface CardModel {
@@ -544,9 +597,21 @@ interface CardModel {
   showPro: boolean
   verifiedColors: string[]
   customColorList: string[] | null
+  /** Embedded original of a quote rebranch, when there is one. */
+  quote: {
+    name: string
+    handle: string
+    body: string
+    showVerified: boolean
+    hasMedia: boolean
+  } | null
 }
 
-function model(post: ShareAsImageModalProps["post"], resolvedBadge?: ShareCardBadge | null): CardModel {
+function model(
+  post: ShareAsImageModalProps["post"],
+  resolvedBadge?: ShareCardBadge | null,
+  quoted?: ShareCardQuote | null,
+): CardModel {
   const badge = post.author.badge || resolvedBadge || null
   return {
     name: truncate(post.author.display_name || post.author.username || "User", 40),
@@ -560,6 +625,15 @@ function model(post: ShareAsImageModalProps["post"], resolvedBadge?: ShareCardBa
     showPro: Boolean(post.author.is_premium),
     verifiedColors: [C.cyan, "#818CF8"],
     customColorList: badge ? normalizeColors(badge) : null,
+    quote: quoted
+      ? {
+          name: truncate(quoted.author.display_name || quoted.author.username || "User", 40),
+          handle: `@${truncate(quoted.author.username || "user", 30)}`,
+          body: truncate(quoted.text || "(media post)", 400),
+          showVerified: Boolean(quoted.author.is_verified),
+          hasMedia: Boolean(imageMediaUrl(quoted.media_url, quoted.media_type)),
+        }
+      : null,
   }
 }
 
@@ -607,8 +681,13 @@ function drawCard(
   av: AV | null,
   logo: AV | null,
   media: AV | null,
+  quoteLines: string[] = [],
+  quoteAv: AV | null = null,
+  quoteMedia: AV | null = null,
+  quoteMediaH: number | null = null,
 ) {
-  const h = cardHeight(lines.length, mediaH)
+  const qh = m.quote ? quotePanelHeight(quoteLines.length, quoteMediaH) : 0
+  const h = cardHeight(lines.length, mediaH, m.quote ? quoteLines.length : 0, qh ? quoteMediaH : null)
   const ctx = setup(canvas, CARD_W, h, scale)
   if (!ctx) return
 
@@ -740,6 +819,91 @@ function drawCard(
 
   /* ── Post image, when the loop has one ── */
   let afterBody = BODY_TOP + lines.length * BODY_LINE_H
+
+  /* ── Quote block: the embedded original, in a lifted panel ── */
+  if (m.quote) {
+    const qx = PAD
+    const qy = afterBody + QUOTE_BLOCK_GAP
+    const qw = MEDIA_W
+    const qInnerW = qw - QUOTE_PAD * 2
+    const qLineCount = Math.max(1, quoteLines.length)
+    const qHeight = quotePanelHeight(qLineCount, quoteMediaH) - QUOTE_BLOCK_GAP
+
+    rr(ctx, qx, qy, qw, qHeight, 24)
+    ctx.fillStyle = C.bgLift
+    ctx.fill()
+    ctx.strokeStyle = "rgba(255,255,255,0.08)"
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    const qavR = QUOTE_AV / 2
+    const qavCx = qx + QUOTE_PAD + qavR
+    const qavCy = qy + QUOTE_PAD + qavR
+    ctx.save()
+    circle(ctx, qavCx, qavCy, qavR)
+    ctx.clip()
+    ctx.fillStyle = "rgba(255,255,255,0.08)"
+    ctx.fillRect(qavCx - qavR, qavCy - qavR, QUOTE_AV, QUOTE_AV)
+    if (quoteAv) {
+      const { w: qw2, h: qh2 } = avDim(quoteAv)
+      const sz = Math.min(qw2, qh2)
+      ctx.imageSmoothingQuality = "high"
+      ctx.drawImage(quoteAv, (qw2 - sz) / 2, (qh2 - sz) / 2, sz, sz, qavCx - qavR, qavCy - qavR, QUOTE_AV, QUOTE_AV)
+    } else {
+      ctx.fillStyle = "rgba(255,255,255,0.7)"
+      ctx.font = font(800, 28)
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText((m.quote.name || "U").charAt(0).toUpperCase(), qavCx, qavCy + 1)
+    }
+    ctx.restore()
+
+    const qNameX = qx + QUOTE_PAD + QUOTE_AV + 18
+    const qNameBase = qavCy - QUOTE_AV * 0.08
+    const qTextX = qNameX
+    ctx.save()
+    ctx.font = font(700, QUOTE_NAME_FONT)
+    ctx.textAlign = "left"
+    ctx.textBaseline = "alphabetic"
+    ctx.fillStyle = C.textStrong
+    let qName = m.quote.name
+    const qNameMax = qx + qw - QUOTE_PAD - qNameX - (m.quote.showVerified ? BADGE + 10 : 0)
+    while (qName.length > 1 && ctx.measureText(qName).width > qNameMax) qName = qName.slice(0, -1)
+    ctx.fillText(qName, qNameX, qNameBase)
+    const qNameW = ctx.measureText(qName).width
+    ctx.restore()
+
+    if (m.quote.showVerified) {
+      drawSeal(ctx, qNameX + qNameW + 10, qNameBase - QUOTE_NAME_FONT * 0.78, BADGE, [C.cyan, "#818CF8"])
+    }
+
+    ctx.save()
+    ctx.font = font(400, META_FONT)
+    ctx.fillStyle = C.textMuted
+    ctx.textAlign = "left"
+    ctx.textBaseline = "alphabetic"
+    ctx.fillText(m.quote.handle, qNameX, qNameBase + 36)
+    ctx.restore()
+
+    ctx.save()
+    ctx.font = font(500, QUOTE_TEXT_FONT)
+    ctx.textAlign = "left"
+    ctx.textBaseline = "top"
+    ctx.fillStyle = C.text
+    let qty = qy + QUOTE_PAD + QUOTE_AV + QUOTE_HEADER_GAP
+    for (const l of quoteLines) {
+      ctx.fillText(l, qTextX, qty)
+      qty += QUOTE_TEXT_LINE_H
+    }
+    ctx.restore()
+
+    if (quoteMedia && quoteMediaH) {
+      drawCover(ctx, quoteMedia, qx + QUOTE_PAD, qty + QUOTE_MEDIA_GAP, qInnerW, quoteMediaH, 16)
+    }
+
+    afterBody = qy + qHeight
+  }
+
   if (media && mediaH) {
     drawCover(ctx, media, PAD, afterBody + MEDIA_GAP, MEDIA_W, mediaH, 22)
     afterBody += MEDIA_GAP + mediaH
@@ -776,8 +940,9 @@ function drawCard(
   ctx.restore()
 }
 
-function toBlob(c: HTMLCanvasElement, q = 0.94): Promise<Blob> {
-  return new Promise((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("empty"))), "image/jpeg", q))
+/** PNG — the spec asks for a shareable PNG, and lossless keeps text crisp. */
+function toBlob(c: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("empty"))), "image/png"))
 }
 
 /* ── HTML mirror ─────────────────────────────────────────────────────────
@@ -793,6 +958,10 @@ function CardPreview({
   mediaSrc,
   mediaH,
   height,
+  quoteLines = [],
+  quoteAvatarSrc,
+  quoteMediaSrc,
+  quoteMediaH,
 }: {
   m: CardModel
   lines: string[]
@@ -801,6 +970,10 @@ function CardPreview({
   mediaSrc: string | null
   mediaH: number | null
   height: number
+  quoteLines?: string[]
+  quoteAvatarSrc?: string
+  quoteMediaSrc?: string | null
+  quoteMediaH?: number | null
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const [scale, setScale] = useState(0)
@@ -821,7 +994,13 @@ function CardPreview({
     return () => ro.disconnect()
   }, [measure])
 
-  const engTop = BODY_TOP + lines.length * BODY_LINE_H + (mediaH ? MEDIA_GAP + mediaH : 0) + ENGAGE_GAP
+  const quoteH = m.quote ? quotePanelHeight(quoteLines.length, quoteMediaH ?? null) : 0
+  const engTop =
+    BODY_TOP +
+    lines.length * BODY_LINE_H +
+    quoteH +
+    (mediaH ? MEDIA_GAP + mediaH : 0) +
+    ENGAGE_GAP
   const meta = [m.handle, m.date].filter(Boolean).join("  ·  ")
 
   return (
@@ -967,6 +1146,100 @@ function CardPreview({
               ))}
             </div>
 
+            {/* ── Quote block: the embedded original ── */}
+            {m.quote && quoteH > 0 ? (
+              <div
+                style={{
+                  marginTop: QUOTE_BLOCK_GAP,
+                  width: MEDIA_W,
+                  padding: QUOTE_PAD,
+                  borderRadius: 24,
+                  background: C.bgLift,
+                  boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)",
+                  boxSizing: "border-box",
+                }}
+              >
+                <div className="flex items-center" style={{ gap: 18 }}>
+                  <span
+                    className="flex shrink-0 items-center justify-center rounded-full"
+                    style={{ width: QUOTE_AV, height: QUOTE_AV, background: "rgba(255,255,255,0.08)" }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={quoteAvatarSrc}
+                      alt=""
+                      className="rounded-full object-cover"
+                      style={{ width: QUOTE_AV, height: QUOTE_AV, background: C.bgLift }}
+                    />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center" style={{ gap: 10 }}>
+                      <span
+                        style={{
+                          fontSize: QUOTE_NAME_FONT,
+                          fontWeight: 700,
+                          lineHeight: 1.05,
+                          color: C.textStrong,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          maxWidth: 420,
+                        }}
+                      >
+                        {m.quote.name}
+                      </span>
+                      {m.quote.showVerified && (
+                        <span
+                          className="flex shrink-0 items-center justify-center rounded-full"
+                          style={{ width: BADGE, height: BADGE, background: C.cyan }}
+                        >
+                          <BadgeCheck style={{ width: 20, height: 20, color: "#FFFFFF" }} />
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ marginTop: 10, fontSize: META_FONT, lineHeight: 1, color: C.textMuted }}>
+                      {m.quote.handle}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: QUOTE_HEADER_GAP, paddingLeft: QUOTE_AV + 18 }}>
+                  {quoteLines.map((l, i) => (
+                    <p
+                      key={i}
+                      style={{
+                        margin: 0,
+                        height: QUOTE_TEXT_LINE_H,
+                        fontSize: QUOTE_TEXT_FONT,
+                        fontWeight: 500,
+                        lineHeight: `${QUOTE_TEXT_LINE_H}px`,
+                        color: C.text,
+                        whiteSpace: "pre",
+                      }}
+                    >
+                      {l}
+                    </p>
+                  ))}
+                  {quoteMediaSrc && quoteMediaH ? (
+                    <div style={{ marginTop: QUOTE_MEDIA_GAP }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={quoteMediaSrc}
+                        alt=""
+                        style={{
+                          width: MEDIA_W - QUOTE_PAD * 2 - (QUOTE_AV + 18),
+                          height: quoteMediaH,
+                          borderRadius: 16,
+                          objectFit: "cover",
+                          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.10)",
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
             {/* ── Post image ── */}
             {mediaSrc && mediaH ? (
               <div style={{ paddingTop: MEDIA_GAP }}>
@@ -1057,7 +1330,7 @@ function ShareGlyph() {
 }
 
 /* ── Main modal ── */
-export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModalProps) {
+export function ShareAsImageModal({ open, onOpenChange, post, quoted }: ShareAsImageModalProps) {
   const { toast } = useToast()
   const badgeCatalog = useVerificationBadges()
   // Resolve the author's custom verification mark (admin-created badge) so the
@@ -1071,7 +1344,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
     return { name: found.name, icon: found.icon, colors: found.colors }
   }, [post.author.badge, post.author.badge_id, badgeCatalog])
 
-  const m = useMemo(() => model(post, resolvedBadge), [post, resolvedBadge])
+  const m = useMemo(() => model(post, resolvedBadge, quoted), [post, resolvedBadge, quoted])
   // The draw effect reads the model through a ref so re-renders of the parent
   // feed (new object identity every render) don't redraw the card. The stable
   // `key` below decides when a redraw is actually needed.
@@ -1080,6 +1353,12 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
 
   const mediaSrc = useMemo(() => imageMediaUrl(post.media_url, post.media_type), [post.media_url, post.media_type])
   const proxiedMediaSrc = mediaSrc ? proxyUrl(mediaSrc) : null
+
+  const quoteMediaSrc = useMemo(
+    () => (quoted ? imageMediaUrl(quoted.media_url, quoted.media_type) : null),
+    [quoted?.media_url, quoted?.media_type],
+  )
+  const proxiedQuoteMediaSrc = quoteMediaSrc ? proxyUrl(quoteMediaSrc) : null
 
   // Body wrapping drives the card height, so both the canvas and the preview
   // render exactly the same lines. The first pass is an estimate so the server
@@ -1091,6 +1370,9 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
   })
   /** Media height is resolved on the client (from the real image) — null until then. */
   const [mediaH, setMediaH] = useState<number | null>(null)
+  /** Same for the quoted original's text and media. */
+  const [quoteLines, setQuoteLines] = useState<string[]>([])
+  const [quoteMediaH, setQuoteMediaH] = useState<number | null>(null)
   /** Preview needs a logo URL up front; the canvas gets the bitmap. */
   const [logoSrc, setLogoSrc] = useState(DEFAULT_LOGO_IMG)
 
@@ -1101,12 +1383,21 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
   const logoRef = useRef<AV | null>(null)
   const mediaRef = useRef<AV | null>(null)
   const mediaUrlRef = useRef<string | null>(null)
+  const quoteAvRef = useRef<AV | null>(null)
+  const quoteMediaRef = useRef<AV | null>(null)
+  const quoteMediaUrlRef = useRef<string | null>(null)
   const blobRef = useRef<Blob | null>(null)
   const genRef = useRef(0)
 
   useEffect(() => {
     setLines(measureLines(m.body) || [m.body])
-  }, [m.body])
+    if (m.quote) {
+      setQuoteLines(measureLines(m.quote.body, QUOTE_TEXT_FONT, QUOTE_TEXT_W, QUOTE_MAX_LINES) || [m.quote.body])
+    } else {
+      setQuoteLines([])
+      setQuoteMediaH(null)
+    }
+  }, [m.body, m.quote?.body])
 
   // Keep the preview's app mark in sync with the admin-configured logo.
   useEffect(() => {
@@ -1119,7 +1410,10 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
     }
   }, [])
 
-  const height = useMemo(() => cardHeight(lines.length, mediaH), [lines.length, mediaH])
+  const height = useMemo(
+    () => cardHeight(lines.length, mediaH, m.quote ? quoteLines.length : 0, m.quote ? quoteMediaH : null),
+    [lines.length, mediaH, m.quote, quoteLines.length, quoteMediaH],
+  )
 
   const key = useMemo(
     () =>
@@ -1152,6 +1446,12 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       post.stats?.comments_count,
       post.stats?.branches_count,
       mediaSrc,
+      quoted?.author.username,
+      quoted?.author.display_name,
+      quoted?.author.avatar_url,
+      quoted?.author.is_verified,
+      quoted?.text,
+      quoteMediaSrc,
     ],
   )
 
@@ -1164,6 +1464,9 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       logoRef.current = null
       mediaRef.current = null
       mediaUrlRef.current = null
+      quoteAvRef.current = null
+      quoteMediaRef.current = null
+      quoteMediaUrlRef.current = null
       setMediaH(null)
       return
     }
@@ -1187,19 +1490,37 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
         const mh = mediaRef.current ? mediaBoxHeight(mediaRef.current) : null
         setMediaH(mh)
 
+        // Quoted original's media + avatar (same-origin proxy, no tainting).
+        if (proxiedQuoteMediaSrc && quoteMediaUrlRef.current !== proxiedQuoteMediaSrc) {
+          quoteMediaRef.current = await loadAv(proxiedQuoteMediaSrc)
+          quoteMediaUrlRef.current = proxiedQuoteMediaSrc
+          if (c || genRef.current !== g) return
+        }
+        if (!proxiedQuoteMediaSrc) {
+          quoteMediaRef.current = null
+          quoteMediaUrlRef.current = null
+        }
+        const qmh = quoteMediaRef.current ? mediaBoxHeight(quoteMediaRef.current) : null
+        setQuoteMediaH(qmh)
+
         // Always same-origin for the canvas: a cross-origin avatar would taint
         // it and make toBlob() throw, leaving the preview stuck.
         const avUrl = proxyUrl(
           post.author.avatar_url || getDiceBearUrl(post.author.username),
         )
-        const [av, logo] = await Promise.all([
+        const quoteAvUrl = quoted
+          ? proxyUrl(quoted.author.avatar_url || getDiceBearUrl(quoted.author.username))
+          : null
+        const [av, logo, quoteAv] = await Promise.all([
           avRef.current ? Promise.resolve(avRef.current) : loadAv(avUrl),
           logoRef.current ? Promise.resolve(logoRef.current) : ensureLogoBitmap(),
+          quoteAvUrl ? (quoteAvRef.current ? Promise.resolve(quoteAvRef.current) : loadAv(quoteAvUrl)) : Promise.resolve(null),
         ])
         if (c || genRef.current !== g) return
         avRef.current = av
         logoRef.current = logo
-        drawCard(cv, mRef.current, lines, mh, SCALE, av, logo, mediaRef.current)
+        quoteAvRef.current = quoteAv
+        drawCard(cv, mRef.current, lines, mh, SCALE, av, logo, mediaRef.current, quoteLines, quoteAv, quoteMediaRef.current, qmh)
         if (c || genRef.current !== g) return
         blobRef.current = await toBlob(cv)
         setRendered(true)
@@ -1212,7 +1533,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       c = true
       clearTimeout(t)
     }
-  }, [open, key, lines, proxiedMediaSrc, post.author.avatar_url, post.author.username])
+  }, [open, key, lines, quoteLines, proxiedMediaSrc, proxiedQuoteMediaSrc, post.author.avatar_url, post.author.username])
 
   const getBlob = async (): Promise<Blob> => {
     if (blobRef.current) return blobRef.current
@@ -1233,7 +1554,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       logoRef.current = logo
     }
 
-    drawCard(cv, mRef.current, lines, mediaH, SCALE, avRef.current, logoRef.current, mediaRef.current)
+    drawCard(cv, mRef.current, lines, mediaH, SCALE, avRef.current, logoRef.current, mediaRef.current, quoteLines, quoteAvRef.current, quoteMediaRef.current, quoteMediaH)
     const b = await toBlob(cv)
     blobRef.current = b
     return b
@@ -1247,7 +1568,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
       const url = URL.createObjectURL(b)
       const a = document.createElement("a")
       a.href = url
-      a.download = `loop-${post.id}.jpg`
+      a.download = `loop-${post.id}.png`
       a.click()
       setTimeout(() => URL.revokeObjectURL(url), 4000)
       toast({ title: "Downloaded", description: "Share it anywhere." })
@@ -1261,7 +1582,7 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
   const share = async () => {
     try {
       const b = await getBlob()
-      const f = new File([b], `loop-${post.id}.jpg`, { type: "image/jpeg" })
+      const f = new File([b], `loop-${post.id}.png`, { type: "image/png" })
       if (navigator.share && navigator.canShare?.({ files: [f] })) {
         await navigator.share({ files: [f], title: "Loop", text: post.content.slice(0, 120) })
         toast({ title: "Shared!" })
@@ -1275,6 +1596,11 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
   const avatarSrc = post.author.avatar_url
     ? proxyUrl(post.author.avatar_url)
     : getDiceBearUrl(post.author.username)
+  const quoteAvatarSrc = quoted
+    ? quoted.author.avatar_url
+      ? proxyUrl(quoted.author.avatar_url)
+      : getDiceBearUrl(quoted.author.username)
+    : undefined
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1297,6 +1623,10 @@ export function ShareAsImageModal({ open, onOpenChange, post }: ShareAsImageModa
             mediaSrc={proxiedMediaSrc}
             mediaH={mediaH}
             height={height}
+            quoteLines={quoteLines}
+            quoteAvatarSrc={quoteAvatarSrc}
+            quoteMediaSrc={proxiedQuoteMediaSrc}
+            quoteMediaH={quoteMediaH}
           />
           {!rendered && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 rounded-[22px] bg-background/70 backdrop-blur-[1px]">
