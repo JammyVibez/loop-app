@@ -71,6 +71,10 @@ export type NormalizedLoop = {
   link_preview_disabled?: boolean
   /** Depth of this post in its branch tree (0 = original post). */
   tree_depth?: number
+  /** Id of the post this one quotes (quote rebranches are top-level posts). */
+  quoted_loop_id?: string | null
+  /** How many quote posts this post has collected. */
+  quote_count?: number
   /** Branch-tree limits owned by the root post. `null` = unlimited. */
   max_branch_depth?: number | null
   max_branches_per_user?: number | null
@@ -199,6 +203,8 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
     comments_disabled: Boolean(row?.comments_disabled),
     link_preview_disabled: Boolean(row?.link_preview_disabled),
     tree_depth: Number(row?.tree_depth ?? 0),
+    quoted_loop_id: row?.quoted_loop_id ?? null,
+    quote_count: Number(row?.quote_count ?? 0),
     max_branch_depth:
       row?.max_branch_depth == null ? null : Number(row.max_branch_depth) || null,
     max_branches_per_user:

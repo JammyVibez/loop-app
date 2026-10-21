@@ -23,6 +23,7 @@ import { LoopCardContent } from "./loop-card/loop-card-content"
 import { LoopCardActions } from "./loop-card/loop-card-actions"
 import { LoopCardBoostBar } from "./loop-card/loop-card-boost-bar"
 import { LoopCardModals } from "./loop-card/loop-card-modals"
+import { QuotedLoopCard } from "@/components/loops/quoted-loop-card"
 
 interface LoopCardProps {
   loop: any
@@ -592,6 +593,10 @@ export const LoopCard = memo(function LoopCard({
               onFork={handleFork}
               forking={forking}
             />
+
+            {/* Quote rebranch: the original is embedded by reference and opens
+                its own page (and its own replies), never a copy. */}
+            {loop.quoted_loop_id && <QuotedLoopCard loopId={loop.quoted_loop_id} />}
 
             <LoopCardMedia
               mediaType={loop.media_type}

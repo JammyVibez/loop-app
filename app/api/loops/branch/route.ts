@@ -33,14 +33,100 @@ export async function POST(request: NextRequest) {
     const title = String(formData.get("title") || formData.get("content_title") || "")
     const type = String(formData.get("type") || formData.get("content_type") || "text")
     const parentId = String(formData.get("parent_id") || formData.get("parent_loop_id") || "")
+    const quotedLoopId = String(formData.get("quoted_loop_id") || formData.get("quote_loop_id") || "")
     const file = (formData.get("file") || formData.get("media")) as File | null
 
     if (!content.trim() && !file) {
       return NextResponse.json({ error: "Content or file is required" }, { status: 400 })
     }
 
-    if (!parentId) {
+    if (!parentId && !quotedLoopId) {
       return NextResponse.json({ error: "Parent loop ID is required" }, { status: 400 })
+    }
+
+    /* ----------------------------------------------------------------
+     * Quote rebranch — a top-level post by this user that embeds the
+     * quoted post by reference. The quoted post is never copied or
+     * modified; its text lives only in its own row.
+     * ---------------------------------------------------------------- */
+    if (quotedLoopId) {
+      const quoteText = content.trim()
+      if (!quoteText) {
+        return NextResponse.json({ error: "Add a comment to quote this post" }, { status: 400 })
+      }
+
+      const { data: quoted, error: quotedError } = await supabase
+        .from("loops")
+        .select("id, author_id, visibility, circle_id, quote_count")
+        .eq("id", quotedLoopId)
+        .maybeSingle()
+
+      if (quotedError) {
+        return NextResponse.json({ error: quotedError.message }, { status: 500 })
+      }
+      if (!quoted) {
+        return NextResponse.json({ error: "The post you are quoting no longer exists" }, { status: 404 })
+      }
+
+      // Respect the quoted post's privacy: public is open to everyone, circle
+      // posts only to members of that circle, private posts only to the author.
+      if (quoted.visibility === "private" && quoted.author_id !== user.id) {
+        return NextResponse.json({ error: "You cannot quote this post" }, { status: 403 })
+      }
+      if (quoted.visibility === "circle" && quoted.circle_id && quoted.author_id !== user.id) {
+        const { data: membership } = await supabase
+          .from("circle_members")
+          .select("id")
+          .eq("circle_id", quoted.circle_id)
+          .eq("user_id", user.id)
+          .in("status", ["active", "approved"])
+          .maybeSingle()
+        if (!membership) {
+          return NextResponse.json({ error: "You cannot quote this post" }, { status: 403 })
+        }
+      }
+
+      const { data: quoteBranch, error: quoteInsertError } = await supabase
+        .from("loops")
+        .insert({
+          author_id: user.id,
+          content: quoteText,
+          content_text: quoteText,
+          content_type: "text",
+          media_type: "text",
+          parent_loop_id: null,
+          tree_depth: 0,
+          quoted_loop_id: quotedLoopId,
+          visibility: "public",
+          hashtags: [],
+        })
+        .select(`
+          *,
+          author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, badge_id),
+          loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
+        `)
+        .single()
+
+      if (quoteInsertError || !quoteBranch) {
+        console.error("Quote rebranch insert error:", quoteInsertError)
+        return NextResponse.json(
+          { error: quoteInsertError?.message || "Failed to quote this post" },
+          { status: 500 },
+        )
+      }
+
+      await supabase.from("loop_stats").upsert(
+        { loop_id: quoteBranch.id, likes_count: 0, comments_count: 0, branches_count: 0, shares_count: 0, views_count: 0 },
+        { onConflict: "loop_id", ignoreDuplicates: true },
+      )
+
+      // The quoted post's counter tracks quotes separately from branches.
+      await supabase
+        .from("loops")
+        .update({ quote_count: Number(quoted.quote_count || 0) + 1 })
+        .eq("id", quotedLoopId)
+
+      return NextResponse.json({ success: true, branch: normalizeLoop(quoteBranch), quoted: true })
     }
 
     const { data: parentLoop, error: parentError } = await supabase

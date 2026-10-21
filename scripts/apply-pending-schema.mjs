@@ -78,6 +78,9 @@ const DEFAULT_FILES = [
   // Community content moderation: hide / restore / lock discussions and
   // replies from the unified management panel.
   "scripts/community-moderation-schema.sql",
+  // Quote rebranches: a top-level post that references the post it quotes
+  // (`quoted_loop_id`) instead of copying its content.
+  "scripts/quote-rebranch-schema.sql",
 ]
 
 // Allow a targeted run: node apply-pending-schema.mjs scripts/foo.sql …

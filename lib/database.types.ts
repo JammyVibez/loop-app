@@ -129,10 +129,15 @@ export interface Database {
           hashtags: string[] | null
           created_at: string
           updated_at: string
+          /** Quote rebranch: reference to the quoted post (never a copy). */
+          quoted_loop_id?: string | null
+          quote_count?: number | null
         }
         Insert: {
           id?: string
           author_id: string
+          quoted_loop_id?: string | null
+          quote_count?: number | null
           parent_loop_id?: string | null
           content_type: 'text' | 'image' | 'video' | 'audio' | 'file'
           content_text?: string | null
@@ -150,6 +155,8 @@ export interface Database {
         Update: {
           id?: string
           author_id?: string
+          quoted_loop_id?: string | null
+          quote_count?: number | null
           parent_loop_id?: string | null
           content_type?: 'text' | 'image' | 'video' | 'audio' | 'file'
           content_text?: string | null

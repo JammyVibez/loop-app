@@ -236,45 +236,52 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
     }
     setIsSubmitting(true)
     try {
-      // Copy ALL content from parent: media, audio, duels, polls, links, etc.
-      const parentContent = parentContentText(parentLoop) || ""
-      // Single newline between quote and parent content — keeps the quote
-      // tight against the original post instead of leaving a blank line.
-      const rebranchText = rebranchQuote.trim()
-        ? `${rebranchQuote.trim()}\n${parentContent || ""}\n— Rebranched from @${author?.username || "someone"}`
-        : parentContent || `Rebranched from @${author?.username || "someone"}`
-      const parentMediaUrl = parentLoop?.media_url || parentLoop?.media_urls?.[0] || parentLoop?.content_media_url || ""
-      const parentMediaType = parentLoop?.media_type || parentLoop?.content_type || "text"
-
+      const quoteText = rebranchQuote.trim()
       const formData = new FormData()
-      formData.append("content", rebranchText)
-      formData.append("title", parentLoop?.content_title || "")
-      formData.append("type", parentMediaType)
-      formData.append("parent_id", parentLoop.id)
 
-      // If parent has media, pass it through so the API can reference it
-      if (parentMediaUrl) {
-        formData.append("parent_media_url", parentMediaUrl)
-        formData.append("parent_media_type", parentMediaType)
-      }
-      // Multi-media passthrough
-      const parentMediaUrls = parentLoop?.media_urls || (parentMediaUrl ? [parentMediaUrl] : [])
-      if (parentMediaUrls.length > 1) {
-        formData.append("parent_media_urls", JSON.stringify(parentMediaUrls))
-      }
+      if (quoteText) {
+        // Quote rebranch: a top-level post of your own that embeds the
+        // original by reference. Nothing from the original is copied, so the
+        // post you quote keeps its own text, media and replies.
+        formData.append("content", quoteText)
+        formData.append("quoted_loop_id", parentLoop.id)
+        formData.append("type", "text")
+      } else {
+        // Simple rebranch: repost the loop itself, exactly as before.
+        const parentContent = parentContentText(parentLoop) || ""
+        const rebranchText = parentContent || `Rebranched from @${author?.username || "someone"}`
+        const parentMediaUrl = parentLoop?.media_url || parentLoop?.media_urls?.[0] || parentLoop?.content_media_url || ""
+        const parentMediaType = parentLoop?.media_type || parentLoop?.content_type || "text"
 
-      // Pass through duels, polls, and other metadata
-      if (parentLoop?.duel) {
-        formData.append("parent_duel", JSON.stringify(parentLoop.duel))
-      }
-      if (parentLoop?.poll) {
-        formData.append("parent_poll", JSON.stringify(parentLoop.poll))
-      }
-      if (parentLoop?.hashtags?.length) {
-        formData.append("hashtags", parentLoop.hashtags.join(","))
-      }
-      if (parentLoop?.content_metadata) {
-        formData.append("content_metadata", JSON.stringify(parentLoop.content_metadata))
+        formData.append("content", rebranchText)
+        formData.append("title", parentLoop?.content_title || "")
+        formData.append("type", parentMediaType)
+        formData.append("parent_id", parentLoop.id)
+
+        // If parent has media, pass it through so the API can reference it
+        if (parentMediaUrl) {
+          formData.append("parent_media_url", parentMediaUrl)
+          formData.append("parent_media_type", parentMediaType)
+        }
+        // Multi-media passthrough
+        const parentMediaUrls = parentLoop?.media_urls || (parentMediaUrl ? [parentMediaUrl] : [])
+        if (parentMediaUrls.length > 1) {
+          formData.append("parent_media_urls", JSON.stringify(parentMediaUrls))
+        }
+
+        // Pass through duels, polls, and other metadata
+        if (parentLoop?.duel) {
+          formData.append("parent_duel", JSON.stringify(parentLoop.duel))
+        }
+        if (parentLoop?.poll) {
+          formData.append("parent_poll", JSON.stringify(parentLoop.poll))
+        }
+        if (parentLoop?.hashtags?.length) {
+          formData.append("hashtags", parentLoop.hashtags.join(","))
+        }
+        if (parentLoop?.content_metadata) {
+          formData.append("content_metadata", JSON.stringify(parentLoop.content_metadata))
+        }
       }
 
       const response = await fetch("/api/loops/branch", {
@@ -284,7 +291,11 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
       })
       const result = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(result.error || "Failed to rebranch")
-      toast({ title: "Rebranched!", description: "This loop is now on your feed." })
+      toast(
+        quoteText
+          ? { title: "Quote posted", description: `Your quote of @${author?.username || "this loop"} is on your profile.` }
+          : { title: "Rebranched!", description: "This loop is now on your feed." },
+      )
       const branchId = result.branch?.id
       if (branchId) {
         setCreatedBranchId(branchId)
@@ -471,7 +482,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
                 <Textarea
                   value={rebranchQuote}
                   onChange={(e) => setRebranchQuote(e.target.value)}
-                  placeholder="Add your take, reaction, or comment to this rebranch…"
+                  placeholder="Add your take — with a quote this posts as your own post with the original embedded…"
                   rows={2}
                   maxLength={500}
                   className="resize-none bg-background border-border text-foreground placeholder:text-muted-foreground text-sm"
