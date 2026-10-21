@@ -32,6 +32,8 @@ export async function GET(req: NextRequest) {
     let query = supabase
       .from("profiles")
       .select("id, username, display_name, avatar_url, email, is_admin, is_premium, is_verified, is_team_member, is_banned, created_at, deletion_executed_at, loop_coins, followers_count, following_count, loops_count, level, reputation_score")
+      .is("deletion_executed_at", null)
+      .not("is_deleted", "is", true)
       .order("created_at", { ascending: false })
       .limit(limit)
 

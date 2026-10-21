@@ -16,6 +16,7 @@ import {
   Search,
   Shield,
   ShieldOff,
+  Trash2,
   TrendingUp,
   UserCheck,
   UserX,
@@ -91,6 +92,8 @@ interface AdminUsersTableProps {
   onSearch: () => void
   onAction: (userId: string, action: string, extra?: Record<string, unknown>) => void
   onRefresh: () => void
+  /** Signed-in admin, so their own row never offers deletion. */
+  currentUserId?: string
 }
 
 /* ------------------------------------------------------------------ */
@@ -195,6 +198,7 @@ export function AdminUsersTable({
   onSearch,
   onAction,
   onRefresh,
+  currentUserId,
 }: AdminUsersTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" })
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -485,6 +489,24 @@ export function AdminUsersTable({
                               <Ban className="mr-2 h-4 w-4" /> Ban user
                             </DropdownMenuItem>
                           )}
+                          <DropdownMenuItem
+                            className="text-red-600 focus:text-red-600"
+                            disabled={u.is_admin || u.id === currentUserId}
+                            onClick={() => {
+                              void (async () => {
+                                const ok = await confirmDialog({
+                                  title: `Delete @${u.username}?`,
+                                  description:
+                                    "Their login is revoked and the account disappears from this list. Existing posts stay, attributed to a deleted account.",
+                                  confirmLabel: "Delete account",
+                                  destructive: true,
+                                })
+                                if (ok) onAction(u.id, "delete")
+                              })()
+                            }}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete account
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

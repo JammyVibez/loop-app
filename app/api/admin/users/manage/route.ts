@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { requireAdmin } from "@/lib/server-auth"
 import { maskAdminCopy } from "@/lib/notification-copy"
+import { deleteAccountAsAdmin } from "@/lib/admin-delete-account"
 
 export const dynamic = "force-dynamic"
 
@@ -77,11 +78,15 @@ export async function GET(request: NextRequest) {
     const filter = searchParams.get("filter") || "all"
     const limit = Number.parseInt(searchParams.get("limit") || "40")
 
+    // Deleted accounts survive as masked rows for FK integrity; an admin list
+    // is the one place they must never show up again.
     let query = supabase
       .from("profiles")
       .select(
         "id, username, display_name, avatar_url, email, is_verified, is_team_member, is_sponsor, is_premium, is_admin, is_banned, ban_reason, premium_expires_at, loop_coins, created_at, last_active",
       )
+      .is("deletion_executed_at", null)
+      .not("is_deleted", "is", true)
       .order("created_at", { ascending: false })
       .limit(limit)
 
@@ -95,25 +100,17 @@ export async function GET(request: NextRequest) {
     const { data: users, error } = await query
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    const { count: totalUsers } = await supabase.from("profiles").select("id", { count: "exact", head: true })
-    const { count: verifiedCount } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("is_verified", true)
-    const { count: premiumCount } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("is_premium", true)
-    const { count: bannedCount } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("is_banned", true)
+    const liveProfiles = () => {
+      const q = supabase.from("profiles").select("id", { count: "exact" as const, head: true })
+      return q.is("deletion_executed_at", null).not("is_deleted", "is", true)
+    }
+    const { count: totalUsers } = await liveProfiles()
+    const { count: verifiedCount } = await liveProfiles().eq("is_verified", true)
+    const { count: premiumCount } = await liveProfiles().eq("is_premium", true)
+    const { count: bannedCount } = await liveProfiles().eq("is_banned", true)
 
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
-    const { count: newThisWeek } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", weekAgo)
+    const { count: newThisWeek } = await liveProfiles().gte("created_at", weekAgo)
 
     return NextResponse.json({
       success: true,
@@ -154,6 +151,25 @@ export async function POST(request: NextRequest) {
     const singleUserId = body.user_id as string | undefined
     if (userIds.length === 0 && !singleUserId) {
       return NextResponse.json({ error: "user_id or user_ids is required" }, { status: 400 })
+    }
+
+    // Account deletion is a multi-step server operation (auth rows, sessions,
+    // profile masking), so it does not go through the generic update switch.
+    if (action === "delete") {
+      if (userIds.length > 0) {
+        return NextResponse.json({ error: "Delete one account at a time" }, { status: 400 })
+      }
+      const deleted = await deleteAccountAsAdmin({
+        actorId: adminUser!.id,
+        targetId: singleUserId,
+        reason: (body.reason as string) || "Admin deletion",
+      })
+      if (!deleted.ok) return NextResponse.json({ error: deleted.error }, { status: 400 })
+      return NextResponse.json({
+        success: true,
+        deleted: true,
+        message: `Account for @${deleted.username} has been deleted.`,
+      })
     }
 
     const targets = userIds.length > 0 ? userIds : [singleUserId as string]

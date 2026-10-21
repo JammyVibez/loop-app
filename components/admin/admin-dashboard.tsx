@@ -23,6 +23,7 @@ import {
   LifeBuoy,
   Megaphone,
   Menu,
+  MessageSquare,
   Palette,
   Paintbrush,
   RefreshCw,
@@ -86,6 +87,7 @@ import { AuditLogPanel } from "@/components/admin/audit-log-panel"
 import { VerificationRequestsPanel } from "@/components/admin/verification-requests-panel"
 import { AdminMonetizationPanel } from "@/components/admin/admin-monetization-panel"
 import { AdminCommandPalette } from "@/components/admin/admin-command-palette"
+import { AdminPostsPanel } from "@/components/admin/admin-posts-panel"
 import { AdminUsersTable, type AdminUser } from "@/components/admin/admin-users-table"
 import { cn } from "@/lib/utils"
 
@@ -130,6 +132,7 @@ const NAV_GROUPS: {
   {
     label: "Content",
     items: [
+      { value: "posts", label: "Posts", icon: MessageSquare },
       { value: "featured", label: "Featured", icon: Star },
       { value: "events", label: "Events", icon: Calendar },
       { value: "quests", label: "Quests", icon: Target },
@@ -176,6 +179,7 @@ const SECTION_DESCRIPTIONS: Record<string, string> = {
   monetization: "Coin packs, Pro subscriptions, and pricing.",
   payouts: "Withdrawal requests and refund processing.",
   "rate-limits": "API and action rate-limit configuration.",
+  posts: "Find any post and remove it from the platform.",
   featured: "Curate featured loops, creators, and circles.",
   events: "Platform events and scheduling.",
   quests: "Build, publish, and analyze quest campaigns.",
@@ -437,6 +441,7 @@ export function AdminDashboard() {
           {/* Users gets the fully redesigned table experience */}
           <TabsContent value="users" className="mt-0 space-y-5">
             <AdminUsersTable
+              currentUserId={user?.id}
               users={users}
               stats={stats}
               loading={loading}
@@ -456,6 +461,10 @@ export function AdminDashboard() {
                 Changes sync live across open admin sessions. Recipients also get an in-app notification.
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="posts" className="mt-0">
+            <AdminPostsPanel />
           </TabsContent>
 
           {/* Every other section — unchanged functionality, consistent spacing */}
