@@ -11,8 +11,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { CreateDuelDialog } from "@/components/duels/create-duel-dialog"
 import { Spinner } from "@/components/ui/skeletons"
+import { EditCommunityDialog, ManageMembersDialog } from "@/components/communities/forum/community-admin"
 import { cn } from "@/lib/utils"
 import {
   ArrowBigUp,
@@ -27,11 +27,10 @@ import {
   Pin,
   Plus,
   Search,
+  Settings2,
   Shield,
   Sparkles,
-  Swords,
   Users,
-  Zap,
 } from "lucide-react"
 
 type Author = {
@@ -100,8 +99,8 @@ function initials(name?: string | null) {
  * The community forum.
  *
  * A thread is a post with a title; a forum is a space; replies live under the
- * thread. Co-Loops and Duels are the community's live rooms, shown beside the
- * threads so nothing feels bolted on.
+ * thread. Owners and admins edit the community and manage members from the
+ * header, so the page stays one stream with no extra tabs.
  */
 export function ForumHome({ communityId }: { communityId: string }) {
   const router = useRouter()
@@ -117,8 +116,8 @@ export function ForumHome({ communityId }: { communityId: string }) {
   const [searchTerm, setSearchTerm] = useState("")
   const [joining, setJoining] = useState(false)
   const [composerOpen, setComposerOpen] = useState(false)
-  const [coloopOpen, setColoopOpen] = useState(false)
-  const [duelOpen, setDuelOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [membersOpen, setMembersOpen] = useState(false)
 
   // debounce the search box so typing doesn't hammer the API
   useEffect(() => {
@@ -258,14 +257,26 @@ export function ForumHome({ communityId }: { communityId: string }) {
                   New thread
                 </Button>
               )}
-              <Button variant="outline" className="rounded-full" onClick={() => setColoopOpen(true)}>
-                <Zap className="mr-1.5 h-4 w-4" />
-                Co-Loop
-              </Button>
-              <Button variant="outline" className="rounded-full" onClick={() => setDuelOpen(true)}>
-                <Swords className="mr-1.5 h-4 w-4" />
-                Duel
-              </Button>
+              {viewer?.can_manage && (
+                <div className="flex items-center gap-1 rounded-full border border-border p-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 rounded-full px-2.5 text-xs"
+                    onClick={() => setEditOpen(true)}
+                  >
+                    <Settings2 className="mr-1.5 h-3.5 w-3.5" /> Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 rounded-full px-2.5 text-xs"
+                    onClick={() => setMembersOpen(true)}
+                  >
+                    <Users className="mr-1.5 h-3.5 w-3.5" /> Members
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -457,63 +468,6 @@ export function ForumHome({ communityId }: { communityId: string }) {
             </div>
           )}
 
-          {/* Live rooms */}
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                <Zap className="h-3.5 w-3.5 text-cyan-500" /> Live Co-Loops
-              </h3>
-              <button type="button" onClick={() => setColoopOpen(true)} className="text-[11px] font-semibold text-primary hover:underline">
-                Start
-              </button>
-            </div>
-            {data.coloops.length === 0 ? (
-              <p className="mt-2 text-xs text-muted-foreground">No one is creating together right now.</p>
-            ) : (
-              <ul className="mt-2 space-y-2">
-                {data.coloops.map((c) => (
-                  <li key={c.id}>
-                    <Link
-                      href={`/co-loop/studio?session=${encodeURIComponent(c.session_id)}&circle=${communityId}`}
-                      className="block rounded-xl border border-border/70 p-2 transition-colors hover:border-cyan-500/40 hover:bg-cyan-500/5"
-                    >
-                      <p className="truncate text-xs font-semibold text-foreground">{c.title}</p>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        {c.creator?.display_name || c.creator?.username || "Member"} · {c.status}
-                      </p>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Duels */}
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                <Swords className="h-3.5 w-3.5 text-orange-500" /> Duels
-              </h3>
-              <button type="button" onClick={() => setDuelOpen(true)} className="text-[11px] font-semibold text-primary hover:underline">
-                Challenge
-              </button>
-            </div>
-            {data.duels.length === 0 ? (
-              <p className="mt-2 text-xs text-muted-foreground">Two sides, one vote — start the first Duel.</p>
-            ) : (
-              <ul className="mt-2 space-y-2">
-                {data.duels.map((d) => (
-                  <li key={d.id} className="rounded-xl border border-border/70 p-2">
-                    <p className="line-clamp-2 text-xs font-semibold text-foreground">{d.prompt}</p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      {d.votes} votes · {d.status}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
           {data.staff.length > 0 && (
             <div className="rounded-2xl border border-border bg-card p-4">
               <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Moderators</h3>
@@ -564,24 +518,22 @@ export function ForumHome({ communityId }: { communityId: string }) {
         }}
       />
 
-      <StartCoLoopDialog
-        open={coloopOpen}
-        onOpenChange={setColoopOpen}
-        communityId={communityId}
-        isMember={Boolean(viewer?.is_member)}
-      />
-
-      <CreateDuelDialog
-        open={duelOpen}
-        onOpenChange={setDuelOpen}
-        circleId={communityId}
-        canShareToFeed={!community.is_private}
-        onDuelCreated={() => {
-          setDuelOpen(false)
-          void load({ silent: true })
-          toast({ title: "Duel created", description: "The community can start voting." })
-        }}
-      />
+      {viewer?.can_manage && (
+        <>
+          <EditCommunityDialog
+            community={community}
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            onSaved={() => void load({ silent: true })}
+          />
+          <ManageMembersDialog
+            communityId={communityId}
+            open={membersOpen}
+            onOpenChange={setMembersOpen}
+            onChanged={() => void load({ silent: true })}
+          />
+        </>
+      )}
     </div>
   )
 }
@@ -705,82 +657,5 @@ function NewThreadSheet({
         </div>
       </SheetContent>
     </Sheet>
-  )
-}
-
-/* ─────────────────────────── Co-Loop ─────────────────────────── */
-
-function StartCoLoopDialog({
-  open,
-  onOpenChange,
-  communityId,
-  isMember,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  communityId: string
-  isMember: boolean
-}) {
-  const router = useRouter()
-  const { getAuthHeader } = useAuth()
-  const { toast } = useToast()
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [busy, setBusy] = useState(false)
-
-  const start = async () => {
-    if (!title.trim() || busy) return
-    if (!isMember) {
-      toast({ title: "Members only", description: "Join this community to start a Co-Loop." })
-      return
-    }
-    setBusy(true)
-    try {
-      const res = await fetch(`/api/circles/${communityId}/coloop`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ title, description, max_collaborators: 5 }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || "Could not start Co-Loop")
-      onOpenChange(false)
-      setTitle("")
-      setDescription("")
-      router.push(`/co-loop/studio?session=${encodeURIComponent(json.session.session_id)}&circle=${communityId}`)
-    } catch (e: any) {
-      toast({ title: "Could not start", description: e.message, variant: "destructive" })
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Start a Co-Loop</DialogTitle>
-          <DialogDescription>Create something live with other members of this community.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What are we making?" maxLength={120} />
-          <Textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Context for collaborators (optional)"
-            rows={3}
-            className="resize-none"
-          />
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={start} disabled={busy || !title.trim()}>
-              {busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Zap className="mr-1.5 h-4 w-4" />}
-              Go live
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
   )
 }

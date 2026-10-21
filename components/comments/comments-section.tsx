@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
+import { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
@@ -259,6 +259,23 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const token = user?.access_token || user?.token
+  const [sort, setSort] = useState<"new" | "top">("new")
+
+  const totalComments = useMemo(() => {
+    const count = (list: Comment[]): number =>
+      list.reduce((n, c) => n + 1 + count(c.replies || []), 0)
+    return count(commentsData)
+  }, [commentsData])
+
+  const visibleComments = useMemo(() => {
+    const list = [...commentsData]
+    if (sort === "top") {
+      list.sort((a, b) => (b.like_count ?? b.likes ?? 0) - (a.like_count ?? a.likes ?? 0))
+    } else {
+      list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    }
+    return list
+  }, [commentsData, sort])
 
   // ── Comment attachments (image / video / audio / any file) ──
   const [newAttachments, setNewAttachments] = useState<CommentAttachment[]>([])
@@ -511,21 +528,27 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
     const isReply = depth > 0
 
     return (
-      <div key={comment.id} className={`space-y-3 ${isReply ? "ml-4 sm:ml-6 border-l-2 border-cyan-500/20 pl-3 sm:pl-4" : ""}`}>
-        <div className="flex gap-3">
-          <Link href={`/profile/${comment.author?.username || ""}`} className="shrink-0">
+      <div key={comment.id} className={`${isReply ? "relative pl-8 sm:pl-10" : ""}`}>
+        {isReply && (
+          <span
+            aria-hidden
+            className="absolute left-3 top-1 h-[calc(100%-0.75rem)] w-px rounded-full bg-border/70 sm:left-4"
+          />
+        )}
+        <div className="group/comment flex gap-2.5 rounded-2xl px-1.5 py-2 transition-colors hover:bg-muted/40 sm:gap-3 sm:px-2">
+          <Link href={`/profile/${comment.author?.username || ""}`} className="mt-0.5 shrink-0">
             <AvatarWithFrame
               avatarUrl={comment.author?.avatar_url}
               videoAvatarUrl={comment.author?.video_avatar_url || null}
               frameId={(comment.author as any)?.equipped_frame_id ?? null}
               seed={comment.author?.username}
-              size={32}
+              size={isReply ? 28 : 34}
               alt={comment.author?.display_name || ""}
             />
           </Link>
           <div className="min-w-0 flex-1">
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px]">
                 <Link
                   href={`/profile/${comment.author?.username || ""}`}
                   className="font-semibold text-foreground hover:underline"
@@ -552,7 +575,11 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 rounded-full text-muted-foreground opacity-70 transition-opacity hover:bg-muted hover:text-foreground group-hover/comment:opacity-100"
+                  >
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -578,40 +605,56 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
             </div>
 
             {editingId === comment.id ? (
-              <div className="space-y-2">
-                <Textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} className="bg-muted border-border text-foreground" />
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSaveEdit}>Save</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+              <div className="mt-1 space-y-2">
+                <Textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="min-h-[70px] rounded-xl border-border/70 bg-muted/40 text-sm text-foreground"
+                />
+                <div className="flex gap-1.5">
+                  <Button size="sm" className="h-7 rounded-full px-3 text-xs" onClick={handleSaveEdit}>Save</Button>
+                  <Button size="sm" variant="ghost" className="h-7 rounded-full px-3 text-xs" onClick={() => setEditingId(null)}>Cancel</Button>
                 </div>
               </div>
             ) : (
               <>
                 {comment.content?.trim() ? (
-                  <RichContent text={comment.content} className="text-sm text-foreground" />
+                  <RichContent
+                    text={comment.content}
+                    className="mt-0.5 break-words text-[14px] leading-relaxed text-foreground/95"
+                  />
                 ) : null}
                 <CommentAttachments items={attachmentsOf(comment)} onOpen={setLightbox} />
               </>
             )}
 
-            <div className="mt-2 flex items-center gap-3">
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => handleLike(comment.id)}>
-                <Heart className={`mr-1 h-3.5 w-3.5 ${comment.isLiked ? "fill-red-500 text-red-500" : ""}`} />
-                {likes}
-              </Button>
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => setReplyingTo(comment.id)}>
-                <Reply className="mr-1 h-3.5 w-3.5" /> Reply
-              </Button>
+            <div className="mt-1 flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => handleLike(comment.id)}
+                aria-pressed={Boolean(comment.isLiked)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium transition-colors hover:bg-muted ${comment.isLiked ? "text-rose-500" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <Heart className={`h-3.5 w-3.5 ${comment.isLiked ? "fill-rose-500 text-rose-500" : ""}`} />
+                {likes > 0 ? likes : "Like"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setReplyingTo(comment.id)}
+                className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Reply className="h-3.5 w-3.5" /> Reply
+              </button>
             </div>
 
             {replyingTo === comment.id && (
-              <div className="mt-3 space-y-2">
+              <div className="mt-2 space-y-2 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm">
                 <div className="relative">
                   <MentionTextarea
                     value={replyContent}
                     onChange={setReplyContent}
                     placeholder={`Reply to @${comment.author?.username || "comment"}… use @ to tag`}
-                    className="bg-muted border-border text-foreground min-h-[70px] pr-20"
+                    className="min-h-[64px] rounded-xl border-border/60 bg-muted/30 pr-20 text-sm text-foreground"
                   />
                   <div className="absolute right-2 bottom-2 flex items-center gap-0.5">
                     <AttachButton
@@ -633,7 +676,7 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
                 <div className="flex gap-2">
                   <Button
                     size="sm"
-                    className="bg-cyan-500 font-semibold text-slate-950 hover:bg-cyan-400"
+                    className="h-7 rounded-full px-3 text-xs font-semibold"
                     onClick={() => handleSubmitReply(comment.id)}
                     disabled={
                       submittingReplyId === comment.id ||
@@ -643,7 +686,7 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
                   >
                     {submittingReplyId === comment.id ? "Replying…" : "Reply"}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setReplyingTo(null)}>Cancel</Button>
+                  <Button size="sm" variant="ghost" className="h-7 rounded-full px-3 text-xs" onClick={() => setReplyingTo(null)}>Cancel</Button>
                 </div>
               </div>
             )}
@@ -655,11 +698,35 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-border bg-muted/30 p-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-          Comments <span className="text-xs text-cyan-400 font-normal">({commentsData.length}) • Live</span>
-        </h3>
+    <div className="space-y-4 rounded-3xl border border-border/70 bg-card/60 p-4 shadow-sm sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <h3 className="text-base font-semibold tracking-tight text-foreground">Comments</h3>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+            {totalComments}
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" /> Live
+          </span>
+        </div>
+        {commentsData.length > 1 && (
+          <div className="flex shrink-0 items-center rounded-full border border-border/70 bg-muted/40 p-0.5 text-[11px] font-medium">
+            {(["new", "top"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setSort(option)}
+                className={`rounded-full px-2.5 py-1 transition-colors ${
+                  sort === option
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {option === "new" ? "Newest" : "Top"}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {commentsDisabled ? (
@@ -668,36 +735,48 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
           <span>Comments are locked by the author.</span>
         </div>
       ) : user ? (
-        <div className="space-y-2">
-          <div className="relative">
-            <MentionTextarea
-              value={newComment}
-              onChange={setNewComment}
-              placeholder="Share your thoughts… type @ to tag, attach photos or videos, insert emojis"
-              className="min-h-[85px] border-border bg-muted text-foreground pr-20"
-            />
-            <div className="absolute right-2 bottom-2 flex items-center gap-0.5">
-              <AttachButton onClick={() => openFilePicker("new")} busy={uploadingFor === "new"} />
-              <MediaEmojiPicker
-                onSelectEmoji={(emoji) => setNewComment((prev) => prev + emoji)}
-                onSelectGif={(url) => setNewComment((prev) => prev + ` ![GIF](${url}) `)}
-                isPro={Boolean((user as any)?.is_premium)}
+        <div className="rounded-2xl border border-border/70 bg-background/60 p-2.5 shadow-sm">
+          <div className="flex gap-2.5">
+            <div className="hidden shrink-0 pt-0.5 sm:block">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={(user as any)?.avatar_url || undefined} />
+                <AvatarFallback className="text-xs">
+                  {((user as any)?.display_name || (user as any)?.name || "U").charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+            <div className="min-w-0 flex-1 space-y-2">
+              <MentionTextarea
+                value={newComment}
+                onChange={setNewComment}
+                placeholder="Add to the conversation… type @ to tag someone"
+                className="min-h-[72px] rounded-xl border-border/60 bg-muted/30 text-sm text-foreground placeholder:text-muted-foreground/70"
               />
+              <AttachmentChips
+                items={newAttachments}
+                onRemove={(index) => setNewAttachments((prev) => prev.filter((_, i) => i !== index))}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-0.5">
+                  <AttachButton onClick={() => openFilePicker("new")} busy={uploadingFor === "new"} />
+                  <MediaEmojiPicker
+                    onSelectEmoji={(emoji) => setNewComment((prev) => prev + emoji)}
+                    onSelectGif={(url) => setNewComment((prev) => prev + ` ![GIF](${url}) `)}
+                    isPro={Boolean((user as any)?.is_premium)}
+                  />
+                </div>
+                <Button
+                  onClick={handleSubmitComment}
+                  disabled={
+                    submitting || uploadingFor === "new" || (!newComment.trim() && newAttachments.length === 0)
+                  }
+                  className="h-8 rounded-full px-4 text-xs font-semibold"
+                >
+                  {submitting ? "Posting…" : "Comment"}
+                </Button>
+              </div>
             </div>
           </div>
-          <AttachmentChips
-            items={newAttachments}
-            onRemove={(index) => setNewAttachments((prev) => prev.filter((_, i) => i !== index))}
-          />
-          <Button
-            onClick={handleSubmitComment}
-            disabled={
-              submitting || uploadingFor === "new" || (!newComment.trim() && newAttachments.length === 0)
-            }
-            className="bg-cyan-500 font-bold text-slate-950 hover:bg-cyan-400 rounded-xl"
-          >
-            {submitting ? "Posting…" : "Post comment"}
-          </Button>
         </div>
       ) : (
         <div className="rounded-xl border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
@@ -717,7 +796,7 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
       ) : commentsData.length === 0 ? (
         <EmptyState title="No comments yet" description="Be the first to start the conversation." />
       ) : (
-        <div className="space-y-5">{commentsData.map((comment) => renderComment(comment))}</div>
+        <div className="space-y-1 divide-y divide-border/50">{visibleComments.map((comment) => renderComment(comment))}</div>
       )}
 
       <ConfirmDialog
