@@ -24,6 +24,8 @@ export interface LoopStats {
   likes_count: number
   comments_count: number
   branches_count: number
+  /** Rebranches that quoted this post. */
+  quotes_count?: number
   shares_count: number
   views_count: number
 }

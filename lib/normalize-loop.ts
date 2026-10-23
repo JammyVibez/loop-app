@@ -50,6 +50,8 @@ export type NormalizedLoop = {
     likes_count: number
     comments_count: number
     branches_count: number
+    /** Rebranches that quoted this post (loops.quote_count). */
+    quotes_count: number
     shares_count: number
     views_count: number
   }
@@ -102,6 +104,7 @@ const defaultStats = {
   likes_count: 0,
   comments_count: 0,
   branches_count: 0,
+  quotes_count: 0,
   shares_count: 0,
   views_count: 0,
 }
@@ -182,6 +185,10 @@ export function normalizeLoop(row: any, interactionTypes: string[] = []): Normal
       likes_count: Number(stats?.likes_count ?? stats?.likes ?? defaultStats.likes_count),
       comments_count: Number(stats?.comments_count ?? stats?.comments ?? defaultStats.comments_count),
       branches_count: Number(stats?.branches_count ?? stats?.branches ?? defaultStats.branches_count),
+      // Quote rebranches live on loops.quote_count (not loop_stats), so read
+      // them off the row — this is what keeps rebranch stats visible anywhere
+      // the normalized stats are rendered.
+      quotes_count: Number(row?.quote_count ?? stats?.quotes_count ?? defaultStats.quotes_count),
       shares_count: Number(stats?.shares_count ?? stats?.shares ?? defaultStats.shares_count),
       views_count: Number(stats?.views_count ?? stats?.views ?? defaultStats.views_count),
     },

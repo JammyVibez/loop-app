@@ -57,6 +57,8 @@ interface ShareAsImageModalProps {
       likes_count?: number
       comments_count?: number
       branches_count?: number
+      /** Rebranches (quotes) — tracked on loops.quote_count. */
+      quotes_count?: number
       shares_count?: number
       boosts_count?: number
     }
@@ -619,7 +621,9 @@ function model(
     date: cardDate(post.created_at),
     likes: Number(post.stats?.likes_count || 0),
     replies: Number(post.stats?.comments_count || 0),
-    reposts: Number(post.stats?.branches_count || 0),
+    // Rebranches (quotes) count as reposts on the card — the original post's
+    // stat tracks both plain branches and quote rebranches.
+    reposts: Number(post.stats?.branches_count || 0) + Number(post.stats?.quotes_count || 0),
     body: truncate(post.content || "Shared a loop on Loop.", 600),
     showVerified: Boolean(post.author.is_verified),
     showPro: Boolean(post.author.is_premium),
@@ -1430,6 +1434,7 @@ export function ShareAsImageModal({ open, onOpenChange, post, quoted }: ShareAsI
         post.stats?.likes_count,
         post.stats?.comments_count,
         post.stats?.branches_count,
+        post.stats?.quotes_count,
         mediaSrc || "",
       ].join("|"),
     [
@@ -1445,6 +1450,7 @@ export function ShareAsImageModal({ open, onOpenChange, post, quoted }: ShareAsI
       post.stats?.likes_count,
       post.stats?.comments_count,
       post.stats?.branches_count,
+      post.stats?.quotes_count,
       mediaSrc,
       quoted?.author.username,
       quoted?.author.display_name,

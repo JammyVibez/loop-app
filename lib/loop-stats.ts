@@ -174,31 +174,79 @@ export async function attachParentAuthors(supabase: any, loops: any[]): Promise<
 }
 
 /**
+ * Returns quoted_loop_id -> how many live posts quote it, from the `loops`
+ * table. Quote rebranches store `quote_count` denormalized on the original,
+ * which can drift (a deleted quote never decrements it), so this recomputes
+ * the count from truth the same way branches are recomputed.
+ */
+export async function realQuoteCounts(
+  supabase: any,
+  loopIds: string[],
+): Promise<Map<string, number>> {
+  const ids = [...new Set(loopIds.filter(Boolean))]
+  // Start every requested loop at 0 (truth: no quote posts), then drop any
+  // loop whose chunk failed to query — a failed read must never zero a real
+  // count, it just leaves the row's own value in place.
+  const map = new Map<string, number>(ids.map((id) => [id, 0]))
+  if (!ids.length) return map
+
+  const CHUNK = 200
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const chunk = ids.slice(i, i + CHUNK)
+    const { data, error } = await supabase
+      .from("loops")
+      .select("quoted_loop_id, id", { count: "exact", head: false })
+      .in("quoted_loop_id", chunk)
+    if (error) {
+      console.error("realQuoteCounts error:", error.message)
+      for (const id of chunk) map.delete(id)
+      continue
+    }
+    for (const row of data || []) {
+      if (row.quoted_loop_id) {
+        map.set(row.quoted_loop_id, (map.get(row.quoted_loop_id) || 0) + 1)
+      }
+    }
+  }
+  return map
+}
+
+/**
  * Overwrites the `branches_count` inside each loop's `loop_stats` with the
- * true count from the `loops` table (posts where parent_loop_id = loop.id).
+ * true count from the `loops` table (posts where parent_loop_id = loop.id),
+ * and rewrites `loop.quote_count` with the true number of quote rebranches
+ * (posts where quoted_loop_id = loop.id) so rebranch stats stay accurate.
  */
 export async function applyRealBranchCounts(supabase: any, loops: any[]): Promise<any[]> {
   if (!Array.isArray(loops) || loops.length === 0) return loops
-  const counts = await realBranchCounts(
-    supabase,
-    loops.map((l) => l?.id),
-  )
-  if (!counts.size) return loops
+  const ids = loops.map((l) => l?.id)
+  const [counts, quoteCounts] = await Promise.all([
+    realBranchCounts(supabase, ids),
+    realQuoteCounts(supabase, ids),
+  ])
 
   for (const loop of loops) {
     const real = counts.get(loop?.id)
-    if (real === undefined) continue
-    const stats = Array.isArray(loop?.loop_stats) ? loop.loop_stats[0] : loop?.loop_stats
-    if (stats && typeof stats === "object") {
-      stats.branches_count = real
-    } else {
-      loop.loop_stats = {
-        likes_count: 0,
-        comments_count: 0,
-        branches_count: real,
-        shares_count: 0,
-        views_count: 0,
+    if (real !== undefined) {
+      const stats = Array.isArray(loop?.loop_stats) ? loop.loop_stats[0] : loop?.loop_stats
+      if (stats && typeof stats === "object") {
+        stats.branches_count = real
+      } else {
+        loop.loop_stats = {
+          likes_count: 0,
+          comments_count: 0,
+          branches_count: real,
+          shares_count: 0,
+          views_count: 0,
+        }
       }
+    }
+    // Quote counts: the map starts from truth (0 = no live quotes), so a
+    // deleted quote's stale denormalized counter gets corrected here. Loops
+    // whose chunk failed aren't in the map and keep their row value.
+    const realQuotes = quoteCounts.get(loop?.id)
+    if (loop && typeof loop === "object" && realQuotes !== undefined) {
+      loop.quote_count = realQuotes
     }
   }
   return loops

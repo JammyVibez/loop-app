@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, Check, Settings, Heart, MessageCircle, UserPlus, GitBranch, AtSign, Gift, Mail, BellRing, ChevronRight, Lock, Coins, Megaphone, Radio, Phone, Trophy, Users, Crown, Info, Swords, ShieldCheck, Zap } from "lucide-react"
+import { Bell, Check, Settings, Heart, MessageCircle, UserPlus, GitBranch, AtSign, Gift, Mail, BellRing, ChevronRight, Lock, Coins, Megaphone, Radio, Phone, Trophy, Users, Crown, Info, Swords, ShieldCheck, Zap, Quote } from "lucide-react"
 import { NotificationQuickReply } from "@/components/notifications/notification-quick-reply";
 import { getNotificationCopy, SYSTEM_SENDER } from "@/lib/notification-copy";
 import { useAuth } from "@/hooks/use-auth";
@@ -48,6 +48,7 @@ const TYPE_CONFIG: Record<string, { icon: typeof Heart; color: string; bg: strin
   reply: { icon: MessageCircle, color: "text-blue-400", bg: "bg-blue-400/10", label: "Reply" },
   follow: { icon: UserPlus, color: "text-violet-500", bg: "bg-violet-500/10", label: "Follow" },
   branch: { icon: GitBranch, color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Branch" },
+  quote: { icon: Quote, color: "text-teal-500", bg: "bg-teal-500/10", label: "Quote" },
   mention: { icon: AtSign, color: "text-amber-500", bg: "bg-amber-500/10", label: "Mention" },
   gift: { icon: Gift, color: "text-pink-500", bg: "bg-pink-500/10", label: "Gift" },
   message: { icon: Mail, color: "text-cyan-500", bg: "bg-cyan-500/10", label: "Message" },

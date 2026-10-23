@@ -33,6 +33,7 @@
     "lib/notification-copy.ts",
     "lib/admin-delete-account.ts",
     "lib/normalize-loop.ts",
+    "lib/loop-stats.ts",
     "lib/user-status.ts",
     "__tests__/**/*.ts"
   ]

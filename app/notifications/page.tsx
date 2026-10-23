@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation"
 import {
   AtSign, Bell, CheckCheck, CheckCircle2, Heart, MessageCircle,
   Trash2, UserPlus, XCircle, Gift, Star, Repeat2,
-  Shield, Award, TrendingUp, Users, Radio, Flame, BadgeCheck
+  Shield, Award, TrendingUp, Users, Radio, Flame, BadgeCheck, Quote
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -93,6 +93,8 @@ function notifIcon(type: string) {
     case "repost":
     case "repost_of_your_post":
       return { icon: Repeat2, color: "text-cyan-500", bg: "bg-cyan-500/10" }
+    case "quote":
+      return { icon: Quote, color: "text-teal-500", bg: "bg-teal-500/10" }
     case "achievement":
       return { icon: Award, color: "text-yellow-500", bg: "bg-yellow-500/10" }
     case "level_up":
@@ -136,6 +138,10 @@ function cleanText(text: string): string {
 function linkForNotification(n: Notification) {
   const d = n.data || {}
   if (d.href) return d.href
+  // `action_url` is the destination the writer chose — for a quote it points at
+  // the new quote post, while `loop_id` stays the quoted original.
+  if (d.action_url) return d.action_url
+  if (d.url) return d.url
   return mentionHref({
     source: d.source || "loop",
     loop_id: d.loop_id,

@@ -448,6 +448,7 @@ export function LoopCardModals({
             likes_count: Number(loop.stats?.likes_count || 0),
             comments_count: Number(loop.stats?.comments_count || 0),
             branches_count: Number(loop.stats?.branches_count || 0),
+            quotes_count: Number(loop.stats?.quotes_count || loop.quote_count || 0),
             shares_count: Number(loop.stats?.shares_count || 0),
           },
         }}

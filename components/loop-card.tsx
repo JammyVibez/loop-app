@@ -23,7 +23,13 @@ import { LoopCardContent } from "./loop-card/loop-card-content"
 import { LoopCardActions } from "./loop-card/loop-card-actions"
 import { LoopCardBoostBar } from "./loop-card/loop-card-boost-bar"
 import { LoopCardModals } from "./loop-card/loop-card-modals"
-import { QuotedLoopCard, useQuotedLoop } from "@/components/loops/quoted-loop-card"
+import { CreateBranchDialog } from "@/components/create-branch-dialog"
+import {
+  QuotedLoopCard,
+  quotedLoopAsParent,
+  useQuotedLoop,
+  type QuotedLoop,
+} from "@/components/loops/quoted-loop-card"
 
 interface LoopCardProps {
   loop: any
@@ -67,6 +73,8 @@ export const LoopCard = memo(function LoopCard({
   const [branchSettingsOpen, setBranchSettingsOpen] = useState(false)
   /** Resolved original post for a quote rebranch — feeds the share-as-image card. */
   const quoted = useQuotedLoop(rawLoop?.quoted_loop_id || null)
+  /** The embedded original the viewer chose to quote from the card itself. */
+  const [quoteTarget, setQuoteTarget] = useState<QuotedLoop | null>(null)
   const [togglingLinkPreview, setTogglingLinkPreview] = useState(false)
   const [boostDialogOpen, setBoostDialogOpen] = useState(false)
   const [shareDmOpen, setShareDmOpen] = useState(false)
@@ -598,7 +606,15 @@ export const LoopCard = memo(function LoopCard({
 
             {/* Quote rebranch: the original is embedded by reference and opens
                 its own page (and its own replies), never a copy. */}
-            {loop.quoted_loop_id && <QuotedLoopCard loopId={loop.quoted_loop_id} />}
+            {loop.quoted_loop_id && (
+              <QuotedLoopCard
+                loopId={loop.quoted_loop_id}
+                onQuote={(quote) => {
+                  if (!requireAuth("branch")) return
+                  setQuoteTarget(quote)
+                }}
+              />
+            )}
 
             <LoopCardMedia
               mediaType={loop.media_type}
@@ -645,6 +661,7 @@ export const LoopCard = memo(function LoopCard({
               likesCount={loop.stats.likes_count}
               commentsCount={loop.stats.comments_count}
               branchesCount={loop.stats.branches_count}
+              quotesCount={loop.stats.quotes_count}
               sharesCount={loop.stats.shares_count}
               activeInteracting={activeInteracting}
               isAnimating={isAnimating}
@@ -711,6 +728,18 @@ export const LoopCard = memo(function LoopCard({
         shareSheetOpen={shareSheetOpen}
         setShareSheetOpen={setShareSheetOpen}
       />
+
+      {/* Quote the embedded original directly from its card */}
+      {quoteTarget && (
+        <CreateBranchDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setQuoteTarget(null)
+          }}
+          parentLoop={quotedLoopAsParent(quoteTarget)}
+          initialMode="rebranch"
+        />
+      )}
     </>
   )
 })

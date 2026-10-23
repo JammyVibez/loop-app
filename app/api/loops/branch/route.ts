@@ -126,6 +126,29 @@ export async function POST(request: NextRequest) {
         .update({ quote_count: Number(quoted.quote_count || 0) + 1 })
         .eq("id", quotedLoopId)
 
+      // The author of the quoted post hears about it — a quote is a new post
+      // built on their words, and it always links back into the conversation.
+      if (quoted.author_id && quoted.author_id !== user.id) {
+        try {
+          const { notifyUser } = await import("@/lib/notifications")
+          const actorName =
+            user.user_metadata?.display_name || user.user_metadata?.username || "Someone"
+          await notifyUser(supabase, {
+            userId: quoted.author_id,
+            type: "quote",
+            title: `${actorName} quoted your post`,
+            message: quoteText.slice(0, 120),
+            actorId: user.id,
+            actionUrl: `/loop/${quoteBranch.id}`,
+            data: { loop_id: quotedLoopId, quote_loop_id: quoteBranch.id, user_id: user.id },
+            pushCategory: "social",
+            priority: "high",
+          })
+        } catch (notifyErr) {
+          console.warn("Quote notify failed:", notifyErr)
+        }
+      }
+
       return NextResponse.json({ success: true, branch: normalizeLoop(quoteBranch), quoted: true })
     }
 

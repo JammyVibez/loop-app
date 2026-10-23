@@ -29,7 +29,11 @@ import {
   Gift,
 } from "lucide-react"
 import { CommentsSection } from "@/components/comments/comments-section"
-import { QuotedLoopCard } from "@/components/loops/quoted-loop-card"
+import {
+  QuotedLoopCard,
+  quotedLoopAsParent,
+  type QuotedLoop,
+} from "@/components/loops/quoted-loop-card"
 import { CreateBranchDialog } from "@/components/create-branch-dialog"
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp"
 import { LoopChainDialog } from "@/components/loops/loop-chain-dialog"
@@ -81,6 +85,8 @@ interface LoopData {
     shares: number
     views: number
     branches: number
+    /** Rebranches (quotes) of this post — tracked on loops.quote_count. */
+    quotes: number
   }
   tags: string[]
   parentLoop?: {
@@ -139,6 +145,8 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
   const [loading, setLoading] = useState(true)
   const [showFullTree, setShowFullTree] = useState(false)
   const [branchOpen, setBranchOpen] = useState(false)
+  /** The embedded original the viewer chose to quote from its card. */
+  const [quoteTarget, setQuoteTarget] = useState<QuotedLoop | null>(null)
   const [chainOpen, setChainOpen] = useState(false)
   const [rosterOpen, setRosterOpen] = useState(false)
   const [activeMediaIndex, setActiveMediaIndex] = useState(0)
@@ -194,6 +202,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           shares: Number(loopData.stats?.shares_count || 0),
           views: Number(loopData.stats?.views_count || 0),
           branches: Number(loopData.stats?.branches_count || data.branches?.length || 0),
+          quotes: Number(loopData.stats?.quotes_count ?? loopData.quote_count ?? 0),
         },
         tags: Array.isArray(loopData.hashtags) ? loopData.hashtags : [],
         parentLoop: data.parentLoop || undefined,
@@ -324,6 +333,8 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                       likes: updated.likes_count ?? prev.stats.likes,
                       comments: updated.comments_count ?? prev.stats.comments,
                       shares: updated.shares_count ?? prev.stats.shares,
+                      // Quote rebranches update loops.quote_count on this row.
+                      quotes: updated.quote_count ?? prev.stats.quotes,
                     },
                   }
                 : null
@@ -824,7 +835,18 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
 
           {/* Quote rebranch: the original post, embedded by reference — the
               same card the feed renders, opening the original's own page. */}
-          {loop.quotedLoopId && <QuotedLoopCard loopId={loop.quotedLoopId} />}
+          {loop.quotedLoopId && (
+            <QuotedLoopCard
+              loopId={loop.quotedLoopId}
+              onQuote={(quote) => {
+                if (!user) {
+                  toast({ title: "Sign in to quote", description: "Quotes are posts of your own." })
+                  return
+                }
+                setQuoteTarget(quote)
+              }}
+            />
+          )}
 
           {/* Full Media Set Carousel */}
           {loop.mediaUrls && loop.mediaUrls.length > 0 && (
@@ -1110,9 +1132,17 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
+                  title={`${loop.stats.branches} branch${loop.stats.branches === 1 ? "" : "es"}${
+                    loop.stats.quotes ? ` · ${loop.stats.quotes} rebranch${loop.stats.quotes === 1 ? "" : "es"}` : ""
+                  }`}
                   className="flex items-center justify-center gap-1.5 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                 >
                   <GitBranch className="h-4 w-4" />
+                  {/* Rebranches (quotes) count with branches — both are
+                      rebranches of this post, so the stat tracks both. */}
+                  {loop.stats.branches + loop.stats.quotes > 0 && (
+                    <span className="text-sm font-semibold">{formatCompact(loop.stats.branches + loop.stats.quotes)}</span>
+                  )}
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="border-border bg-popover text-foreground">
@@ -1139,6 +1169,18 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
         onOpenChange={setBranchOpen}
         parentLoop={loop}
       />
+
+      {/* Quote the embedded original directly from its card */}
+      {quoteTarget && (
+        <CreateBranchDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setQuoteTarget(null)
+          }}
+          parentLoop={quotedLoopAsParent(quoteTarget)}
+          initialMode="rebranch"
+        />
+      )}
 
       {/* Visual Loop Chain Tree Map Dialog */}
       <LoopChainDialog

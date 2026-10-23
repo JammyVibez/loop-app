@@ -39,6 +39,8 @@ interface LoopCardActionsProps {
   likesCount: number
   commentsCount: number
   branchesCount: number
+  /** Rebranches (quotes) of this post — tracked on loops.quote_count. */
+  quotesCount?: number
   sharesCount: number
   activeInteracting: string | null
   isAnimating: boolean
@@ -78,6 +80,7 @@ export function LoopCardActions({
   likesCount,
   commentsCount,
   branchesCount,
+  quotesCount = 0,
   sharesCount,
   activeInteracting,
   isAnimating,
@@ -164,11 +167,15 @@ export function LoopCardActions({
               variant="ghost"
               size="sm"
               className={`${action} gap-1.5 hover:text-emerald-500`}
-              title="Branch / View Chain"
+              title={`${branchesCount} branch${branchesCount === 1 ? "" : "es"}${
+                quotesCount ? ` · ${quotesCount} rebranch${quotesCount === 1 ? "" : "es"}` : ""
+              }`}
               aria-label="Branch this loop or view the chain"
             >
               <GitBranch className="h-[18px] w-[18px]" />
-              <Count value={branchesCount} />
+              {/* Rebranches count with branches — a quote is still a rebranch
+                  of the original, so the post's stat tracks both. */}
+              <Count value={Number(branchesCount) + Number(quotesCount)} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="bg-popover border-border text-foreground">

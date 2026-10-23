@@ -27,6 +27,8 @@ interface CreateBranchDialogProps {
   parentLoop: any
   /** Optional — fired with the new branch id instead of a full page reload. */
   onBranchCreated?: (branchId: string) => void
+  /** Open straight into a mode — "rebranch" is the quote composer. */
+  initialMode?: "new" | "rebranch"
 }
 
 function parentContentText(parentLoop: any): string {
@@ -44,7 +46,7 @@ function parentAuthor(parentLoop: any): any {
   return a
 }
 
-export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCreated }: CreateBranchDialogProps) {
+export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCreated, initialMode }: CreateBranchDialogProps) {
   const [activeTab, setActiveTab] = useState("text")
   const [content, setContent] = useState("")
   const [title, setTitle] = useState("")
@@ -53,7 +55,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
   /** Set after a successful post — the dialog flips to a confirmation step. */
   const [createdBranchId, setCreatedBranchId] = useState<string | null>(null)
   /** Branch mode: "new" = write your own take, "rebranch" = repost the same content */
-  const [branchMode, setBranchMode] = useState<"new" | "rebranch" | null>(null)
+  const [branchMode, setBranchMode] = useState<"new" | "rebranch" | null>(initialMode ?? null)
   const [rebranchQuote, setRebranchQuote] = useState("")
   const { toast } = useToast()
   const { user, getAuthHeader } = useAuth()
@@ -73,6 +75,14 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
     if (!next) resetForm()
     onOpenChange(next)
   }
+
+  // A caller that already knows the intent (the quote action on an embedded
+  // post) skips the mode picker and lands in that composer directly.
+  useEffect(() => {
+    if (!open) return
+    setCreatedBranchId(null)
+    if (initialMode) setBranchMode(initialMode)
+  }, [open, initialMode])
 
   const parentPreview = useMemo(() => parentContentText(parentLoop), [parentLoop])
   const author = useMemo(() => parentAuthor(parentLoop), [parentLoop])

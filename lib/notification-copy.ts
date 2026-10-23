@@ -95,6 +95,7 @@ const ACTION_BY_TYPE: Record<string, string> = {
   reply: "replied to your post",
   mention: "mentioned you",
   branch: "branched your post",
+  quote: "quoted your post",
   boost: "boosted your post",
   follow: "started following you",
   follow_request: "requested to follow you",
