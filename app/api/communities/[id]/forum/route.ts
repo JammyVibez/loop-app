@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { communityClient, logCommunityActivity } from "@/lib/community-engine"
 import { checkCirclePrivateAccess } from "@/lib/circle-access"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { normalizeRules } from "@/lib/community-rules"
 
 export const dynamic = "force-dynamic"
 
@@ -228,7 +229,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // ── Duels born in this community ──
     const { data: duelRows } = await sb
       .from("loop_duels")
-      .select(`id, prompt, status, created_at, expires_at, creator_id,
+      .select(`id, loop_id, prompt, status, created_at, expires_at, creator_id,
                creator:profiles!creator_id(id, username, display_name, avatar_url),
                entries:loop_duel_entries(id, side, votes_count)`)
       .eq("circle_id", id)
@@ -239,6 +240,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       const entries = Array.isArray(d.entries) ? d.entries : []
       return {
         id: String(d.id),
+        loop_id: d.loop_id ? String(d.loop_id) : null,
         prompt: d.prompt,
         status: d.status,
         created_at: d.created_at,
@@ -252,6 +254,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({
       community: {
         ...circle,
+        rules: normalizeRules(circle.rules),
         id: String(circle.id),
         member_count: Number(circle.member_count || 0),
         post_count: Number(circle.post_count || 0),

@@ -22,7 +22,6 @@ import {
   ImagePlus,
   Lock,
   Wand2,
-  
   Hash,
 } from "lucide-react"
 
@@ -128,7 +127,7 @@ export function CreateCommunityWizard() {
             <div
               className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition ${
                 step === s.id
-                  ? "bg-indigo-600 text-white"
+                  ? "bg-primary text-primary-foreground"
                   : step > s.id
                   ? "bg-emerald-500 text-white"
                   : "border border-border text-muted-foreground"
@@ -149,27 +148,27 @@ export function CreateCommunityWizard() {
         {step === 0 && (
           <div className="space-y-5">
             <div>
-              <h2 className="text-lg font-bold">What is your community about?</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className="text-xl font-black tracking-tight">What is your community about?</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Categories are blueprints — they recommend spaces, features and roles. You can customize everything.
               </p>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {COMMUNITY_CATEGORIES.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => setCategory(c.id)}
-                  className={`group relative rounded-2xl border p-3 text-left transition ${
+                  className={`group relative rounded-2xl border p-4 text-left transition ${
                     category === c.id
-                      ? "border-indigo-500 bg-indigo-500/10 ring-2 ring-indigo-500/30"
-                      : "border-border bg-background hover:border-indigo-500/40"
+                      ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                      : "border-border bg-background hover:border-primary/40"
                   }`}
                 >
-                  <div className="text-xl">{c.emoji}</div>
-                  <div className="mt-1 text-xs font-semibold leading-tight">{c.label}</div>
-                  <div className="mt-0.5 text-[10px] text-muted-foreground line-clamp-2">{c.tagline}</div>
+                  <div className="text-2xl">{c.emoji}</div>
+                  <div className="mt-1.5 text-sm font-bold leading-tight">{c.label}</div>
+                  <div className="mt-1 text-[11px] leading-snug text-muted-foreground line-clamp-2">{c.tagline}</div>
                   {category === c.id && (
-                    <span className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-white">
+                    <span className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
                       <Check className="h-3 w-3" />
                     </span>
                   )}
@@ -180,7 +179,7 @@ export function CreateCommunityWizard() {
               <Button variant="ghost" size="sm" onClick={back}>
                 <ArrowLeft className="h-4 w-4 mr-1" /> Back
               </Button>
-              <Button onClick={startCreate} disabled={!user}>
+              <Button onClick={startCreate}>
                 {user ? "Continue" : "Sign in to continue"} <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
             </div>
@@ -191,8 +190,12 @@ export function CreateCommunityWizard() {
         {step === 1 && (
           <div className="space-y-5">
             <div>
-              <h2 className="text-lg font-bold">{cfg.emoji} Shape your community</h2>
-              <p className="text-sm text-muted-foreground">Name, handle, story and look — the identity your members will know.</p>
+              <h2 className="text-xl font-black tracking-tight">
+                {cfg.emoji} Shape your community
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Name, handle, story and look — the identity your members will know.
+              </p>
             </div>
 
             <div className="space-y-4">
@@ -296,8 +299,8 @@ export function CreateCommunityWizard() {
         {step === 2 && (
           <div className="space-y-5">
             <div>
-              <h2 className="text-lg font-bold">Choose your starting template</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className="text-xl font-black tracking-tight">Choose your starting point</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Based on <strong>{cfg.label}</strong>, here&apos;s what your world starts with. You can change everything later in settings.
               </p>
             </div>
@@ -305,12 +308,12 @@ export function CreateCommunityWizard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 onClick={() => setTemplate("accept")}
-                className={`rounded-2xl border p-4 text-left transition ${template === "accept" ? "border-indigo-500 bg-indigo-500/10 ring-2 ring-indigo-500/30" : "border-border hover:border-indigo-500/40"}`}
+                className={`rounded-2xl border p-5 text-left transition ${template === "accept" ? "border-primary bg-primary/10 ring-2 ring-primary/30" : "border-border hover:border-primary/40"}`}
               >
                 <div className="flex items-center gap-2">
-                  <LayoutTemplate className="h-4 w-4 text-indigo-500" />
-                  <p className="font-semibold text-sm">Full template</p>
-                  {template === "accept" && <Check className="ml-auto h-4 w-4 text-indigo-500" />}
+                  <LayoutTemplate className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-bold">Full template</p>
+                  {template === "accept" && <Check className="ml-auto h-4 w-4 text-primary" />}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{cfg.templateHint}</p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
@@ -322,18 +325,18 @@ export function CreateCommunityWizard() {
 
               <button
                 onClick={() => setTemplate("minimal")}
-                className={`rounded-2xl border p-4 text-left transition ${template === "minimal" ? "border-indigo-500 bg-indigo-500/10 ring-2 ring-indigo-500/30" : "border-border hover:border-indigo-500/40"}`}
+                className={`rounded-2xl border p-5 text-left transition ${template === "minimal" ? "border-primary bg-primary/10 ring-2 ring-primary/30" : "border-border hover:border-primary/40"}`}
               >
                 <div className="flex items-center gap-2">
-                  <Wand2 className="h-4 w-4 text-fuchsia-500" />
-                  <p className="font-semibold text-sm">Start minimal</p>
-                  {template === "minimal" && <Check className="ml-auto h-4 w-4 text-indigo-500" />}
+                  <Wand2 className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-bold">Start minimal</p>
+                  {template === "minimal" && <Check className="ml-auto h-4 w-4 text-primary" />}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">Just Home, Discussions and Media. You add everything else manually.</p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
-                  <Badge variant="secondary" className="text-[10px]">home Home</Badge>
-                  <Badge variant="secondary" className="text-[10px]">messages-square Discussions</Badge>
-                  <Badge variant="secondary" className="text-[10px]">image Media</Badge>
+                  <Badge variant="secondary" className="text-[10px]">Home</Badge>
+                  <Badge variant="secondary" className="text-[10px]">Discussions</Badge>
+                  <Badge variant="secondary" className="text-[10px]">Media</Badge>
                 </div>
               </button>
             </div>
@@ -345,7 +348,7 @@ export function CreateCommunityWizard() {
                   <button
                     key={l.id}
                     onClick={() => setLayout(l.id)}
-                    className={`rounded-xl border p-2.5 text-center transition ${layout === l.id ? "border-indigo-500 bg-indigo-500/10" : "border-border hover:border-indigo-500/40"}`}
+                    className={`rounded-xl border p-2.5 text-center transition ${layout === l.id ? "border-primary bg-primary/10" : "border-border hover:border-primary/40"}`}
                   >
                     <p className="text-xs font-semibold">{l.label}</p>
                     <p className="text-[9px] text-muted-foreground mt-0.5 line-clamp-2">{l.description}</p>

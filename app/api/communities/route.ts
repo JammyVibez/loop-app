@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
 
     // Seed category config + default spaces from the template
     await upsertCategoryConfig(sb, category)
-    await ensureDefaultSpaces(sb, circle, user.id)
+    await ensureDefaultSpaces(sb, circle, user.id, { template })
 
     // First memory
     await sb.from("community_memory").insert({

@@ -69,14 +69,30 @@ export async function upsertCategoryConfig(sb: SB, categoryId: string) {
 // ---------------------------------------------------------------------------
 // Ensure default spaces exist for a community (idempotent)
 // ---------------------------------------------------------------------------
-export async function ensureDefaultSpaces(sb: SB, circle: any, creatorId: string | null) {
+/** The three spaces a "start minimal" community is born with. */
+const MINIMAL_SPACES = [
+  { name: "Home", type: "feed", icon: "home", description: "The front door — updates from across the community." },
+  { name: "Discussions", type: "discussion", icon: "messages-square", description: "Threads, questions and everything worth replying to." },
+  { name: "Media", type: "gallery", icon: "image", description: "Art, clips and screenshots from members." },
+] as const
+
+export async function ensureDefaultSpaces(
+  sb: SB,
+  circle: any,
+  creatorId: string | null,
+  opts?: { template?: string },
+) {
   const { count } = await sb
     .from("community_spaces")
     .select("id", { count: "exact", head: true })
     .eq("circle_id", circle.id)
   if (count && count > 0) return false
 
-  const defaults = categoryDefaultSpaces(circle.category).slice(0, 8)
+  // "Start minimal" means exactly that: the three core spaces, nothing else.
+  const defaults =
+    opts?.template === "minimal"
+      ? MINIMAL_SPACES.slice()
+      : categoryDefaultSpaces(circle.category).slice(0, 8)
   const rows = defaults.map((s, i) => ({
     circle_id: circle.id,
     name: s.name,

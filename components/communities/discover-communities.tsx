@@ -57,9 +57,17 @@ const SORTS = [
 const PULSE_STYLES: Record<string, string> = {
   quiet: "text-slate-500 border-slate-500/30 bg-slate-500/10",
   growing: "text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
-  active: "text-indigo-600 dark:text-indigo-400 border-indigo-500/30 bg-indigo-500/10",
+  active: "text-primary border-primary/30 bg-primary/10",
   very_active: "text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10",
   exploding: "text-red-600 dark:text-red-400 border-red-500/30 bg-red-500/10",
+}
+
+const PULSE_LABELS: Record<string, string> = {
+  quiet: "Quiet",
+  growing: "Growing",
+  active: "Active",
+  very_active: "Very active",
+  exploding: "On fire",
 }
 
 export function DiscoverCommunities() {
@@ -148,7 +156,7 @@ export function DiscoverCommunities() {
               onClick={() => setSort(s.id)}
               className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
                 sort === s.id
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/25"
+                  ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
                   : "border border-border bg-card text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -205,7 +213,7 @@ export function DiscoverCommunities() {
         </div>
       ) : communities.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center space-y-3">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-500">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
             <Search className="h-6 w-6" />
           </div>
           <p className="font-semibold">No communities found</p>
@@ -217,7 +225,7 @@ export function DiscoverCommunities() {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
           {communities.map((c) => {
             const cfg = getCategoryConfig(c.category)
             const pulseStyle = PULSE_STYLES[c.pulse] || PULSE_STYLES.growing
@@ -225,33 +233,33 @@ export function DiscoverCommunities() {
               <Link
                 key={c.id}
                 href={`/communities/${c.id}`}
-                className="group relative overflow-hidden rounded-2xl border border-border bg-card transition hover:border-indigo-500/40 hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-0.5"
+                className="group relative flex flex-col overflow-hidden rounded-3xl border border-border bg-card transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5"
               >
                 {/* Banner */}
                 <div
-                  className="relative h-24 w-full overflow-hidden"
+                  className="relative h-32 w-full overflow-hidden"
                   style={{ background: c.accent_color || cfg.accent }}
                 >
                   {c.banner_url ? (
-                    <Image src={c.banner_url} alt="" fill className="object-cover opacity-80" unoptimized />
+                    <Image src={c.banner_url} alt="" fill className="object-cover opacity-90 transition-transform duration-500 group-hover:scale-[1.03]" unoptimized />
                   ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/60 via-transparent to-transparent opacity-70" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-black/25 via-transparent to-transparent" />
                   )}
-                  <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
-                    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${pulseStyle}`}>
-                      {c.pulse === "quiet" ? "Quiet" : c.pulse === "growing" ? "Growing" : c.pulse === "active" ? "Active" : c.pulse === "very_active" ? "Hot" : "Trending"}{" "}
-                      {c.pulse === "very_active" ? "very active" : c.pulse}
+                  <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
+                  <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5">
+                    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide backdrop-blur ${pulseStyle}`}>
+                      {PULSE_LABELS[c.pulse] || "Growing"}
                     </span>
                   </div>
                 </div>
 
-                <div className="p-4 space-y-3">
+                <div className="flex flex-1 flex-col gap-3 p-5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <Avatar className="h-12 w-12 rounded-xl border-2 border-background shadow">
+                        <Avatar className="h-14 w-14 rounded-2xl border-2 border-background shadow-lg">
                           <AvatarImage src={c.avatar_url || ""} alt={c.name} />
-                          <AvatarFallback className="rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white font-bold text-base">
+                          <AvatarFallback className="rounded-2xl bg-primary text-primary-foreground font-black text-lg">
                             {c.name.slice(0, 1).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
@@ -263,7 +271,7 @@ export function DiscoverCommunities() {
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <h3 className="truncate font-bold text-sm group-hover:text-indigo-500 transition-colors">
+                          <h3 className="truncate text-base font-bold transition-colors group-hover:text-primary">
                             {c.name}
                           </h3>
                           {c.is_private && <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />}
@@ -275,9 +283,9 @@ export function DiscoverCommunities() {
                     </div>
                   </div>
 
-                  <p className="line-clamp-2 text-xs text-muted-foreground min-h-[2rem]">{c.description}</p>
+                  <p className="line-clamp-2 text-[13px] leading-relaxed text-muted-foreground min-h-[2.5rem]">{c.description}</p>
 
-                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
                     <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {c.member_count.toLocaleString()}</span>
                     {c.active_count > 0 && (
                       <span className="flex items-center gap-1"><Activity className="h-3 w-3 text-emerald-500" /> {c.active_count} active</span>
@@ -287,7 +295,7 @@ export function DiscoverCommunities() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 pt-1">
+                  <div className="mt-auto flex items-center gap-2 pt-1">
                     {showJoin && (
                       c.is_member ? (
                         <Button

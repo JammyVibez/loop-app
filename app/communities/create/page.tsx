@@ -1,28 +1,65 @@
 import { Header } from "@/components/header"
 import { CreateCommunityWizard } from "@/components/communities/create-community-wizard"
-import { Globe2 } from "lucide-react"
+import { Layers, Sparkles, Users } from "lucide-react"
 
 export const dynamic = "force-dynamic"
+
+const PERKS = [
+  {
+    icon: Layers,
+    title: "Spaces, not just a feed",
+    body: "Threads, media, projects, events and polls — picked for your category, removable any time.",
+  },
+  {
+    icon: Users,
+    title: "Roles from day one",
+    body: "You start as owner, with moderators, members and a join flow that already works.",
+  },
+  {
+    icon: Sparkles,
+    title: "Memory that compounds",
+    body: "Every milestone, project and decision is kept, so the world grows instead of scrolling away.",
+  },
+]
 
 export default function CreateCommunityPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header />
-      <main className="container mx-auto px-4 py-6 max-w-3xl">
-        <div className="space-y-6">
-          <div className="text-center space-y-2">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 shadow-lg shadow-indigo-500/30">
-              <Globe2 className="h-7 w-7 text-white" />
+      <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              New world
             </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-              Create a <span className="bg-gradient-to-r from-indigo-500 to-fuchsia-500 bg-clip-text text-transparent">Community</span>
+            <h1 className="mt-5 text-4xl font-black leading-[0.98] tracking-tight sm:text-5xl">
+              Create a community
             </h1>
-            <p className="text-muted-foreground max-w-lg mx-auto">
-              Three steps: pick a category, shape your identity, then choose a template.
-              Categories are blueprints, not restrictions — customize everything after.
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+              Three steps: pick a category, shape the identity, then choose what you start with. Categories are
+              blueprints, not restrictions — everything is editable afterwards.
             </p>
+
+            <div className="mt-8">
+              <CreateCommunityWizard />
+            </div>
           </div>
-          <CreateCommunityWizard />
+
+          <aside className="hidden space-y-3 lg:sticky lg:top-6 lg:block">
+            {PERKS.map((perk) => {
+              const Icon = perk.icon
+              return (
+                <div key={perk.title} className="rounded-2xl border border-border bg-card p-4">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <p className="mt-3 text-sm font-bold">{perk.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{perk.body}</p>
+                </div>
+              )
+            })}
+          </aside>
         </div>
       </main>
     </div>
