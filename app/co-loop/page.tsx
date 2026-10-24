@@ -144,7 +144,9 @@ export default function CoLoopSessionsPage() {
       const res = await fetch("/api/co-loop/session-info", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ session_id: sessionId, action: "end" }),
+        // The route sets `status`; an `action` field was silently ignored, so
+        // "end" never actually reached the database.
+        body: JSON.stringify({ session_id: sessionId, status: "ended" }),
       })
       if (res.ok) {
         toast({ title: "Session ended", description: "The Co-Loop session has been closed." })

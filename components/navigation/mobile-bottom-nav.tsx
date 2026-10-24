@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell, Bot, Home, MessageCircle, Sparkles } from "lucide-react"
+import { Bell, Bot, Home, MessageCircle, Orbit } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { useLoginGate } from "@/hooks/use-login-gate"
@@ -95,7 +95,7 @@ export function MobileBottomNav() {
   const items: TabItem[] = [
     { href: "/", icon: Home, label: "Home" },
     { href: "/messages", icon: MessageCircle, label: "Messages", auth: true, badge: unreadMessages },
-    { href: "/co-loop", icon: Sparkles, label: "Co-Loop", center: true },
+    { href: "/co-loop", icon: Orbit, label: "Co-Loop", center: true },
     { href: "/loop-ai", icon: Bot, label: "Loop AI" },
     { href: "/notifications", icon: Bell, label: "Alerts", auth: true, badge: unreadNotifications },
   ]

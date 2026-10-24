@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Bot, Sparkles } from "lucide-react"
+import { ArrowLeft, Bot, Wand2 } from "lucide-react"
 import { Header } from "@/components/header"
 
 export const metadata: Metadata = {
@@ -45,7 +45,7 @@ export default function LoopAiPage() {
             { title: "Read the room", body: "What your community is talking about, summarised." },
           ].map((card) => (
             <li key={card.title} className="rounded-2xl border border-border bg-card p-4">
-              <Sparkles className="h-4 w-4 text-cyan-400" />
+              <Wand2 className="h-4 w-4 text-cyan-400" />
               <p className="mt-2 text-sm font-bold">{card.title}</p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{card.body}</p>
             </li>

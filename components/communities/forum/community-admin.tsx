@@ -55,6 +55,8 @@ export function EditCommunityDialog({
   const [uploading, setUploading] = useState<"banner" | "cover" | null>(null)
   const [commentRoles, setCommentRoles] = useState<string[]>([])
   const [visibleRoles, setVisibleRoles] = useState<string[]>([])
+  const [mentionRoles, setMentionRoles] = useState<string[]>([])
+  const [mentionableRoles, setMentionableRoles] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -67,6 +69,8 @@ export function EditCommunityDialog({
     const settings = community.moderation_settings || {}
     setCommentRoles(Array.isArray(settings.comment_roles) ? settings.comment_roles : [])
     setVisibleRoles(Array.isArray(settings.visible_roles) ? settings.visible_roles : [])
+    setMentionRoles(Array.isArray(settings.mention_roles) ? settings.mention_roles : [])
+    setMentionableRoles(Array.isArray(settings.mentionable_roles) ? settings.mentionable_roles : [])
   }, [
     open,
     community.name,
@@ -118,6 +122,8 @@ export function EditCommunityDialog({
             ...(community.moderation_settings || {}),
             comment_roles: commentRoles.length ? commentRoles : null,
             visible_roles: visibleRoles.length ? visibleRoles : null,
+            mention_roles: mentionRoles.length ? mentionRoles : null,
+            mentionable_roles: mentionableRoles.length ? mentionableRoles : null,
           },
         }),
       })
@@ -259,6 +265,20 @@ export function EditCommunityDialog({
               hint: "Leave empty for everyone who can reach the community.",
               value: visibleRoles,
               set: setVisibleRoles,
+            },
+            {
+              id: "mention" as const,
+              label: "Who can @mention",
+              hint: "Leave empty to let every commenter tag people and roles.",
+              value: mentionRoles,
+              set: setMentionRoles,
+            },
+            {
+              id: "mentionable" as const,
+              label: "Roles that can be tagged",
+              hint: "Leave empty to let every role be mentioned.",
+              value: mentionableRoles,
+              set: setMentionableRoles,
             },
           ]).map((group) => (
             <div key={group.id} className="space-y-1.5">

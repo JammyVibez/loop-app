@@ -123,6 +123,7 @@ export function CoLoopStudio() {
   // Co-authors the host removed — hidden everywhere until they leave.
   const [kickedIds, setKickedIds] = useState<Set<string>>(new Set())
   const [isOwner, setIsOwner] = useState(false)
+  const [ending, setEnding] = useState(false)
   const [sessionReady, setSessionReady] = useState(false)
   const [draftLoaded, setDraftLoaded] = useState(false)
   const [versions, setVersions] = useState<CoLoopVersion[]>([])
@@ -1010,12 +1011,38 @@ export function CoLoopStudio() {
     }
   }, [getAuthHeader, isOwner, openInviteMax, openInviteTopic, sessionId, toast])
 
-  const handleEndSession = useCallback(() => {
+  const handleEndSession = useCallback(async () => {
     if (!isOwner) return
-    realtime.announceSessionEnded(user?.display_name || user?.username || "The Primary Creator")
-    toast({ title: "Session ended", description: "Everyone has been sent back to the feed." })
-    setTimeout(() => router.push("/"), 900)
-  }, [isOwner, realtime, router, toast, user])
+    // Ending is permanent: the session row moves to "ended", nobody can rejoin
+    // it and everyone in the room is sent home. Say so before doing it.
+    const confirmed = window.confirm(
+      "End this Co-Loop for everyone?\n\nThe room closes, the session is marked ended for good, and nobody can rejoin it. Collaborators are sent back to the feed.",
+    )
+    if (!confirmed) return
+
+    setEnding(true)
+    try {
+      const res = await fetch("/api/co-loop/session-info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ session_id: sessionId, status: "ended" }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Could not end the session")
+
+      realtime.announceSessionEnded(user?.display_name || user?.username || "The Primary Creator")
+      toast({ title: "Session ended", description: "Everyone has been sent back to the feed." })
+      setTimeout(() => router.push("/"), 900)
+    } catch (err: any) {
+      toast({
+        title: "Could not end the session",
+        description: err?.message || "Try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setEnding(false)
+    }
+  }, [getAuthHeader, isOwner, realtime, router, sessionId, toast, user])
 
   /* ── Host room controls: lock / delete ────────────────────────── */
   const handleToggleLock = useCallback(async () => {
