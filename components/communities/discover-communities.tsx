@@ -195,7 +195,7 @@ export function DiscoverCommunities() {
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
           {Array.from({ length: 9 }).map((_, i) => (
             <div key={i} className="rounded-2xl border border-border bg-card p-4 space-y-3">
               <div className="flex items-center gap-3">
@@ -225,7 +225,7 @@ export function DiscoverCommunities() {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
           {communities.map((c) => {
             const cfg = getCategoryConfig(c.category)
             const pulseStyle = PULSE_STYLES[c.pulse] || PULSE_STYLES.growing

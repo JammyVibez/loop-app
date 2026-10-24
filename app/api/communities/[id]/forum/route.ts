@@ -65,6 +65,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const role = membership?.role || null
     const isStaff = Boolean(role && STAFF_ROLES.has(role))
 
+    // Suspended by the platform: the world keeps its content, but only staff
+    // may walk through it while the case is open.
+    if ((circle as any).is_active === false && !isStaff && !(user && (String((circle as any).owner_id) === user.id || String((circle as any).creator_id) === user.id))) {
+      return NextResponse.json(
+        { error: "This community is suspended while it's under review", locked: true },
+        { status: 403 },
+      )
+    }
+
     // House policy — owners can keep the forum to chosen roles.
     const policy = readPolicy((circle as any).moderation_settings)
     if (!canViewForum(role, policy)) {

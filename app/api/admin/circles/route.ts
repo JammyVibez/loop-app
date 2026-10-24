@@ -196,7 +196,8 @@ export async function PUT(request: NextRequest) {
       banner_url,
       owner_id,
       rules,
-      tags
+      tags,
+      banned
     } = await request.json()
 
     // Validate circle exists
@@ -223,6 +224,16 @@ export async function PUT(request: NextRequest) {
         banner_url: banner_url || undefined,
         rules: rules || undefined,
         tags: tags || undefined,
+        // Soft ban: the world keeps its content and members, it just closes
+        // to everyone outside the staff while it is looked at. Delete stays a
+        // separate, explicitly destructive act.
+        ...(typeof banned !== "undefined"
+          ? {
+              is_active: !banned,
+              deactivated_at: banned ? new Date().toISOString() : null,
+              deactivated_by: banned ? user.id : null,
+            }
+          : {}),
         updated_at: new Date().toISOString()
       })
       .eq("id", circleId)
