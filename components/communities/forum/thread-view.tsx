@@ -18,6 +18,7 @@ import {
 import { RichContent } from "@/components/content/rich-content"
 import { Spinner } from "@/components/ui/skeletons"
 import { RoleChip, type RoleBadgeLike } from "@/components/communities/forum/role-chip"
+import { uploadMediaFile } from "@/lib/client-media-upload"
 import { cn } from "@/lib/utils"
 import {
   ArrowBigUp,
@@ -25,6 +26,7 @@ import {
   CornerDownRight,
   Eye,
   Hash,
+  ImagePlus,
   Loader2,
   Lock,
   MoreHorizontal,
@@ -333,6 +335,14 @@ function MessageRow({
               /* eslint-disable-next-line @next/next/no-img-element */
               <img src={reply.media_url} alt="" className="mt-1.5 max-h-72 w-full rounded-lg object-cover" />
             )}
+            {reply.media_url && reply.media_type === "video" && (
+              <video
+                src={reply.media_url}
+                controls
+                playsInline
+                className="mt-1.5 max-h-72 w-full rounded-lg bg-black object-contain"
+              />
+            )}
 
             {reactions.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-1">
@@ -446,6 +456,8 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
   const [replyText, setReplyText] = useState("")
   const [sending, setSending] = useState(false)
   const [replyTarget, setReplyTarget] = useState<{ id: string; name: string; content: string } | null>(null)
+  const [replyMedia, setReplyMedia] = useState<{ url: string; type: string } | null>(null)
+  const [uploadingReplyMedia, setUploadingReplyMedia] = useState(false)
   const [voting, setVoting] = useState(false)
   const [busy, setBusy] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
@@ -508,9 +520,27 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
     }
   }
 
+  const attachReplyMedia = async (file?: File | null) => {
+    if (!file) return
+    setUploadingReplyMedia(true)
+    try {
+      const isVideo = file.type.startsWith("video/")
+      const { url } = await uploadMediaFile(file, {
+        type: isVideo ? "video" : "image",
+        folder: "community-replies",
+        authHeaders: getAuthHeader(),
+      })
+      setReplyMedia({ url, type: isVideo ? "video" : "image" })
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" })
+    } finally {
+      setUploadingReplyMedia(false)
+    }
+  }
+
   const send = async () => {
     const content = replyText.trim()
-    if (!content || sending || !data) return
+    if ((!content && !replyMedia) || sending || !data) return
     if (!user) {
       router.push(`/auth?returnTo=/communities/${communityId}/posts/${threadId}`)
       return
@@ -520,12 +550,18 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
       const res = await fetch(`/api/communities/${communityId}/threads/${threadId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ content, parent_comment_id: replyTarget?.id || null }),
+        body: JSON.stringify({
+          content,
+          parent_comment_id: replyTarget?.id || null,
+          media_url: replyMedia?.url || null,
+          media_type: replyMedia?.type || null,
+        }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Failed to reply")
       setReplyText("")
       setReplyTarget(null)
+      setReplyMedia(null)
       setData((prev) =>
         prev
           ? {
@@ -884,12 +920,46 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
               </button>
             </div>
           )}
+          {replyMedia && (
+            <div className="mb-1.5 flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-2 py-1.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={replyMedia.url} alt="" className="h-10 w-10 rounded-lg object-cover" />
+              <span className="flex-1 text-[11px] text-muted-foreground">Attached — it sends with your reply.</span>
+              <button
+                type="button"
+                onClick={() => setReplyMedia(null)}
+                aria-label="Remove attachment"
+                className="rounded-md p-1 hover:bg-muted"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
           {thread.locked ? (
             <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/40 px-4 py-3 text-xs font-medium text-muted-foreground">
               <Lock className="h-3.5 w-3.5" /> This thread is locked — new replies are closed.
             </div>
           ) : viewer.is_member ? (
             <div className="flex items-end gap-2">
+              <label
+                aria-label="Attach an image or video"
+                className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                {uploadingReplyMedia ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ImagePlus className="h-4 w-4" />
+                )}
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    void attachReplyMedia(e.target.files?.[0])
+                    e.currentTarget.value = ""
+                  }}
+                />
+              </label>
               <Textarea
                 ref={inputRef}
                 value={replyText}
@@ -904,7 +974,7 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
                 rows={2}
                 className="min-h-11 flex-1 resize-none rounded-xl"
               />
-              <Button onClick={send} disabled={sending || !replyText.trim()} className="h-11 rounded-xl px-4">
+              <Button onClick={send} disabled={sending || (!replyText.trim() && !replyMedia)} className="h-11 rounded-xl px-4">
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
