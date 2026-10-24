@@ -367,7 +367,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       : []
 
     if (title.length < 3) return NextResponse.json({ error: "Give the thread a title (3+ characters)" }, { status: 400 })
-    if (!content && !body.media_url) return NextResponse.json({ error: "Write something in the thread" }, { status: 400 })
+
+    // A thread can be text, a picture, a clip, or a poll — or any mix.
+    const mediaUrl = typeof body.media_url === "string" && body.media_url ? body.media_url.slice(0, 600) : null
+    const mediaType = mediaUrl ? (body.media_type === "video" ? "video" : "image") : null
+    const rawPoll = body.poll && typeof body.poll === "object" ? body.poll : null
+    const pollQuestion = rawPoll ? String(rawPoll.question || "").trim().slice(0, 200) : ""
+    const pollOptions = rawPoll && Array.isArray(rawPoll.options)
+      ? rawPoll.options
+          .map((opt: any) => String(typeof opt === "object" && opt ? (opt.text ?? "") : opt).trim().slice(0, 140))
+          .filter(Boolean)
+          .slice(0, 8)
+      : []
+    if (rawPoll && (!pollQuestion || pollOptions.length < 2)) {
+      return NextResponse.json({ error: "A poll needs a question and at least 2 options" }, { status: 400 })
+    }
+    if (!content && !mediaUrl && !rawPoll) {
+      return NextResponse.json({ error: "Write something in the thread" }, { status: 400 })
+    }
 
     if (spaceId != null) {
       const { data: space } = await sb
@@ -390,6 +407,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         space_id: spaceId,
         tags,
         content_metadata: { title },
+        media_url: mediaUrl,
+        media_type: mediaType,
         status: "published",
         comment_count: 0,
         like_count: 0,
@@ -404,6 +423,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (error || !thread) {
       console.error("[forum] create thread error:", error?.message)
       return NextResponse.json({ error: error?.message || "Failed to create thread" }, { status: 500 })
+    }
+
+    // Poll, if the thread asked for one.
+    if (rawPoll) {
+      const formatted = pollOptions.map((text: string, idx: number) => ({
+        id: `opt_${idx + 1}`,
+        text,
+        votes: 0,
+        image_url: null,
+      }))
+      const { error: pollError } = await sb.from("circle_post_polls").insert({
+        post_id: thread.id,
+        circle_id: id,
+        question: pollQuestion,
+        options: formatted,
+        total_votes: 0,
+        expires_at: new Date(Date.now() + (Number(rawPoll.durationHours) || 24) * 3600 * 1000).toISOString(),
+      })
+      if (pollError) console.error("[forum] poll insert error:", pollError.message)
     }
 
     await logCommunityActivity(sb, id, user.id, "thread_created", "post", String(thread.id), { title })

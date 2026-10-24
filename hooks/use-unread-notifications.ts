@@ -39,10 +39,15 @@ export function useUnreadNotifications() {
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") void load()
     }, 60_000)
+    // The dropdown broadcasts the moment it marks something read, so the badge
+    // clears immediately instead of after the next poll.
+    const onChanged = () => void load()
+    window.addEventListener("loop:notifications-changed", onChanged)
 
     return () => {
       active = false
       window.clearInterval(timer)
+      window.removeEventListener("loop:notifications-changed", onChanged)
     }
   }, [user, getAuthHeader])
 

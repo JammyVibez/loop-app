@@ -15,6 +15,7 @@ import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { DeleteCommunityDialog, EditCommunityDialog, ManageMembersDialog } from "@/components/communities/forum/community-admin"
 import { RolesDialog } from "@/components/communities/forum/roles-panel"
 import { RoleChip, type RoleBadgeLike } from "@/components/communities/forum/role-chip"
+import { uploadMediaFile } from "@/lib/client-media-upload"
 import { cn } from "@/lib/utils"
 import {
   ArrowBigUp,
@@ -26,6 +27,7 @@ import {
   Eye,
   Flame,
   Hash,
+  ImagePlus,
   Loader2,
   Lock,
   MessageSquare,
@@ -371,16 +373,6 @@ export function ForumHome({ communityId }: { communityId: string }) {
                   >
                     <Shield className="mr-1.5 h-3.5 w-3.5" /> Roles
                   </Button>
-                  {canDeleteCommunity && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 rounded-full px-3 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => setDeleteOpen(true)}
-                    >
-                      <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
-                    </Button>
-                  )}
                 </div>
               )}
             </div>
@@ -844,6 +836,29 @@ function NewThreadSheet({
   const [spaceId, setSpaceId] = useState(defaultForum)
   const [tags, setTags] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [media, setMedia] = useState<{ url: string; type: string } | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [pollOn, setPollOn] = useState(false)
+  const [pollQuestion, setPollQuestion] = useState("")
+  const [pollOptions, setPollOptions] = useState<string[]>(["", ""])
+
+  const attach = async (file?: File | null) => {
+    if (!file) return
+    setUploading(true)
+    try {
+      const isVideo = file.type.startsWith("video/")
+      const { url } = await uploadMediaFile(file, {
+        type: isVideo ? "video" : "image",
+        folder: "community-threads",
+        authHeaders: getAuthHeader(),
+      })
+      setMedia({ url, type: isVideo ? "video" : "image" })
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" })
+    } finally {
+      setUploading(false)
+    }
+  }
 
   useEffect(() => {
     if (open) setSpaceId(defaultForum)
@@ -864,6 +879,11 @@ function NewThreadSheet({
             .split(",")
             .map((t) => t.trim())
             .filter(Boolean),
+          media_url: media?.url || null,
+          media_type: media?.type || null,
+          poll: pollOn && pollQuestion.trim()
+            ? { question: pollQuestion.trim(), options: pollOptions.map((o) => o.trim()).filter(Boolean) }
+            : null,
         }),
       })
       const json = await res.json()
@@ -871,6 +891,10 @@ function NewThreadSheet({
       setTitle("")
       setContent("")
       setTags("")
+      setMedia(null)
+      setPollOn(false)
+      setPollQuestion("")
+      setPollOptions(["", ""])
       onCreated(json.thread.href)
     } catch (e: any) {
       toast({ title: "Could not post", description: e.message, variant: "destructive" })
@@ -906,6 +930,82 @@ function NewThreadSheet({
               className="mt-1.5 resize-none rounded-xl"
             />
           </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted/60">
+              {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+              {media ? (media.type === "video" ? "Video attached" : "Image attached") : "Add image or video"}
+              <input
+                type="file"
+                accept="image/*,video/*"
+                className="hidden"
+                onChange={(e) => {
+                  void attach(e.target.files?.[0])
+                  e.currentTarget.value = ""
+                }}
+              />
+            </label>
+            {media && (
+              <button
+                type="button"
+                onClick={() => setMedia(null)}
+                className="rounded-full px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted/60"
+              >
+                Remove
+              </button>
+            )}
+            <button
+              type="button"
+              aria-pressed={pollOn}
+              onClick={() => setPollOn((v) => !v)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                pollOn ? "border-primary/50 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {pollOn ? "Poll on" : "Add a poll"}
+            </button>
+          </div>
+
+          {media && media.type === "image" && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={media.url} alt="" className="h-28 w-full rounded-xl object-cover" />
+          )}
+
+          {pollOn && (
+            <div className="space-y-2 rounded-xl border border-border p-3">
+              <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground">Question</label>
+              <Input
+                value={pollQuestion}
+                onChange={(e) => setPollQuestion(e.target.value)}
+                maxLength={200}
+                placeholder="Which one wins?"
+                className="h-10 rounded-xl"
+              />
+              <div className="space-y-1.5">
+                {pollOptions.map((option, index) => (
+                  <Input
+                    key={index}
+                    value={option}
+                    maxLength={140}
+                    placeholder={`Option ${index + 1}`}
+                    onChange={(e) =>
+                      setPollOptions((prev) => prev.map((o, i) => (i === index ? e.target.value : o)))
+                    }
+                    className="h-9 rounded-xl"
+                  />
+                ))}
+              </div>
+              {pollOptions.length < 6 && (
+                <button
+                  type="button"
+                  onClick={() => setPollOptions((prev) => [...prev, ""])}
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  + Add option
+                </button>
+              )}
+            </div>
+          )}
           {forums.length > 0 && (
             <div>
               <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground">Forum</label>
@@ -938,7 +1038,14 @@ function NewThreadSheet({
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={submit} disabled={submitting || title.trim().length < 3}>
+            <Button
+              onClick={submit}
+              disabled={
+                submitting ||
+                title.trim().length < 3 ||
+                (!content.trim() && !media && (!pollOn || !pollQuestion.trim()))
+              }
+            >
               {submitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Plus className="mr-1.5 h-4 w-4" />}
               Post thread
             </Button>

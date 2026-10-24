@@ -89,6 +89,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const meta = (post.content_metadata || {}) as Record<string, any>
+    // Poll attached to this thread, if the author started one.
+    const { data: pollRow } = await sb
+      .from("circle_post_polls")
+      .select("id, question, options, total_votes, expires_at")
+      .eq("post_id", Number(threadId))
+      .maybeSingle()
     const body = String(post.content || "")
     const hasOwnTitle = Boolean(meta.title)
     const firstLine = body.split("\n")[0] || ""
@@ -169,6 +175,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         tags: Array.isArray(post.tags) ? post.tags : [],
         media_url: post.media_url || (Array.isArray(post.media_urls) ? post.media_urls[0] : null) || null,
         media_type: post.media_type || null,
+        poll: pollRow || null,
         author: author || null,
         forum: space ? { id: String(space.id), name: space.name, icon: space.icon } : null,
         pinned: Boolean(post.is_pinned),

@@ -28,6 +28,7 @@ export interface EditableCommunity {
   banner_url?: string | null
   cover_url?: string | null
   moderation_settings?: Record<string, any> | null
+  rules?: any
 }
 
 /** Edit a community's name, description, artwork and privacy (owners/admins only). */
@@ -57,6 +58,7 @@ export function EditCommunityDialog({
   const [visibleRoles, setVisibleRoles] = useState<string[]>([])
   const [mentionRoles, setMentionRoles] = useState<string[]>([])
   const [mentionableRoles, setMentionableRoles] = useState<string[]>([])
+  const [rulesText, setRulesText] = useState("")
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -71,6 +73,13 @@ export function EditCommunityDialog({
     setVisibleRoles(Array.isArray(settings.visible_roles) ? settings.visible_roles : [])
     setMentionRoles(Array.isArray(settings.mention_roles) ? settings.mention_roles : [])
     setMentionableRoles(Array.isArray(settings.mentionable_roles) ? settings.mentionable_roles : [])
+    // Rules arrive as an array (or `{ rules: [...] }` from older writers).
+    const list = Array.isArray(community.rules)
+      ? community.rules
+      : Array.isArray(community.rules?.rules)
+        ? community.rules.rules
+        : []
+    setRulesText(list.map((rule: any) => String(rule)).join("\n"))
   }, [
     open,
     community.name,
@@ -115,6 +124,7 @@ export function EditCommunityDialog({
           name: name.trim(),
           description: description.trim(),
           is_private: isPrivate,
+          rules: rulesText.split("\n").map((rule) => rule.trim()).filter(Boolean),
           banner_url: bannerUrl || null,
           cover_url: coverUrl || null,
           // Merged, because PATCH replaces this object wholesale.
@@ -253,6 +263,21 @@ export function EditCommunityDialog({
               />
             </span>
           </button>
+          <div className="space-y-1.5">
+            <Label htmlFor="community-rules" className="text-xs font-medium">
+              House rules
+            </Label>
+            <Textarea
+              id="community-rules"
+              value={rulesText}
+              onChange={(e) => setRulesText(e.target.value)}
+              rows={4}
+              placeholder={"Be kind.\nNo spoilers without a warning."}
+              className="resize-none rounded-xl text-sm"
+            />
+            <p className="text-[11px] text-muted-foreground">One rule per line — they number themselves.</p>
+          </div>
+
           {([
             {
               id: "comment" as const,

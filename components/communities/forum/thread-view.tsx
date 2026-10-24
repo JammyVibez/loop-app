@@ -78,6 +78,13 @@ type ThreadPayload = {
     tags: string[]
     media_url: string | null
     media_type: string | null
+    poll: {
+      id: string | number
+      question: string
+      options: Array<{ id: string; text: string; votes: number }>
+      total_votes: number
+      expires_at?: string | null
+    } | null
     author: Author | null
     forum: { id: string; name: string; icon?: string | null } | null
     pinned: boolean
@@ -620,6 +627,46 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
     }
   }
 
+  const [votedOption, setVotedOption] = useState<string | null>(null)
+
+  const votePoll = async (optionId: string) => {
+    const poll = data?.thread.poll
+    if (!poll || votedOption) return
+    if (!user) {
+      router.push(`/auth?returnTo=/communities/${communityId}/posts/${threadId}`)
+      return
+    }
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            thread: {
+              ...prev.thread,
+              poll: {
+                ...poll,
+                options: poll.options.map((o) => (o.id === optionId ? { ...o, votes: o.votes + 1 } : o)),
+                total_votes: (poll.total_votes || 0) + 1,
+              },
+            },
+          }
+        : prev,
+    )
+    setVotedOption(optionId)
+    try {
+      const res = await fetch(`/api/circles/${communityId}/posts/${threadId}/poll/vote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ optionId }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || "Could not vote")
+    } catch (e: any) {
+      setVotedOption(null)
+      setData((prev) => (prev ? { ...prev, thread: { ...prev.thread, poll } } : prev))
+      toast({ title: "Couldn't vote", description: e.message, variant: "destructive" })
+    }
+  }
+
   const editReply = async (r: Reply, content: string) => {
     try {
       const res = await fetch(`/api/communities/${communityId}/threads/${threadId}/comments/${r.id}`, {
@@ -844,6 +891,55 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
             {thread.media_url && (thread.media_type === "image" || !thread.media_type) && (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img src={thread.media_url} alt="" className="mt-3 max-h-96 w-full rounded-xl object-cover" />
+            )}
+            {thread.media_url && thread.media_type === "video" && (
+              <video
+                src={thread.media_url}
+                controls
+                playsInline
+                className="mt-3 max-h-96 w-full rounded-xl bg-black object-contain"
+              />
+            )}
+
+            {thread.poll && (
+              <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {thread.poll.question}
+                </p>
+                <div className="mt-3 space-y-2">
+                  {thread.poll.options.map((option) => {
+                    const total = thread.poll!.total_votes || 0
+                    const pct = total ? Math.round((option.votes / total) * 100) : 0
+                    const picked = votedOption === option.id
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        disabled={Boolean(votedOption)}
+                        onClick={() => void votePoll(String(option.id))}
+                        className={`relative block w-full overflow-hidden rounded-xl border px-3 py-2 text-left transition-colors ${
+                          picked ? "border-primary" : "border-border hover:border-primary/50"
+                        } ${votedOption ? "cursor-default" : "cursor-pointer"}`}
+                      >
+                        <span
+                          className="absolute inset-y-0 left-0 bg-primary/15"
+                          style={{ width: votedOption ? `${pct}%` : "0%" }}
+                        />
+                        <span className="relative flex items-center justify-between gap-3 text-sm font-semibold">
+                          <span className="truncate">{option.text}</span>
+                          {votedOption && (
+                            <span className="shrink-0 tabular-nums text-muted-foreground">{pct}%</span>
+                          )}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  {votedOption ? "Your vote is in." : "Pick one — you can vote once."}{' '}
+                  {thread.poll.total_votes || 0} vote{(thread.poll.total_votes || 0) === 1 ? "" : "s"}
+                </p>
+              </div>
             )}
             {thread.tags.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">

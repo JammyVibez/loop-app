@@ -187,6 +187,8 @@ export function NotificationDropdown() {
       if (response.ok) {
         setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)))
         setUnreadCount((prev) => Math.max(0, prev - 1))
+        // Tell the tab-bar badge so it drops without waiting for its poll.
+        window.dispatchEvent(new CustomEvent("loop:notifications-changed"))
       }
     } catch (error) {
       console.error("Error marking notification as read:", error)
@@ -204,6 +206,7 @@ export function NotificationDropdown() {
       if (response.ok) {
         setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
         setUnreadCount(0)
+        window.dispatchEvent(new CustomEvent("loop:notifications-changed"))
         toast({ title: "Success", description: "All notifications marked as read" })
       }
     } catch (error) {
