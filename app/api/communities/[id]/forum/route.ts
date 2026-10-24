@@ -5,6 +5,7 @@ import { getUserFromRequest } from "@/lib/server-auth"
 import { normalizeRules } from "@/lib/community-rules"
 import { can, loadRoleBadges, resolveAbilities } from "@/lib/community-permissions"
 import { decideThreadCreation, readThreadPolicy } from "@/lib/community-thread-policy"
+import { canComment, canViewForum, readPolicy } from "@/lib/community-policy"
 
 export const dynamic = "force-dynamic"
 
@@ -63,6 +64,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const isMember = isActiveMember(membership)
     const role = membership?.role || null
     const isStaff = Boolean(role && STAFF_ROLES.has(role))
+
+    // House policy — owners can keep the forum to chosen roles.
+    const policy = readPolicy((circle as any).moderation_settings)
+    if (!canViewForum(role, policy)) {
+      return NextResponse.json(
+        { error: "This community is only open to certain roles", locked: true },
+        { status: 403 },
+      )
+    }
     const canManage = Boolean(user && (isStaff || String(circle.owner_id) === user.id || String(circle.creator_id) === user.id))
 
     // Thread creation is a permission ∩ community policy: by default every
@@ -292,6 +302,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         can_create: createDecision.allowed,
         is_staff: isStaff,
         can_manage: canManage,
+        can_comment: canComment(role, policy),
         role,
       },
       threads,

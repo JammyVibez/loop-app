@@ -17,6 +17,7 @@ import { Spinner } from "@/components/ui/skeletons"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { uploadMediaFile } from "@/lib/client-media-upload"
+import { POLICY_LABELS, POLICY_ROLES } from "@/lib/community-policy"
 import { Check, ImagePlus, Loader2, Lock, Trash2, X } from "lucide-react"
 
 export interface EditableCommunity {
@@ -26,6 +27,7 @@ export interface EditableCommunity {
   is_private?: boolean | null
   banner_url?: string | null
   cover_url?: string | null
+  moderation_settings?: Record<string, any> | null
 }
 
 /** Edit a community's name, description, artwork and privacy (owners/admins only). */
@@ -51,6 +53,8 @@ export function EditCommunityDialog({
   const [bannerUrl, setBannerUrl] = useState(community.banner_url || "")
   const [coverUrl, setCoverUrl] = useState(community.cover_url || "")
   const [uploading, setUploading] = useState<"banner" | "cover" | null>(null)
+  const [commentRoles, setCommentRoles] = useState<string[]>([])
+  const [visibleRoles, setVisibleRoles] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -60,7 +64,18 @@ export function EditCommunityDialog({
     setIsPrivate(Boolean(community.is_private))
     setBannerUrl(community.banner_url || "")
     setCoverUrl(community.cover_url || "")
-  }, [open, community.name, community.description, community.is_private, community.banner_url, community.cover_url])
+    const settings = community.moderation_settings || {}
+    setCommentRoles(Array.isArray(settings.comment_roles) ? settings.comment_roles : [])
+    setVisibleRoles(Array.isArray(settings.visible_roles) ? settings.visible_roles : [])
+  }, [
+    open,
+    community.name,
+    community.description,
+    community.is_private,
+    community.banner_url,
+    community.cover_url,
+    community.moderation_settings,
+  ])
 
   const upload = async (kind: "banner" | "cover", file?: File | null) => {
     if (!file) return
@@ -98,6 +113,12 @@ export function EditCommunityDialog({
           is_private: isPrivate,
           banner_url: bannerUrl || null,
           cover_url: coverUrl || null,
+          // Merged, because PATCH replaces this object wholesale.
+          moderation_settings: {
+            ...(community.moderation_settings || {}),
+            comment_roles: commentRoles.length ? commentRoles : null,
+            visible_roles: visibleRoles.length ? visibleRoles : null,
+          },
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -224,6 +245,50 @@ export function EditCommunityDialog({
               />
             </span>
           </button>
+          {([
+            {
+              id: "comment" as const,
+              label: "Who can comment",
+              hint: "Leave empty for every member. Staff always keep their voice.",
+              value: commentRoles,
+              set: setCommentRoles,
+            },
+            {
+              id: "visible" as const,
+              label: "Who can see threads",
+              hint: "Leave empty for everyone who can reach the community.",
+              value: visibleRoles,
+              set: setVisibleRoles,
+            },
+          ]).map((group) => (
+            <div key={group.id} className="space-y-1.5">
+              <Label className="text-xs font-medium">{group.label}</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {POLICY_ROLES.map((role) => {
+                  const on = group.value.includes(role)
+                  return (
+                    <button
+                      key={role}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() =>
+                        group.set(on ? group.value.filter((r) => r !== role) : [...group.value, role])
+                      }
+                      className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                        on
+                          ? "border-primary/50 bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {POLICY_LABELS[role]}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-[11px] text-muted-foreground">{group.hint}</p>
+            </div>
+          ))}
+
           {onRequestDelete && (
             <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
               <p className="text-xs font-bold text-destructive">Danger zone</p>

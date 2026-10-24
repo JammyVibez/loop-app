@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { communityClient, logCommunityActivity } from "@/lib/community-engine"
 import { loadRoleBadges } from "@/lib/community-permissions"
 import { checkCirclePrivateAccess } from "@/lib/circle-access"
+import { canComment, canMention, extractMentions, mentionableRoles, readPolicy } from "@/lib/community-policy"
 import { getUserFromRequest } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
@@ -220,9 +221,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (post.comments_locked) return NextResponse.json({ error: "This thread is locked" }, { status: 403 })
     if (String(post.status || "") === "hidden") return NextResponse.json({ error: "Thread not found" }, { status: 404 })
 
+    // House policy: which roles may comment here. Staff keep their powers.
+    const { data: circleRow } = await sb
+      .from("circles")
+      .select("moderation_settings")
+      .eq("id", id)
+      .maybeSingle()
+    const policy = readPolicy(circleRow?.moderation_settings)
+    if (!canComment(membership.role, policy)) {
+      return NextResponse.json({ error: "Only certain roles can comment in this community" }, { status: 403 })
+    }
+
     const body = await request.json()
     const content = String(body.content || "").trim().slice(0, 8000)
-    if (!content) return NextResponse.json({ error: "Write a reply first" }, { status: 400 })
+    const mediaUrl = typeof body.media_url === "string" && body.media_url ? body.media_url.slice(0, 600) : null
+    const mediaType = mediaUrl ? (body.media_type === "video" ? "video" : "image") : null
+    // A reply can be media-only — a screenshot answers plenty of threads.
+    if (!content && !mediaUrl) return NextResponse.json({ error: "Write a reply first" }, { status: 400 })
 
     let parentId: number | null = null
     const parentRaw = body.parent_comment_id ?? body.parent_id
@@ -244,6 +259,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         post_id: threadId,
         author_id: user.id,
         content,
+        media_url: mediaUrl,
+        media_type: mediaType,
         parent_comment_id: parentId,
         created_at: now,
         updated_at: now,
@@ -311,6 +328,52 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       )
     } catch {
       /* notifications are best-effort */
+    }
+
+    // @mentions: the people named are told directly; naming a role fans the
+    // notification out to everyone holding it (capped, so it stays a ping and
+    // not a broadcast storm).
+    try {
+      if (content.includes("@") && canMention(membership.role, policy)) {
+        const { notifyUser } = await import("@/lib/notifications")
+        const { usernames, roles } = extractMentions(content)
+        const mentioned = new Set<string>()
+
+        if (usernames.length) {
+          const { data: people } = await sb.from("profiles").select("id, username").in("username", usernames)
+          for (const person of people || []) if (String(person.id) !== user.id) mentioned.add(String(person.id))
+        }
+
+        for (const role of mentionableRoles(roles, policy)) {
+          const { data: holders } = await sb
+            .from("circle_members")
+            .select("user_id")
+            .eq("circle_id", id)
+            .eq("role", role)
+            .in("status", ["active", "approved"])
+            .limit(50)
+          for (const holder of holders || []) if (String(holder.user_id) !== user.id) mentioned.add(String(holder.user_id))
+        }
+
+        if (mentioned.size) {
+          await Promise.all(
+            [...mentioned].map((rid) =>
+              notifyUser(sb, {
+                userId: rid,
+                type: "community_mention",
+                title: "You were mentioned in a community",
+                message: (content || "Shared media in a reply").slice(0, 120),
+                actorId: user.id,
+                actionUrl: `/communities/${id}/posts/${threadId}`,
+                data: { circle_id: id, post_id: threadId, reply_id: String(reply.id) },
+                pushCategory: "social",
+              }),
+            ),
+          )
+        }
+      }
+    } catch {
+      /* mentions are best-effort */
     }
 
     return NextResponse.json({
