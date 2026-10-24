@@ -60,6 +60,7 @@ import { VerificationSettings } from "@/components/settings/verification-setting
 import { VideoMediaSettings } from "@/components/cosmetics/video-media-settings"
 import { ImageCropDialog } from "@/components/ui/image-crop-dialog"
 import { AccountSwitcher } from "@/components/accounts/account-switcher"
+import { useDataSaver } from "@/hooks/use-data-saver"
 import { cn } from "@/lib/utils"
 
 const PRONOUN_CHOICES = ["she/her", "he/him", "they/them", "she/they", "he/they", "any/all"]
@@ -75,6 +76,7 @@ export function EnhancedSettings() {
   const { user, getAuthHeader, applyServerProfile, refreshUser } = useAuth()
   const { theme, setTheme, resolvedTheme } = useTheme()
   const { toast } = useToast()
+  const dataSaver = useDataSaver()
   const searchParams = useSearchParams()
   const requestedTab = searchParams?.get("tab") || "profile"
   const [tab, setTab] = useState(requestedTab)
@@ -856,6 +858,30 @@ export function EnhancedSettings() {
                     <div className="h-2 w-3/4 rounded bg-slate-800" />
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Data saver</CardTitle>
+              <CardDescription>
+                For slow or metered connections: no autoplay, lighter images and calmer effects.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-border px-3 py-3">
+                <div>
+                  <Label htmlFor="data_saver">Data saver mode</Label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {dataSaver.enabled ? "On — tap media to load it in full quality" : "Off — full quality everywhere"}
+                  </p>
+                </div>
+                <Switch
+                  id="data_saver"
+                  checked={dataSaver.enabled}
+                  onCheckedChange={dataSaver.setEnabled}
+                />
               </div>
             </CardContent>
           </Card>

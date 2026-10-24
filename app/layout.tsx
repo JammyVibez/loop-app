@@ -15,6 +15,7 @@ import { ThemeSync } from "../providers/theme-sync"
 import { Theme3DProvider } from "../providers/theme-3d-provider"
 import { RealtimeProvider } from "@/providers/realtime-provider"
 import { Toaster } from "@/components/ui/toaster"
+import { DataSaverProvider, DataSaverBanner } from "@/hooks/use-data-saver"
 import { ConfirmDialogHost } from "@/components/ui/confirm-dialog"
 import { OnboardingRedirect } from "@/components/onboarding-redirect"
 import { AppChrome } from "@/components/layout/app-chrome"
@@ -259,6 +260,7 @@ export default function RootLayout({
               <RealtimeProvider>
                 <MaintenanceGate>
                   <OnboardingRedirect>
+                    <DataSaverProvider>
                     <div className="min-h-screen bg-background text-foreground">
                       <div id="theme-environment" className="fixed inset-0 pointer-events-none z-[-1]" />
                       <div className="relative z-10 flex min-h-screen">
@@ -274,6 +276,7 @@ export default function RootLayout({
                       <NotificationAutoPrompt />
                       <NativeShell />
                       <Toaster />
+                      <DataSaverBanner />
                       <ConfirmDialogHost />
                       <OfflineIndicator />
                       <Analytics />
@@ -282,6 +285,7 @@ export default function RootLayout({
                       <div id="performance-monitor" className="hidden" />
                       <div id="accessibility-announcements" className="sr-only" aria-live="polite" aria-atomic="true" />
                     </div>
+                    </DataSaverProvider>
                   </OnboardingRedirect>
                 </MaintenanceGate>
               </RealtimeProvider>

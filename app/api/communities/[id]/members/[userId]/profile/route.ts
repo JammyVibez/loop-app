@@ -50,7 +50,7 @@ export async function GET(
       sb
         .from("profiles")
         .select(
-          "id, username, display_name, avatar_url, bio, is_verified, is_premium, equipped_frame_id",
+          "id, username, display_name, avatar_url, banner_url, bio, is_verified, is_premium, equipped_frame_id",
         )
         .eq("id", userId)
         .maybeSingle(),
@@ -71,12 +71,31 @@ export async function GET(
       return role ? [{ id: String(role.id), name: role.name, color: role.color || null, icon: role.icon || null }] : []
     })
 
-    const { count: postCount } = await sb
-      .from("circle_posts")
-      .select("id", { count: "exact", head: true })
-      .eq("circle_id", id)
-      .eq("author_id", userId)
-      .neq("status", "hidden")
+    const [{ count: postCount }, { count: messageCount }, viewerMembership] = await Promise.all([
+      sb
+        .from("circle_posts")
+        .select("id", { count: "exact", head: true })
+        .eq("circle_id", id)
+        .eq("author_id", userId)
+        .neq("status", "hidden"),
+      sb
+        .from("circle_post_comments")
+        .select("id", { count: "exact", head: true })
+        .eq("circle_id", id)
+        .eq("author_id", userId),
+      viewer
+        ? sb
+            .from("circle_members")
+            .select("role, status")
+            .eq("circle_id", id)
+            .eq("user_id", viewer.id)
+            .maybeSingle()
+        : Promise.resolve({ data: null as any }),
+    ])
+
+    // Mod actions only make sense for staff, and only on someone else.
+    const viewerRole = String(viewerMembership?.data?.role || "")
+    const canModerate = ["owner", "admin", "moderator"].includes(viewerRole) && viewer?.id !== userId
 
     return NextResponse.json({
       profile,
@@ -90,6 +109,9 @@ export async function GET(
         : null,
       powers,
       post_count: postCount || 0,
+      message_count: messageCount || 0,
+      can_moderate: canModerate,
+      viewer_role: viewerRole || null,
     })
   } catch (e: any) {
     console.error("[mini-profile] GET error:", e)

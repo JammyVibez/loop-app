@@ -1,3 +1,11 @@
+/* Data saver stands down the decorative motion layer; spinners and progress
+   indicators stay alive because they carry state. */
+[data-data-saver] .animate-pulse,
+[data-data-saver] .animate-bounce,
+[data-data-saver] [class*="animate-[seal-"] {
+  animation: none !important;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
