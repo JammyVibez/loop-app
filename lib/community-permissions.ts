@@ -305,6 +305,78 @@ export function isPermissionKey(key: string) {
   return PERMISSION_SET.has(key)
 }
 
+/** ── Role chips ──────────────────────────────────────────────────────
+ *
+ * The chip that sits in front of a name in a community. Every author-heavy
+ * surface (forum list, thread replies, member panels) loads badges for its
+ * authors in one shot instead of resolving each person's membership.
+ */
+export interface RoleBadge {
+  name: string
+  color: string
+  icon?: string | null
+  source: "base" | "power"
+  priority: number
+}
+
+const BASE_BADGES: Record<string, RoleBadge> = {
+  owner: { name: "Owner", color: "#F59E0B", icon: "crown", source: "base", priority: 100 },
+  admin: { name: "Admin", color: "#EF4444", icon: "shield", source: "base", priority: 90 },
+  moderator: { name: "Mod", color: "#22C55E", icon: "shield", source: "base", priority: 80 },
+}
+
+/**
+ * One query per surface: base role + assigned Powers for every author id.
+ * A staff base role wins over any Power (you always want to see the Admin),
+ * otherwise the highest-priority Power is shown.
+ */
+export async function loadRoleBadges(
+  sb: SB,
+  circleId: number | string,
+  userIds: Array<string | number | null | undefined>,
+): Promise<Record<string, RoleBadge>> {
+  const ids = Array.from(new Set(userIds.map((u) => String(u || "")).filter(Boolean)))
+  if (!ids.length) return {}
+
+  const out: Record<string, RoleBadge> = {}
+
+  const [{ data: memberships }, { data: assignments }] = await Promise.all([
+    sb.from("circle_members").select("user_id, role").eq("circle_id", circleId).in("user_id", ids),
+    sb.from("community_member_roles").select("user_id, role_id").eq("circle_id", circleId).in("user_id", ids),
+  ])
+
+  for (const m of memberships || []) {
+    const base = BASE_BADGES[String(m.role || "").toLowerCase()]
+    if (base) out[String(m.user_id)] = base
+  }
+
+  const roleIds = Array.from(new Set((assignments || []).map((a: any) => Number(a.role_id)).filter(Boolean)))
+  let powers: Power[] = []
+  if (roleIds.length) {
+    const { data: rows } = await sb.from("community_roles").select("*").in("id", roleIds)
+    powers = (rows || []).map((r: any) => ({ ...r, permissions: normalizePermissions(r.permissions) }))
+  }
+  const powerById = new Map(powers.map((p) => [Number(p.id), p]))
+
+  for (const a of assignments || []) {
+    const uid = String(a.user_id)
+    const held = powerById.get(Number(a.role_id))
+    if (!held) continue
+    const current = out[uid]
+    if (current && current.source === "base") continue
+    const badge: RoleBadge = {
+      name: held.name,
+      color: held.color || POWER_COLORS[0],
+      icon: held.icon,
+      source: "power",
+      priority: Number(held.priority || 0),
+    }
+    if (!current || badge.priority > current.priority) out[uid] = badge
+  }
+
+  return out
+}
+
 /** The viewer's role + Powers + permissions in one call — every route uses this. */
 export async function viewerAbilities(sb: SB, circleId: number | string, userId: string | null) {
   if (!userId) {

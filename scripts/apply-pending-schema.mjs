@@ -81,6 +81,9 @@ const DEFAULT_FILES = [
   // Quote rebranches: a top-level post that references the post it quotes
   // (`quoted_loop_id`) instead of copying its content.
   "scripts/quote-rebranch-schema.sql",
+  // Discord-style community comments: emoji reactions on replies, stored on
+  // the comment row so a thread load needs no extra query.
+  "scripts/community-comment-reactions.sql",
 ]
 
 // Allow a targeted run: node apply-pending-schema.mjs scripts/foo.sql …

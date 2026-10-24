@@ -102,6 +102,27 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Welcome bot — greets new members the moment they join (public circles).
     if (status === "active") {
+      // The default-Power grant runs on INSERT (trg_grant_default_powers), but
+      // rejoining reuses the row with an UPDATE — so anyone who left and came
+      // back would silently hold no Powers. Grant it explicitly, idempotently.
+      try {
+        const { data: defRole } = await supabase
+          .from("community_roles")
+          .select("id")
+          .eq("circle_id", circleId)
+          .eq("is_default", true)
+          .maybeSingle()
+        if (defRole?.id) {
+          await supabase
+            .from("community_member_roles")
+            .upsert(
+              { circle_id: circleId, user_id: user.id, role_id: defRole.id },
+              { onConflict: "user_id,role_id" },
+            )
+        }
+      } catch (err) {
+        console.error("default power grant:", err)
+      }
       try {
         const { runWelcomeBot } = await import("@/lib/circle-bots")
         await runWelcomeBot(supabase, circleId, user.id)

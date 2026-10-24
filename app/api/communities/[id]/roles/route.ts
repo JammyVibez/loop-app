@@ -10,6 +10,7 @@ import {
   viewerAbilities,
 } from "@/lib/community-permissions"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { DEFAULT_THREAD_POLICY, readThreadPolicy, type ThreadCreationPolicy } from "@/lib/community-thread-policy"
 
 function cleanPermissions(raw: unknown): string[] {
   if (!Array.isArray(raw)) return []
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const user = await getUserFromRequest(request)
     const sb = communityClient()
 
-    const { data: circle } = await sb.from("circles").select("id, is_private").eq("id", id).maybeSingle()
+    const { data: circle } = await sb.from("circles").select("id, is_private, settings").eq("id", id).maybeSingle()
     if (!circle) return NextResponse.json({ error: "Community not found" }, { status: 404 })
 
     const abilities = await viewerAbilities(sb, id, user?.id || null)
@@ -50,6 +51,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       ...payload,
       can_assign: can(abilities.permissions, "power.assign"),
       can_edit: can(abilities.permissions, "power.assign"),
+      can_edit_settings: can(abilities.permissions, "community.settings"),
+      thread_creation: readThreadPolicy((circle as any).settings),
       viewer_powers: abilities.powers.map((p) => p.id),
       viewer_permissions: Array.from(abilities.permissions),
     })
@@ -124,7 +127,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 }
 
-/** PATCH — edit a Power. */
+/** PATCH — edit a Power, or the community's thread-creation policy. */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
@@ -133,11 +136,44 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const sb = communityClient()
 
     const abilities = await viewerAbilities(sb, id, user.id)
+    const body = await request.json().catch(() => ({}))
+
+    // ── Thread-creation policy: who in this community may start threads ──
+    if (body.thread_creation !== undefined) {
+      if (!can(abilities.permissions, "community.settings")) {
+        return NextResponse.json({ error: "Only owners and admins change this" }, { status: 403 })
+      }
+      const raw = (body.thread_creation || {}) as { mode?: unknown; roles?: unknown }
+      const policy: ThreadCreationPolicy = raw.mode === "roles"
+        ? {
+            mode: "roles",
+            roles: Array.isArray(raw.roles)
+              ? Array.from(new Set(raw.roles.map((r) => Number(r)).filter((r) => Number.isFinite(r) && r > 0)))
+              : [],
+          }
+        : { ...DEFAULT_THREAD_POLICY }
+
+      const { data: circle } = await sb.from("circles").select("settings").eq("id", id).maybeSingle()
+      const settings =
+        circle?.settings && typeof circle.settings === "object" && !Array.isArray(circle.settings)
+          ? { ...(circle.settings as Record<string, any>) }
+          : {}
+      settings.thread_creation = policy
+      const { error } = await sb.from("circles").update({ settings, updated_at: new Date().toISOString() }).eq("id", id)
+      if (error) return NextResponse.json({ error: "Could not save that policy" }, { status: 500 })
+
+      await logCommunityActivity(sb, id, user.id, "community_updated", "circle", id, {
+        fields: ["thread_creation"],
+        mode: policy.mode,
+        roles: policy.roles.length,
+      })
+      return NextResponse.json({ thread_creation: policy })
+    }
+
     if (!can(abilities.permissions, "power.assign")) {
       return NextResponse.json({ error: "You can't edit Powers here" }, { status: 403 })
     }
 
-    const body = await request.json().catch(() => ({}))
     const roleId = Number(body.id)
     if (!roleId) return NextResponse.json({ error: "Missing Power id" }, { status: 400 })
 

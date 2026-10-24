@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, type TouchEvent as ReactTouchEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { RichContent } from "@/components/content/rich-content"
 import { Spinner } from "@/components/ui/skeletons"
+import { RoleChip, type RoleBadgeLike } from "@/components/communities/forum/role-chip"
 import { cn } from "@/lib/utils"
 import {
   ArrowBigUp,
@@ -30,6 +31,7 @@ import {
   Pin,
   Send,
   Shield,
+  SmilePlus,
   Trash2,
   Unlock,
   X,
@@ -41,6 +43,14 @@ type Author = {
   display_name: string | null
   avatar_url: string | null
   is_verified?: boolean
+  role_badge?: RoleBadgeLike | null
+}
+
+type CommentReaction = {
+  emoji: string
+  count: number
+  users: string[]
+  reacted: boolean
 }
 
 type Reply = {
@@ -50,6 +60,7 @@ type Reply = {
   media_type: string | null
   created_at: string
   hidden: boolean
+  reactions?: CommentReaction[]
   author: Author | null
   is_author: boolean
   parent: { id: string; content: string; author_name: string } | null
@@ -98,6 +109,249 @@ function timeAgo(value: string) {
   const days = Math.floor(hours / 24)
   if (days < 30) return `${days}d ago`
   return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+}
+
+/** Hover timestamp — Discord's absolute time once a message leaves "now". */
+function clockTime(value: string) {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ""
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  })
+}
+
+/** The quick-reaction shelf shown on hover / long press. */
+const QUICK_EMOJIS = ["👍", "❤️", "😂", "🔥", "🎉", "😮", "🙏"]
+
+/** One local toggle, so a reaction feels instant before the server answers. */
+function applyReaction(list: CommentReaction[], emoji: string, userId: string): CommentReaction[] {
+  const next = list.map((r) => ({ ...r, users: [...r.users] }))
+  const existing = next.find((r) => r.emoji === emoji)
+  if (!existing) {
+    return [...next, { emoji, count: 1, users: [userId], reacted: true }]
+  }
+  const has = existing.users.includes(userId)
+  existing.users = has ? existing.users.filter((u) => u !== userId) : [...existing.users, userId]
+  existing.count = existing.users.length
+  existing.reacted = !has
+  return existing.count > 0 ? next : next.filter((r) => r.emoji !== emoji)
+}
+
+/* ─────────────────── One message in the reply list ───────────────────
+ * Borderless Discord-style row: avatar + name + role chip + time on the first
+ * line, message underneath, reaction pills below that. Consecutive messages
+ * from the same person collapse into a compact row whose left gutter shows the
+ * time on hover. Swiping a row right (or hitting reply) targets it.
+ */
+function MessageRow({
+  reply,
+  compact,
+  last,
+  canInteract,
+  onReply,
+  onReact,
+}: {
+  reply: Reply
+  compact: boolean
+  last: boolean
+  canInteract: boolean
+  onReply: (reply: Reply) => void
+  onReact: (reply: Reply, emoji: string) => void
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [dragX, setDragX] = useState(0)
+  const touch = useRef<{ x: number; y: number; axis: "x" | "y" | null } | null>(null)
+  const dragRef = useRef(0)
+
+  const name = reply.author?.display_name || reply.author?.username || "Member"
+  const reactions = reply.reactions || []
+
+  const onTouchStart = (e: ReactTouchEvent) => {
+    if (!canInteract) return
+    const t = e.touches[0]
+    touch.current = { x: t.clientX, y: t.clientY, axis: null }
+  }
+  const onTouchMove = (e: ReactTouchEvent) => {
+    const s = touch.current
+    if (!s || !canInteract) return
+    const t = e.touches[0]
+    const dx = t.clientX - s.x
+    const dy = t.clientY - s.y
+    if (!s.axis) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) s.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y"
+    }
+    if (s.axis !== "x") return
+    const clamped = Math.max(0, Math.min(96, dx))
+    dragRef.current = clamped
+    setDragX(clamped)
+  }
+  const onTouchEnd = () => {
+    if (dragRef.current > 56) onReply(reply)
+    dragRef.current = 0
+    setDragX(0)
+    touch.current = null
+  }
+
+  return (
+    <li className="group relative">
+      {/* Swipe affordance — fades in as the row is pulled toward a reply */}
+      <span
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute left-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-primary/15 text-primary transition-opacity",
+          dragX > 6 ? "opacity-100" : "opacity-0",
+        )}
+      >
+        <CornerDownRight className="h-4 w-4" />
+      </span>
+
+      <div
+        className={cn(
+          "relative rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/40",
+          compact && "py-0.5",
+          !last && "pb-1.5",
+          reply.hidden && "bg-rose-500/[0.05] hover:bg-rose-500/[0.08]",
+        )}
+        style={{
+          transform: dragX ? `translateX(${dragX}px)` : undefined,
+          transitionDuration: dragX ? "0ms" : "140ms",
+          transitionProperty: "transform, background-color",
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
+      >
+        {/* Reply preview — Discord's inline quote, not a nested card */}
+        {reply.parent && (
+          <div className="mb-1 flex items-center gap-1.5 pl-11 text-[11px] text-muted-foreground">
+            <CornerDownRight className="h-3 w-3 shrink-0" />
+            <span className="shrink-0 font-semibold text-foreground/80">{reply.parent.author_name}</span>
+            <span className="truncate opacity-80">{reply.parent.content}</span>
+          </div>
+        )}
+
+        <div className="flex gap-2.5">
+          {compact ? (
+            <div className="flex w-9 shrink-0 justify-center pt-1">
+              <span className="hidden text-[9px] leading-none text-muted-foreground group-hover:inline">
+                {new Date(reply.created_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+              </span>
+            </div>
+          ) : (
+            <Avatar className="mt-0.5 h-9 w-9 shrink-0">
+              <AvatarImage src={reply.author?.avatar_url || undefined} alt="" />
+              <AvatarFallback className="text-[10px]">{initials(reply.author?.display_name || reply.author?.username)}</AvatarFallback>
+            </Avatar>
+          )}
+
+          <div className="min-w-0 flex-1">
+            {!compact && (
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                <Link
+                  href={`/profile/${reply.author?.username || reply.author?.id || ""}`}
+                  className="truncate text-[13px] font-semibold text-foreground hover:underline"
+                >
+                  {name}
+                </Link>
+                {reply.author?.role_badge && <RoleChip badge={reply.author.role_badge} />}
+                <span className="text-[10px] text-muted-foreground" title={clockTime(reply.created_at)}>
+                  {timeAgo(reply.created_at)}
+                </span>
+                {reply.hidden && (
+                  <span className="rounded-full bg-rose-500/10 px-1.5 py-px text-[9px] font-bold text-rose-500">hidden</span>
+                )}
+              </div>
+            )}
+
+            <div className={cn("text-sm leading-relaxed text-foreground/90", compact && "mt-0")}>
+              <RichContent text={reply.content} />
+            </div>
+
+            {reply.media_url && (reply.media_type === "image" || !reply.media_type) && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={reply.media_url} alt="" className="mt-1.5 max-h-72 w-full rounded-lg object-cover" />
+            )}
+
+            {reactions.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {reactions.map((rx) => (
+                  <button
+                    key={rx.emoji}
+                    type="button"
+                    disabled={!canInteract}
+                    aria-label={`${rx.emoji} · ${rx.count}`}
+                    onClick={() => onReact(reply, rx.emoji)}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs transition-colors",
+                      rx.reacted
+                        ? "bg-primary/15 text-primary ring-1 ring-primary/50"
+                        : "bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                    )}
+                  >
+                    <span className="leading-none">{rx.emoji}</span>
+                    <span className="text-[11px] font-bold tabular-nums leading-none">{rx.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Action bar — appears on hover (desktop) / always on touch */}
+        {canInteract && (
+          <div className="absolute -top-3 right-1 flex items-center gap-0.5 rounded-full border border-border bg-card px-0.5 py-0.5 shadow-sm opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+            <button
+              type="button"
+              aria-label="Add reaction"
+              onClick={() => setPickerOpen((v) => !v)}
+              className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <SmilePlus className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              aria-label={`Reply to ${name}`}
+              onClick={() => onReply(reply)}
+              className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <CornerDownRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
+        {pickerOpen && canInteract && (
+          <div className="absolute -top-9 right-1 z-10 flex items-center gap-0.5 rounded-full border border-border bg-card px-1.5 py-1 shadow-lg">
+            {QUICK_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                aria-label={`React with ${emoji}`}
+                onClick={() => {
+                  onReact(reply, emoji)
+                  setPickerOpen(false)
+                }}
+                className="rounded-full px-1 text-base leading-none transition-transform hover:scale-125"
+              >
+                {emoji}
+              </button>
+            ))}
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => setPickerOpen(false)}
+              className="ml-0.5 rounded-full p-1 text-muted-foreground hover:bg-muted"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+      </div>
+    </li>
+  )
 }
 
 export function ForumThread({ communityId, threadId }: { communityId: string; threadId: string }) {
@@ -213,6 +467,35 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
       toast({ title: "Could not reply", description: e.message, variant: "destructive" })
     } finally {
       setSending(false)
+    }
+  }
+
+  const react = async (r: Reply, emoji: string) => {
+    if (!user) {
+      router.push(`/auth?returnTo=/communities/${communityId}/posts/${threadId}`)
+      return
+    }
+    if (!data) return
+    const optimistic = applyReaction(r.reactions || [], emoji, user.id)
+    setData((prev) =>
+      prev ? { ...prev, replies: prev.replies.map((x) => (x.id === r.id ? { ...x, reactions: optimistic } : x)) } : prev,
+    )
+    try {
+      const res = await fetch(`/api/communities/${communityId}/threads/${threadId}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ comment_id: r.id, emoji }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || "Reaction failed")
+      setData((prev) =>
+        prev
+          ? { ...prev, replies: prev.replies.map((x) => (x.id === r.id ? { ...x, reactions: json.reactions } : x)) }
+          : prev,
+      )
+    } catch (e: any) {
+      toast({ title: "Couldn't save that reaction", description: e.message, variant: "destructive" })
+      void load({ silent: true })
     }
   }
 
@@ -351,12 +634,15 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
             <AvatarFallback className="text-[10px]">{initials(thread.author?.display_name || thread.author?.username)}</AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <Link
-              href={`/profile/${thread.author?.username || thread.author?.id || ""}`}
-              className="block truncate text-xs font-semibold text-foreground hover:underline"
-            >
-              {thread.author?.display_name || thread.author?.username || "Member"}
-            </Link>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <Link
+                href={`/profile/${thread.author?.username || thread.author?.id || ""}`}
+                className="truncate text-xs font-semibold text-foreground hover:underline"
+              >
+                {thread.author?.display_name || thread.author?.username || "Member"}
+              </Link>
+              {thread.author?.role_badge && <RoleChip badge={thread.author.role_badge} />}
+            </span>
             <p className="text-[11px] text-muted-foreground">
               {timeAgo(thread.created_at)} · <Eye className="inline h-3 w-3" /> {thread.views}
             </p>
@@ -400,70 +686,50 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
         </div>
       </article>
 
-      {/* Replies */}
-      <section className="mt-4">
-        <h2 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+      {/* Replies — a plain message list: no cards, no borders, hover group */}
+      <section className="mt-5">
+        <h2 className="mb-1 flex items-center gap-1.5 px-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
           {replies.length} {replies.length === 1 ? "reply" : "replies"}
         </h2>
 
         {replies.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card px-5 py-10 text-center">
+          <div className="px-2 py-10 text-center">
             <p className="text-sm font-semibold">No replies yet</p>
-            <p className="mt-1 text-xs text-muted-foreground">Be the first to answer — good communities start with one person replying.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Be the first to answer — good communities start with one person replying.
+            </p>
           </div>
         ) : (
-          <ul className="space-y-2">
-            {replies.map((r) => (
-              <li
-                key={r.id}
-                className={cn(
-                  "rounded-2xl border border-border bg-card p-3 sm:p-4",
-                  r.hidden && "border-rose-500/30 bg-rose-500/[0.04]",
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-7 w-7">
-                    <AvatarImage src={r.author?.avatar_url || undefined} alt="" />
-                    <AvatarFallback className="text-[9px]">{initials(r.author?.display_name || r.author?.username)}</AvatarFallback>
-                  </Avatar>
-                  <Link
-                    href={`/profile/${r.author?.username || r.author?.id || ""}`}
-                    className="truncate text-xs font-semibold text-foreground hover:underline"
-                  >
-                    {r.author?.display_name || r.author?.username || "Member"}
-                  </Link>
-                  <span className="text-[11px] text-muted-foreground">{timeAgo(r.created_at)}</span>
-                  {r.hidden && (
-                    <span className="rounded-full bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-bold text-rose-600">hidden</span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setReplyTarget({
-                        id: r.id,
-                        name: r.author?.display_name || r.author?.username || "Member",
-                        content: r.content,
-                      })
-                      inputRef.current?.focus()
-                    }}
-                    className="ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  >
-                    <CornerDownRight className="h-3 w-3" /> Reply
-                  </button>
-                </div>
-
-                {r.parent && (
-                  <div className="mt-2 rounded-lg border-l-2 border-primary/50 bg-muted/50 px-2.5 py-1.5">
-                    <p className="text-[10px] font-bold text-primary">{r.parent.author_name}</p>
-                    <p className="line-clamp-2 text-[11px] text-muted-foreground">{r.parent.content}</p>
-                  </div>
-                )}
-
-                <div className="mt-1.5 pl-9">
-                  <RichContent text={r.content} className="text-sm leading-relaxed text-foreground/90" />
-                </div>
-              </li>
-            ))}
+          <ul className="min-w-0">
+            {replies.map((r, i) => {
+              const prev = replies[i - 1]
+              const next = replies[i + 1]
+              const sameAuthor = (a?: Reply | null, b?: Reply | null) =>
+                Boolean(a?.author?.id && b?.author?.id && a.author.id === b.author.id)
+              // Discord's rule: same author, no reply-break, consecutive.
+              const compact =
+                !r.parent && sameAuthor(prev, r) && !prev?.parent &&
+                new Date(r.created_at).getTime() - new Date(prev!.created_at).getTime() < 7 * 60_000
+              const lastOfGroup = !sameAuthor(r, next) || Boolean(next?.parent)
+              return (
+                <MessageRow
+                  key={r.id}
+                  reply={r}
+                  compact={compact}
+                  last={lastOfGroup}
+                  canInteract={Boolean(viewer.is_member && !thread.locked)}
+                  onReply={(target) => {
+                    setReplyTarget({
+                      id: target.id,
+                      name: target.author?.display_name || target.author?.username || "Member",
+                      content: target.content,
+                    })
+                    inputRef.current?.focus()
+                  }}
+                  onReact={react}
+                />
+              )
+            })}
           </ul>
         )}
       </section>

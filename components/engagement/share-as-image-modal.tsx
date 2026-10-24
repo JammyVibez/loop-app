@@ -4,10 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import { Download, Share2, BadgeCheck } from "lucide-react"
+import { Download, Share2, BadgeCheck, Moon, Sun, RotateCcw } from "lucide-react"
 import { getDiceBearUrl } from "@/lib/dicebear"
 import { Spinner } from "@/components/ui/skeletons"
 import { useVerificationBadges } from "@/hooks/use-verification-badges"
+import { cn } from "@/lib/utils"
 
 export interface ShareCardBadge {
   name?: string | null
@@ -143,14 +144,14 @@ function cardHeight(
   mediaH: number | null,
   quoteLines = 0,
   quoteMediaH: number | null = null,
+  showStats = true,
 ) {
   return (
     BODY_TOP +
     Math.max(1, lineCount) * BODY_LINE_H +
     (quoteLines ? quotePanelHeight(quoteLines, quoteMediaH) : 0) +
     (mediaH ? MEDIA_GAP + mediaH : 0) +
-    ENGAGE_GAP +
-    ICON +
+    (showStats ? ENGAGE_GAP + ICON : 0) +
     PAD
   )
 }
@@ -160,11 +161,44 @@ function estimateLines(body: string) {
   return Math.min(MAX_LINES, Math.max(1, Math.ceil(body.trim().length / perLine)))
 }
 
-/* ── Palette: flat deep navy-black, the way the reference card reads ──
- * No gradients — the only colour on the card comes from the app icon and the
- * author's own badges.
+/* ── Palette ─────────────────────────────────────────────────────────────
+ * Two themes, both flat — no gradients. The only colour on a card comes from
+ * the app icon, the author's badges and the accent the user picks in the
+ * designer. "dark" is the deep navy-black original; "light" is the same card
+ * in white for feeds and docs that render on white.
  */
-const C = {
+export type CardTheme = "dark" | "light"
+
+export interface ShareDesign {
+  theme: CardTheme
+  /** Accent used for the wordmark and the fallback verified seal. */
+  accent: string
+  /** Engagement row (hearts / replies / reposts). */
+  showStats: boolean
+  /** App icon + "Loop" wordmark on the card. */
+  showBrand: boolean
+}
+
+interface Palette {
+  bg: string
+  bgLift: string
+  rim: string
+  avatarRing: string
+  text: string
+  textStrong: string
+  textMuted: string
+  wordmark: string
+  quoteStroke: string
+  mediaStroke: string
+  letter: string
+  shadow: string
+  /** Brand constants that survive both themes. */
+  cyan: string
+  amberLight: string
+  proText: string
+}
+
+const DARK: Palette = {
   bg: "#0A0C18",
   bgLift: "#161B2E",
   rim: "rgba(255,255,255,0.10)",
@@ -172,12 +206,97 @@ const C = {
   text: "rgba(255,255,255,0.96)",
   textStrong: "#FFFFFF",
   textMuted: "rgba(255,255,255,0.55)",
+  wordmark: "rgba(255,255,255,0.92)",
+  quoteStroke: "rgba(255,255,255,0.08)",
+  mediaStroke: "rgba(255,255,255,0.10)",
+  letter: "rgba(255,255,255,0.85)",
+  shadow: "rgba(0,0,0,0.55)",
   cyan: "#22D3EE",
   amberLight: "#FBBF24",
   proText: "#241505",
 }
-/** The wordmark stays white — the icon already carries the brand colour. */
-const WORDMARK_COLOR = "rgba(255,255,255,0.92)"
+
+const LIGHT: Palette = {
+  bg: "#FFFFFF",
+  bgLift: "#F2F3F7",
+  rim: "rgba(13,16,32,0.12)",
+  avatarRing: "rgba(13,16,32,0.12)",
+  text: "rgba(17,20,33,0.94)",
+  textStrong: "#0B0E1A",
+  textMuted: "rgba(17,20,33,0.52)",
+  wordmark: "#0B0E1A",
+  quoteStroke: "rgba(13,16,32,0.10)",
+  mediaStroke: "rgba(13,16,32,0.12)",
+  letter: "rgba(11,14,26,0.72)",
+  shadow: "rgba(13,16,32,0.35)",
+  cyan: "#0891B2",
+  amberLight: "#F59E0B",
+  proText: "#241505",
+}
+
+function palette(theme: CardTheme): Palette {
+  return theme === "light" ? LIGHT : DARK
+}
+
+/** `#22D3EE` + 0.6 → `rgba(34,211,238,0.6)` — accents get used at opacity. */
+function hexAlpha(hex: string, alpha: number) {
+  const m = /^#([0-9a-fA-F]{6})$/.exec(hex.trim())
+  if (!m) return `rgba(34,211,238,${alpha})`
+  const n = parseInt(m[1], 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`
+}
+
+/** Accent swatches offered in the designer — brand cyan first. */
+export const ACCENT_SWATCHES = ["#22D3EE", "#7C3AED", "#6366F1", "#14B8A6", "#22C55E", "#F59E0B", "#EF4444", "#EC4899"] as const
+
+export const DEFAULT_DESIGN: ShareDesign = { theme: "dark", accent: "#22D3EE", showStats: true, showBrand: true }
+
+const DESIGN_STORAGE_KEY = "loop-share-design"
+
+/** The user's saved card design, tolerating anything stored under the key. */
+export function loadShareDesign(): ShareDesign {
+  if (typeof window === "undefined") return DEFAULT_DESIGN
+  try {
+    const raw = window.localStorage.getItem(DESIGN_STORAGE_KEY)
+    if (!raw) return DEFAULT_DESIGN
+    const parsed = JSON.parse(raw)
+    return {
+      theme: parsed?.theme === "light" ? "light" : "dark",
+      accent:
+        typeof parsed?.accent === "string" && /^#[0-9a-fA-F]{6}$/.test(parsed.accent)
+          ? parsed.accent
+          : DEFAULT_DESIGN.accent,
+      showStats: parsed?.showStats !== false,
+      showBrand: parsed?.showBrand !== false,
+    }
+  } catch {
+    return DEFAULT_DESIGN
+  }
+}
+
+export function saveShareDesign(design: ShareDesign) {
+  try {
+    window.localStorage.setItem(DESIGN_STORAGE_KEY, JSON.stringify(design))
+  } catch {
+    /* private mode — the design still applies for this session */
+  }
+}
+
+/**
+ * The palette the card is currently drawn in.
+ *
+ * Canvas renderer and HTML mirror both read it, and only one share dialog can
+ * exist at a time, so it is switched as a unit whenever the designer's theme
+ * changes (see `setCardPalette`) instead of threading a palette argument
+ * through forty call sites — where a single missed one would ship a white card
+ * with white text.
+ */
+let C: Palette = palette(DEFAULT_DESIGN.theme)
+function setCardPalette(theme: CardTheme) {
+  C = palette(theme)
+}
+/** The wordmark: theme ink, tuned with the accent when one is picked. */
+const WORDMARK_COLOR = C.wordmark
 
 function truncate(t: string, m: number) {
   const c = t.replace(/\s+/g, " ").trim()
@@ -461,19 +580,19 @@ async function ensureLogoBitmap(): Promise<AV | null> {
   return fallback
 }
 /** The wordmark that sits beside the app icon. */
-function drawWordmark(ctx: CanvasRenderingContext2D, x: number, baseline: number) {
+function drawWordmark(ctx: CanvasRenderingContext2D, x: number, baseline: number, color = WORDMARK_COLOR) {
   ctx.save()
   ctx.font = font(800, WORDMARK_FONT)
   ctx.textAlign = "left"
   ctx.textBaseline = "alphabetic"
-  ctx.fillStyle = WORDMARK_COLOR
+  ctx.fillStyle = color
   ctx.fillText("Loop", x, baseline)
   ctx.restore()
 }
 
 /* ── Engagement glyphs, stroked to match the muted footer ── */
-function strokeGlyph(ctx: CanvasRenderingContext2D, size: number) {
-  ctx.strokeStyle = C.textMuted
+function strokeGlyph(ctx: CanvasRenderingContext2D, size: number, muted = C.textMuted) {
+  ctx.strokeStyle = muted
   ctx.lineWidth = Math.max(1.9, size * 0.085)
   ctx.lineCap = "round"
   ctx.lineJoin = "round"
@@ -656,6 +775,7 @@ function drawCover(
   w: number,
   h: number,
   radius: number,
+  p: { bgLift: string; mediaStroke: string } = C,
 ) {
   const { w: iw, h: ih } = avDim(img)
   if (!iw || !ih) return
@@ -665,13 +785,13 @@ function drawCover(
   ctx.save()
   rr(ctx, x, y, w, h, radius)
   ctx.clip()
-  ctx.fillStyle = C.bgLift
+  ctx.fillStyle = p.bgLift
   ctx.fillRect(x, y, w, h)
   ctx.imageSmoothingQuality = "high"
   ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh)
   ctx.restore()
   rr(ctx, x + 0.5, y + 0.5, w - 1, h - 1, radius)
-  ctx.strokeStyle = "rgba(255,255,255,0.10)"
+  ctx.strokeStyle = p.mediaStroke
   ctx.lineWidth = 1
   ctx.stroke()
 }
@@ -685,13 +805,14 @@ function drawCard(
   av: AV | null,
   logo: AV | null,
   media: AV | null,
+  design: ShareDesign,
   quoteLines: string[] = [],
   quoteAv: AV | null = null,
   quoteMedia: AV | null = null,
   quoteMediaH: number | null = null,
 ) {
   const qh = m.quote ? quotePanelHeight(quoteLines.length, quoteMediaH) : 0
-  const h = cardHeight(lines.length, mediaH, m.quote ? quoteLines.length : 0, qh ? quoteMediaH : null)
+  const h = cardHeight(lines.length, mediaH, m.quote ? quoteLines.length : 0, qh ? quoteMediaH : null, design.showStats)
   const ctx = setup(canvas, CARD_W, h, scale)
   if (!ctx) return
 
@@ -736,28 +857,31 @@ function drawCard(
   }
   ctx.restore()
 
-  // Flat hairline ring, so the avatar reads as a deliberate element.
+  // Ring in the designer's accent, so the card's colour is the user's choice.
   ctx.save()
-  ctx.strokeStyle = C.avatarRing
+  ctx.strokeStyle = hexAlpha(design.accent, design.theme === "light" ? 0.55 : 0.75)
   ctx.lineWidth = RING
   circle(ctx, avCx, avCy, avR + RING / 2)
   ctx.stroke()
   ctx.restore()
 
   // Brand: the real app icon + wordmark, far top-right (the Substack slot).
-  const logoBaseline = PAD + (AV_BOX - LOGO) / 2
-  const wordmarkW = (() => {
-    ctx.save()
-    ctx.font = font(800, WORDMARK_FONT)
-    const w = ctx.measureText("Loop").width
-    ctx.restore()
-    return w
-  })()
-  const wordmarkX = CARD_W - PAD - wordmarkW
-  drawLogo(ctx, wordmarkX - WORDMARK_GAP - LOGO, logoBaseline, LOGO, logo)
-  drawWordmark(ctx, wordmarkX, logoBaseline + LOGO / 2 + WORDMARK_FONT * 0.35)
-
-  const brandLeft = wordmarkX - WORDMARK_GAP - LOGO
+  // Hidden entirely when the designer turns branding off.
+  let brandLeft = CARD_W - PAD
+  if (design.showBrand) {
+    const logoBaseline = PAD + (AV_BOX - LOGO) / 2
+    const wordmarkW = (() => {
+      ctx.save()
+      ctx.font = font(800, WORDMARK_FONT)
+      const w = ctx.measureText("Loop").width
+      ctx.restore()
+      return w
+    })()
+    const wordmarkX = CARD_W - PAD - wordmarkW
+    drawLogo(ctx, wordmarkX - WORDMARK_GAP - LOGO, logoBaseline, LOGO, logo)
+    drawWordmark(ctx, wordmarkX, logoBaseline + LOGO / 2 + WORDMARK_FONT * 0.35, C.wordmark)
+    brandLeft = wordmarkX - WORDMARK_GAP - LOGO
+  }
 
   // Badges stack to the right of the name
   let badgeW = 0
@@ -796,7 +920,7 @@ function drawCard(
   let bx = nameX + nameW + 12
   const by = nameBaseline - NAME_FONT * 0.78
   if (m.showVerified) {
-    drawSeal(ctx, bx, by, BADGE, m.verifiedColors)
+    drawSeal(ctx, bx, by, BADGE, [design.accent, "#818CF8"])
     bx += BADGE + 8
   }
   if (m.showPro) {
@@ -878,7 +1002,7 @@ function drawCard(
     ctx.restore()
 
     if (m.quote.showVerified) {
-      drawSeal(ctx, qNameX + qNameW + 10, qNameBase - QUOTE_NAME_FONT * 0.78, BADGE, [C.cyan, "#818CF8"])
+      drawSeal(ctx, qNameX + qNameW + 10, qNameBase - QUOTE_NAME_FONT * 0.78, BADGE, [design.accent, "#818CF8"])
     }
 
     ctx.save()
@@ -913,7 +1037,10 @@ function drawCard(
     afterBody += MEDIA_GAP + mediaH
   }
 
-  /* ── Engagement row, directly beneath the text (or the image) ── */
+  /* ── Engagement row, directly beneath the text (or the image) ──
+   * Optional: the designer can drop it for a cleaner card.
+   */
+  if (!design.showStats) return
   const engCy = afterBody + ENGAGE_GAP + ICON / 2
   ctx.save()
   ctx.font = font(600, COUNT_FONT)
@@ -962,6 +1089,7 @@ function CardPreview({
   mediaSrc,
   mediaH,
   height,
+  design,
   quoteLines = [],
   quoteAvatarSrc,
   quoteMediaSrc,
@@ -974,6 +1102,7 @@ function CardPreview({
   mediaSrc: string | null
   mediaH: number | null
   height: number
+  design: ShareDesign
   quoteLines?: string[]
   quoteAvatarSrc?: string
   quoteMediaSrc?: string | null
@@ -1033,7 +1162,7 @@ function CardPreview({
                 style={{
                   width: AV_BOX,
                   height: AV_BOX,
-                  background: C.avatarRing,
+                  background: hexAlpha(design.accent, design.theme === "light" ? 0.55 : 0.75),
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1067,7 +1196,7 @@ function CardPreview({
                       style={{
                         width: BADGE,
                         height: BADGE,
-                        background: m.verifiedColors[0],
+                        background: design.accent,
                       }}
                     >
                       <BadgeCheck style={{ width: 20, height: 20, color: "#FFFFFF" }} />
@@ -1109,25 +1238,27 @@ function CardPreview({
               </div>
 
               {/* App logo + wordmark, the brand slot at the top-right */}
-              <span className="flex shrink-0 items-center" style={{ gap: WORDMARK_GAP }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={logoSrc}
-                  alt="Loop"
-                  style={{ width: LOGO, height: LOGO, borderRadius: LOGO * 0.24, objectFit: "cover" }}
-                />
-                <span
-                  style={{
-                    fontSize: WORDMARK_FONT,
-                    fontWeight: 800,
-                    lineHeight: 1,
-                    letterSpacing: "-0.01em",
-                    color: WORDMARK_COLOR,
-                  }}
-                >
-                  Loop
+              {design.showBrand && (
+                <span className="flex shrink-0 items-center" style={{ gap: WORDMARK_GAP }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={logoSrc}
+                    alt="Loop"
+                    style={{ width: LOGO, height: LOGO, borderRadius: LOGO * 0.24, objectFit: "cover" }}
+                  />
+                  <span
+                    style={{
+                      fontSize: WORDMARK_FONT,
+                      fontWeight: 800,
+                      lineHeight: 1,
+                      letterSpacing: "-0.01em",
+                      color: C.wordmark,
+                    }}
+                  >
+                    Loop
+                  </span>
                 </span>
-              </span>
+              )}
             </div>
 
             {/* ── Body ── */}
@@ -1159,14 +1290,14 @@ function CardPreview({
                   padding: QUOTE_PAD,
                   borderRadius: 24,
                   background: C.bgLift,
-                  boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)",
+                  boxShadow: `inset 0 0 0 1px ${C.quoteStroke}`,
                   boxSizing: "border-box",
                 }}
               >
                 <div className="flex items-center" style={{ gap: 18 }}>
                   <span
                     className="flex shrink-0 items-center justify-center rounded-full"
-                    style={{ width: QUOTE_AV, height: QUOTE_AV, background: "rgba(255,255,255,0.08)" }}
+                    style={{ width: QUOTE_AV, height: QUOTE_AV, background: C.quoteStroke }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -1195,7 +1326,7 @@ function CardPreview({
                       {m.quote.showVerified && (
                         <span
                           className="flex shrink-0 items-center justify-center rounded-full"
-                          style={{ width: BADGE, height: BADGE, background: C.cyan }}
+                          style={{ width: BADGE, height: BADGE, background: design.accent }}
                         >
                           <BadgeCheck style={{ width: 20, height: 20, color: "#FFFFFF" }} />
                         </span>
@@ -1235,7 +1366,7 @@ function CardPreview({
                           height: quoteMediaH,
                           borderRadius: 16,
                           objectFit: "cover",
-                          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.10)",
+                          boxShadow: `inset 0 0 0 1px ${C.mediaStroke}`,
                         }}
                       />
                     </div>
@@ -1256,21 +1387,23 @@ function CardPreview({
                     height: mediaH,
                     borderRadius: 22,
                     objectFit: "cover",
-                    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.10)",
+                    boxShadow: `inset 0 0 0 1px ${C.mediaStroke}`,
                   }}
                 />
               </div>
             ) : null}
 
             {/* ── Engagement row ── */}
-            <div className="absolute flex items-center" style={{ top: engTop, left: PAD, gap: GAP_BETWEEN }}>
-              <EngagementItem icon={<HeartGlyph />} label={fmt(m.likes)} />
-              <EngagementItem icon={<ReplyGlyph />} label={fmt(m.replies)} />
-              <EngagementItem icon={<RepostGlyph />} label={fmt(m.reposts)} />
-              <span className="flex items-center" style={{ color: C.textMuted }}>
-                <ShareGlyph />
-              </span>
-            </div>
+            {design.showStats && (
+              <div className="absolute flex items-center" style={{ top: engTop, left: PAD, gap: GAP_BETWEEN }}>
+                <EngagementItem icon={<HeartGlyph />} label={fmt(m.likes)} />
+                <EngagementItem icon={<ReplyGlyph />} label={fmt(m.replies)} />
+                <EngagementItem icon={<RepostGlyph />} label={fmt(m.reposts)} />
+                <span className="flex items-center" style={{ color: C.textMuted }}>
+                  <ShareGlyph />
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1348,6 +1481,27 @@ export function ShareAsImageModal({ open, onOpenChange, post, quoted }: ShareAsI
     return { name: found.name, icon: found.icon, colors: found.colors }
   }, [post.author.badge, post.author.badge_id, badgeCatalog])
 
+  // The designer: theme (black / white), accent, and what the card shows.
+  // Saved so the next share starts the way this one looks.
+  const [design, setDesignState] = useState<ShareDesign>(() => loadShareDesign())
+  const updateDesign = (patch: Partial<ShareDesign>) => {
+    const next = { ...design, ...patch }
+    setDesignState(next)
+    saveShareDesign(next)
+    setCardPalette(next.theme)
+  }
+
+  // Reopening the dialog after another card changed the theme must not inherit
+  // a stale palette.
+  useEffect(() => {
+    if (open) setCardPalette(design.theme)
+  }, [open, design.theme])
+
+  // The draw effect reads the design through a ref so a palette switch alone
+  // doesn't tear down image loading — the `key` below still forces the redraw.
+  const designRef = useRef(design)
+  designRef.current = design
+
   const m = useMemo(() => model(post, resolvedBadge, quoted), [post, resolvedBadge, quoted])
   // The draw effect reads the model through a ref so re-renders of the parent
   // feed (new object identity every render) don't redraw the card. The stable
@@ -1415,8 +1569,15 @@ export function ShareAsImageModal({ open, onOpenChange, post, quoted }: ShareAsI
   }, [])
 
   const height = useMemo(
-    () => cardHeight(lines.length, mediaH, m.quote ? quoteLines.length : 0, m.quote ? quoteMediaH : null),
-    [lines.length, mediaH, m.quote, quoteLines.length, quoteMediaH],
+    () =>
+      cardHeight(
+        lines.length,
+        mediaH,
+        m.quote ? quoteLines.length : 0,
+        m.quote ? quoteMediaH : null,
+        design.showStats,
+      ),
+    [lines.length, mediaH, m.quote, quoteLines.length, quoteMediaH, design.showStats],
   )
 
   const key = useMemo(
@@ -1458,6 +1619,10 @@ export function ShareAsImageModal({ open, onOpenChange, post, quoted }: ShareAsI
       quoted?.author.is_verified,
       quoted?.text,
       quoteMediaSrc,
+      design.theme,
+      design.accent,
+      design.showStats,
+      design.showBrand,
     ],
   )
 
@@ -1526,7 +1691,7 @@ export function ShareAsImageModal({ open, onOpenChange, post, quoted }: ShareAsI
         avRef.current = av
         logoRef.current = logo
         quoteAvRef.current = quoteAv
-        drawCard(cv, mRef.current, lines, mh, SCALE, av, logo, mediaRef.current, quoteLines, quoteAv, quoteMediaRef.current, qmh)
+        drawCard(cv, mRef.current, lines, mh, SCALE, av, logo, mediaRef.current, designRef.current, quoteLines, quoteAv, quoteMediaRef.current, qmh)
         if (c || genRef.current !== g) return
         blobRef.current = await toBlob(cv)
         setRendered(true)
@@ -1560,7 +1725,7 @@ export function ShareAsImageModal({ open, onOpenChange, post, quoted }: ShareAsI
       logoRef.current = logo
     }
 
-    drawCard(cv, mRef.current, lines, mediaH, SCALE, avRef.current, logoRef.current, mediaRef.current, quoteLines, quoteAvRef.current, quoteMediaRef.current, quoteMediaH)
+    drawCard(cv, mRef.current, lines, mediaH, SCALE, avRef.current, logoRef.current, mediaRef.current, designRef.current, quoteLines, quoteAvRef.current, quoteMediaRef.current, quoteMediaH)
     const b = await toBlob(cv)
     blobRef.current = b
     return b
@@ -1629,6 +1794,7 @@ export function ShareAsImageModal({ open, onOpenChange, post, quoted }: ShareAsI
             mediaSrc={proxiedMediaSrc}
             mediaH={mediaH}
             height={height}
+            design={design}
             quoteLines={quoteLines}
             quoteAvatarSrc={quoteAvatarSrc}
             quoteMediaSrc={proxiedQuoteMediaSrc}
@@ -1641,6 +1807,94 @@ export function ShareAsImageModal({ open, onOpenChange, post, quoted }: ShareAsI
             </div>
           )}
         </div>
+        {/* ── Designer: how the card looks is the user's call ── */}
+        <div className="space-y-3 rounded-2xl border border-border bg-muted/30 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+              Design your card
+            </p>
+            <button
+              type="button"
+              onClick={() => updateDesign({ ...DEFAULT_DESIGN })}
+              className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <RotateCcw className="h-3 w-3" /> Reset
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { id: "dark" as const, label: "Black", Icon: Moon },
+              { id: "light" as const, label: "White", Icon: Sun },
+            ]).map(({ id, label, Icon }) => {
+              const active = design.theme === id
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => updateDesign({ theme: id })}
+                  className={cn(
+                    "flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors",
+                    active
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-background text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" /> {label}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold text-muted-foreground">Accent</span>
+            {ACCENT_SWATCHES.map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-label={`Accent ${c}`}
+                onClick={() => updateDesign({ accent: c })}
+                className={cn(
+                  "h-6 w-6 rounded-full transition-transform hover:scale-110",
+                  design.accent === c && "ring-2 ring-foreground ring-offset-2 ring-offset-background",
+                )}
+                style={{ background: c }}
+              />
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: "showStats" as const, label: "Engagement counts" },
+              { id: "showBrand" as const, label: "Loop logo" },
+            ].map((t) => {
+              const on = design[t.id]
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => updateDesign({ [t.id]: !on } as Partial<ShareDesign>)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                    on
+                      ? "border-primary/50 bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      on ? "bg-primary" : "bg-muted-foreground/50",
+                    )}
+                  />
+                  {t.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-2">
           <Button
             variant="outline"

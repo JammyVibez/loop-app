@@ -3,6 +3,8 @@ import { communityClient, logCommunityActivity } from "@/lib/community-engine"
 import { checkCirclePrivateAccess } from "@/lib/circle-access"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { normalizeRules } from "@/lib/community-rules"
+import { can, loadRoleBadges, resolveAbilities } from "@/lib/community-permissions"
+import { decideThreadCreation, readThreadPolicy } from "@/lib/community-thread-policy"
 
 export const dynamic = "force-dynamic"
 
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .select(
         `id, name, handle, description, avatar_url, banner_url, cover_url, category, tags, rules,
          is_private, is_verified, is_active, member_count, post_count, owner_id, creator_id,
-         accent_color, created_at, welcome_message, moderation_settings`,
+         accent_color, created_at, welcome_message, moderation_settings, settings`,
       )
       .eq("id", id)
       .maybeSingle()
@@ -62,6 +64,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const role = membership?.role || null
     const isStaff = Boolean(role && STAFF_ROLES.has(role))
     const canManage = Boolean(user && (isStaff || String(circle.owner_id) === user.id || String(circle.creator_id) === user.id))
+
+    // Thread creation is a permission ∩ community policy: by default every
+    // member who holds "Open threads" may start one; an owner who switched the
+    // community to role-gated threads narrows it to the chosen Powers.
+    const abilities = await resolveAbilities(sb, id, user?.id || null, role)
+    const createDecision = decideThreadCreation({
+      policy: readThreadPolicy((circle as any).settings),
+      isMember,
+      isStaff,
+      hasPermission: can(abilities.permissions, "thread.create"),
+      assignedRoleIds: abilities.powers.map((p) => Number(p.id)),
+    })
 
     const { searchParams } = new URL(request.url)
     const sort = searchParams.get("sort") || "latest"
@@ -108,6 +122,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Failed to load threads" }, { status: 500 })
     }
 
+    // Role chips on every thread's author, in one query.
+    const authorBadges = await loadRoleBadges(sb, id, (threadRows || []).map((p: any) => p.author_id))
+
     const threads = (threadRows || []).map((p: any) => {
       const meta = (p.content_metadata || {}) as Record<string, any>
       const author = Array.isArray(p.author) ? p.author[0] : p.author
@@ -125,7 +142,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         id: String(p.id),
         title,
         excerpt: (hasOwnTitle ? body : body).trim().slice(0, 220),
-        author: author || null,
+        author: author ? { ...author, role_badge: authorBadges[String(p.author_id)] || null } : null,
         forum: space ? { id: String(space.id), name: space.name, icon: space.icon, type: space.type } : null,
         tags: Array.isArray(p.tags) ? p.tags.filter(Boolean).slice(0, 4) : [],
         replies: Number(p.comment_count || 0),
@@ -262,6 +279,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       viewer: {
         is_member: isMember,
         can_post: isMember,
+        can_create: createDecision.allowed,
         is_staff: isStaff,
         can_manage: canManage,
         role,
@@ -303,6 +321,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const member = membership as MemberRole
     if (!isActiveMember(member)) {
       return NextResponse.json({ error: "Join this community to start a thread" }, { status: 403 })
+    }
+
+    // Same gate the list uses, so the button and the API can never disagree.
+    const { data: circleRow } = await sb.from("circles").select("settings").eq("id", id).maybeSingle()
+    const abilities = await resolveAbilities(sb, id, user.id, member?.role)
+    const decision = decideThreadCreation({
+      policy: readThreadPolicy(circleRow?.settings),
+      isMember: true,
+      isStaff: Boolean(member?.role && STAFF_ROLES.has(member.role)),
+      hasPermission: can(abilities.permissions, "thread.create"),
+      assignedRoleIds: abilities.powers.map((p) => Number(p.id)),
+    })
+    if (!decision.allowed) {
+      return NextResponse.json({ error: "You don't have the Open threads Power" }, { status: 403 })
     }
 
     const body = await request.json()

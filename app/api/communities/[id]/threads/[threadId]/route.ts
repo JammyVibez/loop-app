@@ -1,11 +1,38 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { communityClient, logCommunityActivity } from "@/lib/community-engine"
+import { loadRoleBadges } from "@/lib/community-permissions"
 import { checkCirclePrivateAccess } from "@/lib/circle-access"
 import { getUserFromRequest } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 
 const STAFF_ROLES = new Set(["owner", "admin", "moderator"])
+
+/** `{ "🔥": [user_id, …] }` on the row → grouped chips for the message list. */
+function groupCommentReactions(raw: unknown, viewerId: string | null) {
+  let map: Record<string, unknown> = {}
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) map = raw as Record<string, unknown>
+  else if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) map = parsed
+    } catch {
+      /* a malformed map never breaks the thread */
+    }
+  }
+  return Object.entries(map)
+    .filter(([emoji, users]) => Boolean(emoji) && Array.isArray(users) && users.length > 0)
+    .map(([emoji, users]) => {
+      const ids = (users as unknown[]).map((u) => String(u))
+      return {
+        emoji,
+        count: ids.length,
+        users: ids.slice(0, 12),
+        reacted: Boolean(viewerId && ids.includes(viewerId)),
+      }
+    })
+    .filter((r) => r.count > 0)
+}
 
 async function loadMembership(sb: any, circleId: string, userId?: string | null) {
   if (!userId) return null
@@ -78,7 +105,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { data: commentRows } = await sb
       .from("circle_post_comments")
       .select(
-        `id, post_id, author_id, content, media_url, media_type, parent_comment_id, created_at, updated_at, hidden_at,
+        `id, post_id, author_id, content, media_url, media_type, parent_comment_id, created_at, updated_at, hidden_at, reactions,
          author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium, badge_id, equipped_frame_id)`,
       )
       .eq("post_id", threadId)
@@ -88,9 +115,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const visible = (commentRows || []).filter((c: any) => !c.hidden_at || isStaff)
     const byId = new Map(visible.map((c: any) => [String(c.id), c]))
 
+    // Role chips: the OP's and every replier's chip in one pass.
+    const badges = await loadRoleBadges(
+      sb,
+      id,
+      [post.author_id, ...visible.map((c: any) => c.author_id)].filter(Boolean),
+    )
+
     const replies = visible.map((c: any) => {
-      const author = Array.isArray(c.author) ? c.author[0] : c.author
+      const rawAuthor = Array.isArray(c.author) ? c.author[0] : c.author
+      const author = rawAuthor ? { ...rawAuthor, role_badge: badges[String(c.author_id)] || null } : null
       const parent = c.parent_comment_id ? byId.get(String(c.parent_comment_id)) : null
+      const parentAuthorRaw = parent ? (Array.isArray(parent.author) ? parent.author[0] : parent.author) : null
       return {
         id: String(c.id),
         content: String(c.content || ""),
@@ -98,16 +134,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         media_type: c.media_type || null,
         created_at: c.created_at,
         hidden: Boolean(c.hidden_at),
-        author: author || null,
+        reactions: groupCommentReactions(c.reactions, user?.id || null),
+        author,
         is_author: Boolean(user && c.author_id === user.id),
         parent: parent
           ? {
               id: String(parent.id),
               content: String(parent.content || "").slice(0, 180),
-              author_name:
-                (Array.isArray(parent.author) ? parent.author[0] : parent.author)?.display_name ||
-                (Array.isArray(parent.author) ? parent.author[0] : parent.author)?.username ||
-                "Member",
+              author_name: parentAuthorRaw?.display_name || parentAuthorRaw?.username || "Member",
             }
           : null,
       }
@@ -122,7 +156,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const voteCount = votes?.length || 0
     const viewerVoted = Boolean(user && votes?.some((v: any) => v.user_id === user.id))
 
-    const author = Array.isArray(post.author) ? post.author[0] : post.author
+    const rawAuthor = Array.isArray(post.author) ? post.author[0] : post.author
+    const author = rawAuthor ? { ...rawAuthor, role_badge: badges[String(post.author_id)] || null } : null
     const space = Array.isArray(post.space) ? post.space[0] : post.space
 
     return NextResponse.json({
@@ -224,6 +259,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: error?.message || "Failed to post reply" }, { status: 500 })
     }
 
+    // The message list renders the chip and the (empty) reaction row straight
+    // from this payload, so a new reply looks like every other row.
+    const badges = await loadRoleBadges(sb, id, [user.id])
+    const replyAuthor = Array.isArray(reply.author) ? reply.author[0] : reply.author
+    const shapedReply = {
+      ...reply,
+      reactions: [] as unknown[],
+      author: replyAuthor ? { ...replyAuthor, role_badge: badges[user.id] || null } : null,
+    }
+
     await sb
       .from("circle_posts")
       .update({ comment_count: Number(post.comment_count || 0) + 1, last_activity_at: now, updated_at: now })
@@ -268,7 +313,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       /* notifications are best-effort */
     }
 
-    const author = Array.isArray(reply.author) ? reply.author[0] : reply.author
     return NextResponse.json({
       reply: {
         id: String(reply.id),
@@ -276,7 +320,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         created_at: reply.created_at,
         media_url: reply.media_url || null,
         media_type: reply.media_type || null,
-        author: author || null,
+        reactions: [],
+        author: shapedReply.author,
         parent: null,
         hidden: false,
         is_author: true,

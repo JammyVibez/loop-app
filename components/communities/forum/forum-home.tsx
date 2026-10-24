@@ -13,6 +13,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Spinner } from "@/components/ui/skeletons"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { EditCommunityDialog, ManageMembersDialog } from "@/components/communities/forum/community-admin"
+import { RolesDialog } from "@/components/communities/forum/roles-panel"
+import { RoleChip, type RoleBadgeLike } from "@/components/communities/forum/role-chip"
 import { cn } from "@/lib/utils"
 import {
   ArrowBigUp,
@@ -46,6 +48,7 @@ type Author = {
   display_name: string | null
   avatar_url: string | null
   is_verified?: boolean
+  role_badge?: RoleBadgeLike | null
 }
 
 type Thread = {
@@ -68,7 +71,14 @@ type Forum = { id: string; name: string; icon?: string | null; description?: str
 
 type ForumData = {
   community: any
-  viewer: { is_member: boolean; can_post: boolean; is_staff: boolean; can_manage: boolean; role: string | null }
+  viewer: {
+    is_member: boolean
+    can_post: boolean
+    can_create?: boolean
+    is_staff: boolean
+    can_manage: boolean
+    role: string | null
+  }
   threads: Thread[]
   forums: Forum[]
   staff: Array<{ role: string; user: Author }>
@@ -139,6 +149,7 @@ export function ForumHome({ communityId }: { communityId: string }) {
   const [composerOpen, setComposerOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [membersOpen, setMembersOpen] = useState(false)
+  const [rolesOpen, setRolesOpen] = useState(false)
 
   // debounce the search box so typing doesn't hammer the API
   useEffect(() => {
@@ -207,13 +218,22 @@ export function ForumHome({ communityId }: { communityId: string }) {
     }
   }
 
+  const canCreateThread = Boolean(viewer?.can_create ?? viewer?.can_post)
+
   const openComposer = () => {
     if (!user) {
       router.push(`/auth?returnTo=/communities/${communityId}`)
       return
     }
-    if (!viewer?.can_post) {
+    if (!viewer?.is_member) {
       toast({ title: "Members only", description: "Join this community to start a thread." })
+      return
+    }
+    if (!canCreateThread) {
+      toast({
+        title: "Threads are restricted here",
+        description: "Only the roles your owners picked may start new threads in this community.",
+      })
       return
     }
     setComposerOpen(true)
@@ -337,6 +357,14 @@ export function ForumHome({ communityId }: { communityId: string }) {
                     onClick={() => setMembersOpen(true)}
                   >
                     <Users className="mr-1.5 h-3.5 w-3.5" /> People
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 rounded-full px-3 text-xs"
+                    onClick={() => setRolesOpen(true)}
+                  >
+                    <Shield className="mr-1.5 h-3.5 w-3.5" /> Roles
                   </Button>
                 </div>
               )}
@@ -592,6 +620,7 @@ export function ForumHome({ communityId }: { communityId: string }) {
                             <span className="font-semibold text-foreground/80">
                               {t.author.display_name || t.author.username}
                             </span>
+                            {t.author.role_badge && <RoleChip badge={t.author.role_badge} />}
                             {t.author.is_verified && <VerifiedSeal size={12} variant="emerald" />}
                           </span>
                         )}
@@ -761,6 +790,8 @@ export function ForumHome({ communityId }: { communityId: string }) {
           />
         </>
       )}
+
+      <RolesDialog communityId={communityId} open={rolesOpen} onOpenChange={setRolesOpen} />
     </div>
   )
 }
