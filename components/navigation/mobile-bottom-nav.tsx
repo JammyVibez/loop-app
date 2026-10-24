@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Search, Video, MessageCircle, Compass, Menu } from "lucide-react"
+import { Bell, Bot, Home, MessageCircle, Sparkles } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { useLoginGate } from "@/hooks/use-login-gate"
 import { useUnreadMessages } from "@/hooks/use-unread-messages"
+import { useUnreadNotifications } from "@/hooks/use-unread-notifications"
 import { formatUnreadBadge } from "@/lib/unread-messages"
 import { MobileSidebarSheet } from "@/components/left-sidebar"
 
@@ -23,18 +24,56 @@ const HIDDEN_PREFIXES = [
 ]
 
 /**
- * Mobile tab bar: the four destinations worth a thumb tap, plus the drawer
- * for everything else. The profile lives in the header's avatar menu, so it
- * does not need a permanent tab here — that slot now carries Messages, the
- * one surface people check constantly and the only way to reach an unread DM
- * without opening the avatar dropdown first.
+ * Mobile tab bar.
+ *
+ * Five destinations, no drawer button: the Co-Loop studio sits in the middle
+ * as a raised, unmistakable action, Loop AI and Notifications take the slots
+ * that used to hold Search and Menu (both already live in the header), and the
+ * sidebar opens by swiping in from the left edge — the gesture people already
+ * expect on a phone.
  */
 export function MobileBottomNav() {
   const pathname = usePathname()
   const { user, loading } = useAuth()
   const { requireAuth, LoginGateDialog } = useLoginGate()
   const [menuOpen, setMenuOpen] = useState(false)
-  const unreadCount = useUnreadMessages()
+  const unreadMessages = useUnreadMessages()
+  const unreadNotifications = useUnreadNotifications()
+
+  // Swipe in from the left edge to reveal the sidebar. Vertical swipes are
+  // ignored so scrolling never fights the gesture.
+  useEffect(() => {
+    let startX = 0
+    let startY = 0
+    let tracking = false
+
+    const onStart = (event: TouchEvent) => {
+      const touch = event.touches[0]
+      if (!touch || touch.clientX > 48) {
+        tracking = false
+        return
+      }
+      tracking = true
+      startX = touch.clientX
+      startY = touch.clientY
+    }
+    const onEnd = (event: TouchEvent) => {
+      if (!tracking) return
+      tracking = false
+      const touch = event.changedTouches[0]
+      if (!touch) return
+      const dx = touch.clientX - startX
+      const dy = Math.abs(touch.clientY - startY)
+      if (dx > 70 && dy < 60) setMenuOpen(true)
+    }
+
+    window.addEventListener("touchstart", onStart, { passive: true })
+    window.addEventListener("touchend", onEnd, { passive: true })
+    return () => {
+      window.removeEventListener("touchstart", onStart)
+      window.removeEventListener("touchend", onEnd)
+    }
+  }, [])
 
   if (loading) return null
   if (HIDDEN_PREFIXES.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {
@@ -44,19 +83,22 @@ export function MobileBottomNav() {
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`)
 
-  const items = user
-    ? [
-        { href: "/", icon: Home, label: "Home" },
-        { href: "/search", icon: Search, label: "Search" },
-        { href: "/messages", icon: MessageCircle, label: "Messages", auth: true as const },
-        { href: "/trees", icon: Video, label: "Trees" },
-      ]
-    : [
-        { href: "/", icon: Home, label: "Home" },
-        { href: "/search", icon: Search, label: "Search" },
-        { href: "/explore", icon: Compass, label: "Explore" },
-        { href: "/trees", icon: Video, label: "Trees" },
-      ]
+  type TabItem = {
+    href: string
+    icon: typeof Home
+    label: string
+    auth?: boolean
+    center?: boolean
+    badge?: number
+  }
+
+  const items: TabItem[] = [
+    { href: "/", icon: Home, label: "Home" },
+    { href: "/messages", icon: MessageCircle, label: "Messages", auth: true, badge: unreadMessages },
+    { href: "/co-loop", icon: Sparkles, label: "Co-Loop", center: true },
+    { href: "/loop-ai", icon: Bot, label: "Loop AI" },
+    { href: "/notifications", icon: Bell, label: "Alerts", auth: true, badge: unreadNotifications },
+  ]
 
   return (
     <>
@@ -67,28 +109,39 @@ export function MobileBottomNav() {
         className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
         aria-label="Mobile navigation"
       >
-        <div className="grid grid-cols-5 items-stretch px-1 py-1.5">
-          <button
-            type="button"
-            onClick={() => setMenuOpen(true)}
-            className="flex flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[10px] font-medium text-muted-foreground transition-colors hover:text-primary"
-          >
-            <Menu className="h-5 w-5 text-cyan-400" />
-            <span>Menu</span>
-          </button>
-
+        <div className="grid grid-cols-5 items-end px-1 pb-1.5 pt-1">
           {items.map((item) => {
             const active = isActive(item.href)
-            const needsAuth = "auth" in item && Boolean(item.auth)
-            const badge = item.href === "/messages" ? unreadCount : 0
+            const needsAuth = Boolean(item.auth)
+            const badge = Number(item.badge || 0)
+
+            if (item.center) {
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className="group relative flex flex-col items-center justify-end gap-0.5 pb-0.5 text-[10px] font-semibold"
+                >
+                  <span
+                    className={cn(
+                      "-mt-6 mb-0.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-violet-500 text-white shadow-lg shadow-cyan-500/25 ring-4 ring-background transition-transform group-active:scale-95",
+                      active && "scale-105",
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                  </span>
+                  <span className={active ? "text-primary" : "text-muted-foreground"}>{item.label}</span>
+                </Link>
+              )
+            }
+
             return (
               <Link
                 key={item.href}
                 href={needsAuth && !user ? "#" : item.href}
-                onClick={(e) => {
-                  if (needsAuth && !requireAuth("message")) {
-                    e.preventDefault()
-                  }
+                onClick={(event) => {
+                  if (needsAuth && !requireAuth("message")) event.preventDefault()
                 }}
                 aria-current={active ? "page" : undefined}
                 className={cn(
@@ -96,8 +149,6 @@ export function MobileBottomNav() {
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {/* A quiet pill behind the current tab — easier to read at a
-                    glance than a colour change alone in bright outdoor light. */}
                 <span
                   className={cn(
                     "absolute inset-x-2 inset-y-1 -z-10 rounded-xl transition-colors",
@@ -107,7 +158,7 @@ export function MobileBottomNav() {
                 <div className="relative">
                   <item.icon className={cn("h-5 w-5", active && "stroke-[2.4]")} />
                   {badge > 0 && (
-                    <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-background">
+                    <span className="absolute -right-2.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-background">
                       {formatUnreadBadge(badge)}
                     </span>
                   )}

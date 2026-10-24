@@ -194,7 +194,8 @@ export function Header() {
           </Link>
 
           {/* Notifications */}
-          <span data-tour="notifications" className="inline-flex">
+          {/* On phones the bell lives in the tab bar, with its unread count. */}
+          <span data-tour="notifications" className="hidden lg:inline-flex">
             <NotificationDropdown />
           </span>
 

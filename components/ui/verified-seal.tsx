@@ -221,14 +221,15 @@ function visibleColor(hex: string): string {
 /* Badge silhouettes — each variant gets a distinct SHAPE             */
 /* ------------------------------------------------------------------ */
 
-/** 12-point scalloped rosette (verified) */
+/**
+ * Verified silhouette.
+ *
+ * X-style rather than a rosette: one soft, solid round badge with the check
+ * knocked out on top. The old 12-point rosette read as a gold star at small
+ * sizes, which is the mark people read as "sponsor", not "verified".
+ */
 function RosetteShape({ fill }: { fill: string }) {
-  return (
-    <path
-      d="M24 2l3.1 4.6 5.1-2 1.4 5.3 5.4-.7-.4 5.4 5.2 1.5-2.2 5 4.2 3.5-3.7 3.9 2.4 4.9-5.1 1.7.2 5.4-5.4-.4-2 5-4.6-2.9L24 46l-3.6-3.8-4.6 2.9-2-5-5.4.4.2-5.4-5.1-1.7 2.4-4.9L2.2 25l4.2-3.5-2.2-5 5.2-1.5-.4-5.4 5.4.7L15.8 5l5.1 2L24 2z"
-      fill={fill}
-    />
-  )
+  return <circle cx="24" cy="24" r="22.5" fill={fill} />
 }
 
 /** Hexagon (team) */
