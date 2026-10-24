@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Spinner } from "@/components/ui/skeletons"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { Check, Loader2, Lock, X } from "lucide-react"
+import { Check, Loader2, Lock, Trash2, X } from "lucide-react"
 
 export interface EditableCommunity {
   id: string
@@ -140,6 +140,69 @@ export function EditCommunityDialog({
               Save changes
             </Button>
           </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Delete the whole community (owner/admin only). */
+export function DeleteCommunityDialog({
+  community,
+  open,
+  onOpenChange,
+  onDeleted,
+}: {
+  community: EditableCommunity
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onDeleted: () => void
+}) {
+  const { getAuthHeader } = useAuth()
+  const { toast } = useToast()
+  const [busy, setBusy] = useState(false)
+
+  const remove = async () => {
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/communities/${community.id}`, {
+        method: "DELETE",
+        headers: getAuthHeader(),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Could not delete")
+      toast({ title: "Community deleted" })
+      onOpenChange(false)
+      onDeleted()
+    } catch (error: any) {
+      toast({ title: "Could not delete", description: error.message, variant: "destructive" })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Delete “{community.name}”?</DialogTitle>
+          <DialogDescription>
+            This removes the community and everything in it — threads, replies, roles, members and events. It cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" className="rounded-full" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            className="rounded-full"
+            disabled={busy}
+            onClick={() => void remove()}
+          >
+            {busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Trash2 className="mr-1.5 h-4 w-4" />}
+            Delete community
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

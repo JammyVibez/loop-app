@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Spinner } from "@/components/ui/skeletons"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
-import { EditCommunityDialog, ManageMembersDialog } from "@/components/communities/forum/community-admin"
+import { DeleteCommunityDialog, EditCommunityDialog, ManageMembersDialog } from "@/components/communities/forum/community-admin"
 import { RolesDialog } from "@/components/communities/forum/roles-panel"
 import { RoleChip, type RoleBadgeLike } from "@/components/communities/forum/role-chip"
 import { cn } from "@/lib/utils"
@@ -39,6 +39,7 @@ import {
   Shield,
   Sparkles,
   Swords,
+  Trash2,
   Users,
 } from "lucide-react"
 
@@ -150,6 +151,7 @@ export function ForumHome({ communityId }: { communityId: string }) {
   const [editOpen, setEditOpen] = useState(false)
   const [membersOpen, setMembersOpen] = useState(false)
   const [rolesOpen, setRolesOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   // debounce the search box so typing doesn't hammer the API
   useEffect(() => {
@@ -186,6 +188,9 @@ export function ForumHome({ communityId }: { communityId: string }) {
 
   const community = data?.community
   const viewer = data?.viewer
+  // Only the founder and admins may destroy the whole world; moderators can
+  // still run it from Settings and People.
+  const canDeleteCommunity = viewer?.role === "owner" || viewer?.role === "admin"
   const forums = useMemo(() => data?.forums || [], [data?.forums])
   const rules: string[] = useMemo(
     () => (Array.isArray(community?.rules) ? community.rules.filter((r: any) => typeof r === "string" && r.trim()) : []),
@@ -366,6 +371,16 @@ export function ForumHome({ communityId }: { communityId: string }) {
                   >
                     <Shield className="mr-1.5 h-3.5 w-3.5" /> Roles
                   </Button>
+                  {canDeleteCommunity && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 rounded-full px-3 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setDeleteOpen(true)}
+                    >
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -788,6 +803,14 @@ export function ForumHome({ communityId }: { communityId: string }) {
             onOpenChange={setMembersOpen}
             onChanged={() => void load({ silent: true })}
           />
+          {canDeleteCommunity && (
+            <DeleteCommunityDialog
+              community={community}
+              open={deleteOpen}
+              onOpenChange={setDeleteOpen}
+              onDeleted={() => router.push("/communities")}
+            />
+          )}
         </>
       )}
 

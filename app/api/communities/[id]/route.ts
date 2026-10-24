@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { communityClient, getWorldBundle, logCommunityActivity, isOwnerRole, canAdmin } from "@/lib/community-engine"
+import { communityClient, getWorldBundle, logCommunityActivity, canAdmin } from "@/lib/community-engine"
+import { hardDeleteCircle } from "@/lib/circle-lifecycle"
 import { getUserFromRequest } from "@/lib/server-auth"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -109,17 +110,20 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     const sb = communityClient()
 
-    const { data: membership } = await sb
-      .from("circle_members")
-      .select("role")
-      .eq("circle_id", id)
-      .eq("user_id", user.id)
-      .maybeSingle()
-    if (!isOwnerRole(membership?.role)) {
-      return NextResponse.json({ error: "Only the founder can delete this community" }, { status: 403 })
+    // Owner or community admin can delete it; site admins (the platform's own
+    // moderators) can too, so a reported community never has to wait on its
+    // founder to answer.
+    const [{ data: membership }, { data: profile }] = await Promise.all([
+      sb.from("circle_members").select("role").eq("circle_id", id).eq("user_id", user.id).maybeSingle(),
+      sb.from("profiles").select("is_admin").eq("id", user.id).maybeSingle(),
+    ])
+    if (!canAdmin(membership?.role) && !profile?.is_admin) {
+      return NextResponse.json({ error: "Only the owner or an admin can delete this community" }, { status: 403 })
     }
 
-    const { error } = await sb.from("circles").delete().eq("id", id)
+    // Related rows first: a bare delete on `circles` fails outright as soon as
+    // the community has threads, members or roles.
+    const { error } = await hardDeleteCircle(sb, id)
     if (error) return NextResponse.json({ error: "Failed to delete: " + error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   } catch (e: any) {
