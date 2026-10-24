@@ -35,37 +35,37 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: "welcome",
     title: "Welcome to Loop",
-    subtitle: "The social universe where people, communities, and live moments come together.",
+    subtitle: "Loops, communities and Co-Loops — one place for the people you actually follow.",
     optional: false,
   },
   {
     id: "profile",
     title: "Make it yours",
-    subtitle: "Add a face and a name so people know who they're following.",
+    subtitle: "Photo, name, bio — the card people tap when they meet you.",
     optional: false,
   },
   {
     id: "interests",
     title: "What sparks your loop?",
-    subtitle: "Pick a few topics — we'll tune your feed around them.",
+    subtitle: "Pick a few topics — your feed and your suggested people follow them.",
     optional: true,
   },
   {
     id: "follow",
     title: "Who should you follow?",
-    subtitle: "Follow at least three people to fill your feed from day one.",
+    subtitle: "Follow three people so day one has something in it.",
     optional: true,
   },
   {
     id: "communities",
     title: "Find your people",
-    subtitle: "Join communities that match your interests. You can leave any time.",
+    subtitle: "Join a world, see its Powers and rules, and read what the members are making.",
     optional: true,
   },
   {
     id: "done",
     title: "You're all set",
-    subtitle: "Your feed, communities, and profile are ready. Go say hello.",
+    subtitle: "Your feed, your worlds and your studio are ready — the Co-Loop button sits centre stage.",
     optional: false,
   },
 ]

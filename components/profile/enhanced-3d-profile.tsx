@@ -743,9 +743,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         <div className="mt-3 space-y-3">
           <div>
             <div className="flex flex-wrap items-center gap-1.5">
-              {/* The mark needs air beside the name — flush against it reads as
-                  part of the word. */}
-              <div className="flex items-center gap-1.5">
+              {/* The mark needs real air beside the name — a hairline gap still
+                  reads as part of the word at these sizes. */}
+              <div className="flex items-center gap-2.5">
                 <h2 className="text-xl font-extrabold tracking-tight" style={fontStyle(cosmetics.font)}>
                   {displayName}
                 </h2>

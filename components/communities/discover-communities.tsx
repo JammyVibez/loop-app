@@ -225,7 +225,7 @@ export function DiscoverCommunities() {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {communities.map((c) => {
             const cfg = getCategoryConfig(c.category)
             const pulseStyle = PULSE_STYLES[c.pulse] || PULSE_STYLES.growing
@@ -233,11 +233,11 @@ export function DiscoverCommunities() {
               <Link
                 key={c.id}
                 href={`/communities/${c.id}`}
-                className="group relative flex flex-col overflow-hidden rounded-3xl border border-border bg-card transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5"
+                className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
               >
                 {/* Banner */}
                 <div
-                  className="relative h-32 w-full overflow-hidden"
+                  className="relative h-20 w-full overflow-hidden"
                   style={{ background: c.accent_color || cfg.accent }}
                 >
                   {c.banner_url ? (
@@ -253,13 +253,13 @@ export function DiscoverCommunities() {
                   </div>
                 </div>
 
-                <div className="flex flex-1 flex-col gap-3 p-5">
+                <div className="flex flex-1 flex-col gap-2 p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5">
                       <div className="relative">
-                        <Avatar className="h-14 w-14 rounded-2xl border-2 border-background shadow-lg">
+                        <Avatar className="h-11 w-11 rounded-xl border-2 border-background shadow-md">
                           <AvatarImage src={c.avatar_url || ""} alt={c.name} />
-                          <AvatarFallback className="rounded-2xl bg-primary text-primary-foreground font-black text-lg">
+                          <AvatarFallback className="rounded-xl bg-primary text-primary-foreground font-black text-sm">
                             {c.name.slice(0, 1).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
@@ -271,7 +271,7 @@ export function DiscoverCommunities() {
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <h3 className="truncate text-base font-bold transition-colors group-hover:text-primary">
+                          <h3 className="truncate text-sm font-semibold transition-colors group-hover:text-primary">
                             {c.name}
                           </h3>
                           {c.is_private && <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />}
@@ -283,7 +283,7 @@ export function DiscoverCommunities() {
                     </div>
                   </div>
 
-                  <p className="line-clamp-2 text-[13px] leading-relaxed text-muted-foreground min-h-[2.5rem]">{c.description}</p>
+                  <p className="line-clamp-2 text-[12.5px] leading-snug text-muted-foreground">{c.description}</p>
 
                   <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
                     <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {c.member_count.toLocaleString()}</span>

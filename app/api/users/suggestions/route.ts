@@ -32,6 +32,15 @@ export async function GET(request: NextRequest) {
 
     const exclude = new Set<string>([...(user ? [user.id] : []), ...followingIds])
 
+    // An account on its way out must not show up as someone to follow — the
+    // grace period is not an invitation to get attached.
+    const { data: pendingDeletions } = await supabase
+      .from("account_deletions")
+      .select("user_id, cancelled, executed")
+      .eq("cancelled", false)
+      .eq("executed", false)
+    const departing = new Set((pendingDeletions || []).map((row) => String(row.user_id)))
+
     // Prefer users with overlapping interests when available
     let { data: candidates, error } = await supabase
       .from("profiles")
@@ -46,7 +55,10 @@ export async function GET(request: NextRequest) {
     }
 
     const scored = (candidates || [])
-      .filter((profile) => !exclude.has(profile.id) && profile.username)
+      .filter(
+        (profile) =>
+          !exclude.has(profile.id) && Boolean(profile.username) && !departing.has(String(profile.id)),
+      )
       .map((profile) => {
         const interests = Array.isArray(profile.interests) ? profile.interests.map(String) : []
         const overlap = interests.filter((interest) =>
