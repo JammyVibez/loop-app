@@ -141,6 +141,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       } catch (err) {
         console.error("quest track (join_circle):", err)
       }
+
+      // Keep the discovery/share count in step with the real membership.
+      try {
+        const { syncCircleMemberCount } = await import("@/lib/circle-lifecycle")
+        await syncCircleMemberCount(supabase, circleId)
+      } catch (err) {
+        console.error("member count sync:", err)
+      }
     }
 
     return NextResponse.json({
@@ -175,6 +183,13 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (deleteError) {
       console.error("Database delete error:", deleteError)
       return NextResponse.json({ error: "Failed to leave circle" }, { status: 500 })
+    }
+
+    try {
+      const { syncCircleMemberCount } = await import("@/lib/circle-lifecycle")
+      await syncCircleMemberCount(supabase, circleId)
+    } catch (err) {
+      console.error("member count sync:", err)
     }
 
     return NextResponse.json({

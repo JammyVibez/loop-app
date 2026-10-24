@@ -16,32 +16,41 @@ import { Textarea } from "@/components/ui/textarea"
 import { Spinner } from "@/components/ui/skeletons"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { Check, Loader2, Lock, Trash2, X } from "lucide-react"
+import { uploadMediaFile } from "@/lib/client-media-upload"
+import { Check, ImagePlus, Loader2, Lock, Trash2, X } from "lucide-react"
 
 export interface EditableCommunity {
   id: string
   name: string
   description?: string | null
   is_private?: boolean | null
+  banner_url?: string | null
+  cover_url?: string | null
 }
 
-/** Edit a community's name, description and privacy (owners/admins only). */
+/** Edit a community's name, description, artwork and privacy (owners/admins only). */
 export function EditCommunityDialog({
   community,
   open,
   onOpenChange,
   onSaved,
+  onRequestDelete,
 }: {
   community: EditableCommunity
   open: boolean
   onOpenChange: (open: boolean) => void
   onSaved: () => void
+  /** Opens the delete confirmation; omitted when the viewer cannot delete. */
+  onRequestDelete?: () => void
 }) {
   const { getAuthHeader } = useAuth()
   const { toast } = useToast()
   const [name, setName] = useState(community.name)
   const [description, setDescription] = useState(community.description || "")
   const [isPrivate, setIsPrivate] = useState(Boolean(community.is_private))
+  const [bannerUrl, setBannerUrl] = useState(community.banner_url || "")
+  const [coverUrl, setCoverUrl] = useState(community.cover_url || "")
+  const [uploading, setUploading] = useState<"banner" | "cover" | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -49,7 +58,29 @@ export function EditCommunityDialog({
     setName(community.name)
     setDescription(community.description || "")
     setIsPrivate(Boolean(community.is_private))
-  }, [open, community.name, community.description, community.is_private])
+    setBannerUrl(community.banner_url || "")
+    setCoverUrl(community.cover_url || "")
+  }, [open, community.name, community.description, community.is_private, community.banner_url, community.cover_url])
+
+  const upload = async (kind: "banner" | "cover", file?: File | null) => {
+    if (!file) return
+    setUploading(kind)
+    try {
+      const { url } = await uploadMediaFile(file, {
+        type: "image",
+        folder: "communities",
+        authHeaders: getAuthHeader(),
+        maxSizeBytes: 10 * 1024 * 1024,
+      })
+      if (kind === "banner") setBannerUrl(url)
+      else setCoverUrl(url)
+      toast({ title: `${kind === "banner" ? "Banner" : "Cover"} ready`, description: "Save changes to apply it." })
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" })
+    } finally {
+      setUploading(null)
+    }
+  }
 
   const save = async () => {
     if (!name.trim()) {
@@ -65,6 +96,8 @@ export function EditCommunityDialog({
           name: name.trim(),
           description: description.trim(),
           is_private: isPrivate,
+          banner_url: bannerUrl || null,
+          cover_url: coverUrl || null,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -109,6 +142,66 @@ export function EditCommunityDialog({
               placeholder="What is this community about?"
             />
           </div>
+          {([
+            {
+              id: "banner" as const,
+              label: "Banner",
+              hint: "Wide image across the top of the community.",
+              value: bannerUrl,
+              set: setBannerUrl,
+            },
+            {
+              id: "cover" as const,
+              label: "Cover",
+              hint: "Behind the community header.",
+              value: coverUrl,
+              set: setCoverUrl,
+            },
+          ]).map((field) => (
+            <div key={field.id} className="space-y-1.5">
+              <Label className="text-xs font-medium">{field.label}</Label>
+              <div className="flex items-center gap-2">
+                <div className="h-12 w-20 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+                  {field.value ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={field.value} alt="" className="h-full w-full object-cover" />
+                  ) : null}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] text-muted-foreground">{field.hint}</p>
+                  <div className="mt-1 flex gap-1.5">
+                    <label className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold hover:bg-muted/60">
+                      {uploading === field.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <ImagePlus className="h-3 w-3" />
+                      )}
+                      {field.value ? "Replace" : "Upload"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          void upload(field.id, e.target.files?.[0])
+                          e.currentTarget.value = ""
+                        }}
+                      />
+                    </label>
+                    {field.value && (
+                      <button
+                        type="button"
+                        onClick={() => field.set("")}
+                        className="rounded-full px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+
           <button
             type="button"
             onClick={() => setIsPrivate((v) => !v)}
@@ -131,6 +224,26 @@ export function EditCommunityDialog({
               />
             </span>
           </button>
+          {onRequestDelete && (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+              <p className="text-xs font-bold text-destructive">Danger zone</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                Deleting removes every thread, reply, role and member. It cannot be undone.
+              </p>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="mt-2 h-7 rounded-full px-3 text-xs"
+                onClick={() => {
+                  onOpenChange(false)
+                  onRequestDelete()
+                }}
+              >
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete community
+              </Button>
+            </div>
+          )}
+
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="ghost" className="rounded-full" onClick={() => onOpenChange(false)}>
               Cancel

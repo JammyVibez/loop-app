@@ -572,12 +572,43 @@ async function ensureLogoBitmap(): Promise<AV | null> {
     const img = await loadAv(adminUrl)
     if (img) {
       const dim = avDim(img)
-      if (dim.w && dim.h) return img
+      if (dim.w && dim.h && !logoInkIsInvisible(img)) return img
     }
   }
   // Always succeeds: same-origin PNG.
   const fallback = await loadAv(DEFAULT_LOGO_IMG)
-  return fallback
+  // A white-on-transparent icon disappears on the white card; the vector mark
+  // is drawn in the card's ink instead, so the export always carries a logo.
+  return fallback && !logoInkIsInvisible(fallback) ? fallback : null
+}
+
+/**
+ * True when a logo is (almost) white or fully transparent — the app's own icon
+ * is white-on-transparent, so painting it on the light card shows nothing.
+ * Cross-origin images taint the probe canvas; treat those as visible.
+ */
+function logoInkIsInvisible(img: AV) {
+  try {
+    const probe = document.createElement("canvas")
+    probe.width = 32
+    probe.height = 32
+    const ctx = probe.getContext("2d", { willReadFrequently: true })
+    if (!ctx) return false
+    ctx.drawImage(img, 0, 0, 32, 32)
+    const { data } = ctx.getImageData(0, 0, 32, 32)
+    let opaque = 0
+    let luminance = 0
+    for (let i = 0; i < data.length; i += 4) {
+      const a = data[i + 3] / 255
+      if (a < 0.15) continue
+      opaque += 1
+      luminance += ((data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255) * a
+    }
+    if (opaque < 8) return true
+    return luminance / opaque > 0.82
+  } catch {
+    return false
+  }
 }
 /** The wordmark that sits beside the app icon. */
 function drawWordmark(ctx: CanvasRenderingContext2D, x: number, baseline: number, color = WORDMARK_COLOR) {
@@ -813,6 +844,10 @@ function drawCard(
 ) {
   const qh = m.quote ? quotePanelHeight(quoteLines.length, quoteMediaH) : 0
   const h = cardHeight(lines.length, mediaH, m.quote ? quoteLines.length : 0, qh ? quoteMediaH : null, design.showStats)
+  // The palette is module-wide so every helper can paint without threading it
+  // through. Bind it to *this* design before painting: a card exported after
+  // switching to white used to keep whatever theme drew last (usually black).
+  setCardPalette(design.theme)
   const ctx = setup(canvas, CARD_W, h, scale)
   if (!ctx) return
 
@@ -1545,6 +1580,8 @@ export function ShareAsImageModal({ open, onOpenChange, post, quoted }: ShareAsI
   const quoteMediaRef = useRef<AV | null>(null)
   const quoteMediaUrlRef = useRef<string | null>(null)
   const blobRef = useRef<Blob | null>(null)
+  /** Which design produced `blobRef` — a stale render must never be downloaded. */
+  const blobKeyRef = useRef<string>("")
   const genRef = useRef(0)
 
   useEffect(() => {
@@ -1631,6 +1668,7 @@ export function ShareAsImageModal({ open, onOpenChange, post, quoted }: ShareAsI
       setRendered(false)
       setExporting(false)
       blobRef.current = null
+      blobKeyRef.current = ""
       avRef.current = null
       logoRef.current = null
       mediaRef.current = null
@@ -1694,6 +1732,7 @@ export function ShareAsImageModal({ open, onOpenChange, post, quoted }: ShareAsI
         drawCard(cv, mRef.current, lines, mh, SCALE, av, logo, mediaRef.current, designRef.current, quoteLines, quoteAv, quoteMediaRef.current, qmh)
         if (c || genRef.current !== g) return
         blobRef.current = await toBlob(cv)
+        blobKeyRef.current = key
         setRendered(true)
       } catch {
         if (!c) setRendered(false)
@@ -1707,7 +1746,7 @@ export function ShareAsImageModal({ open, onOpenChange, post, quoted }: ShareAsI
   }, [open, key, lines, quoteLines, proxiedMediaSrc, proxiedQuoteMediaSrc, post.author.avatar_url, post.author.username])
 
   const getBlob = async (): Promise<Blob> => {
-    if (blobRef.current) return blobRef.current
+    if (blobRef.current && blobKeyRef.current === key) return blobRef.current
     const cv = canvasRef.current
     if (!cv) throw new Error("Canvas not ready")
 
@@ -1728,6 +1767,7 @@ export function ShareAsImageModal({ open, onOpenChange, post, quoted }: ShareAsI
     drawCard(cv, mRef.current, lines, mediaH, SCALE, avRef.current, logoRef.current, mediaRef.current, designRef.current, quoteLines, quoteAvRef.current, quoteMediaRef.current, quoteMediaH)
     const b = await toBlob(cv)
     blobRef.current = b
+    blobKeyRef.current = key
     return b
   }
 

@@ -28,6 +28,7 @@ import {
   Loader2,
   Lock,
   MoreHorizontal,
+  Pencil,
   Pin,
   Send,
   Shield,
@@ -153,6 +154,9 @@ function MessageRow({
   canInteract,
   onReply,
   onReact,
+  onEdit,
+  onDelete,
+  onJump,
 }: {
   reply: Reply
   compact: boolean
@@ -160,9 +164,15 @@ function MessageRow({
   canInteract: boolean
   onReply: (reply: Reply) => void
   onReact: (reply: Reply, emoji: string) => void
+  onEdit: (reply: Reply, content: string) => Promise<void>
+  onDelete: (reply: Reply) => void
+  onJump: (parentId: string) => void
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [dragX, setDragX] = useState(0)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(reply.content)
+  const [savingEdit, setSavingEdit] = useState(false)
   const touch = useRef<{ x: number; y: number; axis: "x" | "y" | null } | null>(null)
   const dragRef = useRef(0)
 
@@ -196,7 +206,7 @@ function MessageRow({
   }
 
   return (
-    <li className="group relative">
+    <li id={`reply-${reply.id}`} className="group relative scroll-mt-24">
       {/* Swipe affordance — fades in as the row is pulled toward a reply */}
       <span
         aria-hidden
@@ -227,11 +237,16 @@ function MessageRow({
       >
         {/* Reply preview — Discord's inline quote, not a nested card */}
         {reply.parent && (
-          <div className="mb-1 flex items-center gap-1.5 pl-11 text-[11px] text-muted-foreground">
+          /* Tapping the quote takes you to the message it answers. */
+          <button
+            type="button"
+            onClick={() => onJump(String(reply.parent!.id))}
+            className="mb-1 flex w-full items-center gap-1.5 rounded pl-11 pr-2 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+          >
             <CornerDownRight className="h-3 w-3 shrink-0" />
             <span className="shrink-0 font-semibold text-foreground/80">{reply.parent.author_name}</span>
             <span className="truncate opacity-80">{reply.parent.content}</span>
-          </div>
+          </button>
         )}
 
         <div className="flex gap-2.5">
@@ -268,7 +283,50 @@ function MessageRow({
             )}
 
             <div className={cn("text-sm leading-relaxed text-foreground/90", compact && "mt-0")}>
-              <RichContent text={reply.content} />
+              {editing ? (
+                <div className="mt-1 space-y-2">
+                  <Textarea
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    rows={3}
+                    maxLength={4000}
+                    className="resize-none rounded-xl text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="h-7 rounded-full px-3 text-xs"
+                      disabled={savingEdit || !draft.trim()}
+                      onClick={async () => {
+                        setSavingEdit(true)
+                        try {
+                          await onEdit(reply, draft.trim())
+                          setEditing(false)
+                        } catch {
+                          /* the parent already surfaced the reason */
+                        } finally {
+                          setSavingEdit(false)
+                        }
+                      }}
+                    >
+                      {savingEdit && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />} Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 rounded-full px-3 text-xs"
+                      onClick={() => {
+                        setDraft(reply.content)
+                        setEditing(false)
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <RichContent text={reply.content} />
+              )}
             </div>
 
             {reply.media_url && (reply.media_type === "image" || !reply.media_type) && (
@@ -312,6 +370,29 @@ function MessageRow({
             >
               <SmilePlus className="h-3.5 w-3.5" />
             </button>
+            {reply.is_author && !editing && (
+              <button
+                type="button"
+                aria-label="Edit your reply"
+                onClick={() => {
+                  setDraft(reply.content)
+                  setEditing(true)
+                }}
+                className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {reply.is_author && (
+              <button
+                type="button"
+                aria-label="Delete your reply"
+                onClick={() => onDelete(reply)}
+                className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
             <button
               type="button"
               aria-label={`Reply to ${name}`}
@@ -497,6 +578,57 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
       toast({ title: "Couldn't save that reaction", description: e.message, variant: "destructive" })
       void load({ silent: true })
     }
+  }
+
+  const editReply = async (r: Reply, content: string) => {
+    try {
+      const res = await fetch(`/api/communities/${communityId}/threads/${threadId}/comments/${r.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ content }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || "Could not save that edit")
+      setData((prev) =>
+        prev ? { ...prev, replies: prev.replies.map((x) => (x.id === r.id ? { ...x, content } : x)) } : prev,
+      )
+      toast({ title: "Reply updated" })
+    } catch (e: any) {
+      toast({ title: "Could not save that edit", description: e.message, variant: "destructive" })
+      throw e
+    }
+  }
+
+  const deleteReply = async (r: Reply) => {
+    try {
+      const res = await fetch(`/api/communities/${communityId}/threads/${threadId}/comments/${r.id}`, {
+        method: "DELETE",
+        headers: { ...getAuthHeader() },
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || "Could not delete that reply")
+      setData((prev) =>
+        prev ? { ...prev, replies: prev.replies.filter((x) => x.id !== r.id) } : prev,
+      )
+      toast({ title: "Reply deleted" })
+    } catch (e: any) {
+      toast({ title: "Could not delete that reply", description: e.message, variant: "destructive" })
+    }
+  }
+
+  /** Tapping a quoted reply scrolls to the message it answers. */
+  const jumpToParent = (parentId: string) => {
+    const el = document.getElementById(`reply-${parentId}`)
+    if (!el) {
+      toast({
+        title: "That message has moved on",
+        description: "It may have been deleted, or it is further up the thread.",
+      })
+      return
+    }
+    el.scrollIntoView({ behavior: "smooth", block: "center" })
+    el.classList.add("ring-1", "ring-primary/50", "bg-primary/5")
+    window.setTimeout(() => el.classList.remove("ring-1", "ring-primary/50", "bg-primary/5"), 1500)
   }
 
   const moderate = async (action: "pin" | "unpin" | "lock" | "unlock" | "hide" | "restore") => {
@@ -727,6 +859,9 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
                     inputRef.current?.focus()
                   }}
                   onReact={react}
+                  onEdit={editReply}
+                  onDelete={(target) => void deleteReply(target)}
+                  onJump={jumpToParent}
                 />
               )
             })}

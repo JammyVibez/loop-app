@@ -56,6 +56,30 @@ export async function hardDeleteCircle(supabase: SupabaseClient, circleId: strin
   return { error }
 }
 
+/**
+ * Recount the members who can actually see the community and store the number
+ * on `circles.member_count`.
+ *
+ * That column is what discovery cards, share metadata and search ordering
+ * read, but nothing kept it honest: it only ever moved when a trigger happened
+ * to fire, so a busy community could advertise a number months out of date.
+ */
+export async function syncCircleMemberCount(supabase: SupabaseClient, circleId: string) {
+  const { count } = await supabase
+    .from("circle_members")
+    .select("id", { count: "exact", head: true })
+    .eq("circle_id", circleId)
+    .in("status", ["active", "approved"])
+
+  const memberCount = count || 0
+  const { error } = await supabase
+    .from("circles")
+    .update({ member_count: memberCount })
+    .eq("id", circleId)
+
+  return { memberCount, error }
+}
+
 export async function setCircleActive(
   supabase: SupabaseClient,
   circleId: string,

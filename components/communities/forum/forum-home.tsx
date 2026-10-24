@@ -796,6 +796,7 @@ export function ForumHome({ communityId }: { communityId: string }) {
             open={editOpen}
             onOpenChange={setEditOpen}
             onSaved={() => void load({ silent: true })}
+            onRequestDelete={canDeleteCommunity ? () => setDeleteOpen(true) : undefined}
           />
           <ManageMembersDialog
             communityId={communityId}

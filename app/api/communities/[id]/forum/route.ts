@@ -268,12 +268,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
     })
 
+    // Count the people who can actually see the community. `circles.member_count`
+    // is a cache other surfaces read, and it can lag behind reality — the
+    // header is the one place that number must never be wrong.
+    const { count: liveMemberCount } = await sb
+      .from("circle_members")
+      .select("id", { count: "exact", head: true })
+      .eq("circle_id", id)
+      .in("status", ["active", "approved"])
+    const memberCount = liveMemberCount ?? Number(circle.member_count || 0)
+
     return NextResponse.json({
       community: {
         ...circle,
         rules: normalizeRules(circle.rules),
         id: String(circle.id),
-        member_count: Number(circle.member_count || 0),
+        member_count: memberCount,
         post_count: Number(circle.post_count || 0),
       },
       viewer: {
@@ -294,7 +304,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       counts: {
         threads: totalThreads,
         replies: threads.reduce((n, t) => n + t.replies, 0),
-        members: Number(circle.member_count || 0),
+        members: memberCount,
       },
     })
   } catch (e: any) {
