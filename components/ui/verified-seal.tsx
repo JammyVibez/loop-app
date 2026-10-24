@@ -222,14 +222,26 @@ function visibleColor(hex: string): string {
 /* ------------------------------------------------------------------ */
 
 /**
- * Verified silhouette.
- *
- * X-style rather than a rosette: one soft, solid round badge with the check
- * knocked out on top. The old 12-point rosette read as a gold star at small
- * sizes, which is the mark people read as "sponsor", not "verified".
+ * Verified silhouette — the flower-petal badge X made familiar: soft scallops
+ * blended with quadratic curves, so the edge reads as petals rather than the
+ * gear-tooth rosette that used to look like a sponsor star.
  */
 function RosetteShape({ fill }: { fill: string }) {
-  return <circle cx="24" cy="24" r="22.5" fill={fill} />
+  const petals = 10
+  const cx = 24
+  const cy = 24
+  const inner = 17.6
+  // Chosen so each quadratic peaks at radius 22 (0.5·inner + 0.5·control).
+  const control = 26.4
+  const step = (Math.PI * 2) / petals
+  const point = (angle: number, radius: number) =>
+    `${(cx + Math.cos(angle) * radius).toFixed(2)} ${(cy + Math.sin(angle) * radius).toFixed(2)}`
+
+  let d = `M ${point(0, inner)}`
+  for (let i = 0; i < petals; i++) {
+    d += ` Q ${point((i + 0.5) * step, control)} ${point((i + 1) * step, inner)}`
+  }
+  return <path d={`${d} Z`} fill={fill} />
 }
 
 /** Hexagon (team) */

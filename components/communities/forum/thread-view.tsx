@@ -18,6 +18,7 @@ import {
 import { RichContent } from "@/components/content/rich-content"
 import { Spinner } from "@/components/ui/skeletons"
 import { RoleChip, type RoleBadgeLike } from "@/components/communities/forum/role-chip"
+import { MiniProfile } from "@/components/communities/forum/mini-profile"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { cn } from "@/lib/utils"
 import {
@@ -154,6 +155,7 @@ function MessageRow({
   compact,
   last,
   canInteract,
+  communityId,
   onReply,
   onReact,
   onEdit,
@@ -164,6 +166,7 @@ function MessageRow({
   compact: boolean
   last: boolean
   canInteract: boolean
+  communityId: string
   onReply: (reply: Reply) => void
   onReact: (reply: Reply, emoji: string) => void
   onEdit: (reply: Reply, content: string) => Promise<void>
@@ -268,12 +271,13 @@ function MessageRow({
           <div className="min-w-0 flex-1">
             {!compact && (
               <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                <Link
-                  href={`/profile/${reply.author?.username || reply.author?.id || ""}`}
-                  className="truncate text-[13px] font-semibold text-foreground hover:underline"
-                >
-                  {name}
-                </Link>
+                {/* Tapping the name opens their community card, not the full
+                    profile — the card carries the link through. */}
+                {reply.author?.id ? (
+                  <MiniProfile communityId={communityId} userId={reply.author.id} name={name} />
+                ) : (
+                  <span className="truncate text-[13px] font-semibold text-foreground">{name}</span>
+                )}
                 {reply.author?.role_badge && <RoleChip badge={reply.author.role_badge} />}
                 <span className="text-[10px] text-muted-foreground" title={clockTime(reply.created_at)}>
                   {timeAgo(reply.created_at)}
@@ -886,6 +890,7 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
                   compact={compact}
                   last={lastOfGroup}
                   canInteract={Boolean(viewer.is_member && !thread.locked)}
+                  communityId={communityId}
                   onReply={(target) => {
                     setReplyTarget({
                       id: target.id,

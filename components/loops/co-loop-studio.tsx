@@ -1022,8 +1022,10 @@ export function CoLoopStudio() {
 
     setEnding(true)
     try {
+      // PATCH is the status route — POST is the join endpoint, which is why
+      // "end" silently did nothing before.
       const res = await fetch("/api/co-loop/session-info", {
-        method: "POST",
+        method: "PATCH",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({ session_id: sessionId, status: "ended" }),
       })

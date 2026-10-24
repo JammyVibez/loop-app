@@ -141,11 +141,11 @@ export default function CoLoopSessionsPage() {
   const endSession = async (sessionId: string) => {
     setEndingSession(sessionId)
     try {
+      // PATCH is the status route; POST is the join endpoint, so ending never
+      // wrote anything no matter what the body said.
       const res = await fetch("/api/co-loop/session-info", {
-        method: "POST",
+        method: "PATCH",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        // The route sets `status`; an `action` field was silently ignored, so
-        // "end" never actually reached the database.
         body: JSON.stringify({ session_id: sessionId, status: "ended" }),
       })
       if (res.ok) {

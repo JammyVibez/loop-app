@@ -173,6 +173,11 @@ export async function PATCH(request: NextRequest) {
     if (current?.locked && current.owner_id !== callingUser.id) {
       return NextResponse.json({ error: "The host has locked this room" }, { status: 403 })
     }
+    // Ending or publishing a room is the host's call alone — status is not a
+    // field any collaborator gets to flip.
+    if (status && current && current.owner_id !== callingUser.id) {
+      return NextResponse.json({ error: "Only the host can end this session" }, { status: 403 })
+    }
 
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
     if (status) patch.status = status

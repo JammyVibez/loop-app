@@ -141,7 +141,9 @@ export function EditCommunityDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      {/* Scrolls inside the viewport: the panel carries artwork, four role
+          lists and a danger zone now, and must not overflow on a phone. */}
+      <DialogContent className="max-h-[85dvh] w-[calc(100vw-2rem)] max-w-md overflow-y-auto sm:w-auto">
         <DialogHeader>
           <DialogTitle>Edit community</DialogTitle>
           <DialogDescription>Only owners and admins can change these.</DialogDescription>
