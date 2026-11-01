@@ -30,7 +30,10 @@ impl AppConfig {
             .unwrap_or_else(|_| "10".to_owned())
             .parse::<u32>()
             .context("DB_MAX_CONNECTIONS must be a positive integer")?;
-        ensure!(db_max_connections > 0, "DB_MAX_CONNECTIONS must be greater than zero");
+        ensure!(
+            db_max_connections > 0,
+            "DB_MAX_CONNECTIONS must be greater than zero"
+        );
 
         let raw_origins = env::var("CORS_ALLOWED_ORIGINS").unwrap_or_else(|_| {
             "http://localhost:3000,https://loopapp.me,https://www.loopapp.me".to_owned()
@@ -63,8 +66,12 @@ impl AppConfig {
             db_max_connections,
             cors_allowed_origins,
             aws_region: env::var("AWS_REGION").unwrap_or_else(|_| "eu-west-1".to_owned()),
-            s3_bucket: env::var("S3_BUCKET").ok().filter(|value| !value.trim().is_empty()),
-            s3_endpoint_url: env::var("S3_ENDPOINT_URL").ok().filter(|value| !value.trim().is_empty()),
+            s3_bucket: env::var("S3_BUCKET")
+                .ok()
+                .filter(|value| !value.trim().is_empty()),
+            s3_endpoint_url: env::var("S3_ENDPOINT_URL")
+                .ok()
+                .filter(|value| !value.trim().is_empty()),
             s3_force_path_style: env::var("S3_FORCE_PATH_STYLE")
                 .map(|value| value.eq_ignore_ascii_case("true"))
                 .unwrap_or(false),
