@@ -2,10 +2,7 @@ use std::time::Duration;
 
 use anyhow::Context;
 use aws_config::{BehaviorVersion, Region};
-use aws_sdk_s3::{
-    presigning::PresigningConfig,
-    Client,
-};
+use aws_sdk_s3::{Client, presigning::PresigningConfig};
 
 use crate::config::AppConfig;
 
@@ -63,8 +60,8 @@ impl S3Store {
         object_key: &str,
         content_type: &str,
     ) -> anyhow::Result<String> {
-        let signing = PresigningConfig::expires_in(self.presign_ttl)
-            .context("invalid S3 presign expiry")?;
+        let signing =
+            PresigningConfig::expires_in(self.presign_ttl).context("invalid S3 presign expiry")?;
 
         let request = self
             .client
