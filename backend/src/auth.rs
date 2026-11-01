@@ -94,6 +94,29 @@ impl FromRequestParts<AppState> for AuthenticatedUser {
     }
 }
 
+
+/// Optional session identity for read-only endpoints that expose public resources.
+/// A malformed or expired credential remains an authentication error; only a
+/// request with no Authorization header is treated as anonymous.
+pub struct OptionalAuthenticatedUser(pub Option<AuthenticatedUser>);
+
+impl FromRequestParts<AppState> for OptionalAuthenticatedUser {
+    type Rejection = Response;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        if !parts.headers.contains_key(AUTHORIZATION) {
+            return Ok(Self(None));
+        }
+
+        AuthenticatedUser::from_request_parts(parts, state)
+            .await
+            .map(|user| Self(Some(user)))
+    }
+}
+
 fn bearer_token(headers: &http::HeaderMap) -> Option<&str> {
     let value = headers.get(AUTHORIZATION)?.to_str().ok()?;
     let (scheme, token) = value.split_once(' ')?;
