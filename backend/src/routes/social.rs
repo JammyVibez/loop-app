@@ -380,17 +380,24 @@ pub async fn follow(
 
         if request_result.rows_affected() > 0 {
             insert_notification(
-                        &mut transaction,
-                        target_id,
-                        user.id,
-                        "follow_request",
-                        "New follow request",
-                        &format!("{} requested to follow you", user.display_name),
-                        serde_json::json!({ "requester_id": user.id, "username": user.username }),
-                        Some(&format!("/profile/{}", user.username)),
-                    )
-                    .await?;
-        }        let (followers_count, following_count) =
+                &mut transaction,
+                NotificationDraft {
+                    recipient_id: target_id,
+                    actor_id: user.id,
+                    notification_type: "follow_request",
+                    title: "New follow request",
+                    message: &format!("{} requested to follow you", user.display_name),
+                    data: serde_json::json!({
+                        "requester_id": user.id,
+                        "username": user.username,
+                    }),
+                    action_url: Some(&format!("/profile/{}", user.username)),
+                },
+            )
+            .await?;
+        }
+
+        let (followers_count, following_count) =
             refresh_follow_counts(&mut transaction, user.id, target_id).await?;
         transaction.commit().await.map_err(|error| {
             tracing::error!(%error, "could not commit follow request");
@@ -453,13 +460,18 @@ pub async fn follow(
 
         insert_notification(
             &mut transaction,
-            target_id,
-            user.id,
-            "follow",
-            "New follower",
-            &format!("{} started following you", user.display_name),
-            serde_json::json!({ "follower_id": user.id, "username": user.username }),
-            Some(&format!("/profile/{}", user.username)),
+            NotificationDraft {
+                recipient_id: target_id,
+                actor_id: user.id,
+                notification_type: "follow",
+                title: "New follower",
+                message: &format!("{} started following you", user.display_name),
+                data: serde_json::json!({
+                    "follower_id": user.id,
+                    "username": user.username,
+                }),
+                action_url: Some(&format!("/profile/{}", user.username)),
+            },
         )
         .await?;
     }
