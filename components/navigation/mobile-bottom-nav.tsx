@@ -96,7 +96,7 @@ export function MobileBottomNav() {
 
   type TabItem = {
     href: string
-    icon: typeof Home
+    icon: AnimatedIconComponent
     label: string
     auth?: boolean
     center?: boolean
