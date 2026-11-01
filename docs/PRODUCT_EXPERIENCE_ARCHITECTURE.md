@@ -108,3 +108,10 @@ Measure successful creation, useful replies, accepted invitations, collaborative
 7. Ecosystem integrations and public developer surfaces.
 
 Keep existing URLs stable during the redesign. Introduce canonical destinations gradually and redirect old routes only after confirming deep links, share cards, mobile navigation and tests.
+
+
+## Social graph and notification loop
+
+The social graph is a first-class discovery path. Following a creator should improve the Following feed and surface their public Loops, Chains and Circle activity. Private profiles use a request/approval path; blocked pairs cannot follow one another. Follow counters are reconciled from the relationship table during writes so retries do not double-increment them.
+
+Notifications are the shared activity inbox, not a separate feature silo. A follow, follow request, Branch, Co-Loop invitation, Circle activity or reply should create a recipient-scoped notification with an actor and a deep link to the relevant object. The current Rust slice establishes follow notifications and the recipient-owned inbox API; the next stage will move all notification producers to the same Rust notification/outbox path.
