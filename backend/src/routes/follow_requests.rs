@@ -349,7 +349,7 @@ pub async fn act(
     .map_err(db_error)?;
 
     let actor = sqlx::query("SELECT username, display_name FROM profiles WHERE id = $1")
-    .bind(user.id)
+        .bind(user.id)
     .fetch_one(&mut *transaction)
     .await
     .map_err(db_error)?;
