@@ -62,6 +62,7 @@ const NAV_ICONS: Record<string, AnimatedIconComponent> = {
   "/developers": CodeIcon,
   "/events": ClockIcon,
   "/bookmarks": BookmarkIcon,
+  "/collections": BookmarkIcon,
   "/invite": UserPlusIcon,
   "/lounge": LockIcon,
   "/organization": UsersGroupIcon,
