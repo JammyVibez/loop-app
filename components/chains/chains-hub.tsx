@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -52,6 +52,8 @@ function formatDate(value: string) {
 export function ChainsHub() {
   const { user, loading: authLoading, getAuthHeader } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const requestedCircleId = searchParams.get("circle_id") || ""
   const [chains, setChains] = useState<Chain[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -65,7 +67,7 @@ export function ChainsHub() {
   const [prompt, setPrompt] = useState("")
   const [newKind, setNewKind] = useState("worldbuilding")
   const [circles, setCircles] = useState<Array<{ id: string; name: string }>>([])
-  const [selectedCircleId, setSelectedCircleId] = useState("")
+  const [selectedCircleId, setSelectedCircleId] = useState(requestedCircleId)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -110,7 +112,11 @@ export function ChainsHub() {
           const memberships = Array.isArray(result.communities)
             ? result.communities.filter((circle: { is_member?: boolean; id: string | number; name: string }) => circle.is_member)
             : []
-          setCircles(memberships.map((circle: { id: string | number; name: string }) => ({ id: String(circle.id), name: circle.name })))
+          const availableCircles = memberships.map((circle: { id: string | number; name: string }) => ({ id: String(circle.id), name: circle.name }))
+          setCircles(availableCircles)
+          if (requestedCircleId && availableCircles.some((circle: { id: string }) => circle.id === requestedCircleId)) {
+            setSelectedCircleId(requestedCircleId)
+          }
         }
       })
       .catch(() => {
@@ -119,7 +125,7 @@ export function ChainsHub() {
     return () => {
       cancelled = true
     }
-  }, [getAuthHeader, user])
+  }, [getAuthHeader, requestedCircleId, user])
 
   const createChain = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
