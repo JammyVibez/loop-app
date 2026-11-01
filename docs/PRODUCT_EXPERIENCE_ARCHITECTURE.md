@@ -115,3 +115,16 @@ Keep existing URLs stable during the redesign. Introduce canonical destinations 
 The social graph is a first-class discovery path. Following a creator should improve the Following feed and surface their public Loops, Chains and Circle activity. Private profiles use a request/approval path; blocked pairs cannot follow one another. Follow counters are reconciled from the relationship table during writes so retries do not double-increment them.
 
 Notifications are the shared activity inbox, not a separate feature silo. A follow, follow request, Branch, Co-Loop invitation, Circle activity or reply should create a recipient-scoped notification with an actor and a deep link to the relevant object. The current Rust slice establishes follow notifications and the recipient-owned inbox API; the next stage will move all notification producers to the same Rust notification/outbox path.
+
+
+## Drops — one activity layer
+
+Drops is a single discovery surface over activity the platform and its communities already create. It does not introduce a competing event or quest store.
+
+The Rust `GET /v1/drops` endpoint combines:
+- Official platform events from `global_events`.
+- Member-hosted events from `events`.
+- Circle events from `circle_events`, limited to Circles the viewer belongs to.
+- Active Circle challenges from `circle_challenges`, with entry counts from `community_challenge_entries`.
+
+Each item is normalized into one feed card with a source, type, time window, participation count, optional reward and a deep link back to its original event or Circle. The existing Events and Quests pages remain authoritative for their respective detail and reward workflows.
