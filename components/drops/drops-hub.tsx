@@ -8,7 +8,6 @@ import { ArrowUpRight, CalendarDays, CircleDot, Clock3, Flame, Gift, Radio, Refr
 import { useAuth } from "@/hooks/use-auth"
 import { rustApiRequest } from "@/lib/rust-api"
 import { Button } from "@/components/ui/button"
-import { DynamicButton } from "@/components/ui/dynamic-button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
