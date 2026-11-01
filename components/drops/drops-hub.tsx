@@ -27,7 +27,7 @@ interface DropItem {
   category: string
   starts_at: string | null
   ends_at: string | null
-  status: "live" | "upcoming" | "ended"
+  status: "live" | "upcoming" | "active" | "ended"
   is_live: boolean
   image_url: string | null
   participants_count: number
@@ -57,6 +57,7 @@ const FILTERS: Array<{ value: DropFilter; label: string }> = [
 
 function formatDropTime(value: string | null, status: DropItem["status"]): string {
   if (status === "live") return "Live now"
+  if (status === "active") return "Open now"
   if (!value) return "Time to be announced"
 
   const date = new Date(value)
@@ -130,7 +131,11 @@ function DropCard({ item }: { item: DropItem }) {
         <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border/70 pt-3 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <Clock3 className="h-3.5 w-3.5" />
-            {formatDropTime(item.starts_at, item.status)}
+            {isChallenge
+              ? item.ends_at
+                ? `Closes ${formatDropTime(item.ends_at, "upcoming")}`
+                : "Open challenge"
+              : formatDropTime(item.starts_at, item.status)}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5" />
@@ -270,6 +275,14 @@ export function DropsHub() {
               <ArrowUpRight className="h-4 w-4" />
             </Link>
           </div>
+        </div>
+          {response ? (
+            <div className="flex flex-wrap gap-4 border-t border-border/60 pt-4 text-xs text-muted-foreground">
+              <span><strong className="text-foreground">{response.live_count}</strong> live</span>
+              <span><strong className="text-foreground">{response.event_count}</strong> events</span>
+              <span><strong className="text-foreground">{response.challenge_count}</strong> challenges</span>
+            </div>
+          ) : null}
         </div>
       </section>
 
