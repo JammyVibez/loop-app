@@ -1189,7 +1189,9 @@ mod tests {
 
     #[test]
     fn only_https_urls_are_valid_for_links_and_uploaded_media() {
-        assert!(super::is_valid_https_url("https://cdn.example.com/media.png"));
+        assert!(super::is_valid_https_url(
+            "https://cdn.example.com/media.png"
+        ));
         assert!(!super::is_valid_https_url("http://example.com/media.png"));
         assert!(!super::is_valid_https_url("javascript:alert(1)"));
         assert!(!super::is_valid_https_url("not a url"));
