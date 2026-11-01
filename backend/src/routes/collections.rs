@@ -10,7 +10,10 @@ use sqlx::Row;
 use url::Url;
 use uuid::Uuid;
 
-use crate::{auth::{AuthenticatedUser, OptionalAuthenticatedUser}, state::AppState};
+use crate::{
+    auth::{AuthenticatedUser, OptionalAuthenticatedUser},
+    state::AppState,
+};
 
 #[derive(Serialize)]
 struct ApiErrorBody {
