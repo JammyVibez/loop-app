@@ -21,7 +21,14 @@ const createServerClient = vi.fn((..._args: unknown[]): any => {
   dbTouched = true
   throw new Error("database reached for an unauthorised request")
 })
-const checkBlockStatus = vi.fn(async () => ({ blocked: false, direction: null as "by_me" | "by_them" | null }))
+const checkBlockStatus = vi.fn(async (
+  _supabase: unknown,
+  _userId: string,
+  _otherUserId: string,
+): Promise<{ blocked: boolean; direction: "by_me" | "by_them" | null }> => ({
+  blocked: false,
+  direction: null,
+}))
 
 vi.mock("@/lib/server-auth", () => ({
   getUserFromRequest: (...args: unknown[]) => getUserFromRequest(...args),
@@ -32,7 +39,7 @@ vi.mock("@/lib/supabase", () => ({
   createClient: (...args: unknown[]) => createServerClient(...args),
 }))
 vi.mock("@/lib/user-blocks", () => ({
-  checkBlockStatus: (...args: unknown[]) => checkBlockStatus(...args),
+  checkBlockStatus,
 }))
 
 /**
