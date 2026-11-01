@@ -55,6 +55,7 @@ export const SIDEBAR_NAV: SidebarNavItem[] = [
   { href: "/streams", label: "Live", badge: "LIVE", group: "secondary" },
   { href: "/co-loop/studio", label: "Co-Loop Studio", badge: "NEW", group: "secondary" },
   { href: "/events", label: "Events", group: "secondary" },
+  { href: "/drops", label: "Drops", badge: "NEW", group: "secondary" },
   { href: "/bookmarks", label: "Saved", group: "secondary" },
   { href: "/collections", label: "Collections", group: "secondary" },
   { href: "/invite", label: "Invite Friends", group: "secondary" },
