@@ -241,31 +241,6 @@ pub async fn follow(
                 )
             })?;
 
-        sqlx::query(
-            r#"
-            UPDATE profiles
-            SET following_count = GREATEST(0, following_count - 1),
-                updated_at = NOW()
-            WHERE id = $1
-              AND EXISTS (
-                  SELECT 1 FROM follows
-                  WHERE follower_id = $1 AND following_id = $2
-              ) = false
-            "#,
-        )
-        .bind(user.id)
-        .bind(target_id)
-        .execute(&mut *transaction)
-        .await
-        .map_err(|error| {
-            tracing::error!(%error, "could not update following counter");
-            api_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "follow_counter_failed",
-                "Could not update follow totals.",
-            )
-        })?;
-
         // Recompute from the relationship table so duplicate retries and
         // historical counter drift cannot compound incorrect values.
         let (followers_count, following_count) =
@@ -381,13 +356,13 @@ pub async fn follow(
             }));
         }
 
-        sqlx::query(
+        let request_result = sqlx::query(
             r#"
             INSERT INTO follow_requests (requester_id, target_id, status)
             VALUES ($1, $2, 'pending')
             ON CONFLICT (requester_id, target_id)
             DO UPDATE SET status = 'pending', updated_at = NOW()
-            WHERE follow_requests.status = 'declined'
+            WHERE follow_requests.status <> 'pending'
             "#,
         )
         .bind(user.id)
@@ -403,19 +378,19 @@ pub async fn follow(
             )
         })?;
 
-        insert_notification(
-            &mut transaction,
-            target_id,
-            user.id,
-            "follow_request",
-            "New follow request",
-            &format!("{} requested to follow you", user.display_name),
-            serde_json::json!({ "requester_id": user.id, "username": user.username }),
-            Some(&format!("/profile/{}", user.username)),
-        )
-        .await?;
-
-        let (followers_count, following_count) =
+        if request_result.rows_affected() > 0 {
+            insert_notification(
+                        &mut transaction,
+                        target_id,
+                        user.id,
+                        "follow_request",
+                        "New follow request",
+                        &format!("{} requested to follow you", user.display_name),
+                        serde_json::json!({ "requester_id": user.id, "username": user.username }),
+                        Some(&format!("/profile/{}", user.username)),
+                    )
+                    .await?;
+        }        let (followers_count, following_count) =
             refresh_follow_counts(&mut transaction, user.id, target_id).await?;
         transaction.commit().await.map_err(|error| {
             tracing::error!(%error, "could not commit follow request");
@@ -594,15 +569,19 @@ async fn refresh_follow_counts(
     Ok((followers_count, following_count))
 }
 
-async fn insert_notification(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+struct NotificationDraft<'a> {
     recipient_id: Uuid,
     actor_id: Uuid,
-    notification_type: &str,
-    title: &str,
-    message: &str,
+    notification_type: &'a str,
+    title: &'a str,
+    message: &'a str,
     data: serde_json::Value,
-    action_url: Option<&str>,
+    action_url: Option<&'a str>,
+}
+
+async fn insert_notification(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    draft: NotificationDraft<'_>,
 ) -> Result<(), ApiError> {
     sqlx::query(
         r#"
@@ -610,13 +589,13 @@ async fn insert_notification(
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         "#,
     )
-    .bind(recipient_id)
-    .bind(actor_id)
-    .bind(notification_type)
-    .bind(title)
-    .bind(message)
-    .bind(data)
-    .bind(action_url)
+    .bind(draft.recipient_id)
+    .bind(draft.actor_id)
+    .bind(draft.notification_type)
+    .bind(draft.title)
+    .bind(draft.message)
+    .bind(draft.data)
+    .bind(draft.action_url)
     .execute(&mut **transaction)
     .await
     .map_err(|error| {
