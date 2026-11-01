@@ -64,7 +64,6 @@ pub struct FollowActionResponse {
     following_count: i64,
 }
 
-
 #[derive(Deserialize)]
 pub struct ListConnectionsQuery {
     limit: Option<i64>,
@@ -105,14 +104,13 @@ async fn check_social_list_access(
     target_id: Uuid,
     viewer_id: Option<Uuid>,
 ) -> Result<(), ApiError> {
-    let privacy: Option<serde_json::Value> = sqlx::query_scalar(
-        "SELECT privacy_settings FROM profiles WHERE id = $1",
-    )
-    .bind(target_id)
-    .fetch_optional(&state.database)
-    .await
-    .map_err(db_error)?
-    .ok_or_else(|| {
+    let privacy: Option<serde_json::Value> =
+        sqlx::query_scalar("SELECT privacy_settings FROM profiles WHERE id = $1")
+            .bind(target_id)
+            .fetch_optional(&state.database)
+            .await
+            .map_err(db_error)?
+            .ok_or_else(|| {
         api_error(
             StatusCode::NOT_FOUND,
             "user_not_found",
