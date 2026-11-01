@@ -406,11 +406,13 @@ fn append_rows(
         let in_live_window = starts_at.is_some_and(|start| {
             start <= now && ends_at.map_or(true, |end| end >= now)
         });
-        let is_live = is_live || in_live_window;
-        let normalized_status = if is_live {
-            "live"
-        } else if status == "ended" || ends_at.is_some_and(|end| end < now) {
+        let is_live = kind == "event" && (is_live || in_live_window);
+        let normalized_status = if status == "ended" || ends_at.is_some_and(|end| end < now) {
             "ended"
+        } else if is_live {
+            "live"
+        } else if kind == "challenge" {
+            "active"
         } else {
             "upcoming"
         };
