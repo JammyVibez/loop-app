@@ -1,3 +1,4 @@
+mod auth;
 mod config;
 mod routes;
 mod state;
@@ -62,6 +63,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/health/live", get(routes::health::live))
         .route("/health/ready", get(routes::health::ready))
         .route("/v1/system/capabilities", get(routes::system::capabilities))
+        .route("/v1/me", get(routes::me::get_me))
         .with_state(state)
         .layer(RequestBodyLimitLayer::new(10 * 1024 * 1024))
         .layer(TimeoutLayer::new(Duration::from_secs(15)))
