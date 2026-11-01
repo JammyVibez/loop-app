@@ -11,7 +11,7 @@ import { buttonVariants } from "@/components/ui/button"
 type TactileFeedback = "none" | "tap" | "press"
 
 export interface TactileButtonProps
-  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onDrag" | "onDragStart" | "onDragEnd">,
+  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onDrag" | "onDragStart" | "onDragEnd" | "onAnimationStart" | "onAnimationEnd">,
     VariantProps<typeof buttonVariants> {
   /** Haptic feedback is best-effort and silently falls back on unsupported devices. */
   feedback?: TactileFeedback
