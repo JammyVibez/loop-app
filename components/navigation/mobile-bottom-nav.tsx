@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Compass, Home, MessageCircle, Plus, Users } from "lucide-react"
+import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view"
+import type { AnimatedIconComponent } from "@/components/icons/animated/animated-icon-view"
+import HomeIcon from "@/components/icons/animated/home-icon"
+import MagnifierIcon from "@/components/icons/animated/magnifier-icon"
+import PenIcon from "@/components/icons/animated/pen-icon"
+import UsersIcon from "@/components/icons/animated/users-icon"
+import MessageCircleIcon from "@/components/icons/animated/message-circle-icon"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { useLoginGate } from "@/hooks/use-login-gate"
@@ -12,12 +18,12 @@ import { formatUnreadBadge } from "@/lib/unread-messages"
 import { EMPTY_AUDIENCE, primarySidebarNav } from "@/lib/sidebar-nav"
 import { MobileSidebarSheet } from "@/components/left-sidebar"
 
-const MOBILE_NAV_ICONS: Record<string, typeof Home> = {
-  "/": Home,
-  "/explore": Compass,
-  "/create": Plus,
-  "/communities": Users,
-  "/messages": MessageCircle,
+const MOBILE_NAV_ICONS: Record<string, AnimatedIconComponent> = {
+  "/": HomeIcon,
+  "/explore": MagnifierIcon,
+  "/create": PenIcon,
+  "/communities": UsersIcon,
+  "/messages": MessageCircleIcon,
 }
 
 const HIDDEN_PREFIXES = [
@@ -131,11 +137,11 @@ export function MobileBottomNav() {
                 >
                   <span
                     className={cn(
-                      "-mt-6 mb-0.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-violet-500 text-white shadow-lg shadow-cyan-500/25 ring-4 ring-background transition-transform group-active:scale-95",
+                      "loop-tactile -mt-6 mb-0.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform group-active:translate-y-1",
                       active && "scale-105",
                     )}
                   >
-                    <item.icon className="h-5 w-5" />
+                    <AnimatedIconView component={item.icon} size={21} className="h-5 w-5" />
                   </span>
                   <span className={active ? "text-primary" : "text-muted-foreground"}>{item.label}</span>
                 </Link>
@@ -162,7 +168,7 @@ export function MobileBottomNav() {
                   )}
                 />
                 <div className="relative">
-                  <item.icon className={cn("h-5 w-5", active && "stroke-[2.4]")} />
+                  <AnimatedIconView component={item.icon} size={20} className="h-5 w-5" />
                   {badge > 0 && (
                     <span className="absolute -right-2.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-background">
                       {formatUnreadBadge(badge)}
