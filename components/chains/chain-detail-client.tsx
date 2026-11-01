@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState, type FormEvent } from "react"
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ProxyImg } from "@/components/ui/proxy-img"
+import { uploadMediaFile } from "@/lib/client-media-upload"
 import { ArrowLeft, ArrowUpRight, GitBranch, Lock, MessageCircle, Send } from "lucide-react"
 
 type Chain = {
@@ -43,6 +45,7 @@ type Contribution = {
   contribution_type: string
   title: string | null
   content: string
+  payload: Record<string, unknown>
   position: number
   created_at: string
 }
@@ -60,6 +63,17 @@ function dateLabel(value: string) {
     : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
 }
 
+function getSecurePayloadUrl(payload: Record<string, unknown>): string | null {
+  const value = payload.url
+  if (typeof value !== "string") return null
+  try {
+    const url = new URL(value)
+    return url.protocol === "https:" ? url.toString() : null
+  } catch {
+    return null
+  }
+}
+
 export function ChainDetailClient({ chainId }: { chainId: string }) {
   const { user, loading: authLoading, getAuthHeader } = useAuth()
   const router = useRouter()
@@ -70,6 +84,8 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
   const [title, setTitle] = useState("")
   const [contributionType, setContributionType] = useState("text")
   const [parentContributionId, setParentContributionId] = useState<string | null>(null)
+  const [attachment, setAttachment] = useState<File | null>(null)
+  const attachmentInputRef = useRef<HTMLInputElement>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const load = useCallback(async () => {
@@ -103,6 +119,32 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
     setSubmitting(true)
     setError("")
     try {
+      const payload: Record<string, unknown> = {}
+      if (["image", "video", "audio", "document"].includes(contributionType)) {
+        if (!attachment) throw new Error("Choose a file to attach to this contribution.")
+        const uploadType: "image" | "video" | "audio" | "file" =
+          contributionType === "document" ? "file" : contributionType as "image" | "video" | "audio"
+        const uploaded = await uploadMediaFile(attachment, {
+          type: uploadType,
+          folder: "chain-contributions",
+          authHeaders: getAuthHeader(),
+        })
+        payload.url = uploaded.url
+        payload.file_name = attachment.name
+        payload.mime_type = attachment.type
+        payload.size_bytes = attachment.size
+        if (uploaded.public_id) payload.public_id = uploaded.public_id
+      } else if (contributionType === "link") {
+        let parsed: URL
+        try {
+          parsed = new URL(content.trim())
+        } catch {
+          throw new Error("Enter a valid HTTPS link.")
+        }
+        if (parsed.protocol !== "https:") throw new Error("Links must use HTTPS.")
+        payload.url = parsed.toString()
+      }
+
       const response = await fetch("/api/v1/chains/" + encodeURIComponent(chainId) + "/contributions", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
@@ -111,12 +153,15 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
           title: title.trim() || null,
           content: content.trim(),
           parent_contribution_id: parentContributionId,
+          payload,
         }),
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.message || result.error || "Could not add contribution")
       setTitle("")
       setContent("")
+      setAttachment(null)
+      if (attachmentInputRef.current) attachmentInputRef.current.value = ""
       setParentContributionId(null)
       await load()
     } catch (cause) {
@@ -141,6 +186,12 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
   }
 
   const { chain, contributions, can_contribute: canContribute } = data
+  const requiresAttachment = ["image", "video", "audio", "document"].includes(contributionType)
+  const attachmentAccept =
+    contributionType === "image" ? "image/*" :
+    contributionType === "video" ? "video/*" :
+    contributionType === "audio" ? "audio/*" :
+    ".pdf,.doc,.docx,.txt,.md,application/pdf,application/msword,text/plain"
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-24 pt-5 sm:px-6">
       <Link href="/chains" className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"><ArrowLeft className="h-4 w-4" /> All Chains</Link>
@@ -204,8 +255,16 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
               </div>
             )}
             <div className="grid gap-3 sm:grid-cols-[180px_minmax(0,1fr)]">
-              <select aria-label="Contribution type" value={contributionType} onChange={(event) => setContributionType(event.target.value)} className="h-10 rounded-lg border border-input bg-background px-3 text-sm">
+              <select aria-label="Contribution type" value={contributionType} onChange={(event) => {
+                setContributionType(event.target.value)
+                setAttachment(null)
+                if (attachmentInputRef.current) attachmentInputRef.current.value = ""
+              }} className="h-10 rounded-lg border border-input bg-background px-3 text-sm">
                 <option value="text">Text</option>
+                <option value="image">Image</option>
+                <option value="video">Video</option>
+                <option value="audio">Audio</option>
+                <option value="document">Document</option>
                 <option value="link">Link</option>
                 <option value="list">List item</option>
                 <option value="ranking">Ranking entry</option>
@@ -213,10 +272,29 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
               </select>
               <Input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} placeholder="Optional contribution title" />
             </div>
-            <Textarea value={content} onChange={(event) => setContent(event.target.value)} maxLength={8000} rows={4} placeholder="Add your part. Give it context so the next person can build on it…" />
+            {requiresAttachment && (
+              <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+                <label htmlFor="chain-attachment" className="text-sm font-medium">
+                  {contributionType === "document" ? "Attach a document" : `Attach an ${contributionType}`}
+                </label>
+                <input
+                  ref={attachmentInputRef}
+                  id="chain-attachment"
+                  type="file"
+                  accept={attachmentAccept}
+                  disabled={submitting}
+                  onChange={(event) => setAttachment(event.target.files?.[0] || null)}
+                  className="block w-full text-xs text-muted-foreground file:mr-3 file:rounded-full file:border-0 file:bg-primary file:px-3 file:py-2 file:text-xs file:font-semibold file:text-primary-foreground"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  {attachment ? `${attachment.name} · ${(attachment.size / 1024 / 1024).toFixed(1)} MB` : "The file is uploaded to LOOP media storage before the contribution is published."}
+                </p>
+              </div>
+            )}
+            <Textarea value={content} onChange={(event) => setContent(event.target.value)} maxLength={8000} rows={4} placeholder={contributionType === "link" ? "Paste an HTTPS link and add context…" : "Add your part. Give it context so the next person can build on it…"} />
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <div className="flex justify-end">
-              <Button type="submit" disabled={submitting || (!content.trim() && !title.trim())}>
+              <Button type="submit" disabled={submitting || (!content.trim() && !title.trim() && !attachment) || (requiresAttachment && !attachment)}>
                 <Send className="h-4 w-4" /> {submitting ? "Adding…" : "Contribute"}
               </Button>
             </div>
@@ -253,7 +331,24 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
                       <span className="ml-auto text-[11px] text-muted-foreground">{dateLabel(contribution.created_at)}</span>
                     </div>
                     {contribution.title && <h3 className="mt-2 font-semibold">{contribution.title}</h3>}
-                    {contribution.content && <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{contribution.content}</p>}
+                    {contribution.content && contribution.contribution_type !== "link" && <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{contribution.content}</p>}
+                    {contribution.contribution_type === "image" && getSecurePayloadUrl(contribution.payload) && (
+                      <ProxyImg src={getSecurePayloadUrl(contribution.payload) || ""} alt={contribution.title || "Chain contribution"} className="mt-3 max-h-[420px] w-auto max-w-full rounded-xl object-contain" />
+                    )}
+                    {contribution.contribution_type === "video" && getSecurePayloadUrl(contribution.payload) && (
+                      <video src={getSecurePayloadUrl(contribution.payload) || undefined} controls preload="metadata" className="mt-3 max-h-[420px] w-full rounded-xl bg-black" />
+                    )}
+                    {contribution.contribution_type === "audio" && getSecurePayloadUrl(contribution.payload) && (
+                      <audio src={getSecurePayloadUrl(contribution.payload) || undefined} controls preload="metadata" className="mt-3 w-full" />
+                    )}
+                    {(contribution.contribution_type === "document" || contribution.contribution_type === "link") && getSecurePayloadUrl(contribution.payload) && (
+                      <a href={getSecurePayloadUrl(contribution.payload) || "#"} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs font-semibold text-primary hover:bg-muted">
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                        {contribution.contribution_type === "document"
+                          ? String(contribution.payload.file_name || "Open document")
+                          : "Open link"}
+                      </a>
+                    )}
                     {contribution.parent_contribution_id && <p className="mt-2 text-[11px] text-muted-foreground">Part of a contribution thread</p>}
                     {canContribute && (
                       <button type="button" onClick={() => { setParentContributionId(contribution.id); document.getElementById("chain-contribution")?.scrollIntoView({ behavior: "smooth", block: "center" }) }} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">

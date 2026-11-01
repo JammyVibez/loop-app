@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::Row;
+use url::Url;
 use uuid::Uuid;
 
 use crate::{
@@ -49,6 +50,10 @@ fn db_error(error: sqlx::Error, context: &'static str) -> ApiError {
         "chain_database_error",
         "Could not complete this Chain action.",
     )
+}
+
+fn is_valid_https_url(value: &str) -> bool {
+    Url::parse(value).is_ok_and(|url| url.scheme() == "https")
 }
 
 #[derive(Deserialize)]
@@ -822,11 +827,22 @@ pub async fn contribute(
             "Contribution titles are limited to 120 characters and content to 8,000.",
         ));
     }
-    if title.trim().is_empty() && content.trim().is_empty() && input.payload == Value::Null {
+    if !input.payload.is_null() && !input.payload.is_object() {
+        return Err(api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_contribution_payload",
+            "Structured contribution data must be a JSON object.",
+        ));
+    }
+    let payload_has_content = input
+        .payload
+        .as_object()
+        .is_some_and(|payload| !payload.is_empty());
+    if title.trim().is_empty() && content.trim().is_empty() && !payload_has_content {
         return Err(api_error(
             StatusCode::UNPROCESSABLE_ENTITY,
             "empty_contribution",
-            "Add text or structured content before contributing.",
+            "Add text, a link or an attachment before contributing.",
         ));
     }
     if serde_json::to_vec(&input.payload).map_or(true, |value| value.len() > 64 * 1024) {
@@ -835,6 +851,24 @@ pub async fn contribute(
             "contribution_payload_too_large",
             "Structured contribution data cannot exceed 64 KiB.",
         ));
+    }
+    if matches!(
+        contribution_type.as_str(),
+        "image" | "video" | "audio" | "document" | "link"
+    ) {
+        let attachment_url = input
+            .payload
+            .get("url")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        if !attachment_url.is_some_and(is_valid_https_url) {
+            return Err(api_error(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "invalid_contribution_url",
+                "Links and uploaded media must use a valid HTTPS URL.",
+            ));
+        }
     }
 
     let mut transaction = state
@@ -1151,6 +1185,14 @@ mod tests {
     fn rejects_unknown_visibility_and_contribution_policies() {
         assert!(valid_visibility(Some("world-readable")).is_none());
         assert!(valid_policy(Some("anyone-and-everyone")).is_none());
+    }
+
+    #[test]
+    fn only_https_urls_are_valid_for_links_and_uploaded_media() {
+        assert!(super::is_valid_https_url("https://cdn.example.com/media.png"));
+        assert!(!super::is_valid_https_url("http://example.com/media.png"));
+        assert!(!super::is_valid_https_url("javascript:alert(1)"));
+        assert!(!super::is_valid_https_url("not a url"));
     }
 
     #[test]
