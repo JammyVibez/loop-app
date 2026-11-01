@@ -3,7 +3,9 @@ import { Header } from "@/components/header";
 import { ExploreContent } from "@/components/explore/explore-content";
 import { Film } from "lucide-react";
 
-export default function ExplorePage() {
+export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const params = await searchParams
+  const initialTab = params.tab === "chains" ? "deepest" : "recent"
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -32,7 +34,7 @@ export default function ExplorePage() {
             <span className="text-sm font-semibold text-violet-500 transition group-hover:translate-x-0.5">→</span>
           </Link>
 
-          <ExploreContent />
+          <ExploreContent initialTab={initialTab} />
         </div>
       </main>
     </div>
