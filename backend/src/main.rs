@@ -7,7 +7,10 @@ mod storage;
 use std::time::Duration;
 
 use anyhow::Context;
-use axum::{Router, routing::{delete, get, post}};
+use axum::{
+    Router,
+    routing::{delete, get, post},
+};
 use config::AppConfig;
 use http::{
     Method,
@@ -72,10 +75,22 @@ async fn main() -> anyhow::Result<()> {
         .route("/health/ready", get(routes::health::ready))
         .route("/v1/system/capabilities", get(routes::system::capabilities))
         .route("/v1/me", get(routes::me::get_me))
-        .route("/v1/collections", get(routes::collections::list).post(routes::collections::create))
-        .route("/v1/collections/{collection_id}", get(routes::collections::get))
-        .route("/v1/collections/{collection_id}/items", post(routes::collections::add_item))
-        .route("/v1/collections/{collection_id}/items/{item_id}", delete(routes::collections::remove_item))
+        .route(
+            "/v1/collections",
+            get(routes::collections::list).post(routes::collections::create),
+        )
+        .route(
+            "/v1/collections/{collection_id}",
+            get(routes::collections::get),
+        )
+        .route(
+            "/v1/collections/{collection_id}/items",
+            post(routes::collections::add_item),
+        )
+        .route(
+            "/v1/collections/{collection_id}/items/{item_id}",
+            delete(routes::collections::remove_item),
+        )
         .with_state(state)
         .layer(RequestBodyLimitLayer::new(10 * 1024 * 1024))
         .layer(TimeoutLayer::new(Duration::from_secs(15)))
