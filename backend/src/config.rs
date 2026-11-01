@@ -1,4 +1,4 @@
-use std::{env, net::SocketAddr, str::FromStr};
+use std::{env, net::SocketAddr};
 
 use anyhow::{Context, ensure};
 use http::HeaderValue;
