@@ -6,6 +6,7 @@ publish = false
 
 [dependencies]
 anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
 aws-config = "1"
 aws-sdk-s3 = "1"
 axum = { version = "0.8", features = ["macros"] }
