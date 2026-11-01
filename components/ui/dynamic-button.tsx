@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
 type Feedback = "none" | "tap" | "press"
 
 export interface DynamicButtonProps
-  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onDrag" | "onDragStart" | "onDragEnd">,
+  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onDrag" | "onDragStart" | "onDragEnd" | "onAnimationStart" | "onAnimationEnd">,
     VariantProps<typeof buttonVariants> {
   children: string
   icon?: ReactNode
