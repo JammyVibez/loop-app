@@ -1,6 +1,6 @@
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
@@ -8,7 +8,10 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use uuid::Uuid;
 
-use crate::{auth::AuthenticatedUser, state::AppState};
+use crate::{
+    auth::{AuthenticatedUser, OptionalAuthenticatedUser},
+    state::AppState,
+};
 
 #[derive(Serialize)]
 struct ApiErrorBody {
@@ -59,6 +62,298 @@ pub struct FollowActionResponse {
     has_pending_follow_request: bool,
     followers_count: i64,
     following_count: i64,
+}
+
+
+#[derive(Deserialize)]
+pub struct ListConnectionsQuery {
+    limit: Option<i64>,
+    offset: Option<i64>,
+}
+
+#[derive(Serialize)]
+pub struct SocialPerson {
+    id: Uuid,
+    username: String,
+    display_name: String,
+    avatar_url: Option<String>,
+    video_avatar_url: Option<String>,
+    is_verified: bool,
+    is_premium: bool,
+    bio: Option<String>,
+    followed_at: DateTime<Utc>,
+    is_following: bool,
+    is_self: bool,
+}
+
+#[derive(Serialize)]
+pub struct FollowersListResponse {
+    success: bool,
+    followers: Vec<SocialPerson>,
+    has_more: bool,
+}
+
+#[derive(Serialize)]
+pub struct FollowingListResponse {
+    success: bool,
+    following: Vec<SocialPerson>,
+    has_more: bool,
+}
+
+async fn check_social_list_access(
+    state: &AppState,
+    target_id: Uuid,
+    viewer_id: Option<Uuid>,
+) -> Result<(), ApiError> {
+    let privacy: Option<serde_json::Value> = sqlx::query_scalar(
+        "SELECT privacy_settings FROM profiles WHERE id = $1",
+    )
+    .bind(target_id)
+    .fetch_optional(&state.database)
+    .await
+    .map_err(db_error)?
+    .ok_or_else(|| {
+        api_error(
+            StatusCode::NOT_FOUND,
+            "user_not_found",
+            "This profile is unavailable.",
+        )
+    })?;
+
+    let Some(viewer_id) = viewer_id else {
+        let visibility = privacy
+            .as_ref()
+            .and_then(|value| value.get("profile_visibility"))
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("public");
+        if matches!(visibility, "private" | "followers") {
+            return Err(api_error(
+                StatusCode::FORBIDDEN,
+                "profile_private",
+                "This profile's social lists are only visible to approved followers.",
+            ));
+        }
+        return Ok(());
+    };
+
+    if viewer_id == target_id {
+        return Ok(());
+    }
+
+    let blocked: bool = sqlx::query_scalar(
+        r#"
+        SELECT EXISTS (
+            SELECT 1 FROM user_blocks
+            WHERE (blocker_id = $1 AND blocked_id = $2)
+               OR (blocker_id = $2 AND blocked_id = $1)
+        )
+        "#,
+    )
+    .bind(viewer_id)
+    .bind(target_id)
+    .fetch_one(&state.database)
+    .await
+    .map_err(db_error)?;
+
+    if blocked {
+        return Err(api_error(
+            StatusCode::NOT_FOUND,
+            "profile_unavailable",
+            "This profile is unavailable.",
+        ));
+    }
+
+    let visibility = privacy
+        .as_ref()
+        .and_then(|value| value.get("profile_visibility"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("public");
+    if matches!(visibility, "private" | "followers") {
+        let follows: bool = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM follows WHERE follower_id = $1 AND following_id = $2)",
+        )
+        .bind(viewer_id)
+        .bind(target_id)
+        .fetch_one(&state.database)
+        .await
+        .map_err(db_error)?;
+
+        if !follows {
+            return Err(api_error(
+                StatusCode::FORBIDDEN,
+                "profile_private",
+                "This profile's social lists are only visible to approved followers.",
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn followers(
+    State(state): State<AppState>,
+    viewer: OptionalAuthenticatedUser,
+    Path(target_id): Path<Uuid>,
+    Query(query): Query<ListConnectionsQuery>,
+) -> Result<Json<FollowersListResponse>, ApiError> {
+    let viewer_id = viewer.0.as_ref().map(|user| user.id);
+    check_social_list_access(&state, target_id, viewer_id).await?;
+
+    let limit = query.limit.unwrap_or(20).clamp(1, 50);
+    let offset = query.offset.unwrap_or(0).max(0);
+    let rows = sqlx::query(
+        r#"
+        SELECT
+            person.id,
+            person.username,
+            person.display_name,
+            person.avatar_url,
+            person.video_avatar_url,
+            person.is_verified,
+            person.is_premium,
+            person.bio,
+            relationship.created_at AS followed_at,
+            COALESCE($1::uuid = person.id, false) AS is_self,
+            CASE
+                WHEN $1::uuid IS NULL THEN false
+                ELSE EXISTS (
+                    SELECT 1 FROM follows AS viewer_follow
+                    WHERE viewer_follow.follower_id = $1
+                      AND viewer_follow.following_id = person.id
+                )
+            END AS is_following
+        FROM follows AS relationship
+        JOIN profiles AS person ON person.id = relationship.follower_id
+        WHERE relationship.following_id = $2
+          AND (
+              $1::uuid IS NULL
+              OR NOT EXISTS (
+                  SELECT 1 FROM user_blocks AS block
+                  WHERE (block.blocker_id = $1 AND block.blocked_id = person.id)
+                     OR (block.blocker_id = person.id AND block.blocked_id = $1)
+              )
+          )
+        ORDER BY relationship.created_at DESC, relationship.id DESC
+        LIMIT $3 OFFSET $4
+        "#,
+    )
+    .bind(viewer_id)
+    .bind(target_id)
+    .bind(limit + 1)
+    .bind(offset)
+    .fetch_all(&state.database)
+    .await
+    .map_err(db_error)?;
+
+    let has_more = rows.len() > limit as usize;
+    let followers = rows
+        .into_iter()
+        .take(limit as usize)
+        .map(|row| {
+            Ok(SocialPerson {
+                id: row.try_get("id").map_err(db_error)?,
+                username: row.try_get("username").map_err(db_error)?,
+                display_name: row.try_get("display_name").map_err(db_error)?,
+                avatar_url: row.try_get("avatar_url").map_err(db_error)?,
+                video_avatar_url: row.try_get("video_avatar_url").map_err(db_error)?,
+                is_verified: row.try_get("is_verified").map_err(db_error)?,
+                is_premium: row.try_get("is_premium").map_err(db_error)?,
+                bio: row.try_get("bio").map_err(db_error)?,
+                followed_at: row.try_get("followed_at").map_err(db_error)?,
+                is_following: row.try_get("is_following").map_err(db_error)?,
+                is_self: row.try_get("is_self").map_err(db_error)?,
+            })
+        })
+        .collect::<Result<Vec<_>, ApiError>>()?;
+
+    Ok(Json(FollowersListResponse {
+        success: true,
+        followers,
+        has_more,
+    }))
+}
+
+pub async fn following(
+    State(state): State<AppState>,
+    viewer: OptionalAuthenticatedUser,
+    Path(target_id): Path<Uuid>,
+    Query(query): Query<ListConnectionsQuery>,
+) -> Result<Json<FollowingListResponse>, ApiError> {
+    let viewer_id = viewer.0.as_ref().map(|user| user.id);
+    check_social_list_access(&state, target_id, viewer_id).await?;
+
+    let limit = query.limit.unwrap_or(20).clamp(1, 50);
+    let offset = query.offset.unwrap_or(0).max(0);
+    let rows = sqlx::query(
+        r#"
+        SELECT
+            person.id,
+            person.username,
+            person.display_name,
+            person.avatar_url,
+            person.video_avatar_url,
+            person.is_verified,
+            person.is_premium,
+            person.bio,
+            relationship.created_at AS followed_at,
+            COALESCE($1::uuid = person.id, false) AS is_self,
+            CASE
+                WHEN $1::uuid IS NULL THEN false
+                ELSE EXISTS (
+                    SELECT 1 FROM follows AS viewer_follow
+                    WHERE viewer_follow.follower_id = $1
+                      AND viewer_follow.following_id = person.id
+                )
+            END AS is_following
+        FROM follows AS relationship
+        JOIN profiles AS person ON person.id = relationship.following_id
+        WHERE relationship.follower_id = $2
+          AND (
+              $1::uuid IS NULL
+              OR NOT EXISTS (
+                  SELECT 1 FROM user_blocks AS block
+                  WHERE (block.blocker_id = $1 AND block.blocked_id = person.id)
+                     OR (block.blocker_id = person.id AND block.blocked_id = $1)
+              )
+          )
+        ORDER BY relationship.created_at DESC, relationship.id DESC
+        LIMIT $3 OFFSET $4
+        "#,
+    )
+    .bind(viewer_id)
+    .bind(target_id)
+    .bind(limit + 1)
+    .bind(offset)
+    .fetch_all(&state.database)
+    .await
+    .map_err(db_error)?;
+
+    let has_more = rows.len() > limit as usize;
+    let following = rows
+        .into_iter()
+        .take(limit as usize)
+        .map(|row| {
+            Ok(SocialPerson {
+                id: row.try_get("id").map_err(db_error)?,
+                username: row.try_get("username").map_err(db_error)?,
+                display_name: row.try_get("display_name").map_err(db_error)?,
+                avatar_url: row.try_get("avatar_url").map_err(db_error)?,
+                video_avatar_url: row.try_get("video_avatar_url").map_err(db_error)?,
+                is_verified: row.try_get("is_verified").map_err(db_error)?,
+                is_premium: row.try_get("is_premium").map_err(db_error)?,
+                bio: row.try_get("bio").map_err(db_error)?,
+                followed_at: row.try_get("followed_at").map_err(db_error)?,
+                is_following: row.try_get("is_following").map_err(db_error)?,
+                is_self: row.try_get("is_self").map_err(db_error)?,
+            })
+        })
+        .collect::<Result<Vec<_>, ApiError>>()?;
+
+    Ok(Json(FollowingListResponse {
+        success: true,
+        following,
+        has_more,
+    }))
 }
 
 pub async fn follow_state(
