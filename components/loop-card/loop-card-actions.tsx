@@ -21,6 +21,7 @@ import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view
 import HeartIcon from "@/components/icons/animated/heart-icon"
 import MessageCircleIcon from "@/components/icons/animated/message-circle-icon"
 import BookmarkIcon from "@/components/icons/animated/bookmark-icon"
+import { AddLoopToCollectionItem } from "@/components/collections/add-loop-to-collection-item"
 import SendHorizontalIcon from "@/components/icons/animated/send-horizontal-icon"
 import {
   DropdownMenu,
@@ -281,6 +282,8 @@ export function LoopCardActions({
             <AnimatedIconView component={BookmarkIcon} size={16} color={isSaved ? "hsl(var(--primary))" : "currentColor"} />
             <span>{isSaved ? "Remove bookmark" : "Bookmark"}</span>
           </DropdownMenuItem>
+
+          <AddLoopToCollectionItem loopId={loop.id} />
 
           <DropdownMenuItem onClick={onBoost} className="cursor-pointer gap-2 py-2 text-xs">
             <Rocket className="h-4 w-4 text-[var(--theme-primary)]" />
