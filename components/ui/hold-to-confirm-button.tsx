@@ -50,6 +50,8 @@ export const HoldToConfirmButton = React.forwardRef<HTMLButtonElement, HoldToCon
     const holdTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
     const undoTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
     const holdingRef = React.useRef(false)
+    const pointerHoldActiveRef = React.useRef(false)
+    const suppressReleaseClickRef = React.useRef(false)
     const [holding, setHolding] = React.useState(false)
     const [armed, setArmed] = React.useState(false)
     const reducedMotion = useReducedMotion()
@@ -86,6 +88,7 @@ export const HoldToConfirmButton = React.forwardRef<HTMLButtonElement, HoldToCon
         holdingRef.current = false
         setHolding(false)
         setArmed(true)
+        if (pointerHoldActiveRef.current) suppressReleaseClickRef.current = true
         hapticSuccess()
 
         undoTimerRef.current = setTimeout(() => {
@@ -102,7 +105,7 @@ export const HoldToConfirmButton = React.forwardRef<HTMLButtonElement, HoldToCon
     }, [])
 
     const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
-      if (event.button !== 0 || armed) return
+      if (event.button !== 0) return
       onPointerDown?.(event)
       if (event.defaultPrevented) return
       try {
@@ -110,16 +113,20 @@ export const HoldToConfirmButton = React.forwardRef<HTMLButtonElement, HoldToCon
       } catch {
         // Pointer capture is not available in every embedded browser.
       }
-      startHold()
+      pointerHoldActiveRef.current = true
+      if (!armed) startHold()
     }
 
     const handlePointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
       onPointerUp?.(event)
+      pointerHoldActiveRef.current = false
       clearHold()
     }
 
     const handlePointerCancel = (event: React.PointerEvent<HTMLButtonElement>) => {
       onPointerCancel?.(event)
+      pointerHoldActiveRef.current = false
+      suppressReleaseClickRef.current = false
       clearHold()
     }
 
@@ -168,13 +175,23 @@ export const HoldToConfirmButton = React.forwardRef<HTMLButtonElement, HoldToCon
         )}
         onClick={(event) => {
           event.preventDefault()
-          if (armed) undo()
+          if (suppressReleaseClickRef.current) {
+            suppressReleaseClickRef.current = false
+            return
+          }
+          if (armed) {
+            undo()
+            return
+          }
           onClick?.(event)
         }}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
-        onLostPointerCapture={clearHold}
+        onLostPointerCapture={() => {
+          pointerHoldActiveRef.current = false
+          clearHold()
+        }}
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
         onBlur={handleBlur}
