@@ -59,6 +59,7 @@ pub struct NotificationActor {
 #[derive(Serialize)]
 pub struct NotificationItem {
     id: Uuid,
+    #[serde(rename = "type")]
     type_name: String,
     title: String,
     message: String,
