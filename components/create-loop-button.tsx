@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { TactileButton } from "@/components/ui/tactile-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
@@ -856,13 +857,15 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                 <Button type="button" variant="outline" className="border-border" onClick={() => setDiscardOpen(true)}>
                   Cancel
                 </Button>
-                <Button
+                <TactileButton
                   type="submit"
+                  feedback="press"
+                  liftOnHover={false}
                   disabled={creating || (!content.trim() && mediaFiles.length === 0)}
-                  className="bg-gradient-to-r from-violet-600 to-cyan-500 shadow-lg shadow-violet-900/30 hover:from-violet-500 hover:to-cyan-400"
+                  className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
                 >
                   {creating ? uploadStatus || "Publishing..." : "Create Loop"}
-                </Button>
+                </TactileButton>
               </div>
             </div>
           </form>
