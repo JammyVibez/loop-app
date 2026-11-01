@@ -74,7 +74,17 @@ const nextConfig = {
     return config
   },
   async rewrites() {
+    const rustApiOrigin = process.env.RUST_API_ORIGIN?.replace(/\\/+$/, "")
+
     return [
+      ...(rustApiOrigin
+        ? [{
+            // Same-origin browser calls are forwarded to the Rust service.
+            // Keep this opt-in until a domain is migrated and verified.
+            source: "/api/v1/:path*",
+            destination: `${rustApiOrigin}/v1/:path*`,
+          }]
+        : []),
       {
         source: "/api/trees/:path*",
         destination: "/api/reels/:path*",
