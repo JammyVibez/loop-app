@@ -76,6 +76,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/system/capabilities", get(routes::system::capabilities))
         .route("/v1/me", get(routes::me::get_me))
         .route("/v1/drops", get(routes::drops::list))
+        .route("/v1/chains", get(routes::chains::list).post(routes::chains::create))
+        .route("/v1/chains/{chain_id}", get(routes::chains::get))
+        .route("/v1/chains/{chain_id}/contributions", post(routes::chains::contribute))
         .route("/v1/follow-requests", get(routes::follow_requests::list))
         .route(
             "/v1/follow-requests/{request_id}",
