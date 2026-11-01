@@ -1,6 +1,6 @@
 use axum::{
     extract::FromRequestParts,
-    http::{header::AUTHORIZATION, request::Parts, HeaderValue, StatusCode},
+    http::{HeaderValue, StatusCode, header::AUTHORIZATION, request::Parts},
     response::{IntoResponse, Response},
 };
 use sqlx::Row;
@@ -25,8 +25,7 @@ impl FromRequestParts<AppState> for AuthenticatedUser {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let token = bearer_token(&parts.headers)
-            .ok_or_else(|| unauthorized())?;
+        let token = bearer_token(&parts.headers).ok_or_else(|| unauthorized())?;
 
         let row = sqlx::query(
             r#"
@@ -127,7 +126,10 @@ mod tests {
     #[test]
     fn accepts_a_bearer_token() {
         let mut headers = HeaderMap::new();
-        headers.insert(AUTHORIZATION, HeaderValue::from_static("Bearer session-token"));
+        headers.insert(
+            AUTHORIZATION,
+            HeaderValue::from_static("Bearer session-token"),
+        );
 
         assert_eq!(bearer_token(&headers), Some("session-token"));
     }
@@ -135,7 +137,10 @@ mod tests {
     #[test]
     fn bearer_scheme_is_case_insensitive() {
         let mut headers = HeaderMap::new();
-        headers.insert(AUTHORIZATION, HeaderValue::from_static("bearer session-token"));
+        headers.insert(
+            AUTHORIZATION,
+            HeaderValue::from_static("bearer session-token"),
+        );
 
         assert_eq!(bearer_token(&headers), Some("session-token"));
     }
@@ -152,7 +157,10 @@ mod tests {
         headers.insert(AUTHORIZATION, HeaderValue::from_static("Bearer"));
         assert_eq!(bearer_token(&headers), None);
 
-        headers.insert(AUTHORIZATION, HeaderValue::from_static("Bearer token with spaces"));
+        headers.insert(
+            AUTHORIZATION,
+            HeaderValue::from_static("Bearer token with spaces"),
+        );
         assert_eq!(bearer_token(&headers), None);
     }
 }
