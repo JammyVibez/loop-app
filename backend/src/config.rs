@@ -65,7 +65,9 @@ impl AppConfig {
             bind_addr,
             database_url,
             db_max_connections,
-            run_migrations: env::var("RUN_MIGRATIONS").map(|value| value.eq_ignore_ascii_case("true")).unwrap_or(false),
+            run_migrations: env::var("RUN_MIGRATIONS")
+                .map(|value| value.eq_ignore_ascii_case("true"))
+                .unwrap_or(false),
             cors_allowed_origins,
             aws_region: env::var("AWS_REGION").unwrap_or_else(|_| "eu-west-1".to_owned()),
             s3_bucket: env::var("S3_BUCKET")
