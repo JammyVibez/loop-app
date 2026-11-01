@@ -1,4 +1,4 @@
-import type { Subscription as StripeSubscription } from "stripe"
+import Stripe from "stripe"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 function epochToIso(value: number | null | undefined): string | null {
@@ -14,7 +14,7 @@ function epochToIso(value: number | null | undefined): string | null {
  */
 export async function syncStripePremiumSubscription(
   supabase: SupabaseClient,
-  subscription: StripeSubscription,
+  subscription: Stripe.Subscription,
 ) {
   const { data: existing, error: existingError } = await supabase
     .from("subscriptions")

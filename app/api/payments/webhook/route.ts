@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import type { Subscription as StripeSubscription } from "stripe"
+import Stripe from "stripe"
 import { createServerClient } from "@/lib/supabase"
 import { notifyUser } from "@/lib/notifications"
 import { syncStripePremiumSubscription } from "@/lib/stripe-premium-subscriptions"
@@ -13,9 +13,6 @@ export async function POST(request: NextRequest) {
         { status },
       )
     }
-
-    // Dynamic import to avoid build-time errors
-    const Stripe = (await import("stripe")).default
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
       // Always use the API version pinned by the installed stripe package.
@@ -349,7 +346,7 @@ export async function POST(request: NextRequest) {
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
-        const subscription = event.data.object as StripeSubscription
+        const subscription = event.data.object as Stripe.Subscription
         await syncStripePremiumSubscription(supabase, subscription)
         break
       }
