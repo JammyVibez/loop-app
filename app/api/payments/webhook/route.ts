@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import type Stripe from "stripe"
+import type { Subscription as StripeSubscription } from "stripe"
 import { createServerClient } from "@/lib/supabase"
 import { notifyUser } from "@/lib/notifications"
 import { syncStripePremiumSubscription } from "@/lib/stripe-premium-subscriptions"
@@ -349,7 +349,7 @@ export async function POST(request: NextRequest) {
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription
+        const subscription = event.data.object as StripeSubscription
         await syncStripePremiumSubscription(supabase, subscription)
         break
       }

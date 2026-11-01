@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import type Stripe from "stripe"
+import type { Subscription as StripeSubscription } from "stripe"
 
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "This checkout receipt is unavailable." }, { status: 404 })
     }
 
-    const subscriptionValue = session.subscription as string | Stripe.Subscription | null
+    const subscriptionValue = session.subscription as string | StripeSubscription | null
     if (!subscriptionValue) {
       return NextResponse.json({ state: "processing", receipt: null })
     }

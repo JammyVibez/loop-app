@@ -1,4 +1,4 @@
-import type Stripe from "stripe"
+import type { Subscription as StripeSubscription } from "stripe"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 function epochToIso(value: number | null | undefined): string | null {
@@ -14,7 +14,7 @@ function epochToIso(value: number | null | undefined): string | null {
  */
 export async function syncStripePremiumSubscription(
   supabase: SupabaseClient,
-  subscription: Stripe.Subscription,
+  subscription: StripeSubscription,
 ) {
   const { data: existing, error: existingError } = await supabase
     .from("subscriptions")
@@ -27,7 +27,13 @@ export async function syncStripePremiumSubscription(
   const userId = subscription.metadata?.user_id || existing?.user_id
   if (!userId) throw new Error("Stripe subscription is missing its LOOP account reference")
 
-  const price = subscription.items.data[0]?.price
+  type BillingItem = (typeof subscription.items.data)[number] & {
+    current_period_start?: number | null
+    current_period_end?: number | null
+  }
+  const billingItems = subscription.items.data as BillingItem[]
+  const primaryItem = billingItems[0]
+  const price = primaryItem?.price
   const interval = price?.recurring?.interval
   const planType = subscription.metadata?.plan === "annual" || interval === "year"
     ? "annual"
@@ -35,8 +41,14 @@ export async function syncStripePremiumSubscription(
   const customerId = typeof subscription.customer === "string"
     ? subscription.customer
     : subscription.customer.id
-  const currentPeriodStart = epochToIso(subscription.current_period_start)
-  const currentPeriodEnd = epochToIso(subscription.current_period_end)
+  const periodStarts = billingItems
+    .map((item) => item.current_period_start)
+    .filter((value): value is number => typeof value === "number")
+  const periodEnds = billingItems
+    .map((item) => item.current_period_end)
+    .filter((value): value is number => typeof value === "number")
+  const currentPeriodStart = epochToIso(periodStarts.length ? Math.min(...periodStarts) : null)
+  const currentPeriodEnd = epochToIso(periodEnds.length ? Math.max(...periodEnds) : null)
   const canceledAt = epochToIso(subscription.canceled_at)
   const amount = typeof price?.unit_amount === "number" ? price.unit_amount / 100 : 0
   const now = new Date().toISOString()
