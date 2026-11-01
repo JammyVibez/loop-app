@@ -4,7 +4,7 @@ import * as React from "react"
 import { useReducedMotion } from "motion/react"
 
 import { buttonVariants } from "@/components/ui/button"
-import { hapticPress, hapticSuccess } from "@/lib/haptics"
+import { hapticPress, hapticSuccess, hapticTap } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
 
 export interface HoldToConfirmButtonProps
@@ -12,14 +12,17 @@ export interface HoldToConfirmButtonProps
   onConfirm: () => void | Promise<void>
   label?: string
   holdingLabel?: string
+  undoLabel?: string
   holdDurationMs?: number
+  undoDurationMs?: number
 }
 
 /**
- * A deliberate confirmation control for irreversible actions.
+ * Deliberate confirmation with a short undo window.
  *
  * Pointer release, pointer cancellation, focus loss or keyboard release
- * before the threshold cancels the action. Space and Enter are supported.
+ * before the threshold cancels the hold. Once armed, the user can undo before
+ * the irreversible callback is invoked. Space and Enter are supported.
  */
 export const HoldToConfirmButton = React.forwardRef<HTMLButtonElement, HoldToConfirmButtonProps>(
   function HoldToConfirmButton(
@@ -27,7 +30,9 @@ export const HoldToConfirmButton = React.forwardRef<HTMLButtonElement, HoldToCon
       onConfirm,
       label = "Hold to confirm",
       holdingLabel = "Keep holding…",
+      undoLabel = "Undo",
       holdDurationMs = 900,
+      undoDurationMs = 5000,
       disabled = false,
       className,
       onClick,
@@ -42,43 +47,62 @@ export const HoldToConfirmButton = React.forwardRef<HTMLButtonElement, HoldToCon
     forwardedRef,
   ) {
     const buttonRef = React.useRef<HTMLButtonElement>(null)
-    const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+    const holdTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+    const undoTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
     const holdingRef = React.useRef(false)
     const [holding, setHolding] = React.useState(false)
+    const [armed, setArmed] = React.useState(false)
     const reducedMotion = useReducedMotion()
 
     React.useImperativeHandle(forwardedRef, () => buttonRef.current as HTMLButtonElement)
 
     const clearHold = React.useCallback(() => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current)
-        timerRef.current = null
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current)
+        holdTimerRef.current = null
       }
       holdingRef.current = false
       setHolding(false)
     }, [])
 
+    const undo = React.useCallback(() => {
+      if (!armed) return
+      if (undoTimerRef.current) {
+        clearTimeout(undoTimerRef.current)
+        undoTimerRef.current = null
+      }
+      setArmed(false)
+      hapticTap()
+    }, [armed])
+
     const startHold = React.useCallback(() => {
-      if (disabled || holdingRef.current) return
+      if (disabled || armed || holdingRef.current) return
       holdingRef.current = true
       setHolding(true)
       hapticPress()
 
-      timerRef.current = setTimeout(() => {
-        timerRef.current = null
+      holdTimerRef.current = setTimeout(() => {
+        holdTimerRef.current = null
         holdingRef.current = false
         setHolding(false)
+        setArmed(true)
         hapticSuccess()
-        void onConfirm()
+
+        undoTimerRef.current = setTimeout(() => {
+          undoTimerRef.current = null
+          setArmed(false)
+          void onConfirm()
+        }, undoDurationMs)
       }, holdDurationMs)
-    }, [disabled, holdDurationMs, onConfirm])
+    }, [armed, disabled, holdDurationMs, onConfirm, undoDurationMs])
 
     React.useEffect(() => () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current)
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
     }, [])
 
     const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
-      if (event.button !== 0) return
+      if (event.button !== 0 || armed) return
       onPointerDown?.(event)
       if (event.defaultPrevented) return
       try {
@@ -102,6 +126,11 @@ export const HoldToConfirmButton = React.forwardRef<HTMLButtonElement, HoldToCon
     const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
       onKeyDown?.(event)
       if (event.defaultPrevented || event.repeat) return
+      if (armed && (event.key === " " || event.key === "Enter")) {
+        event.preventDefault()
+        undo()
+        return
+      }
       if (event.key === " " || event.key === "Enter") {
         event.preventDefault()
         startHold()
@@ -118,22 +147,28 @@ export const HoldToConfirmButton = React.forwardRef<HTMLButtonElement, HoldToCon
       clearHold()
     }
 
+    const visibleLabel = holding ? holdingLabel : armed ? undoLabel : label
+
     return (
       <button
         {...props}
         ref={buttonRef}
         type="button"
         disabled={disabled}
-          aria-label={props["aria-label"] || label}
+        aria-label={props["aria-label"] || (armed ? `${undoLabel} deletion` : label)}
+        aria-busy={holding}
         data-holding={holding ? "true" : "false"}
+        data-armed={armed ? "true" : "false"}
         className={cn(
-          buttonVariants({ variant: "destructive", size: "default" }),
-          "loop-tactile relative isolate min-w-32 select-none overflow-hidden",
+          buttonVariants({ variant: armed ? "secondary" : "destructive", size: "default" }),
+          "loop-tactile relative isolate min-w-36 select-none overflow-hidden",
           "touch-none focus-visible:ring-2 focus-visible:ring-rose-500",
+          armed && "border border-emerald-500/40 text-emerald-700 dark:text-emerald-300",
           className,
         )}
         onClick={(event) => {
           event.preventDefault()
+          if (armed) undo()
           onClick?.(event)
         }}
         onPointerDown={handlePointerDown}
@@ -146,17 +181,28 @@ export const HoldToConfirmButton = React.forwardRef<HTMLButtonElement, HoldToCon
       >
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-0 origin-left bg-rose-950/30"
+          className={cn(
+            "pointer-events-none absolute inset-0 z-0 origin-left",
+            armed ? "bg-emerald-500/15" : "bg-rose-950/30",
+          )}
           style={{
-            transform: holding ? "scaleX(1)" : "scaleX(0)",
-            transition: reducedMotion ? "none" : `transform ${holdDurationMs}ms linear`,
+            transform: holding ? "scaleX(1)" : armed ? "scaleX(0)" : "scaleX(0)",
+            transition: reducedMotion
+              ? "none"
+              : holding
+                ? `transform ${holdDurationMs}ms linear`
+                : armed
+                  ? `transform ${undoDurationMs}ms linear`
+                  : "transform 180ms ease-out",
           }}
         />
-        <span className="relative z-10">
-          {holding ? holdingLabel : label}
-        </span>
+        <span className="relative z-10">{visibleLabel}</span>
         <span className="sr-only" aria-live="polite">
-          {holding ? "Hold to confirm. Releasing cancels." : "Press and hold to confirm."}
+          {holding
+            ? "Hold to arm deletion. Releasing early cancels."
+            : armed
+              ? "Deletion is waiting. Activate Undo to cancel."
+              : "Press and hold to confirm deletion."}
         </span>
       </button>
     )
