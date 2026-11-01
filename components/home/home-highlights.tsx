@@ -5,6 +5,7 @@ import Link from "next/link"
 import {
   ChevronDown,
   Compass,
+  Flame,
   Bookmark,
   Users,
   Plus,
