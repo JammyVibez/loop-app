@@ -118,3 +118,19 @@ The Rust service should be a stateless container with explicit health checks and
 - [ ] WebSocket replacement for Realtime/Socket.IO.
 - [ ] AWS deployment infrastructure and cutover runbook.
 - [ ] Supabase and Next.js domain API removal after parity verification.
+
+
+## Social graph and notification migration
+
+The first Rust social graph vertical slice is now in the service:
+
+- `GET /v1/users/{target_id}/follow-state` returns the authenticated viewer's follow/request state and the target's public follower count.
+- `POST /v1/users/{target_id}/follow` creates/removes a relationship or creates a private-profile follow request.
+- `DELETE /v1/users/{target_id}/follow-request` withdraws the authenticated requester's pending request.
+- Follow relationship, counter updates and in-app notification writes are transactionally committed.
+- `GET /v1/notifications`, `PATCH /v1/notifications/read`, `DELETE /v1/notifications` and `DELETE /v1/notifications/{id}` are scoped to the authenticated recipient.
+- New migrations add follows, follow_requests, user_blocks and actor-enriched notifications while preserving existing UUID identifiers.
+
+The profile screen and notification dropdown call these Rust endpoints first. A temporary fallback to the legacy Next.js routes remains until the Rust API is deployed in the target environment. Realtime notification delivery still uses the existing Postgres change subscription and polling; the next migration stage will replace that transport with durable Rust-managed WebSocket events and reconnect cursors.
+
+The notification list deliberately returns the authenticated user's records only. The API never accepts a recipient user ID from the client for reads, updates or deletes. Follow and notification writes are performed in the same Postgres transaction where they represent one domain action.
