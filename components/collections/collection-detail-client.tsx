@@ -62,10 +62,6 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
   const [removing, setRemoving] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    if (!user) {
-      setLoading(false)
-      return
-    }
     setLoading(true)
     try {
       const result = await rustApiRequest<CollectionDetail>(`collections/${encodeURIComponent(collectionId)}`, {
@@ -161,25 +157,16 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
     return <div className="mx-auto max-w-5xl space-y-4 px-4 py-8"><div className="h-10 w-48 animate-pulse rounded-lg bg-muted" /><div className="h-40 animate-pulse rounded-2xl bg-muted" /></div>
   }
 
-  if (!user) {
-    return (
-      <Card className="mx-auto max-w-xl rounded-2xl">
-        <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-          <Lock className="h-7 w-7 text-muted-foreground" />
-          <h1 className="text-lg font-semibold">Sign in to view your collections</h1>
-          <Button onClick={() => router.push(`/login?redirect=/collections/${collectionId}`)}>Log in</Button>
-        </CardContent>
-      </Card>
-    )
-  }
-
   if (!data) {
     return (
       <div className="mx-auto max-w-xl space-y-4 px-4 py-12 text-center">
         <Archive className="mx-auto h-8 w-8 text-muted-foreground" />
         <h1 className="text-xl font-semibold">Collection unavailable</h1>
         <p className="text-sm text-muted-foreground">It may have been deleted, made private or the link may be incorrect.</p>
-        <Button variant="outline" onClick={() => router.push("/collections")}>Back to collections</Button>
+        <div className="flex flex-wrap justify-center gap-2">
+          {!user ? <Button onClick={() => router.push(`/login?redirect=/collections/${collectionId}`)}>Log in</Button> : null}
+          <Button variant="outline" onClick={() => router.push("/collections")}>Back to collections</Button>
+        </div>
       </div>
     )
   }
