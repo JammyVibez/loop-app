@@ -249,7 +249,11 @@ pub async fn act(
         transaction.commit().await.map_err(db_error)?;
         return Ok(Json(FollowRequestActionResponse {
             success: true,
-            action: if status == "approved" { "accepted" } else { "declined" },
+            action: if status == "approved" {
+                "accepted"
+            } else {
+                "declined"
+            },
             already_handled: true,
         }));
     }
@@ -344,9 +348,7 @@ pub async fn act(
     .await
     .map_err(db_error)?;
 
-    let actor = sqlx::query(
-        "SELECT username, display_name FROM profiles WHERE id = $1",
-    )
+    let actor = sqlx::query("SELECT username, display_name FROM profiles WHERE id = $1")
     .bind(user.id)
     .fetch_one(&mut *transaction)
     .await
