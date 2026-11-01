@@ -186,14 +186,11 @@ export const HoldToConfirmButton = React.forwardRef<HTMLButtonElement, HoldToCon
             armed ? "bg-emerald-500/15" : "bg-rose-950/30",
           )}
           style={{
-            transform: holding ? "scaleX(1)" : armed ? "scaleX(0)" : "scaleX(0)",
-            transition: reducedMotion
-              ? "none"
-              : holding
-                ? `transform ${holdDurationMs}ms linear`
-                : armed
-                  ? `transform ${undoDurationMs}ms linear`
-                  : "transform 180ms ease-out",
+            transform: holding || armed ? "scaleX(1)" : "scaleX(0)",
+            transition: reducedMotion ? "none" : holding ? `transform ${holdDurationMs}ms linear` : "transform 180ms ease-out",
+            animation: armed && !reducedMotion
+              ? `loop-hold-undo-progress ${undoDurationMs}ms linear forwards`
+              : "none",
           }}
         />
         <span className="relative z-10">{visibleLabel}</span>
