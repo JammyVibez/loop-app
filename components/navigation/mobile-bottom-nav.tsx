@@ -9,7 +9,16 @@ import { cn } from "@/lib/utils"
 import { useLoginGate } from "@/hooks/use-login-gate"
 import { useUnreadMessages } from "@/hooks/use-unread-messages"
 import { formatUnreadBadge } from "@/lib/unread-messages"
+import { EMPTY_AUDIENCE, primarySidebarNav } from "@/lib/sidebar-nav"
 import { MobileSidebarSheet } from "@/components/left-sidebar"
+
+const MOBILE_NAV_ICONS: Record<string, typeof Home> = {
+  "/": Home,
+  "/explore": Compass,
+  "/create": Plus,
+  "/communities": Users,
+  "/messages": MessageCircle,
+}
 
 const HIDDEN_PREFIXES = [
   "/login",
@@ -88,13 +97,14 @@ export function MobileBottomNav() {
     badge?: number
   }
 
-  const items: TabItem[] = [
-    { href: "/", icon: Home, label: "Home" },
-    { href: "/explore", icon: Compass, label: "Discover" },
-    { href: "/create", icon: Plus, label: "Create", center: true },
-    { href: "/communities", icon: Users, label: "Circles" },
-    { href: "/messages", icon: MessageCircle, label: "Inbox", auth: true, badge: unreadMessages },
-  ]
+  const items: TabItem[] = primarySidebarNav(EMPTY_AUDIENCE).map((item) => ({
+    href: item.href,
+    icon: MOBILE_NAV_ICONS[item.href] ?? Home,
+    label: item.label,
+    center: item.href === "/create",
+    auth: item.href === "/messages",
+    badge: item.href === "/messages" ? unreadMessages : undefined,
+  }))
 
   return (
     <>
