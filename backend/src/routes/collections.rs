@@ -30,7 +30,7 @@ fn api_error(status: StatusCode, error: &'static str, message: impl Into<String>
 }
 
 #[derive(Serialize)]
-struct CollectionSummary {
+pub struct CollectionSummary {
     id: Uuid,
     owner_id: Uuid,
     title: String,
@@ -43,7 +43,7 @@ struct CollectionSummary {
 }
 
 #[derive(Serialize)]
-struct CollectionItem {
+pub struct CollectionItem {
     id: Uuid,
     item_type: String,
     loop_id: Option<Uuid>,
@@ -56,7 +56,7 @@ struct CollectionItem {
 }
 
 #[derive(Serialize)]
-struct CollectionDetail {
+pub struct CollectionDetail {
     collection: CollectionSummary,
     items: Vec<CollectionItem>,
     can_edit: bool,
