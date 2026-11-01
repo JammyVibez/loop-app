@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ? true
         : onboardingCompleted
 
-    const token = sessionData.session?.id || sessionData.session?.token || sessionData.user.id
+    const token = sessionData.session?.token || sessionData.session?.id || sessionData.user.id
 
     return {
       id: sessionData.user.id,
