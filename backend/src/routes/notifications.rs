@@ -159,15 +159,13 @@ pub async fn list(
             None
         };
 
-        let actor_name = actor
-            .as_ref()
-            .map(|value| {
-                if value.display_name.trim().is_empty() {
-                    value.username.clone()
-                } else {
-                    value.display_name.clone()
-                }
-            });
+        let actor_name = actor.as_ref().map(|value| {
+            if value.display_name.trim().is_empty() {
+                value.username.clone()
+            } else {
+                value.display_name.clone()
+            }
+        });
 
         notifications.push(NotificationItem {
             id: row.try_get("id").map_err(db_error)?,
