@@ -64,6 +64,8 @@ export function ChainsHub() {
   const [description, setDescription] = useState("")
   const [prompt, setPrompt] = useState("")
   const [newKind, setNewKind] = useState("worldbuilding")
+  const [circles, setCircles] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedCircleId, setSelectedCircleId] = useState("")
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -90,6 +92,35 @@ export function ChainsHub() {
     void load()
   }, [load])
 
+  useEffect(() => {
+    if (!user) {
+      setCircles([])
+      setSelectedCircleId("")
+      return
+    }
+    let cancelled = false
+    void fetch("/api/communities?sort=recommended&limit=50", {
+      headers: getAuthHeader(),
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error || "Could not load your Circles")
+        if (!cancelled) {
+          const memberships = Array.isArray(result.communities)
+            ? result.communities.filter((circle: { is_member?: boolean; id: string | number; name: string }) => circle.is_member)
+            : []
+          setCircles(memberships.map((circle: { id: string | number; name: string }) => ({ id: String(circle.id), name: circle.name })))
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCircles([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [getAuthHeader, user])
+
   const createChain = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!user) {
@@ -108,8 +139,9 @@ export function ChainsHub() {
           prompt: prompt.trim(),
           kind: newKind,
           category: "general",
-          visibility: "public",
-          contribution_policy: "open",
+          contribution_policy: selectedCircleId ? "circle_members" : "open",
+          circle_id: selectedCircleId || null,
+          visibility: selectedCircleId ? "circle" : "public",
         }),
       })
       const data = await response.json()
@@ -182,6 +214,14 @@ export function ChainsHub() {
                 {FORMATS.map((format) => <option key={format.id} value={format.id}>{format.label}</option>)}
               </select>
               <p className="text-xs text-muted-foreground">{FORMATS.find((format) => format.id === newKind)?.hint}</p>
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="chain-circle" className="text-sm font-medium">Build inside a Circle (optional)</label>
+              <select id="chain-circle" value={selectedCircleId} onChange={(event) => setSelectedCircleId(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">
+                <option value="">Public Chain</option>
+                {circles.map((circle) => <option key={circle.id} value={circle.id}>{circle.name}</option>)}
+              </select>
+              <p className="text-xs text-muted-foreground">Circle Chains are visible to their members and are contributed to by that community.</p>
             </div>
             <div className="space-y-2">
               <label htmlFor="chain-prompt" className="text-sm font-medium">Opening prompt</label>

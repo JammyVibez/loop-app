@@ -644,7 +644,7 @@ pub async fn contribute(
 
     let may_contribute = is_creator
         || is_chain_member
-        || (policy == "open" && publicly_accessible)
+        || (policy == "open" && (publicly_accessible || is_circle_member))
         || (policy == "circle_members" && is_circle_member);
     if !may_contribute {
         return Err(api_error(StatusCode::FORBIDDEN, "chain_contribution_restricted", "This Chain only accepts contributions from its members."));

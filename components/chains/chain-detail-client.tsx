@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ArrowLeft, ArrowUpRight, GitBranch, Lock, MessageCircle, Send, Users } from "lucide-react"
+import { ArrowLeft, ArrowUpRight, GitBranch, Lock, MessageCircle, Send } from "lucide-react"
 
 type Chain = {
   id: string
@@ -150,7 +150,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
           <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent" />
           <div className="relative flex min-h-40 flex-col justify-end p-6 sm:min-h-56 sm:p-9">
             <div className="mb-3 flex flex-wrap gap-2">
-              <span className="rounded-full border border-border bg-background/80 px-3 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur">{chain.kind.replaceAll("_", " ")}</span>
+              <span className="rounded-full border border-border bg-background/80 px-3 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur">{chain.kind.replace(/_/g, " ")}</span>
               <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background/80 px-3 py-1 text-[10px] font-semibold backdrop-blur"><Lock className="h-3 w-3" /> {chain.visibility}</span>
             </div>
             <h1 className="max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">{chain.title}</h1>
@@ -195,7 +195,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
         </div>
 
         {canContribute ? (
-          <form onSubmit={contribute} className="space-y-3 rounded-2xl border border-border bg-card p-4 sm:p-5">
+          <form id="chain-contribution" onSubmit={contribute} className="space-y-3 rounded-2xl border border-border bg-card p-4 sm:p-5">
             <div className="flex items-center gap-2 text-sm font-semibold"><MessageCircle className="h-4 w-4 text-primary" /> Add to this Chain</div>
             {parentContributionId && (
               <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-xs">
