@@ -13,8 +13,7 @@ use axum::{
 };
 use config::AppConfig;
 use http::{
-    Method,
-    StatusCode,
+    Method, StatusCode,
     header::{AUTHORIZATION, CONTENT_TYPE},
 };
 use sqlx::postgres::PgPoolOptions;
@@ -94,7 +93,10 @@ async fn main() -> anyhow::Result<()> {
         )
         .with_state(state)
         .layer(RequestBodyLimitLayer::new(10 * 1024 * 1024))
-        .layer(TimeoutLayer::with_status_code(StatusCode::GATEWAY_TIMEOUT, Duration::from_secs(15)))
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::GATEWAY_TIMEOUT,
+            Duration::from_secs(15),
+        ))
         .layer(cors)
         .layer(TraceLayer::new_for_http());
 
