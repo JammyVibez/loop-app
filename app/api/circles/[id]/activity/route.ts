@@ -1,11 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { checkCirclePrivateAccess } from "@/lib/circle-access"
 
 /** GET /api/circles/[id]/activity — fetch circle activity feed */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: circleId } = await params
+    const access = await checkCirclePrivateAccess(circleId, request.headers.get("authorization"))
+    if (access.isPrivate && !access.canView) {
+      return NextResponse.json({ error: "This Circle is private", locked: true }, { status: 403 })
+    }
+
     const { searchParams } = new URL(request.url)
     const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") || "20")))
     const offset = Math.max(0, Number(searchParams.get("offset") || "0"))
