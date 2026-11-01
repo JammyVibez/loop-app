@@ -429,7 +429,6 @@ fn append_rows(
     Ok(())
 }
 
-
 fn derive_activity_state(
     kind: &str,
     stored_status: &str,
