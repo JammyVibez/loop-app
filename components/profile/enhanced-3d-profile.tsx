@@ -192,9 +192,10 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             setIsFollowing(followState.is_following)
             setFollowRequestPending(followState.has_pending_follow_request)
             setIsPrivateProfile(followState.is_private)
-            setProfile((current) => current?.id === newProfile.id
-              ? { ...current, followers_count: followState.followers_count }
-              : current)
+            setProfile((current) => {
+              if (!current || current.id !== newProfile.id) return current
+              return { ...current, followers_count: followState.followers_count }
+            })
           } catch {
             // Keep the existing profile payload as a compatibility fallback
             // until the Rust API is deployed for this environment.
@@ -388,8 +389,12 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       if (data.requires_approval === undefined || data.is_following === true) {
         setFollowRequestPending(false)
       }
-      if (typeof data.followers_count === "number") {
-        setProfile((prev) => (prev ? { ...prev, followers_count: data.followers_count } : prev))
+      const updatedFollowersCount = data.followers_count
+      if (typeof updatedFollowersCount === "number") {
+        setProfile((prev) => {
+          if (!prev) return prev
+          return { ...prev, followers_count: updatedFollowersCount }
+        })
       }
     } catch (error: any) {
       setIsFollowing(previousFollowing)
