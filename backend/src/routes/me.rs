@@ -1,7 +1,7 @@
-use axum::{extract::State, Json};
+use axum::Json;
 use serde::Serialize;
 
-use crate::{auth::AuthenticatedUser, state::AppState};
+use crate::auth::AuthenticatedUser;
 
 #[derive(Serialize)]
 pub struct MeResponse {
@@ -12,10 +12,7 @@ pub struct MeResponse {
     is_verified: bool,
 }
 
-pub async fn get_me(
-    _state: State<AppState>,
-    user: AuthenticatedUser,
-) -> Json<MeResponse> {
+pub async fn get_me(user: AuthenticatedUser) -> Json<MeResponse> {
     Json(MeResponse {
         id: user.id.to_string(),
         username: user.username,
