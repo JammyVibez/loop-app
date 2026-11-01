@@ -41,6 +41,11 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - run: npm run build
         env:
+          # Auth is imported while Next.js collects route/page metadata. These
+          # disposable build-only values satisfy fail-fast configuration checks;
+          # no build step opens a database connection or uses real credentials.
+          DATABASE_URL: postgresql://loop:ci-only@127.0.0.1:5432/loop
+          BETTER_AUTH_SECRET: loop-ci-build-only-secret-do-not-use-at-runtime-123456
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
           SUPABASE_SERVICE_ROLE_KEY: placeholder
