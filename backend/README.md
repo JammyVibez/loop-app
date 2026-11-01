@@ -21,6 +21,7 @@ Or run the full local stack with docker compose up --build. The local database i
 - GET /health/ready — PostgreSQL readiness.
 - GET /v1/system/capabilities — service version and configured infrastructure capabilities.
 - GET /v1/me — authenticated current user resolved through the existing Better Auth session and profiles rows.
+- GET /v1/drops — a unified activity feed across official events, hosted events, Circle events and active Circle challenges.
 - GET /v1/collections — public, owned and collaborated collections.
 - GET /v1/users/{target_id}/follow-state — authenticated follow and follow-request state.
 - POST /v1/users/{target_id}/follow — follow, unfollow or request private-profile access.
