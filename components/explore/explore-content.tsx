@@ -30,13 +30,13 @@ interface TrendingHashtag {
   growth?: string | number
 }
 
-export function ExploreContent() {
+export function ExploreContent({ initialTab = "recent" }: { initialTab?: ExploreTab }) {
   const { user } = useAuth()
   const { toast } = useToast()
   const [loops, setLoops] = useState<NormalizedLoop[]>([])
   const [hashtags, setHashtags] = useState<TrendingHashtag[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedTab, setSelectedTab] = useState<ExploreTab>("recent")
+  const [selectedTab, setSelectedTab] = useState<ExploreTab>(initialTab)
   const [interacting, setInteracting] = useState<string | null>(null)
   const [live, setLive] = useState(false)
 
@@ -237,7 +237,7 @@ export function ExploreContent() {
           </TabsTrigger>
           <TabsTrigger value="deepest" className="rounded-xl">
             <TreePine className="mr-1.5 h-4 w-4" />
-            Deepest
+            Chains
           </TabsTrigger>
           <TabsTrigger value="creative" className="rounded-xl">
             <Zap className="mr-1.5 h-4 w-4" />
@@ -265,10 +265,10 @@ export function ExploreContent() {
         <TabsContent value="deepest" className="mt-6 space-y-4">
           <div className="flex items-center gap-2">
             <TreePine className="h-5 w-5 text-emerald-600" />
-            <h2 className="text-xl font-semibold">Deepest Trees</h2>
+            <h2 className="text-xl font-semibold">Collaborative Chains</h2>
             <Badge variant="secondary">Most branches</Badge>
           </div>
-          {renderLoops(loops, "No branched trees yet")}
+          {renderLoops(loops, "No Chains yet. Branch a Loop to start one.")}
         </TabsContent>
 
         <TabsContent value="creative" className="mt-6 space-y-4">
