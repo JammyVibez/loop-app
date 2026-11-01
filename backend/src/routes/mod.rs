@@ -4,3 +4,4 @@ pub mod me;
 pub mod notifications;
 pub mod social;
 pub mod system;
+pub mod drops;
