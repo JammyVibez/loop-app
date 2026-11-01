@@ -28,6 +28,7 @@ import UserPlusIcon from "@/components/icons/animated/user-plus-icon"
 import LockIcon from "@/components/icons/animated/lock-icon"
 import UsersGroupIcon from "@/components/icons/animated/users-group-icon"
 import ShieldCheckIcon from "@/components/icons/animated/shield-check"
+import FlameIcon from "@/components/icons/animated/flame-icon"
 import { UserBadges } from "@/components/user-badge"
 import {
   primarySidebarNav,
@@ -61,6 +62,7 @@ const NAV_ICONS: Record<string, AnimatedIconComponent> = {
   "/earnings": ChartLineIcon,
   "/developers": CodeIcon,
   "/events": ClockIcon,
+  "/drops": FlameIcon,
   "/bookmarks": BookmarkIcon,
   "/collections": BookmarkIcon,
   "/invite": UserPlusIcon,
