@@ -33,13 +33,12 @@ describe("sidebar navigation split", () => {
   it("does not lose a destination when splitting primary from More", () => {
     const reachable = visibleSidebarNav(FULL_ACCESS).map((item) => item.href).sort()
 
-    // Every route the rail offered before the declutter, minus /messages which
-    // moved to the profile dropdown on purpose. If a future edit drops one of
-    // these, this fails rather than silently hiding a feature.
+    // Every public and privileged sidebar destination must remain reachable.
     expect(reachable).toEqual(
       [
         "/",
         "/bookmarks",
+        "/create",
         "/co-loop/studio",
         "/communities",
         "/developers",
@@ -48,6 +47,7 @@ describe("sidebar navigation split", () => {
         "/explore",
         "/invite",
         "/loopadmin",
+        "/messages",
         "/lounge",
         "/organization",
         "/streams",
@@ -66,13 +66,13 @@ describe("sidebar navigation split", () => {
     const primary = primarySidebarNav(EMPTY_AUDIENCE).map((item) => item.href)
 
     expect(primary.length).toBeLessThanOrEqual(5)
-    expect(primary).toEqual(["/", "/explore", "/communities", "/streams", "/wallet"])
+    expect(primary).toEqual(["/", "/explore", "/create", "/communities", "/messages"])
   })
 
-  it("keeps messages out of the rail", () => {
-    // Messages lives in the profile dropdown, with the unread count on the
-    // avatar so it is still visible while the menu is shut.
-    expect(SIDEBAR_NAV.map((item) => item.href)).not.toContain("/messages")
+  it("keeps creation and inbox in the primary experience", () => {
+    const primary = primarySidebarNav(EMPTY_AUDIENCE).map((item) => item.href)
+    expect(primary).toContain("/create")
+    expect(primary).toContain("/messages")
   })
 
   it("splits every visible item into exactly one group", () => {
