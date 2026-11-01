@@ -1,14 +1,15 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowUpRight, CalendarDays, CircleDot, Clock3, Flame, Gift, Radio, RefreshCw, Search, Users, Zap } from "lucide-react"
+import { ArrowUpRight, CalendarDays, CircleDot, Clock3, Flame, Gift, Plus, Radio, RefreshCw, Search, Users, Zap } from "lucide-react"
 
 import { useAuth } from "@/hooks/use-auth"
 import { rustApiRequest } from "@/lib/rust-api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { ProxyImg } from "@/components/ui/proxy-img"
@@ -170,6 +171,17 @@ export function DropsHub() {
   const [activeFilter, setActiveFilter] = useState<DropFilter>("all")
   const [search, setSearch] = useState("")
   const [refreshing, setRefreshing] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [joinedCircles, setJoinedCircles] = useState<Array<{ id: string; name: string }>>([])
+  const [circlesLoading, setCirclesLoading] = useState(false)
+  const [selectedCircleId, setSelectedCircleId] = useState("")
+  const [dropTitle, setDropTitle] = useState("")
+  const [dropDescription, setDropDescription] = useState("")
+  const [dropType, setDropType] = useState("creative")
+  const [dropStartsAt, setDropStartsAt] = useState("")
+  const [dropEndsAt, setDropEndsAt] = useState("")
+  const [creatingDrop, setCreatingDrop] = useState(false)
+  const [createDropError, setCreateDropError] = useState("")
 
   const loadDrops = useCallback(async (silent = false) => {
     if (!user) {
@@ -199,6 +211,83 @@ export function DropsHub() {
   useEffect(() => {
     if (!authLoading) void loadDrops()
   }, [authLoading, loadDrops])
+
+  useEffect(() => {
+    if (!createOpen || !user) return
+    let cancelled = false
+    setCirclesLoading(true)
+    void fetch("/api/communities?sort=recommended&limit=50", {
+      headers: getAuthHeader(),
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || "Could not load your Circles")
+        if (cancelled) return
+        const circles = (Array.isArray(data.communities) ? data.communities : [])
+          .filter((circle: { is_member?: boolean; id: string | number; name: string }) => circle.is_member)
+          .map((circle: { id: string | number; name: string }) => ({ id: String(circle.id), name: circle.name }))
+        setJoinedCircles(circles)
+        if (!circles.some((circle: { id: string }) => circle.id === selectedCircleId)) {
+          setSelectedCircleId(circles[0]?.id || "")
+        }
+      })
+      .catch((cause) => {
+        if (!cancelled) setCreateDropError(cause instanceof Error ? cause.message : "Could not load your Circles")
+      })
+      .finally(() => {
+        if (!cancelled) setCirclesLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [createOpen, getAuthHeader, selectedCircleId, user?.id])
+
+  const createDrop = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!user) {
+      router.push("/auth?redirect=/drops")
+      return
+    }
+    if (!selectedCircleId) {
+      setCreateDropError("Join a Circle before creating a community Drop.")
+      return
+    }
+    setCreatingDrop(true)
+    setCreateDropError("")
+    try {
+      const startsAt = dropStartsAt ? new Date(dropStartsAt) : new Date()
+      const endsAt = dropEndsAt ? new Date(dropEndsAt) : new Date(startsAt.getTime() + 7 * 86400000)
+      if (!Number.isFinite(startsAt.getTime()) || !Number.isFinite(endsAt.getTime()) || endsAt <= startsAt) {
+        throw new Error("Choose an end time after the start time.")
+      }
+      const response = await fetch(`/api/communities/${encodeURIComponent(selectedCircleId)}/challenges`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({
+          title: dropTitle.trim(),
+          description: dropDescription.trim(),
+          challenge_type: dropType,
+          reward_coins: 0,
+          starts_at: startsAt.toISOString(),
+          ends_at: endsAt.toISOString(),
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Could not create Drop")
+      setDropTitle("")
+      setDropDescription("")
+      setDropStartsAt("")
+      setDropEndsAt("")
+      setDropType("creative")
+      setCreateOpen(false)
+      await loadDrops(true)
+    } catch (cause) {
+      setCreateDropError(cause instanceof Error ? cause.message : "Could not create Drop")
+    } finally {
+      setCreatingDrop(false)
+    }
+  }
 
   const filteredItems = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -266,6 +355,16 @@ export function DropsHub() {
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => {
+              if (!user) router.push("/auth?redirect=/drops")
+              else {
+                setCreateDropError("")
+                setCreateOpen((value) => !value)
+              }
+            }}>
+              <Plus className="h-4 w-4" />
+              Create a Drop
+            </Button>
             <Link href="/communities" className="loop-tactile inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background/80 px-4 text-sm font-medium hover:bg-background">
               <CircleDot className="h-4 w-4" />
               Find Circles
@@ -284,6 +383,81 @@ export function DropsHub() {
             </div>
           ) : null}
       </section>
+
+      {createOpen && (
+        <Card className="rounded-2xl border-primary/20">
+          <CardContent className="space-y-5 p-5 sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Community-created activity</p>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight">Start a Drop</h2>
+                <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+                  Give your Circle a prompt, theme or collaborative activity. Taking part is always optional.
+                </p>
+              </div>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setCreateOpen(false)}>Close</Button>
+            </div>
+
+            {joinedCircles.length === 0 && !circlesLoading ? (
+              <div className="rounded-xl border border-dashed border-border p-4">
+                <p className="text-sm font-medium">Join a Circle to host a Drop.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Drops live in a community, so members can take part together.</p>
+                <Link href="/communities" className="mt-3 inline-flex text-sm font-semibold text-primary hover:underline">Explore Circles</Link>
+              </div>
+            ) : (
+              <form onSubmit={createDrop} className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2 sm:col-span-2">
+                    <label htmlFor="drop-title" className="text-sm font-medium">Drop title</label>
+                    <Input id="drop-title" value={dropTitle} onChange={(event) => setDropTitle(event.target.value)} maxLength={120} required placeholder="e.g. Design a new place in our shared universe" />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="drop-circle" className="text-sm font-medium">Circle</label>
+                    <select id="drop-circle" value={selectedCircleId} onChange={(event) => setSelectedCircleId(event.target.value)} disabled={circlesLoading} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">
+                      {joinedCircles.map((circle) => <option key={circle.id} value={circle.id}>{circle.name}</option>)}
+                    </select>
+                    {circlesLoading && <p className="text-xs text-muted-foreground">Loading your Circles…</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="drop-type" className="text-sm font-medium">Activity format</label>
+                    <select id="drop-type" value={dropType} onChange={(event) => setDropType(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">
+                      <option value="creative">Creative prompt</option>
+                      <option value="photography">Photography theme</option>
+                      <option value="prediction">Prediction and voting</option>
+                      <option value="guessing">Guessing game</option>
+                      <option value="collaborative">Collaborative activity</option>
+                      <option value="discussion">Open discussion</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2 sm:col-span-2">
+                    <label htmlFor="drop-description" className="text-sm font-medium">What should people do?</label>
+                    <Textarea id="drop-description" value={dropDescription} onChange={(event) => setDropDescription(event.target.value)} maxLength={2000} rows={3} placeholder="Explain the prompt, how to take part and any helpful context." />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="drop-start" className="text-sm font-medium">Starts</label>
+                    <Input id="drop-start" type="datetime-local" value={dropStartsAt} onChange={(event) => setDropStartsAt(event.target.value)} />
+                    <p className="text-[11px] text-muted-foreground">Leave empty to start now.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="drop-end" className="text-sm font-medium">Ends</label>
+                    <Input id="drop-end" type="datetime-local" value={dropEndsAt} onChange={(event) => setDropEndsAt(event.target.value)} />
+                    <p className="text-[11px] text-muted-foreground">Leave empty for a seven-day activity.</p>
+                  </div>
+                </div>
+
+                {createDropError && <p role="alert" className="text-sm text-destructive">{createDropError}</p>}
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
+                  <Button type="submit" disabled={creatingDrop || circlesLoading || !selectedCircleId || !dropTitle.trim()}>
+                    {creatingDrop ? "Creating…" : "Publish Drop"}
+                    <ArrowUpRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-wrap gap-1.5">
