@@ -74,7 +74,7 @@ const nextConfig = {
     return config
   },
   async rewrites() {
-    const rustApiOrigin = process.env.RUST_API_ORIGIN?.replace(/\/+$/, "")
+    const rustApiOrigin = (process.env.RUST_API_ORIGIN || (process.env.NODE_ENV === "development" ? "http://127.0.0.1:8080" : "")).replace(/\/+$/, "")
 
     return [
       ...(rustApiOrigin
