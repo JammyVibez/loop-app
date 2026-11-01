@@ -9,7 +9,7 @@ use std::time::Duration;
 use anyhow::Context;
 use axum::{
     Router,
-    routing::{delete, get, post},
+    routing::{delete, get, patch, post},
 };
 use config::AppConfig;
 use http::{
@@ -75,6 +75,27 @@ async fn main() -> anyhow::Result<()> {
         .route("/health/ready", get(routes::health::ready))
         .route("/v1/system/capabilities", get(routes::system::capabilities))
         .route("/v1/me", get(routes::me::get_me))
+        .route("/v1/users/{target_id}/follow-state", get(routes::social::follow_state))
+        .route(
+            "/v1/users/{target_id}/follow",
+            post(routes::social::follow),
+        )
+        .route(
+            "/v1/users/{target_id}/follow-request",
+            delete(routes::social::withdraw_follow_request),
+        )
+        .route(
+            "/v1/notifications",
+            get(routes::notifications::list).delete(routes::notifications::clear_all),
+        )
+        .route(
+            "/v1/notifications/read",
+            patch(routes::notifications::mark_read),
+        )
+        .route(
+            "/v1/notifications/{notification_id}",
+            delete(routes::notifications::delete_one),
+        )
         .route(
             "/v1/collections",
             get(routes::collections::list).post(routes::collections::create),
