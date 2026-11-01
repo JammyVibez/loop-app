@@ -1,14 +1,14 @@
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
-use uuid::Uuid;
 use url::Url;
+use uuid::Uuid;
 
 use crate::{auth::AuthenticatedUser, state::AppState};
 
@@ -19,7 +19,14 @@ struct ApiError {
 }
 
 fn api_error(status: StatusCode, error: &'static str, message: impl Into<String>) -> Response {
-    (status, Json(ApiError { error, message: message.into() })).into_response()
+    (
+        status,
+        Json(ApiError {
+            error,
+            message: message.into(),
+        }),
+    )
+        .into_response()
 }
 
 #[derive(Serialize)]
@@ -121,7 +128,11 @@ pub async fn list(
     .await
     .map_err(|error| {
         tracing::error!(%error, "failed to list collections");
-        api_error(StatusCode::INTERNAL_SERVER_ERROR, "collection_list_failed", "Could not load collections.")
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_list_failed",
+            "Could not load collections.",
+        )
     })?;
 
     let collections = rows
@@ -193,7 +204,11 @@ pub async fn create(
     .await
     .map_err(|error| {
         tracing::error!(%error, "failed to create collection");
-        api_error(StatusCode::INTERNAL_SERVER_ERROR, "collection_create_failed", "Could not create the collection.")
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_create_failed",
+            "Could not create the collection.",
+        )
     })?;
 
     let collection = CollectionSummary {
@@ -250,11 +265,19 @@ pub async fn get(
     .await
     .map_err(|error| {
         tracing::error!(%error, "failed to load collection");
-        api_error(StatusCode::INTERNAL_SERVER_ERROR, "collection_load_failed", "Could not load this collection.")
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_load_failed",
+            "Could not load this collection.",
+        )
     })?;
 
     let Some(row) = row else {
-        return Err(api_error(StatusCode::NOT_FOUND, "collection_not_found", "This collection is unavailable."));
+        return Err(api_error(
+            StatusCode::NOT_FOUND,
+            "collection_not_found",
+            "This collection is unavailable.",
+        ));
     };
 
     let collection = CollectionSummary {
@@ -285,7 +308,11 @@ pub async fn get(
     .await
     .map_err(|error| {
         tracing::error!(%error, "failed to load collection items");
-        api_error(StatusCode::INTERNAL_SERVER_ERROR, "collection_items_failed", "Could not load collection items.")
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_items_failed",
+            "Could not load collection items.",
+        )
     })?;
 
     let items = item_rows
@@ -305,7 +332,11 @@ pub async fn get(
         })
         .collect::<Result<Vec<_>, Response>>()?;
 
-    Ok(Json(CollectionDetail { collection, items, can_edit }))
+    Ok(Json(CollectionDetail {
+        collection,
+        items,
+        can_edit,
+    }))
 }
 
 pub async fn add_item(
@@ -318,7 +349,11 @@ pub async fn add_item(
 
     let mut transaction = state.database.begin().await.map_err(|error| {
         tracing::error!(%error, "could not begin collection item transaction");
-        api_error(StatusCode::INTERNAL_SERVER_ERROR, "collection_transaction_failed", "Could not update this collection.")
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_transaction_failed",
+            "Could not update this collection.",
+        )
     })?;
 
     let editable = sqlx::query_scalar::<_, bool>(
@@ -342,11 +377,19 @@ pub async fn add_item(
     .await
     .map_err(|error| {
         tracing::error!(%error, "could not authorize collection edit");
-        api_error(StatusCode::INTERNAL_SERVER_ERROR, "collection_permission_failed", "Could not authorize this change.")
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_permission_failed",
+            "Could not authorize this change.",
+        )
     })?;
 
     if !editable {
-        return Err(api_error(StatusCode::NOT_FOUND, "collection_not_found", "This collection is unavailable."));
+        return Err(api_error(
+            StatusCode::NOT_FOUND,
+            "collection_not_found",
+            "This collection is unavailable.",
+        ));
     }
 
     match target {
@@ -374,10 +417,18 @@ pub async fn add_item(
             .await
             .map_err(|error| {
                 tracing::error!(%error, "could not validate collection Loop");
-                api_error(StatusCode::INTERNAL_SERVER_ERROR, "collection_target_check_failed", "Could not validate that Loop.")
+                api_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "collection_target_check_failed",
+                    "Could not validate that Loop.",
+                )
             })?;
             if !allowed {
-                return Err(api_error(StatusCode::NOT_FOUND, "loop_unavailable", "That Loop is unavailable."));
+                return Err(api_error(
+                    StatusCode::NOT_FOUND,
+                    "loop_unavailable",
+                    "That Loop is unavailable.",
+                ));
             }
         }
         ValidatedItem::Circle(circle_id) => {
@@ -404,10 +455,18 @@ pub async fn add_item(
             .await
             .map_err(|error| {
                 tracing::error!(%error, "could not validate collection Circle");
-                api_error(StatusCode::INTERNAL_SERVER_ERROR, "collection_target_check_failed", "Could not validate that Circle.")
+                api_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "collection_target_check_failed",
+                    "Could not validate that Circle.",
+                )
             })?;
             if !allowed {
-                return Err(api_error(StatusCode::NOT_FOUND, "circle_unavailable", "That Circle is unavailable."));
+                return Err(api_error(
+                    StatusCode::NOT_FOUND,
+                    "circle_unavailable",
+                    "That Circle is unavailable.",
+                ));
             }
         }
         ValidatedItem::External(_) => {}
@@ -421,7 +480,11 @@ pub async fn add_item(
     .await
     .map_err(|error| {
         tracing::error!(%error, "could not order collection item");
-        api_error(StatusCode::INTERNAL_SERVER_ERROR, "collection_order_failed", "Could not add this item.")
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_order_failed",
+            "Could not add this item.",
+        )
     })?;
 
     let (item_type, loop_id, circle_id, external_url) = match target {
@@ -447,23 +510,47 @@ pub async fn add_item(
     .bind(loop_id)
     .bind(circle_id)
     .bind(external_url)
-    .bind(input.title_override.as_deref().map(str::trim).filter(|value| !value.is_empty()))
-    .bind(input.note.as_deref().map(str::trim).filter(|value| !value.is_empty()))
+    .bind(
+        input
+            .title_override
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty()),
+    )
+    .bind(
+        input
+            .note
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty()),
+    )
     .bind(position)
     .fetch_one(&mut *transaction)
     .await
     .map_err(|error| {
         let message = error.to_string();
         if message.contains("idx_collection_items_unique") || message.contains("duplicate key") {
-            return api_error(StatusCode::CONFLICT, "item_already_saved", "That item is already in this collection.");
+            return api_error(
+                StatusCode::CONFLICT,
+                "item_already_saved",
+                "That item is already in this collection.",
+            );
         }
         tracing::error!(%error, "failed to add collection item");
-        api_error(StatusCode::INTERNAL_SERVER_ERROR, "collection_add_failed", "Could not add this item.")
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_add_failed",
+            "Could not add this item.",
+        )
     })?;
 
     transaction.commit().await.map_err(|error| {
         tracing::error!(%error, "failed to commit collection item");
-        api_error(StatusCode::INTERNAL_SERVER_ERROR, "collection_commit_failed", "Could not save this item.")
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_commit_failed",
+            "Could not save this item.",
+        )
     })?;
 
     let item = CollectionItem {
@@ -511,11 +598,19 @@ pub async fn remove_item(
     .await
     .map_err(|error| {
         tracing::error!(%error, "failed to remove collection item");
-        api_error(StatusCode::INTERNAL_SERVER_ERROR, "collection_remove_failed", "Could not remove this item.")
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_remove_failed",
+            "Could not remove this item.",
+        )
     })?;
 
     if deleted.is_none() {
-        return Err(api_error(StatusCode::NOT_FOUND, "collection_item_not_found", "That collection item is unavailable."));
+        return Err(api_error(
+            StatusCode::NOT_FOUND,
+            "collection_item_not_found",
+            "That collection item is unavailable.",
+        ));
     }
 
     Ok(StatusCode::NO_CONTENT)
@@ -528,8 +623,14 @@ enum ValidatedItem {
 }
 
 fn validate_item_input(input: &AddCollectionItemInput) -> Result<ValidatedItem, Response> {
-    if input.title_override.as_ref().is_some_and(|value| value.chars().count() > 160)
-        || input.note.as_ref().is_some_and(|value| value.chars().count() > 500)
+    if input
+        .title_override
+        .as_ref()
+        .is_some_and(|value| value.chars().count() > 160)
+        || input
+            .note
+            .as_ref()
+            .is_some_and(|value| value.chars().count() > 500)
     {
         return Err(api_error(
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -539,19 +640,47 @@ fn validate_item_input(input: &AddCollectionItemInput) -> Result<ValidatedItem, 
     }
 
     match input.item_type.as_str() {
-        "loop" if input.loop_id.is_some() && input.circle_id.is_none() && input.external_url.is_none() => {
-            Ok(ValidatedItem::Loop(input.loop_id.expect("validated Loop id")))
+        "loop"
+            if input.loop_id.is_some()
+                && input.circle_id.is_none()
+                && input.external_url.is_none() =>
+        {
+            Ok(ValidatedItem::Loop(
+                input.loop_id.expect("validated Loop id"),
+            ))
         }
-        "circle" if input.circle_id.is_some() && input.loop_id.is_none() && input.external_url.is_none() => {
-            Ok(ValidatedItem::Circle(input.circle_id.expect("validated Circle id")))
+        "circle"
+            if input.circle_id.is_some()
+                && input.loop_id.is_none()
+                && input.external_url.is_none() =>
+        {
+            Ok(ValidatedItem::Circle(
+                input.circle_id.expect("validated Circle id"),
+            ))
         }
-        "external" if input.external_url.is_some() && input.loop_id.is_none() && input.circle_id.is_none() => {
+        "external"
+            if input.external_url.is_some()
+                && input.loop_id.is_none()
+                && input.circle_id.is_none() =>
+        {
             let value = input.external_url.as_deref().unwrap_or_default().trim();
             let parsed = Url::parse(value).map_err(|_| {
-                api_error(StatusCode::UNPROCESSABLE_ENTITY, "invalid_external_url", "Provide a valid HTTPS URL.")
+                api_error(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "invalid_external_url",
+                    "Provide a valid HTTPS URL.",
+                )
             })?;
-            if parsed.scheme() != "https" || parsed.host_str().is_none() || !parsed.username().is_empty() || parsed.password().is_some() {
-                return Err(api_error(StatusCode::UNPROCESSABLE_ENTITY, "invalid_external_url", "Only public HTTPS links are allowed."));
+            if parsed.scheme() != "https"
+                || parsed.host_str().is_none()
+                || !parsed.username().is_empty()
+                || parsed.password().is_some()
+            {
+                return Err(api_error(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "invalid_external_url",
+                    "Only public HTTPS links are allowed.",
+                ));
             }
             Ok(ValidatedItem::External(parsed.to_string()))
         }
@@ -565,5 +694,9 @@ fn validate_item_input(input: &AddCollectionItemInput) -> Result<ValidatedItem, 
 
 fn internal_db_error(error: sqlx::Error) -> Response {
     tracing::error!(%error, "failed to decode collection database record");
-    api_error(StatusCode::INTERNAL_SERVER_ERROR, "collection_record_invalid", "Could not read this collection.")
+    api_error(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "collection_record_invalid",
+        "Could not read this collection.",
+    )
 }
