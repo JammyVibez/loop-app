@@ -94,7 +94,6 @@ impl FromRequestParts<AppState> for AuthenticatedUser {
     }
 }
 
-
 /// Optional session identity for read-only endpoints that expose public resources.
 /// A malformed or expired credential remains an authentication error; only a
 /// request with no Authorization header is treated as anonymous.
