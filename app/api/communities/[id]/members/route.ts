@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { communityClient, logCommunityActivity, computeReputation, canModerate, canAdmin, isOwnerRole } from "@/lib/community-engine"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { checkCirclePrivateAccess } from "@/lib/circle-access"
 
 const RECOGNITION_KINDS = [
   { kind: "knowledge_keeper", label: "🧠 Knowledge Keeper", message: "For sharing knowledge that sticks." },
@@ -14,6 +15,10 @@ const RECOGNITION_KINDS = [
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
+    const access = await checkCirclePrivateAccess(id, request.headers.get("authorization"))
+    if (access.isPrivate && !access.canView) {
+      return NextResponse.json({ error: "This Circle is private", locked: true }, { status: 403 })
+    }
     const user = await getUserFromRequest(request)
     const sb = communityClient()
     const { searchParams } = new URL(request.url)

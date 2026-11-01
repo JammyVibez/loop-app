@@ -7,21 +7,52 @@ const supabase = createClient(
 )
 
 async function getUserIdFromToken(token: string): Promise<string | null> {
-  // Auth is Better Auth, so the bearer token is a session token (not a
-  // Supabase JWT). Try the Supabase path first for legacy compat, then fall
-  // back to the Better Auth session table.
-  try {
-    const { data, error } = await supabase.auth.getUser(token)
-    if (!error && data.user) return data.user.id
-  } catch {
-    /* fall through */
-  }
+  // Better Auth's user ID is text, while Circle membership and ownership use
+  // the canonical UUID in profiles. Resolve through the same email-aware
+  // mapping used by the Rust API instead of comparing the two IDs directly.
   try {
     const res = await authDbPool.query(
-      'SELECT "userId" FROM "session" WHERE token = $1 AND "expiresAt" > NOW();',
+      `
+        SELECT profile.id::text AS profile_id
+        FROM "session" AS auth_session
+        JOIN "user" AS auth_user
+          ON auth_user.id = auth_session."userId"
+        JOIN LATERAL (
+          SELECT candidate.id
+          FROM profiles AS candidate
+          WHERE candidate.id::text = auth_session."userId"
+             OR lower(candidate.email) = lower(auth_user.email)
+          ORDER BY (candidate.id::text = auth_session."userId") DESC
+          LIMIT 1
+        ) AS profile ON TRUE
+        WHERE auth_session.token = $1
+          AND auth_session."expiresAt" > NOW()
+        LIMIT 1
+      `,
       [token],
     )
-    return res.rows[0]?.userId || null
+    const profileId = res.rows[0]?.profile_id
+    if (typeof profileId === "string") return profileId
+  } catch {
+    /* fall through to legacy Supabase JWT sessions */
+  }
+
+  try {
+    const { data, error } = await supabase.auth.getUser(token)
+    if (error || !data.user) return null
+    const email = data.user.email
+    if (email) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", email)
+        .maybeSingle()
+      if (profile?.id) return String(profile.id)
+    }
+    // Legacy Supabase sessions may already use the profile UUID.
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(data.user.id)
+      ? data.user.id
+      : null
   } catch {
     return null
   }

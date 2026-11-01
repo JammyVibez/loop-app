@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { communityClient, logCommunityActivity, canModerate } from "@/lib/community-engine"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { checkCirclePrivateAccess } from "@/lib/circle-access"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string; challengeId: string }> }) {
   try {
@@ -8,8 +9,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const user = await getUserFromRequest(request)
     const sb = communityClient()
 
-    const { data: challenge } = await sb.from("circle_challenges").select("id").eq("id", challengeId).eq("circle_id", id).maybeSingle()
+    const { data: challenge } = await sb.from("circle_challenges").select("id, circle_id").eq("id", challengeId).eq("circle_id", id).maybeSingle()
     if (!challenge) return NextResponse.json({ error: "Challenge not found" }, { status: 404 })
+
+    const access = await checkCirclePrivateAccess(id, request.headers.get("authorization"))
+    if (access.isPrivate && !access.canView) {
+      return NextResponse.json({ error: "This Circle is private", locked: true }, { status: 403 })
+    }
 
     const { data: entries, error } = await sb
       .from("community_challenge_entries")

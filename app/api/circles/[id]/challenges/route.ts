@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth";
+import { checkCirclePrivateAccess } from "@/lib/circle-access";
 
 async function getUser(request: NextRequest) {
   const supabase = createServerClient()
@@ -26,6 +27,10 @@ function canManage(role?: string) {
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  const access = await checkCirclePrivateAccess(id, request.headers.get("authorization"))
+  if (access.isPrivate && !access.canView) {
+    return NextResponse.json({ error: "This Circle is private", locked: true }, { status: 403 })
+  }
   const supabase = createServerClient()
   const { data: challenges, error } = await supabase.from("circle_challenges").select("*").eq("circle_id", id).order("created_at", { ascending: false })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
