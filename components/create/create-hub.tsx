@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Home, Radio, GitBranch, Lightbulb, CheckCircle2, Zap } from "lucide-react"
+import { Home, Radio, Video, Lightbulb, CheckCircle2, Zap } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateLoopButton } from "@/components/create-loop-button"
 import { TreeEditor } from "@/components/create/reel-editor"
@@ -47,7 +47,7 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
               <Home className="mr-1.5 h-4 w-4" /> Loop
             </TabsTrigger>
             <TabsTrigger value="tree" className="rounded-full">
-              <GitBranch className="mr-1.5 h-4 w-4" /> Chain
+              <Video className="mr-1.5 h-4 w-4" /> Reel
             </TabsTrigger>
             <TabsTrigger value="moment" className="rounded-full">
               <Zap className="mr-1.5 h-4 w-4" /> Moment
