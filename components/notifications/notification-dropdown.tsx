@@ -19,6 +19,7 @@ import { CoLoopInviteCard } from "@/components/invitations/co-loop-invite-card";
 import { supabase } from "@/lib/supabase";
 import { Spinner } from "@/components/ui/skeletons"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { rustApiRequest } from "@/lib/rust-api"
 
 interface Actor {
   id: string
@@ -37,6 +38,8 @@ interface Notification {
   is_read: boolean
   created_at: string
   updated_at?: string
+  action_url?: string | null
+  actor_name?: string | null
   actor?: Actor | null
   actors?: Actor[]
   count?: number
@@ -119,14 +122,33 @@ export function NotificationDropdown() {
     if (!user) return
     if (!opts?.silent) setLoading(true)
     try {
-      const response = await fetch("/api/notifications?limit=20", {
-        headers: { ...getAuthHeader() },
-        cache: "no-store",
-      })
-      const data = await response.json()
+      let data: {
+        success?: boolean
+        notifications?: Notification[]
+        unread_count?: number
+      }
+      try {
+        data = await rustApiRequest("notifications?limit=20", {
+          headers: getAuthHeader(),
+          cache: "no-store",
+        })
+      } catch {
+        // Compatibility while the Rust service is rolled out to production.
+        const response = await fetch("/api/notifications?limit=20", {
+          headers: { ...getAuthHeader() },
+          cache: "no-store",
+        })
+        if (!response.ok) throw new Error("Could not fetch notifications")
+        data = await response.json()
+      }
       if (data.success) {
-        setNotifications(data.notifications || [])
-        setUnreadCount((data.notifications || []).filter((n: Notification) => !n.is_read).length)
+        const nextNotifications = data.notifications || []
+        setNotifications(nextNotifications)
+        setUnreadCount(
+          typeof data.unread_count === "number"
+            ? data.unread_count
+            : nextNotifications.filter((notification) => !notification.is_read).length,
+        )
       }
     } catch (error) {
       console.error("Error fetching notifications:", error)
@@ -181,12 +203,21 @@ export function NotificationDropdown() {
   const markAsRead = async (notificationId: string) => {
     if (!user) return
     try {
-      const response = await fetch("/api/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ notification_ids: [notificationId] }),
-      })
-      if (response.ok) {
+      try {
+        await rustApiRequest("notifications/read", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ notification_ids: [notificationId] }),
+        })
+      } catch {
+        const response = await fetch("/api/notifications", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ notification_ids: [notificationId] }),
+        })
+        if (!response.ok) throw new Error("Could not mark notification as read")
+      }
+      {
         setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)))
         setUnreadCount((prev) => Math.max(0, prev - 1))
         // Tell the tab-bar badge so it drops without waiting for its poll.
@@ -200,12 +231,21 @@ export function NotificationDropdown() {
   const markAllAsRead = async () => {
     if (!user) return
     try {
-      const response = await fetch("/api/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ mark_all_read: true }),
-      })
-      if (response.ok) {
+      try {
+        await rustApiRequest("notifications/read", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ mark_all_read: true }),
+        })
+      } catch {
+        const response = await fetch("/api/notifications", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ mark_all_read: true }),
+        })
+        if (!response.ok) throw new Error("Could not mark notifications as read")
+      }
+      {
         setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
         setUnreadCount(0)
         window.dispatchEvent(new CustomEvent("loop:notifications-changed"))
@@ -221,6 +261,7 @@ export function NotificationDropdown() {
     if (data.href) return data.href
     if (data.action_url) return data.action_url
     if (data.url) return data.url
+    if (n.action_url) return n.action_url
     if (data.conversation_id) return `/messages?c=${data.conversation_id}`
     if (data.loop_id) return `/loop/${data.loop_id}`
     if (data.circle_id) return `/communities/${data.circle_id}`
