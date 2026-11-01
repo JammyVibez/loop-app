@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
 import { notifyUser } from "@/lib/notifications";
-import { getUserFromRequest } from "@/lib/server-auth";
+import { getUserFromRequest } from "@/lib/server-auth"
+import { checkCirclePrivateAccess } from "@/lib/circle-access";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
 
@@ -14,6 +15,10 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://p
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string, postId: string }> }) {
   try {
     const { id: circleId, postId } = await params
+    const access = await checkCirclePrivateAccess(circleId, request.headers.get("authorization"))
+    if (access.isPrivate && !access.canView) {
+      return NextResponse.json({ error: "This Circle is private", locked: true }, { status: 403 })
+    }
 
     // Fetch post with author info
     const { data: post, error: postError } = await supabase

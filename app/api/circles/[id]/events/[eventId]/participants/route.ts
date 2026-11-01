@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
-import { getUserFromRequest } from "@/lib/server-auth";
+import { getUserFromRequest } from "@/lib/server-auth"
+import { checkCirclePrivateAccess } from "@/lib/circle-access";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -11,7 +12,19 @@ const supabase = createClient(
 // List attendees + current user's RSVP status
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string; eventId: string }> }) {
   try {
-    const { eventId } = await params
+    const { id: circleId, eventId } = await params
+    const access = await checkCirclePrivateAccess(circleId, request.headers.get("authorization"))
+    if (access.isPrivate && !access.canView) {
+      return NextResponse.json({ error: "This Circle is private", locked: true }, { status: 403 })
+    }
+    const { data: circleEvent } = await supabase
+      .from("circle_events")
+      .select("id")
+      .eq("id", eventId)
+      .eq("circle_id", circleId)
+      .maybeSingle()
+    if (!circleEvent) return NextResponse.json({ error: "Event not found" }, { status: 404 })
+
     const user = await getUserFromRequest(request)
 
     const { data: participants, error } = await supabase
