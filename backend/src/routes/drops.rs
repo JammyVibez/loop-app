@@ -391,7 +391,7 @@ fn append_rows(
         let status: String = row.try_get("status").map_err(db_error)?;
         let action_url = match (source, circle_id.as_deref()) {
             ("circle_challenge", Some(circle_id)) => {
-                format!("/communities/{circle_id}?tab=challenges")
+                format!("/communities/{circle_id}/challenges/{id}")
             }
             ("circle_event", Some(circle_id)) => {
                 format!("/communities/{circle_id}?tab=events")

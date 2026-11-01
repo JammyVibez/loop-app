@@ -423,7 +423,7 @@ export function DropsHub() {
                     <select id="drop-type" value={dropType} onChange={(event) => setDropType(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">
                       <option value="creative">Creative prompt</option>
                       <option value="photography">Photography theme</option>
-                      <option value="prediction">Prediction and voting</option>
+                      <option value="poll">Community poll</option>
                       <option value="guessing">Guessing game</option>
                       <option value="collaborative">Collaborative activity</option>
                       <option value="discussion">Open discussion</option>

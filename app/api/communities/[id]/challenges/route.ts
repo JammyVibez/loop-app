@@ -60,17 +60,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const body = await request.json()
     const title = typeof body.title === "string" ? body.title.trim() : ""
     const description = typeof body.description === "string" ? body.description.trim() : ""
-    const challenge_type = typeof body.challenge_type === "string" ? body.challenge_type.trim().slice(0, 40) : "creative"
-    const rewardValue = Number(body.reward_coins ?? 0)
-    const reward_coins = Number.isFinite(rewardValue) ? Math.min(500, Math.max(0, Math.floor(rewardValue))) : 0
+    const requestedType = typeof body.challenge_type === "string" ? body.challenge_type.trim() : "creative"
+    const allowedTypes = new Set(["creative", "photography", "poll", "guessing", "collaborative", "discussion"])
     if (!title || title.length > 120) return NextResponse.json({ error: "Challenge title must be 1–120 characters" }, { status: 400 })
     if (description.length > 2000) return NextResponse.json({ error: "Challenge description is too long" }, { status: 400 })
-    if (!challenge_type) return NextResponse.json({ error: "Choose a Drop format" }, { status: 400 })
+    if (!allowedTypes.has(requestedType)) return NextResponse.json({ error: "Choose a supported community activity format" }, { status: 400 })
+    const challenge_type = requestedType
+    const reward_coins = 0
 
     const startDate = body.starts_at ? new Date(body.starts_at) : new Date()
     const endDate = body.ends_at ? new Date(body.ends_at) : new Date(startDate.getTime() + 7 * 86400000)
     if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime()) || endDate <= startDate) {
       return NextResponse.json({ error: "Choose an end time after the start time" }, { status: 400 })
+    }
+    if (endDate.getTime() <= Date.now()) {
+      return NextResponse.json({ error: "A Drop must end in the future" }, { status: 400 })
     }
 
     const { data: challenge, error } = await sb
