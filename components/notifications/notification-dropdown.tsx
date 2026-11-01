@@ -9,6 +9,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bell, Check, Settings, Heart, MessageCircle, UserPlus, GitBranch, AtSign, Gift, Mail, BellRing, ChevronRight, Lock, Coins, Megaphone, Radio, Phone, Trophy, Users, Crown, Info, Swords, ShieldCheck, Zap, Quote } from "lucide-react"
 import { NotificationQuickReply } from "@/components/notifications/notification-quick-reply";
+import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view";
+import FilledBellIcon from "@/components/icons/animated/filled-bell-icon";
 import { getNotificationCopy, SYSTEM_SENDER } from "@/lib/notification-copy";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -238,7 +240,7 @@ export function NotificationDropdown() {
           type="button"
           className="relative flex items-center justify-center h-9 w-9 rounded-full hover:bg-muted/60 transition-colors"
         >
-          <Bell className="h-[18px] w-[18px] text-muted-foreground" />
+          <AnimatedIconView component={FilledBellIcon} size={18} className="text-muted-foreground" />
           {unreadCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground ring-2 ring-background">
               {unreadCount > 99 ? "99+" : unreadCount}
