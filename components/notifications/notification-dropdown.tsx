@@ -19,7 +19,7 @@ import { CoLoopInviteCard } from "@/components/invitations/co-loop-invite-card";
 import { supabase } from "@/lib/supabase";
 import { Spinner } from "@/components/ui/skeletons"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
-import { rustApiRequest } from "@/lib/rust-api"
+import { isRustApiUnavailable, rustApiRequest } from "@/lib/rust-api"
 
 interface Actor {
   id: string
@@ -132,7 +132,8 @@ export function NotificationDropdown() {
           headers: getAuthHeader(),
           cache: "no-store",
         })
-      } catch {
+      } catch (error) {
+        if (!isRustApiUnavailable(error)) throw error
         // Compatibility while the Rust service is rolled out to production.
         const response = await fetch("/api/notifications?limit=20", {
           headers: { ...getAuthHeader() },
@@ -209,7 +210,8 @@ export function NotificationDropdown() {
           headers: { "Content-Type": "application/json", ...getAuthHeader() },
           body: JSON.stringify({ notification_ids: [notificationId] }),
         })
-      } catch {
+      } catch (error) {
+        if (!isRustApiUnavailable(error)) throw error
         const response = await fetch("/api/notifications", {
           method: "PATCH",
           headers: { "Content-Type": "application/json", ...getAuthHeader() },
@@ -235,7 +237,8 @@ export function NotificationDropdown() {
           headers: { "Content-Type": "application/json", ...getAuthHeader() },
           body: JSON.stringify({ mark_all_read: true }),
         })
-      } catch {
+      } catch (error) {
+        if (!isRustApiUnavailable(error)) throw error
         const response = await fetch("/api/notifications", {
           method: "PATCH",
           headers: { "Content-Type": "application/json", ...getAuthHeader() },
