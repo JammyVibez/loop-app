@@ -124,8 +124,7 @@ export const HoldToConfirmButton = React.forwardRef<HTMLButtonElement, HoldToCon
         ref={buttonRef}
         type="button"
         disabled={disabled}
-        aria-describedby={props["aria-describedby"]}
-        aria-label={props["aria-label"] || label}
+          aria-label={props["aria-label"] || label}
         data-holding={holding ? "true" : "false"}
         className={cn(
           buttonVariants({ variant: "destructive", size: "default" }),
@@ -147,7 +146,7 @@ export const HoldToConfirmButton = React.forwardRef<HTMLButtonElement, HoldToCon
       >
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10 origin-left bg-rose-950/30"
+          className="pointer-events-none absolute inset-0 z-0 origin-left bg-rose-950/30"
           style={{
             transform: holding ? "scaleX(1)" : "scaleX(0)",
             transition: reducedMotion ? "none" : `transform ${holdDurationMs}ms linear`,
