@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { TactileButton } from "@/components/ui/tactile-button"
+import { DynamicButton } from "@/components/ui/dynamic-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
@@ -38,6 +38,7 @@ import {
   Swords,
   Zap,
 } from "lucide-react"
+import ArrowNarrowRightIcon from "@/components/icons/animated/arrow-narrow-right-icon"
 import { CreateDuelDialog } from "@/components/duels/create-duel-dialog"
 import { CreateClutchDuelDialog } from "@/components/duels/create-clutch-duel-dialog"
 
@@ -857,15 +858,16 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                 <Button type="button" variant="outline" className="border-border" onClick={() => setDiscardOpen(true)}>
                   Cancel
                 </Button>
-                <TactileButton
+                <DynamicButton
                   type="submit"
                   feedback="press"
-                  liftOnHover={false}
+                  stateKey={creating ? uploadStatus || "publishing" : "create"}
+                  icon={creating ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" /> : <ArrowNarrowRightIcon size={16} /> }
                   disabled={creating || (!content.trim() && mediaFiles.length === 0)}
                   className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
                 >
                   {creating ? uploadStatus || "Publishing..." : "Create Loop"}
-                </TactileButton>
+                </DynamicButton>
               </div>
             </div>
           </form>
