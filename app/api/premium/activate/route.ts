@@ -38,12 +38,13 @@ export async function POST(request: NextRequest) {
       }
 
       const appUrl = getAppUrl(request)
-      // Capture before any `||` narrowing (as-const literal strings make
-      // `plan.description || …` narrow `plan` to never).
-      const planDays = plan.days
+      const subscriptionMetadata = {
+        kind: "premium_subscription",
+        user_id: user.id,
+        plan: planId,
+      }
       const session = await stripe.checkout.sessions.create({
-        mode: "payment",
-        payment_method_types: ["card"],
+        mode: "subscription",
         customer_email: user.email || undefined,
         line_items: [
           {
@@ -51,20 +52,17 @@ export async function POST(request: NextRequest) {
             price_data: {
               currency: "usd",
               unit_amount: Math.round(plan.priceUsd * 100),
+              recurring: { interval: planId === "annual" ? "year" : "month" },
               product_data: {
                 name: `Loop Pro ${plan.name}`,
-                description: plan.description || `${planDays} days of Loop Pro`,
+                description: plan.description,
               },
             },
           },
         ],
-        metadata: {
-          kind: "premium",
-          user_id: user.id,
-          plan: planId,
-          plan_days: String(planDays),
-        },
-        success_url: `${appUrl}/lounge?checkout=success`,
+        metadata: subscriptionMetadata,
+        subscription_data: { metadata: subscriptionMetadata },
+        success_url: `${appUrl}/premium?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${appUrl}/premium?checkout=cancelled`,
       })
 
@@ -128,6 +126,7 @@ export async function POST(request: NextRequest) {
       .update({
         loop_coins: nextCoins,
         is_premium: true,
+        premium_source: "coins",
         premium_expires_at: expiresAt.toISOString(),
         can_stream: true,
         updated_at: new Date().toISOString(),
@@ -141,6 +140,7 @@ export async function POST(request: NextRequest) {
         .update({
           loop_coins: nextCoins,
           is_premium: true,
+          premium_source: "coins",
           premium_expires_at: expiresAt.toISOString(),
           updated_at: new Date().toISOString(),
         })

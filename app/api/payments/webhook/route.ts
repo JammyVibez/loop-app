@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { notifyUser } from "@/lib/notifications"
+import { syncStripePremiumSubscription } from "@/lib/stripe-premium-subscriptions"
 
 export async function POST(request: NextRequest) {
   try {
@@ -82,6 +83,7 @@ export async function POST(request: NextRequest) {
             .from("profiles")
             .update({
               is_premium: true,
+              premium_source: "stripe",
               premium_expires_at: expiresAt.toISOString(),
               updated_at: new Date().toISOString(),
             })
@@ -292,6 +294,7 @@ export async function POST(request: NextRequest) {
             .from("profiles")
             .update({
               is_premium: true,
+              premium_source: "stripe",
               premium_expires_at: expiryDate.toISOString(),
               updated_at: new Date().toISOString(),
             })
@@ -332,14 +335,12 @@ export async function POST(request: NextRequest) {
         }
         break
       case "customer.subscription.created":
-        console.log("Subscription created:", event.data.object.id)
-        break
       case "customer.subscription.updated":
-        console.log("Subscription updated:", event.data.object.id)
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription
+        await syncStripePremiumSubscription(supabase, subscription)
         break
-      case "customer.subscription.deleted":
-        console.log("Subscription cancelled:", event.data.object.id)
-        break
+      }
       case "payment_intent.payment_failed":
         const failedIntent = event.data.object as any
         await supabase
