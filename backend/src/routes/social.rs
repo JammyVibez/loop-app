@@ -111,12 +111,12 @@ async fn check_social_list_access(
             .await
             .map_err(db_error)?
             .ok_or_else(|| {
-        api_error(
-            StatusCode::NOT_FOUND,
-            "user_not_found",
-            "This profile is unavailable.",
-        )
-    })?;
+                api_error(
+                    StatusCode::NOT_FOUND,
+                    "user_not_found",
+                    "This profile is unavailable.",
+                )
+            })?;
 
     let Some(viewer_id) = viewer_id else {
         let visibility = privacy
