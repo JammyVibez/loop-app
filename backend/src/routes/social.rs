@@ -227,24 +227,44 @@ pub async fn follow(
     }
 
     if input.action == "unfollow" {
-        sqlx::query("DELETE FROM follows WHERE follower_id = $1 AND following_id = $2")
-            .bind(user.id)
+        let removed = sqlx::query_scalar::<_, Uuid>(
+            "DELETE FROM follows WHERE follower_id = $1 AND following_id = $2 RETURNING id",
+        )
+        .bind(user.id)
+        .bind(target_id)
+        .fetch_optional(&mut *transaction)
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "could not remove follow");
+            api_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "unfollow_failed",
+                "Could not unfollow this user.",
+            )
+        })?;
+
+        if removed.is_some() {
+            sqlx::query(
+                "UPDATE profiles SET followers_count = GREATEST(0, followers_count - 1), updated_at = NOW() WHERE id = $1",
+            )
             .bind(target_id)
             .execute(&mut *transaction)
             .await
-            .map_err(|error| {
-                tracing::error!(%error, "could not remove follow");
-                api_error(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "unfollow_failed",
-                    "Could not unfollow this user.",
-                )
-            })?;
+            .map_err(db_error)?;
+
+            sqlx::query(
+                "UPDATE profiles SET following_count = GREATEST(0, following_count - 1), updated_at = NOW() WHERE id = $1",
+            )
+            .bind(user.id)
+            .execute(&mut *transaction)
+            .await
+            .map_err(db_error)?;
+        }
 
         // Recompute from the relationship table so duplicate retries and
         // historical counter drift cannot compound incorrect values.
         let (followers_count, following_count) =
-            refresh_follow_counts(&mut transaction, user.id, target_id).await?;
+            load_follow_counts(&mut transaction, user.id, target_id).await?;
 
         sqlx::query(
             r#"
@@ -295,7 +315,7 @@ pub async fn follow(
 
     if already_following {
         let (followers_count, following_count) =
-            refresh_follow_counts(&mut transaction, user.id, target_id).await?;
+            load_follow_counts(&mut transaction, user.id, target_id).await?;
         transaction.commit().await.map_err(|error| {
             tracing::error!(%error, "could not commit idempotent follow");
             api_error(
@@ -338,7 +358,7 @@ pub async fn follow(
 
         if status.as_deref() == Some("pending") {
             let (followers_count, following_count) =
-                refresh_follow_counts(&mut transaction, user.id, target_id).await?;
+                load_follow_counts(&mut transaction, user.id, target_id).await?;
             transaction.commit().await.map_err(|error| {
                 api_error(
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -398,7 +418,7 @@ pub async fn follow(
         }
 
         let (followers_count, following_count) =
-            refresh_follow_counts(&mut transaction, user.id, target_id).await?;
+            load_follow_counts(&mut transaction, user.id, target_id).await?;
         transaction.commit().await.map_err(|error| {
             tracing::error!(%error, "could not commit follow request");
             api_error(
@@ -490,7 +510,7 @@ pub async fn follow(
     .map_err(db_error)?;
 
     let (followers_count, following_count) =
-        refresh_follow_counts(&mut transaction, user.id, target_id).await?;
+        load_follow_counts(&mut transaction, user.id, target_id).await?;
     transaction.commit().await.map_err(|error| {
         tracing::error!(%error, "could not commit follow");
         api_error(
@@ -545,40 +565,28 @@ pub async fn withdraw_follow_request(
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn refresh_follow_counts(
+async fn load_follow_counts(
     transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     user_id: Uuid,
     target_id: Uuid,
 ) -> Result<(i64, i64), ApiError> {
-    let followers_count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM follows WHERE following_id = $1")
-            .bind(target_id)
-            .fetch_one(&mut **transaction)
-            .await
-            .map_err(db_error)?;
+    let row = sqlx::query(
+        r#"
+        SELECT
+            (SELECT followers_count FROM profiles WHERE id = $1) AS followers_count,
+            (SELECT following_count FROM profiles WHERE id = $2) AS following_count
+        "#,
+    )
+    .bind(target_id)
+    .bind(user_id)
+    .fetch_one(&mut **transaction)
+    .await
+    .map_err(db_error)?;
 
-    let following_count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM follows WHERE follower_id = $1")
-            .bind(user_id)
-            .fetch_one(&mut **transaction)
-            .await
-            .map_err(db_error)?;
-
-    sqlx::query("UPDATE profiles SET followers_count = $2, updated_at = NOW() WHERE id = $1")
-        .bind(target_id)
-        .bind(followers_count)
-        .execute(&mut **transaction)
-        .await
-        .map_err(db_error)?;
-
-    sqlx::query("UPDATE profiles SET following_count = $2, updated_at = NOW() WHERE id = $1")
-        .bind(user_id)
-        .bind(following_count)
-        .execute(&mut **transaction)
-        .await
-        .map_err(db_error)?;
-
-    Ok((followers_count, following_count))
+    Ok((
+        row.try_get("followers_count").map_err(db_error)?,
+        row.try_get("following_count").map_err(db_error)?,
+    ))
 }
 
 struct NotificationDraft<'a> {
