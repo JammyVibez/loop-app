@@ -44,6 +44,7 @@ import { DailyPulse } from "@/components/engagement/daily-pulse"
 
 const QUICK_LINKS = [
   { href: "/explore", label: "Explore", icon: Compass },
+  { href: "/drops", label: "Drops", icon: Flame },
   { href: "/communities", label: "Circles", icon: Users },
   { href: "/explore?tab=chains", label: "Chains", icon: GitBranch },
   { href: "/trees", label: "Reels", icon: Video },
