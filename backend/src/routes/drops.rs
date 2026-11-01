@@ -402,14 +402,8 @@ fn append_rows(
             (_, _) => format!("/events/{id}"),
         };
 
-        let (is_live, normalized_status) = derive_activity_state(
-            kind,
-            &status,
-            is_live,
-            &starts_at,
-            &ends_at,
-            Utc::now(),
-        );
+        let (is_live, normalized_status) =
+            derive_activity_state(kind, &status, is_live, &starts_at, &ends_at, Utc::now());
 
         items.push(DropItem {
             id,
