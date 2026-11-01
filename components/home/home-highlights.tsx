@@ -10,6 +10,7 @@ import {
   Plus,
   Search,
   GitBranch,
+  Video,
   Zap,
   Star,
   X,
@@ -44,7 +45,8 @@ import { DailyPulse } from "@/components/engagement/daily-pulse"
 const QUICK_LINKS = [
   { href: "/explore", label: "Explore", icon: Compass },
   { href: "/communities", label: "Circles", icon: Users },
-  { href: "/trees", label: "Chains", icon: GitBranch },
+  { href: "/explore?tab=chains", label: "Chains", icon: GitBranch },
+  { href: "/trees", label: "Reels", icon: Video },
   { href: "/co-loop", label: "Co-Loop", icon: Zap },
   { href: "/search", label: "Search", icon: Search },
   { href: "/bookmarks", label: "Saved", icon: Bookmark },
