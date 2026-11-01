@@ -717,7 +717,9 @@ mod tests {
             note: None,
         };
 
-        assert!(matches!(validate_item_input(&input), Ok(ValidatedItem::Loop(value)) if value == id));
+        assert!(
+            matches!(validate_item_input(&input), Ok(ValidatedItem::Loop(value)) if value == id)
+        );
     }
 
     #[test]
@@ -732,7 +734,9 @@ mod tests {
             note: None,
         };
 
-        assert!(matches!(validate_item_input(&input), Ok(ValidatedItem::Circle(value)) if value == id));
+        assert!(
+            matches!(validate_item_input(&input), Ok(ValidatedItem::Circle(value)) if value == id)
+        );
     }
 
     #[test]
@@ -768,7 +772,9 @@ mod tests {
             title_override: None,
             note: None,
         };
-        assert!(matches!(validate_item_input(&valid), Ok(ValidatedItem::External(url)) if url == "https://example.com/reference"));
+        assert!(
+            matches!(validate_item_input(&valid), Ok(ValidatedItem::External(url)) if url == "https://example.com/reference")
+        );
 
         let insecure = AddCollectionItemInput {
             external_url: Some("http://example.com".to_owned()),
