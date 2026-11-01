@@ -158,7 +158,7 @@ pub async fn follow(
 
     let target = sqlx::query(
         r#"
-        SELECT username, display_name, privacy_settings
+        SELECT privacy_settings
         FROM profiles
         WHERE id = $1
         FOR UPDATE
@@ -184,8 +184,6 @@ pub async fn follow(
         ));
     };
 
-    let username: String = target.try_get("username").map_err(db_error)?;
-    let display_name: String = target.try_get("display_name").map_err(db_error)?;
     let privacy: Option<serde_json::Value> =
         target.try_get("privacy_settings").map_err(db_error)?;
     let visibility = privacy
@@ -359,7 +357,7 @@ pub async fn follow(
         if status.as_deref() == Some("pending") {
             let (followers_count, following_count) =
                 load_follow_counts(&mut transaction, user.id, target_id).await?;
-            transaction.commit().await.map_err(|error| {
+            transaction.commit().await.map_err(|_error| {
                 api_error(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "follow_commit_failed",
