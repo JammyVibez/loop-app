@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { DynamicButton } from "@/components/ui/dynamic-button"
+import { MagneticDropZone } from "@/components/ui/magnetic-drop-zone"
 import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
@@ -350,8 +351,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
     }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files || [])
+  const handleSelectedFiles = (selected: File[]) => {
     if (!selected.length) return
     const maxFiles = getMaxFiles()
     const combined = [...mediaFiles, ...selected].slice(0, maxFiles)
@@ -367,6 +367,10 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
     else if (first.type.startsWith("video/")) setMediaType("video")
     else if (first.type.startsWith("audio/")) setMediaType("audio")
     else setMediaType("code")
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleSelectedFiles(Array.from(e.target.files || []))
     e.target.value = ""
   }
 
@@ -750,7 +754,8 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                 </p>
               ) : (
                 <>
-                  <label className="flex cursor-pointer flex-col items-center gap-2 text-sm text-muted-foreground border border-dashed border-border rounded-2xl p-4 hover:bg-muted/60 transition-colors">
+                  <MagneticDropZone onFiles={handleSelectedFiles}>
+                    <label className="flex cursor-pointer flex-col items-center gap-2 text-sm text-muted-foreground border border-dashed border-border rounded-2xl p-4 hover:bg-muted/60 transition-colors">
                     <Upload className="h-5 w-5 text-violet-400" />
                     <span>Upload media ({getMaxFiles()} file limit{user?.is_premium ? " · Pro" : ""})</span>
                     <input
@@ -761,6 +766,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                       onChange={handleFileChange}
                     />
                   </label>
+                  </MagneticDropZone>
                   {(mediaType === "audio" || mediaType === "text") && (
                     <div className="mt-3 flex justify-center">
                       <Button
