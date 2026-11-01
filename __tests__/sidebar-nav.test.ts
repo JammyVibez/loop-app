@@ -40,6 +40,7 @@ describe("sidebar navigation split", () => {
         "/bookmarks",
         "/create",
         "/co-loop/studio",
+        "/collections",
         "/communities",
         "/developers",
         "/earnings",
