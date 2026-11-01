@@ -6,20 +6,17 @@ mod storage;
 use std::time::Duration;
 
 use anyhow::Context;
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 use config::AppConfig;
 use http::{
-    header::{AUTHORIZATION, CONTENT_TYPE},
     Method,
+    header::{AUTHORIZATION, CONTENT_TYPE},
 };
 use sqlx::postgres::PgPoolOptions;
 use state::AppState;
 use tokio::net::TcpListener;
 use tower_http::{
-    cors::CorsLayer,
-    limit::RequestBodyLimitLayer,
-    timeout::TimeoutLayer,
-    trace::TraceLayer,
+    cors::CorsLayer, limit::RequestBodyLimitLayer, timeout::TimeoutLayer, trace::TraceLayer,
 };
 use tracing::info;
 
