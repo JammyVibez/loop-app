@@ -91,7 +91,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "media" {
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
     }
-    bucket_key_enabled = true
   }
 }
 
@@ -189,7 +188,13 @@ resource "aws_iam_role_policy" "api_storage" {
           "s3:AbortMultipartUpload",
           "s3:ListMultipartUploadParts"
         ]
-        Resource = "${aws_s3_bucket.media[0].arn}/*"
+        Resource = [
+          "${aws_s3_bucket.media[0].arn}/users/*",
+          "${aws_s3_bucket.media[0].arn}/loops/*",
+          "${aws_s3_bucket.media[0].arn}/circles/*",
+          "${aws_s3_bucket.media[0].arn}/profiles/*",
+          "${aws_s3_bucket.media[0].arn}/temporary/*"
+        ]
       }
     ]
   })
