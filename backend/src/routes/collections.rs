@@ -61,6 +61,7 @@ pub struct CollectionItem {
     item_type: String,
     loop_id: Option<Uuid>,
     circle_id: Option<Uuid>,
+    chain_id: Option<Uuid>,
     external_url: Option<String>,
     title_override: Option<String>,
     note: Option<String>,
@@ -94,6 +95,7 @@ pub struct AddCollectionItemInput {
     item_type: String,
     loop_id: Option<Uuid>,
     circle_id: Option<Uuid>,
+    chain_id: Option<Uuid>,
     external_url: Option<String>,
     title_override: Option<String>,
     note: Option<String>,
@@ -249,6 +251,7 @@ pub async fn get(
     user: OptionalAuthenticatedUser,
     Path(collection_id): Path<Uuid>,
 ) -> Result<Json<CollectionDetail>, ApiError> {
+    let viewer_id = user.0.as_ref().map(|authenticated| authenticated.id);
     let row = sqlx::query(
         r#"
         SELECT
@@ -324,15 +327,93 @@ pub async fn get(
 
     let item_rows = sqlx::query(
         r#"
-        SELECT id, item_type, loop_id, circle_id, external_url,
-               title_override, note, position, created_at
-        FROM collection_items
-        WHERE collection_id = $1
-        ORDER BY position ASC, created_at ASC
+        SELECT
+            item.id, item.item_type, item.loop_id, item.circle_id, item.chain_id,
+            item.external_url, item.title_override, item.note, item.position, item.created_at
+        FROM collection_items AS item
+        WHERE item.collection_id = $1
+          AND (
+              item.item_type = 'external'
+              OR (
+                  item.item_type = 'loop'
+                  AND EXISTS (
+                      SELECT 1 FROM loops AS target_loop
+                      WHERE target_loop.id = item.loop_id
+                        AND (
+                            target_loop.visibility = 'public'
+                            OR target_loop.author_id = $2
+                            OR (
+                                target_loop.visibility = 'circle'
+                                AND EXISTS (
+                                    SELECT 1 FROM circle_members AS member
+                                    WHERE member.circle_id = target_loop.circle_id
+                                      AND member.user_id = $2
+                                      AND member.status IN ('active', 'approved')
+                                )
+                            )
+                        )
+                  )
+              )
+              OR (
+                  item.item_type = 'circle'
+                  AND EXISTS (
+                      SELECT 1 FROM circles AS target_circle
+                      WHERE target_circle.id = item.circle_id
+                        AND (
+                            target_circle.is_private = false
+                            OR target_circle.owner_id = $2
+                            OR EXISTS (
+                                SELECT 1 FROM circle_members AS member
+                                WHERE member.circle_id = target_circle.id
+                                  AND member.user_id = $2
+                                  AND member.status IN ('active', 'approved')
+                            )
+                        )
+                  )
+              )
+              OR (
+                  item.item_type = 'chain'
+                  AND EXISTS (
+                      SELECT 1 FROM chains AS target_chain
+                      WHERE target_chain.id = item.chain_id
+                        AND (
+                            target_chain.creator_id = $2
+                            OR EXISTS (
+                                SELECT 1 FROM chain_members AS chain_member
+                                WHERE chain_member.chain_id = target_chain.id
+                                  AND chain_member.user_id = $2
+                            )
+                            OR (
+                                target_chain.visibility IN ('public', 'unlisted')
+                                AND (
+                                    target_chain.circle_id IS NULL
+                                    OR EXISTS (
+                                        SELECT 1 FROM circle_members AS circle_member
+                                        WHERE circle_member.circle_id = target_chain.circle_id
+                                          AND circle_member.user_id = $2
+                                          AND circle_member.status IN ('active', 'approved')
+                                    )
+                                )
+                            )
+                            OR (
+                                target_chain.visibility = 'circle'
+                                AND EXISTS (
+                                    SELECT 1 FROM circle_members AS circle_member
+                                    WHERE circle_member.circle_id = target_chain.circle_id
+                                      AND circle_member.user_id = $2
+                                      AND circle_member.status IN ('active', 'approved')
+                                )
+                            )
+                        )
+                  )
+              )
+          )
+        ORDER BY item.position ASC, item.created_at ASC
         LIMIT 200
         "#,
     )
     .bind(collection_id)
+    .bind(viewer_id)
     .fetch_all(&state.database)
     .await
     .map_err(|error| {
@@ -352,6 +433,7 @@ pub async fn get(
                 item_type: row.try_get("item_type").map_err(internal_db_error)?,
                 loop_id: row.try_get("loop_id").map_err(internal_db_error)?,
                 circle_id: row.try_get("circle_id").map_err(internal_db_error)?,
+                chain_id: row.try_get("chain_id").map_err(internal_db_error)?,
                 external_url: row.try_get("external_url").map_err(internal_db_error)?,
                 title_override: row.try_get("title_override").map_err(internal_db_error)?,
                 note: row.try_get("note").map_err(internal_db_error)?,
@@ -360,6 +442,9 @@ pub async fn get(
             })
         })
         .collect::<Result<Vec<_>, ApiError>>()?;
+
+    // Report only items that this viewer is actually allowed to see.
+    collection.item_count = items.len() as i64;
 
     Ok(Json(CollectionDetail {
         collection,
@@ -434,6 +519,7 @@ pub async fn add_item(
                             SELECT 1 FROM circle_members AS member
                             WHERE member.circle_id = loop.circle_id
                               AND member.user_id = $2
+                              AND member.status IN ('active', 'approved')
                               AND loop.visibility = 'circle'
                         )
                     )
@@ -472,7 +558,7 @@ pub async fn add_item(
                             SELECT 1 FROM circle_members AS member
                             WHERE member.circle_id = circle.id
                               AND member.user_id = $2
-                              AND loop.visibility = 'circle'
+                              AND member.status IN ('active', 'approved')
                         )
                     )
                 )
@@ -498,6 +584,64 @@ pub async fn add_item(
                 ));
             }
         }
+        ValidatedItem::Chain(chain_id) => {
+            let allowed = sqlx::query_scalar::<_, bool>(
+                r#"
+                SELECT EXISTS (
+                    SELECT 1 FROM chains AS target_chain
+                    WHERE target_chain.id = $1
+                      AND (
+                          target_chain.creator_id = $2
+                          OR EXISTS (
+                              SELECT 1 FROM chain_members AS member
+                              WHERE member.chain_id = target_chain.id
+                                AND member.user_id = $2
+                          )
+                          OR (
+                              target_chain.visibility IN ('public', 'unlisted')
+                              AND (
+                                  target_chain.circle_id IS NULL
+                                  OR EXISTS (
+                                      SELECT 1 FROM circle_members AS member
+                                      WHERE member.circle_id = target_chain.circle_id
+                                        AND member.user_id = $2
+                                        AND member.status IN ('active', 'approved')
+                                  )
+                              )
+                          )
+                          OR (
+                              target_chain.visibility = 'circle'
+                              AND EXISTS (
+                                  SELECT 1 FROM circle_members AS member
+                                  WHERE member.circle_id = target_chain.circle_id
+                                    AND member.user_id = $2
+                                    AND member.status IN ('active', 'approved')
+                              )
+                          )
+                      )
+                )
+                "#,
+            )
+            .bind(chain_id)
+            .bind(user.id)
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(|error| {
+                tracing::error!(%error, "could not validate collection Chain");
+                api_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "collection_target_check_failed",
+                    "Could not validate that Chain.",
+                )
+            })?;
+            if !allowed {
+                return Err(api_error(
+                    StatusCode::NOT_FOUND,
+                    "chain_unavailable",
+                    "That Chain is unavailable.",
+                ));
+            }
+        }
         ValidatedItem::External(_) => {}
     }
 
@@ -516,20 +660,21 @@ pub async fn add_item(
         )
     })?;
 
-    let (item_type, loop_id, circle_id, external_url) = match target {
-        ValidatedItem::Loop(id) => ("loop", Some(id), None, None),
-        ValidatedItem::Circle(id) => ("circle", None, Some(id), None),
-        ValidatedItem::External(url) => ("external", None, None, Some(url)),
+    let (item_type, loop_id, circle_id, chain_id, external_url) = match target {
+        ValidatedItem::Loop(id) => ("loop", Some(id), None, None, None),
+        ValidatedItem::Circle(id) => ("circle", None, Some(id), None, None),
+        ValidatedItem::Chain(id) => ("chain", None, None, Some(id), None),
+        ValidatedItem::External(url) => ("external", None, None, None, Some(url)),
     };
 
     let row = sqlx::query(
         r#"
         INSERT INTO collection_items (
-            collection_id, added_by, item_type, loop_id, circle_id, external_url,
+            collection_id, added_by, item_type, loop_id, circle_id, chain_id, external_url,
             title_override, note, position
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id, item_type, loop_id, circle_id, external_url,
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING id, item_type, loop_id, circle_id, chain_id, external_url,
                   title_override, note, position, created_at
         "#,
     )
@@ -538,6 +683,7 @@ pub async fn add_item(
     .bind(item_type)
     .bind(loop_id)
     .bind(circle_id)
+    .bind(chain_id)
     .bind(external_url)
     .bind(
         input
@@ -587,6 +733,7 @@ pub async fn add_item(
         item_type: row.try_get("item_type").map_err(internal_db_error)?,
         loop_id: row.try_get("loop_id").map_err(internal_db_error)?,
         circle_id: row.try_get("circle_id").map_err(internal_db_error)?,
+        chain_id: row.try_get("chain_id").map_err(internal_db_error)?,
         external_url: row.try_get("external_url").map_err(internal_db_error)?,
         title_override: row.try_get("title_override").map_err(internal_db_error)?,
         note: row.try_get("note").map_err(internal_db_error)?,
@@ -648,6 +795,7 @@ pub async fn remove_item(
 enum ValidatedItem {
     Loop(Uuid),
     Circle(Uuid),
+    Chain(Uuid),
     External(String),
 }
 
@@ -672,6 +820,7 @@ fn validate_item_input(input: &AddCollectionItemInput) -> Result<ValidatedItem, 
         "loop"
             if input.loop_id.is_some()
                 && input.circle_id.is_none()
+                && input.chain_id.is_none()
                 && input.external_url.is_none() =>
         {
             Ok(ValidatedItem::Loop(
@@ -681,16 +830,28 @@ fn validate_item_input(input: &AddCollectionItemInput) -> Result<ValidatedItem, 
         "circle"
             if input.circle_id.is_some()
                 && input.loop_id.is_none()
+                && input.chain_id.is_none()
                 && input.external_url.is_none() =>
         {
             Ok(ValidatedItem::Circle(
                 input.circle_id.expect("validated Circle id"),
             ))
         }
+        "chain"
+            if input.chain_id.is_some()
+                && input.loop_id.is_none()
+                && input.circle_id.is_none()
+                && input.external_url.is_none() =>
+        {
+            Ok(ValidatedItem::Chain(
+                input.chain_id.expect("validated Chain id"),
+            ))
+        }
         "external"
             if input.external_url.is_some()
                 && input.loop_id.is_none()
-                && input.circle_id.is_none() =>
+                && input.circle_id.is_none()
+                && input.chain_id.is_none() =>
         {
             let value = input.external_url.as_deref().unwrap_or_default().trim();
             let parsed = Url::parse(value).map_err(|_| {
@@ -741,6 +902,7 @@ mod tests {
             item_type: "loop".to_owned(),
             loop_id: Some(id),
             circle_id: None,
+            chain_id: None,
             external_url: None,
             title_override: None,
             note: None,
@@ -758,6 +920,7 @@ mod tests {
             item_type: "circle".to_owned(),
             loop_id: None,
             circle_id: Some(id),
+            chain_id: None,
             external_url: None,
             title_override: None,
             note: None,
@@ -769,11 +932,31 @@ mod tests {
     }
 
     #[test]
+    fn accepts_a_chain_target_without_other_targets() {
+        let id = Uuid::new_v4();
+        let input = AddCollectionItemInput {
+            item_type: "chain".to_owned(),
+            loop_id: None,
+            circle_id: None,
+            chain_id: Some(id),
+            external_url: None,
+            title_override: None,
+            note: None,
+        };
+
+        assert!(matches!(
+            validate_item_input(&input),
+            Ok(ValidatedItem::Chain(value)) if value == id
+        ));
+    }
+
+    #[test]
     fn rejects_missing_or_ambiguous_targets() {
         let missing = AddCollectionItemInput {
             item_type: "loop".to_owned(),
             loop_id: None,
             circle_id: None,
+            chain_id: None,
             external_url: None,
             title_override: None,
             note: None,
@@ -784,6 +967,7 @@ mod tests {
             item_type: "loop".to_owned(),
             loop_id: Some(Uuid::new_v4()),
             circle_id: Some(Uuid::new_v4()),
+            chain_id: None,
             external_url: None,
             title_override: None,
             note: None,
@@ -797,6 +981,7 @@ mod tests {
             item_type: "external".to_owned(),
             loop_id: None,
             circle_id: None,
+            chain_id: None,
             external_url: Some("https://example.com/reference".to_owned()),
             title_override: None,
             note: None,
@@ -824,6 +1009,7 @@ mod tests {
             item_type: "external".to_owned(),
             loop_id: None,
             circle_id: None,
+            chain_id: None,
             external_url: Some("https://example.com".to_owned()),
             title_override: Some("x".repeat(161)),
             note: None,

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Archive, Bookmark, Circle, ExternalLink, Globe2, Link2, Lock, Plus, Trash2, Users } from "lucide-react"
+import { ArrowLeft, Archive, Bookmark, Circle, ExternalLink, GitBranch, Globe2, Link2, Lock, Plus, Trash2, Users } from "lucide-react"
 
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
@@ -18,9 +18,10 @@ import { type CollectionSummary } from "@/components/collections/collections-hub
 
 interface CollectionItem {
   id: string
-  item_type: "loop" | "circle" | "external"
+  item_type: "loop" | "circle" | "chain" | "external"
   loop_id: string | null
   circle_id: string | null
+  chain_id: string | null
   external_url: string | null
   title_override: string | null
   note: string | null
@@ -92,6 +93,8 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
         payload = { item_type: "loop", loop_id: extractUuid(target) }
       } else if (itemType === "circle") {
         payload = { item_type: "circle", circle_id: extractUuid(target) }
+      } else if (itemType === "chain") {
+        payload = { item_type: "chain", chain_id: extractUuid(target) }
       } else {
         payload = { item_type: "external", external_url: target.trim() }
       }
@@ -218,12 +221,13 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
               >
                 <option value="loop">Loop</option>
                 <option value="circle">Circle</option>
+                <option value="chain">Chain</option>
                 <option value="external">External link</option>
               </select>
               <Input
                 value={target}
                 onChange={(event) => setTarget(event.target.value)}
-                placeholder={itemType === "loop" ? "Paste a Loop link or ID" : itemType === "circle" ? "Paste a Circle link or ID" : "https://example.com"}
+                placeholder={itemType === "loop" ? "Paste a Loop link or ID" : itemType === "circle" ? "Paste a Circle link or ID" : itemType === "chain" ? "Paste a Chain link or ID" : "https://example.com"}
                 aria-label={itemType === "external" ? "External URL" : `${itemType} link or ID`}
               />
             </div>
@@ -251,7 +255,7 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
             <Bookmark className="h-7 w-7 text-muted-foreground" />
             <h2 className="font-semibold">Nothing in this collection yet</h2>
-            <p className="max-w-md text-sm text-muted-foreground">{data.can_edit ? "Add a Loop, Circle or external reference to start building it." : "The owner hasn't added anything yet."}</p>
+            <p className="max-w-md text-sm text-muted-foreground">{data.can_edit ? "Add a Loop, Circle, Chain or external reference to start building it." : "The owner hasn't added anything yet."}</p>
           </CardContent>
         </Card>
       ) : (
@@ -261,13 +265,14 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
               <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted">
-                    {item.item_type === "loop" ? <Bookmark className="h-4 w-4" /> : item.item_type === "circle" ? <Circle className="h-4 w-4" /> : <ExternalLink className="h-4 w-4" />}
+                    {item.item_type === "loop" ? <Bookmark className="h-4 w-4" /> : item.item_type === "circle" ? <Circle className="h-4 w-4" /> : item.item_type === "chain" ? <GitBranch className="h-4 w-4" /> : <ExternalLink className="h-4 w-4" />}
                   </div>
                   <div className="min-w-0 space-y-1">
-                    <p className="text-sm font-medium">{item.title_override || (item.item_type === "loop" ? "Loop" : item.item_type === "circle" ? "Circle" : item.external_url)}</p>
+                    <p className="text-sm font-medium">{item.title_override || (item.item_type === "loop" ? "Loop" : item.item_type === "circle" ? "Circle" : item.item_type === "chain" ? "Chain" : item.external_url)}</p>
                     {item.note ? <p className="text-xs text-muted-foreground">{item.note}</p> : null}
                     {item.item_type === "loop" && item.loop_id ? <Link href={`/loop/${item.loop_id}`} className="text-xs text-primary hover:underline">Open Loop</Link> : null}
                     {item.item_type === "circle" && item.circle_id ? <Link href={`/communities/${item.circle_id}`} className="text-xs text-primary hover:underline">Open Circle</Link> : null}
+                    {item.item_type === "chain" && item.chain_id ? <Link href={`/chains/${item.chain_id}`} className="text-xs text-primary hover:underline">Open Chain</Link> : null}
                     {item.item_type === "external" && item.external_url ? <a href={item.external_url} target="_blank" rel="noopener noreferrer" className="break-all text-xs text-primary hover:underline">{item.external_url}</a> : null}
                   </div>
                 </div>

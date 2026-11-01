@@ -126,7 +126,7 @@ export function CollectionsHub() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground">Keep the things you find useful together.</p>
-          <p className="text-xs text-muted-foreground">Collections can contain Loops, Circles and external references.</p>
+          <p className="text-xs text-muted-foreground">Collections can contain Loops, Chains, Circles and external references.</p>
         </div>
         {user ? (
           <Button onClick={() => setDialogOpen(true)} className="loop-tactile gap-2 self-start sm:self-auto">
