@@ -76,7 +76,7 @@ pub struct CreateCollectionInput {
     is_collaborative: Option<bool>,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct AddCollectionItemInput {
     item_type: String,
     loop_id: Option<Uuid>,
