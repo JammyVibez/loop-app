@@ -13,20 +13,30 @@ use uuid::Uuid;
 use crate::{auth::AuthenticatedUser, state::AppState};
 
 #[derive(Serialize)]
-struct ApiError {
+struct ApiErrorBody {
     error: &'static str,
     message: String,
 }
 
-fn api_error(status: StatusCode, error: &'static str, message: impl Into<String>) -> Response {
-    (
+struct ApiError {
+    status: StatusCode,
+    body: ApiErrorBody,
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        (self.status, Json(self.body)).into_response()
+    }
+}
+
+fn api_error(status: StatusCode, error: &'static str, message: impl Into<String>) -> ApiError {
+    ApiError {
         status,
-        Json(ApiError {
+        body: ApiErrorBody {
             error,
             message: message.into(),
-        }),
-    )
-        .into_response()
+        },
+    }
 }
 
 #[derive(Serialize)]
@@ -90,7 +100,7 @@ pub async fn list(
     State(state): State<AppState>,
     user: AuthenticatedUser,
     Query(query): Query<ListCollectionsQuery>,
-) -> Result<Json<Vec<CollectionSummary>>, Response> {
+) -> Result<Json<Vec<CollectionSummary>>, ApiError> {
     let limit = query.limit.unwrap_or(24).clamp(1, 50);
     let offset = query.offset.unwrap_or(0).max(0);
 
@@ -150,7 +160,7 @@ pub async fn list(
                 updated_at: row.try_get("updated_at").map_err(internal_db_error)?,
             })
         })
-        .collect::<Result<Vec<_>, Response>>()?;
+        .collect::<Result<Vec<_>, ApiError>>()?;
 
     Ok(Json(collections))
 }
@@ -159,7 +169,7 @@ pub async fn create(
     State(state): State<AppState>,
     user: AuthenticatedUser,
     Json(input): Json<CreateCollectionInput>,
-) -> Result<(StatusCode, Json<CollectionSummary>), Response> {
+) -> Result<(StatusCode, Json<CollectionSummary>), ApiError> {
     let title = input.title.trim();
     if title.is_empty() || title.chars().count() > 80 {
         return Err(api_error(
@@ -230,7 +240,7 @@ pub async fn get(
     State(state): State<AppState>,
     user: AuthenticatedUser,
     Path(collection_id): Path<Uuid>,
-) -> Result<Json<CollectionDetail>, Response> {
+) -> Result<Json<CollectionDetail>, ApiError> {
     let row = sqlx::query(
         r#"
         SELECT
@@ -330,7 +340,7 @@ pub async fn get(
                 created_at: row.try_get("created_at").map_err(internal_db_error)?,
             })
         })
-        .collect::<Result<Vec<_>, Response>>()?;
+        .collect::<Result<Vec<_>, ApiError>>()?;
 
     Ok(Json(CollectionDetail {
         collection,
@@ -344,7 +354,7 @@ pub async fn add_item(
     user: AuthenticatedUser,
     Path(collection_id): Path<Uuid>,
     Json(input): Json<AddCollectionItemInput>,
-) -> Result<(StatusCode, Json<CollectionItem>), Response> {
+) -> Result<(StatusCode, Json<CollectionItem>), ApiError> {
     let target = validate_item_input(&input)?;
 
     let mut transaction = state.database.begin().await.map_err(|error| {
@@ -405,7 +415,7 @@ pub async fn add_item(
                             SELECT 1 FROM circle_members AS member
                             WHERE member.circle_id = loop.circle_id
                               AND member.user_id = $2
-                              AND member.status = 'active'
+                              AND loop.visibility = 'circle'
                         )
                     )
                 )
@@ -443,7 +453,7 @@ pub async fn add_item(
                             SELECT 1 FROM circle_members AS member
                             WHERE member.circle_id = circle.id
                               AND member.user_id = $2
-                              AND member.status = 'active'
+                              AND loop.visibility = 'circle'
                         )
                     )
                 )
@@ -572,7 +582,7 @@ pub async fn remove_item(
     State(state): State<AppState>,
     user: AuthenticatedUser,
     Path((collection_id, item_id)): Path<(Uuid, Uuid)>,
-) -> Result<StatusCode, Response> {
+) -> Result<StatusCode, ApiError> {
     let deleted = sqlx::query_scalar::<_, Uuid>(
         r#"
         DELETE FROM collection_items AS item
@@ -622,7 +632,7 @@ enum ValidatedItem {
     External(String),
 }
 
-fn validate_item_input(input: &AddCollectionItemInput) -> Result<ValidatedItem, Response> {
+fn validate_item_input(input: &AddCollectionItemInput) -> Result<ValidatedItem, ApiError> {
     if input
         .title_override
         .as_ref()
@@ -692,7 +702,7 @@ fn validate_item_input(input: &AddCollectionItemInput) -> Result<ValidatedItem, 
     }
 }
 
-fn internal_db_error(error: sqlx::Error) -> Response {
+fn internal_db_error(error: sqlx::Error) -> ApiError {
     tracing::error!(%error, "failed to decode collection database record");
     api_error(
         StatusCode::INTERNAL_SERVER_ERROR,
