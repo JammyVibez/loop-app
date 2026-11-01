@@ -312,7 +312,7 @@ pub async fn get(
         ));
     };
 
-    let collection = CollectionSummary {
+    let mut collection = CollectionSummary {
         id: row.try_get("id").map_err(internal_db_error)?,
         owner_id: row.try_get("owner_id").map_err(internal_db_error)?,
         title: row.try_get("title").map_err(internal_db_error)?,
