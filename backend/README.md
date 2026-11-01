@@ -24,6 +24,9 @@ Or run the full local stack with docker compose up --build. The local database i
 - GET /v1/drops — a unified activity feed across official events, hosted events, Circle events and active Circle challenges.
 - GET /v1/collections — public, owned and collaborated collections.
 - GET /v1/users/{target_id}/follow-state — authenticated follow and follow-request state.
+- GET /v1/users/{target_id}/followers and /following — public or authorized social lists, with block filtering and viewer follow state.
+- GET /v1/follow-requests — incoming and outgoing private-profile follow requests.
+- POST /v1/follow-requests/{request_id} — accept or decline an incoming follow request.
 - POST /v1/users/{target_id}/follow — follow, unfollow or request private-profile access.
 - DELETE /v1/users/{target_id}/follow-request — withdraw a pending request.
 - GET /v1/notifications — recipient-scoped, actor-enriched notification inbox.
