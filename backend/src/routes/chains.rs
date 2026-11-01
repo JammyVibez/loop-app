@@ -284,7 +284,7 @@ pub async fn list(
         WHERE chain.status IN ('active', 'completed')
           AND (
             (
-              chain.visibility = 'public'
+              chain.visibility IN ('public', 'circle')
               AND (
                 chain.circle_id IS NULL
                 OR ($1::uuid IS NOT NULL AND EXISTS (
@@ -471,7 +471,7 @@ pub async fn get(
         WHERE chain.id = $1
           AND (
             (
-              chain.visibility IN ('public', 'unlisted')
+              chain.visibility IN ('public', 'unlisted', 'circle')
               AND (
                 chain.circle_id IS NULL
                 OR ($2::uuid IS NOT NULL AND EXISTS (
