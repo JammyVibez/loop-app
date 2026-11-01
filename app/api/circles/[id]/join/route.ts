@@ -31,18 +31,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Check if user is already a member (or was previously removed/banned)
     const { data: existingMember } = await supabase
       .from("circle_members")
-      .select("id, status")
+      .select("id, status, role")
       .eq("circle_id", circleId)
       .eq("user_id", user.id)
       .maybeSingle()
 
     if (existingMember) {
-      if (existingMember.status === "active") {
-        return NextResponse.json({ error: "Already a member" }, { status: 400 })
-      } else if (existingMember.status === "pending") {
-        return NextResponse.json({ error: "Join request already pending" }, { status: 400 })
-      } else if (existingMember.status === "banned") {
-        return NextResponse.json({ error: "You cannot rejoin this circle" }, { status: 403 })
+      if (existingMember.status === "active" || existingMember.status === "approved") {
+        return NextResponse.json({ success: true, status: "active", message: "Already a member" })
+      }
+      if (existingMember.status === "pending") {
+        return NextResponse.json({ success: true, status: "pending", message: "Join request is already pending" })
+      }
+      if (existingMember.status === "banned") {
+        return NextResponse.json({ error: "You cannot rejoin this Circle" }, { status: 403 })
       }
     }
 
@@ -164,40 +166,50 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-
     const user = await getUserFromRequest(request)
-
-    if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-    }
+    if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
 
     const { id: circleId } = await params
+    const { data: circle, error: circleError } = await supabase
+      .from("circles").select("id, owner_id").eq("id", circleId).maybeSingle()
+    if (circleError) return NextResponse.json({ error: "Could not load Circle" }, { status: 500 })
+    if (!circle) return NextResponse.json({ error: "Circle not found" }, { status: 404 })
 
-    // Remove user from circle
-    const { error: deleteError } = await supabase
-      .from("circle_members")
-      .delete()
-      .eq("circle_id", circleId)
-      .eq("user_id", user.id)
-
-    if (deleteError) {
-      console.error("Database delete error:", deleteError)
-      return NextResponse.json({ error: "Failed to leave circle" }, { status: 500 })
+    const { data: membership, error: membershipError } = await supabase
+      .from("circle_members").select("id, role, status")
+      .eq("circle_id", circleId).eq("user_id", user.id).maybeSingle()
+    if (membershipError) return NextResponse.json({ error: "Could not load membership" }, { status: 500 })
+    if (!membership) return NextResponse.json({ error: "No membership or pending request was found" }, { status: 404 })
+    if (membership.status === "banned") return NextResponse.json({ error: "A ban cannot be removed by leaving the Circle" }, { status: 403 })
+    if (membership.role === "owner" || circle.owner_id === user.id) {
+      return NextResponse.json({ error: "Transfer Circle ownership before leaving" }, { status: 409 })
+    }
+    if (!["active", "approved", "pending"].includes(membership.status)) {
+      return NextResponse.json({ error: "This Circle membership cannot be withdrawn" }, { status: 409 })
     }
 
-    try {
-      const { syncCircleMemberCount } = await import("@/lib/circle-lifecycle")
-      await syncCircleMemberCount(supabase, circleId)
-    } catch (err) {
-      console.error("member count sync:", err)
-    }
+    const { data: deletedRows, error: deleteError } = await supabase
+      .from("circle_members").delete().eq("id", membership.id)
+      .eq("status", membership.status).select("id")
+    if (deleteError) return NextResponse.json({ error: "Failed to update Circle membership" }, { status: 500 })
+    if (!deletedRows?.length) return NextResponse.json({ error: "Membership changed. Refresh and try again." }, { status: 409 })
 
+    const wasMember = membership.status === "active" || membership.status === "approved"
+    if (wasMember) {
+      try {
+        const { syncCircleMemberCount } = await import("@/lib/circle-lifecycle")
+        await syncCircleMemberCount(supabase, circleId)
+      } catch (err) {
+        console.error("member count sync:", err)
+      }
+    }
     return NextResponse.json({
       success: true,
-      message: "Successfully left circle",
+      status: wasMember ? "left" : "cancelled",
+      message: wasMember ? "Successfully left Circle" : "Join request cancelled",
     })
   } catch (error) {
-    console.error("Error leaving circle:", error)
+    console.error("Error updating Circle membership:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

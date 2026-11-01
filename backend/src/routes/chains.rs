@@ -232,6 +232,35 @@ const SUMMARY_SELECT: &str = r#"
     JOIN profiles AS creator ON creator.id = chain.creator_id
 "#;
 
+fn can_access_chain(
+    visibility: &str, has_circle: bool, is_creator: bool,
+    is_chain_member: bool, is_circle_member: bool,
+) -> bool {
+    if is_creator || is_chain_member { return true; }
+    match visibility {
+        "public" | "unlisted" => !has_circle || is_circle_member,
+        "circle" => has_circle && is_circle_member,
+        _ => false,
+    }
+}
+
+fn can_contribute_to_chain(
+    policy: &str, visibility: &str, has_circle: bool, is_creator: bool,
+    is_chain_member: bool, is_circle_member: bool,
+) -> bool {
+    if is_creator || is_chain_member { return true; }
+    match policy {
+        "members" => false,
+        "circle_members" => has_circle && is_circle_member,
+        "open" => match visibility {
+            "public" | "unlisted" => !has_circle || is_circle_member,
+            "circle" => has_circle && is_circle_member,
+            _ => false,
+        },
+        _ => false,
+    }
+}
+
 pub async fn list(
     State(state): State<AppState>,
     user: OptionalAuthenticatedUser,
@@ -635,17 +664,11 @@ pub async fn contribute(
     };
 
     let is_creator = creator_id == user.id;
-    let circle_scope_allowed = circle_id.is_none() || is_circle_member;
-    let publicly_accessible = matches!(visibility.as_str(), "public" | "unlisted") && circle_scope_allowed;
-    let may_access = is_creator || is_chain_member || publicly_accessible;
+    let may_access = can_access_chain(&visibility, circle_id.is_some(), is_creator, is_chain_member, is_circle_member);
     if !may_access {
         return Err(api_error(StatusCode::FORBIDDEN, "chain_access_denied", "You do not have access to this Chain."));
     }
-
-    let may_contribute = is_creator
-        || is_chain_member
-        || (policy == "open" && (publicly_accessible || is_circle_member))
-        || (policy == "circle_members" && is_circle_member);
+    let may_contribute = can_contribute_to_chain(&policy, &visibility, circle_id.is_some(), is_creator, is_chain_member, is_circle_member);
     if !may_contribute {
         return Err(api_error(StatusCode::FORBIDDEN, "chain_contribution_restricted", "This Chain only accepts contributions from its members."));
     }
@@ -748,7 +771,30 @@ pub async fn contribute(
 
 #[cfg(test)]
 mod tests {
-    use super::{valid_contribution_type, valid_kind, valid_policy, valid_visibility};
+    use super::{can_access_chain, can_contribute_to_chain, valid_contribution_type, valid_kind, valid_policy, valid_visibility};
+
+
+    #[test]
+    fn circle_scoped_chains_are_invisible_to_non_members() {
+        assert!(!can_access_chain("circle", true, false, false, false));
+        assert!(can_access_chain("circle", true, false, false, true));
+        assert!(can_access_chain("circle", true, true, false, false));
+    }
+
+    #[test]
+    fn private_chains_require_creator_or_chain_membership() {
+        assert!(!can_access_chain("private", false, false, false, false));
+        assert!(can_access_chain("private", false, true, false, false));
+        assert!(can_access_chain("private", false, false, true, false));
+    }
+
+    #[test]
+    fn open_policy_never_bypasses_private_chain_visibility() {
+        assert!(!can_contribute_to_chain("open", "private", false, false, false, false));
+        assert!(can_contribute_to_chain("open", "public", false, false, false, false));
+        assert!(can_contribute_to_chain("circle_members", "circle", true, false, false, true));
+        assert!(!can_contribute_to_chain("circle_members", "circle", true, false, false, false));
+    }
 
     #[test]
     fn supports_collaborative_chain_formats() {

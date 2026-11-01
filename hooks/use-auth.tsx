@@ -243,7 +243,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const sessionUser = sessionData.user
-    const token = sessionData.session?.id || sessionData.session?.token || sessionUser.id
+    const token = sessionData.session?.token || sessionData.session?.id || sessionUser.id
 
     if (!userRef.current || userRef.current.id !== sessionUser.id) {
       setUser(mapSessionUser(sessionData, buildFallbackProfile(sessionUser)))
