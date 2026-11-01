@@ -54,9 +54,27 @@ export async function rustApiRequest<T>(path: string, init: RequestInit = {}): P
       (typeof errorPayload?.error === "string" && errorPayload.error) ||
       (typeof payload === "string" && payload) ||
       `Rust API request failed (${response.status})`
-    const code = typeof errorPayload?.code === "string" ? errorPayload.code : undefined
+    const code = typeof errorPayload?.code === "string"
+      ? errorPayload.code
+      : typeof errorPayload?.error === "string"
+        ? errorPayload.error
+        : undefined
     throw new RustApiError(message, response.status, code)
   }
 
   return payload as T
+}
+
+
+/**
+ * Whether it is safe to try the legacy Next.js route during the staged rollout.
+ * Domain errors from a reachable Rust API (401/403/404-with-code/422/500) must
+ * be surfaced as-is rather than silently executing the old implementation.
+ */
+export function isRustApiUnavailable(error: unknown): boolean {
+  if (error instanceof TypeError) return true
+  if (!(error instanceof RustApiError)) return false
+
+  if ([502, 503, 504].includes(error.status)) return true
+  return error.status === 404 && !error.code
 }
