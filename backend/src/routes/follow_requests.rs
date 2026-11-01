@@ -350,9 +350,9 @@ pub async fn act(
 
     let actor = sqlx::query("SELECT username, display_name FROM profiles WHERE id = $1")
         .bind(user.id)
-    .fetch_one(&mut *transaction)
-    .await
-    .map_err(db_error)?;
+        .fetch_one(&mut *transaction)
+        .await
+        .map_err(db_error)?;
     let actor_username: String = actor.try_get("username").map_err(db_error)?;
     let actor_name: String = actor.try_get("display_name").map_err(db_error)?;
 
