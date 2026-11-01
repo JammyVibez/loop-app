@@ -9,7 +9,8 @@ import {
   Users,
   Plus,
   Search,
-  Video,
+  GitBranch,
+  Zap,
   Star,
   X,
 } from "lucide-react"
@@ -43,7 +44,8 @@ import { DailyPulse } from "@/components/engagement/daily-pulse"
 const QUICK_LINKS = [
   { href: "/explore", label: "Explore", icon: Compass },
   { href: "/communities", label: "Circles", icon: Users },
-  { href: "/trees", label: "Trees", icon: Video },
+  { href: "/trees", label: "Chains", icon: GitBranch },
+  { href: "/co-loop", label: "Co-Loop", icon: Zap },
   { href: "/search", label: "Search", icon: Search },
   { href: "/bookmarks", label: "Saved", icon: Bookmark },
 ] as const
