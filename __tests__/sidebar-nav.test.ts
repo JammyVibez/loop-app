@@ -43,6 +43,7 @@ describe("sidebar navigation split", () => {
         "/collections",
         "/communities",
         "/developers",
+        "/drops",
         "/earnings",
         "/events",
         "/explore",
