@@ -1029,3 +1029,15 @@ html.loop-reduced-motion *::after {
     }
   }
 }
+
+
+@keyframes loop-hold-undo-progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loop-tactile {
+    animation: none !important;
+  }
+}
