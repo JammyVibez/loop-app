@@ -105,7 +105,7 @@ export function MobileBottomNav() {
 
   const items: TabItem[] = primarySidebarNav(EMPTY_AUDIENCE).map((item) => ({
     href: item.href,
-    icon: MOBILE_NAV_ICONS[item.href] ?? Home,
+    icon: MOBILE_NAV_ICONS[item.href] ?? HomeIcon,
     label: item.label,
     center: item.href === "/create",
     auth: item.href === "/messages",
