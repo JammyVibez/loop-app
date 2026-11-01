@@ -255,7 +255,7 @@ pub async fn list(
         WHERE chain.status IN ('active', 'completed')
           AND (
             (
-              chain.visibility IN ('public', 'unlisted')
+              chain.visibility = 'public'
               AND (
                 chain.circle_id IS NULL
                 OR ($1::uuid IS NOT NULL AND EXISTS (
@@ -583,7 +583,7 @@ pub async fn contribute(
 
     let mut transaction = state.database.begin().await.map_err(|error| db_error(error, "begin Chain contribution"))?;
     let chain = sqlx::query(
-        "SELECT creator_id, circle_id, contribution_policy, status FROM chains WHERE id = $1 FOR UPDATE",
+        "SELECT creator_id, circle_id, contribution_policy, visibility, status FROM chains WHERE id = $1 FOR UPDATE",
     )
     .bind(chain_id)
     .fetch_optional(&mut *transaction)
@@ -594,6 +594,7 @@ pub async fn contribute(
     let creator_id: Uuid = chain.try_get("creator_id").map_err(|e| db_error(e, "read Chain creator"))?;
     let circle_id: Option<Uuid> = chain.try_get("circle_id").map_err(|e| db_error(e, "read Chain Circle"))?;
     let policy: String = chain.try_get("contribution_policy").map_err(|e| db_error(e, "read contribution policy"))?;
+    let visibility: String = chain.try_get("visibility").map_err(|e| db_error(e, "read Chain visibility"))?;
     let status: String = chain.try_get("status").map_err(|e| db_error(e, "read Chain status"))?;
     if status != "active" {
         return Err(api_error(StatusCode::CONFLICT, "chain_not_active", "This Chain is not accepting new contributions."));
@@ -634,14 +635,16 @@ pub async fn contribute(
     };
 
     let is_creator = creator_id == user.id;
-    let may_access = is_creator || is_chain_member || (circle_id.is_some() && is_circle_member);
+    let circle_scope_allowed = circle_id.is_none() || is_circle_member;
+    let publicly_accessible = matches!(visibility.as_str(), "public" | "unlisted") && circle_scope_allowed;
+    let may_access = is_creator || is_chain_member || publicly_accessible;
     if !may_access {
         return Err(api_error(StatusCode::FORBIDDEN, "chain_access_denied", "You do not have access to this Chain."));
     }
 
     let may_contribute = is_creator
         || is_chain_member
-        || (policy == "open" && (circle_id.is_none() || is_circle_member))
+        || (policy == "open" && publicly_accessible)
         || (policy == "circle_members" && is_circle_member);
     if !may_contribute {
         return Err(api_error(StatusCode::FORBIDDEN, "chain_contribution_restricted", "This Chain only accepts contributions from its members."));

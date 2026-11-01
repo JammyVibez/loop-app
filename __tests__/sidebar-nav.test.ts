@@ -38,6 +38,7 @@ describe("sidebar navigation split", () => {
       [
         "/",
         "/bookmarks",
+        "/chains",
         "/create",
         "/co-loop/studio",
         "/collections",

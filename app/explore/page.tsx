@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Header } from "@/components/header";
 import { ExploreContent } from "@/components/explore/explore-content";
-import { Film } from "lucide-react";
+import { Film, GitBranch } from "lucide-react";
 
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const params = await searchParams
@@ -32,6 +32,23 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
               </div>
             </div>
             <span className="text-sm font-semibold text-violet-500 transition group-hover:translate-x-0.5">→</span>
+          </Link>
+
+
+          <Link
+            href="/chains"
+            className="group flex items-center justify-between rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-transparent to-violet-500/10 px-5 py-4 transition hover:border-primary/45 hover:shadow-lg hover:shadow-primary/5"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md">
+                <GitBranch className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="font-bold">Explore Chains</p>
+                <p className="text-sm text-muted-foreground">Join ideas, contribute and build something together</p>
+              </div>
+            </div>
+            <span className="text-sm font-semibold text-primary transition group-hover:translate-x-0.5">→</span>
           </Link>
 
           <ExploreContent initialTab={initialTab} />
