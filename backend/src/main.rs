@@ -75,11 +75,11 @@ async fn main() -> anyhow::Result<()> {
         .route("/health/ready", get(routes::health::ready))
         .route("/v1/system/capabilities", get(routes::system::capabilities))
         .route("/v1/me", get(routes::me::get_me))
-        .route("/v1/users/{target_id}/follow-state", get(routes::social::follow_state))
         .route(
-            "/v1/users/{target_id}/follow",
-            post(routes::social::follow),
+            "/v1/users/{target_id}/follow-state",
+            get(routes::social::follow_state),
         )
+        .route("/v1/users/{target_id}/follow", post(routes::social::follow))
         .route(
             "/v1/users/{target_id}/follow-request",
             delete(routes::social::withdraw_follow_request),
