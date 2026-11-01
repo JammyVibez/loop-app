@@ -128,7 +128,7 @@ export function NotificationDropdown() {
         unread_count?: number
       }
       try {
-        data = await rustApiRequest("notifications?limit=20", {
+        data = await rustApiRequest<{ success?: boolean; notifications?: Notification[]; unread_count?: number }>("notifications?limit=20", {
           headers: getAuthHeader(),
           cache: "no-store",
         })
@@ -217,12 +217,10 @@ export function NotificationDropdown() {
         })
         if (!response.ok) throw new Error("Could not mark notification as read")
       }
-      {
-        setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)))
-        setUnreadCount((prev) => Math.max(0, prev - 1))
-        // Tell the tab-bar badge so it drops without waiting for its poll.
-        window.dispatchEvent(new CustomEvent("loop:notifications-changed"))
-      }
+      setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)))
+      setUnreadCount((prev) => Math.max(0, prev - 1))
+      // Tell the tab-bar badge so it drops without waiting for its poll.
+      window.dispatchEvent(new CustomEvent("loop:notifications-changed"))
     } catch (error) {
       console.error("Error marking notification as read:", error)
     }
@@ -245,12 +243,10 @@ export function NotificationDropdown() {
         })
         if (!response.ok) throw new Error("Could not mark notifications as read")
       }
-      {
-        setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
-        setUnreadCount(0)
-        window.dispatchEvent(new CustomEvent("loop:notifications-changed"))
-        toast({ title: "Success", description: "All notifications marked as read" })
-      }
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
+      setUnreadCount(0)
+      window.dispatchEvent(new CustomEvent("loop:notifications-changed"))
+      toast({ title: "Success", description: "All notifications marked as read" })
     } catch (error) {
       console.error("Error marking all notifications as read:", error)
     }
