@@ -203,11 +203,11 @@ pub async fn act(
     Path(request_id): Path<Uuid>,
     Json(input): Json<FollowRequestActionInput>,
 ) -> Result<Json<FollowRequestActionResponse>, ApiError> {
-    if !matches!(input.action.as_str(), "accept" | "decline") {
+    if !matches!(input.action.as_str(), "accept" | "decline" | "withdraw") {
         return Err(api_error(
             StatusCode::UNPROCESSABLE_ENTITY,
             "invalid_follow_request_action",
-            "Action must be accept or decline.",
+            "Action must be accept, decline or withdraw.",
         ));
     }
 
@@ -236,6 +236,41 @@ pub async fn act(
     let requester_id: Uuid = request.try_get("requester_id").map_err(db_error)?;
     let target_id: Uuid = request.try_get("target_id").map_err(db_error)?;
     let status: String = request.try_get("status").map_err(db_error)?;
+
+    if input.action == "withdraw" {
+        if requester_id != user.id {
+            return Err(api_error(
+                StatusCode::FORBIDDEN,
+                "follow_request_not_owned",
+                "You can only withdraw requests you sent.",
+            ));
+        }
+
+        if status != "pending" {
+            transaction.commit().await.map_err(db_error)?;
+            return Ok(Json(FollowRequestActionResponse {
+                success: true,
+                action: "withdrawn",
+                already_handled: true,
+            }));
+        }
+
+        sqlx::query(
+            "DELETE FROM follow_requests WHERE id = $1 AND requester_id = $2 AND status = 'pending'",
+        )
+        .bind(request_id)
+        .bind(user.id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(db_error)?;
+
+        transaction.commit().await.map_err(db_error)?;
+        return Ok(Json(FollowRequestActionResponse {
+            success: true,
+            action: "withdrawn",
+            already_handled: false,
+        }));
+    }
 
     if target_id != user.id {
         return Err(api_error(

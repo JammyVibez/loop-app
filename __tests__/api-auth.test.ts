@@ -21,6 +21,7 @@ const createServerClient = vi.fn((..._args: unknown[]): any => {
   dbTouched = true
   throw new Error("database reached for an unauthorised request")
 })
+const checkBlockStatus = vi.fn(async () => ({ blocked: false, direction: null as "by_me" | "by_them" | null }))
 
 vi.mock("@/lib/server-auth", () => ({
   getUserFromRequest: (...args: unknown[]) => getUserFromRequest(...args),
@@ -29,6 +30,9 @@ vi.mock("@/lib/server-auth", () => ({
 vi.mock("@/lib/supabase", () => ({
   createServerClient: (...args: unknown[]) => createServerClient(...args),
   createClient: (...args: unknown[]) => createServerClient(...args),
+}))
+vi.mock("@/lib/user-blocks", () => ({
+  checkBlockStatus: (...args: unknown[]) => checkBlockStatus(...args),
 }))
 
 /**
@@ -65,6 +69,8 @@ beforeEach(() => {
   dbTouched = false
   getUserFromRequest.mockReset()
   createServerClient.mockClear()
+  checkBlockStatus.mockReset()
+  checkBlockStatus.mockResolvedValue({ blocked: false, direction: null })
 })
 
 describe("admin routes reject unauthenticated callers", () => {
@@ -315,5 +321,75 @@ describe("one-to-one conversations reject group management routes", () => {
     )
     expect(response.status).toBe(400)
     expect((await response.json()).error).toBe("Not a group")
+  })
+})
+function followRequestActionStub() {
+  let currentTable = ""
+  const writes: string[] = []
+  const builder: Record<string, any> = {}
+  builder.from = (table: string) => {
+    currentTable = table
+    return builder
+  }
+  for (const method of ["select", "eq", "neq", "in", "is", "or", "order", "limit"]) {
+    builder[method] = () => builder
+  }
+  for (const method of ["insert", "update", "delete", "upsert"]) {
+    builder[method] = () => {
+      writes.push(method + ":" + currentTable)
+      return builder
+    }
+  }
+  builder.maybeSingle = async () => ({
+    data: currentTable === "follow_requests"
+      ? {
+          id: "request-1",
+          requester_id: "requester-1",
+          target_id: "target-1",
+          status: "pending",
+        }
+      : null,
+    error: null,
+  })
+  builder.single = builder.maybeSingle
+  builder.then = (resolve: (value: unknown) => unknown) =>
+    Promise.resolve({ data: [], error: null, count: 0 }).then(resolve)
+  return { client: builder, writes }
+}
+
+describe("follow request privacy and lifecycle", () => {
+  it("does not approve a request when either account has blocked the other", async () => {
+    getUserFromRequest.mockResolvedValue({ id: "target-1", email: "target@example.com" })
+    checkBlockStatus.mockResolvedValue({ blocked: true, direction: "by_them" })
+    const stub = followRequestActionStub()
+    createServerClient.mockImplementation(() => stub.client as never)
+    const { POST } = await import("@/app/api/users/follow-requests/route")
+
+    const response = await POST(
+      new NextRequest("https://loopapp.me/api/users/follow-requests", {
+        method: "POST",
+        body: JSON.stringify({ request_id: "request-1", action: "accept" }),
+      }),
+    )
+
+    expect(response.status).toBe(403)
+    expect(stub.writes).toEqual([])
+  })
+
+  it("lets a requester withdraw only their own pending request", async () => {
+    getUserFromRequest.mockResolvedValue({ id: "requester-1", email: "requester@example.com" })
+    const stub = followRequestActionStub()
+    createServerClient.mockImplementation(() => stub.client as never)
+    const { POST } = await import("@/app/api/users/follow-requests/route")
+
+    const response = await POST(
+      new NextRequest("https://loopapp.me/api/users/follow-requests", {
+        method: "POST",
+        body: JSON.stringify({ request_id: "request-1", action: "withdraw" }),
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(stub.writes).toEqual(["delete:follow_requests"])
   })
 })

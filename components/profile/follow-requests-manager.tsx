@@ -109,7 +109,7 @@ export function FollowRequestsManager() {
     if (!authLoading) void load()
   }, [authLoading, load])
 
-  const handleAction = async (requestId: string, action: "accept" | "decline") => {
+  const handleAction = async (requestId: string, action: "accept" | "decline" | "withdraw") => {
     setBusyId(requestId)
     try {
       try {
@@ -130,11 +130,24 @@ export function FollowRequestsManager() {
 
       setData((current) => ({
         ...current,
-        incoming: current.incoming.filter((request) => request.id !== requestId),
+        incoming: action === "withdraw"
+          ? current.incoming
+          : current.incoming.filter((request) => request.id !== requestId),
+        outgoing: action === "withdraw"
+          ? current.outgoing.filter((request) => request.id !== requestId)
+          : current.outgoing,
       }))
       toast({
-        title: action === "accept" ? "Follow request accepted" : "Follow request declined",
-        description: action === "accept" ? "They can now see your followers-only posts." : undefined,
+        title: action === "accept"
+          ? "Follow request accepted"
+          : action === "decline"
+            ? "Follow request declined"
+            : "Follow request withdrawn",
+        description: action === "accept"
+          ? "They can now see your followers-only posts."
+          : action === "withdraw"
+            ? "The pending request was removed."
+            : undefined,
       })
     } catch (cause) {
       toast({
@@ -261,7 +274,19 @@ export function FollowRequestsManager() {
                       <span className="block truncate text-xs text-muted-foreground">@{request.target.username}</span>
                       <span className="mt-1 block text-[11px] text-muted-foreground">Sent {relativeDate(request.created_at)}</span>
                     </span>
-                    <Badge variant="secondary" className="shrink-0 rounded-full">Pending</Badge>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Badge variant="secondary" className="rounded-full">Pending</Badge>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="loop-tactile-flat gap-1.5"
+                        disabled={busyId === request.id}
+                        onClick={() => void handleAction(request.id, "withdraw")}
+                        aria-label={`Withdraw follow request to ${request.target.display_name}`}
+                      >
+                        <UserRoundX className="h-4 w-4" /> Withdraw
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
