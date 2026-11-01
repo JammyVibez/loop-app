@@ -206,6 +206,7 @@ async fn load_global_events(pool: &PgPool, limit: i64) -> Result<Vec<PgRow>, Api
             created_at
         FROM global_events
         WHERE is_active = true
+          AND COALESCE(status, 'upcoming') <> 'ended'
           AND (is_live = true OR ends_at IS NULL OR ends_at >= NOW())
         ORDER BY is_live DESC, starts_at ASC
         LIMIT $1
@@ -248,7 +249,8 @@ async fn load_hosted_events(
             event.created_at
         FROM events AS event
         LEFT JOIN circles AS circle ON circle.id = event.circle_id
-        WHERE (event.circle_id IS NULL OR EXISTS (
+        WHERE COALESCE(event.status, 'upcoming') <> 'ended'
+          AND (event.circle_id IS NULL OR EXISTS (
             SELECT 1
             FROM circle_members AS member
             WHERE member.circle_id = event.circle_id
@@ -391,14 +393,23 @@ fn append_rows(
             ("circle_challenge", Some(circle_id)) => {
                 format!("/communities/{circle_id}?tab=challenges")
             }
-            ("circle_event", Some(circle_id)) => format!("/communities/{circle_id}?tab=events"),
-            ("hosted_event", Some(circle_id)) => format!("/communities/{circle_id}?tab=events"),
-            _ => "/events".to_owned(),
+            ("circle_event", Some(circle_id)) => {
+                format!("/communities/{circle_id}?tab=events")
+            }
+            ("hosted_event", Some(circle_id)) => {
+                format!("/communities/{circle_id}?tab=events")
+            }
+            (_, _) => format!("/events/{id}"),
         };
 
+        let now = Utc::now();
+        let in_live_window = starts_at.is_some_and(|start| {
+            start <= now && ends_at.map_or(true, |end| end >= now)
+        });
+        let is_live = is_live || in_live_window;
         let normalized_status = if is_live {
             "live"
-        } else if status == "ended" {
+        } else if status == "ended" || ends_at.is_some_and(|end| end < now) {
             "ended"
         } else {
             "upcoming"
