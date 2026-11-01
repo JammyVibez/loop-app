@@ -255,3 +255,65 @@ describe("message routes require active conversation membership", () => {
     expect(stub.writes).toEqual([])
   })
 })
+
+
+describe("one-to-one conversations reject group management routes", () => {
+  beforeEach(() => {
+    getUserFromRequest.mockResolvedValue({ id: "owner-1", email: "owner@example.com" })
+    createServerClient.mockImplementation(
+      () => supabaseStub({ profile: { role: "owner", is_group: false } }) as never,
+    )
+  })
+
+  it("does not apply group settings to a direct conversation", async () => {
+    const { PATCH } = await import("@/app/api/conversations/[id]/group/route")
+    const response = await PATCH(
+      new NextRequest("https://loopapp.me/api/conversations/dm-1/group", {
+        method: "PATCH",
+        body: JSON.stringify({ name: "Unexpected group rename" }),
+      }),
+      { params: Promise.resolve({ id: "dm-1" }) },
+    )
+    expect(response.status).toBe(400)
+    expect((await response.json()).error).toBe("Not a group")
+  })
+
+  it("does not allow direct-message members to promote other participants", async () => {
+    const { PATCH } = await import("@/app/api/conversations/[id]/group/members/route")
+    const response = await PATCH(
+      new NextRequest("https://loopapp.me/api/conversations/dm-1/group/members", {
+        method: "PATCH",
+        body: JSON.stringify({ user_id: "other-1", role: "admin" }),
+      }),
+      { params: Promise.resolve({ id: "dm-1" }) },
+    )
+    expect(response.status).toBe(400)
+    expect((await response.json()).error).toBe("Not a group")
+  })
+
+  it("does not allow direct-message members to remove or leave through group management", async () => {
+    const { DELETE } = await import("@/app/api/conversations/[id]/group/members/route")
+    const response = await DELETE(
+      new NextRequest("https://loopapp.me/api/conversations/dm-1/group/members", {
+        method: "DELETE",
+        body: JSON.stringify({ user_id: "other-1" }),
+      }),
+      { params: Promise.resolve({ id: "dm-1" }) },
+    )
+    expect(response.status).toBe(400)
+    expect((await response.json()).error).toBe("Not a group")
+  })
+
+  it("keeps member-addition scoped to actual groups", async () => {
+    const { POST } = await import("@/app/api/conversations/[id]/group/members/route")
+    const response = await POST(
+      new NextRequest("https://loopapp.me/api/conversations/dm-1/group/members", {
+        method: "POST",
+        body: JSON.stringify({ user_ids: ["third-1"] }),
+      }),
+      { params: Promise.resolve({ id: "dm-1" }) },
+    )
+    expect(response.status).toBe(400)
+    expect((await response.json()).error).toBe("Not a group")
+  })
+})
