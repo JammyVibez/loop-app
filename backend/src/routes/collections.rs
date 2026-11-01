@@ -700,3 +700,99 @@ fn internal_db_error(error: sqlx::Error) -> Response {
         "Could not read this collection.",
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accepts_a_loop_target_without_other_targets() {
+        let id = Uuid::new_v4();
+        let input = AddCollectionItemInput {
+            item_type: "loop".to_owned(),
+            loop_id: Some(id),
+            circle_id: None,
+            external_url: None,
+            title_override: None,
+            note: None,
+        };
+
+        assert!(matches!(validate_item_input(&input), Ok(ValidatedItem::Loop(value)) if value == id));
+    }
+
+    #[test]
+    fn accepts_a_circle_target_without_other_targets() {
+        let id = Uuid::new_v4();
+        let input = AddCollectionItemInput {
+            item_type: "circle".to_owned(),
+            loop_id: None,
+            circle_id: Some(id),
+            external_url: None,
+            title_override: None,
+            note: None,
+        };
+
+        assert!(matches!(validate_item_input(&input), Ok(ValidatedItem::Circle(value)) if value == id));
+    }
+
+    #[test]
+    fn rejects_missing_or_ambiguous_targets() {
+        let missing = AddCollectionItemInput {
+            item_type: "loop".to_owned(),
+            loop_id: None,
+            circle_id: None,
+            external_url: None,
+            title_override: None,
+            note: None,
+        };
+        assert!(validate_item_input(&missing).is_err());
+
+        let ambiguous = AddCollectionItemInput {
+            item_type: "loop".to_owned(),
+            loop_id: Some(Uuid::new_v4()),
+            circle_id: Some(Uuid::new_v4()),
+            external_url: None,
+            title_override: None,
+            note: None,
+        };
+        assert!(validate_item_input(&ambiguous).is_err());
+    }
+
+    #[test]
+    fn external_items_require_https_without_embedded_credentials() {
+        let valid = AddCollectionItemInput {
+            item_type: "external".to_owned(),
+            loop_id: None,
+            circle_id: None,
+            external_url: Some("https://example.com/reference".to_owned()),
+            title_override: None,
+            note: None,
+        };
+        assert!(matches!(validate_item_input(&valid), Ok(ValidatedItem::External(url)) if url == "https://example.com/reference"));
+
+        let insecure = AddCollectionItemInput {
+            external_url: Some("http://example.com".to_owned()),
+            ..valid.clone()
+        };
+        assert!(validate_item_input(&insecure).is_err());
+
+        let credentials = AddCollectionItemInput {
+            external_url: Some("https://user:secret@example.com".to_owned()),
+            ..valid
+        };
+        assert!(validate_item_input(&credentials).is_err());
+    }
+
+    #[test]
+    fn rejects_oversized_item_metadata() {
+        let input = AddCollectionItemInput {
+            item_type: "external".to_owned(),
+            loop_id: None,
+            circle_id: None,
+            external_url: Some("https://example.com".to_owned()),
+            title_override: Some("x".repeat(161)),
+            note: None,
+        };
+        assert!(validate_item_input(&input).is_err());
+    }
+}
