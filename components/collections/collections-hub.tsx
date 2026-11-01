@@ -55,11 +55,6 @@ export function CollectionsHub() {
   const [creating, setCreating] = useState(false)
 
   const load = useCallback(async () => {
-    if (!user) {
-      setCollections([])
-      setLoading(false)
-      return
-    }
     setLoading(true)
     try {
       const data = await rustApiRequest<CollectionSummary[]>("collections", {
@@ -126,19 +121,6 @@ export function CollectionsHub() {
     )
   }
 
-  if (!user) {
-    return (
-      <Card className="rounded-2xl">
-        <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-          <Archive className="h-8 w-8 text-muted-foreground" />
-          <h2 className="text-lg font-semibold">Collections live with your account</h2>
-          <p className="max-w-md text-sm text-muted-foreground">Sign in to organize Loops, Circles and useful links into collections you can keep private or share.</p>
-          <Button onClick={() => router.push("/login?redirect=/collections")}>Log in</Button>
-        </CardContent>
-      </Card>
-    )
-  }
-
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -146,10 +128,16 @@ export function CollectionsHub() {
           <p className="text-sm text-muted-foreground">Keep the things you find useful together.</p>
           <p className="text-xs text-muted-foreground">Collections can contain Loops, Circles and external references.</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="loop-tactile gap-2 self-start sm:self-auto">
-          <Plus className="h-4 w-4" />
-          New collection
-        </Button>
+        {user ? (
+          <Button onClick={() => setDialogOpen(true)} className="loop-tactile gap-2 self-start sm:self-auto">
+            <Plus className="h-4 w-4" />
+            New collection
+          </Button>
+        ) : (
+          <Button variant="outline" onClick={() => router.push("/login?redirect=/collections")} className="self-start sm:self-auto">
+            Log in to create
+          </Button>
+        )}
       </div>
 
       {collections.length === 0 ? (
@@ -158,12 +146,18 @@ export function CollectionsHub() {
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
               <Bookmark className="h-5 w-5 text-muted-foreground" />
             </div>
-            <h2 className="text-lg font-semibold">Start your first collection</h2>
-            <p className="max-w-md text-sm text-muted-foreground">Build a reading list, gather inspiration, save useful Loops or make a shared reference shelf for a Circle.</p>
-            <Button onClick={() => setDialogOpen(true)} className="loop-tactile gap-2">
-              <Plus className="h-4 w-4" />
-              Create collection
-            </Button>
+            <h2 className="text-lg font-semibold">{user ? "Start your first collection" : "No public collections yet"}</h2>
+            <p className="max-w-md text-sm text-muted-foreground">{user ? "Build a reading list, gather inspiration, save useful Loops or make a shared reference shelf for a Circle." : "Public collections shared by their owners will appear here. Sign in to create your own."}</p>
+            {user ? (
+              <Button onClick={() => setDialogOpen(true)} className="loop-tactile gap-2">
+                <Plus className="h-4 w-4" />
+                Create collection
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={() => router.push("/login?redirect=/collections")}>
+                Log in to create a collection
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
