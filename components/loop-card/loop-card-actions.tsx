@@ -21,6 +21,7 @@ import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view
 import HeartIcon from "@/components/icons/animated/heart-icon"
 import MessageCircleIcon from "@/components/icons/animated/message-circle-icon"
 import BookmarkIcon from "@/components/icons/animated/bookmark-icon"
+import SendHorizontalIcon from "@/components/icons/animated/send-horizontal-icon"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -198,7 +199,7 @@ export function LoopCardActions({
               title="Share options"
               aria-label="Share this loop"
             >
-              <Share className="h-[18px] w-[18px]" />
+              <AnimatedIconView component={SendHorizontalIcon} size={18} />
               <Count value={sharesCount} />
             </Button>
           </DropdownMenuTrigger>
