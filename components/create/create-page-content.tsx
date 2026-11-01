@@ -45,7 +45,7 @@ export function CreatePageContent({ defaultTab = "loop" }: { defaultTab?: Create
                 Create
               </h1>
               <p className="text-xs text-muted-foreground sm:text-sm">
-                Publish a Loop, a Reel, or go live — your draft is saved automatically.
+                Publish a Loop, start a Chain or Co-Loop, or go live — your draft is saved automatically.
               </p>
             </div>
           </div>
