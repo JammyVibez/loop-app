@@ -13,7 +13,7 @@ export default function ExplorePage() {
             <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
               Explore
             </h1>
-            <p className="text-muted-foreground text-lg">Discover amazing loop trees and creative content</p>
+            <p className="text-muted-foreground text-lg">Discover Loops, Chains, creators and communities.</p>
           </div>
 
           <Link
