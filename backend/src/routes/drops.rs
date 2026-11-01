@@ -402,20 +402,14 @@ fn append_rows(
             (_, _) => format!("/events/{id}"),
         };
 
-        let now = Utc::now();
-        let in_live_window = starts_at.is_some_and(|start| {
-            start <= now && ends_at.map_or(true, |end| end >= now)
-        });
-        let is_live = kind == "event" && (is_live || in_live_window);
-        let normalized_status = if status == "ended" || ends_at.is_some_and(|end| end < now) {
-            "ended"
-        } else if is_live {
-            "live"
-        } else if kind == "challenge" {
-            "active"
-        } else {
-            "upcoming"
-        };
+        let (is_live, normalized_status) = derive_activity_state(
+            kind,
+            &status,
+            is_live,
+            &starts_at,
+            &ends_at,
+            Utc::now(),
+        );
 
         items.push(DropItem {
             id,
@@ -441,6 +435,38 @@ fn append_rows(
     Ok(())
 }
 
+
+fn derive_activity_state(
+    kind: &str,
+    stored_status: &str,
+    stored_live: bool,
+    starts_at: &Option<DateTime<Utc>>,
+    ends_at: &Option<DateTime<Utc>>,
+    now: DateTime<Utc>,
+) -> (bool, &'static str) {
+    let ended_by_time = ends_at.as_ref().is_some_and(|end| end < &now);
+    if stored_status == "ended" || ended_by_time {
+        return (false, "ended");
+    }
+
+    let inside_event_window = starts_at.as_ref().is_some_and(|start| start <= &now)
+        && match ends_at.as_ref() {
+            Some(end) => end >= &now,
+            None => true,
+        };
+
+    let is_live = kind == "event" && (stored_live || inside_event_window);
+    if is_live {
+        return (true, "live");
+    }
+
+    if kind == "challenge" {
+        return (false, "active");
+    }
+
+    (false, "upcoming")
+}
+
 fn db_error(error: sqlx::Error) -> ApiError {
     tracing::error!(%error, "Drops database operation failed");
     api_error(
@@ -452,10 +478,55 @@ fn db_error(error: sqlx::Error) -> ApiError {
 
 #[cfg(test)]
 mod tests {
+    use chrono::{Duration, Utc};
+
+    use super::derive_activity_state;
+
     #[test]
-    fn drop_kinds_are_limited_to_events_and_challenges() {
-        assert!(matches!("event", "event" | "challenge"));
-        assert!(matches!("challenge", "event" | "challenge"));
-        assert!(!matches!("quest", "event" | "challenge"));
+    fn event_inside_its_time_window_is_live() {
+        let now = Utc::now();
+        let starts_at = Some(now - Duration::minutes(5));
+        let ends_at = Some(now + Duration::minutes(20));
+
+        assert_eq!(
+            derive_activity_state("event", "upcoming", false, &starts_at, &ends_at, now),
+            (true, "live")
+        );
+    }
+
+    #[test]
+    fn explicit_live_flag_keeps_an_event_live() {
+        let now = Utc::now();
+        let starts_at = Some(now + Duration::minutes(10));
+        let ends_at = Some(now + Duration::hours(1));
+
+        assert_eq!(
+            derive_activity_state("event", "upcoming", true, &starts_at, &ends_at, now),
+            (true, "live")
+        );
+    }
+
+    #[test]
+    fn challenges_are_active_not_live_broadcasts() {
+        let now = Utc::now();
+        let starts_at = Some(now - Duration::minutes(5));
+        let ends_at = Some(now + Duration::days(2));
+
+        assert_eq!(
+            derive_activity_state("challenge", "active", false, &starts_at, &ends_at, now),
+            (false, "active")
+        );
+    }
+
+    #[test]
+    fn expired_activity_is_excluded_as_ended() {
+        let now = Utc::now();
+        let starts_at = Some(now - Duration::days(2));
+        let ends_at = Some(now - Duration::hours(1));
+
+        assert_eq!(
+            derive_activity_state("event", "upcoming", false, &starts_at, &ends_at, now),
+            (false, "ended")
+        );
     }
 }
