@@ -227,21 +227,19 @@ pub async fn follow(
     }
 
     if input.action == "unfollow" {
-        sqlx::query(
-            "DELETE FROM follows WHERE follower_id = $1 AND following_id = $2",
-        )
-        .bind(user.id)
-        .bind(target_id)
-        .execute(&mut *transaction)
-        .await
-        .map_err(|error| {
-            tracing::error!(%error, "could not remove follow");
-            api_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "unfollow_failed",
-                "Could not unfollow this user.",
-            )
-        })?;
+        sqlx::query("DELETE FROM follows WHERE follower_id = $1 AND following_id = $2")
+            .bind(user.id)
+            .bind(target_id)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| {
+                tracing::error!(%error, "could not remove follow");
+                api_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "unfollow_failed",
+                    "Could not unfollow this user.",
+                )
+            })?;
 
         sqlx::query(
             r#"
@@ -270,12 +268,8 @@ pub async fn follow(
 
         // Recompute from the relationship table so duplicate retries and
         // historical counter drift cannot compound incorrect values.
-        let (followers_count, following_count) = refresh_follow_counts(
-            &mut transaction,
-            user.id,
-            target_id,
-        )
-        .await?;
+        let (followers_count, following_count) =
+            refresh_follow_counts(&mut transaction, user.id, target_id).await?;
 
         sqlx::query(
             r#"
@@ -346,9 +340,9 @@ pub async fn follow(
     }
 
     if is_private {
-        let requests_disabled = privacy
-            .as_ref()
-            .is_some_and(|value| value.get("allow_friend_requests") == Some(&serde_json::Value::Bool(false)));
+        let requests_disabled = privacy.as_ref().is_some_and(|value| {
+            value.get("allow_friend_requests") == Some(&serde_json::Value::Bool(false))
+        });
 
         if requests_disabled {
             return Err(api_error(
@@ -569,13 +563,12 @@ async fn refresh_follow_counts(
     user_id: Uuid,
     target_id: Uuid,
 ) -> Result<(i64, i64), ApiError> {
-    let followers_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM follows WHERE following_id = $1",
-    )
-    .bind(target_id)
-    .fetch_one(&mut **transaction)
-    .await
-    .map_err(db_error)?;
+    let followers_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM follows WHERE following_id = $1")
+            .bind(target_id)
+            .fetch_one(&mut **transaction)
+            .await
+            .map_err(db_error)?;
 
     let following_count: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM follows WHERE follower_id = $1")
@@ -584,23 +577,19 @@ async fn refresh_follow_counts(
             .await
             .map_err(db_error)?;
 
-    sqlx::query(
-        "UPDATE profiles SET followers_count = $2, updated_at = NOW() WHERE id = $1",
-    )
-    .bind(target_id)
-    .bind(followers_count)
-    .execute(&mut **transaction)
-    .await
-    .map_err(db_error)?;
+    sqlx::query("UPDATE profiles SET followers_count = $2, updated_at = NOW() WHERE id = $1")
+        .bind(target_id)
+        .bind(followers_count)
+        .execute(&mut **transaction)
+        .await
+        .map_err(db_error)?;
 
-    sqlx::query(
-        "UPDATE profiles SET following_count = $2, updated_at = NOW() WHERE id = $1",
-    )
-    .bind(user_id)
-    .bind(following_count)
-    .execute(&mut **transaction)
-    .await
-    .map_err(db_error)?;
+    sqlx::query("UPDATE profiles SET following_count = $2, updated_at = NOW() WHERE id = $1")
+        .bind(user_id)
+        .bind(following_count)
+        .execute(&mut **transaction)
+        .await
+        .map_err(db_error)?;
 
     Ok((followers_count, following_count))
 }
