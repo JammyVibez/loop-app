@@ -46,7 +46,7 @@ import { NoteBubble } from "@/components/notes/note-bubble"
 import { NoteComposer } from "@/components/notes/note-composer"
 import { ProfileAwards, ProfileAwardsGrid } from "@/components/profile/profile-awards"
 import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
-import { rustApiRequest } from "@/lib/rust-api"
+import { isRustApiUnavailable, rustApiRequest } from "@/lib/rust-api"
 import { EnhancedMediaViewer } from "@/components/media/enhanced-media-viewer"
 
 interface Achievement {
@@ -315,7 +315,8 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             method: "DELETE",
             headers: getAuthHeader(),
           })
-        } catch {
+        } catch (error) {
+          if (!isRustApiUnavailable(error)) throw error
           // Legacy compatibility while the Rust API is not yet deployed.
           const cancelRes = await fetch("/api/users/follow-requests", {
             method: "POST",
@@ -360,7 +361,8 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           headers: { "Content-Type": "application/json", ...getAuthHeader() },
           body: JSON.stringify({ action: nextAction }),
         })
-      } catch {
+      } catch (error) {
+        if (!isRustApiUnavailable(error)) throw error
         // Keep existing users working while the Rust service is rolled out.
         const response = await fetch("/api/users/follow", {
           method: "POST",
