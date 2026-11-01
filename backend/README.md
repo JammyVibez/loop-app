@@ -22,6 +22,12 @@ Or run the full local stack with docker compose up --build. The local database i
 - GET /v1/system/capabilities — service version and configured infrastructure capabilities.
 - GET /v1/me — authenticated current user resolved through the existing Better Auth session and profiles rows.
 - GET /v1/collections — public, owned and collaborated collections.
+- GET /v1/users/{target_id}/follow-state — authenticated follow and follow-request state.
+- POST /v1/users/{target_id}/follow — follow, unfollow or request private-profile access.
+- DELETE /v1/users/{target_id}/follow-request — withdraw a pending request.
+- GET /v1/notifications — recipient-scoped, actor-enriched notification inbox.
+- PATCH /v1/notifications/read — mark specific notifications or all notifications as read.
+- DELETE /v1/notifications and DELETE /v1/notifications/{id} — clear recipient-owned notifications.
 - POST /v1/collections — create a collection.
 - GET /v1/collections/{collection_id} — view a visible collection and its items.
 - POST /v1/collections/{collection_id}/items — add an accessible Loop, Circle or HTTPS link.
