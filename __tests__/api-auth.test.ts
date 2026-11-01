@@ -163,3 +163,95 @@ describe("message routes that must never be anonymous", () => {
     expect(dbTouched).toBe(false)
   })
 })
+
+
+function conversationAccessStub() {
+  let currentTable = ""
+  const writes: string[] = []
+  const builder: Record<string, any> = {}
+  builder.from = (table: string) => {
+    currentTable = table
+    return builder
+  }
+  for (const method of [
+    "select", "eq", "neq", "in", "is", "or", "filter",
+    "order", "limit", "range",
+  ]) {
+    builder[method] = () => builder
+  }
+  builder.update = () => {
+    writes.push(currentTable)
+    return builder
+  }
+  builder.insert = () => {
+    writes.push(currentTable)
+    return builder
+  }
+  builder.upsert = () => {
+    writes.push(currentTable)
+    return builder
+  }
+  builder.delete = () => {
+    writes.push(currentTable)
+    return builder
+  }
+  builder.maybeSingle = async () => ({
+    data: currentTable === "messages"
+      ? { id: "message-1", conversation_id: "conversation-1", reactions: [] }
+      : null,
+    error: null,
+  })
+  builder.single = builder.maybeSingle
+  builder.then = (resolve: (value: unknown) => unknown) =>
+    Promise.resolve({ data: [], error: null, count: 0 }).then(resolve)
+  return { client: builder, writes }
+}
+
+describe("message routes require active conversation membership", () => {
+  beforeEach(() => {
+    getUserFromRequest.mockResolvedValue({ id: "user-1", email: "member@example.com" })
+  })
+
+  it("does not reveal reactions to someone outside the conversation", async () => {
+    const stub = conversationAccessStub()
+    createServerClient.mockImplementation(() => stub.client as never)
+    const { GET } = await import("@/app/api/messages/reactions/route")
+
+    const response = await GET(get("https://loopapp.me/api/messages/reactions?message_id=message-1"))
+
+    expect(response.status).toBe(403)
+    expect(stub.writes).toEqual([])
+  })
+
+  it("does not let a non-member add or remove reactions", async () => {
+    const stub = conversationAccessStub()
+    createServerClient.mockImplementation(() => stub.client as never)
+    const { POST } = await import("@/app/api/messages/reactions/route")
+
+    const response = await POST(
+      new NextRequest("https://loopapp.me/api/messages/reactions", {
+        method: "POST",
+        body: JSON.stringify({ message_id: "message-1", emoji: "👍" }),
+      }),
+    )
+
+    expect(response.status).toBe(403)
+    expect(stub.writes).toEqual([])
+  })
+
+  it("does not mark a conversation read for a non-member", async () => {
+    const stub = conversationAccessStub()
+    createServerClient.mockImplementation(() => stub.client as never)
+    const { POST } = await import("@/app/api/messages/unread-count/route")
+
+    const response = await POST(
+      new NextRequest("https://loopapp.me/api/messages/unread-count", {
+        method: "POST",
+        body: JSON.stringify({ conversation_id: "conversation-1" }),
+      }),
+    )
+
+    expect(response.status).toBe(403)
+    expect(stub.writes).toEqual([])
+  })
+})
