@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell, Bot, Home, MessageCircle, Orbit } from "lucide-react"
+import { Compass, Home, MessageCircle, Plus, Users } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { useLoginGate } from "@/hooks/use-login-gate"
 import { useUnreadMessages } from "@/hooks/use-unread-messages"
-import { useUnreadNotifications } from "@/hooks/use-unread-notifications"
 import { formatUnreadBadge } from "@/lib/unread-messages"
 import { MobileSidebarSheet } from "@/components/left-sidebar"
 
@@ -26,11 +25,9 @@ const HIDDEN_PREFIXES = [
 /**
  * Mobile tab bar.
  *
- * Five destinations, no drawer button: the Co-Loop studio sits in the middle
- * as a raised, unmistakable action, Loop AI and Notifications take the slots
- * that used to hold Search and Menu (both already live in the header), and the
- * sidebar opens by swiping in from the left edge — the gesture people already
- * expect on a phone.
+ * The same five core destinations are used on desktop and mobile. Create is
+ * the central action; notifications stay in the global header, while specialist
+ * tools remain available through the secondary navigation sheet.
  */
 export function MobileBottomNav() {
   const pathname = usePathname()
@@ -38,7 +35,6 @@ export function MobileBottomNav() {
   const { requireAuth, LoginGateDialog } = useLoginGate()
   const [menuOpen, setMenuOpen] = useState(false)
   const unreadMessages = useUnreadMessages()
-  const unreadNotifications = useUnreadNotifications()
 
   // Swipe in from the left edge to reveal the sidebar. Vertical swipes are
   // ignored so scrolling never fights the gesture.
@@ -94,10 +90,10 @@ export function MobileBottomNav() {
 
   const items: TabItem[] = [
     { href: "/", icon: Home, label: "Home" },
-    { href: "/messages", icon: MessageCircle, label: "Messages", auth: true, badge: unreadMessages },
-    { href: "/co-loop", icon: Orbit, label: "Co-Loop", center: true },
-    { href: "/loop-ai", icon: Bot, label: "Loop AI" },
-    { href: "/notifications", icon: Bell, label: "Alerts", auth: true, badge: unreadNotifications },
+    { href: "/explore", icon: Compass, label: "Discover" },
+    { href: "/create", icon: Plus, label: "Create", center: true },
+    { href: "/communities", icon: Users, label: "Circles" },
+    { href: "/messages", icon: MessageCircle, label: "Inbox", auth: true, badge: unreadMessages },
   ]
 
   return (
