@@ -98,7 +98,7 @@ export function DiscoverCommunities() {
     } finally {
       setLoading(false)
     }
-  }, [sort, category, search])
+  }, [sort, category, search, user?.id])
 
   useEffect(() => {
     load()

@@ -88,7 +88,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
     } finally {
       setLoading(false)
     }
-  }, [chainId, getAuthHeader])
+  }, [chainId, getAuthHeader, user?.id])
 
   useEffect(() => {
     void load()

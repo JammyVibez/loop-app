@@ -197,7 +197,7 @@ export function ForumHome({ communityId }: { communityId: string }) {
         setLoading(false)
       }
     },
-    [communityId, sort, forum, searchTerm, getAuthHeader],
+    [communityId, sort, forum, searchTerm, getAuthHeader, user?.id],
   )
 
   useEffect(() => {
@@ -230,7 +230,7 @@ export function ForumHome({ communityId }: { communityId: string }) {
     return () => {
       cancelled = true
     }
-  }, [communityId, Boolean(data?.community), getAuthHeader, data?.viewer?.is_member])
+  }, [communityId, Boolean(data?.community), getAuthHeader, data?.viewer?.is_member, user?.id])
 
   const community = data?.community
   const viewer = data?.viewer

@@ -20,6 +20,7 @@ type Chain = {
   creator_username: string
   creator_avatar_url: string | null
   circle_id: string | null
+  cover_image_url: string | null
   contribution_count: number
   participant_count: number
   created_at: string
@@ -88,7 +89,7 @@ export function ChainsHub() {
     } finally {
       setLoading(false)
     }
-  }, [getAuthHeader, kind, search, sort])
+  }, [getAuthHeader, kind, search, sort, user?.id])
 
   useEffect(() => {
     void load()

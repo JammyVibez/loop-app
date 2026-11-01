@@ -21,7 +21,7 @@ struct ApiErrorBody {
     message: String,
 }
 
-struct ApiError {
+pub struct ApiError {
     status: StatusCode,
     body: ApiErrorBody,
 }
@@ -87,14 +87,14 @@ pub struct ChainSummary {
 }
 
 #[derive(Serialize)]
-struct ChainsResponse {
+pub struct ChainsResponse {
     chains: Vec<ChainSummary>,
     limit: i64,
     offset: i64,
 }
 
 #[derive(Deserialize)]
-struct CreateChainInput {
+pub struct CreateChainInput {
     title: String,
     description: Option<String>,
     prompt: Option<String>,
@@ -108,7 +108,7 @@ struct CreateChainInput {
 }
 
 #[derive(Serialize)]
-struct ChainContribution {
+pub struct ChainContribution {
     id: Uuid,
     chain_id: Uuid,
     author_id: Uuid,
@@ -126,14 +126,14 @@ struct ChainContribution {
 }
 
 #[derive(Serialize)]
-struct ChainDetailResponse {
+pub struct ChainDetailResponse {
     chain: ChainSummary,
     contributions: Vec<ChainContribution>,
     can_contribute: bool,
 }
 
 #[derive(Deserialize)]
-struct CreateContributionInput {
+pub struct CreateContributionInput {
     contribution_type: Option<String>,
     title: Option<String>,
     content: Option<String>,
@@ -143,7 +143,7 @@ struct CreateContributionInput {
 }
 
 #[derive(Serialize)]
-struct CreatedContributionResponse {
+pub struct CreatedContributionResponse {
     contribution: ChainContribution,
 }
 
