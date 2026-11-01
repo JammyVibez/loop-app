@@ -25,7 +25,7 @@ impl FromRequestParts<AppState> for AuthenticatedUser {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let token = bearer_token(&parts.headers).ok_or_else(|| unauthorized())?;
+        let token = bearer_token(&parts.headers).ok_or_else(unauthorized)?;
 
         let row = sqlx::query(
             r#"
