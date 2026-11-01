@@ -48,8 +48,7 @@ ALTER TABLE public.subscriptions
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_stripe_subscription
-    ON public.subscriptions(stripe_subscription_id)
-    WHERE stripe_subscription_id IS NOT NULL;
+    ON public.subscriptions(stripe_subscription_id);
 
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_created
     ON public.subscriptions(user_id, created_at DESC);

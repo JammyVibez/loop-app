@@ -29,6 +29,27 @@ export async function POST(request: NextRequest) {
     // Pay with card — Stripe Checkout. The webhook (kind: "premium")
     // grants the membership once payment succeeds.
     if (method === "stripe") {
+      const { data: activeSubscription, error: activeSubscriptionError } = await supabase
+        .from("subscriptions")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("source", "stripe")
+        .in("status", ["active", "trialing"])
+        .gt("current_period_end", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (activeSubscriptionError) {
+        console.error("Could not check existing Pro subscription:", activeSubscriptionError)
+        return NextResponse.json({ error: "Could not check your current membership." }, { status: 500 })
+      }
+      if (activeSubscription) {
+        return NextResponse.json(
+          { error: "You already have an active card subscription. Use Manage subscription to change or cancel it." },
+          { status: 409 },
+        )
+      }
       const stripe = await getStripeServer()
       if (!stripe) {
         return NextResponse.json(

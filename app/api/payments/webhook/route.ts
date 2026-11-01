@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import type Stripe from "stripe"
 import { createServerClient } from "@/lib/supabase"
 import { notifyUser } from "@/lib/notifications"
 import { syncStripePremiumSubscription } from "@/lib/stripe-premium-subscriptions"
@@ -44,6 +45,17 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as any
         const metadata = session.metadata || {}
 
+        if (metadata.kind === "premium_subscription" && metadata.user_id) {
+          if (!["paid", "no_payment_required"].includes(session.payment_status)) break
+          const subscriptionValue = session.subscription as string | Stripe.Subscription | null
+          if (!subscriptionValue) break
+          const subscription = typeof subscriptionValue === "string"
+            ? await stripe.subscriptions.retrieve(subscriptionValue)
+            : subscriptionValue
+          await syncStripePremiumSubscription(supabase, subscription)
+          break
+        }
+
         if (metadata.kind === "premium" && metadata.user_id) {
           const userId = String(metadata.user_id)
           const days = Math.max(1, Number(metadata.plan_days) || 30)
@@ -83,7 +95,7 @@ export async function POST(request: NextRequest) {
             .from("profiles")
             .update({
               is_premium: true,
-              premium_source: "stripe",
+              premium_source: "stripe_one_time",
               premium_expires_at: expiresAt.toISOString(),
               updated_at: new Date().toISOString(),
             })
@@ -294,7 +306,7 @@ export async function POST(request: NextRequest) {
             .from("profiles")
             .update({
               is_premium: true,
-              premium_source: "stripe",
+              premium_source: "stripe_one_time",
               premium_expires_at: expiryDate.toISOString(),
               updated_at: new Date().toISOString(),
             })
