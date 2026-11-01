@@ -10,7 +10,7 @@ use sqlx::Row;
 use url::Url;
 use uuid::Uuid;
 
-use crate::{auth::AuthenticatedUser, state::AppState};
+use crate::{auth::{AuthenticatedUser, OptionalAuthenticatedUser}, state::AppState};
 
 #[derive(Serialize)]
 struct ApiErrorBody {
@@ -98,7 +98,7 @@ pub struct AddCollectionItemInput {
 
 pub async fn list(
     State(state): State<AppState>,
-    user: AuthenticatedUser,
+    user: OptionalAuthenticatedUser,
     Query(query): Query<ListCollectionsQuery>,
 ) -> Result<Json<Vec<CollectionSummary>>, ApiError> {
     let limit = query.limit.unwrap_or(24).clamp(1, 50);
@@ -119,19 +119,24 @@ pub async fn list(
         FROM collections AS c
         LEFT JOIN collection_items AS item ON item.collection_id = c.id
         WHERE c.visibility = 'public'
-           OR c.owner_id = $1
-           OR EXISTS (
-                SELECT 1
-                FROM collection_members AS member
-                WHERE member.collection_id = c.id
-                  AND member.user_id = $1
+           OR (
+                $1::uuid IS NOT NULL
+                AND (
+                    c.owner_id = $1
+                    OR EXISTS (
+                        SELECT 1
+                        FROM collection_members AS member
+                        WHERE member.collection_id = c.id
+                          AND member.user_id = $1
+                    )
+                )
            )
         GROUP BY c.id
         ORDER BY c.updated_at DESC
         LIMIT $2 OFFSET $3
         "#,
     )
-    .bind(user.id)
+    .bind(user.0.as_ref().map(|authenticated| authenticated.id))
     .bind(limit)
     .bind(offset)
     .fetch_all(&state.database)
@@ -238,7 +243,7 @@ pub async fn create(
 
 pub async fn get(
     State(state): State<AppState>,
-    user: AuthenticatedUser,
+    user: OptionalAuthenticatedUser,
     Path(collection_id): Path<Uuid>,
 ) -> Result<Json<CollectionDetail>, ApiError> {
     let row = sqlx::query(
@@ -247,30 +252,41 @@ pub async fn get(
             c.id, c.owner_id, c.title, c.description, c.visibility,
             c.is_collaborative, c.created_at, c.updated_at,
             COUNT(item.id)::BIGINT AS item_count,
-            (
-                c.owner_id = $2 OR EXISTS (
-                    SELECT 1 FROM collection_members AS member
-                    WHERE member.collection_id = c.id
-                      AND member.user_id = $2
-                      AND member.role = 'editor'
-                )
+            COALESCE(
+                $2::uuid IS NOT NULL
+                AND (
+                    c.owner_id = $2
+                    OR EXISTS (
+                        SELECT 1 FROM collection_members AS member
+                        WHERE member.collection_id = c.id
+                          AND member.user_id = $2
+                          AND member.role = 'editor'
+                    )
+                ),
+                false
             ) AS can_edit
         FROM collections AS c
         LEFT JOIN collection_items AS item ON item.collection_id = c.id
         WHERE c.id = $1
           AND (
               c.visibility IN ('public', 'unlisted')
-              OR c.owner_id = $2
-              OR EXISTS (
-                  SELECT 1 FROM collection_members AS member
-                  WHERE member.collection_id = c.id AND member.user_id = $2
+              OR (
+                  $2::uuid IS NOT NULL
+                  AND (
+                      c.owner_id = $2
+                      OR EXISTS (
+                          SELECT 1 FROM collection_members AS member
+                          WHERE member.collection_id = c.id
+                            AND member.user_id = $2
+                      )
+                  )
               )
           )
         GROUP BY c.id
         "#,
     )
     .bind(collection_id)
-    .bind(user.id)
+    .bind(user.0.as_ref().map(|authenticated| authenticated.id))
     .fetch_optional(&state.database)
     .await
     .map_err(|error| {
