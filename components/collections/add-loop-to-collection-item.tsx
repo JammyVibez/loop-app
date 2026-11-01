@@ -87,7 +87,7 @@ export function AddLoopToCollectionItem({ loopId }: { loopId: string }) {
         className="cursor-pointer gap-2 py-2 text-xs"
         onSelect={(event) => {
           event.preventDefault()
-          if (!requireAuth("save")) return
+          if (!requireAuth("post")) return
           setOpen(true)
         }}
       >
