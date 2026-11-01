@@ -76,6 +76,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/system/capabilities", get(routes::system::capabilities))
         .route("/v1/me", get(routes::me::get_me))
         .route("/v1/drops", get(routes::drops::list))
+        .route("/v1/follow-requests", get(routes::follow_requests::list))
+        .route("/v1/follow-requests/{request_id}", post(routes::follow_requests::act))
         .route(
             "/v1/users/{target_id}/follow-state",
             get(routes::social::follow_state),
