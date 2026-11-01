@@ -160,24 +160,24 @@ const CHAIN_KINDS: &[&str] = &[
 ];
 
 const CONTRIBUTION_TYPES: &[&str] = &[
-    "text",
-    "image",
-    "video",
-    "audio",
-    "link",
-    "list",
-    "ranking",
-    "poll",
-    "document",
+    "text", "image", "video", "audio", "link", "list", "ranking", "poll", "document",
 ];
 
-fn normalize_choice(value: Option<&str>, allowed: &[&str], default: &'static str) -> Option<String> {
+fn normalize_choice(
+    value: Option<&str>,
+    allowed: &[&str],
+    default: &'static str,
+) -> Option<String> {
     let normalized = value.unwrap_or(default).trim().to_lowercase();
     allowed.contains(&normalized.as_str()).then_some(normalized)
 }
 
 fn valid_visibility(value: Option<&str>) -> Option<String> {
-    normalize_choice(value, &["public", "unlisted", "private", "circle"], "public")
+    normalize_choice(
+        value,
+        &["public", "unlisted", "private", "circle"],
+        "public",
+    )
 }
 
 fn valid_policy(value: Option<&str>) -> Option<String> {
@@ -194,26 +194,64 @@ fn valid_contribution_type(value: Option<&str>) -> Option<String> {
 
 fn parse_summary(row: &sqlx::postgres::PgRow) -> Result<ChainSummary, ApiError> {
     Ok(ChainSummary {
-        id: row.try_get("id").map_err(|e| db_error(e, "read chain id"))?,
-        creator_id: row.try_get("creator_id").map_err(|e| db_error(e, "read creator id"))?,
-        creator_username: row.try_get("creator_username").map_err(|e| db_error(e, "read creator username"))?,
-        creator_display_name: row.try_get("creator_display_name").map_err(|e| db_error(e, "read creator name"))?,
-        creator_avatar_url: row.try_get("creator_avatar_url").map_err(|e| db_error(e, "read creator avatar"))?,
-        circle_id: row.try_get("circle_id").map_err(|e| db_error(e, "read Circle id"))?,
-        title: row.try_get("title").map_err(|e| db_error(e, "read title"))?,
-        description: row.try_get("description").map_err(|e| db_error(e, "read description"))?,
-        prompt: row.try_get("prompt").map_err(|e| db_error(e, "read prompt"))?,
+        id: row
+            .try_get("id")
+            .map_err(|e| db_error(e, "read chain id"))?,
+        creator_id: row
+            .try_get("creator_id")
+            .map_err(|e| db_error(e, "read creator id"))?,
+        creator_username: row
+            .try_get("creator_username")
+            .map_err(|e| db_error(e, "read creator username"))?,
+        creator_display_name: row
+            .try_get("creator_display_name")
+            .map_err(|e| db_error(e, "read creator name"))?,
+        creator_avatar_url: row
+            .try_get("creator_avatar_url")
+            .map_err(|e| db_error(e, "read creator avatar"))?,
+        circle_id: row
+            .try_get("circle_id")
+            .map_err(|e| db_error(e, "read Circle id"))?,
+        title: row
+            .try_get("title")
+            .map_err(|e| db_error(e, "read title"))?,
+        description: row
+            .try_get("description")
+            .map_err(|e| db_error(e, "read description"))?,
+        prompt: row
+            .try_get("prompt")
+            .map_err(|e| db_error(e, "read prompt"))?,
         kind: row.try_get("kind").map_err(|e| db_error(e, "read kind"))?,
-        category: row.try_get("category").map_err(|e| db_error(e, "read category"))?,
-        visibility: row.try_get("visibility").map_err(|e| db_error(e, "read visibility"))?,
-        contribution_policy: row.try_get("contribution_policy").map_err(|e| db_error(e, "read contribution policy"))?,
-        status: row.try_get("status").map_err(|e| db_error(e, "read status"))?,
-        cover_image_url: row.try_get("cover_image_url").map_err(|e| db_error(e, "read cover"))?,
-        metadata: row.try_get("metadata").map_err(|e| db_error(e, "read metadata"))?,
-        contribution_count: row.try_get("contribution_count").map_err(|e| db_error(e, "read contribution count"))?,
-        participant_count: row.try_get("participant_count").map_err(|e| db_error(e, "read participant count"))?,
-        created_at: row.try_get("created_at").map_err(|e| db_error(e, "read created timestamp"))?,
-        updated_at: row.try_get("updated_at").map_err(|e| db_error(e, "read updated timestamp"))?,
+        category: row
+            .try_get("category")
+            .map_err(|e| db_error(e, "read category"))?,
+        visibility: row
+            .try_get("visibility")
+            .map_err(|e| db_error(e, "read visibility"))?,
+        contribution_policy: row
+            .try_get("contribution_policy")
+            .map_err(|e| db_error(e, "read contribution policy"))?,
+        status: row
+            .try_get("status")
+            .map_err(|e| db_error(e, "read status"))?,
+        cover_image_url: row
+            .try_get("cover_image_url")
+            .map_err(|e| db_error(e, "read cover"))?,
+        metadata: row
+            .try_get("metadata")
+            .map_err(|e| db_error(e, "read metadata"))?,
+        contribution_count: row
+            .try_get("contribution_count")
+            .map_err(|e| db_error(e, "read contribution count"))?,
+        participant_count: row
+            .try_get("participant_count")
+            .map_err(|e| db_error(e, "read participant count"))?,
+        created_at: row
+            .try_get("created_at")
+            .map_err(|e| db_error(e, "read created timestamp"))?,
+        updated_at: row
+            .try_get("updated_at")
+            .map_err(|e| db_error(e, "read updated timestamp"))?,
     })
 }
 
@@ -233,10 +271,15 @@ const SUMMARY_SELECT: &str = r#"
 "#;
 
 fn can_access_chain(
-    visibility: &str, has_circle: bool, is_creator: bool,
-    is_chain_member: bool, is_circle_member: bool,
+    visibility: &str,
+    has_circle: bool,
+    is_creator: bool,
+    is_chain_member: bool,
+    is_circle_member: bool,
 ) -> bool {
-    if is_creator || is_chain_member { return true; }
+    if is_creator || is_chain_member {
+        return true;
+    }
     match visibility {
         "public" | "unlisted" => !has_circle || is_circle_member,
         "circle" => has_circle && is_circle_member,
@@ -245,10 +288,16 @@ fn can_access_chain(
 }
 
 fn can_contribute_to_chain(
-    policy: &str, visibility: &str, has_circle: bool, is_creator: bool,
-    is_chain_member: bool, is_circle_member: bool,
+    policy: &str,
+    visibility: &str,
+    has_circle: bool,
+    is_creator: bool,
+    is_chain_member: bool,
+    is_circle_member: bool,
 ) -> bool {
-    if is_creator || is_chain_member { return true; }
+    if is_creator || is_chain_member {
+        return true;
+    }
     match policy {
         "members" => false,
         "circle_members" => has_circle && is_circle_member,
@@ -268,15 +317,35 @@ pub async fn list(
 ) -> Result<Json<ChainsResponse>, ApiError> {
     let limit = query.limit.unwrap_or(24).clamp(1, 50);
     let offset = query.offset.unwrap_or(0).clamp(0, 1_000_000);
-    let kind = query.kind.as_deref().map(str::trim).filter(|value| !value.is_empty());
-    let category = query.category.as_deref().map(str::trim).filter(|value| !value.is_empty());
-    let search = query.search.as_deref().map(str::trim).filter(|value| !value.is_empty());
+    let kind = query
+        .kind
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let category = query
+        .category
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let search = query
+        .search
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
     if kind.is_some_and(|value| valid_kind(Some(value)).is_none()) {
-        return Err(api_error(StatusCode::BAD_REQUEST, "invalid_chain_kind", "The selected Chain format is not supported."));
+        return Err(api_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_chain_kind",
+            "The selected Chain format is not supported.",
+        ));
     }
     let sort = query.sort.as_deref().unwrap_or("recent");
     if !matches!(sort, "recent" | "active" | "contributions") {
-        return Err(api_error(StatusCode::BAD_REQUEST, "invalid_chain_sort", "Sort must be recent, active or contributions."));
+        return Err(api_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_chain_sort",
+            "Sort must be recent, active or contributions.",
+        ));
     }
 
     let sql = format!(
@@ -331,8 +400,15 @@ pub async fn list(
         .await
         .map_err(|error| db_error(error, "list chains"))?;
 
-    let chains = rows.iter().map(parse_summary).collect::<Result<Vec<_>, _>>()?;
-    Ok(Json(ChainsResponse { chains, limit, offset }))
+    let chains = rows
+        .iter()
+        .map(parse_summary)
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(Json(ChainsResponse {
+        chains,
+        limit,
+        offset,
+    }))
 }
 
 pub async fn create(
@@ -342,34 +418,90 @@ pub async fn create(
 ) -> Result<(StatusCode, Json<ChainSummary>), ApiError> {
     let title = input.title.trim();
     if title.is_empty() || title.chars().count() > 120 {
-        return Err(api_error(StatusCode::UNPROCESSABLE_ENTITY, "invalid_chain_title", "Chain titles must contain between 1 and 120 characters."));
+        return Err(api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_chain_title",
+            "Chain titles must contain between 1 and 120 characters.",
+        ));
     }
 
     let description = input.description.unwrap_or_default();
     let prompt = input.prompt.unwrap_or_default();
     if description.chars().count() > 2_000 || prompt.chars().count() > 1_200 {
-        return Err(api_error(StatusCode::UNPROCESSABLE_ENTITY, "chain_text_too_long", "Descriptions are limited to 2,000 characters and prompts to 1,200."));
+        return Err(api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "chain_text_too_long",
+            "Descriptions are limited to 2,000 characters and prompts to 1,200.",
+        ));
     }
 
-    let kind = valid_kind(input.kind.as_deref()).ok_or_else(|| api_error(StatusCode::UNPROCESSABLE_ENTITY, "invalid_chain_kind", "Choose a supported Chain format."))?;
-    let visibility = valid_visibility(input.visibility.as_deref()).ok_or_else(|| api_error(StatusCode::UNPROCESSABLE_ENTITY, "invalid_chain_visibility", "Visibility must be public, unlisted, private or circle."))?;
-    let policy = valid_policy(input.contribution_policy.as_deref()).ok_or_else(|| api_error(StatusCode::UNPROCESSABLE_ENTITY, "invalid_contribution_policy", "Contribution policy must be open, members or circle_members."))?;
-    let category = input.category.unwrap_or_else(|| "general".to_owned()).trim().to_lowercase();
+    let kind = valid_kind(input.kind.as_deref()).ok_or_else(|| {
+        api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_chain_kind",
+            "Choose a supported Chain format.",
+        )
+    })?;
+    let visibility = valid_visibility(input.visibility.as_deref()).ok_or_else(|| {
+        api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_chain_visibility",
+            "Visibility must be public, unlisted, private or circle.",
+        )
+    })?;
+    let policy = valid_policy(input.contribution_policy.as_deref()).ok_or_else(|| {
+        api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_contribution_policy",
+            "Contribution policy must be open, members or circle_members.",
+        )
+    })?;
+    let category = input
+        .category
+        .unwrap_or_else(|| "general".to_owned())
+        .trim()
+        .to_lowercase();
     if category.is_empty() || category.chars().count() > 40 {
-        return Err(api_error(StatusCode::UNPROCESSABLE_ENTITY, "invalid_chain_category", "Choose a category of 1 to 40 characters."));
+        return Err(api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_chain_category",
+            "Choose a category of 1 to 40 characters.",
+        ));
     }
     if (visibility == "circle") != input.circle_id.is_some() {
-        return Err(api_error(StatusCode::UNPROCESSABLE_ENTITY, "invalid_circle_scope", "Circle visibility requires a Circle, and Circle-scoped Chains must use Circle visibility."));
+        return Err(api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_circle_scope",
+            "Circle visibility requires a Circle, and Circle-scoped Chains must use Circle visibility.",
+        ));
     }
-    if input.cover_image_url.as_deref().is_some_and(|value| !value.trim().is_empty() && !value.trim().starts_with("https://")) {
-        return Err(api_error(StatusCode::UNPROCESSABLE_ENTITY, "invalid_chain_cover", "Cover images must use HTTPS."));
+    if input
+        .cover_image_url
+        .as_deref()
+        .is_some_and(|value| !value.trim().is_empty() && !value.trim().starts_with("https://"))
+    {
+        return Err(api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_chain_cover",
+            "Cover images must use HTTPS.",
+        ));
     }
     let metadata = input.metadata.unwrap_or_else(|| serde_json::json!({}));
-    if !metadata.is_object() || serde_json::to_vec(&metadata).map_or(true, |value| value.len() > 32 * 1024) {
-        return Err(api_error(StatusCode::UNPROCESSABLE_ENTITY, "invalid_chain_metadata", "Chain metadata must be an object no larger than 32 KiB."));
+    if !metadata.is_object()
+        || serde_json::to_vec(&metadata).map_or(true, |value| value.len() > 32 * 1024)
+    {
+        return Err(api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_chain_metadata",
+            "Chain metadata must be an object no larger than 32 KiB.",
+        ));
     }
 
-    let mut transaction = state.database.begin().await.map_err(|error| db_error(error, "begin Chain creation"))?;
+    let mut transaction = state
+        .database
+        .begin()
+        .await
+        .map_err(|error| db_error(error, "begin Chain creation"))?;
     if let Some(circle_id) = input.circle_id {
         let can_create_in_circle = sqlx::query_scalar::<_, bool>(
             r#"
@@ -393,7 +525,11 @@ pub async fn create(
         .await
         .map_err(|error| db_error(error, "authorize Circle Chain creation"))?;
         if !can_create_in_circle {
-            return Err(api_error(StatusCode::FORBIDDEN, "circle_membership_required", "Join this Circle before creating a Chain inside it."));
+            return Err(api_error(
+                StatusCode::FORBIDDEN,
+                "circle_membership_required",
+                "Join this Circle before creating a Chain inside it.",
+            ));
         }
     }
 
@@ -424,7 +560,9 @@ pub async fn create(
     .await
     .map_err(|error| db_error(error, "insert Chain"))?;
 
-    let chain_id: Uuid = inserted.try_get("id").map_err(|e| db_error(e, "read new Chain id"))?;
+    let chain_id: Uuid = inserted
+        .try_get("id")
+        .map_err(|e| db_error(e, "read new Chain id"))?;
     sqlx::query("INSERT INTO chain_members (chain_id, user_id, role) VALUES ($1, $2, 'owner') ON CONFLICT (chain_id, user_id) DO NOTHING")
         .bind(chain_id)
         .bind(user.id)
@@ -432,7 +570,10 @@ pub async fn create(
         .await
         .map_err(|error| db_error(error, "add Chain owner"))?;
 
-    transaction.commit().await.map_err(|error| db_error(error, "commit Chain creation"))?;
+    transaction
+        .commit()
+        .await
+        .map_err(|error| db_error(error, "commit Chain creation"))?;
 
     let summary = ChainSummary {
         id: chain_id,
@@ -440,21 +581,51 @@ pub async fn create(
         creator_username: user.username,
         creator_display_name: user.display_name,
         creator_avatar_url: user.avatar_url,
-        circle_id: inserted.try_get("circle_id").map_err(|e| db_error(e, "read Circle id"))?,
-        title: inserted.try_get("title").map_err(|e| db_error(e, "read title"))?,
-        description: inserted.try_get("description").map_err(|e| db_error(e, "read description"))?,
-        prompt: inserted.try_get("prompt").map_err(|e| db_error(e, "read prompt"))?,
-        kind: inserted.try_get("kind").map_err(|e| db_error(e, "read kind"))?,
-        category: inserted.try_get("category").map_err(|e| db_error(e, "read category"))?,
-        visibility: inserted.try_get("visibility").map_err(|e| db_error(e, "read visibility"))?,
-        contribution_policy: inserted.try_get("contribution_policy").map_err(|e| db_error(e, "read contribution policy"))?,
-        status: inserted.try_get("status").map_err(|e| db_error(e, "read status"))?,
-        cover_image_url: inserted.try_get("cover_image_url").map_err(|e| db_error(e, "read cover"))?,
-        metadata: inserted.try_get("metadata").map_err(|e| db_error(e, "read metadata"))?,
-        contribution_count: inserted.try_get("contribution_count").map_err(|e| db_error(e, "read contribution count"))?,
-        participant_count: inserted.try_get("participant_count").map_err(|e| db_error(e, "read participant count"))?,
-        created_at: inserted.try_get("created_at").map_err(|e| db_error(e, "read creation timestamp"))?,
-        updated_at: inserted.try_get("updated_at").map_err(|e| db_error(e, "read update timestamp"))?,
+        circle_id: inserted
+            .try_get("circle_id")
+            .map_err(|e| db_error(e, "read Circle id"))?,
+        title: inserted
+            .try_get("title")
+            .map_err(|e| db_error(e, "read title"))?,
+        description: inserted
+            .try_get("description")
+            .map_err(|e| db_error(e, "read description"))?,
+        prompt: inserted
+            .try_get("prompt")
+            .map_err(|e| db_error(e, "read prompt"))?,
+        kind: inserted
+            .try_get("kind")
+            .map_err(|e| db_error(e, "read kind"))?,
+        category: inserted
+            .try_get("category")
+            .map_err(|e| db_error(e, "read category"))?,
+        visibility: inserted
+            .try_get("visibility")
+            .map_err(|e| db_error(e, "read visibility"))?,
+        contribution_policy: inserted
+            .try_get("contribution_policy")
+            .map_err(|e| db_error(e, "read contribution policy"))?,
+        status: inserted
+            .try_get("status")
+            .map_err(|e| db_error(e, "read status"))?,
+        cover_image_url: inserted
+            .try_get("cover_image_url")
+            .map_err(|e| db_error(e, "read cover"))?,
+        metadata: inserted
+            .try_get("metadata")
+            .map_err(|e| db_error(e, "read metadata"))?,
+        contribution_count: inserted
+            .try_get("contribution_count")
+            .map_err(|e| db_error(e, "read contribution count"))?,
+        participant_count: inserted
+            .try_get("participant_count")
+            .map_err(|e| db_error(e, "read participant count"))?,
+        created_at: inserted
+            .try_get("created_at")
+            .map_err(|e| db_error(e, "read creation timestamp"))?,
+        updated_at: inserted
+            .try_get("updated_at")
+            .map_err(|e| db_error(e, "read update timestamp"))?,
     };
 
     Ok((StatusCode::CREATED, Json(summary)))
@@ -500,7 +671,13 @@ pub async fn get(
         .fetch_optional(&state.database)
         .await
         .map_err(|error| db_error(error, "load Chain"))?
-        .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "chain_not_found", "This Chain is unavailable."))?;
+        .ok_or_else(|| {
+            api_error(
+                StatusCode::NOT_FOUND,
+                "chain_not_found",
+                "This Chain is unavailable.",
+            )
+        })?;
     let chain = parse_summary(&row)?;
 
     let can_contribute = if let Some(viewer_id) = viewer_id {
@@ -569,25 +746,57 @@ pub async fn get(
         .into_iter()
         .map(|row| {
             Ok(ChainContribution {
-                id: row.try_get("id").map_err(|e| db_error(e, "read contribution id"))?,
-                chain_id: row.try_get("chain_id").map_err(|e| db_error(e, "read contribution Chain id"))?,
-                author_id: row.try_get("author_id").map_err(|e| db_error(e, "read contribution author"))?,
-                author_username: row.try_get("author_username").map_err(|e| db_error(e, "read contribution username"))?,
-                author_display_name: row.try_get("author_display_name").map_err(|e| db_error(e, "read contribution name"))?,
-                author_avatar_url: row.try_get("author_avatar_url").map_err(|e| db_error(e, "read contribution avatar"))?,
-                parent_contribution_id: row.try_get("parent_contribution_id").map_err(|e| db_error(e, "read contribution parent"))?,
-                contribution_type: row.try_get("contribution_type").map_err(|e| db_error(e, "read contribution type"))?,
-                title: row.try_get("title").map_err(|e| db_error(e, "read contribution title"))?,
-                content: row.try_get("content").map_err(|e| db_error(e, "read contribution content"))?,
-                payload: row.try_get("payload").map_err(|e| db_error(e, "read contribution payload"))?,
-                position: row.try_get("position").map_err(|e| db_error(e, "read contribution position"))?,
-                created_at: row.try_get("created_at").map_err(|e| db_error(e, "read contribution timestamp"))?,
-                updated_at: row.try_get("updated_at").map_err(|e| db_error(e, "read contribution update timestamp"))?,
+                id: row
+                    .try_get("id")
+                    .map_err(|e| db_error(e, "read contribution id"))?,
+                chain_id: row
+                    .try_get("chain_id")
+                    .map_err(|e| db_error(e, "read contribution Chain id"))?,
+                author_id: row
+                    .try_get("author_id")
+                    .map_err(|e| db_error(e, "read contribution author"))?,
+                author_username: row
+                    .try_get("author_username")
+                    .map_err(|e| db_error(e, "read contribution username"))?,
+                author_display_name: row
+                    .try_get("author_display_name")
+                    .map_err(|e| db_error(e, "read contribution name"))?,
+                author_avatar_url: row
+                    .try_get("author_avatar_url")
+                    .map_err(|e| db_error(e, "read contribution avatar"))?,
+                parent_contribution_id: row
+                    .try_get("parent_contribution_id")
+                    .map_err(|e| db_error(e, "read contribution parent"))?,
+                contribution_type: row
+                    .try_get("contribution_type")
+                    .map_err(|e| db_error(e, "read contribution type"))?,
+                title: row
+                    .try_get("title")
+                    .map_err(|e| db_error(e, "read contribution title"))?,
+                content: row
+                    .try_get("content")
+                    .map_err(|e| db_error(e, "read contribution content"))?,
+                payload: row
+                    .try_get("payload")
+                    .map_err(|e| db_error(e, "read contribution payload"))?,
+                position: row
+                    .try_get("position")
+                    .map_err(|e| db_error(e, "read contribution position"))?,
+                created_at: row
+                    .try_get("created_at")
+                    .map_err(|e| db_error(e, "read contribution timestamp"))?,
+                updated_at: row
+                    .try_get("updated_at")
+                    .map_err(|e| db_error(e, "read contribution update timestamp"))?,
             })
         })
         .collect::<Result<Vec<_>, ApiError>>()?;
 
-    Ok(Json(ChainDetailResponse { chain, contributions, can_contribute }))
+    Ok(Json(ChainDetailResponse {
+        chain,
+        contributions,
+        can_contribute,
+    }))
 }
 
 pub async fn contribute(
@@ -597,20 +806,42 @@ pub async fn contribute(
     Json(input): Json<CreateContributionInput>,
 ) -> Result<(StatusCode, Json<CreatedContributionResponse>), ApiError> {
     let contribution_type = valid_contribution_type(input.contribution_type.as_deref())
-        .ok_or_else(|| api_error(StatusCode::UNPROCESSABLE_ENTITY, "invalid_contribution_type", "This contribution format is not supported."))?;
+        .ok_or_else(|| {
+            api_error(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "invalid_contribution_type",
+                "This contribution format is not supported.",
+            )
+        })?;
     let title = input.title.unwrap_or_default();
     let content = input.content.unwrap_or_default();
     if title.chars().count() > 120 || content.chars().count() > 8_000 {
-        return Err(api_error(StatusCode::UNPROCESSABLE_ENTITY, "contribution_too_long", "Contribution titles are limited to 120 characters and content to 8,000."));
+        return Err(api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "contribution_too_long",
+            "Contribution titles are limited to 120 characters and content to 8,000.",
+        ));
     }
     if title.trim().is_empty() && content.trim().is_empty() && input.payload == Value::Null {
-        return Err(api_error(StatusCode::UNPROCESSABLE_ENTITY, "empty_contribution", "Add text or structured content before contributing."));
+        return Err(api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "empty_contribution",
+            "Add text or structured content before contributing.",
+        ));
     }
     if serde_json::to_vec(&input.payload).map_or(true, |value| value.len() > 64 * 1024) {
-        return Err(api_error(StatusCode::UNPROCESSABLE_ENTITY, "contribution_payload_too_large", "Structured contribution data cannot exceed 64 KiB."));
+        return Err(api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "contribution_payload_too_large",
+            "Structured contribution data cannot exceed 64 KiB.",
+        ));
     }
 
-    let mut transaction = state.database.begin().await.map_err(|error| db_error(error, "begin Chain contribution"))?;
+    let mut transaction = state
+        .database
+        .begin()
+        .await
+        .map_err(|error| db_error(error, "begin Chain contribution"))?;
     let chain = sqlx::query(
         "SELECT creator_id, circle_id, contribution_policy, visibility, status FROM chains WHERE id = $1 FOR UPDATE",
     )
@@ -620,13 +851,27 @@ pub async fn contribute(
     .map_err(|error| db_error(error, "lock Chain"))?
     .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "chain_not_found", "This Chain is unavailable."))?;
 
-    let creator_id: Uuid = chain.try_get("creator_id").map_err(|e| db_error(e, "read Chain creator"))?;
-    let circle_id: Option<Uuid> = chain.try_get("circle_id").map_err(|e| db_error(e, "read Chain Circle"))?;
-    let policy: String = chain.try_get("contribution_policy").map_err(|e| db_error(e, "read contribution policy"))?;
-    let visibility: String = chain.try_get("visibility").map_err(|e| db_error(e, "read Chain visibility"))?;
-    let status: String = chain.try_get("status").map_err(|e| db_error(e, "read Chain status"))?;
+    let creator_id: Uuid = chain
+        .try_get("creator_id")
+        .map_err(|e| db_error(e, "read Chain creator"))?;
+    let circle_id: Option<Uuid> = chain
+        .try_get("circle_id")
+        .map_err(|e| db_error(e, "read Chain Circle"))?;
+    let policy: String = chain
+        .try_get("contribution_policy")
+        .map_err(|e| db_error(e, "read contribution policy"))?;
+    let visibility: String = chain
+        .try_get("visibility")
+        .map_err(|e| db_error(e, "read Chain visibility"))?;
+    let status: String = chain
+        .try_get("status")
+        .map_err(|e| db_error(e, "read Chain status"))?;
     if status != "active" {
-        return Err(api_error(StatusCode::CONFLICT, "chain_not_active", "This Chain is not accepting new contributions."));
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "chain_not_active",
+            "This Chain is not accepting new contributions.",
+        ));
     }
 
     let is_chain_member = sqlx::query_scalar::<_, bool>(
@@ -664,13 +909,34 @@ pub async fn contribute(
     };
 
     let is_creator = creator_id == user.id;
-    let may_access = can_access_chain(&visibility, circle_id.is_some(), is_creator, is_chain_member, is_circle_member);
+    let may_access = can_access_chain(
+        &visibility,
+        circle_id.is_some(),
+        is_creator,
+        is_chain_member,
+        is_circle_member,
+    );
     if !may_access {
-        return Err(api_error(StatusCode::FORBIDDEN, "chain_access_denied", "You do not have access to this Chain."));
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "chain_access_denied",
+            "You do not have access to this Chain.",
+        ));
     }
-    let may_contribute = can_contribute_to_chain(&policy, &visibility, circle_id.is_some(), is_creator, is_chain_member, is_circle_member);
+    let may_contribute = can_contribute_to_chain(
+        &policy,
+        &visibility,
+        circle_id.is_some(),
+        is_creator,
+        is_chain_member,
+        is_circle_member,
+    );
     if !may_contribute {
-        return Err(api_error(StatusCode::FORBIDDEN, "chain_contribution_restricted", "This Chain only accepts contributions from its members."));
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "chain_contribution_restricted",
+            "This Chain only accepts contributions from its members.",
+        ));
     }
 
     if let Some(parent_id) = input.parent_contribution_id {
@@ -683,7 +949,11 @@ pub async fn contribute(
         .await
         .map_err(|error| db_error(error, "validate contribution parent"))?;
         if !parent_exists {
-            return Err(api_error(StatusCode::UNPROCESSABLE_ENTITY, "invalid_contribution_parent", "The parent contribution must belong to this Chain and be published."));
+            return Err(api_error(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "invalid_contribution_parent",
+                "The parent contribution must belong to this Chain and be published.",
+            ));
         }
     }
 
@@ -695,7 +965,11 @@ pub async fn contribute(
     .await
     .map_err(|error| db_error(error, "allocate contribution position"))?;
 
-    let payload = if input.payload.is_null() { serde_json::json!({}) } else { input.payload };
+    let payload = if input.payload.is_null() {
+        serde_json::json!({})
+    } else {
+        input.payload
+    };
     let row = sqlx::query(
         r#"
         INSERT INTO chain_contributions (
@@ -711,7 +985,11 @@ pub async fn contribute(
     .bind(user.id)
     .bind(input.parent_contribution_id)
     .bind(contribution_type)
-    .bind(if title.trim().is_empty() { None } else { Some(title.trim()) })
+    .bind(if title.trim().is_empty() {
+        None
+    } else {
+        Some(title.trim())
+    })
     .bind(content.trim())
     .bind(payload)
     .bind(position)
@@ -747,32 +1025,62 @@ pub async fn contribute(
     .await
     .map_err(|error| db_error(error, "update Chain counters"))?;
 
-    transaction.commit().await.map_err(|error| db_error(error, "commit Chain contribution"))?;
+    transaction
+        .commit()
+        .await
+        .map_err(|error| db_error(error, "commit Chain contribution"))?;
 
     let contribution = ChainContribution {
-        id: row.try_get("id").map_err(|e| db_error(e, "read new contribution id"))?,
-        chain_id: row.try_get("chain_id").map_err(|e| db_error(e, "read new contribution Chain id"))?,
-        author_id: row.try_get("author_id").map_err(|e| db_error(e, "read new contribution author"))?,
+        id: row
+            .try_get("id")
+            .map_err(|e| db_error(e, "read new contribution id"))?,
+        chain_id: row
+            .try_get("chain_id")
+            .map_err(|e| db_error(e, "read new contribution Chain id"))?,
+        author_id: row
+            .try_get("author_id")
+            .map_err(|e| db_error(e, "read new contribution author"))?,
         author_username: user.username,
         author_display_name: user.display_name,
         author_avatar_url: user.avatar_url,
-        parent_contribution_id: row.try_get("parent_contribution_id").map_err(|e| db_error(e, "read contribution parent"))?,
-        contribution_type: row.try_get("contribution_type").map_err(|e| db_error(e, "read contribution type"))?,
-        title: row.try_get("title").map_err(|e| db_error(e, "read contribution title"))?,
-        content: row.try_get("content").map_err(|e| db_error(e, "read contribution content"))?,
-        payload: row.try_get("payload").map_err(|e| db_error(e, "read contribution payload"))?,
-        position: row.try_get("position").map_err(|e| db_error(e, "read contribution position"))?,
-        created_at: row.try_get("created_at").map_err(|e| db_error(e, "read contribution creation time"))?,
-        updated_at: row.try_get("updated_at").map_err(|e| db_error(e, "read contribution update time"))?,
+        parent_contribution_id: row
+            .try_get("parent_contribution_id")
+            .map_err(|e| db_error(e, "read contribution parent"))?,
+        contribution_type: row
+            .try_get("contribution_type")
+            .map_err(|e| db_error(e, "read contribution type"))?,
+        title: row
+            .try_get("title")
+            .map_err(|e| db_error(e, "read contribution title"))?,
+        content: row
+            .try_get("content")
+            .map_err(|e| db_error(e, "read contribution content"))?,
+        payload: row
+            .try_get("payload")
+            .map_err(|e| db_error(e, "read contribution payload"))?,
+        position: row
+            .try_get("position")
+            .map_err(|e| db_error(e, "read contribution position"))?,
+        created_at: row
+            .try_get("created_at")
+            .map_err(|e| db_error(e, "read contribution creation time"))?,
+        updated_at: row
+            .try_get("updated_at")
+            .map_err(|e| db_error(e, "read contribution update time"))?,
     };
 
-    Ok((StatusCode::CREATED, Json(CreatedContributionResponse { contribution })))
+    Ok((
+        StatusCode::CREATED,
+        Json(CreatedContributionResponse { contribution }),
+    ))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{can_access_chain, can_contribute_to_chain, valid_contribution_type, valid_kind, valid_policy, valid_visibility};
-
+    use super::{
+        can_access_chain, can_contribute_to_chain, valid_contribution_type, valid_kind,
+        valid_policy, valid_visibility,
+    };
 
     #[test]
     fn circle_scoped_chains_are_invisible_to_non_members() {
@@ -790,15 +1098,43 @@ mod tests {
 
     #[test]
     fn open_policy_never_bypasses_private_chain_visibility() {
-        assert!(!can_contribute_to_chain("open", "private", false, false, false, false));
-        assert!(can_contribute_to_chain("open", "public", false, false, false, false));
-        assert!(can_contribute_to_chain("circle_members", "circle", true, false, false, true));
-        assert!(!can_contribute_to_chain("circle_members", "circle", true, false, false, false));
+        assert!(!can_contribute_to_chain(
+            "open", "private", false, false, false, false
+        ));
+        assert!(can_contribute_to_chain(
+            "open", "public", false, false, false, false
+        ));
+        assert!(can_contribute_to_chain(
+            "circle_members",
+            "circle",
+            true,
+            false,
+            false,
+            true
+        ));
+        assert!(!can_contribute_to_chain(
+            "circle_members",
+            "circle",
+            true,
+            false,
+            false,
+            false
+        ));
     }
 
     #[test]
     fn supports_collaborative_chain_formats() {
-        for kind in ["story", "worldbuilding", "ranking", "playlist", "gallery", "challenge", "project", "recommendations", "open"] {
+        for kind in [
+            "story",
+            "worldbuilding",
+            "ranking",
+            "playlist",
+            "gallery",
+            "challenge",
+            "project",
+            "recommendations",
+            "open",
+        ] {
             assert_eq!(valid_kind(Some(kind)).as_deref(), Some(kind));
         }
         assert!(valid_kind(Some("short_video_feed")).is_none());
@@ -819,8 +1155,14 @@ mod tests {
 
     #[test]
     fn validates_rich_contribution_types() {
-        assert_eq!(valid_contribution_type(Some("image")).as_deref(), Some("image"));
-        assert_eq!(valid_contribution_type(Some("poll")).as_deref(), Some("poll"));
+        assert_eq!(
+            valid_contribution_type(Some("image")).as_deref(),
+            Some("image")
+        );
+        assert_eq!(
+            valid_contribution_type(Some("poll")).as_deref(),
+            Some("poll")
+        );
         assert!(valid_contribution_type(Some("executable")).is_none());
     }
 }
