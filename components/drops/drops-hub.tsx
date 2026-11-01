@@ -283,7 +283,6 @@ export function DropsHub() {
               <span><strong className="text-foreground">{response.challenge_count}</strong> challenges</span>
             </div>
           ) : null}
-        </div>
       </section>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
