@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, TreePine, Zap, TrendingUp, Hash, RefreshCw } from "lucide-react"
+import { Clock, GitBranch, Zap, TrendingUp, Hash, RefreshCw, Users } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
@@ -30,10 +30,24 @@ interface TrendingHashtag {
   growth?: string | number
 }
 
+interface CollaborativeChain {
+  id: string
+  title: string
+  description: string
+  prompt: string
+  kind: string
+  creator_display_name: string
+  creator_username: string
+  contribution_count: number
+  participant_count: number
+  updated_at: string
+}
+
 export function ExploreContent({ initialTab = "recent" }: { initialTab?: ExploreTab }) {
   const { user } = useAuth()
   const { toast } = useToast()
   const [loops, setLoops] = useState<NormalizedLoop[]>([])
+  const [chains, setChains] = useState<CollaborativeChain[]>([])
   const [hashtags, setHashtags] = useState<TrendingHashtag[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTab, setSelectedTab] = useState<ExploreTab>(initialTab)
@@ -52,10 +66,25 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
         const rows: TrendingHashtag[] = data.hashtags || data.data || []
         setHashtags(rows)
         setLoops([])
+        setChains([])
         return
       }
 
-      const sort = tab === "deepest" ? "deepest" : tab === "creative" ? "creative" : "recent"
+      if (tab === "deepest") {
+        const params = new URLSearchParams({ limit: "24", sort: "contributions" })
+        const response = await fetch(`/api/v1/chains?${params.toString()}`, {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+          cache: "no-store",
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data.message || data.error || "Failed to discover Chains")
+        setChains(Array.isArray(data.chains) ? data.chains : [])
+        setLoops([])
+        setHashtags([])
+        return
+      }
+
+      const sort = tab === "creative" ? "creative" : "recent"
       const response = await fetch(`/api/explore/trending?type=loops&sort=${sort}&limit=24`, {
         headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
         cache: "no-store",
@@ -63,6 +92,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || "Failed to load explore")
       setLoops(normalizeLoops(data.loops || data.data || []))
+      setChains([])
       setHashtags([])
     } catch (error: any) {
       console.error("Explore fetch error:", error)
@@ -263,12 +293,45 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
         </TabsContent>
 
         <TabsContent value="deepest" className="mt-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <TreePine className="h-5 w-5 text-emerald-600" />
-            <h2 className="text-xl font-semibold">Collaborative Chains</h2>
-            <Badge variant="secondary">Most branches</Badge>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <GitBranch className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-semibold">Collaborative Chains</h2>
+              <Badge variant="secondary">Most contributions</Badge>
+            </div>
+            <Link href="/chains" className="text-xs font-semibold text-primary hover:underline">Explore all Chains</Link>
           </div>
-          {renderLoops(loops, "No Chains yet. Branch a Loop to start one.")}
+          {loading ? (
+            <div className="flex items-center justify-center py-16 text-muted-foreground">
+              <Spinner className="mr-2 h-5 w-5" /> Loading Chains…
+            </div>
+          ) : chains.length === 0 ? (
+            <EmptyState title="No collaborative Chains yet" icon={<GitBranch className="h-6 w-6" />} />
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {chains.map((chain) => (
+                <Link
+                  key={chain.id}
+                  href={`/chains/${chain.id}`}
+                  className="group flex min-h-48 flex-col rounded-2xl border border-border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant="secondary" className="capitalize">{chain.kind.replace(/_/g, " ")}</Badge>
+                    <GitBranch className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
+                  </div>
+                  <h3 className="mt-3 line-clamp-2 text-base font-bold">{chain.title}</h3>
+                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                    {chain.prompt || chain.description || "An idea waiting for its next contribution."}
+                  </p>
+                  <div className="mt-auto flex flex-wrap items-center gap-3 border-t border-border pt-3 text-[11px] text-muted-foreground">
+                    <span className="inline-flex items-center gap-1"><GitBranch className="h-3 w-3" /> {chain.contribution_count} contributions</span>
+                    <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> {chain.participant_count} people</span>
+                    <span className="ml-auto truncate">by {chain.creator_display_name || chain.creator_username}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="creative" className="mt-6 space-y-4">
