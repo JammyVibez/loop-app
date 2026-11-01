@@ -28,6 +28,8 @@ import {
   Lock,
   Building2,
   ChevronDown,
+  MessageCircle,
+  PlusSquare,
 } from "lucide-react"
 import { UserBadges } from "@/components/user-badge"
 import {
@@ -53,7 +55,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 const NAV_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   "/": Home,
   "/explore": Compass,
+  "/create": PlusSquare,
   "/communities": Users,
+  "/messages": MessageCircle,
   "/streams": Radio,
   "/wallet": Coins,
   "/co-loop/studio": Zap,
