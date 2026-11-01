@@ -1,0 +1,115 @@
+mod config;
+mod routes;
+mod state;
+mod storage;
+
+use std::time::Duration;
+
+use anyhow::Context;
+use axum::{routing::get, Router};
+use config::AppConfig;
+use http::{
+    header::{AUTHORIZATION, CONTENT_TYPE},
+    Method,
+};
+use sqlx::postgres::PgPoolOptions;
+use state::AppState;
+use tokio::net::TcpListener;
+use tower_http::{
+    cors::CorsLayer,
+    limit::RequestBodyLimitLayer,
+    timeout::TimeoutLayer,
+    trace::TraceLayer,
+};
+use tracing::info;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    dotenvy::dotenv().ok();
+
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "loop_api=info,tower_http=info".into()),
+        )
+        .with_target(false)
+        .compact()
+        .init();
+
+    let config = AppConfig::from_env()?;
+
+    let database = PgPoolOptions::new()
+        .max_connections(config.db_max_connections)
+        .acquire_timeout(Duration::from_secs(5))
+        .connect(&config.database_url)
+        .await
+        .context("could not connect to PostgreSQL")?;
+
+    let storage = storage::S3Store::from_config(&config).await?;
+    let state = AppState { database, storage };
+
+    let cors = CorsLayer::new()
+        .allow_origin(config.cors_allowed_origins)
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+        .allow_headers([AUTHORIZATION, CONTENT_TYPE])
+        .allow_credentials(true);
+
+    let app = Router::new()
+        .route("/health/live", get(routes::health::live))
+        .route("/health/ready", get(routes::health::ready))
+        .route("/v1/system/capabilities", get(routes::system::capabilities))
+        .with_state(state)
+        .layer(RequestBodyLimitLayer::new(10 * 1024 * 1024))
+        .layer(TimeoutLayer::new(Duration::from_secs(15)))
+        .layer(cors)
+        .layer(TraceLayer::new_for_http());
+
+    let listener = TcpListener::bind(config.bind_addr)
+        .await
+        .with_context(|| format!("could not bind API listener to {}", config.bind_addr))?;
+
+    info!(address = %config.bind_addr, "LOOP Rust API listening");
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .context("Rust API server stopped unexpectedly")?;
+
+    Ok(())
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        if let Err(error) = tokio::signal::ctrl_c().await {
+            tracing::error!(%error, "failed to listen for Ctrl+C");
+        }
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut signal) => {
+                signal.recv().await;
+            }
+            Err(error) => {
+                tracing::error!(%error, "failed to listen for SIGTERM");
+            }
+        }
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+
+    info!("shutdown signal received");
+}
