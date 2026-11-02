@@ -136,11 +136,22 @@ pub struct ChainContribution {
 }
 
 #[derive(Serialize)]
+pub struct ChainMemberSummary {
+    user_id: Uuid,
+    username: String,
+    display_name: String,
+    avatar_url: Option<String>,
+    role: String,
+    joined_at: DateTime<Utc>,
+}
+
+#[derive(Serialize)]
 pub struct ChainDetailResponse {
     chain: ChainSummary,
     contributions: Vec<ChainContribution>,
     can_contribute: bool,
     can_manage: bool,
+    members: Vec<ChainMemberSummary>,
     contributions_limit: i64,
     contributions_offset: i64,
     contributions_has_more: bool,
@@ -930,6 +941,58 @@ pub async fn get(
         false
     };
 
+    let members = if can_manage {
+        let rows = sqlx::query(
+            r#"
+            SELECT member.user_id, profile.username,
+                   COALESCE(profile.display_name, profile.username) AS display_name,
+                   profile.avatar_url, member.role, member.joined_at
+            FROM chain_members AS member
+            JOIN profiles AS profile ON profile.id = member.user_id
+            WHERE member.chain_id = $1
+            ORDER BY
+                CASE member.role
+                    WHEN 'owner' THEN 0
+                    WHEN 'collaborator' THEN 1
+                    WHEN 'contributor' THEN 2
+                    ELSE 3
+                END,
+                member.joined_at ASC
+            "#,
+        )
+        .bind(chain_id)
+        .fetch_all(&state.database)
+        .await
+        .map_err(|error| db_error(error, "load Chain collaborators"))?;
+
+        rows.into_iter()
+            .map(|row| {
+                Ok(ChainMemberSummary {
+                    user_id: row
+                        .try_get("user_id")
+                        .map_err(|error| db_error(error, "read Chain member id"))?,
+                    username: row
+                        .try_get("username")
+                        .map_err(|error| db_error(error, "read Chain member username"))?,
+                    display_name: row
+                        .try_get("display_name")
+                        .map_err(|error| db_error(error, "read Chain member display name"))?,
+                    avatar_url: row
+                        .try_get("avatar_url")
+                        .map_err(|error| db_error(error, "read Chain member avatar"))?,
+                    role: row
+                        .try_get("role")
+                        .map_err(|error| db_error(error, "read Chain member role"))?,
+                    joined_at: row
+                        .try_get("joined_at")
+                        .map_err(|error| db_error(error, "read Chain member join date"))?,
+                })
+            })
+            .collect::<Result<Vec<_>, ApiError>>()?
+    } else {
+        Vec::new()
+    };
+
     let rows = sqlx::query(
         r#"
         SELECT
@@ -1012,6 +1075,7 @@ pub async fn get(
         contributions,
         can_contribute,
         can_manage,
+        members,
         contributions_limit: contribution_limit,
         contributions_offset: contribution_offset,
         contributions_has_more,
