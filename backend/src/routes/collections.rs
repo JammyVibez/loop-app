@@ -81,6 +81,7 @@ pub struct ListCollectionsQuery {
     limit: Option<i64>,
     offset: Option<i64>,
     owner_id: Option<Uuid>,
+    search: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -140,6 +141,11 @@ pub async fn list(
             )
         )
           AND ($4::uuid IS NULL OR c.owner_id = $4)
+          AND (
+              $5::text IS NULL
+              OR c.title ILIKE '%' || $5 || '%'
+              OR c.description ILIKE '%' || $5 || '%'
+          )
         GROUP BY c.id
         ORDER BY c.updated_at DESC
         LIMIT $2 OFFSET $3
@@ -149,6 +155,7 @@ pub async fn list(
     .bind(limit)
     .bind(offset)
     .bind(query.owner_id)
+    .bind(query.search.as_deref().map(str::trim).filter(|value| !value.is_empty()))
     .fetch_all(&state.database)
     .await
     .map_err(|error| {

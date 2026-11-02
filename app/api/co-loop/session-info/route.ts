@@ -174,6 +174,58 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const sessionId = searchParams.get("session") || searchParams.get("id")
+    if (!sessionId || !sessionId.trim() || sessionId.length > 160) {
+      return NextResponse.json({ error: "A valid session ID is required" }, { status: 400 })
+    }
+
+    const supabase = createServerClient()
+    const { data: session, error } = await supabase
+      .from("co_loop_sessions")
+      .select("session_id, owner_id, owner_username, deleted_at")
+      .eq("session_id", sessionId)
+      .maybeSingle()
+    if (error) {
+      console.error("Co-Loop preview lookup failed:", error.message)
+      return NextResponse.json({ error: "Could not load this invitation" }, { status: 500 })
+    }
+    if (!session) return NextResponse.json({ error: "This invitation is unavailable" }, { status: 404 })
+    if (session.deleted_at) return NextResponse.json({ error: "This room has been deleted" }, { status: 410 })
+
+    const { data: inviter, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, is_verified")
+      .eq("id", session.owner_id)
+      .maybeSingle()
+    if (profileError) {
+      console.error("Co-Loop inviter lookup failed:", profileError.message)
+      return NextResponse.json({ error: "Could not load the inviter" }, { status: 500 })
+    }
+
+    // Invitation preview only: never return the room roster, draft, chat or history.
+    const safeInviter = inviter || {
+      id: session.owner_id,
+      username: session.owner_username,
+      display_name: session.owner_username,
+      avatar_url: null,
+      is_verified: false,
+    }
+    return NextResponse.json({
+      success: true,
+      session_id: session.session_id,
+      owner_id: session.owner_id,
+      owner_username: session.owner_username,
+      inviter: safeInviter,
+    })
+  } catch (error: any) {
+    console.error("Co-Loop session preview error:", error)
+    return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 })
+  }
+}
+
 export async function PATCH(request: NextRequest) {
   try {
     const callingUser = await getUserFromRequest(request)

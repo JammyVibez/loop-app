@@ -323,22 +323,12 @@ export function DropsHub() {
   }
 
   const filteredItems = useMemo(() => {
-    const query = search.trim().toLowerCase()
-
     return (response?.items || []).filter((item) => {
       if (activeFilter === "live" && !item.is_live) return false
       if (activeFilter === "upcoming" && item.status !== "upcoming") return false
       if (activeFilter === "event" && item.kind !== "event") return false
       if (activeFilter === "challenge" && item.kind !== "challenge") return false
-      if (!query) return true
-
-      return [
-        item.title,
-        item.description,
-        item.category,
-        item.circle_name || "",
-        item.source,
-      ].some((value) => value.toLowerCase().includes(query))
+      return true
     })
   }, [activeFilter, response?.items])
 
