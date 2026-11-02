@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { decideCoLoopInvitationResponse } from "@/lib/co-loop-session-access"
 
 export const dynamic = "force-dynamic"
 
@@ -28,7 +27,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient()
     const { data: session, error: sessionError } = await supabase
       .from("co_loop_sessions")
-      .select("session_id, owner_id, deleted_at, status, locked")
+      .select("session_id, owner_id, deleted_at")
       .eq("session_id", sessionId)
       .maybeSingle()
     if (sessionError) {
@@ -47,30 +46,6 @@ export async function POST(request: NextRequest) {
     if (ledgerError) {
       console.error("Co-Loop invitation ledger lookup failed:", ledgerError.message)
       return NextResponse.json({ error: "Could not verify this invitation" }, { status: 500 })
-    }
-
-    if (ledger) {
-      const decision = decideCoLoopInvitationResponse(session, ledger.status, status)
-      if (decision === "inactive") {
-        return NextResponse.json({ error: "This Co-Loop is no longer accepting collaborators" }, { status: 410 })
-      }
-      if (decision === "locked") {
-        return NextResponse.json({ error: "The host has locked this room" }, { status: 423 })
-      }
-      if (decision === "already_responded") {
-        return NextResponse.json({ error: "This invitation is no longer active" }, { status: 409 })
-      }
-      if (decision === "already_accepted") {
-        return NextResponse.json({ success: true, sessionId, status, alreadyAccepted: true })
-      }
-    } else if (status === "accepted") {
-      const decision = decideCoLoopInvitationResponse(session, null, status)
-      if (decision === "inactive") {
-        return NextResponse.json({ error: "This Co-Loop is no longer accepting collaborators" }, { status: 410 })
-      }
-      if (decision === "locked") {
-        return NextResponse.json({ error: "The host has locked this room" }, { status: 423 })
-      }
     }
 
     const encodedSessionId = encodeURIComponent(sessionId)
@@ -165,25 +140,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "This invitation was not sent to your account" }, { status: 403 })
     }
 
-    if (ledger?.status === "accepted") {
-      if (status === "accepted") return NextResponse.json({ success: true, sessionId, status })
-      return NextResponse.json({ error: "An accepted invitation cannot be declined" }, { status: 409 })
-    }
+    const { data: responseData, error: responseError } = await supabase.rpc("respond_co_loop_invitation", {
+      p_session_id: sessionId,
+      p_invitee_id: user.id,
+      p_action: status,
+    })
 
-    const { data: updatedLedger, error: ledgerUpdateError } = await supabase
-      .from("co_loop_invitations")
-      .update({ status, responded_at: new Date().toISOString() })
-      .eq("session_id", sessionId)
-      .eq("invitee_id", user.id)
-      .eq("status", "pending")
-      .select("id")
-      .maybeSingle()
-    if (ledgerUpdateError) {
-      console.error("Co-Loop invitation state update failed:", ledgerUpdateError.message)
+    if (responseError) {
+      console.error("Co-Loop invitation response RPC failed:", responseError.message)
+      if (responseError.code === "P0002") {
+        return NextResponse.json({ error: "Co-Loop invitation not found" }, { status: 404 })
+      }
+      if (responseError.code === "42501") {
+        return NextResponse.json({ error: responseError.message === "co_loop_locked" ? "The host has locked this room" : "This account cannot join this Co-Loop" }, { status: 423 })
+      }
+      if (responseError.code === "55000") {
+        return NextResponse.json({ error: responseError.message === "co_loop_deleted" ? "This room has been deleted" : "This invitation is no longer active" }, { status: 409 })
+      }
+      if (responseError.code === "22023") {
+        return NextResponse.json({ error: "Invalid invitation response" }, { status: 400 })
+      }
+      if (["42883", "42P01", "42703"].includes(responseError.code || "")) {
+        return NextResponse.json({ error: "Co-Loop invitations are unavailable until the database migration is applied." }, { status: 503 })
+      }
       return NextResponse.json({ error: "Could not update this invitation" }, { status: 500 })
     }
-    if (!updatedLedger) {
-      return NextResponse.json({ error: "Invitation state changed. Refresh and try again." }, { status: 409 })
+
+    const responseResult = (Array.isArray(responseData) ? responseData[0] : responseData) as {
+      id?: string
+      status?: string
+      already_responded?: boolean
+    } | null
+    if (!responseResult?.id || responseResult.status !== status) {
+      return NextResponse.json({ error: "Invitation response returned an invalid result" }, { status: 500 })
     }
 
     if (status === "declined") {

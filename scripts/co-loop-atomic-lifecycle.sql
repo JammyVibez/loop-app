@@ -523,3 +523,114 @@ BEGIN
     END IF;
 END
 $$;
+
+
+-- Serialize acceptance/decline with room locking, deletion and new
+-- reservations. The API validates delivery identity; this function owns state.
+CREATE OR REPLACE FUNCTION public.respond_co_loop_invitation(
+    p_session_id TEXT,
+    p_invitee_id UUID,
+    p_action TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+    room public.co_loop_sessions%ROWTYPE;
+    invitation public.co_loop_invitations%ROWTYPE;
+BEGIN
+    IF p_session_id IS NULL OR BTRIM(p_session_id) = '' OR LENGTH(p_session_id) > 160
+       OR p_invitee_id IS NULL
+       OR p_action NOT IN ('accepted', 'declined') THEN
+        RAISE EXCEPTION 'invalid_invitation_response' USING ERRCODE = '22023';
+    END IF;
+
+    SELECT *
+      INTO room
+      FROM public.co_loop_sessions
+     WHERE session_id = p_session_id
+     FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'co_loop_not_found' USING ERRCODE = 'P0002';
+    END IF;
+
+    SELECT *
+      INTO invitation
+      FROM public.co_loop_invitations
+     WHERE session_id = p_session_id
+       AND invitee_id = p_invitee_id
+     FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'co_loop_invitation_not_found' USING ERRCODE = 'P0002';
+    END IF;
+
+    IF invitation.status = 'accepted' THEN
+        IF p_action = 'accepted' THEN
+            RETURN JSONB_BUILD_OBJECT(
+                'id', invitation.id,
+                'session_id', p_session_id,
+                'status', 'accepted',
+                'already_responded', true
+            );
+        END IF;
+        RAISE EXCEPTION 'accepted_invitation_cannot_be_declined' USING ERRCODE = '55000';
+    END IF;
+
+    IF invitation.status <> 'pending' THEN
+        RAISE EXCEPTION 'co_loop_invitation_no_longer_pending' USING ERRCODE = '55000';
+    END IF;
+
+    IF p_action = 'accepted' THEN
+        IF room.deleted_at IS NOT NULL THEN
+            RAISE EXCEPTION 'co_loop_deleted' USING ERRCODE = '55000';
+        END IF;
+        IF room.status <> 'active' THEN
+            RAISE EXCEPTION 'co_loop_inactive' USING ERRCODE = '55000';
+        END IF;
+        IF room.locked IS TRUE THEN
+            RAISE EXCEPTION 'co_loop_locked' USING ERRCODE = '42501';
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = p_invitee_id
+              AND is_banned IS NOT TRUE
+              AND is_deleted IS NOT TRUE
+        ) THEN
+            RAISE EXCEPTION 'co_loop_invitee_unavailable' USING ERRCODE = '42501';
+        END IF;
+    END IF;
+
+    UPDATE public.co_loop_invitations
+       SET status = p_action,
+           responded_at = NOW()
+     WHERE id = invitation.id
+     RETURNING * INTO invitation;
+
+    RETURN JSONB_BUILD_OBJECT(
+        'id', invitation.id,
+        'session_id', p_session_id,
+        'status', invitation.status,
+        'already_responded', false
+    );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.respond_co_loop_invitation(TEXT, UUID, TEXT) FROM PUBLIC;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        REVOKE ALL ON FUNCTION public.respond_co_loop_invitation(TEXT, UUID, TEXT) FROM anon;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+        REVOKE ALL ON FUNCTION public.respond_co_loop_invitation(TEXT, UUID, TEXT) FROM authenticated;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+        GRANT EXECUTE ON FUNCTION public.respond_co_loop_invitation(TEXT, UUID, TEXT) TO service_role;
+    END IF;
+END
+$$;

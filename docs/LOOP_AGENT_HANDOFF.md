@@ -468,3 +468,12 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Added an explicit invitation-response decision helper and applied it to the direct invitation endpoint. New acceptances now fail when a room is ended/published or locked, matching the session-info access decision instead of saving an acceptance the recipient cannot use.
 - Declining remains available for a pending invitation after a room ends or is locked, so recipients can clear old invitations and release reserved seats. Repeated acceptance of an already accepted invitation remains idempotent.
 - Added coverage for active/unlocked acceptance, locked/ended acceptance, late decline, deleted rooms and stale response states.
+
+
+## 42. Row-locked Co-Loop invite response
+
+- Added `respond_co_loop_invitation`, which locks the same Co-Loop session row as direct reservations and open joins before changing invitation state.
+- Accept now rechecks active/deleted/locked room state and applicant account status inside PostgreSQL, eliminating the read-then-update race with host room controls.
+- Decline remains possible on an ended or locked room so a pending seat can be released; an accepted invitation cannot be declined, and a repeated acceptance is idempotent.
+- The invitation API now delegates its final state transition to the RPC after validating that the delivery belongs to the signed-in recipient.
+- Validate the SQL function on a representative PostgreSQL database; GitHub Actions do not apply this migration automatically.
