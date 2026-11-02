@@ -35,6 +35,9 @@ const files = [
   // Durable Co-Loop Studio session ownership + co-author roster (see
   // /api/co-loop/session-info and components/loops/co-loop-studio.tsx).
   "scripts/co-loop-sessions-schema.sql",
+  "scripts/co-loop-draft-schema.sql",
+  "scripts/co-loop-room-controls.sql",
+  "scripts/co-loop-chat-schema.sql",
   // DM reaction schema fix — see /api/messages/reactions.
   "scripts/message-reactions-schema-fix.sql",
   // DM read receipts (is_read / last_read_at) — see /api/messages/unread-count.
@@ -93,6 +96,8 @@ const files = [
   // open_invite_topic, feed_post_id on co_loop_sessions +
   // open_co_loop_participants table (see /api/co-loop/open-invite).
   "scripts/open-co-loop-invites-schema.sql",
+  "scripts/co-loop-versions-schema.sql",
+  "scripts/co-loop-atomic-lifecycle.sql",
   "scripts/curated-emojis-schema.sql",
   // Spoiler media: is_spoiler column on loops (see SpoilerMedia component).
   "scripts/add-is-spoiler-column.sql",
