@@ -244,10 +244,10 @@ export function EnhancedSettings() {
         promotional: Boolean(notifications.promotional),
         quiet_hours: {
           enabled: storedQuietHours.enabled === true,
-          start: typeof storedQuietHours.start === "string" && /^([01]\\d|2[0-3]):[0-5]\\d$/.test(storedQuietHours.start)
+          start: typeof storedQuietHours.start === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(storedQuietHours.start)
             ? storedQuietHours.start
             : "22:00",
-          end: typeof storedQuietHours.end === "string" && /^([01]\\d|2[0-3]):[0-5]\\d$/.test(storedQuietHours.end)
+          end: typeof storedQuietHours.end === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(storedQuietHours.end)
             ? storedQuietHours.end
             : "08:00",
           time_zone: typeof storedQuietHours.time_zone === "string" && storedQuietHours.time_zone.trim()
