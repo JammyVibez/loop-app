@@ -550,6 +550,7 @@ pub struct ContributionRevision {
     revision_number: i64,
     title: Option<String>,
     content: String,
+    payload: Value,
     editor_username: String,
     created_at: chrono::DateTime<chrono::Utc>,
 }
@@ -608,7 +609,7 @@ pub async fn list_revisions(
     let rows = sqlx::query(
         r#"
         SELECT revision.id, revision.revision_number, revision.title, revision.content,
-               editor.username AS editor_username, revision.created_at
+               revision.payload, editor.username AS editor_username, revision.created_at
         FROM chain_contribution_revisions AS revision
         JOIN chain_contributions AS contribution ON contribution.id = revision.contribution_id
         JOIN profiles AS editor ON editor.id = revision.editor_id
@@ -639,6 +640,9 @@ pub async fn list_revisions(
                 content: row
                     .try_get("content")
                     .map_err(|e| db_error(e, "read revision content"))?,
+                payload: row
+                    .try_get("payload")
+                    .map_err(|e| db_error(e, "read revision payload"))?,
                 editor_username: row
                     .try_get("editor_username")
                     .map_err(|e| db_error(e, "read revision editor"))?,
