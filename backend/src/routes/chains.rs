@@ -865,6 +865,7 @@ pub async fn get(
                 )
             FROM chains AS chain
             WHERE chain.id = $1
+              AND chain.status = 'active'
             "#,
         )
         .bind(chain_id)
