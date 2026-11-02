@@ -8,6 +8,7 @@ import { getUserFromRequest } from "@/lib/server-auth"
 import { diversifyByAuthor } from "@/lib/discovery-ranking"
 import { isCirclePubliclyDiscoverable } from "@/lib/circle-membership-state"
 import { normalizeDiscoveryPreferences } from "@/lib/discovery-preferences"
+import { getBlockedProfileIds } from "@/lib/privacy"
 
 function engagementScore(loop: any) {
   const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats
@@ -90,15 +91,14 @@ export async function GET(request: NextRequest) {
         // Private profiles never rank in trending users unless the viewer
         // already follows them.
         const following = await getFollowingIds(supabase, user?.id || null)
+        const hiddenIds = await getBlockedProfileIds(supabase, user?.id || null, (users || []).map((entry: any) => entry.id))
         const privateIds = await getPrivateProfileIds(supabase, (users || []).map((u: any) => u.id))
-        let visible = users || []
-        if (privateIds.size) {
-          visible = visible.filter((u: any) => {
-            if (user && u.id === user.id) return true
-            if (following.has(u.id)) return true
-            return !privateIds.has(u.id)
-          })
-        }
+        const visible = (users || []).filter((u: any) => {
+          if (user && u.id === user.id) return true
+          if (hiddenIds.has(u.id)) return false
+          if (!privateIds.has(u.id)) return true
+          return following.has(u.id)
+        })
 
         return NextResponse.json({ success: true, data: visible })
       }
@@ -220,15 +220,14 @@ export async function GET(request: NextRequest) {
 
         // 4) Rising creators (private profiles filtered out)
         const following = await getFollowingIds(supabase, user?.id || null)
+        const hiddenIds = await getBlockedProfileIds(supabase, user?.id || null, (creatorsRes.data || []).map((entry: any) => entry.id))
         const privateIds = await getPrivateProfileIds(supabase, (creatorsRes.data || []).map((u: any) => u.id))
-        let visibleCreators = creatorsRes.data || []
-        if (privateIds.size) {
-          visibleCreators = visibleCreators.filter((u: any) => {
-            if (user && u.id === user.id) return true
-            if (following.has(u.id)) return true
-            return !privateIds.has(u.id)
-          })
-        }
+        const visibleCreators = (creatorsRes.data || []).filter((u: any) => {
+          if (user && u.id === user.id) return true
+          if (hiddenIds.has(u.id)) return false
+          if (following.has(u.id)) return true
+          return !privateIds.has(u.id)
+        })
         const creators = visibleCreators.slice(0, 4)
 
         return NextResponse.json({

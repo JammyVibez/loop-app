@@ -538,3 +538,11 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Push preference checks now have a single source of truth. Missing browser subscriptions do not change member preference decisions; notification orchestration separately checks preferences before both transports.
 - Fixed the personalized Discover query when a member chooses topics but has no prior liked/saved signals: no empty PostgREST `IN ()` filter is emitted. Empty preferred-topic/signal combinations now return a useful empty state instead of being treated as a query failure.
 - Re-run frontend verification and production build on the PR merge ref after this commit.
+
+## 51. Consistent two-way block enforcement — 2026-11-02
+
+- Registered `scripts/user-blocks-schema.sql` in production setup and the strict migration set so the block relation exists before shared privacy helpers rely on it.
+- Shared feed filtering removes content from accounts the viewer blocked and accounts that blocked the viewer. A failed block lookup hides non-self authors rather than silently failing open.
+- Profile detail access checks both block directions before returning public or private profile content; lookup failures deny access.
+- Search and trending user/creator discovery remove blocked accounts before responding.
+- Added privacy tests for two-way blocks, private approved follows, self-content and public profiles.

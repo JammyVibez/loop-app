@@ -81,6 +81,8 @@ const files = [
   "scripts/fix-profiles-cosmetics-column.sql",
   // Private profiles: follow_requests table + realtime (see /api/users/follow-requests).
   "scripts/private-profiles-schema.sql",
+  // Two-way account blocks are part of the profile/content privacy contract.
+  "scripts/user-blocks-schema.sql",
   // Hashtag trends must only aggregate publicly visible Loops.
   "scripts/trending-hashtags-function.sql",
   // Native (Capacitor) FCM device tokens — see /api/push/native and lib/fcm.ts.
@@ -241,7 +243,7 @@ function applyFile(file, { strict = false } = {}) {
 for (const file of files) {
   // Verification owns private identity evidence and the admin review function;
   // never report setup success when any part of this security migration fails.
-  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/discovery-preferences.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql", "scripts/co-loop-atomic-lifecycle.sql", "scripts/circle-event-rsvp-lifecycle.sql"].includes(file) })
+  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/discovery-preferences.sql", "scripts/user-blocks-schema.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql", "scripts/co-loop-atomic-lifecycle.sql", "scripts/circle-event-rsvp-lifecycle.sql"].includes(file) })
 }
 
 if (process.argv.includes("--with-seed")) {

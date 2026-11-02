@@ -4,7 +4,7 @@ import { normalizeLoops } from "@/lib/normalize-loop"
 import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 import { applyRealCommentCounts } from "@/lib/loop-stats"
 import { getUserFromRequest } from "@/lib/server-auth";
-import { getHiddenUserIds } from "@/lib/user-blocks"
+import { getBlockedProfileIds } from "@/lib/privacy"
 
 export const dynamic = "force-dynamic"
 
@@ -48,6 +48,9 @@ export async function GET(request: NextRequest) {
       total: number
     } = { loops: [], users: [], hashtags: [], circles: [], total: 0 }
 
+    // Resolve block relationships once for cross-type filtering below.
+
+
     // Best-effort analytics
     if (user) {
       try {
@@ -81,8 +84,11 @@ export async function GET(request: NextRequest) {
 
     const filterPrivateLoops = async (loops: any[]) => {
       if (!loops.length) return loops
-      const authorIds = [...new Set(loops.map((l) => l.author_id).filter(Boolean))] as string[]
-      if (!authorIds.length) return loops
+      const blockedIds = await getBlockedProfileIds(supabase, user?.id || null, loops.map((l) => l.author_id))
+      const unblockedLoops = loops.filter((loop) => !blockedIds.has(loop.author_id))
+      if (!unblockedLoops.length) return []
+      const authorIds = [...new Set(unblockedLoops.map((l) => l.author_id).filter(Boolean))] as string[]
+      if (!authorIds.length) return unblockedLoops
       const { data: authors } = await supabase
         .from("profiles")
         .select("id, privacy_settings")
@@ -94,8 +100,8 @@ export async function GET(request: NextRequest) {
           )
           .map((a: any) => a.id),
       )
-      if (!privateIds.size) return loops
-      return loops.filter((loop) => {
+      if (!privateIds.size) return unblockedLoops
+      return unblockedLoops.filter((loop) => {
         if (user && loop.author_id === user.id) return true
         if (followingIds.has(loop.author_id)) return true
         return !privateIds.has(loop.author_id)
@@ -259,10 +265,7 @@ export async function GET(request: NextRequest) {
             .map((p: any) => p.id),
         )
         // Blocked users (either direction) are hidden from search results.
-        let hiddenIds: Set<string> = new Set()
-        if (user) {
-          hiddenIds = await getHiddenUserIds(supabase, user.id)
-        }
+        const hiddenIds = await getBlockedProfileIds(supabase, user?.id || null, users.map((entry: any) => entry.id))
         users = users
           .filter((u: any) => {
             if (hiddenIds.has(u.id)) return false
