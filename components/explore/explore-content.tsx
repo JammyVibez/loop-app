@@ -22,7 +22,7 @@ import { Calendar } from "lucide-react"
 import { Spinner } from "@/components/ui/skeletons"
 import { ExploreSearchResults } from "@/components/explore/explore-search-results"
 
-type ExploreTab = "events" | "recent" | "deepest" | "creative" | "hashtags"
+type ExploreTab = "events" | "recent" | "following" | "community" | "deepest" | "creative" | "hashtags"
 
 interface TrendingHashtag {
   tag: string
@@ -86,7 +86,10 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
         return
       }
 
-      const sort = tab === "creative" ? "creative" : "recent"
+      const sort = tab === "creative" ? "creative"
+        : tab === "following" ? "following"
+          : tab === "community" ? "community"
+            : "recent"
       const response = await fetch(`/api/explore/trending?type=loops&sort=${sort}&limit=24`, {
         headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
         cache: "no-store",
@@ -262,7 +265,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
       </div>
 
       <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as ExploreTab)} className="w-full">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:grid-cols-5">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:grid-cols-7">
           <TabsTrigger value="events" className="rounded-xl">
             <Calendar className="mr-1.5 h-4 w-4 text-cyan-400" />
             Global Events
@@ -292,7 +295,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
         <TabsContent value="recent" className="mt-6 space-y-4">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold">Recent Loops</h2>
+            <h2 className="text-xl font-semibold">{selectedTab === "following" ? "From people you follow" : "Recent Loops"}</h2>
             <Badge variant="secondary">Newest first</Badge>
           </div>
           {renderLoops(loops, "No recent loops yet")}
