@@ -154,13 +154,14 @@ export async function POST(request: NextRequest) {
       await supabase.from("notifications").update({ is_read: true }).eq("id", notification.id).eq("user_id", user.id)
     }
 
-    const channel = supabase.channel(`co-loop-invite:${sessionId}`)
-    const { error: broadcastError } = await channel.send({
-      type: "broadcast",
-      event: "invite_status",
-      payload: { sessionId, status, userId: user.id },
-    })
-    if (broadcastError) {
+    try {
+      const channel = supabase.channel(`co-loop-invite:${sessionId}`)
+      await channel.send({
+        type: "broadcast",
+        event: "invite_status",
+        payload: { sessionId, status, userId: user.id },
+      })
+    } catch (broadcastError) {
       console.warn("Co-Loop invitation response broadcast failed:", broadcastError)
     }
 
