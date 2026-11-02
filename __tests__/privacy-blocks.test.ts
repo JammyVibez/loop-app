@@ -67,4 +67,28 @@ describe("two-way block privacy", () => {
     const supabase = createSupabaseMock([])
     expect(await canViewProfile(supabase, viewer, "public")).toEqual({ allowed: true, isPrivate: false })
   })
+
+  it("applies two-way blocks and profile visibility to duel and Co-Loop discovery rows", async () => {
+    const supabase = createSupabaseMock([
+      { blocker_id: viewer, blocked_id: "blocked-creator" },
+    ], ["private-creator"])
+    const follows = new Set<string>()
+
+    const duelRows = [
+      { id: "duel-private", creator_id: "private-creator" },
+      { id: "duel-blocked", creator_id: "blocked-creator" },
+      { id: "duel-public", creator_id: "public-creator" },
+    ].map((duel) => ({ ...duel, author_id: duel.creator_id }))
+    const visibleDuels = await filterPrivateContent(supabase, duelRows, viewer, follows)
+
+    const coLoopRows = [
+      { id: "co-loop-private", author_id: "private-creator" },
+      { id: "co-loop-blocked", author_id: "blocked-creator" },
+      { id: "co-loop-public", author_id: "public-creator" },
+    ]
+    const visibleCoLoops = await filterPrivateContent(supabase, coLoopRows, viewer, follows)
+
+    expect(visibleDuels.map((row) => row.id)).toEqual(["duel-public"])
+    expect(visibleCoLoops.map((row) => row.id)).toEqual(["co-loop-public"])
+  })
 })
