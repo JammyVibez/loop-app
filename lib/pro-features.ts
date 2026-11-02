@@ -181,15 +181,6 @@ export const PRO_FEATURES = [
     enforced: false,
   },
   {
-    id: "algo_boost",
-    title: "50% Algorithmic Reach Boost",
-    description: "All your public Loops & Reels get featured automatically with +50% extra reach in discovery feeds",
-    free: "Standard reach",
-    pro: "+50% Feed Reach Boost",
-    icon: "trending",
-    enforced: false,
-  },
-  {
     id: "communities",
     title: "More Communities",
     description: "Create and run more Circles for your audiences",

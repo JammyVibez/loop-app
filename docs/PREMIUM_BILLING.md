@@ -31,3 +31,8 @@ The success redirect carries the Stripe Checkout Session ID to /premium. LOOP re
 ## Fresh-schema compatibility
 
 The Premium billing migration also creates `profiles.premium_expires_at` when the base profile schema did not include it, and explicitly revokes direct browser access to the subscription ledger. Authenticated billing status/receipt APIs read the ledger through the server service role. The setup runner treats the subscription migration as strict.
+
+
+## Feature availability
+
+The Premium comparison labels any feature without a live server-side entitlement check as “In development · Not available yet”; these are not included in current Pro benefits. A paid algorithmic reach boost is not part of LOOP's product direction because public discovery should remain relevance-based and transparent.

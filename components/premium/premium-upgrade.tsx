@@ -1,5 +1,5 @@
 "use client"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -57,6 +57,7 @@ export function PremiumUpgrade() {
   const [portalBusy, setPortalBusy] = useState(false)
   const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(null)
   const [checkoutCancelled, setCheckoutCancelled] = useState(false)
+  const coinPurchaseAttempt = useRef<{ plan: ProPlanId; key: string } | null>(null)
   const [billingStatus, setBillingStatus] = useState<{
     can_manage?: boolean
     status?: string
@@ -125,10 +126,20 @@ export function PremiumUpgrade() {
       return
     }
     setBusy(true)
+    const attempt = method === "coins"
+      ? coinPurchaseAttempt.current?.plan === plan
+        ? coinPurchaseAttempt.current
+        : { plan, key: crypto.randomUUID() }
+      : null
+    if (attempt) coinPurchaseAttempt.current = attempt
     try {
       const res = await fetch("/api/premium/activate", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+          ...(attempt ? { "Idempotency-Key": attempt.key } : {}),
+        },
         body: JSON.stringify({ plan, method }),
       })
       const data = await res.json()
@@ -136,6 +147,9 @@ export function PremiumUpgrade() {
       if (method === "stripe" && data.checkout_url) {
         window.location.href = data.checkout_url
         return
+      }
+      if (attempt && coinPurchaseAttempt.current?.key === attempt.key) {
+        coinPurchaseAttempt.current = null
       }
       await refreshUser?.()
       toast({ title: "You're Pro!", description: data.message })
@@ -179,7 +193,7 @@ export function PremiumUpgrade() {
         </div>
         <Card>
           <CardContent className="grid gap-3 p-6 text-left">
-            {PRO_FEATURES.map((feature) => (
+            {PRO_FEATURES.filter((feature) => feature.enforced).map((feature) => (
               <div key={feature.id} className="flex items-start gap-3">
                 <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
                 <div>
@@ -355,7 +369,14 @@ export function PremiumUpgrade() {
                   <Icon className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-semibold">{feature.title}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold">{feature.title}</p>
+                    {!feature.enforced ? (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                        In development · Not available yet
+                      </Badge>
+                    ) : null}
+                  </div>
                   <p className="mt-0.5 text-sm text-muted-foreground">{feature.description}</p>
                   <p className="mt-2 text-xs text-muted-foreground">
                     Free: {feature.free} · <span className="font-medium text-foreground">Pro: {feature.pro}</span>

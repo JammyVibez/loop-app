@@ -39,3 +39,11 @@ The success redirect carries the Stripe Checkout Session ID to /premium. LOOP re
 
 - Made the Rust Collection invitation response DTO public because it is returned by a public Axum handler; the API struct fields remain private.
 - Stabilized the creator-revenue month test with an explicit US short-month locale. The test expected the three-letter `Sep` label but `en-GB` emits `Sept` in Node's ICU data; this was a test-fixture locale mismatch, not an analytics calculation error.
+
+
+## 64. Premium retry safety and honest entitlement presentation — 2026-11-02
+
+- The Premium page now retains an `Idempotency-Key` for a Coin purchase attempt across transient failures and reuses it when the member retries the same plan. The key is cleared only after the server confirms success; choosing a different plan starts a new attempt.
+- The active-Pro summary lists only perks whose entitlement is currently enforced. Unfinished perks are clearly labelled “In development · Not available yet” in the upgrade comparison instead of being presented as already unlocked.
+- Removed the proposed paid algorithmic reach boost entirely; discovery remains relevance-based and transparent, not pay-to-amplify.
+- Removed the unused collaboration flag from the Collection member-removal handler, resolving the Clippy `-D warnings` failure reported in the previous Rust run.

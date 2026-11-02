@@ -1122,7 +1122,7 @@ pub async fn remove_member(
     })?;
 
     let collection =
-        sqlx::query("SELECT owner_id, is_collaborative FROM collections WHERE id = $1 FOR UPDATE")
+        sqlx::query("SELECT owner_id FROM collections WHERE id = $1 FOR UPDATE")
             .bind(collection_id)
             .fetch_optional(&mut *transaction)
             .await
@@ -1143,9 +1143,6 @@ pub async fn remove_member(
             })?;
 
     let owner_id: Uuid = collection.try_get("owner_id").map_err(internal_db_error)?;
-    let is_collaborative: bool = collection
-        .try_get("is_collaborative")
-        .map_err(internal_db_error)?;
     if owner_id == member_user_id {
         return Err(api_error(
             StatusCode::CONFLICT,
