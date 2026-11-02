@@ -553,3 +553,11 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Pro-only, verified-only, organization-only, private/followers-only and Circle-restricted events do not reveal titles, descriptions, categories, covers or dates in crawler metadata.
 - Circle events require a confirmed active, public, non-Pro Circle before event details can enter previews. Unlisted events remain directly shareable but are noindex.
 - Added unit tests for access types, visibility states, and Circle status.
+
+## 53. Creator analytics use measured data — 2026-11-02
+
+- Removed demo growth multipliers and fabricated follower deltas. Metrics now use actual loop-stat counters and the real follower count.
+- The API validates 7-day, 30-day and all-time ranges, pages creator Loops in bounded batches, and reports database failures instead of presenting partial results as complete.
+- Views, likes and comments are explicitly described as lifetime totals on Loops published in the selected range, not as impressions generated only during those dates.
+- Replaced invented “best time to post” wording with the observed most-active posting hour in UTC.
+- Added deterministic unit tests for metric aggregation, engagement rate, UTC posting hour and rolling weekly activity.
