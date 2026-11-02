@@ -971,6 +971,25 @@ export interface Database {
         }
         Returns: Json
       }
+      submit_verification_appeal: {
+        Args: {
+          p_request_id: string
+          p_user_id: string
+          p_reason: string
+          p_evidence_url?: string | null
+        }
+        Returns: Json
+      }
+      review_verification_appeal: {
+        Args: {
+          p_appeal_id: string
+          p_reviewer_id: string
+          p_action: string
+          p_rejection_reason?: string | null
+          p_admin_notes?: string | null
+        }
+        Returns: Json
+      }
       review_content_flag: {
         Args: {
           p_flag_id: string
