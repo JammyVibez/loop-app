@@ -15,6 +15,8 @@ const files = [
   // Independent blue identity verification: request lifecycle, privacy and atomic review.
   // Kept separate from Premium entitlement grants.
   "scripts/verification-lifecycle.sql",
+  // Viewer-owned Discover preferences for muted and explicitly preferred topics.
+  "scripts/discovery-preferences.sql",
   // Rust API compatibility foundation: profiles/collections, then Chains,
   // Chain collection targets and contribution revision/remix lineage.
   "backend/migrations/0001_collections.sql",
@@ -239,7 +241,7 @@ function applyFile(file, { strict = false } = {}) {
 for (const file of files) {
   // Verification owns private identity evidence and the admin review function;
   // never report setup success when any part of this security migration fails.
-  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql", "scripts/co-loop-atomic-lifecycle.sql", "scripts/circle-event-rsvp-lifecycle.sql"].includes(file) })
+  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/discovery-preferences.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql", "scripts/co-loop-atomic-lifecycle.sql", "scripts/circle-event-rsvp-lifecycle.sql"].includes(file) })
 }
 
 if (process.argv.includes("--with-seed")) {

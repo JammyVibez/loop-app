@@ -516,3 +516,11 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Web Push now uses the shared preference resolver. Native FCM delivery is skipped when the same resolver reports push disabled or inside quiet hours; a missing browser subscription does not block a separately registered native device.
 - In-app notification rows remain available during quiet hours. Quiet hours affect push delivery only.
 - Added unit coverage for normal and overnight windows, boundary behavior, IANA timezone conversion, global/category opt-outs and invalid settings. Validate the full frontend CI and production build on this exact branch head.
+
+
+## 48. Viewer-controlled Discover preferences — 2026-11-02
+
+- Added a persistent per-profile Discover preference object with explicit topic interests, muted topics and a personalization on/off control. The additive migration is registered as strict in the production setup runner.
+- Added an authenticated preferences API that only reads or updates the signed-in member's own profile. Topic lists are bounded, normalized and allow-listed; muted topics take precedence over preferred topics.
+- Updated personalized ranking to combine explicit topics with public liked/saved Loop signals, exclude muted-topic posts, and continue applying profile/Circle privacy checks before ranking. Recent, Following and From Circles remain available when personalization is paused.
+- Added unit coverage for normalization, partial updates, malformed input and preference conflicts. PostgreSQL migration execution and CI on the exact commit remain release gates.

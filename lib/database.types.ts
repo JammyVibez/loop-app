@@ -39,6 +39,7 @@ export interface Database {
           theme_data: Json | null
           privacy_settings: Json | null
           notification_settings: Json | null
+          discovery_preferences: Json
           followers_count: number
           following_count: number
           loops_count: number
@@ -72,6 +73,7 @@ export interface Database {
           theme_data?: Json | null
           privacy_settings?: Json | null
           notification_settings?: Json | null
+          discovery_preferences?: Json
           followers_count?: number
           following_count?: number
           loops_count?: number
@@ -105,6 +107,7 @@ export interface Database {
           theme_data?: Json | null
           privacy_settings?: Json | null
           notification_settings?: Json | null
+          discovery_preferences?: Json
           followers_count?: number
           following_count?: number
           loops_count?: number

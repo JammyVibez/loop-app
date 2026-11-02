@@ -7,6 +7,7 @@ import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { diversifyByAuthor } from "@/lib/discovery-ranking"
 import { isCirclePubliclyDiscoverable } from "@/lib/circle-membership-state"
+import { normalizeDiscoveryPreferences } from "@/lib/discovery-preferences"
 
 function engagementScore(loop: any) {
   const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats
@@ -257,50 +258,55 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Sign in to use your personalized Discover feed." }, { status: 401 })
           }
 
-          // Only public Loops that the viewer has liked or saved can influence
-          // this feed. Private posts and gated creator profiles are excluded.
-          const { data: interactions, error: interactionError } = await supabase
-            .from("loop_interactions")
-            .select("loop_id")
-            .eq("user_id", user.id)
-            .in("interaction_type", ["like", "save"])
-            .order("created_at", { ascending: false })
-            .limit(120)
+          const { data: viewerProfile, error: preferencesError } = await supabase
+            .from("profiles").select("discovery_preferences").eq("id", user.id).maybeSingle()
 
+          if (preferencesError || !viewerProfile) {
+            console.error("Discover preferences could not be loaded:", preferencesError)
+            return NextResponse.json({ error: "Could not load your Discover preferences." }, { status: 500 })
+          }
+
+          const preferences = normalizeDiscoveryPreferences(viewerProfile.discovery_preferences)
+          if (!preferences.personalization_enabled) {
+            return NextResponse.json({
+              success: true, data: [], loops: [], personalization_enabled: false,
+              recommendation_basis: "Personalized recommendations are paused. Recent, Following and From Circles remain available.",
+            })
+          }
+
+          const mutedTopics = new Set(preferences.muted_topics)
+          // Personalization combines member-selected topics with public liked/saved
+          // Loop signals. Private posts are never used as a recommendation source.
+          const { data: interactions, error: interactionError } = await supabase
+            .from("loop_interactions").select("loop_id").eq("user_id", user.id)
+            .in("interaction_type", ["like", "save"]).order("created_at", { ascending: false }).limit(120)
           if (interactionError) {
             console.error("Personalized Discover signals failed:", interactionError)
             return NextResponse.json({ error: "Could not load your interest signals." }, { status: 500 })
           }
 
           const signalIds = [...new Set((interactions || []).map((row: any) => row.loop_id).filter(Boolean))]
-          if (signalIds.length === 0) {
-            return NextResponse.json({
-              success: true,
-              data: [],
-              loops: [],
-              recommendation_basis: "Like or save public Loops to build your interest feed.",
-            })
-          }
-
-          const { data: signalLoops, error: signalError } = await supabase
-            .from("loops")
-            .select("id, author_id, hashtags")
-            .in("id", signalIds)
-            .eq("visibility", "public")
-            .is("parent_loop_id", null)
-
-          if (signalError) {
-            console.error("Personalized Discover source Loops failed:", signalError)
-            return NextResponse.json({ error: "Could not load your public interest signals." }, { status: 500 })
+          let signalLoops: any[] = []
+          if (signalIds.length > 0) {
+            const { data, error: signalError } = await supabase.from("loops")
+              .select("id, author_id, hashtags").in("id", signalIds)
+              .eq("visibility", "public").is("parent_loop_id", null)
+            if (signalError) {
+              console.error("Personalized Discover source Loops failed:", signalError)
+              return NextResponse.json({ error: "Could not load your public interest signals." }, { status: 500 })
+            }
+            signalLoops = data || []
           }
 
           const following = await getFollowingIds(supabase, user.id)
-          const visibleSignals = await filterPrivateContent(supabase, signalLoops || [], user.id, following)
-          const interestWeights = new Map<string, number>()
+          const visibleSignals = await filterPrivateContent(supabase, signalLoops, user.id, following)
+          const interestWeights = new Map<string, number>(
+            preferences.preferred_topics.map((tag, index): [string, number] => [tag, 8 - index]),
+          )
           for (const loop of visibleSignals) {
             for (const rawTag of loop.hashtags || []) {
               const tag = String(rawTag).toLowerCase().replace(/^#/, "")
-              if (tag) interestWeights.set(tag, (interestWeights.get(tag) || 0) + 1)
+              if (tag && !mutedTopics.has(tag)) interestWeights.set(tag, (interestWeights.get(tag) || 0) + 1)
             }
           }
 
@@ -357,13 +363,20 @@ export async function GET(request: NextRequest) {
             matchedTags: string[]
             [key: string]: any
           }
-          const candidateRows = [...candidates.values()].map(({ loop, matched }) => ({
-            ...loop,
-            id: String(loop.id),
-            author_id: typeof loop.author_id === "string" ? loop.author_id : undefined,
-            created_at: String(loop.created_at),
-            matchedTags: [...matched],
-          })) as RankedCandidate[]
+          const candidateRows = [...candidates.values()]
+            .filter(({ loop }) => {
+              const tags = Array.isArray(loop.hashtags)
+                ? loop.hashtags.map((tag: unknown) => String(tag).toLowerCase().replace(/^#/, ""))
+                : []
+              return !tags.some((tag: string) => mutedTopics.has(tag))
+            })
+            .map(({ loop, matched }) => ({
+              ...loop,
+              id: String(loop.id),
+              author_id: typeof loop.author_id === "string" ? loop.author_id : undefined,
+              created_at: String(loop.created_at),
+              matchedTags: [...matched],
+            })) as RankedCandidate[]
           const visibleCandidates = await filterPrivateContent(
             supabase,
             candidateRows,
@@ -416,7 +429,7 @@ export async function GET(request: NextRequest) {
             success: true,
             data: results,
             loops: results,
-            recommendation_basis: "Based on topic tags from public Loops you have liked or saved. Private content is not used or shown.",
+            recommendation_basis: "Based on topics you choose and tags from public Loops you have liked or saved. Muted topics, private content and inaccessible creator profiles are excluded.",
           })
         }
 
