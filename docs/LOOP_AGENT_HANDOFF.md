@@ -313,3 +313,6 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Profile metadata no longer publishes private profiles' bios, profile pictures, verification mark or follower totals through Open Graph previews. Structured ProfilePage JSON-LD is omitted for suspended/deleted accounts and omits private profile signals.
 - Added focused tests for public, unlisted, private, follower-only, legacy and malformed visibility settings.
 - The profile API still provides the limited profile payload according to its existing private/block rules; remaining end-to-end cases for blocked users and content surfaces are still part of the cross-feature privacy test gate.
+## 20. Private profile crawler exclusion — 2026-11-02
+
+- Restricted profile routes now return noindex/nofollow crawler directives and do not emit ProfilePage JSON-LD. The public preview remains generic and does not contain private identifying metadata.

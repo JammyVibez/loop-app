@@ -29,6 +29,7 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
   let isVerified = false
   let followersCount = 0
   let displayName = ""
+  let restrictedProfile = false
 
   try {
     const { data: profile } = await supabase
@@ -50,6 +51,7 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
 
     if (profile) {
       const restricted = isRestrictedProfileVisibility(profile.privacy_settings)
+      restrictedProfile = restricted
       const name = profile.display_name || username
       displayName = restricted ? username : name
       title = restricted ? "@" + username + " on Loop" : name + " (@" + username + ") — Profile"
@@ -68,7 +70,7 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
     console.error("Error generating profile metadata:", err)
   }
 
-  return buildOgMetadata({
+  const metadata = buildOgMetadata({
     baseUrl,
     path: `/profile/${username}`,
     type: "profile",
@@ -85,6 +87,10 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
       url: `loopapp.me/profile/${username}`,
     },
   })
+
+  return restrictedProfile
+    ? { ...metadata, robots: { index: false, follow: false } }
+    : metadata
 }
 
 export default async function ProfilePage({ params }: ProfilePageProps) {
@@ -111,7 +117,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       bio = !restricted && profile.bio ? stripCircleBioTokens(profile.bio).slice(0, 160) : ""
       avatarUrl = restricted ? "" : profile.avatar_url || ""
       followersCount = restricted ? 0 : Number(profile.followers_count || 0)
-      includeProfileStructuredData = true
+      includeProfileStructuredData = !restricted
     }
   } catch (err) {
     console.error("Error loading profile for structured data:", err)
