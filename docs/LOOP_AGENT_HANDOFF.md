@@ -353,3 +353,8 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - The review function independently validates the reviewer’s active Circle role, owner/admin/moderator role hierarchy, target profile account status, pending request state, capacity and requested role. It prevents moderators from granting moderator/admin roles and only lets the Circle owner grant admin.
 - Rejections now transition the join row to `rejected` instead of deleting it, preserving a membership-request audit trail and allowing a future re-application through the join function.
 - The API calls the RPC and only sends the appropriate recipient notification after the transaction commits. Added route coverage for approval, rejection, capacity conflicts and invalid role requests.
+## 27. Circle role authority cleanup — 2026-11-02
+
+- Removed the now-obsolete API-side role promotion check and member-count sync import from the join-review route; the transaction is the authoritative policy gate and count updater.
+- The Circle staff read gate now uses the canonical owner_id only, matching the row-locked review function rather than retaining creator_id access after ownership changes.
+- Tightened pending membership identifiers to a canonical UUID pattern before calling the database.

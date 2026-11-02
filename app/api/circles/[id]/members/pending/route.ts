@@ -2,8 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
 import { notifyUser } from "@/lib/notifications";
 import { getUserFromRequest } from "@/lib/server-auth"
-import { canApproveCircleRole, normalizeRole } from "@/lib/circle-permissions"
-import { syncCircleMemberCount } from "@/lib/circle-lifecycle";
+import { normalizeRole } from "@/lib/circle-permissions"
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
 
@@ -14,7 +13,7 @@ async function getCircleStaffRole(circleId: string, userId: string): Promise<"ow
     .eq("id", circleId)
     .maybeSingle()
   if (circleError || !circle) return null
-  if ((circle.owner_id || circle.creator_id) === userId) return "owner"
+  if (circle.owner_id === userId) return "owner"
 
   const { data: member, error } = await supabase
     .from("circle_members")
@@ -86,7 +85,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const input = body as Record<string, unknown>
-    if (typeof input.memberId !== "string" || !/^[0-9a-f-]{36}$/i.test(input.memberId)) {
+    if (typeof input.memberId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.memberId)) {
       return NextResponse.json({ error: "A valid member ID is required" }, { status: 400 })
     }
     if (input.action !== "approve" && input.action !== "reject") {
