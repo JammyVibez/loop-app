@@ -76,7 +76,7 @@ describe("universal collaborative-object search", () => {
     expect(chainQuery?.calls).toContainEqual(["in", ["status", ["active", "completed"]]])
   })
 
-  it("does not surface Chains created by private profiles or profiles blocked by the viewer", async () => {
+  it("does not surface Chains created by private profiles", async () => {
     state.fixtures.chains = {
       data: [{
         id: "private-owner-chain",
@@ -91,6 +91,57 @@ describe("universal collaborative-object search", () => {
     }
     state.fixtures.profiles = {
       data: [{ id: creatorId, privacy_settings: { profile_visibility: "private" } }],
+      error: null,
+    }
+
+    const response = await GET(request("chains"))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.chains).toEqual([])
+  })
+
+
+  it("does not surface public Chains owned by a profile blocked by the viewer", async () => {
+    state.user.mockResolvedValue({ id: "22222222-2222-4222-8222-222222222222" })
+    state.blocked.mockResolvedValue(new Set([creatorId]))
+    state.fixtures.chains = {
+      data: [{
+        id: "blocked-owner-chain",
+        creator_id: creatorId,
+        circle_id: null,
+        title: "Worldbuilding",
+        visibility: "public",
+        status: "active",
+      }],
+      error: null,
+    }
+    state.fixtures.profiles = {
+      data: [{ id: creatorId, privacy_settings: { profile_visibility: "public" } }],
+      error: null,
+    }
+
+    const response = await GET(request("chains"))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.chains).toEqual([])
+  })
+
+  it("fails closed for malformed configured profile visibility", async () => {
+    state.fixtures.chains = {
+      data: [{
+        id: "malformed-owner-chain",
+        creator_id: creatorId,
+        circle_id: null,
+        title: "Worldbuilding",
+        visibility: "public",
+        status: "active",
+      }],
+      error: null,
+    }
+    state.fixtures.profiles = {
+      data: [{ id: creatorId, privacy_settings: "not-an-object" }],
       error: null,
     }
 

@@ -5,6 +5,7 @@ import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 import { applyRealCommentCounts } from "@/lib/loop-stats"
 import { getUserFromRequest } from "@/lib/server-auth";
 import { getBlockedProfileIds } from "@/lib/privacy"
+import { isRestrictedProfileVisibility } from "@/lib/profile-privacy"
 
 export const dynamic = "force-dynamic"
 
@@ -93,7 +94,7 @@ export async function GET(request: NextRequest) {
       const publicItems = items.filter((item) => item.visibility === "public")
       const ownerIds = [...new Set(publicItems.map((item) => item[ownerField]).filter(Boolean))] as string[]
       if (!ownerIds.length) return []
-      const blockedIds = await getBlockedProfileIds(supabase, user?.id || null, ownerIds).catch(() => new Set<string>())
+      const blockedIds = await getBlockedProfileIds(supabase, user?.id || null, ownerIds).catch(() => new Set(ownerIds))
       const { data: owners, error: ownerError } = await supabase
         .from("profiles")
         .select("id, privacy_settings")
@@ -105,8 +106,7 @@ export async function GET(request: NextRequest) {
         if (!ownerId || blockedIds.has(ownerId)) return false
         const owner = ownerById.get(ownerId)
         if (!owner) return false
-        const visibility = owner.privacy_settings?.profile_visibility
-        const restricted = visibility === "private" || visibility === "followers"
+        const restricted = isRestrictedProfileVisibility(owner.privacy_settings)
         return !restricted || (user && (ownerId === user.id || followingIds.has(ownerId)))
       })
     }
