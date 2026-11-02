@@ -12,6 +12,12 @@ if (!databaseUrl) {
 const files = [
   "scripts/schema-compat-alignment.sql",
   "scripts/complete-database-setup.sql",
+  // Rust API compatibility foundation: profiles/collections, then Chains,
+  // Chain collection targets and contribution revision/remix lineage.
+  "backend/migrations/0001_collections.sql",
+  "backend/migrations/0004_chains.sql",
+  "backend/migrations/0005_chain_collections.sql",
+  "backend/migrations/0006_chain_lifecycle.sql",
   // Recurring LOOP Pro subscriptions and auditable billing grants.
   "scripts/premium-subscriptions-migration.sql",
   "scripts/launch-schema-alignment.sql",
