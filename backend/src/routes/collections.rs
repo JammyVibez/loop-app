@@ -1272,10 +1272,10 @@ mod tests {
 
     #[test]
     fn normalizes_collection_collaborator_usernames_safely() {
-        assert_eq!(
+        assert!(matches!(
             normalize_collection_member_username("  @Creator_01 "),
-            Ok("creator_01".to_owned())
-        );
+            Ok(username) if username == "creator_01"
+        ));
         assert!(normalize_collection_member_username("").is_err());
         assert!(normalize_collection_member_username("bad username").is_err());
         assert!(normalize_collection_member_username("x".repeat(51).as_str()).is_err());
@@ -1283,11 +1283,11 @@ mod tests {
 
     #[test]
     fn restricts_collection_collaborator_roles_to_editor_and_viewer() {
-        assert_eq!(normalize_collection_member_role(None), Ok("editor"));
-        assert_eq!(
+        assert!(matches!(normalize_collection_member_role(None), Ok("editor")));
+        assert!(matches!(
             normalize_collection_member_role(Some("viewer")),
             Ok("viewer")
-        );
+        ));
         assert!(normalize_collection_member_role(Some("owner")).is_err());
         assert!(normalize_collection_member_role(Some("admin")).is_err());
     }
