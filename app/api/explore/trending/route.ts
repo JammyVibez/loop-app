@@ -90,6 +90,7 @@ export async function GET(request: NextRequest) {
 
         // Private profiles never rank in trending users unless the viewer
         // already follows them.
+        const following = await getFollowingIds(supabase, user?.id || null)
         const hiddenIds = await getBlockedProfileIds(supabase, user?.id || null, (users || []).map((entry: any) => entry.id))
         const privateIds = await getPrivateProfileIds(supabase, (users || []).map((u: any) => u.id))
         const visible = (users || []).filter((u: any) => {
@@ -240,7 +241,6 @@ export async function GET(request: NextRequest) {
           .slice(0, 4)
 
         // 4) Rising creators (private profiles filtered out)
-        const following = await getFollowingIds(supabase, user?.id || null)
         const hiddenIds = await getBlockedProfileIds(supabase, user?.id || null, (creatorsRes.data || []).map((entry: any) => entry.id))
         const privateIds = await getPrivateProfileIds(supabase, (creatorsRes.data || []).map((u: any) => u.id))
         const visibleCreators = (creatorsRes.data || []).filter((u: any) => {
