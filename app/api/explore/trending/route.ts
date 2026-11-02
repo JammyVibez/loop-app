@@ -343,21 +343,57 @@ export async function GET(request: NextRequest) {
             }
           }
 
-          const ranked = [...candidates.values()]
-            .sort((left, right) => {
-              const leftInterest = [...left.matched].reduce((sum, tag) => sum + (interestWeights.get(tag) || 0), 0)
-              const rightInterest = [...right.matched].reduce((sum, tag) => sum + (interestWeights.get(tag) || 0), 0)
-              return rightInterest - leftInterest
-                || engagementScore(right.loop) - engagementScore(left.loop)
-                || new Date(right.loop.created_at).getTime() - new Date(left.loop.created_at).getTime()
-            })
-            .map(({ loop, matched }) => ({
-              ...loop,
-              discovery_reason: "Matches your interest in " + [...matched].slice(0, 2).map((tag) => "#" + tag).join(" and "),
-            }))
-            .slice(0, limit)
+          // Apply profile privacy gates before ranking and pagination so private
+          // creators cannot occupy recommendation slots or affect visible ordering.
+          const candidateRows = [...candidates.values()].map(({ loop, matched }) => ({
+            ...loop,
+            matchedTags: [...matched],
+          }))
+          const visibleCandidates = await filterPrivateContent(
+            supabase,
+            candidateRows,
+            user.id,
+            following,
+          )
 
-          const visibleRows = await filterPrivateContent(supabase, ranked, user.id, following)
+          const sortedCandidates = visibleCandidates.sort((left, right) => {
+            const leftInterest = left.matchedTags.reduce((sum, tag) => sum + (interestWeights.get(tag) || 0), 0)
+            const rightInterest = right.matchedTags.reduce((sum, tag) => sum + (interestWeights.get(tag) || 0), 0)
+            return rightInterest - leftInterest
+              || engagementScore(right) - engagementScore(left)
+              || new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
+              || String(right.id).localeCompare(String(left.id))
+          })
+
+          // Keep the feed varied without starving a small community: select up
+          // to two recommendations per creator first, then fill remaining slots
+          // from the ranked tail if fewer than the requested items were found.
+          const selected: typeof sortedCandidates = []
+          const selectedIds = new Set<string>()
+          const authorCounts = new Map<string, number>()
+          for (const candidate of sortedCandidates) {
+            const authorId = String(candidate.author_id || "")
+            const count = authorCounts.get(authorId) || 0
+            if (count >= 2) continue
+            selected.push(candidate)
+            selectedIds.add(candidate.id)
+            authorCounts.set(authorId, count + 1)
+            if (selected.length >= limit) break
+          }
+          if (selected.length < limit) {
+            for (const candidate of sortedCandidates) {
+              if (selectedIds.has(candidate.id)) continue
+              selected.push(candidate)
+              if (selected.length >= limit) break
+            }
+          }
+
+          const ranked = selected.map((loop) => ({
+            ...loop,
+            discovery_reason: "Matches your interest in " + loop.matchedTags.slice(0, 2).map((tag) => "#" + tag).join(" and "),
+          }))
+
+          const visibleRows = ranked
           const enriched = await enrichLoopsWithPollsAndDuels(supabase, visibleRows)
           await applyRealCommentCounts(supabase, enriched)
           await applyRealBranchCounts(supabase, enriched)
