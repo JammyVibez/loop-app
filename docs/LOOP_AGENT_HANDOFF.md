@@ -546,3 +546,10 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Profile detail access checks both block directions before returning public or private profile content; lookup failures deny access.
 - Search and trending user/creator discovery remove blocked accounts before responding.
 - Added privacy tests for two-way blocks, private approved follows, self-content and public profiles.
+
+## 52. Event share-preview privacy — 2026-11-02
+
+- Event metadata now uses a generic noindex preview unless the event is universally accessible.
+- Pro-only, verified-only, organization-only, private/followers-only and Circle-restricted events do not reveal titles, descriptions, categories, covers or dates in crawler metadata.
+- Circle events require a confirmed active, public, non-Pro Circle before event details can enter previews. Unlisted events remain directly shareable but are noindex.
+- Added unit tests for access types, visibility states, and Circle status.
