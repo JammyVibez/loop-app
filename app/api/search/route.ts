@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic"
 
 
 function escapeIlike(value: string) {
-  return value.replace(/[%,_()]/g, " ").trim()
+  return value.replace(/[%,_()\\\\]/g, " ").trim()
 }
 
 export async function GET(request: NextRequest) {
@@ -18,8 +18,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const rawQuery = (searchParams.get("q") || searchParams.get("query") || "").trim()
     const type = searchParams.get("type") || "all"
-    const limit = Math.min(40, Number.parseInt(searchParams.get("limit") || "20") || 20)
-    const offset = Number.parseInt(searchParams.get("offset") || "0") || 0
+    const requestedLimit = Number.parseInt(searchParams.get("limit") || "20", 10)
+    const requestedOffset = Number.parseInt(searchParams.get("offset") || "0", 10)
+    const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(40, requestedLimit)) : 20
+    const offset = Number.isFinite(requestedOffset) ? Math.max(0, Math.min(10_000, requestedOffset)) : 0
 
     if (!rawQuery) {
       return NextResponse.json({ error: "Search query is required" }, { status: 400 })
@@ -326,7 +328,7 @@ export async function GET(request: NextRequest) {
         .from("circles")
         .select(
           `
-          id, name, description, avatar_url, video_avatar_url, cover_url, member_count, is_public, slug,
+          id, name, description, avatar_url, video_avatar_url, cover_url, member_count, is_private, slug,
           owner:profiles!owner_id(id, username, display_name, avatar_url, video_avatar_url, is_verified)
         `,
         )
@@ -339,13 +341,15 @@ export async function GET(request: NextRequest) {
       } else {
         const fallback = await supabase
           .from("circles")
-          .select("id, name, description, avatar_url, video_avatar_url, member_count, is_public")
+          .select("id, name, description, avatar_url, member_count, is_private")
           .ilike("name", pattern)
           .limit(12)
         circles = fallback.data
       }
 
-      results.circles = (circles || []).filter((c: any) => c.is_public !== false)
+      // Circle discovery is public-only. Private Circle metadata should not
+      // be exposed by search, even when a viewer guesses a matching name.
+      results.circles = (circles || []).filter((circle: any) => circle.is_private === false)
     }
 
     results.total =
