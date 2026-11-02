@@ -46,6 +46,8 @@ export function CollectionsHub() {
   const { toast } = useToast()
   const router = useRouter()
   const [collections, setCollections] = useState<CollectionSummary[]>([])
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [title, setTitle] = useState("")
@@ -57,10 +59,12 @@ export function CollectionsHub() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await rustApiRequest<CollectionSummary[]>("collections", {
+      const data = await rustApiRequest<CollectionSummary[]>("collections?limit=25&offset=0", {
         headers: getAuthHeader(),
       })
-      setCollections(Array.isArray(data) ? data : [])
+      const page = Array.isArray(data) ? data : []
+      setCollections(page)
+      setHasMore(page.length === 25)
     } catch (error) {
       toast({
         title: "Couldn't load collections",
@@ -75,6 +79,30 @@ export function CollectionsHub() {
   useEffect(() => {
     if (!authLoading) void load()
   }, [authLoading, load])
+
+  const loadMore = async () => {
+    if (!hasMore || loadingMore) return
+    setLoadingMore(true)
+    try {
+      const page = await rustApiRequest<CollectionSummary[]>("collections?limit=25&offset=" + collections.length, {
+        headers: getAuthHeader(),
+      })
+      const next = Array.isArray(page) ? page : []
+      setCollections((current) => {
+        const known = new Set(current.map((collection) => collection.id))
+        return [...current, ...next.filter((collection) => !known.has(collection.id))]
+      })
+      setHasMore(next.length === 25)
+    } catch (error) {
+      toast({
+        title: "Couldn't load more collections",
+        description: error instanceof Error ? error.message : "Try again in a moment.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   const createCollection = async () => {
     if (!title.trim()) return
@@ -191,6 +219,14 @@ export function CollectionsHub() {
               </Card>
             </Link>
           ))}
+        </div>
+      )}
+
+      {hasMore && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={() => void loadMore()} disabled={loadingMore}>
+            {loadingMore ? "Loading collections…" : "Load more collections"}
+          </Button>
         </div>
       )}
 

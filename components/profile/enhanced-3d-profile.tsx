@@ -35,6 +35,7 @@ import { usePfpFrame } from "@/hooks/use-pfp-frame"
 import { useVerificationBadges } from "@/hooks/use-verification-badges"
 import { ProfileAboutTab } from "@/components/profile/profile-about-tab"
 import { ProfileCompletionIndicator } from "@/components/profile/profile-completion"
+import { ProfileCreativeWork } from "@/components/profile/profile-creative-work"
 import { ActivityHeatmap } from "@/components/profile/activity-heatmap"
 import { ProfileMediaGrid } from "@/components/profile/profile-media-grid"
 import { SimilarCreators } from "@/components/profile/similar-creators"
@@ -1112,6 +1113,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             { id: "loops", label: "Loops" },
             { id: "branches", label: "Branches" },
             { id: "media", label: "Media" },
+            { id: "work", label: "Creative work" },
             { id: "awards", label: "Awards" },
           ].map((tab) => (
             <TabsTrigger
@@ -1236,6 +1238,10 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               ? profile.media_loops
               : (profile.recent_loops || []).filter((l: any) => l.media_url || l.media_urls?.length)}
           />
+        </TabsContent>
+
+        <TabsContent value="work" className="mt-0 p-4">
+          <ProfileCreativeWork userId={profile.id} />
         </TabsContent>
 
         <TabsContent value="awards" className="mt-0 p-4">

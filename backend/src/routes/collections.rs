@@ -80,6 +80,7 @@ pub struct CollectionDetail {
 pub struct ListCollectionsQuery {
     limit: Option<i64>,
     offset: Option<i64>,
+    owner_id: Option<Uuid>,
 }
 
 #[derive(Deserialize)]
@@ -123,8 +124,9 @@ pub async fn list(
             c.updated_at
         FROM collections AS c
         LEFT JOIN collection_items AS item ON item.collection_id = c.id
-        WHERE c.visibility = 'public'
-           OR (
+        WHERE (
+            c.visibility = 'public'
+            OR (
                 $1::uuid IS NOT NULL
                 AND (
                     c.owner_id = $1
@@ -135,7 +137,9 @@ pub async fn list(
                           AND member.user_id = $1
                     )
                 )
-           )
+            )
+        )
+          AND ($4::uuid IS NULL OR c.owner_id = $4)
         GROUP BY c.id
         ORDER BY c.updated_at DESC
         LIMIT $2 OFFSET $3
@@ -144,6 +148,7 @@ pub async fn list(
     .bind(user.0.as_ref().map(|authenticated| authenticated.id))
     .bind(limit)
     .bind(offset)
+    .bind(query.owner_id)
     .fetch_all(&state.database)
     .await
     .map_err(|error| {
