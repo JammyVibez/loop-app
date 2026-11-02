@@ -110,14 +110,18 @@ export async function notifyUser(
         category: input.pushCategory || "system",
       })
       pushDelivered = result.delivered
-      // Native Capacitor shells receive the same notification via FCM.
-      await sendFcmToUser(supabase, input.userId, {
-        title,
-        body: message,
-        url: input.actionUrl || "/",
-        icon: payload.icon,
-        data: input.data,
-      })
+      // Native delivery must honour the exact same push-preference gate.
+      // A missing browser subscription is not a preference opt-out: native
+      // devices may still be registered and should continue to receive alerts.
+      if (result.skipped !== "prefs_disabled" && result.skipped !== "quiet_hours") {
+        await sendFcmToUser(supabase, input.userId, {
+          title,
+          body: message,
+          url: input.actionUrl || "/",
+          icon: payload.icon,
+          data: input.data,
+        })
+      }
     }
   } catch (err) {
     console.warn("notifyUser error:", err)

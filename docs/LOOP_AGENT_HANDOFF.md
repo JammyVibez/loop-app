@@ -508,3 +508,11 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Corrected the RSVP route test's Supabase query mock to return the same `{ data, error }` envelope as the real client for `maybeSingle()`.
 - The test now distinguishes a valid active member from a missing membership without causing a mock-only null destructuring failure. The route's fail-closed membership check remains unchanged.
 - Re-run the full frontend verification workflow on the latest PR head. PostgreSQL-backed authorization and concurrency tests remain a production release gate.
+
+## 47. User-controlled quiet hours apply to web and native push — 2026-11-02
+
+- Added a notification-preference resolver that applies global and category-specific opt-outs plus timezone-aware quiet hours. Overnight windows are supported; matching start/end values explicitly mean a full-day pause. Invalid enabled quiet-hour configuration fails closed.
+- Added Quiet Hours controls to Settings → Notifications. The selected IANA timezone defaults to the device timezone, is persisted with the preference, and is preserved when the rest of account settings are saved.
+- Web Push now uses the shared preference resolver. Native FCM delivery is skipped when the same resolver reports push disabled or inside quiet hours; a missing browser subscription does not block a separately registered native device.
+- In-app notification rows remain available during quiet hours. Quiet hours affect push delivery only.
+- Added unit coverage for normal and overnight windows, boundary behavior, IANA timezone conversion, global/category opt-outs and invalid settings. Validate the full frontend CI and production build on this exact branch head.

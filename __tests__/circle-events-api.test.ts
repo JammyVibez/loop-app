@@ -89,7 +89,7 @@ describe("Circle event RSVP database contract", () => {
       query.select = () => query
       query.eq = () => query
       query.in = () => query
-      query.maybeSingle = async () => ({ data: result, error: null })
+      query.maybeSingle = async () => result
       return query
     }
 
