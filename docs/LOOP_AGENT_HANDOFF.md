@@ -595,3 +595,9 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Owners can cancel a pending invitation using the existing transactional member-removal endpoint; pending invitations remain excluded from the active collaborator roster and do not grant private Collection access.
 - The Rust detail API returns pending invitation identities only to the canonical Collection owner. Members and public viewers receive an empty pending-invitation list.
 - Re-run Rust/frontend CI and validate owner, invitee and unrelated-viewer responses against PostgreSQL before release.
+
+
+## 58. Collection collaboration schema is a fail-closed production migration — 2026-11-02
+
+- Added `backend/migrations/0001_collections.sql` to the strict production setup list. The new invitation lifecycle depends on status, invited_at and accepted_at columns and their constraints/indexes; setup now fails rather than silently skipping the collection schema.
+- This migration must be verified on both a clean PostgreSQL database and an existing deployment containing historical Collection members. No claim of production migration completion is made until that execution has been run and inspected.
