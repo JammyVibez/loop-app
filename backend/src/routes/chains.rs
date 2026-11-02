@@ -1985,7 +1985,8 @@ mod tests {
 
     use super::{
         can_access_chain, can_contribute_to_chain, insert_circle_challenge_origin,
-        valid_contribution_type, valid_kind, valid_policy, valid_visibility,
+        valid_chain_member_role, valid_contribution_type, valid_kind, valid_policy,
+        valid_visibility,
     };
 
     #[test]
@@ -2151,6 +2152,22 @@ mod tests {
         assert!(!can_contribute_to_chain(
             "members", "public", false, false, None, false,
         ));
+    }
+
+    #[test]
+    fn only_supported_non_owner_roles_can_be_assigned_to_chain_members() {
+        assert_eq!(
+            valid_chain_member_role("collaborator"),
+            Some("collaborator")
+        );
+        assert_eq!(
+            valid_chain_member_role("CONTRIBUTOR"),
+            Some("contributor")
+        );
+        assert_eq!(valid_chain_member_role("viewer"), Some("viewer"));
+        assert!(valid_chain_member_role("owner").is_none());
+        assert!(valid_chain_member_role("admin").is_none());
+        assert!(valid_chain_member_role("").is_none());
     }
 
     #[test]
