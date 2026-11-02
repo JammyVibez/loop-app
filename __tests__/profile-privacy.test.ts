@@ -48,8 +48,8 @@ describe("restricted profile response", () => {
     expect(view.is_verified).toBe(true)
     expect(view.has_pending_follow_request).toBe(true)
     expect(view.followers_count).toBe(0)
-    expect(view.location).toBeUndefined()
-    expect(view.website).toBeUndefined()
+    expect((view as any).location).toBeUndefined()
+    expect((view as any).website).toBeUndefined()
     expect((view as any).is_premium).toBeUndefined()
   })
 
