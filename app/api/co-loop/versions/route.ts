@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { checkCoLoopInvitationRevocation } from "@/lib/co-loop-session-access"
 
 export const dynamic = "force-dynamic"
 
@@ -40,6 +41,8 @@ async function getSessionAccess(supabase: any, sessionId: string, userId: string
     .eq("session_id", sessionId)
     .maybeSingle()
   if (error || !session || session.deleted_at) return { canRead: false, canWrite: false }
+  const revocation = await checkCoLoopInvitationRevocation(supabase, sessionId, userId)
+  if (revocation.error || revocation.revoked) return { canRead: false, canWrite: false }
 
   const inRoster = session.owner_id === userId || (Array.isArray(session.co_authors) ? session.co_authors : []).some((entry: any) => entry?.id === userId)
   let isOpenParticipant = false
