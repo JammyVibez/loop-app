@@ -271,7 +271,7 @@ export function VerificationSettings() {
           <div className="space-y-1">
             <p className="text-sm font-semibold">Appeal this decision</p>
             <p className="text-xs text-muted-foreground">
-              Add context the reviewer may have missed. One appeal is allowed per application and must be submitted within the current review window.
+              Add context the reviewer may have missed. One appeal is allowed per application; include new evidence or explain what the original review may have missed.
             </p>
           </div>
           {appealError && <p className="mt-2 text-xs text-amber-600">{appealError}</p>}
@@ -286,9 +286,12 @@ export function VerificationSettings() {
                 onChange={(event) => setAppealReason(event.target.value.slice(0, 2000))}
                 placeholder="Explain what the original review may have missed."
               />
+              <p className="text-right text-xs text-muted-foreground">
+                {appealReason.trim().length}/2000 characters · 20 minimum
+              </p>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="verification-appeal-evidence">Additional public evidence link (optional)</Label>
+              <Label htmlFor="verification-appeal-evidence">Additional public HTTPS evidence link (optional)</Label>
               <Input
                 id="verification-appeal-evidence"
                 type="url"

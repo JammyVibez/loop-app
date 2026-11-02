@@ -89,6 +89,7 @@ export function VerificationRequestsPanel() {
   const [requests, setRequests] = useState<VerifRequest[]>([])
   const [appeals, setAppeals] = useState<VerificationAppeal[]>([])
   const [appealsError, setAppealsError] = useState<string | null>(null)
+  const [appealView, setAppealView] = useState<"pending" | "history">("pending")
   const [appealRejectTarget, setAppealRejectTarget] = useState<VerificationAppeal | null>(null)
   const [appealRejectionReason, setAppealRejectionReason] = useState("")
   const [appealActingId, setAppealActingId] = useState<string | null>(null)
@@ -200,6 +201,9 @@ export function VerificationRequestsPanel() {
     rejected: requests.filter((r) => r.status === "rejected").length,
   }
   const filtered = statusFilter === "all" ? requests : requests.filter((r) => r.status === statusFilter)
+  const pendingAppeals = appeals.filter((appeal) => appeal.status === "pending")
+  const historicalAppeals = appeals.filter((appeal) => appeal.status !== "pending")
+  const visibleAppeals = appealView === "pending" ? pendingAppeals : historicalAppeals
 
   return (
     <div className="space-y-4">
@@ -209,15 +213,38 @@ export function VerificationRequestsPanel() {
             <h2 className="text-sm font-semibold">Verification appeals</h2>
             <p className="text-xs text-muted-foreground">A separate review of rejected applications. Accepting an appeal reopens the application; it never grants a checkmark.</p>
           </div>
-          <Badge variant="outline">{appeals.filter((appeal) => appeal.status === "pending").length} pending</Badge>
+          <div className="flex items-center gap-1 rounded-full bg-muted/60 p-1">
+            <Button
+              size="sm"
+              variant={appealView === "pending" ? "secondary" : "ghost"}
+              className="h-7 rounded-full px-3 text-xs"
+              aria-pressed={appealView === "pending"}
+              onClick={() => setAppealView("pending")}
+            >
+              Pending {pendingAppeals.length}
+            </Button>
+            <Button
+              size="sm"
+              variant={appealView === "history" ? "secondary" : "ghost"}
+              className="h-7 rounded-full px-3 text-xs"
+              aria-pressed={appealView === "history"}
+              onClick={() => setAppealView("history")}
+            >
+              History {historicalAppeals.length}
+            </Button>
+          </div>
         </div>
         {appealsError ? (
           <p className="text-xs text-amber-600">{appealsError}</p>
-        ) : appeals.filter((appeal) => appeal.status === "pending").length === 0 ? (
-          <p className="rounded-xl border border-dashed p-4 text-center text-xs text-muted-foreground">No verification appeals are awaiting review.</p>
+        ) : visibleAppeals.length === 0 ? (
+          <p className="rounded-xl border border-dashed p-4 text-center text-xs text-muted-foreground">
+            {appealView === "pending"
+              ? "No verification appeals are awaiting review."
+              : "No verification appeals have been reviewed yet."}
+          </p>
         ) : (
           <div className="space-y-3">
-            {appeals.filter((appeal) => appeal.status === "pending").map((appeal) => {
+            {visibleAppeals.map((appeal) => {
               const applicant = appeal.user?.display_name || appeal.user?.username || "Applicant"
               return (
                 <Card key={appeal.id} className="border-border/60">
@@ -230,7 +257,18 @@ export function VerificationRequestsPanel() {
                           {appeal.request?.verification_type?.replace(/_/g, " ") || "Verification"} · appealed {timeAgo(appeal.created_at)}
                         </p>
                       </div>
-                      <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-600">Appeal pending</Badge>
+                      <Badge
+                        variant="outline"
+                        className={
+                          appeal.status === "pending"
+                            ? "border-amber-500/30 bg-amber-500/10 text-amber-600"
+                            : appeal.status === "accepted"
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+                              : "border-red-500/30 bg-red-500/10 text-red-600"
+                        }
+                      >
+                        {appeal.status === "pending" ? "Appeal pending" : appeal.status === "accepted" ? "Accepted" : "Rejected"}
+                      </Badge>
                     </div>
                     <div className="space-y-1">
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Appeal statement</p>
@@ -241,26 +279,47 @@ export function VerificationRequestsPanel() {
                         <ExternalLink className="h-3 w-3" /> Open additional evidence
                       </a>
                     )}
-                    <div className="flex flex-wrap justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={appealActingId === appeal.id}
-                        onClick={() => {
-                          setAppealRejectTarget(appeal)
-                          setAppealRejectionReason("")
-                        }}
-                      >
-                        Reject appeal
-                      </Button>
-                      <Button
-                        size="sm"
-                        disabled={appealActingId === appeal.id}
-                        onClick={() => reviewAppeal(appeal, "accepted")}
-                      >
-                        {appealActingId === appeal.id ? "Reviewing…" : "Accept appeal"}
-                      </Button>
-                    </div>
+                    {appeal.status === "pending" ? (
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={appealActingId === appeal.id}
+                          onClick={() => {
+                            setAppealRejectTarget(appeal)
+                            setAppealRejectionReason("")
+                          }}
+                        >
+                          Reject appeal
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={appealActingId === appeal.id}
+                          onClick={() => reviewAppeal(appeal, "accepted")}
+                        >
+                          {appealActingId === appeal.id ? "Reviewing…" : "Accept appeal"}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-1 rounded-lg border border-border/60 bg-muted/20 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {appeal.status === "accepted" ? "Returned to application review" : "Applicant-facing decision"}
+                        </p>
+                        {appeal.rejection_reason && (
+                          <p className="whitespace-pre-wrap text-xs">{appeal.rejection_reason}</p>
+                        )}
+                        {appeal.reviewer_notes && (
+                          <p className="whitespace-pre-wrap text-xs text-muted-foreground">
+                            Internal note: {appeal.reviewer_notes}
+                          </p>
+                        )}
+                        {appeal.reviewed_at && (
+                          <p className="text-[10px] text-muted-foreground">
+                            Reviewed {new Date(appeal.reviewed_at).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )

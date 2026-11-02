@@ -569,3 +569,11 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Gift value is reported separately as received Loop Coins. Promotion purchases remain explicitly separate spending, not revenue. Monthly history is grouped from actual gift records by UTC month.
 - Removed the invented next-payout date. Top-content values use real views and engagement counters rather than calculated money amounts.
 - Added tests for measured coin aggregation and monthly gift activity.
+
+
+## 55. Verification appeal history and accurate applicant guidance — 2026-11-02
+
+- Removed a misleading “current review window” deadline claim from Verification Settings. The appeal migration enforces one appeal per rejected application, but the product has not defined a time-window policy.
+- Added a reason character counter and clarified that optional evidence links must be public HTTPS URLs, matching server validation.
+- Extended the existing verification review panel with Pending and History views. Administrators can now inspect accepted/rejected appeal outcomes, user-facing rejection reasons, internal reviewer notes and reviewed timestamps; review actions remain available only for pending appeals.
+- This extends the existing verification review surface only; it does not advance the separate Admin Dashboard redevelopment phase.
