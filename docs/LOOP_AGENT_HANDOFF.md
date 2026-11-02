@@ -376,3 +376,12 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Corrected the profile update allowlist so `avatar_url` and `video_avatar_url` are independently accepted fields. The previous comma-joined string could never match either submitted property, silently blocking both avatar updates.
 - Added route regression coverage proving avatar fields are persisted while privileged fields such as `is_verified` and `is_admin` remain excluded from user-controlled updates.
 - Validate with the frontend verification and production build on the resulting PR head.
+
+
+## 31. Public Chain and Collection sharing metadata — 2026-11-02
+
+- Added server-rendered, resource-specific Open Graph, Twitter and canonical metadata for Chain and Collection detail pages using the existing LOOP OG pipeline.
+- Metadata is fetched anonymously from the Rust API, so its visibility query remains the source of truth. Private and Circle-only resources do not return metadata; they receive a generic noindex fallback.
+- Public resources can be indexed. Unlisted resources retain their direct-link preview but are marked noindex/nofollow so they are not promoted into search results.
+- Added regression tests for public indexing, unlisted noindex previews, generic private/unavailable fallback and bounded metadata text.
+- The metadata fetch uses a short timeout and no-store caching so visibility changes are not held in a stale crawler response. Production requires RUST_API_ORIGIN to be configured; until then these routes intentionally use the safe generic fallback.
