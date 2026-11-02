@@ -445,3 +445,12 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Reworked the direct-invite route to use that RPC before sending notifications or DMs. It returns clear conflict/permission responses and releases a pending reservation if every delivery surface fails.
 - Moved the Co-Loop lifecycle migration after the account-status migration because the new SQL function independently checks `profiles.is_banned` and `profiles.is_deleted`. The runner now treats the lifecycle script as a strict migration.
 - Added route tests for the authorization boundary, capacity conflict and failed-delivery reservation cleanup. Verify migration execution against a clean and existing database before release.
+
+
+## 39. Co-Loop open joins and direct invitations share one capacity ledger — 2026-11-02
+
+- Updated `join_open_co_loop_session` to count a single de-duplicated roster: host, JSON co-authors, open-join participants, and pending/accepted direct invitations. It now sees seats reserved by direct invites before allowing public open joins.
+- An invitee who reaches an open session while their direct invitation is pending has that reservation converted into an accepted participant without consuming a second seat. Existing co-authors/open participants are recognized across both paths.
+- Added account suspension/deletion and room-lock checks to open joins. The room row lock serializes direct reservations and open joins, preventing concurrent paths from oversubscribing the same capacity.
+- Standardized the Co-Loop lifecycle SECURITY DEFINER search path to `pg_catalog, public, pg_temp`.
+- The direct-invite and open-join capacity paths still require integration tests against PostgreSQL; the repository CI checks Rust and frontend code but does not apply this migration to a live database.

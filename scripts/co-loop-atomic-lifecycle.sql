@@ -17,8 +17,8 @@ CREATE OR REPLACE FUNCTION public.create_co_loop_version(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
-AS $$
+SET search_path = pg_catalog, public, pg_temp
+AS $
 DECLARE
     locked_session public.co_loop_sessions%ROWTYPE;
     actor_profile public.profiles%ROWTYPE;
@@ -133,13 +133,15 @@ CREATE OR REPLACE FUNCTION public.join_open_co_loop_session(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
     room public.co_loop_sessions%ROWTYPE;
     profile public.profiles%ROWTYPE;
     existing_participant BOOLEAN;
-    participant_count INTEGER;
+    invitation_status TEXT;
+    reserved_count INTEGER;
+    current_count INTEGER;
     capacity INTEGER;
     co_author JSONB;
     final_roster JSONB;
@@ -168,35 +170,79 @@ BEGIN
     SELECT *
       INTO profile
       FROM public.profiles
-     WHERE id = p_user_id;
+     WHERE id = p_user_id
+       AND is_banned IS NOT TRUE
+       AND is_deleted IS NOT TRUE;
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'profile_not_found' USING ERRCODE = 'P0002';
+        RAISE EXCEPTION 'profile_unavailable' USING ERRCODE = '42501';
     END IF;
 
+    IF room.locked IS TRUE AND room.owner_id IS DISTINCT FROM p_user_id THEN
+        RAISE EXCEPTION 'session_locked' USING ERRCODE = '42501';
+    END IF;
+
+    SELECT invitation.status
+      INTO invitation_status
+      FROM public.co_loop_invitations AS invitation
+     WHERE invitation.session_id = p_session_id
+       AND invitation.invitee_id = p_user_id;
+
+    existing_participant := room.owner_id = p_user_id
+        OR EXISTS (
+            SELECT 1
+              FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(room.co_authors) = 'array'
+                         THEN room.co_authors ELSE '[]'::jsonb END
+              ) AS author
+             WHERE author->>'id' = p_user_id::text
+        )
+        OR EXISTS (
+            SELECT 1
+              FROM public.open_co_loop_participants AS participant
+             WHERE participant.session_id = p_session_id
+               AND participant.user_id = p_user_id
+        )
+        OR invitation_status = 'accepted';
+
+    -- One canonical set of occupied seats. Pending direct invitations reserve
+    -- a seat; accepted invitations are retained as participants even if an
+    -- older route has not yet repaired the JSON roster.
     SELECT COUNT(*)::INTEGER
-      INTO participant_count
-      FROM public.open_co_loop_participants
-     WHERE session_id = p_session_id;
+      INTO reserved_count
+      FROM (
+        SELECT room.owner_id::text AS user_id
+         WHERE room.owner_id IS NOT NULL
+        UNION
+        SELECT author->>'id'
+          FROM jsonb_array_elements(
+                CASE WHEN jsonb_typeof(room.co_authors) = 'array'
+                     THEN room.co_authors ELSE '[]'::jsonb END
+          ) AS author
+         WHERE NULLIF(author->>'id', '') IS NOT NULL
+        UNION
+        SELECT participant.user_id::text
+          FROM public.open_co_loop_participants AS participant
+         WHERE participant.session_id = p_session_id
+        UNION
+        SELECT invitation.invitee_id::text
+          FROM public.co_loop_invitations AS invitation
+         WHERE invitation.session_id = p_session_id
+           AND invitation.status IN ('pending', 'accepted')
+      ) AS roster;
 
     IF room.owner_id = p_user_id THEN
-        RETURN jsonb_build_object(
+        RETURN JSONB_BUILD_OBJECT(
             'owner_id', room.owner_id,
             'owner_username', room.owner_username,
             'topic', COALESCE(room.open_invite_topic, ''),
-            'current_count', participant_count + 1,
+            'current_count', reserved_count,
             'max', capacity,
-            'is_full', participant_count + 1 >= capacity,
+            'is_full', reserved_count >= capacity,
             'already_joined', true,
             'is_owner', true,
             'co_author_entry', NULL
         );
     END IF;
-
-    SELECT EXISTS (
-        SELECT 1
-          FROM public.open_co_loop_participants
-         WHERE session_id = p_session_id AND user_id = p_user_id
-    ) INTO existing_participant;
 
     co_author := jsonb_build_object(
         'id', p_user_id::text,
@@ -206,47 +252,66 @@ BEGIN
         'role', 'Co-Author'
     );
 
-    IF existing_participant THEN
-        RETURN jsonb_build_object(
-            'owner_id', room.owner_id,
-            'owner_username', room.owner_username,
-            'topic', COALESCE(room.open_invite_topic, ''),
-            'current_count', participant_count + 1,
-            'max', capacity,
-            'is_full', participant_count + 1 >= capacity,
-            'already_joined', true,
-            'is_owner', false,
-            'co_author_entry', co_author
-        );
-    END IF;
-
-    IF participant_count + 1 >= capacity THEN
+    IF NOT existing_participant AND reserved_count >= capacity THEN
         RAISE EXCEPTION 'session_full' USING ERRCODE = '23514';
     END IF;
 
-    INSERT INTO public.open_co_loop_participants(session_id, user_id)
-    VALUES (p_session_id, p_user_id)
-    ON CONFLICT (session_id, user_id) DO NOTHING;
+    IF invitation_status = 'pending' THEN
+        UPDATE public.co_loop_invitations
+           SET status = 'accepted',
+               responded_at = NOW()
+         WHERE session_id = p_session_id
+           AND invitee_id = p_user_id
+           AND status = 'pending';
+    END IF;
 
-    final_roster := CASE
-        WHEN EXISTS (
-            SELECT 1
-              FROM jsonb_array_elements(
-                    CASE WHEN jsonb_typeof(room.co_authors) = 'array'
-                         THEN room.co_authors ELSE '[]'::jsonb END
-              ) AS entry
-             WHERE entry->>'id' = p_user_id::text
-        )
-        THEN COALESCE(room.co_authors, '[]'::jsonb)
-        ELSE COALESCE(room.co_authors, '[]'::jsonb) || jsonb_build_array(co_author)
-    END;
+    IF existing_participant THEN
+        INSERT INTO public.open_co_loop_participants(session_id, user_id)
+        VALUES (p_session_id, p_user_id)
+        ON CONFLICT (session_id, user_id) DO NOTHING;
 
-    UPDATE public.co_loop_sessions
-       SET co_authors = final_roster,
-           updated_at = NOW()
-     WHERE session_id = p_session_id;
+        final_roster := CASE
+            WHEN EXISTS (
+                SELECT 1
+                  FROM jsonb_array_elements(
+                        CASE WHEN jsonb_typeof(room.co_authors) = 'array'
+                             THEN room.co_authors ELSE '[]'::jsonb END
+                  ) AS entry
+                 WHERE entry->>'id' = p_user_id::text
+            )
+            THEN COALESCE(room.co_authors, '[]'::jsonb)
+            ELSE COALESCE(room.co_authors, '[]'::jsonb) || jsonb_build_array(co_author)
+        END;
 
-    participant_count := participant_count + 1;
+        UPDATE public.co_loop_sessions
+           SET co_authors = final_roster,
+               updated_at = NOW()
+         WHERE session_id = p_session_id;
+        current_count := reserved_count;
+    ELSE
+        INSERT INTO public.open_co_loop_participants(session_id, user_id)
+        VALUES (p_session_id, p_user_id)
+        ON CONFLICT (session_id, user_id) DO NOTHING;
+
+        final_roster := CASE
+            WHEN EXISTS (
+                SELECT 1
+                  FROM jsonb_array_elements(
+                        CASE WHEN jsonb_typeof(room.co_authors) = 'array'
+                             THEN room.co_authors ELSE '[]'::jsonb END
+                  ) AS entry
+                 WHERE entry->>'id' = p_user_id::text
+            )
+            THEN COALESCE(room.co_authors, '[]'::jsonb)
+            ELSE COALESCE(room.co_authors, '[]'::jsonb) || jsonb_build_array(co_author)
+        END;
+
+        UPDATE public.co_loop_sessions
+           SET co_authors = final_roster,
+               updated_at = NOW()
+         WHERE session_id = p_session_id;
+        current_count := reserved_count + 1;
+    END IF;
 
     IF room.feed_post_id IS NOT NULL THEN
         UPDATE public.loops
@@ -257,20 +322,20 @@ BEGIN
                    'session_id', p_session_id,
                    'max_collaborators', capacity,
                    'topic', COALESCE(room.open_invite_topic, ''),
-                   'current_participants', participant_count + 1,
-                   'status', CASE WHEN participant_count + 1 >= capacity THEN 'full' ELSE 'open' END
+                   'current_participants', current_count,
+                   'status', CASE WHEN current_count >= capacity THEN 'full' ELSE 'open' END
                )
          WHERE id::text = room.feed_post_id;
     END IF;
 
-    RETURN jsonb_build_object(
+    RETURN JSONB_BUILD_OBJECT(
         'owner_id', room.owner_id,
         'owner_username', room.owner_username,
         'topic', COALESCE(room.open_invite_topic, ''),
-        'current_count', participant_count + 1,
+        'current_count', current_count,
         'max', capacity,
-        'is_full', participant_count + 1 >= capacity,
-        'already_joined', false,
+        'is_full', current_count >= capacity,
+        'already_joined', existing_participant,
         'is_owner', false,
         'co_author_entry', co_author
     );
