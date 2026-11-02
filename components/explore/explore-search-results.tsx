@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { ArrowUpRight, Bookmark, GitBranch, Hash, Search, Users } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
@@ -93,6 +93,13 @@ export function ExploreSearchResults({
   const [results, setResults] = useState<SearchResults>(EMPTY_RESULTS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [selectedType, setSelectedType] = useState<"all" | keyof SearchResults>("all")
+  const [debouncedQuery, setDebouncedQuery] = useState(query)
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedQuery(query.trim()), 250)
+    return () => window.clearTimeout(timeout)
+  }, [query])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -102,7 +109,7 @@ export function ExploreSearchResults({
     setError("")
 
     const load = async () => {
-      const value = query.trim()
+      const value = debouncedQuery
       if (!value) {
         setResults(EMPTY_RESULTS)
         setLoading(false)
@@ -174,9 +181,19 @@ export function ExploreSearchResults({
       active = false
       controller.abort()
     }
-  }, [getAuthHeader, query])
+  }, [debouncedQuery, getAuthHeader])
 
-  const total = Object.values(results).reduce((sum, items) => sum + items.length, 0)
+  const counts = useMemo(() => ({
+    all: Object.values(results).reduce((sum, items) => sum + items.length, 0),
+    chains: results.chains.length,
+    collections: results.collections.length,
+    circles: results.circles.length,
+    users: results.users.length,
+    loops: results.loops.length,
+    hashtags: results.hashtags.length,
+  }), [results])
+  const total = counts.all
+  const visibleTotal = selectedType === "all" ? total : counts[selectedType]
 
   return (
     <div className="space-y-6">
@@ -190,23 +207,51 @@ export function ExploreSearchResults({
 
       {error && <p role="status" className="text-sm text-muted-foreground">{error}</p>}
 
+      {!loading && total > 0 && (
+        <div className="flex flex-wrap gap-2" aria-label="Filter search result types">
+          {([
+            ["all", "All"],
+            ["chains", "Chains"],
+            ["collections", "Collections"],
+            ["circles", "Circles"],
+            ["users", "People"],
+            ["loops", "Loops"],
+            ["hashtags", "Hashtags"],
+          ] as const).map(([type, label]) => (
+            <button
+              key={type}
+              type="button"
+              aria-pressed={selectedType === type}
+              onClick={() => setSelectedType(type)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                selectedType === type
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              {label} <span className="ml-1 tabular-nums opacity-75">{counts[type]}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
           <Spinner className="h-5 w-5" /> Searching LOOP…
         </div>
-      ) : total === 0 ? (
+      ) : visibleTotal === 0 ? (
         <Card className="rounded-2xl border-dashed">
           <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
             <Search className="h-6 w-6 text-muted-foreground" />
-            <h2 className="font-semibold">No results found</h2>
-            <p className="text-sm text-muted-foreground">Try a different name, topic or phrase.</p>
+            <h2 className="font-semibold">{total === 0 ? "No results found" : "No results in this category"}</h2>
+            <p className="text-sm text-muted-foreground">{total === 0 ? "Try a different name, topic or phrase." : "Choose another result type or return to All."}</p>
           </CardContent>
         </Card>
       ) : (
         <>
-          <p className="text-xs text-muted-foreground">Showing {total} matching results across public content and communities.</p>
+          <p className="text-xs text-muted-foreground">Showing {visibleTotal} of {total} matching results across public content and communities.</p>
 
-          {results.chains.length > 0 && (
+          {(selectedType === "all" || selectedType === "chains") && results.chains.length > 0 && (
             <ResultSection title="Chains" icon={<GitBranch className="h-4 w-4" />}>
               {results.chains.map((item) => (
                 <ResultCard key={item.id} href={"/chains/" + item.id} title={item.title}
@@ -216,7 +261,7 @@ export function ExploreSearchResults({
             </ResultSection>
           )}
 
-          {results.collections.length > 0 && (
+          {(selectedType === "all" || selectedType === "collections") && results.collections.length > 0 && (
             <ResultSection title="Collections" icon={<Bookmark className="h-4 w-4" />}>
               {results.collections.map((item) => (
                 <ResultCard key={item.id} href={"/collections/" + item.id} title={item.title}
@@ -225,7 +270,7 @@ export function ExploreSearchResults({
             </ResultSection>
           )}
 
-          {results.circles.length > 0 && (
+          {(selectedType === "all" || selectedType === "circles") && results.circles.length > 0 && (
             <ResultSection title="Circles" icon={<Users className="h-4 w-4" />}>
               {results.circles.map((item) => (
                 <ResultCard key={item.id} href={"/circles/" + (item.slug || item.id)} title={item.name}
@@ -234,7 +279,7 @@ export function ExploreSearchResults({
             </ResultSection>
           )}
 
-          {results.users.length > 0 && (
+          {(selectedType === "all" || selectedType === "users") && results.users.length > 0 && (
             <ResultSection title="People" icon={<Users className="h-4 w-4" />}>
               {results.users.map((item) => (
                 <ResultCard key={item.id} href={"/profile/" + item.username}
@@ -244,7 +289,7 @@ export function ExploreSearchResults({
             </ResultSection>
           )}
 
-          {results.loops.length > 0 && (
+          {(selectedType === "all" || selectedType === "loops") && results.loops.length > 0 && (
             <ResultSection title="Loops" icon={<Search className="h-4 w-4" />}>
               {results.loops.map((item) => (
                 <ResultCard key={item.id} href={"/loop/" + item.id}
@@ -255,7 +300,7 @@ export function ExploreSearchResults({
             </ResultSection>
           )}
 
-          {results.hashtags.length > 0 && (
+          {(selectedType === "all" || selectedType === "hashtags") && results.hashtags.length > 0 && (
             <ResultSection title="Hashtags" icon={<Hash className="h-4 w-4" />}>
               {results.hashtags.map((item) => {
                 const tag = String(item.tag || "").replace(/^#/, "")
