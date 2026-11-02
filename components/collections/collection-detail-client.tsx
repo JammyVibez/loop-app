@@ -29,10 +29,21 @@ interface CollectionItem {
   created_at: string
 }
 
+interface CollectionCollaborator {
+  user_id: string
+  username: string
+  display_name: string
+  avatar_url: string | null
+  role: "editor" | "viewer"
+  joined_at: string
+}
+
 interface CollectionDetail {
   collection: CollectionSummary
   items: CollectionItem[]
+  collaborators: CollectionCollaborator[]
   can_edit: boolean
+  can_manage_members: boolean
 }
 
 type ItemType = CollectionItem["item_type"]
@@ -61,6 +72,9 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
   const [note, setNote] = useState("")
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
+  const [inviteUsername, setInviteUsername] = useState("")
+  const [inviting, setInviting] = useState(false)
+  const [removingCollaborator, setRemovingCollaborator] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -147,6 +161,56 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
     }
   }
 
+  const inviteCollaborator = async () => {
+    const username = inviteUsername.trim().replace(/^@/, "")
+    if (!username || !data?.can_manage_members) return
+    setInviting(true)
+    try {
+      await rustApiRequest<CollectionCollaborator>(
+        `collections/${encodeURIComponent(collectionId)}/members`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeader(),
+          },
+          body: JSON.stringify({ username, role: "editor" }),
+        },
+      )
+      setInviteUsername("")
+      await load()
+      toast({ title: "Collaborator added", description: `@${username} can now edit this collection.` })
+    } catch (error) {
+      toast({
+        title: "Couldn't add collaborator",
+        description: error instanceof Error ? error.message : "Check the username and try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  const removeCollaborator = async (memberUserId: string) => {
+    setRemovingCollaborator(memberUserId)
+    try {
+      await rustApiRequest<void>(
+        `collections/${encodeURIComponent(collectionId)}/members/${encodeURIComponent(memberUserId)}`,
+        { method: "DELETE", headers: getAuthHeader() },
+      )
+      await load()
+      toast({ title: "Collaborator access updated" })
+    } catch (error) {
+      toast({
+        title: "Couldn't update collaborators",
+        description: error instanceof Error ? error.message : "Try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setRemovingCollaborator(null)
+    }
+  }
+
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/collections/${collectionId}`)
@@ -204,6 +268,71 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
           {collection.is_collaborative ? <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" /> Collaborative</span> : null}
         </div>
       </section>
+
+      {collection.is_collaborative ? (
+        <Card className="rounded-2xl border-border/70">
+          <CardContent className="space-y-4 p-4 sm:p-5">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <h2 className="font-semibold">Collaborators</h2>
+              <Badge variant="secondary" className="ml-auto">{data.collaborators.length}</Badge>
+            </div>
+            {data.collaborators.length ? (
+              <div className="divide-y divide-border/60">
+                {data.collaborators.map((member) => (
+                  <div key={member.user_id} className="flex items-center gap-3 py-2.5">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-semibold">
+                      {member.avatar_url ? (
+                        <img src={member.avatar_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        (member.display_name || member.username).slice(0, 1).toUpperCase()
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{member.display_name || member.username}</p>
+                      <p className="truncate text-xs text-muted-foreground">@{member.username} · {member.role}</p>
+                    </div>
+                    {(data.can_manage_members || member.user_id === user?.id) && member.user_id !== collection.owner_id ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={removingCollaborator === member.user_id}
+                        onClick={() => void removeCollaborator(member.user_id)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        {removingCollaborator === member.user_id ? "Updating…" : data.can_manage_members ? "Remove" : "Leave"}
+                      </Button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No collaborators yet. Add someone to build this collection together.</p>
+            )}
+            {data.can_manage_members ? (
+              <div className="flex flex-col gap-2 border-t border-border/60 pt-3 sm:flex-row">
+                <Input
+                  value={inviteUsername}
+                  onChange={(event) => setInviteUsername(event.target.value)}
+                  placeholder="LOOP username"
+                  aria-label="Collaborator username"
+                  maxLength={51}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !inviting && inviteUsername.trim()) {
+                      event.preventDefault()
+                      void inviteCollaborator()
+                    }
+                  }}
+                />
+                <Button onClick={() => void inviteCollaborator()} disabled={inviting || !inviteUsername.trim()} className="loop-tactile gap-2">
+                  <Plus className="h-4 w-4" />
+                  {inviting ? "Adding…" : "Add editor"}
+                </Button>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {data.can_edit ? (
         <Card className="rounded-2xl border-border/70">

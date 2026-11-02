@@ -153,6 +153,14 @@ async fn main() -> anyhow::Result<()> {
             post(routes::collections::add_item),
         )
         .route(
+            "/v1/collections/{collection_id}/members",
+            post(routes::collections::add_member),
+        )
+        .route(
+            "/v1/collections/{collection_id}/members/{member_user_id}",
+            delete(routes::collections::remove_member),
+        )
+        .route(
             "/v1/collections/{collection_id}/items/{item_id}",
             delete(routes::collections::remove_item),
         )

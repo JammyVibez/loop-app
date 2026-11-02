@@ -403,3 +403,12 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Aligned the private Circle access helper and detail endpoint with canonical `owner_id`. A historical `creator_id` no longer grants owner-level access after ownership has transferred.
 - Pro-only Circle creation remains restricted to the canonical `profiles.is_admin === true` value, with no email-string privilege shortcut.
 - Staging tests still need to cover ownership transfer, pending applications, membership revocation, pagination and the legacy-schema fallback.
+
+
+## 34. Collaborative Collections — owner-managed editors and member exit — 2026-11-02
+
+- Completed the previously unfinished Collection collaboration flow. The Rust API now returns collaborator summaries and exposes owner-only invitations/removals plus a member self-leave path.
+- Invitations resolve a LOOP username server-side, normalize and validate the target, restrict roles to `editor` or `viewer`, require the collection owner, lock the Collection row, and reject non-collaborative Collections. Existing memberships are updated idempotently; the owner is never inserted as an ordinary collaborator.
+- Editors can add/remove Collection items through the existing server-side authorisation checks. Viewers can read the Collection but cannot change its items. Only the owner can invite, change collaborator roles through re-invitation, or remove another member; a collaborator can remove only themselves.
+- The detail page now displays collaborator identity/role, lets the owner add an editor by username and remove members, and lets a collaborator leave. The creation copy no longer says invitations are not available.
+- Added Rust validation tests for username normalization and allowed collaborator roles. Rust CI must compile and run these tests on the current PR head. A notification when added and full invitation acceptance/pending state remain later refinements; the current implementation is a direct owner-granted collaboration, not a pending invite.

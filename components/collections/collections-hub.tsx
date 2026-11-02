@@ -283,7 +283,7 @@ export function CollectionsHub() {
               />
               <span className="space-y-0.5">
                 <span className="block font-medium">Allow collaboration</span>
-                <span className="block text-xs text-muted-foreground">Prepare this collection for shared editing. Member invitations are being added separately.</span>
+                <span className="block text-xs text-muted-foreground">After creating it, invite editors from the collection page to build the collection together.</span>
               </span>
             </label>
           </div>
