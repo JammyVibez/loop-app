@@ -50,6 +50,15 @@ pub struct ListDropsQuery {
     sort: Option<String>,
 }
 
+#[derive(Clone, Copy)]
+struct DropFilters<'a> {
+    search: Option<&'a str>,
+    category: Option<&'a str>,
+    live: bool,
+    upcoming: bool,
+    sort: &'a str,
+}
+
 #[derive(Serialize)]
 pub struct DropItem {
     id: String,
@@ -90,7 +99,7 @@ pub async fn list(
     Query(query): Query<ListDropsQuery>,
 ) -> Result<Json<DropsResponse>, ApiError> {
     let limit = query.limit.unwrap_or(30).clamp(1, 75);
-    let offset = query.offset.unwrap_or(0).clamp(0, 1_000_000);
+    let offset = query.offset.unwrap_or(0).clamp(0, 1_000);
     let search_filter = query
         .search
         .as_deref()
@@ -127,6 +136,25 @@ pub async fn list(
         ));
     }
 
+    if let Some(kind) = kind_filter {
+        if !matches!(kind, "event" | "challenge") {
+            return Err(api_error(
+                StatusCode::BAD_REQUEST,
+                "invalid_drop_kind",
+                "Kind must be event or challenge.",
+            ));
+        }
+    }
+
+    let search_pattern = search_filter.map(|value| format!("%{}%", value));
+    let filters = DropFilters {
+        search: search_pattern.as_deref(),
+        category: category_filter,
+        live: query.live.unwrap_or(false),
+        upcoming: query.upcoming.unwrap_or(false),
+        sort,
+    };
+
     let circle_ids = sqlx::query_scalar::<_, Uuid>(
         r#"
         SELECT circle_id
@@ -148,48 +176,42 @@ pub async fn list(
     })?;
 
     let mut items = Vec::new();
-    // Fetch one extra row per source so has_more remains accurate at page boundaries.
-    let per_source_limit = (offset + limit + 1).clamp(1, 300);
+    // Fetch the first offset + page + one row from every source. Each source
+    // uses the same ordering and filters, so the merged page stays correct.
+    let per_source_limit = offset + limit + 1;
 
-    append_rows(
-        &mut items,
-        load_global_events(&state.database, per_source_limit).await?,
-        "event",
-        "official_event",
-    )?;
-
-    append_rows(
-        &mut items,
-        load_hosted_events(&state.database, user.id, per_source_limit).await?,
-        "event",
-        "hosted_event",
-    )?;
-
-    if !circle_ids.is_empty() {
+    if kind_filter != Some("challenge") {
         append_rows(
             &mut items,
-            load_circle_events(&state.database, &circle_ids, per_source_limit).await?,
+            load_global_events(&state.database, per_source_limit, filters).await?,
             "event",
-            "circle_event",
+            "official_event",
         )?;
-
         append_rows(
             &mut items,
-            load_circle_challenges(&state.database, &circle_ids, per_source_limit).await?,
-            "challenge",
-            "circle_challenge",
+            load_hosted_events(&state.database, user.id, per_source_limit, filters).await?,
+            "event",
+            "hosted_event",
         )?;
     }
 
-    if let Some(kind) = kind_filter {
-        if !matches!(kind, "event" | "challenge") {
-            return Err(api_error(
-                StatusCode::BAD_REQUEST,
-                "invalid_drop_kind",
-                "Kind must be event or challenge.",
-            ));
+    if !circle_ids.is_empty() {
+        if kind_filter != Some("challenge") {
+            append_rows(
+                &mut items,
+                load_circle_events(&state.database, &circle_ids, per_source_limit, filters).await?,
+                "event",
+                "circle_event",
+            )?;
         }
-        items.retain(|item| item.kind == kind);
+        if kind_filter != Some("event") {
+            append_rows(
+                &mut items,
+                load_circle_challenges(&state.database, &circle_ids, per_source_limit, filters).await?,
+                "challenge",
+                "circle_challenge",
+            )?;
+        }
     }
 
     if let Some(category) = category_filter {
@@ -264,7 +286,7 @@ pub async fn list(
     }))
 }
 
-async fn load_global_events(pool: &PgPool, limit: i64) -> Result<Vec<PgRow>, ApiError> {
+async fn load_global_events(pool: &PgPool, limit: i64, filters: DropFilters<'_>) -> Result<Vec<PgRow>, ApiError> {
     sqlx::query(
         r#"
         SELECT
@@ -286,11 +308,25 @@ async fn load_global_events(pool: &PgPool, limit: i64) -> Result<Vec<PgRow>, Api
         WHERE is_active = true
           AND COALESCE(status, 'upcoming') <> 'ended'
           AND (is_live = true OR ends_at IS NULL OR ends_at >= NOW())
-        ORDER BY is_live DESC, starts_at ASC
+          AND ($2::text IS NULL OR title ILIKE $2 OR COALESCE(description, '') ILIKE $2 OR COALESCE(category, 'Community') ILIKE $2)
+          AND ($3::text IS NULL OR LOWER(COALESCE(category, 'Community')) = LOWER($3))
+          AND (NOT $4::boolean OR is_live = true OR (starts_at <= NOW() AND (ends_at IS NULL OR ends_at >= NOW())))
+          AND (NOT $5::boolean OR (NOT (is_live = true OR (starts_at <= NOW() AND (ends_at IS NULL OR ends_at >= NOW()))) AND (starts_at IS NULL OR starts_at > NOW())))
+        ORDER BY
+            CASE WHEN $6 = 'recent' THEN created_at END DESC NULLS LAST,
+            CASE WHEN $6 = 'popular' THEN COALESCE(rsvp_count, 0) END DESC NULLS LAST,
+            CASE WHEN $6 IN ('recommended', 'upcoming') THEN (is_live = true OR (starts_at <= NOW() AND (ends_at IS NULL OR ends_at >= NOW())))::int END DESC NULLS LAST,
+            CASE WHEN $6 IN ('recommended', 'upcoming') THEN starts_at END ASC NULLS LAST,
+            created_at DESC, id DESC
         LIMIT $1
         "#,
     )
     .bind(limit)
+    .bind(filters.search)
+    .bind(filters.category)
+    .bind(filters.live)
+    .bind(filters.upcoming)
+    .bind(filters.sort)
     .fetch_all(pool)
     .await
     .map_err(|error| {
@@ -307,6 +343,7 @@ async fn load_hosted_events(
     pool: &PgPool,
     user_id: Uuid,
     limit: i64,
+    filters: DropFilters<'_>,
 ) -> Result<Vec<PgRow>, ApiError> {
     sqlx::query(
         r#"
@@ -336,12 +373,26 @@ async fn load_hosted_events(
               AND member.status IN ('active', 'approved')
         ))
           AND (event.is_live = true OR event.end_time IS NULL OR event.end_time >= NOW())
-        ORDER BY event.is_live DESC, event.start_time ASC
+          AND ($3::text IS NULL OR event.title ILIKE $3 OR COALESCE(event.description, '') ILIKE $3 OR COALESCE(event.category, 'General') ILIKE $3 OR COALESCE(circle.name, '') ILIKE $3)
+          AND ($4::text IS NULL OR LOWER(COALESCE(event.category, 'General')) = LOWER($4))
+          AND (NOT $5::boolean OR event.is_live = true OR (event.start_time <= NOW() AND (event.end_time IS NULL OR event.end_time >= NOW())))
+          AND (NOT $6::boolean OR (NOT (event.is_live = true OR (event.start_time <= NOW() AND (event.end_time IS NULL OR event.end_time >= NOW()))) AND (event.start_time IS NULL OR event.start_time > NOW())))
+        ORDER BY
+            CASE WHEN $7 = 'recent' THEN event.created_at END DESC NULLS LAST,
+            CASE WHEN $7 = 'popular' THEN COALESCE(event.participants_count, 0) END DESC NULLS LAST,
+            CASE WHEN $7 IN ('recommended', 'upcoming') THEN (event.is_live = true OR (event.start_time <= NOW() AND (event.end_time IS NULL OR event.end_time >= NOW())))::int END DESC NULLS LAST,
+            CASE WHEN $7 IN ('recommended', 'upcoming') THEN event.start_time END ASC NULLS LAST,
+            event.created_at DESC, event.id DESC
         LIMIT $2
         "#,
     )
     .bind(user_id)
     .bind(limit)
+    .bind(filters.search)
+    .bind(filters.category)
+    .bind(filters.live)
+    .bind(filters.upcoming)
+    .bind(filters.sort)
     .fetch_all(pool)
     .await
     .map_err(|error| {
@@ -358,6 +409,7 @@ async fn load_circle_events(
     pool: &PgPool,
     circle_ids: &[Uuid],
     limit: i64,
+    filters: DropFilters<'_>,
 ) -> Result<Vec<PgRow>, ApiError> {
     sqlx::query(
         r#"
@@ -387,12 +439,26 @@ async fn load_circle_events(
         JOIN circles AS circle ON circle.id = event.circle_id
         WHERE event.circle_id = ANY($1)
           AND (event.ends_at IS NULL OR event.ends_at >= NOW())
-        ORDER BY is_live DESC, event.starts_at ASC
+          AND ($3::text IS NULL OR event.title ILIKE $3 OR COALESCE(event.description, '') ILIKE $3 OR COALESCE(event.event_type, 'Circle event') ILIKE $3 OR circle.name ILIKE $3)
+          AND ($4::text IS NULL OR LOWER(COALESCE(event.event_type, 'Circle event')) = LOWER($4))
+          AND (NOT $5::boolean OR (event.starts_at <= NOW() AND (event.ends_at IS NULL OR event.ends_at >= NOW())))
+          AND (NOT $6::boolean OR (event.starts_at IS NULL OR event.starts_at > NOW()))
+        ORDER BY
+            CASE WHEN $6 = 'recent' THEN event.created_at END DESC NULLS LAST,
+            CASE WHEN $6 = 'popular' THEN COALESCE(event.participant_count, 0) END DESC NULLS LAST,
+            CASE WHEN $6 IN ('recommended', 'upcoming') THEN (event.starts_at <= NOW() AND (event.ends_at IS NULL OR event.ends_at >= NOW()))::int END DESC NULLS LAST,
+            CASE WHEN $6 IN ('recommended', 'upcoming') THEN event.starts_at END ASC NULLS LAST,
+            event.created_at DESC, event.id DESC
         LIMIT $2
         "#,
     )
     .bind(circle_ids)
     .bind(limit)
+    .bind(filters.search)
+    .bind(filters.category)
+    .bind(filters.live)
+    .bind(filters.upcoming)
+    .bind(filters.sort)
     .fetch_all(pool)
     .await
     .map_err(|error| {
@@ -409,6 +475,7 @@ async fn load_circle_challenges(
     pool: &PgPool,
     circle_ids: &[Uuid],
     limit: i64,
+    filters: DropFilters<'_>,
 ) -> Result<Vec<PgRow>, ApiError> {
     sqlx::query(
         r#"
@@ -436,12 +503,28 @@ async fn load_circle_challenges(
         WHERE challenge.circle_id = ANY($1)
           AND challenge.status = 'active'
           AND (challenge.ends_at IS NULL OR challenge.ends_at >= NOW())
-        ORDER BY challenge.starts_at ASC, challenge.created_at DESC
+          AND ($3::text IS NULL OR challenge.title ILIKE $3 OR COALESCE(challenge.description, '') ILIKE $3 OR COALESCE(challenge.challenge_type, 'Creative') ILIKE $3 OR circle.name ILIKE $3)
+          AND ($4::text IS NULL OR LOWER(COALESCE(challenge.challenge_type, 'Creative')) = LOWER($4))
+          AND NOT $5::boolean
+          AND NOT $6::boolean
+        ORDER BY
+            CASE WHEN $7 = 'recent' THEN challenge.created_at END DESC NULLS LAST,
+            CASE WHEN $7 = 'popular' THEN (
+                SELECT COUNT(*) FROM community_challenge_entries AS entry
+                WHERE entry.challenge_id = challenge.id
+            ) END DESC NULLS LAST,
+            CASE WHEN $7 IN ('recommended', 'upcoming') THEN challenge.starts_at END ASC NULLS LAST,
+            challenge.created_at DESC, challenge.id DESC
         LIMIT $2
         "#,
     )
     .bind(circle_ids)
     .bind(limit)
+    .bind(filters.search)
+    .bind(filters.category)
+    .bind(filters.live)
+    .bind(filters.upcoming)
+    .bind(filters.sort)
     .fetch_all(pool)
     .await
     .map_err(|error| {
