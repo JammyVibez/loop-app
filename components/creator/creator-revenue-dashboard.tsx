@@ -60,6 +60,10 @@ interface CreatorRevenueDashboardProps {
   className?: string
 }
 
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value)
+}
+
 export function CreatorRevenueDashboard({ className }: CreatorRevenueDashboardProps) {
   const { user, getAuthHeader } = useAuth()
   const [data, setData] = useState<RevenueData | null>(null)
