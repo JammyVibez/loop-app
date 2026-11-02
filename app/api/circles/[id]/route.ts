@@ -1,13 +1,23 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase";
+import { createServerClient } from "@/lib/supabase";
 import { hardDeleteCircle, setCircleActive } from "@/lib/circle-lifecycle";
 import { getUserFromRequest } from "@/lib/server-auth";
 import { isProUser } from "@/lib/pro-features";
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
+function getCircleRouteClient() {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null
+  return createServerClient()
+}
+
+function unavailableCircleResponse() {
+  return NextResponse.json({ error: "Circle service is unavailable" }, { status: 503 })
+}
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const supabase = getCircleRouteClient()
+    if (!supabase) return unavailableCircleResponse()
+
     const currentUser = await getUserFromRequest(request)
 
     const { id: circleId } = await params
@@ -244,6 +254,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const supabase = getCircleRouteClient()
+    if (!supabase) return unavailableCircleResponse()
+
     const user = await getUserFromRequest(request)
 
     if (!user) {
@@ -400,6 +413,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const supabase = getCircleRouteClient()
+    if (!supabase) return unavailableCircleResponse()
+
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -460,6 +476,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const supabase = getCircleRouteClient()
+    if (!supabase) return unavailableCircleResponse()
+
     const user = await getUserFromRequest(request)
 
     if (!user) {
