@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic"
 
 function getSupabase() {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.getSupabase().co",
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder",
   )
 }
@@ -48,7 +48,7 @@ export async function GET(
       return NextResponse.json({ error: "This Circle is private", locked: true }, { status: 403 })
     }
 
-    const { data: event, error: eventError } = await supabase
+    const { data: event, error: eventError } = await getSupabase()
       .from("circle_events")
       .select("id, organizer_id, requires_approval")
       .eq("id", eventId)
@@ -61,7 +61,7 @@ export async function GET(
     const user = await getUserFromRequest(request)
     const [{ data: membership, error: membershipError }, { data: rows, error }] = await Promise.all([
       user
-        ? supabase
+        ? getSupabase()
             .from("circle_members")
             .select("role, permissions, status")
             .eq("circle_id", circleId)
@@ -69,7 +69,7 @@ export async function GET(
             .in("status", ["active", "approved"])
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
-      supabase
+      getSupabase()
         .from("circle_event_participants")
         .select("user_id, status, created_at, profile:profiles!user_id(id, username, display_name, avatar_url, video_avatar_url)")
         .eq("event_id", eventId),
@@ -125,7 +125,7 @@ export async function POST(
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const { data: membership, error: membershipError } = await supabase
+    const { data: membership, error: membershipError } = await getSupabase()
       .from("circle_members")
       .select("id")
       .eq("circle_id", circleId)
@@ -136,7 +136,7 @@ export async function POST(
     if (membershipError) return NextResponse.json({ error: "Could not verify Circle membership" }, { status: 500 })
     if (!membership) return NextResponse.json({ error: "Join this Circle before RSVPing" }, { status: 403 })
 
-    const { data: event, error: eventError } = await supabase
+    const { data: event, error: eventError } = await getSupabase()
       .from("circle_events")
       .select("id, ends_at, requires_approval")
       .eq("id", eventId)
@@ -188,13 +188,13 @@ export async function PATCH(
     }
 
     const [{ data: event, error: eventError }, { data: membership, error: membershipError }] = await Promise.all([
-      supabase
+      getSupabase()
         .from("circle_events")
         .select("id, organizer_id")
         .eq("id", eventId)
         .eq("circle_id", circleId)
         .maybeSingle(),
-      supabase
+      getSupabase()
         .from("circle_members")
         .select("role, permissions")
         .eq("circle_id", circleId)
@@ -211,7 +211,7 @@ export async function PATCH(
       return NextResponse.json({ error: "You cannot manage RSVPs for this event" }, { status: 403 })
     }
 
-    const { data: pending, error: pendingError } = await supabase
+    const { data: pending, error: pendingError } = await getSupabase()
       .from("circle_event_participants")
       .select("id")
       .eq("event_id", eventId)
@@ -252,7 +252,7 @@ export async function DELETE(
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const { data: event, error: eventError } = await supabase
+    const { data: event, error: eventError } = await getSupabase()
       .from("circle_events")
       .select("id")
       .eq("id", eventId)
@@ -262,7 +262,7 @@ export async function DELETE(
     if (eventError) return NextResponse.json({ error: "Could not load event" }, { status: 500 })
     if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 })
 
-    const { data: existing, error: existingError } = await supabase
+    const { data: existing, error: existingError } = await getSupabase()
       .from("circle_event_participants")
       .select("id")
       .eq("event_id", eventId)

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic"
 
 function getSupabase() {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.getSupabase().co",
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder",
   )
 }
@@ -28,7 +28,7 @@ function canManageEvents(member: CircleMember | null | undefined) {
 }
 
 async function getActiveMember(circleId: string, userId: string) {
-  return supabase
+  return getSupabase()
     .from("circle_members")
     .select("role, permissions, status")
     .eq("circle_id", circleId)
@@ -70,7 +70,7 @@ export async function GET(
     }
 
     const now = new Date().toISOString()
-    let query = supabase
+    let query = getSupabase()
       .from("circle_events")
       .select(`
         *,
@@ -99,7 +99,7 @@ export async function GET(
 
     if (viewer) {
       if (events?.length) {
-        const { data: rows, error: rsvpError } = await supabase
+        const { data: rows, error: rsvpError } = await getSupabase()
           .from("circle_event_participants")
           .select("event_id, status")
           .eq("user_id", viewer.id)
@@ -163,7 +163,7 @@ export async function POST(
     }
 
     const { value } = normalized
-    const { data: event, error } = await supabase
+    const { data: event, error } = await getSupabase()
       .from("circle_events")
       .insert({
         circle_id: circleId,
@@ -219,7 +219,7 @@ export async function PUT(
     }
 
     const [{ data: event, error: eventError }, { data: member, error: memberError }] = await Promise.all([
-      supabase
+      getSupabase()
         .from("circle_events")
         .select("*")
         .eq("id", body.eventId)
@@ -240,7 +240,7 @@ export async function PUT(
     const normalized = normalizeCircleEventInput({ ...event, ...body })
     if (!normalized.ok) return NextResponse.json({ error: normalized.error }, { status: 400 })
 
-    const { count, error: countError } = await supabase
+    const { count, error: countError } = await getSupabase()
       .from("circle_event_participants")
       .select("id", { count: "exact", head: true })
       .eq("event_id", event.id)
@@ -251,7 +251,7 @@ export async function PUT(
       return NextResponse.json({ error: "The attendee limit is lower than the number already attending" }, { status: 409 })
     }
 
-    const { data: updatedEvent, error: updateError } = await supabase
+    const { data: updatedEvent, error: updateError } = await getSupabase()
       .from("circle_events")
       .update(normalized.value)
       .eq("id", event.id)
@@ -289,7 +289,7 @@ export async function DELETE(
     if (!eventId) return NextResponse.json({ error: "An eventId is required" }, { status: 400 })
 
     const [{ data: event, error: eventError }, { data: member, error: memberError }] = await Promise.all([
-      supabase
+      getSupabase()
         .from("circle_events")
         .select("id, organizer_id")
         .eq("id", eventId)
@@ -307,7 +307,7 @@ export async function DELETE(
       return NextResponse.json({ error: "You cannot delete this event" }, { status: 403 })
     }
 
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await getSupabase()
       .from("circle_events")
       .delete()
       .eq("id", eventId)
