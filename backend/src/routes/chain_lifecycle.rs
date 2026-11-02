@@ -58,22 +58,25 @@ fn validate_edited_contribution(
     content: &str,
     payload: &Value,
 ) -> Result<(), (&'static str, &'static str)> {
-    if title.is_some_and(|value| value.chars().count() > 120)
-        || content.chars().count() > 8_000
-    {
+    if title.is_some_and(|value| value.chars().count() > 120) || content.chars().count() > 8_000 {
         return Err((
             "contribution_too_long",
             "Contribution titles are limited to 120 characters and content to 8,000.",
         ));
     }
-    if !payload.is_object() || serde_json::to_vec(payload).map_or(true, |value| value.len() > 64 * 1024) {
+    if !payload.is_object()
+        || serde_json::to_vec(payload).map_or(true, |value| value.len() > 64 * 1024)
+    {
         return Err((
             "invalid_contribution_payload",
             "Structured contribution data must be an object no larger than 64 KiB.",
         ));
     }
     let has_payload = payload.as_object().is_some_and(|value| !value.is_empty());
-    if title.is_none_or(|value| value.trim().is_empty()) && content.trim().is_empty() && !has_payload {
+    if title.is_none_or(|value| value.trim().is_empty())
+        && content.trim().is_empty()
+        && !has_payload
+    {
         return Err((
             "empty_contribution",
             "A contribution must retain text, a title or structured content.",
@@ -466,11 +469,7 @@ pub async fn update_contribution(
         .title
         .map(|value| {
             let value = value.trim().to_owned();
-            if value.is_empty() {
-                None
-            } else {
-                Some(value)
-            }
+            if value.is_empty() { None } else { Some(value) }
         })
         .unwrap_or(old_title.clone());
     let next_content = input.content.unwrap_or_else(|| old_content.clone());
@@ -482,9 +481,7 @@ pub async fn update_contribution(
         &next_content,
         &next_payload,
     )
-    .map_err(|(code, message)| {
-        api_error(StatusCode::UNPROCESSABLE_ENTITY, code, message)
-    })?;
+    .map_err(|(code, message)| api_error(StatusCode::UNPROCESSABLE_ENTITY, code, message))?;
 
     let revision_number: i64 = sqlx::query_scalar(
         "SELECT COALESCE(MAX(revision_number), 0) + 1 FROM chain_contribution_revisions WHERE contribution_id = $1",
@@ -655,7 +652,6 @@ pub async fn list_revisions(
     Ok(Json(revisions))
 }
 
-
 #[cfg(test)]
 mod tests {
     use serde_json::json;
@@ -664,34 +660,31 @@ mod tests {
 
     #[test]
     fn structured_lists_require_two_to_forty_entries() {
-        assert!(validate_edited_contribution(
-            "list",
-            None,
-            "",
-            &json!({"items": ["one", "two"]})
-        ).is_ok());
-        assert!(validate_edited_contribution(
-            "list",
-            None,
-            "",
-            &json!({"items": ["only one"]})
-        ).is_err());
+        assert!(
+            validate_edited_contribution("list", None, "", &json!({"items": ["one", "two"]}))
+                .is_ok()
+        );
+        assert!(
+            validate_edited_contribution("list", None, "", &json!({"items": ["only one"]}))
+                .is_err()
+        );
     }
 
     #[test]
     fn polls_require_a_question_and_valid_options() {
-        assert!(validate_edited_contribution(
-            "poll",
-            None,
-            "Which option?",
-            &json!({"options": ["A", "B"]})
-        ).is_ok());
-        assert!(validate_edited_contribution(
-            "poll",
-            None,
-            "",
-            &json!({"options": ["A", "B"]})
-        ).is_err());
+        assert!(
+            validate_edited_contribution(
+                "poll",
+                None,
+                "Which option?",
+                &json!({"options": ["A", "B"]})
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_edited_contribution("poll", None, "", &json!({"options": ["A", "B"]}))
+                .is_err()
+        );
     }
 
     #[test]
