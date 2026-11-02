@@ -148,7 +148,8 @@ pub async fn list(
     })?;
 
     let mut items = Vec::new();
-    let per_source_limit = (offset + limit).clamp(1, 300);
+    // Fetch one extra row per source so has_more remains accurate at page boundaries.
+    let per_source_limit = (offset + limit + 1).clamp(1, 300);
 
     append_rows(
         &mut items,
