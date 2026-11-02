@@ -341,3 +341,9 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Added the missing `reel` alias to the reported-content removal route; the moderation queue already offered the action for both `reel` and `reels`, so they now resolve to the same Loop storage table.
 - Added parser tests for user-submitted appeals, including whitespace normalization, malformed/non-text reasons and the exact 2,000-character boundary.
 - The account-status migration retains historical appeals and enforces only one pending appeal per user, allowing a later appeal after a prior decision without overwriting the audit trail.
+## 25. Atomic Circle join lifecycle — 2026-11-02
+
+- Added a row-locked join_circle database function after the Circle schema migration. It serializes joins per Circle, validates the canonical account is neither suspended nor deleted, respects Circle bans, keeps public/private join states distinct, prevents client-selected elevated roles, enforces max_members for public joins and updates member_count in the same transaction.
+- The join API now uses the database outcome as the source of truth. Existing active/pending members do not trigger duplicate welcome effects; private requests notify Circle staff; successful public joins retain welcome bot/default Power/quest integrations after commit.
+- Added route tests for atomic delegation, full-Circle conflict, already-member idempotency and private join request notification.
+- Private join approvals still need the same row-locked capacity check; that is the next membership lifecycle step, rather than treating this join-request endpoint as complete.

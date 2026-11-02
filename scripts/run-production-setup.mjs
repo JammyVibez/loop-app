@@ -29,6 +29,8 @@ const files = [
   // Race-safe reports and transactional moderation actions.
   "scripts/moderation-integrity.sql",
   "scripts/circles-schema-alignment.sql",
+  // Row-locked public/private Circle joins with capacity and account-status checks.
+  "scripts/circle-membership-lifecycle.sql",
   "scripts/enhanced-database-schema-part2.sql",
   "scripts/enhanced-database-schema-part3.sql",
   // Wallet ledger, coin gifts, and withdrawal request tables. Required for the
@@ -233,7 +235,7 @@ function applyFile(file, { strict = false } = {}) {
 for (const file of files) {
   // Verification owns private identity evidence and the admin review function;
   // never report setup success when any part of this security migration fails.
-  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql"].includes(file) })
+  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql"].includes(file) })
 }
 
 if (process.argv.includes("--with-seed")) {
