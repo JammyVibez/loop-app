@@ -302,7 +302,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
             <div className="flex items-center gap-2 text-sm font-semibold"><MessageCircle className="h-4 w-4 text-primary" /> Add to this Chain</div>
             {parentContributionId && (
               <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-xs">
-                <span>Replying to a contribution</span>
+                <span>{(() => { const parent = contributions.find((item) => item.id === parentContributionId); return parent ? `Replying to @${parent.author_username}` : "Replying to an earlier contribution" })()}</span>
                 <button type="button" className="font-semibold text-primary" onClick={() => setParentContributionId(null)}>Clear</button>
               </div>
             )}
@@ -363,7 +363,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
             )}
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <div className="flex justify-end">
-              <Button type="submit" disabled={submitting || (!content.trim() && !title.trim() && !attachment) || (requiresAttachment && !attachment)}>
+              <Button type="submit" disabled={submitting || (!content.trim() && !title.trim() && !attachment && !structuredEntries.trim()) || (requiresAttachment && !attachment)}>
                 <Send className="h-4 w-4" /> {submitting ? "Adding…" : "Contribute"}
               </Button>
             </div>

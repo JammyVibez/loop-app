@@ -873,6 +873,45 @@ pub async fn contribute(
             "Add text, a link or an attachment before contributing.",
         ));
     }
+    match contribution_type.as_str() {
+        "list" | "ranking" => {
+            let entries = input.payload.get("items").and_then(Value::as_array);
+            let valid_entries = entries.is_some_and(|items| {
+                (2..=40).contains(&items.len())
+                    && items.iter().all(|entry| {
+                        entry.as_str().is_some_and(|value| {
+                            !value.trim().is_empty() && value.chars().count() <= 240
+                        })
+                    })
+            });
+            if !valid_entries {
+                return Err(api_error(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "invalid_structured_entries",
+                    "Lists and rankings need 2 to 40 non-empty entries, each up to 240 characters.",
+                ));
+            }
+        }
+        "poll" => {
+            let options = input.payload.get("options").and_then(Value::as_array);
+            let valid_options = options.is_some_and(|items| {
+                (2..=10).contains(&items.len())
+                    && items.iter().all(|option| {
+                        option.as_str().is_some_and(|value| {
+                            !value.trim().is_empty() && value.chars().count() <= 160
+                        })
+                    })
+            });
+            if content.trim().is_empty() || !valid_options {
+                return Err(api_error(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "invalid_poll_contribution",
+                    "Poll contributions need a question and 2 to 10 non-empty options, each up to 160 characters.",
+                ));
+            }
+        }
+        _ => {}
+    }
     if serde_json::to_vec(&input.payload).map_or(true, |value| value.len() > 64 * 1024) {
         return Err(api_error(
             StatusCode::UNPROCESSABLE_ENTITY,
