@@ -100,6 +100,123 @@ pub struct FollowingListResponse {
     has_more: bool,
 }
 
+#[derive(Deserialize)]
+pub struct ListChainContributionsQuery {
+    limit: Option<i64>,
+    offset: Option<i64>,
+}
+
+#[derive(Serialize)]
+pub struct ProfileChainContribution {
+    id: Uuid,
+    chain_id: Uuid,
+    chain_title: String,
+    contribution_type: String,
+    title: Option<String>,
+    content_preview: String,
+    created_at: DateTime<Utc>,
+}
+
+#[derive(Serialize)]
+pub struct ProfileChainContributionsResponse {
+    success: bool,
+    contributions: Vec<ProfileChainContribution>,
+    has_more: bool,
+}
+
+/// Contributions displayed on a profile are filtered by profile privacy
+/// and by the viewer's own access to each originating Chain.
+pub async fn chain_contributions(
+    State(state): State<AppState>,
+    viewer: OptionalAuthenticatedUser,
+    Path(target_id): Path<Uuid>,
+    Query(query): Query<ListChainContributionsQuery>,
+) -> Result<Json<ProfileChainContributionsResponse>, ApiError> {
+    let viewer_id = viewer.0.as_ref().map(|user| user.id);
+    check_social_list_access(&state, target_id, viewer_id).await?;
+
+    let limit = query.limit.unwrap_or(12).clamp(1, 40);
+    let offset = query.offset.unwrap_or(0).clamp(0, 10_000);
+    let rows = sqlx::query(
+        r#"
+        SELECT
+            contribution.id,
+            contribution.chain_id,
+            chain.title AS chain_title,
+            contribution.contribution_type,
+            contribution.title,
+            LEFT(contribution.content, 280) AS content_preview,
+            contribution.created_at
+        FROM chain_contributions AS contribution
+        JOIN chains AS chain ON chain.id = contribution.chain_id
+        WHERE contribution.author_id = $1
+          AND contribution.status = 'published'
+          AND chain.status IN ('active', 'completed')
+          AND (
+              (chain.visibility = 'public' AND chain.circle_id IS NULL)
+              OR (
+                  $2::uuid IS NOT NULL
+                  AND (
+                      $2 = $1
+                      OR chain.creator_id = $2
+                      OR EXISTS (
+                          SELECT 1 FROM chain_members AS member
+                          WHERE member.chain_id = chain.id AND member.user_id = $2
+                      )
+                      OR (
+                          chain.visibility = 'circle'
+                          AND (
+                              EXISTS (
+                                  SELECT 1 FROM circle_members AS member
+                                  WHERE member.circle_id = chain.circle_id
+                                    AND member.user_id = $2
+                                    AND member.status IN ('active', 'approved')
+                              )
+                              OR EXISTS (
+                                  SELECT 1 FROM circles AS circle
+                                  WHERE circle.id = chain.circle_id AND circle.owner_id = $2
+                              )
+                          )
+                      )
+                  )
+              )
+          )
+        ORDER BY contribution.created_at DESC, contribution.id DESC
+        LIMIT $3 OFFSET $4
+        "#,
+    )
+    .bind(target_id)
+    .bind(viewer_id)
+    .bind(limit + 1)
+    .bind(offset)
+    .fetch_all(&state.database)
+    .await
+    .map_err(db_error)?;
+
+    let has_more = rows.len() > limit as usize;
+    let contributions = rows
+        .into_iter()
+        .take(limit as usize)
+        .map(|row| {
+            Ok(ProfileChainContribution {
+                id: row.try_get("id").map_err(db_error)?,
+                chain_id: row.try_get("chain_id").map_err(db_error)?,
+                chain_title: row.try_get("chain_title").map_err(db_error)?,
+                contribution_type: row.try_get("contribution_type").map_err(db_error)?,
+                title: row.try_get("title").map_err(db_error)?,
+                content_preview: row.try_get("content_preview").map_err(db_error)?,
+                created_at: row.try_get("created_at").map_err(db_error)?,
+            })
+        })
+        .collect::<Result<Vec<_>, ApiError>>()?;
+
+    Ok(Json(ProfileChainContributionsResponse {
+        success: true,
+        contributions,
+        has_more,
+    }))
+}
+
 async fn check_social_list_access(
     state: &AppState,
     target_id: Uuid,

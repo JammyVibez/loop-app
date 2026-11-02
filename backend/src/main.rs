@@ -119,6 +119,10 @@ async fn main() -> anyhow::Result<()> {
             "/v1/users/{target_id}/following",
             get(routes::social::following),
         )
+        .route(
+            "/v1/users/{target_id}/chain-contributions",
+            get(routes::social::chain_contributions),
+        )
         .route("/v1/users/{target_id}/follow", post(routes::social::follow))
         .route(
             "/v1/users/{target_id}/follow-request",
