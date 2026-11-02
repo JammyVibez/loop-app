@@ -43,26 +43,37 @@ export async function GET(
     }
 
     const user = await getUserFromRequest(request)
-    const { data: membership } = user
-      ? await supabase
-          .from("circle_members")
-          .select("status")
-          .eq("circle_id", circleId)
-          .eq("user_id", user.id)
-          .maybeSingle()
-      : { data: null }
+    const [{ data: membership }, { data: circle }] = user
+      ? await Promise.all([
+          supabase
+            .from("circle_members")
+            .select("status")
+            .eq("circle_id", circleId)
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          supabase
+            .from("circles")
+            .select("owner_id")
+            .eq("id", circleId)
+            .maybeSingle(),
+        ])
+      : [{ data: null }, { data: null }]
 
     const now = Date.now()
     const startsAt = challenge.starts_at ? new Date(challenge.starts_at).getTime() : 0
     const endsAt = challenge.ends_at ? new Date(challenge.ends_at).getTime() : Number.POSITIVE_INFINITY
     const isOpen = challenge.status === "active" && startsAt <= now && endsAt >= now
     const isMember = Boolean(membership && ["active", "approved"].includes(String(membership.status)))
+    const canCreateChain = Boolean(
+      user && (circle?.owner_id === user.id || isMember),
+    )
 
     return NextResponse.json({
       success: true,
       challenge,
       can_submit: Boolean(user && isMember && isOpen),
       is_member: isMember,
+      can_create_chain: canCreateChain,
       viewer_id: user?.id || null,
     })
   } catch (error) {
