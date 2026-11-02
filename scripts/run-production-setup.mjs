@@ -36,6 +36,11 @@ const files = [
   "scripts/messages-edit-forward-schema.sql",
   // Circle multi-media posts, polls, and per-member custom roles/permissions.
   "scripts/circles-enhancements-schema.sql",
+  // Repair the Circle event RSVP participant FK/unique key before enabling RSVP
+  // writes. This removes orphaned participant rows and recalculates attendee counts.
+  "scripts/fix-circle-event-participants.sql",
+  // Serialize RSVP capacity changes and enforce atomic attendee counts.
+  "scripts/circle-event-rsvp-lifecycle.sql",
   // Dev Quests & bounties — coin-reward challenges in the Developer Hub
   // (see /api/developers/quests and components/developers/developer-quests.tsx).
   "scripts/dev-quests-schema.sql",

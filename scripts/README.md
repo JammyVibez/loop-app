@@ -6,41 +6,61 @@ environment.** Before adding a new `.sql` file here, read this first.
 
 ## The canonical path
 
-`scripts/run-production-setup.mjs` is the only script that actually runs
-against a fresh or existing database (`npm run db:setup:production`). It
-applies files **in this exact order**:
+`scripts/run-production-setup.mjs` is the only script that runs the
+production schema setup (`npm run db:setup:production`). It applies files
+in this exact order:
 
 1. `schema-compat-alignment.sql`
-2. `complete-database-setup.sql` — base tables (profiles, loops, circles,
-   messages, shop_items, gifts, achievements, admin_settings, …)
-3. `launch-schema-alignment.sql` — payment_logs, conversations, reels,
-   circle rooms, media_uploads, earnings, live_streams, …
+2. `complete-database-setup.sql`
+3. `launch-schema-alignment.sql`
 4. `loops-and-media.sql`
 5. `moderation-schema.sql`
 6. `circles-schema-alignment.sql`
 7. `enhanced-database-schema-part2.sql`
 8. `enhanced-database-schema-part3.sql`
-9. `wallet-and-events-schema.sql` — wallet_transactions, coin_gifts,
-   withdrawal_requests (the real Stripe-backed coin economy)
-10. `developer-features.sql` — developer_projects and related tables
-    (the real Developers gallery)
-11. `co-loop-sessions-schema.sql` — co_loop_sessions (durable Co-Loop Studio
-    ownership + co-author roster; see `/api/co-loop/session-info`)
-12. `rls-policies.sql`
-13. `realtime-functions.sql`
+9. `wallet-and-events-schema.sql`
+10. `developer-features.sql`
+11. `co-loop-sessions-schema.sql`
+12. `message-reactions-schema-fix.sql`
+13. `dm-read-receipts-compat.sql`
+14. `messages-edit-forward-schema.sql`
+15. `circles-enhancements-schema.sql`
+16. `fix-circle-event-participants.sql` — repairs the event participant foreign
+    key, removes orphan RSVP rows, and ensures one RSVP per event/member.
+17. `circle-event-rsvp-lifecycle.sql` — installs the row-locked RSVP RPC that
+    prevents capacity races and synchronizes attendee counts.
+18. `dev-quests-schema.sql`
+19. `developer-hub-v2.sql`
+20. `dev-collaborators-schema.sql`
+21. `dev-repo-schema.sql`
+22. `rls-policies.sql`
+23. `realtime-functions.sql`
+24. `coin-packs-refunds-schema.sql`
+25. `fix-profiles-cosmetics-column.sql`
+26. `private-profiles-schema.sql`
+27. `native-push-schema.sql`
+28. `clutch-duel-ads-tags-schema.sql`
+29. `awards-pro-circle-moments-schema.sql`
+30. `events-moderation-schema.sql`
+31. `custom-checkmarks-schema.sql`
+32. `update-coin-packs.sql`
+33. `open-co-loop-invites-schema.sql`
+34. `curated-emojis-schema.sql`
+35. `add-is-spoiler-column.sql`
+36. `explore-reels-indexes.sql`
+37. `community-chat-post-enhancements.sql`
+38. `community-fixes-2026-09.sql`
+39. `community-admin-settings-2026-09.sql`
+40. `fix-duel-votes-type.sql`
+41. `fix-poll-option-id-type.sql`
+42. `fix-poll-votes-poll-id-type.sql`
+43. `community-chat-schema.sql`
+44. `community-post-enhancements.sql`
 
-Every file in this list uses `CREATE TABLE IF NOT EXISTS` / `ADD COLUMN IF
-NOT EXISTS` so it's safe to re-run against a database that already has
-some of this schema applied (verified against the live project database
-during the Phase 1/3/5 hardening pass — zero data loss, idempotent
-re-runs).
-
-**If a table your code needs doesn't exist in a real environment, the fix
-is almost always "add the migration file to the `files` array in
-`run-production-setup.mjs`," not "write a new schema file no one runs."**
-Two real bugs (missing `wallet_transactions`/`coin_gifts`/
-`withdrawal_requests` and missing `developer_projects`) were exactly this
-— fully-written SQL files that nobody had wired into the pipeline.
+Every migration is expected to be idempotent. The Circle event repair runs
+after the event/participant tables are created, and the lifecycle RPC is
+installed immediately after the repair so RSVP writes cannot overbook a
+limited event.
 
 ## Everything else in this folder
 
