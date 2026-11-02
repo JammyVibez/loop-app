@@ -172,6 +172,9 @@ export function DropsHub() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<DropFilter>("all")
+  const [activeCategory, setActiveCategory] = useState("all")
+  const [knownCategories, setKnownCategories] = useState<string[]>([])
+  const [sort, setSort] = useState<"recommended" | "upcoming" | "popular" | "recent">("recommended")
   const [search, setSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [loadingMore, setLoadingMore] = useState(false)
@@ -205,27 +208,39 @@ export function DropsHub() {
     setError(null)
 
     try {
-      const params = new URLSearchParams({ limit: "60", offset: "0" })
+      const params = new URLSearchParams({ limit: "60", offset: "0", sort })
       if (debouncedSearch) params.set("search", debouncedSearch)
+      if (activeFilter === "event" || activeFilter === "challenge") params.set("kind", activeFilter)
+      if (activeFilter === "live") params.set("live", "true")
+      if (activeFilter === "upcoming") params.set("upcoming", "true")
+      if (activeCategory !== "all") params.set("category", activeCategory)
       const data = await rustApiRequest<DropsResponse>("drops?" + params.toString(), {
         headers: getAuthHeader(),
         cache: "no-store",
       })
       setResponse(data)
+      setKnownCategories((current) => Array.from(new Set([
+        ...current,
+        ...(data.items || []).map((item: DropItem) => item.category).filter(Boolean),
+      ])).sort((left, right) => left.localeCompare(right)))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load Drops.")
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [debouncedSearch, getAuthHeader, user])
+  }, [activeCategory, activeFilter, debouncedSearch, getAuthHeader, sort, user])
 
   const loadMoreDrops = async () => {
     if (!response?.has_more || loadingMore) return
     setLoadingMore(true)
     try {
-      const params = new URLSearchParams({ limit: "60", offset: String(response.items.length) })
+      const params = new URLSearchParams({ limit: "60", offset: String(response.items.length), sort })
       if (debouncedSearch) params.set("search", debouncedSearch)
+      if (activeFilter === "event" || activeFilter === "challenge") params.set("kind", activeFilter)
+      if (activeFilter === "live") params.set("live", "true")
+      if (activeFilter === "upcoming") params.set("upcoming", "true")
+      if (activeCategory !== "all") params.set("category", activeCategory)
       const page = await rustApiRequest<DropsResponse>("drops?" + params.toString(), {
         headers: getAuthHeader(),
         cache: "no-store",
@@ -234,6 +249,10 @@ export function DropsHub() {
         ...page,
         items: [...current.items, ...page.items.filter((item) => !current.items.some((existing) => existing.id === item.id && existing.source === item.source))],
       } : page)
+      setKnownCategories((current) => Array.from(new Set([
+        ...current,
+        ...(page.items || []).map((item: DropItem) => item.category).filter(Boolean),
+      ])).sort((left, right) => left.localeCompare(right)))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load more activity.")
     } finally {
@@ -507,6 +526,26 @@ export function DropsHub() {
               aria-label="Search Drops"
             />
           </div>
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value as typeof sort)}
+            aria-label="Sort Drops"
+            className="h-10 rounded-xl border border-input bg-background px-3 text-sm"
+          >
+            <option value="recommended">Recommended</option>
+            <option value="upcoming">Soonest</option>
+            <option value="popular">Most participants</option>
+            <option value="recent">Recently added</option>
+          </select>
+          <select
+            value={activeCategory}
+            onChange={(event) => setActiveCategory(event.target.value)}
+            aria-label="Filter Drop category"
+            className="h-10 max-w-36 rounded-xl border border-input bg-background px-3 text-sm"
+          >
+            <option value="all">All categories</option>
+            {knownCategories.map((category) => <option key={category.toLowerCase()} value={category.toLowerCase()}>{category}</option>)}
+          </select>
           <Button variant="outline" size="icon" onClick={() => void loadDrops(true)} disabled={refreshing} aria-label="Refresh Drops">
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
