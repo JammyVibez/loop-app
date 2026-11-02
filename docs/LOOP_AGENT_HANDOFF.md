@@ -47,3 +47,11 @@ The success redirect carries the Stripe Checkout Session ID to /premium. LOOP re
 - The active-Pro summary lists only perks whose entitlement is currently enforced. Unfinished perks are clearly labelled “In development · Not available yet” in the upgrade comparison instead of being presented as already unlocked.
 - Removed the proposed paid algorithmic reach boost entirely; discovery remains relevance-based and transparent, not pay-to-amplify.
 - Removed the unused collaboration flag from the Collection member-removal handler, resolving the Clippy `-D warnings` failure reported in the previous Rust run.
+
+
+## 65. Reliable progression and achievement profile privacy — 2026-11-02
+
+- Added the previously omitted achievement/stat lifecycle to the planned production setup; the companion integrity migration is committed separately.
+- Achievement profile reads now validate the requested UUID and enforce active-account, block and private/follower visibility boundaries. Public responses select only intended progression counters instead of returning every user_stats column.
+- Added focused visibility policy tests for self, public profiles, approved followers, pending followers, blocked pairs and inactive accounts.
+- PostgreSQL migration execution, event trigger backfill and real database reward idempotency checks remain release gates.
