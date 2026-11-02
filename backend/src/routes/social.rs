@@ -153,6 +153,24 @@ pub async fn chain_contributions(
           AND contribution.status = 'published'
           AND chain.status IN ('active', 'completed')
           AND (
+              chain.visibility <> 'circle'
+              OR (
+                  $2::uuid IS NOT NULL
+                  AND (
+                      EXISTS (
+                          SELECT 1 FROM circle_members AS member
+                          WHERE member.circle_id = chain.circle_id
+                            AND member.user_id = $2
+                            AND member.status IN ('active', 'approved')
+                      )
+                      OR EXISTS (
+                          SELECT 1 FROM circles AS circle
+                          WHERE circle.id = chain.circle_id AND circle.owner_id = $2
+                      )
+                  )
+              )
+          )
+          AND (
               (chain.visibility = 'public' AND chain.circle_id IS NULL)
               OR (
                   $2::uuid IS NOT NULL

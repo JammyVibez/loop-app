@@ -395,6 +395,19 @@ pub async fn get(
                       SELECT 1 FROM chains AS target_chain
                       WHERE target_chain.id = item.chain_id
                         AND (
+                            target_chain.visibility <> 'circle'
+                            OR EXISTS (
+                                SELECT 1 FROM circle_members AS circle_member
+                                WHERE circle_member.circle_id = target_chain.circle_id
+                                  AND circle_member.user_id = $2
+                                  AND circle_member.status IN ('active', 'approved')
+                            )
+                            OR EXISTS (
+                                SELECT 1 FROM circles AS circle
+                                WHERE circle.id = target_chain.circle_id AND circle.owner_id = $2
+                            )
+                        )
+                        AND (
                             target_chain.creator_id = $2
                             OR EXISTS (
                                 SELECT 1 FROM chain_members AS chain_member
@@ -608,6 +621,19 @@ pub async fn add_item(
                 SELECT EXISTS (
                     SELECT 1 FROM chains AS target_chain
                     WHERE target_chain.id = $1
+                      AND (
+                          target_chain.visibility <> 'circle'
+                          OR EXISTS (
+                              SELECT 1 FROM circle_members AS circle_member
+                              WHERE circle_member.circle_id = target_chain.circle_id
+                                AND circle_member.user_id = $2
+                                AND circle_member.status IN ('active', 'approved')
+                          )
+                          OR EXISTS (
+                              SELECT 1 FROM circles AS circle
+                              WHERE circle.id = target_chain.circle_id AND circle.owner_id = $2
+                          )
+                      )
                       AND (
                           target_chain.creator_id = $2
                           OR EXISTS (

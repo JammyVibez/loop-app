@@ -158,6 +158,19 @@ pub async fn fork(
         WHERE chain.id = $1
           AND chain.status IN ('active', 'completed')
           AND (
+              chain.visibility <> 'circle'
+              OR EXISTS (
+                  SELECT 1 FROM circle_members AS circle_member
+                  WHERE circle_member.circle_id = chain.circle_id
+                    AND circle_member.user_id = $2
+                    AND circle_member.status IN ('active', 'approved')
+              )
+              OR EXISTS (
+                  SELECT 1 FROM circles AS circle
+                  WHERE circle.id = chain.circle_id AND circle.owner_id = $2
+              )
+          )
+          AND (
               chain.creator_id = $2
               OR EXISTS (
                   SELECT 1 FROM chain_members AS member
@@ -427,6 +440,19 @@ pub async fn update_contribution(
           AND contribution.status = 'published'
           AND contribution.author_id = $3
           AND (
+              chain.visibility <> 'circle'
+              OR EXISTS (
+                  SELECT 1 FROM circle_members AS circle_member
+                  WHERE circle_member.circle_id = chain.circle_id
+                    AND circle_member.user_id = $3
+                    AND circle_member.status IN ('active', 'approved')
+              )
+              OR EXISTS (
+                  SELECT 1 FROM circles AS circle
+                  WHERE circle.id = chain.circle_id AND circle.owner_id = $3
+              )
+          )
+          AND (
               chain.creator_id = $3
               OR EXISTS (
                   SELECT 1 FROM chain_members AS member
@@ -590,6 +616,19 @@ pub async fn list_revisions(
               AND contribution.status = 'published'
               AND (contribution.author_id = $3 OR chain.creator_id = $3)
               AND (
+                  chain.visibility <> 'circle'
+                  OR EXISTS (
+                      SELECT 1 FROM circle_members AS circle_member
+                      WHERE circle_member.circle_id = chain.circle_id
+                        AND circle_member.user_id = $3
+                        AND circle_member.status IN ('active', 'approved')
+                  )
+                  OR EXISTS (
+                      SELECT 1 FROM circles AS circle
+                      WHERE circle.id = chain.circle_id AND circle.owner_id = $3
+                  )
+              )
+              AND (
                   chain.creator_id = $3
                   OR EXISTS (
                       SELECT 1 FROM chain_members AS member
@@ -704,6 +743,19 @@ pub async fn restore_contribution_revision(
           AND contribution.id = $2
           AND contribution.status = 'published'
           AND contribution.author_id = $3
+          AND (
+              chain.visibility <> 'circle'
+              OR EXISTS (
+                  SELECT 1 FROM circle_members AS circle_member
+                  WHERE circle_member.circle_id = chain.circle_id
+                    AND circle_member.user_id = $3
+                    AND circle_member.status IN ('active', 'approved')
+              )
+              OR EXISTS (
+                  SELECT 1 FROM circles AS circle
+                  WHERE circle.id = chain.circle_id AND circle.owner_id = $3
+              )
+          )
           AND (
               chain.creator_id = $3
               OR EXISTS (

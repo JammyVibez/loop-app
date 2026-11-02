@@ -299,14 +299,13 @@ fn can_access_chain(
     is_chain_member: bool,
     is_circle_member: bool,
 ) -> bool {
+    if visibility == "circle" {
+        return has_circle && is_circle_member;
+    }
     if is_creator || is_chain_member {
         return true;
     }
-    match visibility {
-        "public" | "unlisted" => !has_circle || is_circle_member,
-        "circle" => has_circle && is_circle_member,
-        _ => false,
-    }
+    matches!(visibility, "public" | "unlisted") && (!has_circle || is_circle_member)
 }
 
 fn can_contribute_to_chain(
@@ -317,17 +316,16 @@ fn can_contribute_to_chain(
     is_chain_member: bool,
     is_circle_member: bool,
 ) -> bool {
+    if visibility == "circle" && (!has_circle || !is_circle_member) {
+        return false;
+    }
     if is_creator || is_chain_member {
         return true;
     }
     match policy {
         "members" => false,
         "circle_members" => has_circle && is_circle_member,
-        "open" => match visibility {
-            "public" | "unlisted" => !has_circle || is_circle_member,
-            "circle" => has_circle && is_circle_member,
-            _ => false,
-        },
+        "open" => matches!(visibility, "public" | "unlisted") && (!has_circle || is_circle_member),
         _ => false,
     }
 }
@@ -388,6 +386,19 @@ pub async fn list(
             )
             OR (
               $1::uuid IS NOT NULL
+              AND (
+                chain.visibility <> 'circle'
+                OR EXISTS (
+                    SELECT 1 FROM circle_members AS circle_member
+                    WHERE circle_member.circle_id = chain.circle_id
+                      AND circle_member.user_id = $1
+                      AND circle_member.status IN ('active', 'approved')
+                )
+                OR EXISTS (
+                    SELECT 1 FROM circles AS circle
+                    WHERE circle.id = chain.circle_id AND circle.owner_id = $1
+                )
+              )
               AND (
                 chain.creator_id = $1
                 OR EXISTS (
@@ -758,6 +769,19 @@ pub async fn get(
             OR (
               $2::uuid IS NOT NULL
               AND (
+                chain.visibility <> 'circle'
+                OR EXISTS (
+                    SELECT 1 FROM circle_members AS circle_member
+                    WHERE circle_member.circle_id = chain.circle_id
+                      AND circle_member.user_id = $2
+                      AND circle_member.status IN ('active', 'approved')
+                )
+                OR EXISTS (
+                    SELECT 1 FROM circles AS circle
+                    WHERE circle.id = chain.circle_id AND circle.owner_id = $2
+                )
+              )
+              AND (
                 chain.creator_id = $2
                 OR EXISTS (
                     SELECT 1 FROM chain_members AS member
@@ -786,27 +810,57 @@ pub async fn get(
         sqlx::query_scalar::<_, bool>(
             r#"
             SELECT
-                chain.creator_id = $2
-                OR EXISTS (
-                    SELECT 1 FROM chain_members AS member
-                    WHERE member.chain_id = chain.id AND member.user_id = $2
-                )
-                OR (
-                    chain.contribution_policy = 'open'
-                    AND (chain.circle_id IS NULL OR EXISTS (
-                        SELECT 1 FROM circle_members AS member
-                        WHERE member.circle_id = chain.circle_id
-                          AND member.user_id = $2
-                          AND member.status IN ('active', 'approved')
-                    ))
-                )
-                OR (
-                    chain.contribution_policy = 'circle_members'
-                    AND EXISTS (
-                        SELECT 1 FROM circle_members AS member
-                        WHERE member.circle_id = chain.circle_id
-                          AND member.user_id = $2
-                          AND member.status IN ('active', 'approved')
+                (
+                    (
+                        chain.visibility <> 'circle'
+                        OR EXISTS (
+                            SELECT 1 FROM circle_members AS member
+                            WHERE member.circle_id = chain.circle_id
+                              AND member.user_id = $2
+                              AND member.status IN ('active', 'approved')
+                        )
+                        OR EXISTS (
+                            SELECT 1 FROM circles AS circle
+                            WHERE circle.id = chain.circle_id AND circle.owner_id = $2
+                        )
+                    )
+                    AND (
+                        chain.creator_id = $2
+                        OR EXISTS (
+                            SELECT 1 FROM chain_members AS member
+                            WHERE member.chain_id = chain.id AND member.user_id = $2
+                        )
+                        OR (
+                            chain.contribution_policy = 'open'
+                            AND (
+                                chain.circle_id IS NULL
+                                OR EXISTS (
+                                    SELECT 1 FROM circle_members AS member
+                                    WHERE member.circle_id = chain.circle_id
+                                      AND member.user_id = $2
+                                      AND member.status IN ('active', 'approved')
+                                )
+                                OR EXISTS (
+                                    SELECT 1 FROM circles AS circle
+                                    WHERE circle.id = chain.circle_id AND circle.owner_id = $2
+                                )
+                            )
+                        )
+                        OR (
+                            chain.contribution_policy = 'circle_members'
+                            AND (
+                                EXISTS (
+                                    SELECT 1 FROM circle_members AS member
+                                    WHERE member.circle_id = chain.circle_id
+                                      AND member.user_id = $2
+                                      AND member.status IN ('active', 'approved')
+                                )
+                                OR EXISTS (
+                                    SELECT 1 FROM circles AS circle
+                                    WHERE circle.id = chain.circle_id AND circle.owner_id = $2
+                                )
+                            )
+                        )
                     )
                 )
             FROM chains AS chain
@@ -1319,10 +1373,25 @@ mod tests {
     }
 
     #[test]
-    fn circle_scoped_chains_are_invisible_to_non_members() {
+    fn circle_scoped_chains_require_current_circle_membership_even_for_chain_members() {
         assert!(!can_access_chain("circle", true, false, false, false));
+        assert!(!can_access_chain("circle", true, true, false, false));
+        assert!(!can_access_chain("circle", true, false, true, false));
         assert!(can_access_chain("circle", true, false, false, true));
-        assert!(can_access_chain("circle", true, true, false, false));
+        assert!(can_access_chain("circle", true, true, true, true));
+    }
+
+    #[test]
+    fn former_circle_members_cannot_contribute_through_stale_chain_membership() {
+        assert!(!can_contribute_to_chain(
+            "open", "circle", true, true, true, false
+        ));
+        assert!(!can_contribute_to_chain(
+            "circle_members", "circle", true, false, true, false
+        ));
+        assert!(can_contribute_to_chain(
+            "open", "circle", true, false, true, true
+        ));
     }
 
     #[test]
