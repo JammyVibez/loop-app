@@ -16,6 +16,7 @@ export function diversifyByAuthor<T extends { id: string; author_id?: string | n
   const authorCounts = new Map<string, number>()
 
   for (const item of rankedItems) {
+    if (selectedIds.has(item.id)) continue
     const authorId = item.author_id || `unknown:${item.id}`
     const count = authorCounts.get(authorId) || 0
     if (count >= maxPerAuthor) continue
