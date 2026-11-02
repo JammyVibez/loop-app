@@ -346,6 +346,7 @@ pub async fn get(
                             SELECT 1 FROM collection_members AS member
                             WHERE member.collection_id = c.id
                               AND member.user_id = $2
+                              AND member.status = 'active'
                               AND member.role = 'editor'
                         )
                     )
@@ -433,7 +434,6 @@ pub async fn get(
                                     SELECT 1 FROM circle_members AS member
                                     WHERE member.circle_id = target_loop.circle_id
                                       AND member.user_id = $2
-                                 AND member.status = 'active'
                                       AND member.status IN ('active', 'approved')
                                 )
                             )
@@ -655,11 +655,13 @@ pub async fn add_member(
             "Could not authorize this invitation.",
         )
     })?
-    .ok_or_else(|| api_error(
-        StatusCode::NOT_FOUND,
-        "collection_not_found",
-        "This collection is unavailable.",
-    ))?;
+    .ok_or_else(|| {
+        api_error(
+            StatusCode::NOT_FOUND,
+            "collection_not_found",
+            "This collection is unavailable.",
+        )
+    })?;
 
     let owner_id: Uuid = collection.try_get("owner_id").map_err(internal_db_error)?;
     let collection_title: String = collection.try_get("title").map_err(internal_db_error)?;
@@ -750,27 +752,28 @@ pub async fn add_member(
         )
     })?;
 
-    let invitee = sqlx::query(
-        "SELECT username FROM profiles WHERE id = $1",
-    )
-    .bind(target_user_id)
-    .fetch_one(&mut *transaction)
-    .await
-    .map_err(internal_db_error)?;
+    let invitee = sqlx::query("SELECT username FROM profiles WHERE id = $1")
+        .bind(target_user_id)
+        .fetch_one(&mut *transaction)
+        .await
+        .map_err(internal_db_error)?;
 
     let invitee_username: String = invitee.try_get("username").map_err(internal_db_error)?;
     let status: String = row.try_get("status").map_err(internal_db_error)?;
 
     if status == "pending" {
-        let owner_profile = sqlx::query(
-            "SELECT username, display_name FROM profiles WHERE id = $1",
-        )
-        .bind(owner_id)
-        .fetch_one(&mut *transaction)
-        .await
-        .map_err(internal_db_error)?;
-        let owner_username: String = owner_profile.try_get("username").map_err(internal_db_error)?;
-        let owner_display_name: String = owner_profile.try_get("display_name").map_err(internal_db_error)?;
+        let owner_profile =
+            sqlx::query("SELECT username, display_name FROM profiles WHERE id = $1")
+                .bind(owner_id)
+                .fetch_one(&mut *transaction)
+                .await
+                .map_err(internal_db_error)?;
+        let owner_username: String = owner_profile
+            .try_get("username")
+            .map_err(internal_db_error)?;
+        let owner_display_name: String = owner_profile
+            .try_get("display_name")
+            .map_err(internal_db_error)?;
 
         sqlx::query(
             r#"
@@ -873,7 +876,9 @@ pub async fn list_invitations(
                 description: row.try_get("description").map_err(internal_db_error)?,
                 owner_id: row.try_get("owner_id").map_err(internal_db_error)?,
                 owner_username: row.try_get("owner_username").map_err(internal_db_error)?,
-                owner_display_name: row.try_get("owner_display_name").map_err(internal_db_error)?,
+                owner_display_name: row
+                    .try_get("owner_display_name")
+                    .map_err(internal_db_error)?,
                 owner_avatar_url: row.try_get("owner_avatar_url").map_err(internal_db_error)?,
                 role: row.try_get("role").map_err(internal_db_error)?,
                 invited_at: row.try_get("invited_at").map_err(internal_db_error)?,
@@ -900,25 +905,26 @@ pub async fn respond_to_invitation(
         )
     })?;
 
-    let collection = sqlx::query(
-        "SELECT owner_id, is_collaborative FROM collections WHERE id = $1 FOR UPDATE",
-    )
-    .bind(collection_id)
-    .fetch_optional(&mut *transaction)
-    .await
-    .map_err(|error| {
-        tracing::error!(%error, "could not load Collection invitation target");
-        api_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "collection_invitation_lookup_failed",
-            "Could not load this invitation.",
-        )
-    })?
-    .ok_or_else(|| api_error(
-        StatusCode::NOT_FOUND,
-        "collection_invitation_not_found",
-        "This invitation is unavailable.",
-    ))?;
+    let collection =
+        sqlx::query("SELECT owner_id, is_collaborative FROM collections WHERE id = $1 FOR UPDATE")
+            .bind(collection_id)
+            .fetch_optional(&mut *transaction)
+            .await
+            .map_err(|error| {
+                tracing::error!(%error, "could not load Collection invitation target");
+                api_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "collection_invitation_lookup_failed",
+                    "Could not load this invitation.",
+                )
+            })?
+            .ok_or_else(|| {
+                api_error(
+                    StatusCode::NOT_FOUND,
+                    "collection_invitation_not_found",
+                    "This invitation is unavailable.",
+                )
+            })?;
 
     let owner_id: Uuid = collection.try_get("owner_id").map_err(internal_db_error)?;
     let is_collaborative: bool = collection
@@ -945,11 +951,13 @@ pub async fn respond_to_invitation(
     .fetch_optional(&mut *transaction)
     .await
     .map_err(internal_db_error)?
-    .ok_or_else(|| api_error(
-        StatusCode::NOT_FOUND,
-        "collection_invitation_not_found",
-        "This invitation is unavailable.",
-    ))?;
+    .ok_or_else(|| {
+        api_error(
+            StatusCode::NOT_FOUND,
+            "collection_invitation_not_found",
+            "This invitation is unavailable.",
+        )
+    })?;
 
     let current_status: String = invitation.try_get("status").map_err(internal_db_error)?;
     if current_status != "pending" {
@@ -961,13 +969,12 @@ pub async fn respond_to_invitation(
     }
 
     if action == "accept" {
-        let account = sqlx::query(
-            "SELECT is_banned, is_deleted FROM profiles WHERE id = $1 FOR UPDATE",
-        )
-        .bind(user.id)
-        .fetch_one(&mut *transaction)
-        .await
-        .map_err(internal_db_error)?;
+        let account =
+            sqlx::query("SELECT is_banned, is_deleted FROM profiles WHERE id = $1 FOR UPDATE")
+                .bind(user.id)
+                .fetch_one(&mut *transaction)
+                .await
+                .map_err(internal_db_error)?;
         let is_banned: bool = account.try_get("is_banned").map_err(internal_db_error)?;
         let is_deleted: bool = account.try_get("is_deleted").map_err(internal_db_error)?;
         if is_banned || is_deleted {
@@ -1016,8 +1023,16 @@ pub async fn respond_to_invitation(
         "#,
     )
     .bind(owner_id)
-    .bind(if action == "accept" { "Collection invitation accepted" } else { "Collection invitation declined" })
-    .bind(if action == "accept" { "A collaborator accepted your Collection invitation." } else { "A collaborator declined your Collection invitation." })
+    .bind(if action == "accept" {
+        "Collection invitation accepted"
+    } else {
+        "Collection invitation declined"
+    })
+    .bind(if action == "accept" {
+        "A collaborator accepted your Collection invitation."
+    } else {
+        "A collaborator declined your Collection invitation."
+    })
     .bind(collection_id)
     .bind(format!("/collections/{}", collection_id))
     .execute(&mut *transaction)
@@ -1596,6 +1611,14 @@ fn internal_db_error(error: sqlx::Error) -> ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn accepts_only_supported_collection_invitation_actions() {
+        assert!(matches!(normalize_collection_invitation_action("accept"), Ok("accept")));
+        assert!(matches!(normalize_collection_invitation_action("decline"), Ok("decline")));
+        assert!(normalize_collection_invitation_action("approve").is_err());
+        assert!(normalize_collection_invitation_action("delete").is_err());
+    }
 
     #[test]
     fn normalizes_collection_collaborator_usernames_safely() {

@@ -38,6 +38,14 @@ interface CollectionCollaborator {
   joined_at: string
 }
 
+interface CollectionMemberInvitationResult {
+  collection_id: string
+  user_id: string
+  username: string
+  role: "editor" | "viewer"
+  status: "pending" | "active"
+}
+
 interface CollectionDetail {
   collection: CollectionSummary
   items: CollectionItem[]
@@ -167,7 +175,7 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
     if (!username || !data?.can_manage_members) return
     setInviting(true)
     try {
-      await rustApiRequest<CollectionCollaborator>(
+      const invitation = await rustApiRequest<CollectionMemberInvitationResult>(
         `collections/${encodeURIComponent(collectionId)}/members`,
         {
           method: "POST",
@@ -181,10 +189,12 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
       setInviteUsername("")
       await load()
       toast({
-        title: "Invitation sent",
-        description: inviteRole === "editor"
-          ? `@${username} can edit after accepting the invitation.`
-          : `@${username} can view after accepting the invitation.`,
+        title: invitation.status === "active" ? "Access updated" : "Invitation sent",
+        description: invitation.status === "active"
+          ? `@${username}'s access is now set to ${inviteRole}.`
+          : inviteRole === "editor"
+            ? `@${username} can edit after accepting the invitation.`
+            : `@${username} can view after accepting the invitation.`,
       })
     } catch (error) {
       toast({
@@ -341,7 +351,7 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
                 </select>
                 <Button onClick={() => void inviteCollaborator()} disabled={inviting || !inviteUsername.trim()} className="loop-tactile gap-2">
                   <Plus className="h-4 w-4" />
-                  {inviting ? "Adding…" : "Add editor"}
+                  {inviting ? "Sending…" : "Send invitation"}
                 </Button>
               </div>
             ) : null}
