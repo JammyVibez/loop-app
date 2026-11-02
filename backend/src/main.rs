@@ -10,7 +10,7 @@ use std::time::Duration;
 use anyhow::Context;
 use axum::{
     Router,
-    routing::{delete, get, patch, post},
+    routing::{delete, get, patch, post, put},
 };
 use config::AppConfig;
 use http::{
@@ -88,6 +88,10 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/v1/chains/{chain_id}/contributions",
             post(routes::chains::contribute),
+        )
+        .route(
+            "/v1/chains/{chain_id}/members/{member_user_id}",
+            put(routes::chains::set_member).delete(routes::chains::remove_member),
         )
         .route(
             "/v1/chains/{chain_id}/fork",
