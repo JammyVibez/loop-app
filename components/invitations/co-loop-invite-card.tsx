@@ -60,7 +60,8 @@ export function CoLoopInviteCard({
   const handleResponse = async (action: "accepted" | "declined") => {
     setLoadingAction(action === "accepted" ? "accept" : "decline")
     try {
-      // Call backend API to persist invitation status
+      // The server verifies the signed-in invitee and broadcasts the
+      // persisted response. Never let the browser broadcast an unverified status.
       const res = await fetch("/api/co-loop/invitation", {
         method: "POST",
         headers: {
@@ -73,14 +74,8 @@ export function CoLoopInviteCard({
           status: action,
         }),
       })
-
-      // Broadcast update on Supabase Realtime channel
-      const channel = supabase.channel(`co-loop-invite:${sessionId}`)
-      await channel.send({
-        type: "broadcast",
-        event: "invite_status",
-        payload: { sessionId, status: action, userId: user?.id },
-      })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(result.error || "Could not update this invitation")
 
       setStatus(action)
       if (onStatusChange) onStatusChange(action)
