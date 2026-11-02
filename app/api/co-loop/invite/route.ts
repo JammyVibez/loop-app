@@ -45,6 +45,35 @@ export async function POST(request: NextRequest) {
     const block = await checkBlockStatus(supabase, inviter.id, invitee_id)
     if (block.blocked) return NextResponse.json({ error: "Invitations are unavailable for this user" }, { status: 403 })
 
+    // The ledger is the authorization source; notifications and DMs are only delivery.
+    const { data: existingInvite, error: existingInviteError } = await supabase
+      .from("co_loop_invitations")
+      .select("status")
+      .eq("session_id", session_id)
+      .eq("invitee_id", invitee_id)
+      .maybeSingle()
+    if (existingInviteError) {
+      console.error("Co-Loop invitation ledger lookup failed:", existingInviteError.message)
+      return NextResponse.json({ error: "Could not verify invitation state" }, { status: 500 })
+    }
+    if (existingInvite?.status === "pending") {
+      return NextResponse.json({ error: "An invitation is already pending for this collaborator" }, { status: 409 })
+    }
+    const { error: ledgerWriteError } = await supabase
+      .from("co_loop_invitations")
+      .upsert({
+        session_id,
+        inviter_id: inviter.id,
+        invitee_id,
+        status: "pending",
+        created_at: new Date().toISOString(),
+        responded_at: null,
+      }, { onConflict: "session_id,invitee_id" })
+    if (ledgerWriteError) {
+      console.error("Co-Loop invitation persistence failed:", ledgerWriteError.message)
+      return NextResponse.json({ error: "Could not create this invitation" }, { status: 500 })
+    }
+
     // Get inviter profile
     const { data: inviterProfile } = await supabase
       .from("profiles")

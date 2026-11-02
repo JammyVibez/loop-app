@@ -62,31 +62,47 @@ export async function POST(request: NextRequest) {
       const alreadyParticipant = isCoLoopParticipant(existingSession, callingUser.id)
       let inviteExists = false
       if (!alreadyParticipant) {
-        const { data: inviteNotification, error: notificationError } = await supabase
-          .from("notifications")
-          .select("id")
-          .eq("user_id", callingUser.id)
-          .eq("type", "co_loop_invite")
-          .filter("data->>session_id", "eq", session_id)
-          .limit(1)
+        const { data: invitation, error: invitationError } = await supabase
+          .from("co_loop_invitations")
+          .select("status")
+          .eq("session_id", session_id)
+          .eq("invitee_id", callingUser.id)
           .maybeSingle()
-        if (notificationError) {
-          console.error("Could not verify Co-Loop invitation:", notificationError.message)
+        if (invitationError) {
+          console.error("Could not verify Co-Loop invitation ledger:", invitationError.message)
           return NextResponse.json({ error: "Could not verify this invitation" }, { status: 500 })
         }
-        const { data: inviteMessage, error: messageError } = await supabase
-          .from("messages")
-          .select("id")
-          .eq("recipient_id", callingUser.id)
-          .eq("message_type", "co_loop_invite")
-          .like("media_url", `%${encodeURIComponent(session_id)}%`)
-          .limit(1)
-          .maybeSingle()
-        if (messageError) {
-          console.error("Could not verify Co-Loop invitation message:", messageError.message)
-          return NextResponse.json({ error: "Could not verify this invitation" }, { status: 500 })
+        if (invitation) {
+          inviteExists = invitation.status === "pending" || invitation.status === "accepted"
+        } else {
+          // Legacy compatibility only when no ledger row exists. A declined
+          // or revoked ledger record is a durable denial and cannot fall back.
+          const { data: inviteNotification, error: notificationError } = await supabase
+            .from("notifications")
+            .select("id")
+            .eq("user_id", callingUser.id)
+            .eq("type", "co_loop_invite")
+            .filter("data->>session_id", "eq", session_id)
+            .limit(1)
+            .maybeSingle()
+          if (notificationError) {
+            console.error("Legacy invitation lookup failed:", notificationError.message)
+            return NextResponse.json({ error: "Could not verify this invitation" }, { status: 500 })
+          }
+          const { data: inviteMessage, error: messageError } = await supabase
+            .from("messages")
+            .select("id")
+            .eq("recipient_id", callingUser.id)
+            .eq("message_type", "co_loop_invite")
+            .like("media_url", `%session=${encodeURIComponent(session_id)}%`)
+            .limit(1)
+            .maybeSingle()
+          if (messageError) {
+            console.error("Legacy invitation message lookup failed:", messageError.message)
+            return NextResponse.json({ error: "Could not verify this invitation" }, { status: 500 })
+          }
+          inviteExists = Boolean(inviteNotification || inviteMessage)
         }
-        inviteExists = Boolean(inviteNotification || inviteMessage)
       }
 
       const decision = decideCoLoopJoin(existingSession, callingUser.id, inviteExists)
@@ -150,7 +166,14 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (insertError) {
-      console.warn("Error creating co_loop_session:", insertError.message)
+      console.error("Error creating co_loop_session:", insertError.message)
+      return NextResponse.json(
+        { error: insertError.code === "23505" ? "This session was initialized elsewhere. Refresh and rejoin." : "Could not initialize this Co-Loop session." },
+        { status: insertError.code === "23505" ? 409 : 500 },
+      )
+    }
+    if (!newSession) {
+      return NextResponse.json({ error: "Could not initialize this Co-Loop session." }, { status: 500 })
     }
 
     return NextResponse.json({

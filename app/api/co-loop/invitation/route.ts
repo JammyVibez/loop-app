@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient()
     const { data: session, error: sessionError } = await supabase
       .from("co_loop_sessions")
-      .select("session_id, deleted_at, status")
+      .select("session_id, owner_id, deleted_at, status")
       .eq("session_id", sessionId)
       .maybeSingle()
     if (sessionError) {
@@ -37,72 +37,121 @@ export async function POST(request: NextRequest) {
     if (!session) return NextResponse.json({ error: "Invitation not found" }, { status: 404 })
     if (session.deleted_at) return NextResponse.json({ error: "This room has been deleted" }, { status: 410 })
 
-    const { data: notification, error: notificationError } = await supabase
-      .from("notifications")
-      .select("id, data")
-      .eq("user_id", user.id)
-      .eq("type", "co_loop_invite")
-      .filter("data->>session_id", "eq", sessionId)
-      .limit(1)
+    const { data: ledger, error: ledgerError } = await supabase
+      .from("co_loop_invitations")
+      .select("id, status")
+      .eq("session_id", sessionId)
+      .eq("invitee_id", user.id)
       .maybeSingle()
-    if (notificationError) {
-      console.error("Co-Loop invitation notification lookup failed:", notificationError.message)
+    if (ledgerError) {
+      console.error("Co-Loop invitation ledger lookup failed:", ledgerError.message)
       return NextResponse.json({ error: "Could not verify this invitation" }, { status: 500 })
     }
 
     const encodedSessionId = encodeURIComponent(sessionId)
-    const { data: message, error: messageError } = await supabase
-      .from("messages")
-      .select("id")
-      .eq("recipient_id", user.id)
-      .eq("message_type", "co_loop_invite")
-      .like("media_url", `%session=${encodedSessionId}%`)
-      .limit(1)
-      .maybeSingle()
-    if (messageError) {
-      console.error("Co-Loop invitation message lookup failed:", messageError.message)
-      return NextResponse.json({ error: "Could not verify this invitation" }, { status: 500 })
+    let notification: { id: string; data: unknown } | null = null
+    let message: { id: string } | null = null
+    if (!ledger) {
+      // Bridge old invitation delivery records. A persisted ledger denial always
+      // wins over stale notifications or messages.
+      const { data: oldNotification, error: notificationError } = await supabase
+        .from("notifications")
+        .select("id, data")
+        .eq("user_id", user.id)
+        .eq("type", "co_loop_invite")
+        .filter("data->>session_id", "eq", sessionId)
+        .limit(1)
+        .maybeSingle()
+      if (notificationError) {
+        console.error("Legacy invitation notification lookup failed:", notificationError.message)
+        return NextResponse.json({ error: "Could not verify this invitation" }, { status: 500 })
+      }
+      notification = oldNotification
+      const { data: oldMessage, error: messageError } = await supabase
+        .from("messages")
+        .select("id")
+        .eq("recipient_id", user.id)
+        .eq("message_type", "co_loop_invite")
+        .like("media_url", `%session=${encodedSessionId}%`)
+        .limit(1)
+        .maybeSingle()
+      if (messageError) {
+        console.error("Legacy invitation message lookup failed:", messageError.message)
+        return NextResponse.json({ error: "Could not verify this invitation" }, { status: 500 })
+      }
+      message = oldMessage
+      if (!notification && !message) {
+        return NextResponse.json({ error: "This invitation was not sent to your account" }, { status: 403 })
+      }
+      const legacyInviterId =
+        notification?.data && typeof notification.data === "object" && "inviter_id" in notification.data
+          ? String((notification.data as Record<string, unknown>).inviter_id)
+          : session.owner_id
+      const { error: backfillError } = await supabase
+        .from("co_loop_invitations")
+        .upsert({
+          session_id: sessionId,
+          inviter_id: legacyInviterId,
+          invitee_id: user.id,
+          status: "pending",
+        }, { onConflict: "session_id,invitee_id" })
+      if (backfillError) {
+        console.error("Legacy invitation ledger backfill failed:", backfillError.message)
+        return NextResponse.json({ error: "Could not verify this invitation" }, { status: 500 })
+      }
+    } else if (ledger.status !== "pending" && ledger.status !== "accepted") {
+      return NextResponse.json({ error: "This invitation is no longer active" }, { status: 409 })
     }
 
-    const hasInvitation = Boolean(notification || message)
     const suppliedIdMatches = inviteId === undefined
       || notification?.id === inviteId
       || message?.id === inviteId
-    if (!hasInvitation || !suppliedIdMatches) {
+      || ledger?.id === inviteId
+    if (!suppliedIdMatches) {
       return NextResponse.json({ error: "This invitation was not sent to your account" }, { status: 403 })
     }
 
+    if (ledger?.status === "accepted") {
+      if (status === "accepted") return NextResponse.json({ success: true, sessionId, status })
+      return NextResponse.json({ error: "An accepted invitation cannot be declined" }, { status: 409 })
+    }
+
+    const { data: updatedLedger, error: ledgerUpdateError } = await supabase
+      .from("co_loop_invitations")
+      .update({ status, responded_at: new Date().toISOString() })
+      .eq("session_id", sessionId)
+      .eq("invitee_id", user.id)
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle()
+    if (ledgerUpdateError) {
+      console.error("Co-Loop invitation state update failed:", ledgerUpdateError.message)
+      return NextResponse.json({ error: "Could not update this invitation" }, { status: 500 })
+    }
+    if (!updatedLedger) {
+      return NextResponse.json({ error: "Invitation state changed. Refresh and try again." }, { status: 409 })
+    }
+
     if (status === "declined") {
-      const { error: deleteNotificationError } = await supabase
+      // The ledger is authoritative; delivery cleanup can be retried without
+      // reopening access to a declined invitation.
+      const { error: notificationDeleteError } = await supabase
         .from("notifications")
         .delete()
         .eq("user_id", user.id)
         .eq("type", "co_loop_invite")
         .filter("data->>session_id", "eq", sessionId)
-      if (deleteNotificationError) {
-        console.error("Could not revoke declined Co-Loop notification:", deleteNotificationError.message)
-        return NextResponse.json({ error: "Could not decline this invitation" }, { status: 500 })
-      }
+      if (notificationDeleteError) console.warn("Declined notification cleanup failed:", notificationDeleteError.message)
 
-      const { error: deleteMessageError } = await supabase
+      const { error: messageDeleteError } = await supabase
         .from("messages")
         .delete()
         .eq("recipient_id", user.id)
         .eq("message_type", "co_loop_invite")
         .like("media_url", `%session=${encodedSessionId}%`)
-      if (deleteMessageError) {
-        console.error("Could not revoke declined Co-Loop message:", deleteMessageError.message)
-        return NextResponse.json({ error: "Could not decline this invitation" }, { status: 500 })
-      }
+      if (messageDeleteError) console.warn("Declined message cleanup failed:", messageDeleteError.message)
     } else if (notification?.id) {
-      // Keep the direct invitation as a valid join credential while removing
-      // its unread badge. Declined invitations are deleted above and cannot be
-      // replayed by session-info's invitation check.
-      await supabase
-        .from("notifications")
-        .update({ is_read: true })
-        .eq("id", notification.id)
-        .eq("user_id", user.id)
+      await supabase.from("notifications").update({ is_read: true }).eq("id", notification.id).eq("user_id", user.id)
     }
 
     const channel = supabase.channel(`co-loop-invite:${sessionId}`)

@@ -79,16 +79,46 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "The host can't remove themselves" }, { status: 400 })
       }
 
-      // Remove the join record (so they can't slip back in) and prune them from
-      // the durable roster that the studio, ceremony and gifts read from.
+      // Revoke all access credentials before changing the visible roster.
+      const { error: revokeError } = await supabase
+        .from("co_loop_invitations")
+        .upsert({
+          session_id: sessionId,
+          inviter_id: user.id,
+          invitee_id: targetUserId,
+          status: "revoked",
+          responded_at: new Date().toISOString(),
+        }, { onConflict: "session_id,invitee_id" })
+      if (revokeError) {
+        console.error("Co-Loop invitation revocation failed:", revokeError.message)
+        return NextResponse.json({ error: "Could not revoke collaborator access" }, { status: 500 })
+      }
+
       const { error: participantError } = await supabase
         .from("open_co_loop_participants")
         .delete()
         .eq("session_id", sessionId)
         .eq("user_id", targetUserId)
       if (participantError) {
-        console.warn("open_co_loop_participants delete failed:", participantError.message)
+        console.error("Open Co-Loop membership removal failed:", participantError.message)
+        return NextResponse.json({ error: "Could not remove open-room membership" }, { status: 500 })
       }
+
+      const { error: inviteNotificationError } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("user_id", targetUserId)
+        .eq("type", "co_loop_invite")
+        .filter("data->>session_id", "eq", sessionId)
+      if (inviteNotificationError) console.warn("Kicked collaborator notification cleanup failed:", inviteNotificationError.message)
+
+      const { error: inviteMessageError } = await supabase
+        .from("messages")
+        .delete()
+        .eq("recipient_id", targetUserId)
+        .eq("message_type", "co_loop_invite")
+        .like("media_url", `%session=${encodeURIComponent(sessionId)}%`)
+      if (inviteMessageError) console.warn("Kicked collaborator DM cleanup failed:", inviteMessageError.message)
 
       const currentCoAuthors = Array.isArray(session.co_authors) ? session.co_authors : []
       const removed = currentCoAuthors.find((c: any) => c?.id === targetUserId)
