@@ -146,7 +146,7 @@ function shouldIgnore(stderr) {
   return ignorable.some((re) => re.test(stderr))
 }
 
-function applyFile(file) {
+function applyFile(file, { strict = false } = {}) {
   const path = resolve(process.cwd(), file)
   if (!existsSync(path)) {
     console.error(`Missing SQL file: ${file}`)
@@ -212,7 +212,7 @@ function applyFile(file) {
       continue
     }
     const err = `${result.stderr || ""}\n${result.stdout || ""}`
-    if (shouldIgnore(err)) {
+    if (!strict && shouldIgnore(err)) {
       skipped += 1
       process.stderr.write(`skip: ${err.split("\n").find((l) => /ERROR:/i.test(l)) || "ignorable error"}\n`)
       continue
@@ -227,7 +227,9 @@ function applyFile(file) {
 }
 
 for (const file of files) {
-  applyFile(file)
+  // Verification owns private identity evidence and the admin review function;
+  // never report setup success when any part of this security migration fails.
+  applyFile(file, { strict: file === "scripts/verification-lifecycle.sql" })
 }
 
 if (process.argv.includes("--with-seed")) {

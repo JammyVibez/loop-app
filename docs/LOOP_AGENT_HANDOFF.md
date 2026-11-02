@@ -300,3 +300,7 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 
 - Corrected the policy-cleanup section to use explicit idempotent DROP POLICY statements for the three legacy applicant policies defined by the repository's older verification schema. This keeps the migration compatible with the production setup runner's dollar-quoted statement splitter.
 - The SQL migration remains unexecuted against a live database. Review syntax and schema assumptions in an actual PostgreSQL/Supabase staging database before production rollout.
+## 17. Fail-closed verification schema setup — 2026-11-02
+
+- The production database setup runner now treats the verification lifecycle migration as strict. Its statement-by-statement fallback remains available for the other legacy migrations, but any verification migration statement error stops setup instead of being ignored by the generic legacy-schema compatibility rules.
+- This prevents a missing profile relation, failed policy change or missing review function from being reported as a successful verification setup.
