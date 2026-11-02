@@ -55,6 +55,12 @@ export function ChainsHub() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const requestedCircleId = searchParams.get("circle_id") || ""
+  const requestedSourceDropId = searchParams.get("source_drop_id") || ""
+  const requestedTitle = searchParams.get("title") || ""
+  const requestedDescription = searchParams.get("description") || ""
+  const requestedPrompt = searchParams.get("prompt") || ""
+  const requestedKind = searchParams.get("kind") || "worldbuilding"
+  const shouldCreateFromContext = searchParams.get("create") === "1"
   const [chains, setChains] = useState<Chain[]>([])
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -65,10 +71,10 @@ export function ChainsHub() {
   const [search, setSearch] = useState("")
   const [creating, setCreating] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [prompt, setPrompt] = useState("")
-  const [newKind, setNewKind] = useState("worldbuilding")
+  const [title, setTitle] = useState(requestedTitle.slice(0, 120))
+  const [description, setDescription] = useState(requestedDescription.slice(0, 2_000))
+  const [prompt, setPrompt] = useState(requestedPrompt.slice(0, 1_200))
+  const [newKind, setNewKind] = useState(FORMATS.some((format) => format.id === requestedKind) ? requestedKind : "worldbuilding")
   const [circles, setCircles] = useState<Array<{ id: string; name: string }>>([])
   const [selectedCircleId, setSelectedCircleId] = useState(requestedCircleId)
 
@@ -97,6 +103,10 @@ export function ChainsHub() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (shouldCreateFromContext && user) setCreating(true)
+  }, [shouldCreateFromContext, user?.id])
 
   useEffect(() => {
     if (!user) {
@@ -178,6 +188,7 @@ export function ChainsHub() {
           category: "general",
           contribution_policy: selectedCircleId ? "circle_members" : "open",
           circle_id: selectedCircleId || null,
+          source_drop_id: selectedCircleId === requestedCircleId ? requestedSourceDropId || null : null,
           visibility: selectedCircleId ? "circle" : "public",
         }),
       })
