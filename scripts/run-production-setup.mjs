@@ -121,6 +121,8 @@ const files = [
   "scripts/fix-poll-votes-poll-id-type.sql",
   // Community chat: add missing columns to messages table.
   "scripts/community-chat-schema.sql",
+  // Account deletion/suspension fields and the private ban appeal lifecycle.
+  "scripts/account-status-appeals-schema.sql",
   // Community post enhancements: view_count column.
   "scripts/community-post-enhancements.sql",
 ]
@@ -231,7 +233,7 @@ function applyFile(file, { strict = false } = {}) {
 for (const file of files) {
   // Verification owns private identity evidence and the admin review function;
   // never report setup success when any part of this security migration fails.
-  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/moderation-integrity.sql"].includes(file) })
+  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql"].includes(file) })
 }
 
 if (process.argv.includes("--with-seed")) {
