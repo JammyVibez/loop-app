@@ -1,4 +1,5 @@
 pub mod chains;
+pub mod chain_lifecycle;
 pub mod collections;
 pub mod drops;
 pub mod follow_requests;
