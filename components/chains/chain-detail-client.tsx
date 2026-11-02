@@ -63,9 +63,19 @@ type ContributionRevision = {
   created_at: string
 }
 
+type ChainMember = {
+  user_id: string
+  username: string
+  display_name: string
+  avatar_url: string | null
+  role: "owner" | "collaborator" | "contributor" | "viewer"
+  joined_at: string
+}
+
 type ChainResponse = {
   chain: Chain
   contributions: Contribution[]
+  members: ChainMember[]
   can_contribute: boolean
   can_manage: boolean
   contributions_limit: number
