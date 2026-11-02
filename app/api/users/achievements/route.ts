@@ -20,9 +20,10 @@ function createServerClient() {
 export async function GET(request: NextRequest) {
   try {
     const viewer = await getUserFromRequest(request)
-    if (!viewer) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    const requestedUserId = request.nextUrl.searchParams.get("userId")
+    if (!viewer && !requestedUserId) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
 
-    const targetId = request.nextUrl.searchParams.get("userId") || viewer.id
+    const targetId = requestedUserId || viewer?.id || ""
     if (!UUID_PATTERN.test(targetId)) return NextResponse.json({ error: "Invalid user ID" }, { status: 400 })
 
     const supabase = createServerClient()
@@ -38,14 +39,14 @@ export async function GET(request: NextRequest) {
     }
     if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 })
 
-    const isSelf = viewer.id === targetId
+    const isSelf = Boolean(viewer && viewer.id === targetId)
     const active = profileStatus(profile as any) === "active"
     let blocked = false
-    if (!isSelf) blocked = (await checkBlockStatus(supabase, viewer.id, targetId)).blocked
+    if (viewer && !isSelf) blocked = (await checkBlockStatus(supabase, viewer.id, targetId)).blocked
 
     const restricted = isRestrictedProfileVisibility(profile.privacy_settings)
     let isApprovedFollower = false
-    if (!isSelf && restricted && !blocked) {
+    if (viewer && !isSelf && restricted && !blocked) {
       const { data: follow, error: followError } = await supabase
         .from("follows")
         .select("id")
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!canViewAchievementStats({
-      viewerId: viewer.id,
+      viewerId: viewer?.id || null,
       targetId,
       profileActive: active,
       blocked,

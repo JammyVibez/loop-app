@@ -483,6 +483,19 @@ CREATE TRIGGER achievement_share_count_changed
 AFTER INSERT OR UPDATE ON public.loop_stats
 FOR EACH ROW EXECUTE FUNCTION public.achievement_share_count_trigger();
 
+
+-- Re-check existing users after source counters are reconciled. Earned rows
+-- make this safe to re-run and prevent any duplicate reward.
+DO $
+DECLARE
+  v_user RECORD;
+BEGIN
+  FOR v_user IN SELECT user_id FROM public.user_stats ORDER BY user_id LOOP
+    PERFORM public.check_user_achievements(v_user.user_id);
+  END LOOP;
+END;
+$;
+
 REVOKE ALL ON FUNCTION public.check_user_achievements(UUID) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.update_user_stats_and_check_achievements(UUID, TEXT, INTEGER) FROM PUBLIC;
 

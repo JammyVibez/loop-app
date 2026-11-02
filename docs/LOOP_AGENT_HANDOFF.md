@@ -55,3 +55,12 @@ The success redirect carries the Stripe Checkout Session ID to /premium. LOOP re
 - Achievement profile reads now validate the requested UUID and enforce active-account, block and private/follower visibility boundaries. Public responses select only intended progression counters instead of returning every user_stats column.
 - Added focused visibility policy tests for self, public profiles, approved followers, pending followers, blocked pairs and inactive accounts.
 - PostgreSQL migration execution, event trigger backfill and real database reward idempotency checks remain release gates.
+
+
+## 66. Earned achievements now appear on profiles — 2026-11-02
+
+- Added an earned-achievement showcase to the profile Awards tab, kept separate from admin-granted Community Awards. It shows level, XP, earned-count progress, tier and earned date, with loading, empty and error states.
+- Achievement data is now readable without login for public profiles, while private profiles still require an approved follower, and inactive/blocked profiles remain hidden. Authenticated self and follower requests continue to use the same visibility policy.
+- Added profile-visible progress tests for guests, owners, public profiles, restricted profiles and blocked/inactive profiles.
+- The strict achievement integrity migration now performs an idempotent existing-user eligibility pass after backfilling source counters. Existing qualifying accounts receive each earned reward once, gated by the unique user-achievement row.
+- Live PostgreSQL validation is still required to verify backfill performance, reward ledger consistency and trigger counts.

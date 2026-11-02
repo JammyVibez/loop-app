@@ -46,6 +46,7 @@ import { useProfileNote } from "@/hooks/use-profile-note"
 import { NoteBubble } from "@/components/notes/note-bubble"
 import { NoteComposer } from "@/components/notes/note-composer"
 import { ProfileAwards, ProfileAwardsGrid } from "@/components/profile/profile-awards"
+import { ProfileAchievementShowcase } from "@/components/profile/profile-achievement-showcase"
 import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
 import { isRustApiUnavailable, rustApiRequest } from "@/lib/rust-api"
 import { EnhancedMediaViewer } from "@/components/media/enhanced-media-viewer"
@@ -1244,11 +1245,23 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           <ProfileCreativeWork userId={profile.id} />
         </TabsContent>
 
-        <TabsContent value="awards" className="mt-0 p-4">
+        <TabsContent value="awards" className="mt-0 space-y-6 p-4">
           {profile.id ? (
-            <ProfileAwardsGrid userId={profile.id} />
+            <>
+              <ProfileAchievementShowcase
+                userId={profile.id}
+                getAuthHeader={getAuthHeader}
+              />
+              <section className="space-y-3">
+                <div>
+                  <h2 className="text-sm font-semibold">Community awards</h2>
+                  <p className="text-xs text-muted-foreground">Special recognition granted by the Loop team.</p>
+                </div>
+                <ProfileAwardsGrid userId={profile.id} />
+              </section>
+            </>
           ) : (
-            <EmptyBlock icon={Trophy} label="No awards yet" />
+            <EmptyBlock icon={Trophy} label="No achievements yet" />
           )}
         </TabsContent>
       </Tabs>
