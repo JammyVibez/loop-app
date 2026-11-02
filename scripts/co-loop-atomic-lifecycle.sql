@@ -634,3 +634,191 @@ BEGIN
     END IF;
 END
 $$;
+
+
+-- Atomic host removal. It serializes with invite reservation, invite response
+-- and open joins by taking the same session-row lock before changing the
+-- invitation ledger, open-participant set and co-author roster.
+CREATE OR REPLACE FUNCTION public.kick_co_loop_participant(
+    p_session_id TEXT,
+    p_owner_id UUID,
+    p_target_user_id UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+    room public.co_loop_sessions%ROWTYPE;
+    removed_entry JSONB;
+    next_roster JSONB;
+    current_count INTEGER;
+    capacity INTEGER;
+    found_member BOOLEAN;
+BEGIN
+    IF p_session_id IS NULL OR BTRIM(p_session_id) = '' OR LENGTH(p_session_id) > 160
+       OR p_owner_id IS NULL OR p_target_user_id IS NULL THEN
+        RAISE EXCEPTION 'invalid_kick_input' USING ERRCODE = '22023';
+    END IF;
+    IF p_owner_id = p_target_user_id THEN
+        RAISE EXCEPTION 'host_cannot_kick_self' USING ERRCODE = '22023';
+    END IF;
+
+    SELECT *
+      INTO room
+      FROM public.co_loop_sessions
+     WHERE session_id = p_session_id
+     FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'co_loop_not_found' USING ERRCODE = 'P0002';
+    END IF;
+    IF room.deleted_at IS NOT NULL THEN
+        RAISE EXCEPTION 'co_loop_deleted' USING ERRCODE = '55000';
+    END IF;
+    IF room.owner_id IS DISTINCT FROM p_owner_id THEN
+        RAISE EXCEPTION 'co_loop_host_required' USING ERRCODE = '42501';
+    END IF;
+
+    SELECT author
+      INTO removed_entry
+      FROM jsonb_array_elements(
+            CASE WHEN jsonb_typeof(room.co_authors) = 'array'
+                 THEN room.co_authors ELSE '[]'::jsonb END
+      ) AS author
+     WHERE author->>'id' = p_target_user_id::text
+     LIMIT 1;
+
+    SELECT (
+        removed_entry IS NOT NULL
+        OR EXISTS (
+            SELECT 1
+              FROM public.open_co_loop_participants AS participant
+             WHERE participant.session_id = p_session_id
+               AND participant.user_id = p_target_user_id
+        )
+        OR EXISTS (
+            SELECT 1
+              FROM public.co_loop_invitations AS invitation
+             WHERE invitation.session_id = p_session_id
+               AND invitation.invitee_id = p_target_user_id
+               AND invitation.status IN ('pending', 'accepted')
+        )
+    ) INTO found_member;
+
+    IF NOT found_member THEN
+        RAISE EXCEPTION 'co_loop_participant_not_found' USING ERRCODE = 'P0002';
+    END IF;
+
+    -- A revoked ledger row overrides any stale legacy roster or delivery.
+    IF EXISTS (
+        SELECT 1
+          FROM public.profiles
+         WHERE id = p_target_user_id
+    ) THEN
+        INSERT INTO public.co_loop_invitations (
+            session_id, inviter_id, invitee_id, status, created_at, responded_at
+        )
+        VALUES (
+            p_session_id, p_owner_id, p_target_user_id, 'revoked', NOW(), NOW()
+        )
+        ON CONFLICT (session_id, invitee_id)
+        DO UPDATE SET
+            inviter_id = EXCLUDED.inviter_id,
+            status = 'revoked',
+            responded_at = NOW();
+    ELSE
+        UPDATE public.co_loop_invitations
+           SET status = 'revoked',
+               responded_at = NOW()
+         WHERE session_id = p_session_id
+           AND invitee_id = p_target_user_id;
+    END IF;
+
+    DELETE FROM public.open_co_loop_participants
+     WHERE session_id = p_session_id
+       AND user_id = p_target_user_id;
+
+    SELECT COALESCE(
+        JSONB_AGG(author ORDER BY ordinal_position),
+        '[]'::jsonb
+    )
+      INTO next_roster
+      FROM jsonb_array_elements(
+            CASE WHEN jsonb_typeof(room.co_authors) = 'array'
+                 THEN room.co_authors ELSE '[]'::jsonb END
+      ) WITH ORDINALITY AS roster(author, ordinal_position)
+     WHERE author->>'id' IS DISTINCT FROM p_target_user_id::text;
+
+    UPDATE public.co_loop_sessions
+       SET co_authors = next_roster,
+           updated_at = NOW()
+     WHERE session_id = p_session_id;
+
+    capacity := LEAST(4, GREATEST(2, COALESCE(room.max_collaborators, 4)));
+
+    SELECT COUNT(*)::INTEGER
+      INTO current_count
+      FROM (
+        SELECT room.owner_id::text AS user_id
+         WHERE room.owner_id IS NOT NULL
+        UNION
+        SELECT author->>'id'
+          FROM jsonb_array_elements(next_roster) AS author
+         WHERE NULLIF(author->>'id', '') IS NOT NULL
+        UNION
+        SELECT participant.user_id::text
+          FROM public.open_co_loop_participants AS participant
+         WHERE participant.session_id = p_session_id
+        UNION
+        SELECT invitation.invitee_id::text
+          FROM public.co_loop_invitations AS invitation
+         WHERE invitation.session_id = p_session_id
+           AND invitation.status IN ('pending', 'accepted')
+      ) AS roster;
+
+    IF room.feed_post_id IS NOT NULL THEN
+        UPDATE public.loops
+           SET content_metadata =
+               COALESCE(content_metadata, '{}'::jsonb) ||
+               JSONB_BUILD_OBJECT(
+                   'is_open_coloop_invite', true,
+                   'session_id', p_session_id,
+                   'max_collaborators', capacity,
+                   'topic', COALESCE(room.open_invite_topic, ''),
+                   'current_participants', current_count,
+                   'status', CASE
+                       WHEN room.status = 'published' THEN 'published'
+                       WHEN current_count >= capacity THEN 'full'
+                       ELSE 'open'
+                   END
+               )
+         WHERE id::text = room.feed_post_id;
+    END IF;
+
+    RETURN JSONB_BUILD_OBJECT(
+        'session_id', p_session_id,
+        'target_user_id', p_target_user_id,
+        'removed_entry', removed_entry,
+        'current_count', current_count,
+        'max', capacity
+    );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.kick_co_loop_participant(TEXT, UUID, UUID) FROM PUBLIC;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        REVOKE ALL ON FUNCTION public.kick_co_loop_participant(TEXT, UUID, UUID) FROM anon;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+        REVOKE ALL ON FUNCTION public.kick_co_loop_participant(TEXT, UUID, UUID) FROM authenticated;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+        GRANT EXECUTE ON FUNCTION public.kick_co_loop_participant(TEXT, UUID, UUID) TO service_role;
+    END IF;
+END
+$$;

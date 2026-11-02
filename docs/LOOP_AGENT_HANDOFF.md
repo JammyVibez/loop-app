@@ -477,3 +477,11 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Decline remains possible on an ended or locked room so a pending seat can be released; an accepted invitation cannot be declined, and a repeated acceptance is idempotent.
 - The invitation API now delegates its final state transition to the RPC after validating that the delivery belongs to the signed-in recipient.
 - Validate the SQL function on a representative PostgreSQL database; GitHub Actions do not apply this migration automatically.
+
+
+## 43. Atomic Co-Loop host kick and roster cleanup
+
+- Replaced the host kick endpoint's sequence of separate invitation, open-participant and roster writes with a single row-locked `kick_co_loop_participant` RPC.
+- The RPC verifies canonical host ownership, rejects self-removal and non-members, revokes or creates the recipient's durable ledger denial, removes open participation, preserves the order of remaining co-authors, and recalculates the public invite card count within one transaction.
+- Only after the database revoke commits does the API best-effort delete old notification/DM deliveries and broadcast the removal. A delivery failure can no longer leave the kicked participant authorized.
+- Added route coverage for RPC delegation, missing-member conflict and malformed/self targets. PostgreSQL migration integration testing remains a release gate.

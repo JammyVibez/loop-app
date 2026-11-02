@@ -962,6 +962,14 @@ export interface Database {
           trend_score: number
         }[]
       }
+      kick_co_loop_participant: {
+        Args: {
+          p_session_id: string
+          p_owner_id: string
+          p_target_user_id: string
+        }
+        Returns: Json
+      }
       respond_co_loop_invitation: {
         Args: {
           p_session_id: string
