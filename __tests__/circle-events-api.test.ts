@@ -10,6 +10,10 @@ vi.mock("@/lib/server-auth", () => ({
   getUserFromRequest: mocks.getUserFromRequest,
 }))
 
+vi.mock("@/lib/circle-access", () => ({
+  checkCirclePrivateAccess: vi.fn(async () => ({ isPrivate: false, canView: true })),
+}))
+
 vi.mock("@/lib/supabase", () => ({
   createClient: mocks.createClient,
 }))
