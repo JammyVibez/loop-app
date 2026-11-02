@@ -5,7 +5,8 @@ ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS is_moderator BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS is_banned BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS ban_reason TEXT,
-  ADD COLUMN IF NOT EXISTS suspension_reason TEXT;
+  ADD COLUMN IF NOT EXISTS suspension_reason TEXT,
+  ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMPTZ;
 
 ALTER TABLE public.content_flags
   ADD COLUMN IF NOT EXISTS moderator_notes TEXT,
@@ -159,6 +160,7 @@ BEGIN
     SET is_banned = TRUE,
         ban_reason = v_note,
         suspension_reason = v_note,
+        suspended_at = NOW(),
         updated_at = NOW()
     WHERE id = v_flag.content_id;
   END IF;

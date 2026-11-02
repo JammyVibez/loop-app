@@ -335,3 +335,9 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Added a SECURITY DEFINER appeal-review transaction. It locks the pending appeal, validates the canonical moderator/admin role, clears is_banned/ban_reason/suspension_reason/suspended_at when approving, then updates the appeal decision in the same transaction. Denials require a reason.
 - Replaced the admin appeal route's previously separate appeal update and account unban with the transactional RPC. Queue status and pagination are validated; notifications are sent only after the decision commits.
 - The appeal panel requires a reviewer reason before denial. Parser and route tests cover approval, required denial feedback, invalid requests, stale decisions and unauthorized reviewers.
+## 24. Suspension timestamps and final appeal/report validation — 2026-11-02
+
+- Profile suspensions now write the canonical suspended_at timestamp at the same time as is_banned and the suspension reason. The moderation migration adds that column itself, so it does not depend on the later account-status migration for the review function to run.
+- Added the missing `reel` alias to the reported-content removal route; the moderation queue already offered the action for both `reel` and `reels`, so they now resolve to the same Loop storage table.
+- Added parser tests for user-submitted appeals, including whitespace normalization, malformed/non-text reasons and the exact 2,000-character boundary.
+- The account-status migration retains historical appeals and enforces only one pending appeal per user, allowing a later appeal after a prior decision without overwriting the audit trail.
