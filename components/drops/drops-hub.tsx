@@ -136,9 +136,11 @@ function DropCard({ item }: { item: DropItem }) {
           <span className="inline-flex items-center gap-1.5">
             <Clock3 className="h-3.5 w-3.5" />
             {isChallenge
-              ? item.ends_at
-                ? `Closes ${formatDropTime(item.ends_at, "upcoming")}`
-                : "Open challenge"
+              ? item.status === "upcoming"
+                ? `Starts ${formatDropTime(item.starts_at, "upcoming")}`
+                : item.ends_at
+                  ? `Closes ${formatDropTime(item.ends_at, "upcoming")}`
+                  : "Open challenge"
               : formatDropTime(item.starts_at, item.status)}
           </span>
           <span className="inline-flex items-center gap-1.5">
