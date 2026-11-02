@@ -38,6 +38,8 @@ export async function GET(request: NextRequest) {
           const { data: loops } = await supabase
             .from("loops")
             .select("hashtags")
+            .eq("visibility", "public")
+            .is("parent_loop_id", null)
             .not("hashtags", "is", null)
             .order("created_at", { ascending: false })
             .limit(120)
@@ -234,8 +236,21 @@ export async function GET(request: NextRequest) {
       }
 
       case "loops": {
-        const fetchLimit = sort === "creative" || sort === "deepest" ? Math.max(limit * 4, 40) : limit
-        const { data: loops, error: loopsError } = await supabase
+        if (!["recent", "creative", "deepest", "following", "community"].includes(sort)) {
+          return NextResponse.json({ error: "Unsupported discovery mode" }, { status: 400 })
+        }
+
+        const followedIds = sort === "following"
+          ? [...await getFollowingIds(supabase, user?.id || null)]
+          : []
+        if (sort === "following" && followedIds.length === 0) {
+          return NextResponse.json({ success: true, data: [], loops: [] })
+        }
+
+        const fetchLimit = sort === "creative" || sort === "deepest" || sort === "community"
+          ? Math.max(limit * 4, 40)
+          : limit
+        let loopQuery = supabase
           .from("loops")
           .select(`
             *,
@@ -244,6 +259,13 @@ export async function GET(request: NextRequest) {
           `)
           .is("parent_loop_id", null)
           .eq("visibility", "public")
+        if (sort === "following") {
+          loopQuery = loopQuery.in("author_id", followedIds)
+        }
+        if (sort === "community") {
+          loopQuery = loopQuery.not("circle_id", "is", null)
+        }
+        const { data: loops, error: loopsError } = await loopQuery
           .order("created_at", { ascending: false })
           .limit(fetchLimit)
 
