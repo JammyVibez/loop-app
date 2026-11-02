@@ -208,3 +208,38 @@ A feature is finished only when its real user journey works, object permissions 
 - Contribution edit lookup now checks current Chain access in addition to author identity, preventing an author whose access has been revoked from editing by guessing the object ID.
 - The revision-history UI now exposes an explicit restore action and refreshes both the contribution and history after success.
 - Verify this feature with Rust CI and frontend CI on the exact head. No live collaboration/presence or moderation work is implied by this addition.
+
+
+## 10. Latest continuation progress — 2026-11-02
+
+The branch is still PR #1 and must remain a draft. Re-fetch its head before continuing.
+
+### Completed in this continuation (verification still required on the final head)
+- Fixed the missing Discover `Sparkles` import and the two Rust Clippy collapsible-if issues previously identified.
+- Corrected Rust formatting whitespace in the Chains lifecycle and Drops tests.
+- Added author-only contribution revision restoration. The current contribution is first written as a new immutable revision, then the chosen prior revision is restored in the same PostgreSQL transaction. The endpoint checks current Chain access, locks the contribution, validates the restored format/payload, and updates the parent Chain timestamp.
+- Tightened contribution editing so an author who has lost access to a private/Circle Chain cannot continue editing it by ID alone.
+- Improved personalized Discover ranking: profile privacy filtering occurs before ranking/page selection; ranking uses topic affinity, engagement, recency and a stable ID tie-break; creator diversity is capped at two items in the first pass, with a ranked fallback when few creators are eligible.
+- Extracted creator diversity into `lib/discovery-ranking.ts` and added unit tests for diversity, fallback, non-positive limits, duplicate IDs and recommendation metadata normalization.
+- Carried `discovery_reason` through `normalizeLoop` and displayed the reason above the relevant Discover card.
+- Corrected Drops sorting tie-breaks and scheduled Circle Challenge handling. Scheduled challenges are returned in the upcoming filter and are not presented as live broadcasts; a Rust regression test covers this.
+- Corrected the Drops card/detail status presentation so scheduled challenges show their start time and an “Upcoming” state, instead of misleadingly showing only a closing time or “Not accepting entries”.
+- Expanded the shared Explore search interface to include Drops using the existing authenticated Rust Drops API. This deliberately reuses backend access filtering instead of introducing a separate search implementation.
+- Connected Circle Drops to Chains. A Circle member can open a prefilled Chain composer from a Challenge page. The Chain create API verifies Circle membership and the challenge/Circle relationship in PostgreSQL before writing a server-generated `metadata.origin` reference. Chain detail displays a link back to that source Drop.
+- Added Rust unit tests ensuring Drop-origin metadata is generated from verified server data and that clients cannot spoof the reserved origin field.
+
+### Current verification caveat
+- The Rust workflow had passed formatting and compilation on a predecessor head, but subsequent changes to the Chain-origin handler/tests mean that result does **not** verify the current code.
+- Latest observed working branch head at the time this section was written: `d7013fc1a72b4b35ec26f4a3e9ce5a9d1d31a500`.
+- Check Actions for this exact SHA. A later commit cancels earlier runs, so do not infer current status from the predecessor head.
+- The frontend verification/build for the latest additions (Drops search, origin links, challenge state and new Discover tests) must also pass on the exact final head.
+
+### Immediate next actions
+1. Verify the latest-head Rust format/check/test/Clippy workflow and frontend verify/build workflow. Fix any remaining failures from their logs.
+2. Validate the Chain-origin flow with an integration test or repository database test: valid Circle member + existing challenge succeeds; wrong Circle, missing challenge, former member and malformed IDs fail without creating a Chain.
+3. Exercise revision restore against the database, including invalid historical payload, mismatched contribution type, concurrent edits, and an author whose Circle access was revoked.
+4. Check the new Drops search request while logged out, while authenticated, and after auth changes; verify private Circles and inaccessible challenges never appear.
+5. Extend cross-feature journeys to Collections, profile activity and contextual notifications using canonical object references.
+6. Add full end-to-end tests for Drop → Chain → contribution → Discover → Collection/share and complete release-gate checks.
+
+The six workstreams in section 7 remain active. None should be marked completely finished solely because these partial implementations exist.
