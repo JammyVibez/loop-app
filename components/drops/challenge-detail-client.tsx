@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, CalendarClock, ImagePlus, Loader2, RefreshCw, Send, ThumbsUp } from "lucide-react"
+import { ArrowLeft, CalendarClock, GitBranch, ImagePlus, Loader2, RefreshCw, Send, ThumbsUp } from "lucide-react"
 
 import { useAuth } from "@/hooks/use-auth"
 import { uploadMediaFile } from "@/lib/client-media-upload"
@@ -225,6 +225,15 @@ export function ChallengeDetailClient({
   const challenge = data.challenge
   const creator = oneAuthor(challenge.creator)
   const acceptingEntries = data.can_submit
+  const chainParams = new URLSearchParams({
+    circle_id: circleId,
+    source_drop_id: challenge.id,
+    title: (`Continue: ${challenge.title}`).slice(0, 120),
+    description: (challenge.description || "").slice(0, 2_000),
+    prompt: (`Continue the community idea from the Drop: ${challenge.title}`).slice(0, 1_200),
+    kind: "challenge",
+    create: "1",
+  })
 
   return (
     <div className="space-y-6">
@@ -252,9 +261,21 @@ export function ChallengeDetailClient({
           <span>·</span>
           <span>Closes {formatDate(challenge.ends_at)}</span>
         </div>
-        <Link href={"/communities/" + circleId} className="inline-flex text-xs font-semibold text-primary hover:underline">
-          Open Circle
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href={"/communities/" + circleId} className="inline-flex text-xs font-semibold text-primary hover:underline">
+            Open Circle
+          </Link>
+          {data.is_member && (
+            <Link
+              href={"/chains?" + chainParams.toString()}
+              className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10"
+            >
+              <GitBranch className="h-3.5 w-3.5" />
+              Continue as a Chain
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
+        </div>
       </header>
 
       {acceptingEntries ? (
