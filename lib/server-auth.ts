@@ -153,10 +153,9 @@ export async function requireAdmin(request: NextRequest) {
     .eq("id", user.id)
     .maybeSingle()
 
-  const isAdmin = Boolean(
-    profile?.is_admin ||
-    (user.email && user.email.toLowerCase().includes("admin"))
-  )
+  // Privileged access must come only from the canonical profile role.
+  // An email address is user-controlled identity data, never an authorization claim.
+  const isAdmin = profile?.is_admin === true
 
   if (!isAdmin) {
     return {

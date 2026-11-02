@@ -267,3 +267,10 @@ A previous `npm run verify` exposed implicit-any errors in the personalized Disc
 6. Build proper multi-step integration/E2E coverage and verify the final head.
 
 The product remains intentionally unfinished until these gates pass. Keep PR #1 open and in draft.
+
+## 12. Security boundary hardening — 2026-11-02
+
+- Removed the `requireAdmin` fallback that treated an email containing the word "admin" as an administrator. Admin access now requires the canonical `profiles.is_admin` value to be exactly `true`; missing profiles and lookup failures continue to fail closed.
+- Added an integration-style guard test using the real `requireAdmin` function. It covers an attacker-controlled email containing "admin", moderator-only profiles, missing admin privileges and an explicitly authorized profile.
+- This is a security foundation correction, not an Admin Dashboard implementation. Existing privileged API routes inherit the stricter guard; no dashboard UI or new admin capability was added.
+- CI must be checked again on the resulting branch head before this change is considered verified.
