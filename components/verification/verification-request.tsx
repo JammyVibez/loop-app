@@ -38,13 +38,12 @@ const STATUS_META: Record<string, { label: string; cls: string; icon: React.Elem
 export function VerificationRequest() {
   const [formData, setFormData] = useState({
     realName: "",
-    username: "",
     socialLinks: "",
     reason: "",
     category: "creator" as VerificationType,
   });
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [profile, setProfile] = useState<{ is_verified: boolean; avatar_url?: string } | null>(null)
+  const [profile, setProfile] = useState<{ is_verified: boolean } | null>(null)
   const [existingRequests, setExistingRequests] = useState<ExistingRequest[]>([])
   const { toast } = useToast()
   const { user, getAuthHeader } = useAuth()
@@ -64,8 +63,7 @@ export function VerificationRequest() {
           const data = await meRes.json()
           const p = data.profile || data.user || null
           if (p) {
-            setProfile({ is_verified: Boolean(p.is_verified), avatar_url: p.avatar_url })
-            setFormData((prev) => ({ ...prev, username: prev.username || (p.username ? `@${p.username}` : "") }))
+            setProfile({ is_verified: Boolean(p.is_verified) })
           }
         }
         if (reqRes?.ok) {
@@ -97,7 +95,6 @@ export function VerificationRequest() {
         },
         body: JSON.stringify({
           realName: formData.realName,
-          username: formData.username.replace(/^@/, ""),
           socialLinks: formData.socialLinks,
           reason: formData.reason,
           verificationType: formData.category,
@@ -113,13 +110,12 @@ export function VerificationRequest() {
 
       toast({
         title: "Verification Request Submitted!",
-        description: "We'll review your application within 3-5 business days.",
+        description: "Your request is in the review queue. We'll notify you when a decision is made.",
       })
 
       // Reset form
       setFormData((prev) => ({
         realName: "",
-        username: prev.username,
         socialLinks: "",
         reason: "",
         category: prev.category,
@@ -152,7 +148,7 @@ export function VerificationRequest() {
           </div>
         </div>
         <h1 className="text-3xl font-bold">Get Verified on loopapp.me</h1>
-        <p className="text-gray-600 dark:text-gray-400">Join verified creators and build trust with your audience</p>
+        <p className="text-gray-600 dark:text-gray-400">Verification is a manual authenticity review. Premium never grants a checkmark or priority.</p>
       </div>
 
       {alreadyVerified && (
@@ -219,19 +215,10 @@ export function VerificationRequest() {
                   <Label htmlFor="realName">Real Name *</Label>
                   <Input
                     id="realName"
+                    maxLength={160}
                     value={formData.realName}
                     onChange={(e) => setFormData((prev) => ({ ...prev, realName: e.target.value }))}
                     placeholder="Your full legal name"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username *</Label>
-                  <Input
-                    id="username"
-                    value={formData.username}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, username: e.target.value }))}
-                    placeholder="@yourusername"
                     required
                   />
                 </div>
@@ -259,6 +246,7 @@ export function VerificationRequest() {
                 <Label htmlFor="socialLinks">Social Media Links</Label>
                 <Textarea
                   id="socialLinks"
+                  maxLength={2000}
                   value={formData.socialLinks}
                   onChange={(e) => setFormData((prev) => ({ ...prev, socialLinks: e.target.value }))}
                   placeholder={"Instagram: @username\nWebsite: https://..."}
@@ -270,6 +258,7 @@ export function VerificationRequest() {
                 <Label htmlFor="reason">Why should you be verified? *</Label>
                 <Textarea
                   id="reason"
+                  maxLength={2000}
                   value={formData.reason}
                   onChange={(e) => setFormData((prev) => ({ ...prev, reason: e.target.value }))}
                   placeholder="Explain your public interest, notable achievements, or why verification would benefit the community..."

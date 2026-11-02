@@ -274,3 +274,10 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Added an integration-style guard test using the real `requireAdmin` function. It covers an attacker-controlled email containing "admin", moderator-only profiles, missing admin privileges and an explicitly authorized profile.
 - This is a security foundation correction, not an Admin Dashboard implementation. Existing privileged API routes inherit the stricter guard; no dashboard UI or new admin capability was added.
 - CI must be checked again on the resulting branch head before this change is considered verified.
+## 13. Verification application integrity — 2026-11-02
+
+- Added a shared verification-submission parser with an explicit allow-list of account categories, bounded personal/application text, and HTTPS-only supporting links without URL credentials.
+- The application API now derives the applicant username from the authenticated canonical profile instead of trusting a client-supplied username; malformed bodies and invalid evidence links are rejected.
+- Applicant history now returns only review status, dates and reviewer feedback. Legal names, evidence links and private application text remain confined to the reviewer surface.
+- Removed unsupported eligibility claims from both verification entry points, including the hard-coded impersonation signal and the unverified ten-post threshold. The UI now explains the actual review focus and that LOOP Pro does not confer verification or priority.
+- The API retains compatibility fallbacks for older verification schemas. Production database setup and transactional reviewer decisions still need separate verification before this workflow can be considered complete.
