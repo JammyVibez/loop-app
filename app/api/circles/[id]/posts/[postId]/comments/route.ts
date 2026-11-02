@@ -57,11 +57,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string; postId: string }> }) {
   try {
-    const supabase = getCircleCommentsClient()
-    if (!supabase) return NextResponse.json({ error: "Circle comments are unavailable" }, { status: 503 })
-
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+
+    const supabase = getCircleCommentsClient()
+    if (!supabase) return NextResponse.json({ error: "Circle comments are unavailable" }, { status: 503 })
 
     const { id: circleId, postId } = await params
     const body = await request.json().catch(() => ({}))

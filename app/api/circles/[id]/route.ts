@@ -254,14 +254,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const supabase = getCircleRouteClient()
-    if (!supabase) return unavailableCircleResponse()
-
     const user = await getUserFromRequest(request)
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    const supabase = getCircleRouteClient()
+    if (!supabase) return unavailableCircleResponse()
 
     const { id: circleId } = await params
 
@@ -413,11 +413,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const supabase = getCircleRouteClient()
-    if (!supabase) return unavailableCircleResponse()
-
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const supabase = getCircleRouteClient()
+    if (!supabase) return unavailableCircleResponse()
 
     const { id: circleId } = await params
     const body = await request.json().catch(() => ({}))
@@ -476,14 +476,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const supabase = getCircleRouteClient()
-    if (!supabase) return unavailableCircleResponse()
-
     const user = await getUserFromRequest(request)
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    const supabase = getCircleRouteClient()
+    if (!supabase) return unavailableCircleResponse()
 
     const { id: circleId } = await params
 

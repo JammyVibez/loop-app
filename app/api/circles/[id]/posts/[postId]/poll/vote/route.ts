@@ -13,12 +13,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string; postId: string }> },
 ) {
   try {
-    const supabase = getCirclePollClient()
-    if (!supabase) return NextResponse.json({ error: "Circle poll service is unavailable" }, { status: 503 })
-
 
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+
+    const supabase = getCirclePollClient()
+    if (!supabase) return NextResponse.json({ error: "Circle poll service is unavailable" }, { status: 503 })
 
     const { id: circleId, postId } = await params
     const { optionId, optionIndex } = await request.json()

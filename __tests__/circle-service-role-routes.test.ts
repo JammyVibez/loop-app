@@ -80,11 +80,11 @@ describe("Circle service-role route boundaries", () => {
     expect(state.createServerClient).not.toHaveBeenCalled()
   })
 
-  it("authenticates poll voters before creating a server client", async () => {
+  it("rejects unauthenticated poll voters before creating a server client", async () => {
     state.user.mockResolvedValue(null)
     const response = await votePoll(postRequest("/api/circles/circle-1/posts/post-1/poll/vote"), postParams)
 
-    expect(response.status).toBe(503)
+    expect(response.status).toBe(401)
     expect(state.createServerClient).not.toHaveBeenCalled()
   })
 
