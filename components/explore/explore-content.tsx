@@ -229,12 +229,19 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
     return (
       <div className="space-y-4">
         {items.map((loop) => (
-          <LoopCard
-            key={loop.id}
-            loop={loop}
-            interacting={interacting}
-            onInteraction={handleInteraction}
-          />
+          <div key={loop.id} className="space-y-2">
+            {loop.discovery_reason && (
+              <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
+                <span>{loop.discovery_reason}</span>
+              </div>
+            )}
+            <LoopCard
+              loop={loop}
+              interacting={interacting}
+              onInteraction={handleInteraction}
+            />
+          </div>
         ))}
       </div>
     )
