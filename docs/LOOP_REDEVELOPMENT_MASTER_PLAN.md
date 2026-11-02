@@ -4,6 +4,8 @@
 
 This document is the canonical product brief for the major LOOP redevelopment. It preserves the product direction established in the original concept: LOOP is not a collage of Instagram, TikTok, Pinterest and Discord. It is a collaborative social platform where people make things together, discover communities and interests, and build experiences that become more valuable through participation.
 
+> **Fresh-session continuity:** Read [`AGENTS.md`](../AGENTS.md) and the durable [LOOP AI Agent Handoff](LOOP_AGENT_HANDOFF.md) before coding. The handoff preserves the full product idea, technical invariants, PR rules and six ordered active workstreams so work can continue accurately across chats.
+
 ## 1. Product philosophy
 
 LOOP should reward meaningful creation, participation, collaboration and connection—not passive consumption, follower competition or compulsive engagement.

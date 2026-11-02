@@ -401,16 +401,15 @@ pub async fn update_contribution(
             "Contribution titles are limited to 120 characters and content to 8,000.",
         ));
     }
-    if let Some(payload) = input.payload.as_ref() {
-        if !payload.is_object()
-            || serde_json::to_vec(payload).map_or(true, |value| value.len() > 64 * 1024)
-        {
-            return Err(api_error(
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "invalid_contribution_payload",
-                "Structured contribution data must be an object no larger than 64 KiB.",
-            ));
-        }
+    if let Some(payload) = input.payload.as_ref()
+        && (!payload.is_object()
+            || serde_json::to_vec(payload).map_or(true, |value| value.len() > 64 * 1024))
+    {
+        return Err(api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_contribution_payload",
+            "Structured contribution data must be an object no larger than 64 KiB.",
+        ));
     }
 
     let mut transaction = state

@@ -108,11 +108,13 @@ pub async fn list(
     let kind_filter = query
         .kind
         .as_deref()
-        .filter(|value| !value.trim().is_empty());
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
     let category_filter = query
         .category
         .as_deref()
-        .filter(|value| !value.trim().is_empty());
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
     if search_filter.is_some_and(|value| value.chars().count() > 120) {
         return Err(api_error(
             StatusCode::BAD_REQUEST,
@@ -136,14 +138,14 @@ pub async fn list(
         ));
     }
 
-    if let Some(kind) = kind_filter {
-        if !matches!(kind, "event" | "challenge") {
-            return Err(api_error(
-                StatusCode::BAD_REQUEST,
-                "invalid_drop_kind",
-                "Kind must be event or challenge.",
-            ));
-        }
+    if let Some(kind) = kind_filter
+        && !matches!(kind, "event" | "challenge")
+    {
+        return Err(api_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_drop_kind",
+            "Kind must be event or challenge.",
+        ));
     }
 
     let search_pattern = search_filter.map(|value| format!("%{}%", value));
@@ -247,28 +249,26 @@ pub async fn list(
         "recent" => right
             .created_at
             .cmp(&left.created_at)
-            .then_with(|| left.id.cmp(&right.id)),
+            .then_with(|| right.id.cmp(&left.id)),
         "popular" => right
             .participants_count
             .cmp(&left.participants_count)
-            .then_with(|| right.is_live.cmp(&left.is_live))
             .then_with(|| right.created_at.cmp(&left.created_at))
-            .then_with(|| left.id.cmp(&right.id)),
+            .then_with(|| right.id.cmp(&left.id)),
         "upcoming" => right
             .is_live
             .cmp(&left.is_live)
             .then_with(|| left.starts_at.is_none().cmp(&right.starts_at.is_none()))
-            .then_with(|| left.starts_at.is_none().cmp(&right.starts_at.is_none()))
             .then_with(|| left.starts_at.cmp(&right.starts_at))
             .then_with(|| right.created_at.cmp(&left.created_at))
-            .then_with(|| left.id.cmp(&right.id)),
+            .then_with(|| right.id.cmp(&left.id)),
         _ => right
             .is_live
             .cmp(&left.is_live)
             .then_with(|| left.starts_at.is_none().cmp(&right.starts_at.is_none()))
             .then_with(|| left.starts_at.cmp(&right.starts_at))
             .then_with(|| right.created_at.cmp(&left.created_at))
-            .then_with(|| left.id.cmp(&right.id)),
+            .then_with(|| right.id.cmp(&left.id)),
     });
 
     let total = items.len();
@@ -519,7 +519,7 @@ async fn load_circle_challenges(
           AND ($3::text IS NULL OR challenge.title ILIKE $3 OR COALESCE(challenge.description, '') ILIKE $3 OR COALESCE(challenge.challenge_type, 'Creative') ILIKE $3 OR circle.name ILIKE $3)
           AND ($4::text IS NULL OR LOWER(COALESCE(challenge.challenge_type, 'Creative')) = LOWER($4))
           AND NOT $5::boolean
-          AND NOT $6::boolean
+          AND (NOT $6::boolean OR challenge.starts_at > NOW())
         ORDER BY
             CASE WHEN $7 = 'recent' THEN challenge.created_at END DESC NULLS LAST,
             CASE WHEN $7 = 'popular' THEN (
@@ -628,7 +628,11 @@ fn derive_activity_state(
     }
 
     if kind == "challenge" {
-        return (false, "active");
+        return if starts_at.as_ref().is_some_and(|start| start > &now) {
+            (false, "upcoming")
+        } else {
+            (false, "active")
+        };
     }
 
     (false, "upcoming")
@@ -682,6 +686,19 @@ mod tests {
         assert_eq!(
             derive_activity_state("challenge", "active", false, &starts_at, &ends_at, now),
             (false, "active")
+        );
+    }
+
+
+    #[test]
+    fn scheduled_challenges_are_upcoming_not_live() {
+        let now = Utc::now();
+        let starts_at = Some(now + Duration::hours(2));
+        let ends_at = Some(now + Duration::days(1));
+
+        assert_eq!(
+            derive_activity_state("challenge", "active", false, &starts_at, &ends_at, now),
+            (false, "upcoming")
         );
     }
 
