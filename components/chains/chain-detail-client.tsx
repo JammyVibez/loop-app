@@ -388,7 +388,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
               <GitBranch className="h-3.5 w-3.5" /> {forking ? "Creating remix…" : "Remix Chain"}
             </Button>
             {chain.source_chain_id && <Link href={"/chains/" + chain.source_chain_id} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold transition hover:bg-muted sm:col-span-1"><GitBranch className="h-3.5 w-3.5" /> View original Chain</Link>}
-            {chain.circle_id && <Link href={"/communities/" + chain.circle_id} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold transition hover:bg-muted sm:col-span-1">Open Circle <ArrowUpRight className="h-3.5 w-3.5" /></Link>
+            {chain.circle_id && <Link href={"/communities/" + chain.circle_id} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold transition hover:bg-muted sm:col-span-1">Open Circle <ArrowUpRight className="h-3.5 w-3.5" /></Link>}
             {forkError && <p role="alert" className="col-span-2 text-xs text-destructive">{forkError}</p>}
           </div>
         </div>
