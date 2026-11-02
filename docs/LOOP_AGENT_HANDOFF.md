@@ -122,3 +122,10 @@ Finish and verify: durable invitations and revocation, active-session authorizat
 - Circle bot configuration changes now require an active/approved membership instead of trusting a stale role field. Membership lookup failures are returned as unavailable.
 - Bot-trigger post creation checks a well-formed explicit permission list before allowing non-staff members to create a post.
 - Check-in history lookup failures no longer appear as an empty streak; the route reports the unavailable history rather than presenting a fabricated zero.
+
+
+## 73. Circle evolution and member mini-profile privacy — 2 November 2026
+
+- Circle evolution now requires the actor's membership to be current and active/approved before accepting administrative changes; membership lookup failures fail closed, and unsupported/dismiss actions are validated.
+- The member mini-profile route now denies anonymous/pending viewers of private Circles, returns only active/approved target members, respects profile privacy and blocks, hides activity for restricted profiles, counts only published posts/non-hidden replies, and grants moderation controls only to active/approved staff.
+- Added route regression tests for stale/banned/pending membership, database failures, private Circle access and mini-profile visibility.
