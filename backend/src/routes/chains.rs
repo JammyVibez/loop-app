@@ -597,14 +597,14 @@ pub async fn create(
             .as_object_mut()
             .expect("metadata object validated")
             .insert(
-            "origin".to_owned(),
-            json!({
-                "type": "circle_challenge",
-                "id": source_drop_id,
-                "circle_id": circle_id,
-                "title": source_title,
-            }),
-        );
+                "origin".to_owned(),
+                json!({
+                    "type": "circle_challenge",
+                    "id": source_drop_id,
+                    "circle_id": circle_id,
+                    "title": source_title,
+                }),
+            );
     }
 
     let inserted = sqlx::query(
