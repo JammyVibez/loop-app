@@ -106,3 +106,19 @@ export function canManageMemberSettings(
   if (target === "owner") return false
   return actor === "owner" || (actor === "admin" && (target === "member" || target === "moderator"))
 }
+
+
+/**
+ * Circle Studio changes require a current owner/admin membership.
+ * Historical roles on pending, rejected, left or banned rows confer no access.
+ * The canonical Circle owner remains authorized even without a member row.
+ */
+export function canEditCircleStudio(
+  role: string | null | undefined,
+  status: string | null | undefined,
+  isOwner = false,
+): boolean {
+  if (isOwner) return true
+  const normalizedStatus = String(status || "").trim().toLowerCase()
+  return (normalizedStatus === "active" || normalizedStatus === "approved") && canEditStudio(role)
+}
