@@ -502,3 +502,9 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Marked the Circle Event RSVP migration as a strict production-setup step, after the Circle schema enhancement and participant repair scripts it depends on.
 - Pinned the legacy RSVP function's SECURITY DEFINER search path and changed the manager permission check to compare the stored permission string instead of casting arbitrary JSON text to BOOLEAN.
 - Added route contract tests for direct attendance, approval-required pending requests and the revoked-membership rejection path.
+
+## 46. Circle Event RSVP route test contract — 2026-11-02
+
+- Corrected the RSVP route test's Supabase query mock to return the same `{ data, error }` envelope as the real client for `maybeSingle()`.
+- The test now distinguishes a valid active member from a missing membership without causing a mock-only null destructuring failure. The route's fail-closed membership check remains unchanged.
+- Re-run the full frontend verification workflow on the latest PR head. PostgreSQL-backed authorization and concurrency tests remain a production release gate.
