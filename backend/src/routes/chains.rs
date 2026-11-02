@@ -321,13 +321,17 @@ fn can_contribute_to_chain(
     visibility: &str,
     has_circle: bool,
     is_creator: bool,
-    is_chain_member: bool,
+    chain_member_role: Option<&str>,
     is_circle_member: bool,
 ) -> bool {
     if visibility == "circle" && (!has_circle || !is_circle_member) {
         return false;
     }
-    if is_creator || is_chain_member {
+    let is_contributing_member = matches!(
+        chain_member_role,
+        Some("owner" | "collaborator" | "contributor")
+    );
+    if is_creator || is_contributing_member {
         return true;
     }
     match policy {
@@ -836,7 +840,9 @@ pub async fn get(
                         chain.creator_id = $2
                         OR EXISTS (
                             SELECT 1 FROM chain_members AS member
-                            WHERE member.chain_id = chain.id AND member.user_id = $2
+                            WHERE member.chain_id = chain.id
+                              AND member.user_id = $2
+                              AND member.role IN ('owner', 'collaborator', 'contributor')
                         )
                         OR (
                             chain.contribution_policy = 'open'
@@ -1375,14 +1381,15 @@ pub async fn contribute(
         ));
     }
 
-    let is_chain_member = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS (SELECT 1 FROM chain_members WHERE chain_id = $1 AND user_id = $2)",
+    let chain_member_role = sqlx::query_scalar::<_, String>(
+        "SELECT role FROM chain_members WHERE chain_id = $1 AND user_id = $2",
     )
     .bind(chain_id)
     .bind(user.id)
-    .fetch_one(&mut *transaction)
+    .fetch_optional(&mut *transaction)
     .await
-    .map_err(|error| db_error(error, "check Chain membership"))?;
+    .map_err(|error| db_error(error, "check Chain membership role"))?;
+    let is_chain_member = chain_member_role.is_some();
 
     let is_circle_member = if let Some(circle_id) = circle_id {
         sqlx::query_scalar::<_, bool>(
@@ -1429,7 +1436,7 @@ pub async fn contribute(
         &visibility,
         circle_id.is_some(),
         is_creator,
-        is_chain_member,
+        chain_member_role.as_deref(),
         is_circle_member,
     );
     if !may_contribute {
@@ -1650,18 +1657,18 @@ mod tests {
     #[test]
     fn former_circle_members_cannot_contribute_through_stale_chain_membership() {
         assert!(!can_contribute_to_chain(
-            "open", "circle", true, true, true, false
+            "open", "circle", true, true, Some("contributor"), false
         ));
         assert!(!can_contribute_to_chain(
             "circle_members",
             "circle",
             true,
             false,
-            true,
+            Some("viewer"),
             false
         ));
         assert!(can_contribute_to_chain(
-            "open", "circle", true, false, true, true
+            "open", "circle", true, false, Some("contributor"), true
         ));
     }
 
@@ -1675,17 +1682,17 @@ mod tests {
     #[test]
     fn open_policy_never_bypasses_private_chain_visibility() {
         assert!(!can_contribute_to_chain(
-            "open", "private", false, false, false, false
+            "open", "private", false, false, None, false
         ));
         assert!(can_contribute_to_chain(
-            "open", "public", false, false, false, false
+            "open", "public", false, false, None, false
         ));
         assert!(can_contribute_to_chain(
             "circle_members",
             "circle",
             true,
             false,
-            false,
+            None,
             true
         ));
         assert!(!can_contribute_to_chain(
@@ -1693,8 +1700,51 @@ mod tests {
             "circle",
             true,
             false,
-            false,
+            None,
             false
+        ));
+    }
+
+    #[test]
+    fn viewer_members_can_read_but_cannot_contribute() {
+        assert!(can_access_chain("private", false, false, true, false));
+        assert!(!can_contribute_to_chain(
+            "open",
+            "public",
+            false,
+            false,
+            Some("viewer"),
+            false,
+        ));
+        assert!(!can_contribute_to_chain(
+            "members",
+            "private",
+            false,
+            false,
+            Some("viewer"),
+            false,
+        ));
+    }
+
+    #[test]
+    fn contributor_roles_can_contribute_but_non_member_policy_is_respected() {
+        for role in ["owner", "collaborator", "contributor"] {
+            assert!(can_contribute_to_chain(
+                "members",
+                "private",
+                false,
+                false,
+                Some(role),
+                false,
+            ));
+        }
+        assert!(!can_contribute_to_chain(
+            "members",
+            "public",
+            false,
+            false,
+            None,
+            false,
         ));
     }
 
