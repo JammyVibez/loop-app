@@ -346,16 +346,26 @@ export async function GET(request: NextRequest) {
 
           // Apply profile privacy gates before ranking and pagination so private
           // creators cannot occupy recommendation slots or affect visible ordering.
-          const candidateRows: Array<Record<string, any> & { matchedTags: string[] }> = [...candidates.values()].map(({ loop, matched }) => ({
+          type RankedCandidate = {
+            id: string
+            author_id?: string
+            created_at: string
+            matchedTags: string[]
+            [key: string]: any
+          }
+          const candidateRows = [...candidates.values()].map(({ loop, matched }) => ({
             ...loop,
+            id: String(loop.id),
+            author_id: typeof loop.author_id === "string" ? loop.author_id : undefined,
+            created_at: String(loop.created_at),
             matchedTags: [...matched],
-          }))
-          const visibleCandidates = (await filterPrivateContent(
+          })) as RankedCandidate[]
+          const visibleCandidates = await filterPrivateContent(
             supabase,
             candidateRows,
             user.id,
             following,
-          )) as typeof candidateRows
+          )
 
           const sortedCandidates = visibleCandidates.sort((left, right) => {
             const leftInterest = left.matchedTags.reduce((sum, tag) => sum + (interestWeights.get(tag) || 0), 0)
