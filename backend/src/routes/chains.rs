@@ -207,6 +207,14 @@ fn valid_kind(value: Option<&str>) -> Option<String> {
     normalize_choice(value, CHAIN_KINDS, "open")
 }
 
+fn valid_chain_status(value: &str) -> Option<String> {
+    normalize_choice(
+        Some(value),
+        &["active", "paused", "completed", "archived"],
+        "active",
+    )
+}
+
 fn valid_contribution_type(value: Option<&str>) -> Option<String> {
     normalize_choice(value, CONTRIBUTION_TYPES, "text")
 }
@@ -964,6 +972,234 @@ pub async fn get(
     }))
 }
 
+#[derive(Deserialize)]
+pub struct UpdateChainInput {
+    title: Option<String>,
+    description: Option<String>,
+    prompt: Option<String>,
+    category: Option<String>,
+    visibility: Option<String>,
+    contribution_policy: Option<String>,
+    status: Option<String>,
+}
+
+/// Update Chain details or its contribution lifecycle. Only the Chain owner
+/// may change the shared object's identity, visibility or lifecycle.
+pub async fn update(
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
+    Path(chain_id): Path<Uuid>,
+    Json(input): Json<UpdateChainInput>,
+) -> Result<Json<ChainSummary>, ApiError> {
+    if input.title.is_none()
+        && input.description.is_none()
+        && input.prompt.is_none()
+        && input.category.is_none()
+        && input.visibility.is_none()
+        && input.contribution_policy.is_none()
+        && input.status.is_none()
+    {
+        return Err(api_error(
+            StatusCode::BAD_REQUEST,
+            "empty_chain_update",
+            "Provide at least one Chain change.",
+        ));
+    }
+
+    let title = input.title.map(|value| {
+        let value = value.trim().to_owned();
+        if value.is_empty() || value.chars().count() > 120 {
+            Err(api_error(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "invalid_chain_title",
+                "Chain titles must contain between 1 and 120 characters.",
+            ))
+        } else {
+            Ok(value)
+        }
+    }).transpose()?;
+    let description = input.description.map(|value| {
+        if value.chars().count() > 2_000 {
+            Err(api_error(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "chain_text_too_long",
+                "Descriptions are limited to 2,000 characters.",
+            ))
+        } else {
+            Ok(value.trim().to_owned())
+        }
+    }).transpose()?;
+    let prompt = input.prompt.map(|value| {
+        if value.chars().count() > 1_200 {
+            Err(api_error(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "chain_text_too_long",
+                "Opening prompts are limited to 1,200 characters.",
+            ))
+        } else {
+            Ok(value.trim().to_owned())
+        }
+    }).transpose()?;
+    let category = input.category.map(|value| {
+        let value = value.trim().to_lowercase();
+        if value.is_empty() || value.chars().count() > 40 {
+            Err(api_error(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "invalid_chain_category",
+                "Choose a category of 1 to 40 characters.",
+            ))
+        } else {
+            Ok(value)
+        }
+    }).transpose()?;
+    let visibility = input.visibility.map(|value| {
+        valid_visibility(Some(&value)).ok_or_else(|| {
+            api_error(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "invalid_chain_visibility",
+                "Visibility must be public, unlisted, private or circle.",
+            )
+        })
+    }).transpose()?;
+    let contribution_policy = input.contribution_policy.map(|value| {
+        valid_policy(Some(&value)).ok_or_else(|| {
+            api_error(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "invalid_contribution_policy",
+                "Contribution policy must be open, members or circle_members.",
+            )
+        })
+    }).transpose()?;
+    let status = input.status.map(|value| {
+        valid_chain_status(&value).ok_or_else(|| {
+            api_error(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "invalid_chain_status",
+                "Status must be active, paused, completed or archived.",
+            )
+        })
+    }).transpose()?;
+
+    let mut transaction = state.database.begin().await
+        .map_err(|error| db_error(error, "begin Chain update"))?;
+    let current = sqlx::query(
+        "SELECT creator_id, circle_id FROM chains WHERE id = $1 FOR UPDATE",
+    )
+    .bind(chain_id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "load Chain for update"))?
+    .ok_or_else(|| api_error(
+        StatusCode::NOT_FOUND,
+        "chain_not_found",
+        "This Chain is unavailable.",
+    ))?;
+
+    let creator_id: Uuid = current.try_get("creator_id")
+        .map_err(|error| db_error(error, "read Chain creator"))?;
+    let circle_id: Option<Uuid> = current.try_get("circle_id")
+        .map_err(|error| db_error(error, "read Chain Circle"))?;
+    let is_owner = creator_id == user.id || sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS (SELECT 1 FROM chain_members WHERE chain_id = $1 AND user_id = $2 AND role = 'owner')",
+    )
+    .bind(chain_id)
+    .bind(user.id)
+    .fetch_one(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "verify Chain owner"))?;
+
+    if !is_owner {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "chain_owner_required",
+            "Only the Chain owner can edit its details or lifecycle.",
+        ));
+    }
+
+    if circle_id.is_some() && visibility.as_deref().is_some_and(|value| value != "circle") {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "circle_chain_scope_locked",
+            "A Circle Chain must remain scoped to its Circle.",
+        ));
+    }
+    if circle_id.is_none() && visibility.as_deref() == Some("circle") {
+        return Err(api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "circle_required",
+            "Choose a Circle before making a Chain Circle-only.",
+        ));
+    }
+
+    if let Some(circle_id) = circle_id {
+        let remains_member = sqlx::query_scalar::<_, bool>(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM circles AS circle
+                WHERE circle.id = $1 AND (
+                    circle.owner_id = $2
+                    OR EXISTS (
+                        SELECT 1 FROM circle_members AS member
+                        WHERE member.circle_id = circle.id
+                          AND member.user_id = $2
+                          AND member.status IN ('active', 'approved')
+                    )
+                )
+            )
+            "#,
+        )
+        .bind(circle_id)
+        .bind(user.id)
+        .fetch_one(&mut *transaction)
+        .await
+        .map_err(|error| db_error(error, "verify Chain Circle membership"))?;
+        if !remains_member {
+            return Err(api_error(
+                StatusCode::FORBIDDEN,
+                "circle_membership_required",
+                "Rejoin this Circle before managing its Chain.",
+            ));
+        }
+    }
+
+    sqlx::query(
+        r#"
+        UPDATE chains
+        SET title = COALESCE($2, title),
+            description = COALESCE($3, description),
+            prompt = COALESCE($4, prompt),
+            category = COALESCE($5, category),
+            visibility = COALESCE($6, visibility),
+            contribution_policy = COALESCE($7, contribution_policy),
+            status = COALESCE($8, status),
+            updated_at = NOW()
+        WHERE id = $1
+        "#,
+    )
+    .bind(chain_id)
+    .bind(title)
+    .bind(description)
+    .bind(prompt)
+    .bind(category)
+    .bind(visibility)
+    .bind(contribution_policy)
+    .bind(status)
+    .execute(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "update Chain"))?;
+
+    transaction.commit().await
+        .map_err(|error| db_error(error, "commit Chain update"))?;
+
+    let row = sqlx::query(&format!("{SUMMARY_SELECT} WHERE chain.id = $1"))
+        .bind(chain_id)
+        .fetch_one(&state.database)
+        .await
+        .map_err(|error| db_error(error, "reload updated Chain"))?;
+
+    Ok(Json(parse_summary(&row)?))
+}
+
 pub async fn contribute(
     State(state): State<AppState>,
     user: AuthenticatedUser,
@@ -1431,6 +1667,14 @@ mod tests {
             false,
             false
         ));
+    }
+
+    #[test]
+    fn validates_all_supported_chain_lifecycle_states() {
+        for state in ["active", "paused", "completed", "archived"] {
+            assert_eq!(super::valid_chain_status(state).as_deref(), Some(state));
+        }
+        assert!(super::valid_chain_status("deleted").is_none());
     }
 
     #[test]
