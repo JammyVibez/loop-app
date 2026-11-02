@@ -34,3 +34,26 @@ export function decideCoLoopJoin(
   if (session.locked === true) return "locked"
   return hasDirectInvite ? "allowed" : "not_invited"
 }
+
+
+/** A declined, revoked or expired invitation is a durable access denial. */
+export function isRevokedCoLoopInvitationStatus(status: unknown): boolean {
+  return status === "declined" || status === "revoked" || status === "expired"
+}
+
+/** Fail closed when the canonical invitation ledger cannot be checked. */
+export async function checkCoLoopInvitationRevocation(
+  supabase: any,
+  sessionId: string,
+  userId: string,
+): Promise<{ revoked: boolean; error: string | null }> {
+  const { data, error } = await supabase
+    .from("co_loop_invitations")
+    .select("status")
+    .eq("session_id", sessionId)
+    .eq("invitee_id", userId)
+    .maybeSingle()
+
+  if (error) return { revoked: false, error: error.message || "Could not verify invitation status" }
+  return { revoked: isRevokedCoLoopInvitationStatus(data?.status), error: null }
+}
