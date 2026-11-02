@@ -12,6 +12,8 @@ if (!databaseUrl) {
 const files = [
   "scripts/schema-compat-alignment.sql",
   "scripts/complete-database-setup.sql",
+  // Recurring LOOP Pro subscriptions and auditable billing grants.
+  "scripts/premium-subscriptions-migration.sql",
   "scripts/launch-schema-alignment.sql",
   "scripts/loops-and-media.sql",
   "scripts/moderation-schema.sql",
