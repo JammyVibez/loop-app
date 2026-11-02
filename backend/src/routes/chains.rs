@@ -1675,7 +1675,12 @@ mod tests {
     #[test]
     fn former_circle_members_cannot_contribute_through_stale_chain_membership() {
         assert!(!can_contribute_to_chain(
-            "open", "circle", true, true, Some("contributor"), false
+            "open",
+            "circle",
+            true,
+            true,
+            Some("contributor"),
+            false
         ));
         assert!(!can_contribute_to_chain(
             "circle_members",
@@ -1686,7 +1691,12 @@ mod tests {
             false
         ));
         assert!(can_contribute_to_chain(
-            "open", "circle", true, false, Some("contributor"), true
+            "open",
+            "circle",
+            true,
+            false,
+            Some("contributor"),
+            true
         ));
     }
 
@@ -1773,12 +1783,7 @@ mod tests {
             ));
         }
         assert!(!can_contribute_to_chain(
-            "members",
-            "public",
-            false,
-            false,
-            None,
-            false,
+            "members", "public", false, false, None, false,
         ));
     }
 
