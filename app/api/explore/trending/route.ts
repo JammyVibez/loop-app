@@ -5,6 +5,7 @@ import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 import { filterPrivateContent, getFollowingIds, getPrivateProfileIds } from "@/lib/privacy"
 import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats" 
 import { getUserFromRequest } from "@/lib/server-auth"
+import { diversifyByAuthor } from "@/lib/discovery-ranking"
 
 function engagementScore(loop: any) {
   const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats
@@ -368,25 +369,7 @@ export async function GET(request: NextRequest) {
           // Keep the feed varied without starving a small community: select up
           // to two recommendations per creator first, then fill remaining slots
           // from the ranked tail if fewer than the requested items were found.
-          const selected: typeof sortedCandidates = []
-          const selectedIds = new Set<string>()
-          const authorCounts = new Map<string, number>()
-          for (const candidate of sortedCandidates) {
-            const authorId = String(candidate.author_id || "")
-            const count = authorCounts.get(authorId) || 0
-            if (count >= 2) continue
-            selected.push(candidate)
-            selectedIds.add(candidate.id)
-            authorCounts.set(authorId, count + 1)
-            if (selected.length >= limit) break
-          }
-          if (selected.length < limit) {
-            for (const candidate of sortedCandidates) {
-              if (selectedIds.has(candidate.id)) continue
-              selected.push(candidate)
-              if (selected.length >= limit) break
-            }
-          }
+          const selected = diversifyByAuthor(sortedCandidates, limit, 2)
 
           const ranked = selected.map((loop) => ({
             ...loop,
