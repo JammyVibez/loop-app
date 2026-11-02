@@ -111,31 +111,8 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    const filterPrivateLoops = async (loops: any[]) => {
-      if (!loops.length) return loops
-      const blockedIds = await getBlockedProfileIds(supabase, user?.id || null, loops.map((l) => l.author_id))
-      const unblockedLoops = loops.filter((loop) => !blockedIds.has(loop.author_id))
-      if (!unblockedLoops.length) return []
-      const authorIds = [...new Set(unblockedLoops.map((l) => l.author_id).filter(Boolean))] as string[]
-      if (!authorIds.length) return unblockedLoops
-      const { data: authors } = await supabase
-        .from("profiles")
-        .select("id, privacy_settings")
-        .in("id", authorIds)
-      const privateIds = new Set(
-        (authors || [])
-          .filter((a: any) =>
-            ["private", "followers"].includes((a.privacy_settings || {})?.profile_visibility),
-          )
-          .map((a: any) => a.id),
-      )
-      if (!privateIds.size) return unblockedLoops
-      return unblockedLoops.filter((loop) => {
-        if (user && loop.author_id === user.id) return true
-        if (followingIds.has(loop.author_id)) return true
-        return !privateIds.has(loop.author_id)
-      })
-    }
+    const filterPrivateLoops = async (loops: any[]) =>
+      filterPublicOwnerItems(loops, "author_id")
 
     if (wantLoops) {
       const pattern = `%${query}%`
@@ -279,30 +256,34 @@ export async function GET(request: NextRequest) {
             users.map((u) => u.id),
           )
         const following = new Set((follows || []).map((f) => f.following_id))
-        const { data: profiles } = await supabase
+        const { data: profiles, error: privacyError } = await supabase
           .from("profiles")
           .select("id, privacy_settings")
           .in(
             "id",
             users.map((u) => u.id),
           )
-        const privateIds = new Set(
-          (profiles || [])
-            .filter((p: any) =>
-              ["private", "followers"].includes((p.privacy_settings || {})?.profile_visibility),
-            )
-            .map((p: any) => p.id),
-        )
-        // Blocked users (either direction) are hidden from search results.
-        const hiddenIds = await getBlockedProfileIds(supabase, user?.id || null, users.map((entry: any) => entry.id))
-        users = users
-          .filter((u: any) => {
-            if (hiddenIds.has(u.id)) return false
-            if (!privateIds.has(u.id)) return true
-            if (user && u.id === user.id) return true
-            return following.has(u.id)
-          })
-          .map((u: any) => ({ ...u, is_following: following.has(u.id) }))
+
+        if (privacyError || !profiles) {
+          // Do not turn a profile lookup outage into public discoverability.
+          users = []
+        } else {
+          const privateIds = new Set(
+            profiles
+              .filter((p: any) => isRestrictedProfileVisibility(p.privacy_settings))
+              .map((p: any) => p.id),
+          )
+          // Blocked users (either direction) are hidden from search results.
+          const hiddenIds = await getBlockedProfileIds(supabase, user?.id || null, users.map((entry: any) => entry.id))
+          users = users
+            .filter((u: any) => {
+              if (hiddenIds.has(u.id)) return false
+              if (!privateIds.has(u.id)) return true
+              if (user && u.id === user.id) return true
+              return following.has(u.id)
+            })
+            .map((u: any) => ({ ...u, is_following: following.has(u.id) }))
+        }
       }
 
       results.users = users || []
