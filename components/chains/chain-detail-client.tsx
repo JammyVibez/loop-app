@@ -29,6 +29,7 @@ type Chain = {
   contribution_policy: string
   status: string
   cover_image_url: string | null
+  metadata: Record<string, unknown>
   contribution_count: number
   participant_count: number
   created_at: string
@@ -484,6 +485,10 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
     contributionType === "video" ? "video/*" :
     contributionType === "audio" ? "audio/*" :
     ".pdf,.doc,.docx,.txt,.md,application/pdf,application/msword,text/plain"
+  const originValue = chain.metadata?.origin
+  const sourceDrop = originValue && typeof originValue === "object"
+    ? originValue as Record<string, unknown>
+    : null
   const contributionDepths = new Map<string, number>()
   for (const item of [...contributions].sort((left, right) => left.position - right.position)) {
     const parentDepth = item.parent_contribution_id ? contributionDepths.get(item.parent_contribution_id) : undefined
@@ -533,6 +538,15 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
             </Button>
             {chain.source_chain_id && <Link href={"/chains/" + chain.source_chain_id} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold transition hover:bg-muted sm:col-span-1"><GitBranch className="h-3.5 w-3.5" /> View original Chain</Link>}
             {chain.circle_id && <Link href={"/communities/" + chain.circle_id} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold transition hover:bg-muted sm:col-span-1">Open Circle <ArrowUpRight className="h-3.5 w-3.5" /></Link>}
+            {sourceDrop?.type === "circle_challenge" && typeof sourceDrop.id === "string" && typeof sourceDrop.circle_id === "string" && (
+              <Link
+                href={"/communities/" + encodeURIComponent(sourceDrop.circle_id) + "/challenges/" + encodeURIComponent(sourceDrop.id)}
+                className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10"
+              >
+                Originated from Drop: {typeof sourceDrop.title === "string" ? sourceDrop.title : "Open original challenge"}
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </Link>
+            )}
             {forkError && <p role="alert" className="col-span-2 text-xs text-destructive">{forkError}</p>}
           </div>
         </div>
