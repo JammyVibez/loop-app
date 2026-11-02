@@ -76,6 +76,7 @@ pub struct ChainSummary {
     creator_display_name: String,
     creator_avatar_url: Option<String>,
     circle_id: Option<Uuid>,
+    source_chain_id: Option<Uuid>,
     title: String,
     description: String,
     prompt: String,
@@ -228,6 +229,9 @@ fn parse_summary(row: &sqlx::postgres::PgRow) -> Result<ChainSummary, ApiError> 
         circle_id: row
             .try_get("circle_id")
             .map_err(|e| db_error(e, "read Circle id"))?,
+        source_chain_id: row
+            .try_get("source_chain_id")
+            .map_err(|e| db_error(e, "read source Chain id"))?,
         title: row
             .try_get("title")
             .map_err(|e| db_error(e, "read title"))?,
@@ -277,7 +281,7 @@ const SUMMARY_SELECT: &str = r#"
         creator.username AS creator_username,
         creator.display_name AS creator_display_name,
         creator.avatar_url AS creator_avatar_url,
-        chain.circle_id, chain.title, chain.description, chain.prompt,
+        chain.circle_id, chain.source_chain_id, chain.title, chain.description, chain.prompt,
         chain.kind, chain.category, chain.visibility, chain.contribution_policy,
         chain.status, chain.cover_image_url, chain.metadata,
         chain.contribution_count, chain.participant_count,
