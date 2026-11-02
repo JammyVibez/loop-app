@@ -21,6 +21,7 @@ import { ExploreSearchAutocomplete } from "@/components/explore/explore-search-a
 import { Calendar } from "lucide-react"
 import { Spinner } from "@/components/ui/skeletons"
 import { ExploreSearchResults } from "@/components/explore/explore-search-results"
+import { DiscoveryPreferencesPanel } from "@/components/explore/discovery-preferences-panel"
 
 type ExploreTab = "events" | "recent" | "personalized" | "following" | "community" | "deepest" | "creative" | "hashtags"
 
@@ -327,6 +328,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
 
         {user && (
           <TabsContent value="personalized" className="mt-6 space-y-4">
+            <DiscoveryPreferencesPanel onChanged={() => void fetchExplore("personalized")} />
             <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold">
                 <Sparkles className="h-4 w-4 text-primary" />

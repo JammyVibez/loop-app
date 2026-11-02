@@ -524,3 +524,10 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Added an authenticated preferences API that only reads or updates the signed-in member's own profile. Topic lists are bounded, normalized and allow-listed; muted topics take precedence over preferred topics.
 - Updated personalized ranking to combine explicit topics with public liked/saved Loop signals, exclude muted-topic posts, and continue applying profile/Circle privacy checks before ranking. Recent, Following and From Circles remain available when personalization is paused.
 - Added unit coverage for normalization, partial updates, malformed input and preference conflicts. PostgreSQL migration execution and CI on the exact commit remain release gates.
+
+
+## 49. Discover member controls integration — 2026-11-02
+
+- Integrated the preferences panel into the For you tab with suggested public hashtags, add/remove preferred topics, mute/unmute and a personalization pause.
+- Added API contract tests for authentication, member-owned reads/writes and malformed topic updates.
+- The feed request refreshes after a preference save; the other Discover tabs remain independent of personalization.
