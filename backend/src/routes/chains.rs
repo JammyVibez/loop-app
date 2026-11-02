@@ -1387,7 +1387,12 @@ mod tests {
             "open", "circle", true, true, true, false
         ));
         assert!(!can_contribute_to_chain(
-            "circle_members", "circle", true, false, true, false
+            "circle_members",
+            "circle",
+            true,
+            false,
+            true,
+            false
         ));
         assert!(can_contribute_to_chain(
             "open", "circle", true, false, true, true
