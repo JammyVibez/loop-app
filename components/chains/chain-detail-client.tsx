@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ProxyImg } from "@/components/ui/proxy-img"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { AddChainToCollectionButton } from "@/components/collections/add-chain-to-collection-button"
-import { ArrowLeft, ArrowUpRight, Download, GitBranch, Lock, MessageCircle, Send } from "lucide-react"
+import { ArrowLeft, ArrowUpRight, Download, GitBranch, Lock, MessageCircle, Send, Pencil, Pause, Play, CheckCircle2, Archive } from "lucide-react"
 
 type Chain = {
   id: string
@@ -118,6 +118,12 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
   const [restoringRevisionId, setRestoringRevisionId] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [exportFormat, setExportFormat] = useState<"markdown" | "json">("markdown")
+  const [editingChain, setEditingChain] = useState(false)
+  const [chainTitleDraft, setChainTitleDraft] = useState("")
+  const [chainDescriptionDraft, setChainDescriptionDraft] = useState("")
+  const [chainPromptDraft, setChainPromptDraft] = useState("")
+  const [savingChain, setSavingChain] = useState(false)
+  const [chainSettingsError, setChainSettingsError] = useState("")
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -252,6 +258,47 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
     } finally {
       setExporting(false)
     }
+  }
+
+  const beginChainEdit = (chain: Chain) => {
+    setChainTitleDraft(chain.title)
+    setChainDescriptionDraft(chain.description)
+    setChainPromptDraft(chain.prompt)
+    setChainSettingsError("")
+    setEditingChain(true)
+  }
+
+  const updateChain = async (patch: { title?: string; description?: string; prompt?: string; status?: string }) => {
+    setSavingChain(true)
+    setChainSettingsError("")
+    try {
+      const response = await fetch("/api/v1/chains/" + encodeURIComponent(chainId), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify(patch),
+      })
+      const next = await response.json()
+      if (!response.ok) throw new Error(next.message || next.error || "Could not update this Chain")
+      setData((current) => current ? { ...current, chain: next } : current)
+      setEditingChain(false)
+    } catch (cause) {
+      setChainSettingsError(cause instanceof Error ? cause.message : "Could not update this Chain")
+    } finally {
+      setSavingChain(false)
+    }
+  }
+
+  const saveChainDetails = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!chainTitleDraft.trim()) {
+      setChainSettingsError("A Chain title is required.")
+      return
+    }
+    void updateChain({
+      title: chainTitleDraft.trim(),
+      description: chainDescriptionDraft,
+      prompt: chainPromptDraft,
+    })
   }
 
   const remixChain = async () => {
@@ -506,6 +553,11 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
             <div className="mb-3 flex flex-wrap gap-2">
               <span className="rounded-full border border-border bg-background/80 px-3 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur">{chain.kind.replace(/_/g, " ")}</span>
               <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background/80 px-3 py-1 text-[10px] font-semibold backdrop-blur"><Lock className="h-3 w-3" /> {chain.visibility}</span>
+              {chain.status !== "active" && (
+                <span className="rounded-full border border-border bg-background/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider backdrop-blur">
+                  {chain.status}
+                </span>
+              )}
             </div>
             <h1 className="max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">{chain.title}</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{chain.description}</p>
@@ -538,6 +590,51 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
               <GitBranch className="h-3.5 w-3.5" /> {forking ? "Creating remix…" : "Remix Chain"}
             </Button>
             <AddChainToCollectionButton chainId={chain.id} />
+            {user?.id === chain.creator_id && (
+              <div className="col-span-2 space-y-2 rounded-xl border border-border bg-muted/20 p-3 sm:col-span-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold">Owner controls</p>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{chain.status}</span>
+                </div>
+                <Button type="button" size="sm" variant="outline" className="w-full justify-start" onClick={() => editingChain ? setEditingChain(false) : beginChainEdit(chain)} disabled={savingChain}>
+                  <Pencil className="h-3.5 w-3.5" /> {editingChain ? "Close editor" : "Edit Chain details"}
+                </Button>
+                {chain.status === "active" ? (
+                  <Button type="button" size="sm" variant="outline" className="w-full justify-start" onClick={() => void updateChain({ status: "paused" })} disabled={savingChain}>
+                    <Pause className="h-3.5 w-3.5" /> Pause contributions
+                  </Button>
+                ) : chain.status === "paused" ? (
+                  <Button type="button" size="sm" variant="outline" className="w-full justify-start" onClick={() => void updateChain({ status: "active" })} disabled={savingChain}>
+                    <Play className="h-3.5 w-3.5" /> Resume contributions
+                  </Button>
+                ) : (
+                  <Button type="button" size="sm" variant="outline" className="w-full justify-start" onClick={() => void updateChain({ status: "active" })} disabled={savingChain}>
+                    <Play className="h-3.5 w-3.5" /> Reopen Chain
+                  </Button>
+                )}
+                {chain.status !== "completed" && chain.status !== "archived" && (
+                  <Button type="button" size="sm" variant="outline" className="w-full justify-start" onClick={() => void updateChain({ status: "completed" })} disabled={savingChain}>
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Mark completed
+                  </Button>
+                )}
+                {chain.status !== "archived" ? (
+                  <Button type="button" size="sm" variant="outline" className="w-full justify-start" onClick={() => void updateChain({ status: "archived" })} disabled={savingChain}>
+                    <Archive className="h-3.5 w-3.5" /> Archive Chain
+                  </Button>
+                ) : null}
+                {editingChain && (
+                  <form onSubmit={saveChainDetails} className="space-y-2 border-t border-border pt-3">
+                    <Input aria-label="Chain title" value={chainTitleDraft} onChange={(event) => setChainTitleDraft(event.target.value)} maxLength={120} required />
+                    <Textarea aria-label="Chain description" value={chainDescriptionDraft} onChange={(event) => setChainDescriptionDraft(event.target.value)} maxLength={2000} rows={3} placeholder="Describe what this Chain is building…" />
+                    <Textarea aria-label="Chain opening prompt" value={chainPromptDraft} onChange={(event) => setChainPromptDraft(event.target.value)} maxLength={1200} rows={3} placeholder="Give contributors a starting point…" />
+                    <Button type="submit" size="sm" className="w-full" disabled={savingChain || !chainTitleDraft.trim()}>
+                      {savingChain ? "Saving…" : "Save details"}
+                    </Button>
+                  </form>
+                )}
+                {chainSettingsError && <p role="alert" className="text-xs text-destructive">{chainSettingsError}</p>}
+              </div>
+            )}
             {chain.source_chain_id && <Link href={"/chains/" + chain.source_chain_id} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold transition hover:bg-muted sm:col-span-1"><GitBranch className="h-3.5 w-3.5" /> View original Chain</Link>}
             {chain.circle_id && <Link href={"/communities/" + chain.circle_id} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold transition hover:bg-muted sm:col-span-1">Open Circle <ArrowUpRight className="h-3.5 w-3.5" /></Link>}
             {sourceDrop?.type === "circle_challenge" && typeof sourceDrop.id === "string" && typeof sourceDrop.circle_id === "string" && (
