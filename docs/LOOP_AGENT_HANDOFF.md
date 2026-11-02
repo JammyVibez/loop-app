@@ -419,3 +419,12 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - CI exposed that the join and join-review tests were returning the route's intentional 503 fail-closed response because the test runner did not define `SUPABASE_SERVICE_ROLE_KEY`.
 - Kept the production service-role guard intact and updated the mocked route tests to supply an explicit test-only key. This ensures tests exercise the RPC path instead of bypassing an intentional production safety gate.
 - Verify all Circle membership tests and full frontend CI on the latest PR commit.
+
+
+## 36. Verification appeals — applicant and reviewer experience — 2026-11-02
+
+- Completed the applicant appeal flow in Verification Settings. Rejected applicants can submit one appeal with a bounded explanation and optional public HTTPS evidence link; the UI shows pending, accepted/reopened and rejected appeal states.
+- Added a distinct appeals queue to the existing verification review panel. Administrators can accept an appeal (returning the original application to pending review) or reject it with a user-facing reason. The acceptance message explicitly states that no verified mark is granted.
+- Fixed the admin appeal route's nullable RPC result guard before it returns `request_status`.
+- The workflow remains intentionally separate from the Admin Dashboard redevelopment track: this extends the existing verification review surface only. Audit-event persistence is in the migration; direct applicant reads cannot access reviewer notes or the event log.
+- Validate on CI: applicant/admin API tests, full TypeScript/Vitest suite, Next production build, Rust format/check/test/Clippy. Live migration application and real-database tests remain release gates.

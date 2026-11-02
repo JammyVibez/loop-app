@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       request_status?: string
     } | null
     const appeal = result?.appeal
-    if (!appeal?.id || !appeal.user_id || !["accepted", "rejected"].includes(appeal.status || "")) {
+    if (!result || !appeal?.id || !appeal.user_id || !["accepted", "rejected"].includes(appeal.status || "")) {
       return NextResponse.json({ error: "Verification appeal review returned an invalid result" }, { status: 500 })
     }
 

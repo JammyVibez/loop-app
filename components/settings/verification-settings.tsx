@@ -27,6 +27,17 @@ interface VerifRequest {
   reviewed_at: string | null
 }
 
+interface VerificationAppeal {
+  id: string
+  request_id: string
+  reason: string
+  evidence_url: string | null
+  status: "pending" | "accepted" | "rejected"
+  rejection_reason: string | null
+  created_at: string
+  reviewed_at: string | null
+}
+
 const TYPES = [
   { value: "creator", label: "Creator", hint: "You make content people follow" },
   { value: "business", label: "Business / Brand", hint: "A company or brand presence" },
@@ -45,6 +56,11 @@ export function VerificationSettings() {
   const { toast } = useToast()
   const [profile, setProfile] = useState<{ is_verified: boolean } | null>(null)
   const [requests, setRequests] = useState<VerifRequest[]>([])
+  const [appeal, setAppeal] = useState<VerificationAppeal | null>(null)
+  const [appealReason, setAppealReason] = useState("")
+  const [appealEvidenceUrl, setAppealEvidenceUrl] = useState("")
+  const [appealSubmitting, setAppealSubmitting] = useState(false)
+  const [appealError, setAppealError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState({ verificationType: "creator", realName: "", socialLinks: "", reason: "", documents: "" })
@@ -52,6 +68,8 @@ export function VerificationSettings() {
   const load = useCallback(async () => {
     if (!user) {
       setLoading(false)
+      setRequests([])
+      setAppeal(null)
       return
     }
     setLoading(true)
@@ -69,7 +87,29 @@ export function VerificationSettings() {
       }
       if (reqRes.ok) {
         const data = await reqRes.json()
-        setRequests(data.requests || [])
+        const nextRequests = (data.requests || []) as VerifRequest[]
+        setRequests(nextRequests)
+        const latestRequest = nextRequests[0]
+        if (latestRequest?.status === "rejected" && typeof latestRequest.id === "string") {
+          const appealRes = await fetch(
+            `/api/verification/request/${encodeURIComponent(latestRequest.id)}/appeal`,
+            { headers: getAuthHeader() },
+          )
+          if (appealRes.ok) {
+            const appealData = await appealRes.json()
+            setAppeal(appealData.appeal || null)
+            setAppealError(null)
+          } else {
+            const appealData = await appealRes.json().catch(() => ({}))
+            setAppeal(null)
+            setAppealError(appealData.error || "Appeals are temporarily unavailable.")
+          }
+        } else {
+          setAppeal(null)
+          setAppealError(null)
+          setAppealReason("")
+          setAppealEvidenceUrl("")
+        }
       }
     } finally {
       setLoading(false)
@@ -112,6 +152,41 @@ export function VerificationSettings() {
       toast({ title: "Could not submit", description: err.message, variant: "destructive" })
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const submitAppeal = async () => {
+    if (!latest || latest.status !== "rejected" || !appealReason.trim()) return
+    setAppealSubmitting(true)
+    try {
+      const response = await fetch(
+        `/api/verification/request/${encodeURIComponent(String(latest.id))}/appeal`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({
+            reason: appealReason.trim(),
+            evidenceUrl: appealEvidenceUrl.trim() || null,
+          }),
+        },
+      )
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Could not submit appeal")
+      toast({
+        title: "Appeal submitted",
+        description: "The team will review your appeal separately. This does not grant verification.",
+      })
+      setAppealReason("")
+      setAppealEvidenceUrl("")
+      await load()
+    } catch (error) {
+      toast({
+        title: "Could not submit appeal",
+        description: error instanceof Error ? error.message : "Try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setAppealSubmitting(false)
     }
   }
 
@@ -165,7 +240,73 @@ export function VerificationSettings() {
             <XCircle className="h-4 w-4" /> Previous request wasn't approved
           </p>
           {latest.rejection_reason && <p className="mt-1 text-xs text-muted-foreground">Reviewer feedback: {latest.rejection_reason}</p>}
-          <p className="mt-1 text-xs text-muted-foreground">You can submit a new request below.</p>
+          <p className="mt-1 text-xs text-muted-foreground">You can submit one appeal for this decision, or provide further evidence with a new application.</p>
+        </div>
+      )}
+      {!pending && latest?.status === "rejected" && appeal?.status === "pending" && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <p className="text-sm font-semibold">Appeal submitted</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Your appeal is awaiting review. The original decision remains in place until the appeal is reviewed.
+          </p>
+        </div>
+      )}
+      {!pending && latest?.status === "rejected" && appeal?.status === "accepted" && (
+        <div className="rounded-2xl border border-sky-500/30 bg-sky-500/5 p-4">
+          <p className="text-sm font-semibold">Application returned to review</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Your appeal was accepted and the original application was reopened. This is not a verification approval.
+          </p>
+        </div>
+      )}
+      {!pending && latest?.status === "rejected" && appeal?.status === "rejected" && (
+        <div className="rounded-2xl border bg-card p-4">
+          <p className="text-sm font-semibold">Appeal reviewed</p>
+          {appeal.rejection_reason && <p className="mt-1 text-xs text-muted-foreground">{appeal.rejection_reason}</p>}
+          <p className="mt-1 text-xs text-muted-foreground">This application has used its one appeal.</p>
+        </div>
+      )}
+      {!pending && latest?.status === "rejected" && !appeal && (
+        <div className="rounded-2xl border bg-card p-4">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold">Appeal this decision</p>
+            <p className="text-xs text-muted-foreground">
+              Add context the reviewer may have missed. One appeal is allowed per application and must be submitted within the current review window.
+            </p>
+          </div>
+          {appealError && <p className="mt-2 text-xs text-amber-600">{appealError}</p>}
+          <div className="mt-3 space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="verification-appeal-reason">Why should this decision be reconsidered?</Label>
+              <Textarea
+                id="verification-appeal-reason"
+                rows={3}
+                maxLength={2000}
+                value={appealReason}
+                onChange={(event) => setAppealReason(event.target.value.slice(0, 2000))}
+                placeholder="Explain what the original review may have missed."
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="verification-appeal-evidence">Additional public evidence link (optional)</Label>
+              <Input
+                id="verification-appeal-evidence"
+                type="url"
+                maxLength={2048}
+                value={appealEvidenceUrl}
+                onChange={(event) => setAppealEvidenceUrl(event.target.value)}
+                placeholder="https://example.com/official-profile"
+              />
+            </div>
+            <Button
+              className="rounded-full"
+              onClick={submitAppeal}
+              disabled={appealSubmitting || appealReason.trim().length < 20 || Boolean(appealError)}
+            >
+              {appealSubmitting ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-3.5 w-3.5" />}
+              Submit appeal
+            </Button>
+          </div>
         </div>
       )}
 
