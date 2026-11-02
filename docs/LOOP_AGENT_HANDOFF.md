@@ -609,3 +609,11 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Owner/member removal no longer fails just because collaboration is disabled. This lets owners cancel pending invitations and clean up old membership rows, and lets members leave without restoring collaboration.
 - The owner detail response now continues to expose pending invitations while collaboration is paused. The UI explains that invitees cannot accept during the pause, offers cancellation, and hides the send-invitation control until collaboration is enabled again.
 - Re-run Rust compile/tests/Clippy and frontend build/verification on the latest PR head. PostgreSQL authorization tests remain a release gate.
+
+
+## 60. Premium subscription ledger is a fail-closed setup dependency — 2026-11-02
+
+- Added `scripts/premium-subscriptions-migration.sql` to the strict production setup list. Recurring card checkout and webhook synchronization depend on the subscription ledger and profile grant-source columns, so setup now fails if those objects cannot be created.
+- Stripe remains server-authoritative: only signed webhook events or the authenticated server-side Checkout Session confirmation sync recurring entitlement. A client redirect alone never grants Pro.
+- Production still requires STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, the webhook endpoint subscription events and Billing Portal configuration. This repository change does not deploy secrets or configure the Stripe dashboard.
+- Validate clean and existing PostgreSQL migrations, webhook retries, cancellations, prepaid Coin passes and multiple entitlement sources before enabling production billing.
