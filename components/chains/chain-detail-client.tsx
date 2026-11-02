@@ -56,6 +56,7 @@ type ContributionRevision = {
   revision_number: number
   title: string | null
   content: string
+  payload: Record<string, unknown>
   editor_username: string
   created_at: string
 }
@@ -107,6 +108,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
   const [editingContributionId, setEditingContributionId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState("")
   const [editingContent, setEditingContent] = useState("")
+  const [editingStructuredEntries, setEditingStructuredEntries] = useState("")
   const [savingContribution, setSavingContribution] = useState(false)
   const [revisionHistory, setRevisionHistory] = useState<Record<string, ContributionRevision[]>>({})
   const [expandedHistory, setExpandedHistory] = useState<string | null>(null)
@@ -276,6 +278,12 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
     setEditingContributionId(contribution.id)
     setEditingTitle(contribution.title || "")
     setEditingContent(contribution.content || "")
+    const structured = contribution.contribution_type === "poll"
+      ? contribution.payload.options
+      : contribution.payload.items
+    setEditingStructuredEntries(Array.isArray(structured)
+      ? structured.filter((value): value is string => typeof value === "string").join("\n")
+      : "")
     setError("")
   }
 
@@ -283,6 +291,12 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
     setSavingContribution(true)
     setError("")
     try {
+      const payload = { ...contribution.payload }
+      if (contribution.contribution_type === "list" || contribution.contribution_type === "ranking") {
+        payload.items = editingStructuredEntries.split("\n").map((value) => value.trim()).filter(Boolean)
+      } else if (contribution.contribution_type === "poll") {
+        payload.options = editingStructuredEntries.split("\n").map((value) => value.trim()).filter(Boolean)
+      }
       const response = await fetch(
         "/api/v1/chains/" + encodeURIComponent(chainId) + "/contributions/" + encodeURIComponent(contribution.id),
         {
@@ -291,7 +305,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
           body: JSON.stringify({
             title: editingTitle.trim(),
             content: editingContent,
-            payload: contribution.payload,
+            payload,
           }),
         },
       )
@@ -656,8 +670,17 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
                     {editingContributionId === contribution.id && (
                       <div className="mt-3 space-y-2 rounded-xl border border-primary/20 bg-muted/20 p-3">
                         <Input value={editingTitle} onChange={(event) => setEditingTitle(event.target.value)} maxLength={120} placeholder="Contribution title" />
-                        <Textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={8000} rows={3} placeholder="Update your contribution text" />
-                        <p className="text-[11px] text-muted-foreground">Existing attachments and structured data are preserved. Each save records the previous version.</p>
+                        <Textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={8000} rows={3} placeholder={contribution.contribution_type === "poll" ? "Update the poll question" : "Update your contribution text"} />
+                        {["list", "ranking", "poll"].includes(contribution.contribution_type) && (
+                          <Textarea
+                            value={editingStructuredEntries}
+                            onChange={(event) => setEditingStructuredEntries(event.target.value)}
+                            rows={4}
+                            maxLength={8000}
+                            placeholder={contribution.contribution_type === "poll" ? "One poll option per line" : "One entry per line"}
+                          />
+                        )}
+                        <p className="text-[11px] text-muted-foreground">Edits preserve the contribution format and record a complete previous version.</p>
                         <div className="flex justify-end gap-2">
                           <Button type="button" variant="ghost" size="sm" onClick={() => setEditingContributionId(null)} disabled={savingContribution}>Cancel</Button>
                           <Button type="button" size="sm" onClick={() => void saveContributionEdit(contribution)} disabled={savingContribution}>
@@ -683,6 +706,21 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
                                 </div>
                                 {revision.title && <p className="mt-1 font-semibold">{revision.title}</p>}
                                 {revision.content && <p className="mt-1 whitespace-pre-wrap">{revision.content}</p>}
+                                {Array.isArray(revision.payload?.items) && (
+                                  <ol className="mt-2 list-inside list-decimal space-y-1">
+                                    {revision.payload.items.filter((value): value is string => typeof value === "string").map((value, index) => <li key={index}>{value}</li>)}
+                                  </ol>
+                                )}
+                                {Array.isArray(revision.payload?.options) && (
+                                  <ul className="mt-2 list-inside list-disc space-y-1">
+                                    {revision.payload.options.filter((value): value is string => typeof value === "string").map((value, index) => <li key={index}>{value}</li>)}
+                                  </ul>
+                                )}
+                                {typeof revision.payload?.url === "string" && revision.payload.url.startsWith("https://") && (
+                                  <a className="mt-2 inline-flex text-primary underline" href={revision.payload.url} target="_blank" rel="noreferrer">
+                                    {typeof revision.payload.file_name === "string" ? revision.payload.file_name : "Open previous attachment"}
+                                  </a>
+                                )}
                               </li>
                             ))}
                           </ol>
