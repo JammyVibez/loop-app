@@ -18,7 +18,7 @@ environment.** Before adding a new `.sql` file here, read this first.
 5. `backend/migrations/0005_chain_collections.sql` — attach Chains to Collections.
 6. `backend/migrations/0006_chain_lifecycle.sql` — remix lineage and immutable
    contribution revision history.
-11. `premium-subscriptions-migration.sql` — Pro subscription ledger, Stripe
+7. `premium-subscriptions-migration.sql` — Pro subscription ledger, Stripe
    identifiers/periods, and auditable grant metadata.
 8. `launch-schema-alignment.sql`
 9. `loops-and-media.sql`
