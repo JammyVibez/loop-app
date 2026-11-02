@@ -201,9 +201,33 @@ CREATE TABLE IF NOT EXISTS collection_members (
     role TEXT NOT NULL DEFAULT 'viewer'
         CHECK (role IN ('editor', 'viewer')),
     invited_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'active'
+        CHECK (status IN ('pending', 'active', 'declined')),
+    invited_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    accepted_at TIMESTAMPTZ,
     joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (collection_id, user_id)
 );
+
+ALTER TABLE collection_members
+    ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active',
+    ADD COLUMN IF NOT EXISTS invited_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ;
+
+UPDATE collection_members
+SET status = 'active',
+    accepted_at = COALESCE(accepted_at, joined_at)
+WHERE status IS NULL OR status NOT IN ('pending', 'active', 'declined');
+
+ALTER TABLE collection_members
+    DROP CONSTRAINT IF EXISTS collection_members_status_check;
+ALTER TABLE collection_members
+    ADD CONSTRAINT collection_members_status_check
+    CHECK (status IN ('pending', 'active', 'declined'));
+
+CREATE INDEX IF NOT EXISTS idx_collection_members_pending_user
+    ON collection_members(user_id, invited_at DESC)
+    WHERE status = 'pending';
 
 CREATE INDEX IF NOT EXISTS idx_collection_members_user
     ON collection_members(user_id, joined_at DESC);

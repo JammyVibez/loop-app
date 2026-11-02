@@ -79,6 +79,44 @@ pub struct CollectionCollaborator {
     joined_at: DateTime<Utc>,
 }
 
+#[derive(Serialize)]
+pub struct CollectionInvitation {
+    collection_id: Uuid,
+    title: String,
+    description: String,
+    owner_id: Uuid,
+    owner_username: String,
+    owner_display_name: String,
+    owner_avatar_url: Option<String>,
+    role: String,
+    invited_at: DateTime<Utc>,
+}
+
+#[derive(Serialize)]
+struct CollectionMemberInvitationResult {
+    collection_id: Uuid,
+    user_id: Uuid,
+    username: String,
+    role: String,
+    status: String,
+}
+
+#[derive(Deserialize)]
+pub struct RespondCollectionInvitationInput {
+    action: String,
+}
+
+fn normalize_collection_invitation_action(value: &str) -> Result<&str, ApiError> {
+    match value {
+        "accept" | "decline" => Ok(value),
+        _ => Err(api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_collection_invitation_action",
+            "Choose accept or decline.",
+        )),
+    }
+}
+
 #[derive(Deserialize)]
 pub struct AddCollectionMemberInput {
     username: String,
@@ -156,6 +194,7 @@ pub async fn list(
                             FROM collection_members AS member
                             WHERE member.collection_id = c.id
                               AND member.user_id = $1
+                              AND member.status = 'active'
                         )
                     )
                 )
@@ -328,6 +367,7 @@ pub async fn get(
                               SELECT 1 FROM collection_members AS member
                               WHERE member.collection_id = c.id
                                 AND member.user_id = $2
+                               AND member.status = 'active'
                           )
                       )
                   )
@@ -393,6 +433,7 @@ pub async fn get(
                                     SELECT 1 FROM circle_members AS member
                                     WHERE member.circle_id = target_loop.circle_id
                                       AND member.user_id = $2
+                                 AND member.status = 'active'
                                       AND member.status IN ('active', 'approved')
                                 )
                             )
@@ -512,6 +553,7 @@ pub async fn get(
             FROM collection_members AS member
             JOIN profiles AS profile ON profile.id = member.user_id
             WHERE member.collection_id = $1
+              AND member.status = 'active'
             ORDER BY member.joined_at ASC, member.user_id ASC
             "#,
         )
@@ -587,40 +629,40 @@ pub async fn add_member(
     user: AuthenticatedUser,
     Path(collection_id): Path<Uuid>,
     Json(input): Json<AddCollectionMemberInput>,
-) -> Result<(StatusCode, Json<CollectionCollaborator>), ApiError> {
+) -> Result<(StatusCode, Json<CollectionMemberInvitationResult>), ApiError> {
     let username = normalize_collection_member_username(&input.username)?;
     let role = normalize_collection_member_role(input.role.as_deref())?;
     let mut transaction = state.database.begin().await.map_err(|error| {
-        tracing::error!(%error, "could not begin collection collaborator transaction");
+        tracing::error!(%error, "could not begin collection invitation transaction");
         api_error(
             StatusCode::INTERNAL_SERVER_ERROR,
-            "collection_collaborator_transaction_failed",
-            "Could not update collaborators.",
+            "collection_invitation_transaction_failed",
+            "Could not create this invitation.",
         )
     })?;
 
-    let collection =
-        sqlx::query("SELECT owner_id, is_collaborative FROM collections WHERE id = $1 FOR UPDATE")
-            .bind(collection_id)
-            .fetch_optional(&mut *transaction)
-            .await
-            .map_err(|error| {
-                tracing::error!(%error, "could not authorize collaborator invitation");
-                api_error(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "collection_collaborator_permission_failed",
-                    "Could not authorize this invitation.",
-                )
-            })?
-            .ok_or_else(|| {
-                api_error(
-                    StatusCode::NOT_FOUND,
-                    "collection_not_found",
-                    "This collection is unavailable.",
-                )
-            })?;
+    let collection = sqlx::query(
+        "SELECT owner_id, title, is_collaborative FROM collections WHERE id = $1 FOR UPDATE",
+    )
+    .bind(collection_id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(|error| {
+        tracing::error!(%error, "could not authorize collection invitation");
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_invitation_permission_failed",
+            "Could not authorize this invitation.",
+        )
+    })?
+    .ok_or_else(|| api_error(
+        StatusCode::NOT_FOUND,
+        "collection_not_found",
+        "This collection is unavailable.",
+    ))?;
 
     let owner_id: Uuid = collection.try_get("owner_id").map_err(internal_db_error)?;
+    let collection_title: String = collection.try_get("title").map_err(internal_db_error)?;
     let is_collaborative: bool = collection
         .try_get("is_collaborative")
         .map_err(internal_db_error)?;
@@ -635,7 +677,7 @@ pub async fn add_member(
         return Err(api_error(
             StatusCode::CONFLICT,
             "collection_not_collaborative",
-            "Enable collaboration before inviting editors.",
+            "Enable collaboration before inviting collaborators.",
         ));
     }
 
@@ -645,17 +687,17 @@ pub async fn add_member(
             .fetch_optional(&mut *transaction)
             .await
             .map_err(|error| {
-                tracing::error!(%error, "could not resolve collection collaborator");
+                tracing::error!(%error, "could not resolve collection invitee");
                 api_error(
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    "collection_collaborator_lookup_failed",
+                    "collection_invitee_lookup_failed",
                     "Could not find that account.",
                 )
             })?
             .ok_or_else(|| {
                 api_error(
                     StatusCode::NOT_FOUND,
-                    "collection_collaborator_not_found",
+                    "collection_invitee_not_found",
                     "No LOOP account has that username.",
                 )
             })?;
@@ -670,11 +712,27 @@ pub async fn add_member(
 
     let row = sqlx::query(
         r#"
-        INSERT INTO collection_members (collection_id, user_id, role, invited_by)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO collection_members (
+            collection_id, user_id, role, invited_by, status, invited_at, accepted_at
+        )
+        VALUES ($1, $2, $3, $4, 'pending', NOW(), NULL)
         ON CONFLICT (collection_id, user_id)
-        DO UPDATE SET role = EXCLUDED.role, invited_by = EXCLUDED.invited_by
-        RETURNING user_id, role, joined_at
+        DO UPDATE SET
+            role = EXCLUDED.role,
+            invited_by = EXCLUDED.invited_by,
+            status = CASE
+                WHEN collection_members.status = 'active' THEN 'active'
+                ELSE 'pending'
+            END,
+            invited_at = CASE
+                WHEN collection_members.status = 'active' THEN collection_members.invited_at
+                ELSE NOW()
+            END,
+            accepted_at = CASE
+                WHEN collection_members.status = 'active' THEN collection_members.accepted_at
+                ELSE NULL
+            END
+        RETURNING user_id, role, status
         "#,
     )
     .bind(collection_id)
@@ -684,47 +742,305 @@ pub async fn add_member(
     .fetch_one(&mut *transaction)
     .await
     .map_err(|error| {
-        tracing::error!(%error, "failed to add collection collaborator");
+        tracing::error!(%error, "failed to create collection invitation");
         api_error(
             StatusCode::INTERNAL_SERVER_ERROR,
-            "collection_collaborator_add_failed",
-            "Could not add this collaborator.",
+            "collection_invitation_create_failed",
+            "Could not create this invitation.",
         )
     })?;
 
-    let collaborator = sqlx::query(
-        "SELECT profile.username, profile.display_name, profile.avatar_url FROM profiles AS profile WHERE profile.id = $1",
+    let invitee = sqlx::query(
+        "SELECT username FROM profiles WHERE id = $1",
     )
     .bind(target_user_id)
     .fetch_one(&mut *transaction)
     .await
     .map_err(internal_db_error)?;
 
-    let result = CollectionCollaborator {
+    let invitee_username: String = invitee.try_get("username").map_err(internal_db_error)?;
+    let status: String = row.try_get("status").map_err(internal_db_error)?;
+
+    if status == "pending" {
+        let owner_profile = sqlx::query(
+            "SELECT username, display_name FROM profiles WHERE id = $1",
+        )
+        .bind(owner_id)
+        .fetch_one(&mut *transaction)
+        .await
+        .map_err(internal_db_error)?;
+        let owner_username: String = owner_profile.try_get("username").map_err(internal_db_error)?;
+        let owner_display_name: String = owner_profile.try_get("display_name").map_err(internal_db_error)?;
+
+        sqlx::query(
+            r#"
+            INSERT INTO notifications (user_id, type, title, message, data, is_read)
+            VALUES (
+                $1, 'system', 'Collection invitation',
+                $2,
+                jsonb_build_object(
+                    'collection_id', $3::text,
+                    'route', $4::text,
+                    'invitation_type', 'collection'
+                ),
+                FALSE
+            )
+            "#,
+        )
+        .bind(target_user_id)
+        .bind(format!(
+            "{} (@{}) invited you to collaborate on “{}”.",
+            owner_display_name, owner_username, collection_title
+        ))
+        .bind(collection_id)
+        .bind(format!("/collections/{}", collection_id))
+        .execute(&mut *transaction)
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "failed to create collection invitation notification");
+            api_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "collection_invitation_notification_failed",
+                "Could not deliver this invitation.",
+            )
+        })?;
+    }
+
+    let result = CollectionMemberInvitationResult {
+        collection_id,
         user_id: row.try_get("user_id").map_err(internal_db_error)?,
-        username: collaborator
-            .try_get("username")
-            .map_err(internal_db_error)?,
-        display_name: collaborator
-            .try_get("display_name")
-            .map_err(internal_db_error)?,
-        avatar_url: collaborator
-            .try_get("avatar_url")
-            .map_err(internal_db_error)?,
+        username: invitee_username,
         role: row.try_get("role").map_err(internal_db_error)?,
-        joined_at: row.try_get("joined_at").map_err(internal_db_error)?,
+        status,
     };
 
     transaction.commit().await.map_err(|error| {
-        tracing::error!(%error, "failed to commit collection collaborator invitation");
+        tracing::error!(%error, "failed to commit collection invitation");
         api_error(
             StatusCode::INTERNAL_SERVER_ERROR,
-            "collection_collaborator_commit_failed",
+            "collection_invitation_commit_failed",
             "Could not save this invitation.",
         )
     })?;
 
     Ok((StatusCode::CREATED, Json(result)))
+}
+
+pub async fn list_invitations(
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
+) -> Result<Json<Vec<CollectionInvitation>>, ApiError> {
+    let rows = sqlx::query(
+        r#"
+        SELECT
+            collection.id AS collection_id,
+            collection.title,
+            collection.description,
+            collection.owner_id,
+            owner.username AS owner_username,
+            owner.display_name AS owner_display_name,
+            owner.avatar_url AS owner_avatar_url,
+            member.role,
+            member.invited_at
+        FROM collection_members AS member
+        JOIN collections AS collection ON collection.id = member.collection_id
+        JOIN profiles AS owner ON owner.id = collection.owner_id
+        WHERE member.user_id = $1
+          AND member.status = 'pending'
+          AND collection.is_collaborative IS TRUE
+        ORDER BY member.invited_at DESC
+        LIMIT 50
+        "#,
+    )
+    .bind(user.id)
+    .fetch_all(&state.database)
+    .await
+    .map_err(|error| {
+        tracing::error!(%error, "failed to load Collection invitations");
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_invitations_load_failed",
+            "Could not load your Collection invitations.",
+        )
+    })?;
+
+    let invitations = rows
+        .into_iter()
+        .map(|row| {
+            Ok(CollectionInvitation {
+                collection_id: row.try_get("collection_id").map_err(internal_db_error)?,
+                title: row.try_get("title").map_err(internal_db_error)?,
+                description: row.try_get("description").map_err(internal_db_error)?,
+                owner_id: row.try_get("owner_id").map_err(internal_db_error)?,
+                owner_username: row.try_get("owner_username").map_err(internal_db_error)?,
+                owner_display_name: row.try_get("owner_display_name").map_err(internal_db_error)?,
+                owner_avatar_url: row.try_get("owner_avatar_url").map_err(internal_db_error)?,
+                role: row.try_get("role").map_err(internal_db_error)?,
+                invited_at: row.try_get("invited_at").map_err(internal_db_error)?,
+            })
+        })
+        .collect::<Result<Vec<_>, ApiError>>()?;
+
+    Ok(Json(invitations))
+}
+
+pub async fn respond_to_invitation(
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
+    Path(collection_id): Path<Uuid>,
+    Json(input): Json<RespondCollectionInvitationInput>,
+) -> Result<StatusCode, ApiError> {
+    let action = normalize_collection_invitation_action(&input.action)?;
+    let mut transaction = state.database.begin().await.map_err(|error| {
+        tracing::error!(%error, "could not begin Collection invitation response");
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_invitation_transaction_failed",
+            "Could not update this invitation.",
+        )
+    })?;
+
+    let collection = sqlx::query(
+        "SELECT owner_id, is_collaborative FROM collections WHERE id = $1 FOR UPDATE",
+    )
+    .bind(collection_id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(|error| {
+        tracing::error!(%error, "could not load Collection invitation target");
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_invitation_lookup_failed",
+            "Could not load this invitation.",
+        )
+    })?
+    .ok_or_else(|| api_error(
+        StatusCode::NOT_FOUND,
+        "collection_invitation_not_found",
+        "This invitation is unavailable.",
+    ))?;
+
+    let owner_id: Uuid = collection.try_get("owner_id").map_err(internal_db_error)?;
+    let is_collaborative: bool = collection
+        .try_get("is_collaborative")
+        .map_err(internal_db_error)?;
+    if !is_collaborative {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "collection_not_collaborative",
+            "This Collection no longer supports collaboration.",
+        ));
+    }
+
+    let invitation = sqlx::query(
+        r#"
+        SELECT status
+        FROM collection_members
+        WHERE collection_id = $1 AND user_id = $2
+        FOR UPDATE
+        "#,
+    )
+    .bind(collection_id)
+    .bind(user.id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(internal_db_error)?
+    .ok_or_else(|| api_error(
+        StatusCode::NOT_FOUND,
+        "collection_invitation_not_found",
+        "This invitation is unavailable.",
+    ))?;
+
+    let current_status: String = invitation.try_get("status").map_err(internal_db_error)?;
+    if current_status != "pending" {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "collection_invitation_already_handled",
+            "This invitation has already been handled.",
+        ));
+    }
+
+    if action == "accept" {
+        let account = sqlx::query(
+            "SELECT is_banned, is_deleted FROM profiles WHERE id = $1 FOR UPDATE",
+        )
+        .bind(user.id)
+        .fetch_one(&mut *transaction)
+        .await
+        .map_err(internal_db_error)?;
+        let is_banned: bool = account.try_get("is_banned").map_err(internal_db_error)?;
+        let is_deleted: bool = account.try_get("is_deleted").map_err(internal_db_error)?;
+        if is_banned || is_deleted {
+            return Err(api_error(
+                StatusCode::FORBIDDEN,
+                "account_cannot_accept_collection_invitation",
+                "Suspended or deleted accounts cannot accept Collection invitations.",
+            ));
+        }
+
+        sqlx::query(
+            r#"
+            UPDATE collection_members
+            SET status = 'active', accepted_at = NOW(), joined_at = NOW()
+            WHERE collection_id = $1 AND user_id = $2
+            "#,
+        )
+        .bind(collection_id)
+        .bind(user.id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(internal_db_error)?;
+    } else {
+        sqlx::query(
+            r#"
+            UPDATE collection_members
+            SET status = 'declined', accepted_at = NULL
+            WHERE collection_id = $1 AND user_id = $2
+            "#,
+        )
+        .bind(collection_id)
+        .bind(user.id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(internal_db_error)?;
+    }
+
+    sqlx::query(
+        r#"
+        INSERT INTO notifications (user_id, type, title, message, data, is_read)
+        VALUES (
+            $1, 'system', $2, $3,
+            jsonb_build_object('collection_id', $4::text, 'route', $5::text),
+            FALSE
+        )
+        "#,
+    )
+    .bind(owner_id)
+    .bind(if action == "accept" { "Collection invitation accepted" } else { "Collection invitation declined" })
+    .bind(if action == "accept" { "A collaborator accepted your Collection invitation." } else { "A collaborator declined your Collection invitation." })
+    .bind(collection_id)
+    .bind(format!("/collections/{}", collection_id))
+    .execute(&mut *transaction)
+    .await
+    .map_err(|error| {
+        tracing::error!(%error, "failed to notify Collection owner about invitation response");
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_invitation_response_notification_failed",
+            "Could not save the invitation response.",
+        )
+    })?;
+
+    transaction.commit().await.map_err(|error| {
+        tracing::error!(%error, "failed to commit Collection invitation response");
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "collection_invitation_response_commit_failed",
+            "Could not save the invitation response.",
+        )
+    })?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn remove_member(
@@ -850,6 +1166,7 @@ pub async fn add_item(
                     SELECT 1 FROM collection_members AS member
                     WHERE member.collection_id = collection.id
                       AND member.user_id = $2
+                      AND member.status = 'active'
                       AND member.role = 'editor'
                 )
             )
@@ -1145,6 +1462,7 @@ pub async fn remove_item(
                   SELECT 1 FROM collection_members AS member
                   WHERE member.collection_id = collection.id
                     AND member.user_id = $3
+                    AND member.status = 'active'
                     AND member.role = 'editor'
               )
           )

@@ -145,6 +145,14 @@ async fn main() -> anyhow::Result<()> {
             get(routes::collections::list).post(routes::collections::create),
         )
         .route(
+            "/v1/collections/invitations",
+            get(routes::collections::list_invitations),
+        )
+        .route(
+            "/v1/collections/{collection_id}/invitation",
+            patch(routes::collections::respond_to_invitation),
+        )
+        .route(
             "/v1/collections/{collection_id}",
             get(routes::collections::get),
         )

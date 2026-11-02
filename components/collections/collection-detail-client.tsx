@@ -181,10 +181,10 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
       setInviteUsername("")
       await load()
       toast({
-        title: "Collaborator added",
+        title: "Invitation sent",
         description: inviteRole === "editor"
-          ? `@${username} can now edit this collection.`
-          : `@${username} can view this collection.`,
+          ? `@${username} can edit after accepting the invitation.`
+          : `@${username} can view after accepting the invitation.`,
       })
     } catch (error) {
       toast({

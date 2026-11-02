@@ -577,3 +577,13 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Added a reason character counter and clarified that optional evidence links must be public HTTPS URLs, matching server validation.
 - Extended the existing verification review panel with Pending and History views. Administrators can now inspect accepted/rejected appeal outcomes, user-facing rejection reasons, internal reviewer notes and reviewed timestamps; review actions remain available only for pending appeals.
 - This extends the existing verification review surface only; it does not advance the separate Admin Dashboard redevelopment phase.
+
+
+## 56. Collaborative Collection invitations — pending, accept and decline lifecycle — 2026-11-02
+
+- Converted owner invitations from instant access grants into a real pending-invitation workflow. The additive Collections migration introduces `pending`, `active` and `declined` membership states plus invitation/acceptance timestamps; existing membership rows are backfilled as active.
+- Every private-read and edit permission check now requires an active membership. Pending invitations do not reveal private Collection content or count as collaborators.
+- Owners create invitations by LOOP username and select editor/viewer access. The pending invitation and in-app system notification are written in the same transaction.
+- Added an authenticated invitation inbox endpoint and a Collections hub inbox with Accept/Decline controls. Responses lock the Collection and invitation rows, validate the current pending state, reject suspended/deleted accounts, and notify the owner after recording the decision in the same transaction.
+- Re-inviting a declined member creates a fresh pending invitation; re-inviting an active collaborator updates their access level without removing their existing access. One pending row per (collection, member) is enforced by the composite primary key.
+- Added API route registration and UI handling. Still validate clean/existing PostgreSQL migrations and run Rust/frontend CI on the exact latest PR head.

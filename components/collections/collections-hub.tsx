@@ -23,6 +23,18 @@ import {
 } from "@/components/ui/dialog"
 import { DynamicButton } from "@/components/ui/dynamic-button"
 
+interface CollectionInvitation {
+  collection_id: string
+  title: string
+  description: string
+  owner_id: string
+  owner_username: string
+  owner_display_name: string
+  owner_avatar_url: string | null
+  role: "editor" | "viewer"
+  invited_at: string
+}
+
 export interface CollectionSummary {
   id: string
   owner_id: string
@@ -46,6 +58,8 @@ export function CollectionsHub() {
   const { toast } = useToast()
   const router = useRouter()
   const [collections, setCollections] = useState<CollectionSummary[]>([])
+  const [invitations, setInvitations] = useState<CollectionInvitation[]>([])
+  const [respondingInvitation, setRespondingInvitation] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -59,11 +73,17 @@ export function CollectionsHub() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await rustApiRequest<CollectionSummary[]>("collections?limit=25&offset=0", {
-        headers: getAuthHeader(),
-      })
+      const [data, invitationData] = await Promise.all([
+        rustApiRequest<CollectionSummary[]>("collections?limit=25&offset=0", {
+          headers: getAuthHeader(),
+        }),
+        user
+          ? rustApiRequest<CollectionInvitation[]>("collections/invitations", { headers: getAuthHeader() })
+          : Promise.resolve([]),
+      ])
       const page = Array.isArray(data) ? data : []
       setCollections(page)
+      setInvitations(Array.isArray(invitationData) ? invitationData : [])
       setHasMore(page.length === 25)
     } catch (error) {
       toast({
@@ -79,6 +99,38 @@ export function CollectionsHub() {
   useEffect(() => {
     if (!authLoading) void load()
   }, [authLoading, load])
+
+  const respondToInvitation = async (collectionId: string, action: "accept" | "decline") => {
+    setRespondingInvitation(collectionId)
+    try {
+      await rustApiRequest<void>(`collections/${encodeURIComponent(collectionId)}/invitation`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ action }),
+      })
+      setInvitations((current) => current.filter((invitation) => invitation.collection_id !== collectionId))
+      if (action === "accept") {
+        toast({
+          title: "Invitation accepted",
+          description: "The collection is now available in your shared collections.",
+        })
+        await load()
+      } else {
+        toast({ title: "Invitation declined" })
+      }
+    } catch (error) {
+      toast({
+        title: "Couldn't update invitation",
+        description: error instanceof Error ? error.message : "Try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setRespondingInvitation(null)
+    }
+  }
 
   const loadMore = async () => {
     if (!hasMore || loadingMore) return
@@ -167,6 +219,54 @@ export function CollectionsHub() {
           </Button>
         )}
       </div>
+
+      {user && invitations.length > 0 ? (
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold">Collection invitations</h2>
+            <Badge variant="secondary">{invitations.length}</Badge>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {invitations.map((invitation) => (
+              <Card key={invitation.collection_id} className="rounded-2xl border-primary/20">
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{invitation.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {invitation.owner_display_name} (@{invitation.owner_username}) invited you as {invitation.role}.
+                      </p>
+                      {invitation.description && (
+                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{invitation.description}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={respondingInvitation === invitation.collection_id}
+                      onClick={() => void respondToInvitation(invitation.collection_id, "decline")}
+                    >
+                      Decline
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={respondingInvitation === invitation.collection_id}
+                      onClick={() => void respondToInvitation(invitation.collection_id, "accept")}
+                    >
+                      {respondingInvitation === invitation.collection_id ? "Saving…" : "Accept invitation"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {collections.length === 0 ? (
         <Card className="rounded-2xl border-dashed">
