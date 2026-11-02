@@ -3,6 +3,12 @@ export interface CoLoopSessionRoster {
   co_authors?: unknown
 }
 
+export interface CoLoopJoinState extends CoLoopSessionRoster {
+  status?: unknown
+  locked?: unknown
+  deleted_at?: unknown
+}
+
 /** True only for the room host or a persisted co-author. */
 export function isCoLoopParticipant(session: CoLoopSessionRoster, userId: string): boolean {
   if (!userId) return false
@@ -12,4 +18,19 @@ export function isCoLoopParticipant(session: CoLoopSessionRoster, userId: string
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false
     return "id" in entry && entry.id === userId
   })
+}
+
+export type CoLoopJoinDecision = "allowed" | "deleted" | "inactive" | "locked" | "not_invited"
+
+/** A room can only be entered by its host, an existing participant or a direct invitee. */
+export function decideCoLoopJoin(
+  session: CoLoopJoinState,
+  userId: string,
+  hasDirectInvite: boolean,
+): CoLoopJoinDecision {
+  if (session.deleted_at) return "deleted"
+  if (isCoLoopParticipant(session, userId)) return "allowed"
+  if (session.status !== undefined && session.status !== null && session.status !== "active") return "inactive"
+  if (session.locked === true) return "locked"
+  return hasDirectInvite ? "allowed" : "not_invited"
 }
