@@ -331,7 +331,15 @@ fn can_contribute_to_chain(
         chain_member_role,
         Some("owner" | "collaborator" | "contributor")
     );
-    if is_creator || is_contributing_member {
+    if is_creator {
+        return true;
+    }
+    // An explicit viewer assignment is read-only, even when the Chain's
+    // general policy is open to the public or Circle members.
+    if chain_member_role == Some("viewer") {
+        return false;
+    }
+    if is_contributing_member {
         return true;
     }
     match policy {
@@ -838,14 +846,22 @@ pub async fn get(
                     )
                     AND (
                         chain.creator_id = $2
-                        OR EXISTS (
-                            SELECT 1 FROM chain_members AS member
-                            WHERE member.chain_id = chain.id
-                              AND member.user_id = $2
-                              AND member.role IN ('owner', 'collaborator', 'contributor')
-                        )
                         OR (
-                            chain.contribution_policy = 'open'
+                            NOT EXISTS (
+                                SELECT 1 FROM chain_members AS viewer
+                                WHERE viewer.chain_id = chain.id
+                                  AND viewer.user_id = $2
+                                  AND viewer.role = 'viewer'
+                            )
+                            AND (
+                                EXISTS (
+                                    SELECT 1 FROM chain_members AS member
+                                    WHERE member.chain_id = chain.id
+                                      AND member.user_id = $2
+                                      AND member.role IN ('owner', 'collaborator', 'contributor')
+                                )
+                                OR (
+                                    chain.contribution_policy = 'open'
                             AND (
                                 chain.circle_id IS NULL
                                 OR EXISTS (
@@ -872,6 +888,8 @@ pub async fn get(
                                 OR EXISTS (
                                     SELECT 1 FROM circles AS circle
                                     WHERE circle.id = chain.circle_id AND circle.owner_id = $2
+                                )
+                            )
                                 )
                             )
                         )
@@ -1723,6 +1741,22 @@ mod tests {
             false,
             Some("viewer"),
             false,
+        ));
+        assert!(!can_contribute_to_chain(
+            "open",
+            "public",
+            false,
+            false,
+            Some("viewer"),
+            false,
+        ));
+        assert!(!can_contribute_to_chain(
+            "circle_members",
+            "circle",
+            true,
+            false,
+            Some("viewer"),
+            true,
         ));
     }
 
