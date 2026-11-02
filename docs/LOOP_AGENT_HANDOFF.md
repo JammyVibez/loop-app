@@ -243,3 +243,27 @@ The branch is still PR #1 and must remain a draft. Re-fetch its head before cont
 6. Add full end-to-end tests for Drop → Chain → contribution → Discover → Collection/share and complete release-gate checks.
 
 The six workstreams in section 7 remain active. None should be marked completely finished solely because these partial implementations exist.
+
+
+## 11. Latest cross-feature continuation — 2026-11-02
+
+These updates extend the existing six workstreams. They are implemented in the same draft PR; verify all behavior and checks on the current head before marking anything complete.
+
+### New connected journeys
+- **Drop → Chain:** Circle Challenge pages now offer a prefilled “Continue as a Chain” action to eligible Circle users. The Chain composer receives source context in the URL and submits a source Drop ID. The Rust create handler validates the metadata object, reserves `metadata.origin` for server-generated data, verifies Circle membership/ownership and confirms that the challenge exists inside that exact Circle before storing the source reference. Chain detail links back to the original Drop.
+- **Circle owners:** the Challenge detail API now distinguishes `can_create_chain` from `is_member`. Circle owners can start a Chain even when they do not have a separate membership row; challenge entry submission keeps its stricter membership check.
+- **Chain → Collection:** Chain detail has a “Save to Collection” action. It reuses the Collection API and canonical `collection_items.chain_id` model. Collection permissions and target visibility are checked in Rust; the existing Chain collection migration, unique index and Collection detail rendering already support this item type. Do not create another bookmark table or store duplicate Chain objects.
+- **Universal search:** Drops are included in the existing Explore search result types and use the existing authenticated Rust endpoint. Search refreshes when account identity changes. Private/non-member visibility should be checked against actual API behavior and tested, not inferred solely from the UI.
+
+### Current type-check fixes
+A previous `npm run verify` exposed implicit-any errors in the personalized Discover candidate tag arrays and a missing `ArrowUpRight` import in the Drop → Chain action. The candidate list is now explicitly typed through privacy filtering and the icon import is present. Check the current Actions run for proof; the earlier failing run is not evidence of the latest result.
+
+### Current continuation order
+1. Fetch current PR head; inspect the exact latest Rust API and CI workflow runs.
+2. Resolve any remaining TypeScript, build, Rust, test or Clippy failures without disabling checks.
+3. Add/execute database-backed integration tests for source Drop validation and revision restoration.
+4. Test Drop search and cross-feature visibility for logged-out users, public/private Circle members, owners, non-members and blocked users.
+5. Extend contextual saves, activity and notifications across Chain/Drop/Collection/profile journeys using canonical IDs and server-side authorization.
+6. Build proper multi-step integration/E2E coverage and verify the final head.
+
+The product remains intentionally unfinished until these gates pass. Keep PR #1 open and in draft.
