@@ -1259,6 +1259,8 @@ pub async fn contribute(
 
 #[cfg(test)]
 mod tests {
+    use uuid::Uuid;
+
     use super::{
         can_access_chain, can_contribute_to_chain, insert_circle_challenge_origin,
         valid_contribution_type, valid_kind, valid_policy, valid_visibility,
