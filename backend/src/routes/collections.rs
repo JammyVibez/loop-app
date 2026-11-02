@@ -595,7 +595,7 @@ pub async fn get(
         Vec::new()
     };
     let can_manage_members = viewer_id == Some(collection.owner_id);
-    let pending_invitations = if can_manage_members && collection.is_collaborative {
+    let pending_invitations = if can_manage_members {
         let rows = sqlx::query(
             r#"
             SELECT member.user_id, profile.username, profile.display_name,
@@ -1146,13 +1146,6 @@ pub async fn remove_member(
     let is_collaborative: bool = collection
         .try_get("is_collaborative")
         .map_err(internal_db_error)?;
-    if !is_collaborative {
-        return Err(api_error(
-            StatusCode::CONFLICT,
-            "collection_not_collaborative",
-            "This collection no longer supports collaboration.",
-        ));
-    }
     if owner_id == member_user_id {
         return Err(api_error(
             StatusCode::CONFLICT,
@@ -1226,12 +1219,15 @@ pub async fn add_item(
         SELECT EXISTS (
             SELECT 1 FROM collections AS collection
             WHERE collection.id = $1 AND (
-                collection.owner_id = $2 OR EXISTS (
-                    SELECT 1 FROM collection_members AS member
-                    WHERE member.collection_id = collection.id
-                      AND member.user_id = $2
-                      AND member.status = 'active'
-                      AND member.role = 'editor'
+                collection.owner_id = $2 OR (
+                    collection.is_collaborative IS TRUE
+                    AND EXISTS (
+                        SELECT 1 FROM collection_members AS member
+                        WHERE member.collection_id = collection.id
+                          AND member.user_id = $2
+                          AND member.status = 'active'
+                          AND member.role = 'editor'
+                    )
                 )
             )
         )
@@ -1522,12 +1518,15 @@ pub async fn remove_item(
           AND item.collection_id = collection.id
           AND collection.id = $2
           AND (
-              collection.owner_id = $3 OR EXISTS (
-                  SELECT 1 FROM collection_members AS member
-                  WHERE member.collection_id = collection.id
-                    AND member.user_id = $3
-                    AND member.status = 'active'
-                    AND member.role = 'editor'
+              collection.owner_id = $3 OR (
+                  collection.is_collaborative IS TRUE
+                  AND EXISTS (
+                      SELECT 1 FROM collection_members AS member
+                      WHERE member.collection_id = collection.id
+                        AND member.user_id = $3
+                        AND member.status = 'active'
+                        AND member.role = 'editor'
+                  )
               )
           )
         RETURNING item.id

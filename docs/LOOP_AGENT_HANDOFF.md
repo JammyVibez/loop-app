@@ -601,3 +601,11 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 
 - Added `backend/migrations/0001_collections.sql` to the strict production setup list. The new invitation lifecycle depends on status, invited_at and accepted_at columns and their constraints/indexes; setup now fails rather than silently skipping the collection schema.
 - This migration must be verified on both a clean PostgreSQL database and an existing deployment containing historical Collection members. No claim of production migration completion is made until that execution has been run and inspected.
+
+
+## 59. Collection collaboration pause and permission consistency — 2026-11-02
+
+- Aligned item mutation SQL with read permissions: an editor can add or remove items only while `collections.is_collaborative = TRUE`. Owners retain control regardless of the collaboration toggle.
+- Owner/member removal no longer fails just because collaboration is disabled. This lets owners cancel pending invitations and clean up old membership rows, and lets members leave without restoring collaboration.
+- The owner detail response now continues to expose pending invitations while collaboration is paused. The UI explains that invitees cannot accept during the pause, offers cancellation, and hides the send-invitation control until collaboration is enabled again.
+- Re-run Rust compile/tests/Clippy and frontend build/verification on the latest PR head. PostgreSQL authorization tests remain a release gate.

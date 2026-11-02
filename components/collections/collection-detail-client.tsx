@@ -294,7 +294,7 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
         </div>
       </section>
 
-      {collection.is_collaborative ? (
+      {collection.is_collaborative || (data.can_manage_members && data.pending_invitations.length > 0) ? (
         <Card className="rounded-2xl border-border/70">
           <CardContent className="space-y-4 p-4 sm:p-5">
             <div className="flex items-center gap-2">
@@ -364,7 +364,7 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
                 ))}
               </div>
             ) : null}
-            {data.can_manage_members ? (
+            {data.can_manage_members && collection.is_collaborative ? (
               <div className="flex flex-col gap-2 border-t border-border/60 pt-3 sm:flex-row">
                 <Input
                   value={inviteUsername}
