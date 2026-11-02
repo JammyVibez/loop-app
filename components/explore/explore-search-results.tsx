@@ -195,7 +195,7 @@ export function ExploreSearchResults({
       active = false
       controller.abort()
     }
-  }, [debouncedQuery, getAuthHeader])
+  }, [debouncedQuery, getAuthHeader, user?.id])
 
   const counts = useMemo(() => ({
     all: Object.values(results).reduce((sum, items) => sum + items.length, 0),
