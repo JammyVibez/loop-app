@@ -1614,8 +1614,14 @@ mod tests {
 
     #[test]
     fn accepts_only_supported_collection_invitation_actions() {
-        assert!(matches!(normalize_collection_invitation_action("accept"), Ok("accept")));
-        assert!(matches!(normalize_collection_invitation_action("decline"), Ok("decline")));
+        assert!(matches!(
+            normalize_collection_invitation_action("accept"),
+            Ok("accept")
+        ));
+        assert!(matches!(
+            normalize_collection_invitation_action("decline"),
+            Ok("decline")
+        ));
         assert!(normalize_collection_invitation_action("approve").is_err());
         assert!(normalize_collection_invitation_action("delete").is_err());
     }
