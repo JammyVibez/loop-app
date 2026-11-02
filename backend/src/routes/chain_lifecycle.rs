@@ -52,6 +52,82 @@ fn is_https(value: &str) -> bool {
     Url::parse(value).is_ok_and(|url| url.scheme() == "https")
 }
 
+fn validate_edited_contribution(
+    contribution_type: &str,
+    title: Option<&str>,
+    content: &str,
+    payload: &Value,
+) -> Result<(), (&'static str, &'static str)> {
+    if title.is_some_and(|value| value.chars().count() > 120)
+        || content.chars().count() > 8_000
+    {
+        return Err((
+            "contribution_too_long",
+            "Contribution titles are limited to 120 characters and content to 8,000.",
+        ));
+    }
+    if !payload.is_object() || serde_json::to_vec(payload).map_or(true, |value| value.len() > 64 * 1024) {
+        return Err((
+            "invalid_contribution_payload",
+            "Structured contribution data must be an object no larger than 64 KiB.",
+        ));
+    }
+    let has_payload = payload.as_object().is_some_and(|value| !value.is_empty());
+    if title.is_none_or(|value| value.trim().is_empty()) && content.trim().is_empty() && !has_payload {
+        return Err((
+            "empty_contribution",
+            "A contribution must retain text, a title or structured content.",
+        ));
+    }
+    match contribution_type {
+        "list" | "ranking" => {
+            let entries = payload.get("items").and_then(Value::as_array);
+            let valid = entries.is_some_and(|items| {
+                (2..=40).contains(&items.len())
+                    && items.iter().all(|entry| {
+                        entry.as_str().is_some_and(|value| {
+                            !value.trim().is_empty() && value.chars().count() <= 240
+                        })
+                    })
+            });
+            if !valid {
+                return Err((
+                    "invalid_structured_entries",
+                    "Lists and rankings need 2 to 40 non-empty entries, each up to 240 characters.",
+                ));
+            }
+        }
+        "poll" => {
+            let options = payload.get("options").and_then(Value::as_array);
+            let valid = options.is_some_and(|items| {
+                (2..=10).contains(&items.len())
+                    && items.iter().all(|option| {
+                        option.as_str().is_some_and(|value| {
+                            !value.trim().is_empty() && value.chars().count() <= 160
+                        })
+                    })
+            });
+            if content.trim().is_empty() || !valid {
+                return Err((
+                    "invalid_poll_contribution",
+                    "Poll contributions need a question and 2 to 10 non-empty options, each up to 160 characters.",
+                ));
+            }
+        }
+        "image" | "video" | "audio" | "document" | "link" => {
+            let attachment_url = payload.get("url").and_then(Value::as_str).map(str::trim);
+            if !attachment_url.is_some_and(is_https) {
+                return Err((
+                    "invalid_contribution_url",
+                    "Links and uploaded media must use a valid HTTPS URL.",
+                ));
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 #[derive(Deserialize)]
 pub struct ForkChainInput {
     title: Option<String>,
@@ -235,12 +311,14 @@ pub async fn fork(
         SELECT $2, contributors.author_id,
                CASE WHEN contributors.author_id = $3 THEN 'owner' ELSE 'contributor' END
         FROM (SELECT DISTINCT author_id FROM inserted) AS contributors
+        WHERE $4::text IN ('public', 'unlisted')
         ON CONFLICT (chain_id, user_id) DO NOTHING
         "#,
     )
     .bind(chain_id)
     .bind(fork_id)
     .bind(user.id)
+    .bind(visibility)
     .execute(&mut *transaction)
     .await
     .map_err(|error| db_error(error, "copy Chain contributions into remix"))?;
@@ -384,26 +462,29 @@ pub async fn update_contribution(
     let old_payload: Value = current
         .try_get("payload")
         .map_err(|e| db_error(e, "read contribution payload"))?;
-    let next_title = input.title.or(old_title.clone());
-    let next_content = input.content.unwrap_or_else(|| old_content.clone());
-    let next_payload = input.payload.unwrap_or_else(|| old_payload.clone());
+    let next_title = input
+        .title
+        .map(|value| {
+            let value = value.trim().to_owned();
+            if value.is_empty() {
+                None
+            } else {
+                Some(value)
+            }
+        })
+        .unwrap_or(old_title);
+    let next_content = input.content.unwrap_or(old_content);
+    let next_payload = input.payload.unwrap_or(old_payload);
 
-    if matches!(
-        contribution_type.as_str(),
-        "image" | "video" | "audio" | "document" | "link"
-    ) {
-        let attachment_url = next_payload
-            .get("url")
-            .and_then(Value::as_str)
-            .map(str::trim);
-        if !attachment_url.is_some_and(is_https) {
-            return Err(api_error(
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "invalid_contribution_url",
-                "Links and uploaded media must use a valid HTTPS URL.",
-            ));
-        }
-    }
+    validate_edited_contribution(
+        &contribution_type,
+        next_title.as_deref(),
+        &next_content,
+        &next_payload,
+    )
+    .map_err(|(code, message)| {
+        api_error(StatusCode::UNPROCESSABLE_ENTITY, code, message)
+    })?;
 
     let revision_number: i64 = sqlx::query_scalar(
         "SELECT COALESCE(MAX(revision_number), 0) + 1 FROM chain_contribution_revisions WHERE contribution_id = $1",
@@ -489,6 +570,7 @@ pub async fn list_revisions(
             JOIN chains AS chain ON chain.id = contribution.chain_id
             WHERE chain.id = $1 AND contribution.id = $2
               AND contribution.status = 'published'
+              AND (contribution.author_id = $3 OR chain.creator_id = $3)
               AND (
                   chain.creator_id = $3
                   OR EXISTS (
@@ -571,4 +653,57 @@ pub async fn list_revisions(
         .collect::<Result<Vec<_>, ApiError>>()?;
 
     Ok(Json(revisions))
+}
+
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{is_https, validate_edited_contribution};
+
+    #[test]
+    fn structured_lists_require_two_to_forty_entries() {
+        assert!(validate_edited_contribution(
+            "list",
+            None,
+            "",
+            &json!({"items": ["one", "two"]})
+        ).is_ok());
+        assert!(validate_edited_contribution(
+            "list",
+            None,
+            "",
+            &json!({"items": ["only one"]})
+        ).is_err());
+    }
+
+    #[test]
+    fn polls_require_a_question_and_valid_options() {
+        assert!(validate_edited_contribution(
+            "poll",
+            None,
+            "Which option?",
+            &json!({"options": ["A", "B"]})
+        ).is_ok());
+        assert!(validate_edited_contribution(
+            "poll",
+            None,
+            "",
+            &json!({"options": ["A", "B"]})
+        ).is_err());
+    }
+
+    #[test]
+    fn media_and_links_require_https_urls() {
+        assert!(is_https("https://media.example.test/file.webp"));
+        assert!(!is_https("http://media.example.test/file.webp"));
+        assert!(!is_https("javascript:alert(1)"));
+    }
+
+    #[test]
+    fn update_rejects_oversized_structured_payloads() {
+        let payload = json!({"items": ["x".repeat(65_000)]});
+        assert!(validate_edited_contribution("list", None, "", &payload).is_err());
+    }
 }
