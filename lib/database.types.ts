@@ -998,6 +998,14 @@ export interface Database {
         }
         Returns: Json
       }
+      purchase_premium_with_coins: {
+        Args: {
+          p_user_id: string
+          p_plan_type: string
+          p_transaction_id: string
+        }
+        Returns: Json
+      }
       review_verification_request: {
         Args: {
           p_request_id: string
