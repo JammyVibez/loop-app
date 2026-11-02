@@ -627,12 +627,7 @@ pub async fn create(
             )
         })?;
 
-        insert_circle_challenge_origin(
-            &mut metadata,
-            source_drop_id,
-            circle_id,
-            source_title,
-        )?;
+        insert_circle_challenge_origin(&mut metadata, source_drop_id, circle_id, source_title)?;
     }
 
     let inserted = sqlx::query(
