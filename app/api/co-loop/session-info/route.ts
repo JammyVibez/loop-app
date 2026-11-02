@@ -1,7 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { decideCoLoopJoin, isCoLoopParticipant } from "@/lib/co-loop-session-access"
+import {
+  checkCoLoopInvitationRevocation,
+  decideCoLoopJoin,
+  isCoLoopParticipant,
+} from "@/lib/co-loop-session-access"
 
 export const dynamic = "force-dynamic"
 
@@ -59,9 +63,15 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (existingSession) {
-      const alreadyParticipant = isCoLoopParticipant(existingSession, callingUser.id)
+      const revocation = await checkCoLoopInvitationRevocation(supabase, session_id, callingUser.id)
+      if (revocation.error) {
+        console.error("Could not verify Co-Loop revocation state:", revocation.error)
+        return NextResponse.json({ error: "Could not verify room access" }, { status: 500 })
+      }
+      // A revocation overrides stale roster entries left behind by a partial moderation failure.
+      const alreadyParticipant = !revocation.revoked && isCoLoopParticipant(existingSession, callingUser.id)
       let inviteExists = false
-      if (!alreadyParticipant) {
+      if (!alreadyParticipant && !revocation.revoked) {
         const { data: invitation, error: invitationError } = await supabase
           .from("co_loop_invitations")
           .select("status")
