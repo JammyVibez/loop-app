@@ -593,7 +593,10 @@ pub async fn create(
             )
         })?;
 
-        metadata.as_object_mut().expect("metadata object validated").insert(
+        metadata
+            .as_object_mut()
+            .expect("metadata object validated")
+            .insert(
             "origin".to_owned(),
             json!({
                 "type": "circle_challenge",
