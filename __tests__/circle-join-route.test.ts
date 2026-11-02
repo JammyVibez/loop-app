@@ -33,6 +33,9 @@ function request() {
 }
 
 beforeEach(() => {
+  // These routes intentionally fail closed without the service-role key.
+  // The mocked Supabase client is safe to use with an explicit test value.
+  vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role")
   state.getUser.mockReset()
   state.rpc.mockReset()
   state.circleLookup.mockReset()

@@ -412,3 +412,10 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Editors can add/remove Collection items through the existing server-side authorisation checks. Viewers can read the Collection but cannot change its items. Only the owner can invite, change collaborator roles through re-invitation, or remove another member; a collaborator can remove only themselves.
 - The detail page now displays collaborator identity/role, lets the owner add an editor by username and remove members, and lets a collaborator leave. The creation copy no longer says invitations are not available.
 - Added Rust validation tests for username normalization and allowed collaborator roles. Rust CI must compile and run these tests on the current PR head. A notification when added and full invitation acceptance/pending state remain later refinements; the current implementation is a direct owner-granted collaboration, not a pending invite.
+
+
+## 35. Circle route tests now model the service-role gate — 2026-11-02
+
+- CI exposed that the join and join-review tests were returning the route's intentional 503 fail-closed response because the test runner did not define `SUPABASE_SERVICE_ROLE_KEY`.
+- Kept the production service-role guard intact and updated the mocked route tests to supply an explicit test-only key. This ensures tests exercise the RPC path instead of bypassing an intentional production safety gate.
+- Verify all Circle membership tests and full frontend CI on the latest PR commit.
