@@ -3,6 +3,7 @@ import {
   canApproveCircleRole,
   canAssignCircleRole,
   canManageMemberSettings,
+  canEditCircleStudio,
   canRemoveCircleMember,
 } from "@/lib/circle-permissions"
 
@@ -48,5 +49,25 @@ describe("Circle member role hierarchy", () => {
     expect(canManageMemberSettings("admin", "admin")).toBe(false)
     expect(canManageMemberSettings("owner", "admin")).toBe(true)
     expect(canManageMemberSettings("owner", "owner")).toBe(false)
+  })
+})
+
+
+describe("Circle Studio access", () => {
+  it("requires an active owner/admin membership", () => {
+    expect(canEditCircleStudio("admin", "active")).toBe(true)
+    expect(canEditCircleStudio("admin", "approved")).toBe(true)
+    expect(canEditCircleStudio("owner", "active")).toBe(true)
+    expect(canEditCircleStudio("moderator", "active")).toBe(false)
+  })
+
+  it("does not let stale or pending roles write Studio settings", () => {
+    for (const status of ["pending", "rejected", "left", "banned", null, undefined]) {
+      expect(canEditCircleStudio("admin", status)).toBe(false)
+    }
+  })
+
+  it("preserves owner access when the membership row is missing", () => {
+    expect(canEditCircleStudio(null, null, true)).toBe(true)
   })
 })
