@@ -7,7 +7,7 @@ import { isProUser } from "@/lib/pro-features"
 import { maskProfile, profileStatus } from "@/lib/user-status"
 import { applyRealCommentCounts, attachParentAuthors } from "@/lib/loop-stats"
 import { checkBlockStatus } from "@/lib/user-blocks"
-import { buildRestrictedProfileView, isRestrictedProfileVisibility } from "@/lib/profile-privacy"
+import { buildPublicProfileIdentity, buildRestrictedProfileView, isRestrictedProfileVisibility } from "@/lib/profile-privacy"
 
 export async function GET(request: NextRequest) {
   try {
@@ -248,7 +248,7 @@ export async function GET(request: NextRequest) {
     const derivedCosmetics = cosmeticsFromInventory(activeItems || [])
 
     const profileWithSocial = {
-      ...profile,
+      ...buildPublicProfileIdentity(profile as Record<string, any>, isSelf),
       followers_count: followersCount ?? profile.followers_count ?? 0,
       following_count: followingCount ?? profile.following_count ?? 0,
       loops_count: loopsCount ?? profile.loops_count ?? 0,

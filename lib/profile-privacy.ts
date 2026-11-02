@@ -69,3 +69,58 @@ export function buildRestrictedProfileView(
     active_effects: [],
   }
 }
+
+
+/**
+ * Explicit public profile identity. Never spread the database row into a
+ * public response: profile rows also contain contact, account and earnings
+ * fields that are not part of a public creator identity.
+ */
+export function buildPublicProfileIdentity(
+  profile: Record<string, any>,
+  isSelf: boolean,
+) {
+  const organizationConfig = profile.organization_config && typeof profile.organization_config === "object"
+    ? { coin_rate_multiplier: profile.organization_config.coin_rate_multiplier }
+    : null
+
+  const identity: Record<string, unknown> = {
+    id: profile.id,
+    username: profile.username,
+    display_name: profile.display_name,
+    bio: profile.bio ?? null,
+    avatar_url: profile.avatar_url ?? null,
+    video_avatar_url: profile.video_avatar_url ?? null,
+    banner_url: profile.banner_url ?? null,
+    created_at: profile.created_at,
+    pronouns: profile.pronouns ?? null,
+    website: profile.website ?? null,
+    location: profile.location ?? null,
+    tagged_circles: Array.isArray(profile.tagged_circles) ? profile.tagged_circles : [],
+    is_verified: Boolean(profile.is_verified),
+    is_team_member: Boolean(profile.is_team_member),
+    is_sponsor: Boolean(profile.is_sponsor),
+    is_premium: Boolean(profile.is_premium),
+    badge_id: profile.badge_id ?? null,
+    equipped_frame_id: profile.equipped_frame_id ?? null,
+    is_organization: Boolean(profile.is_organization),
+    organization_name: profile.organization_name ?? null,
+    organization_badge_url: profile.organization_badge_url ?? null,
+    organization_config: organizationConfig,
+    level: Number(profile.level ?? 1),
+    xp_points: Number(profile.xp_points ?? 0),
+    achievements: Array.isArray(profile.achievements) ? profile.achievements : [],
+    active_theme: profile.active_theme ?? null,
+    theme_preferences: profile.theme_preferences ?? null,
+    active_cosmetics: profile.active_cosmetics ?? null,
+  }
+
+  if (isSelf) {
+    identity.is_admin = Boolean(profile.is_admin)
+    identity.loop_coins = Number(profile.loop_coins ?? 0)
+    identity.available_earnings = Number(profile.available_earnings ?? 0)
+    identity.total_earnings = Number(profile.total_earnings ?? 0)
+  }
+
+  return identity
+}
