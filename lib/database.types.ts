@@ -986,6 +986,15 @@ export interface Database {
         }
         Returns: Json
       }
+      set_circle_event_rsvp_authorized: {
+        Args: {
+          p_event_id: string
+          p_user_id: string
+          p_actor_id: string
+          p_status: string
+        }
+        Returns: Json
+      }
       review_verification_request: {
         Args: {
           p_request_id: string

@@ -494,3 +494,11 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Direct attendance to events without approval remains self-service for active Circle members. Self-cancellation remains possible after leaving; staff cannot manage another member's RSVP without current event-management permission.
 - The capacity check and denormalized participant_count update remain in the same event-row transaction.
 - Updated all Circle Event RSVP route calls to include actor identity and use the authorized RPC. PostgreSQL integration coverage is still required before release.
+
+
+## 45. Circle Event RSVP migration wiring and typed API contract
+
+- Added the new authoritative Circle Event RSVP RPC to the generated Supabase function types.
+- Marked the Circle Event RSVP migration as a strict production-setup step, after the Circle schema enhancement and participant repair scripts it depends on.
+- Pinned the legacy RSVP function's SECURITY DEFINER search path and changed the manager permission check to compare the stored permission string instead of casting arbitrary JSON text to BOOLEAN.
+- Added route contract tests for direct attendance, approval-required pending requests and the revoked-membership rejection path.

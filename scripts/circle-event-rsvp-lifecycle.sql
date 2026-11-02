@@ -18,8 +18,8 @@ CREATE OR REPLACE FUNCTION public.set_circle_event_rsvp(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
-AS $$
+SET search_path = pg_catalog, public, pg_temp
+AS $
 DECLARE
   event_row public.circle_events%ROWTYPE;
   previous_status TEXT;
@@ -160,7 +160,7 @@ BEGIN
        AND member.status IN ('active', 'approved')
        AND (
          member.role IN ('owner', 'admin', 'moderator')
-         OR COALESCE((member.permissions->>'can_manage_events')::BOOLEAN, false)
+         OR member.permissions->>'can_manage_events' = 'true'
        )
   ) OR (
     p_actor_id = event_row.organizer_id
