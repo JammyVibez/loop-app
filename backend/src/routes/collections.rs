@@ -754,7 +754,9 @@ pub async fn remove_member(
             })?;
 
     let owner_id: Uuid = collection.try_get("owner_id").map_err(internal_db_error)?;
-    let is_collaborative: bool = collection.try_get("is_collaborative").map_err(internal_db_error)?;
+    let is_collaborative: bool = collection
+        .try_get("is_collaborative")
+        .map_err(internal_db_error)?;
     if !is_collaborative {
         return Err(api_error(
             StatusCode::CONFLICT,
