@@ -676,7 +676,6 @@ pub async fn list_revisions(
     Ok(Json(revisions))
 }
 
-
 #[derive(Serialize)]
 pub struct RestoreContributionRevisionResponse {
     success: bool,
