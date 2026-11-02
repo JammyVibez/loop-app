@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       console.error("Co-Loop invitation ledger lookup failed:", existingInviteError.message)
       return NextResponse.json({ error: "Could not verify invitation state" }, { status: 500 })
     }
-    if (existingInvite?.status === "pending") {
+    if (existingInvite?.status === "pending" || existingInvite?.status === "accepted") {
       return NextResponse.json({ error: "An invitation is already pending for this collaborator" }, { status: 409 })
     }
     const { error: ledgerWriteError } = await supabase

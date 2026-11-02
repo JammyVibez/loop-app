@@ -73,7 +73,9 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: "Could not verify this invitation" }, { status: 500 })
         }
         if (invitation) {
-          inviteExists = invitation.status === "pending" || invitation.status === "accepted"
+          // A pending invitation is not a join credential. The recipient
+          // must explicitly accept it before entering the studio.
+          inviteExists = invitation.status === "accepted"
         } else {
           // Legacy compatibility only when no ledger row exists. A declined
           // or revoked ledger record is a durable denial and cannot fall back.
