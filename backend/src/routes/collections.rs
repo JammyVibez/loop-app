@@ -1283,7 +1283,10 @@ mod tests {
 
     #[test]
     fn restricts_collection_collaborator_roles_to_editor_and_viewer() {
-        assert!(matches!(normalize_collection_member_role(None), Ok("editor")));
+        assert!(matches!(
+            normalize_collection_member_role(None),
+            Ok("editor")
+        ));
         assert!(matches!(
             normalize_collection_member_role(Some("viewer")),
             Ok("viewer")
