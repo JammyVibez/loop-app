@@ -139,6 +139,7 @@ DECLARE
     room public.co_loop_sessions%ROWTYPE;
     profile public.profiles%ROWTYPE;
     existing_participant BOOLEAN;
+    seat_already_reserved BOOLEAN;
     invitation_status TEXT;
     reserved_count INTEGER;
     current_count INTEGER;
@@ -177,10 +178,6 @@ BEGIN
         RAISE EXCEPTION 'profile_unavailable' USING ERRCODE = '42501';
     END IF;
 
-    IF room.locked IS TRUE AND room.owner_id IS DISTINCT FROM p_user_id THEN
-        RAISE EXCEPTION 'session_locked' USING ERRCODE = '42501';
-    END IF;
-
     SELECT invitation.status
       INTO invitation_status
       FROM public.co_loop_invitations AS invitation
@@ -203,6 +200,16 @@ BEGIN
                AND participant.user_id = p_user_id
         )
         OR invitation_status = 'accepted';
+
+    seat_already_reserved := existing_participant OR invitation_status = 'pending';
+
+    -- A host lock blocks new collaborators, but an existing participant may
+    -- still reconnect to the room. A pending invitation does not bypass lock.
+    IF room.locked IS TRUE
+       AND room.owner_id IS DISTINCT FROM p_user_id
+       AND NOT existing_participant THEN
+        RAISE EXCEPTION 'session_locked' USING ERRCODE = '42501';
+    END IF;
 
     -- One canonical set of occupied seats. Pending direct invitations reserve
     -- a seat; accepted invitations are retained as participants even if an
@@ -244,18 +251,12 @@ BEGIN
         );
     END IF;
 
-    co_author := jsonb_build_object(
-        'id', p_user_id::text,
-        'username', COALESCE(profile.username, 'collaborator'),
-        'display_name', COALESCE(profile.display_name, profile.username, 'Co-Author'),
-        'avatar_url', profile.avatar_url,
-        'role', 'Co-Author'
-    );
-
-    IF NOT existing_participant AND reserved_count >= capacity THEN
+    IF NOT seat_already_reserved AND reserved_count >= capacity THEN
         RAISE EXCEPTION 'session_full' USING ERRCODE = '23514';
     END IF;
 
+    -- Convert an invitation's reserved seat to an active participant. The
+    -- total remains unchanged, while a new public join consumes one new seat.
     IF invitation_status = 'pending' THEN
         UPDATE public.co_loop_invitations
            SET status = 'accepted',
@@ -265,53 +266,40 @@ BEGIN
            AND status = 'pending';
     END IF;
 
-    IF existing_participant THEN
-        INSERT INTO public.open_co_loop_participants(session_id, user_id)
-        VALUES (p_session_id, p_user_id)
-        ON CONFLICT (session_id, user_id) DO NOTHING;
+    co_author := jsonb_build_object(
+        'id', p_user_id::text,
+        'username', COALESCE(profile.username, 'collaborator'),
+        'display_name', COALESCE(profile.display_name, profile.username, 'Co-Author'),
+        'avatar_url', profile.avatar_url,
+        'role', 'Co-Author'
+    );
 
-        final_roster := CASE
-            WHEN EXISTS (
-                SELECT 1
-                  FROM jsonb_array_elements(
-                        CASE WHEN jsonb_typeof(room.co_authors) = 'array'
-                             THEN room.co_authors ELSE '[]'::jsonb END
-                  ) AS entry
-                 WHERE entry->>'id' = p_user_id::text
-            )
-            THEN COALESCE(room.co_authors, '[]'::jsonb)
-            ELSE COALESCE(room.co_authors, '[]'::jsonb) || jsonb_build_array(co_author)
-        END;
+    INSERT INTO public.open_co_loop_participants(session_id, user_id)
+    VALUES (p_session_id, p_user_id)
+    ON CONFLICT (session_id, user_id) DO NOTHING;
 
-        UPDATE public.co_loop_sessions
-           SET co_authors = final_roster,
-               updated_at = NOW()
-         WHERE session_id = p_session_id;
-        current_count := reserved_count;
-    ELSE
-        INSERT INTO public.open_co_loop_participants(session_id, user_id)
-        VALUES (p_session_id, p_user_id)
-        ON CONFLICT (session_id, user_id) DO NOTHING;
+    final_roster := CASE
+        WHEN EXISTS (
+            SELECT 1
+              FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(room.co_authors) = 'array'
+                         THEN room.co_authors ELSE '[]'::jsonb END
+              ) AS entry
+             WHERE entry->>'id' = p_user_id::text
+        )
+        THEN COALESCE(room.co_authors, '[]'::jsonb)
+        ELSE COALESCE(room.co_authors, '[]'::jsonb) || jsonb_build_array(co_author)
+    END;
 
-        final_roster := CASE
-            WHEN EXISTS (
-                SELECT 1
-                  FROM jsonb_array_elements(
-                        CASE WHEN jsonb_typeof(room.co_authors) = 'array'
-                             THEN room.co_authors ELSE '[]'::jsonb END
-                  ) AS entry
-                 WHERE entry->>'id' = p_user_id::text
-            )
-            THEN COALESCE(room.co_authors, '[]'::jsonb)
-            ELSE COALESCE(room.co_authors, '[]'::jsonb) || jsonb_build_array(co_author)
-        END;
+    UPDATE public.co_loop_sessions
+       SET co_authors = final_roster,
+           updated_at = NOW()
+     WHERE session_id = p_session_id;
 
-        UPDATE public.co_loop_sessions
-           SET co_authors = final_roster,
-               updated_at = NOW()
-         WHERE session_id = p_session_id;
-        current_count := reserved_count + 1;
-    END IF;
+    current_count := CASE
+        WHEN seat_already_reserved THEN reserved_count
+        ELSE reserved_count + 1
+    END;
 
     IF room.feed_post_id IS NOT NULL THEN
         UPDATE public.loops

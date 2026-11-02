@@ -454,3 +454,10 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Added account suspension/deletion and room-lock checks to open joins. The room row lock serializes direct reservations and open joins, preventing concurrent paths from oversubscribing the same capacity.
 - Standardized the Co-Loop lifecycle SECURITY DEFINER search path to `pg_catalog, public, pg_temp`.
 - The direct-invite and open-join capacity paths still require integration tests against PostgreSQL; the repository CI checks Rust and frontend code but does not apply this migration to a live database.
+
+
+## 40. Correct pending-invitation seat conversion — 2026-11-02
+
+- Distinguished an occupied reservation from an already-joined participant in the open Co-Loop join RPC. A pending direct invite reserves capacity but remains pending until the invitee joins; joining converts that exact seat to accepted without charging a second place.
+- Existing participants can reconnect while the host has locked the room, while a newly arriving participant (including a pending invitee) cannot bypass the lock.
+- Public joins now create the open-participant record and update the shared roster through one row-locked transaction; returned participant counts reflect the canonical combined roster rather than just the open-participant table.
