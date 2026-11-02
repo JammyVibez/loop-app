@@ -385,3 +385,12 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Public resources can be indexed. Unlisted resources retain their direct-link preview but are marked noindex/nofollow so they are not promoted into search results.
 - Added regression tests for public indexing, unlisted noindex previews, generic private/unavailable fallback and bounded metadata text.
 - The metadata fetch uses a short timeout and no-store caching so visibility changes are not held in a stale crawler response. Production requires RUST_API_ORIGIN to be configured; until then these routes intentionally use the safe generic fallback.
+
+
+## 32. Circle discovery privacy and canonical admin authorization — 2026-11-02
+
+- Closed a private-Circle disclosure in participation discovery: only public, non-Pro-only Circles are now included in the public “growing Circles” recommendation block.
+- The general Circle browse endpoint now applies a server-side visibility filter. Public Circles remain discoverable; private Circles are returned only to their owner, active/approved members or pending applicants. Banned, rejected and departed memberships do not reveal private Circle listings. The owned/joined endpoint also stops treating historical/rejected/left rows as active visibility.
+- Removed a stale email-substring administrator fallback from Pro-only Circle creation. The canonical `profiles.is_admin === true` flag is now required; an email address containing “admin” grants no privilege.
+- Added reusable Circle visibility predicates and regression tests for guest, pending, active, banned, owner, Premium and public-discovery cases.
+- Verify Circle listing, Discover, and all frontend CI checks on the resulting head. Private-resource E2E and database migration validation remain release gates.

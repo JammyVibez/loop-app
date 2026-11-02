@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { circleCreateLimitMessage, getCircleCreateLimit } from "@/lib/circle-limits"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { isProUser } from "@/lib/pro-features"
+import { isProUser } from "@/lib/pro-features"\nimport { filterCirclesForViewer } from "@/lib/circle-membership-state"
 
 function createServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
         .from("circle_members")
         .select("circle_id, role, status")
         .eq("user_id", user.id)
-        .neq("status", "banned")
+        .in("status", ["active", "approved", "pending"])
 
       if (mine && !joined) {
         membershipQuery = membershipQuery.in("role", ["owner", "admin", "moderator"])
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
       const viewerIsPro = await getViewerProStatus(supabase, user.id)
       return NextResponse.json({
         success: true,
-        circles: filterProCircles(circles, viewerIsPro).map((circle) => normalizeCircle(circle, membershipMap)),
+        circles: filterCirclesForViewer(filterProCircles(circles, viewerIsPro), {\n          viewerId: user.id,\n          viewerIsPro,\n          memberships: membershipMap,\n        }).map((circle) => normalizeCircle(circle, membershipMap)),
         hasMore: false,
       })
     }
@@ -168,16 +168,24 @@ export async function GET(request: NextRequest) {
 
     const membershipMap = new Map<string, any>()
     if (user && circles?.length) {
-      const { data: memberships } = await supabase
+      const { data: memberships, error: membershipsError } = await supabase
         .from("circle_members")
         .select("circle_id, role, status")
         .eq("user_id", user.id)
         .in("circle_id", circles.map((circle) => circle.id))
+        .in("status", ["active", "approved", "pending"])
+      if (membershipsError) {
+        return NextResponse.json({ error: "Failed to verify Circle visibility" }, { status: 500 })
+      }
       memberships?.forEach((membership) => membershipMap.set(membership.circle_id, membership))
     }
 
     const viewerIsPro = await getViewerProStatus(supabase, user?.id || null)
-    const visible = filterProCircles(circles, viewerIsPro)
+    const visible = filterCirclesForViewer(filterProCircles(circles, viewerIsPro), {
+      viewerId: user?.id || null,
+      viewerIsPro,
+      memberships: membershipMap,
+    })
 
     return NextResponse.json({
       success: true,
@@ -205,7 +213,7 @@ export async function POST(request: NextRequest) {
         .select("is_admin")
         .eq("id", user.id)
         .maybeSingle()
-      if (!adminProfile?.is_admin && !/admin/i.test(user.email || "")) {
+      if (adminProfile?.is_admin !== true) {
         return NextResponse.json({ error: "Only platform admins can create a Pro-only circle" }, { status: 403 })
       }
     }
