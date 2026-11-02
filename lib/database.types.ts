@@ -971,6 +971,16 @@ export interface Database {
         }
         Returns: Json
       }
+      review_content_flag: {
+        Args: {
+          p_flag_id: string
+          p_moderator_id: string
+          p_status: string
+          p_action_taken?: string
+          p_moderator_notes?: string | null
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

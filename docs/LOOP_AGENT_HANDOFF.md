@@ -316,3 +316,12 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 ## 20. Private profile crawler exclusion — 2026-11-02
 
 - Restricted profile routes now return noindex/nofollow crawler directives and do not emit ProfilePage JSON-LD. The public preview remains generic and does not contain private identifying metadata.
+## 21. Moderation report and review integrity — 2026-11-02
+
+- Unified the active content_flags submission/review path around strict allowlists for content type and reason, UUID validation, 1,000-character detail limits, malformed JSON handling and duplicate-pending report conflicts.
+- The moderation queue now validates status filters and clamps pagination to 1–100 results with a bounded offset. Reporter notifications are accurately identified as receipts rather than mislabelled admin alerts.
+- Review actions use a transactional database function that locks a pending report, verifies the canonical moderator/admin role and commits the report decision together with a profile suspension. Suspension is only possible for the actual profile report, requires a reason, cannot target the reviewing moderator, and moderators cannot suspend other moderators/admins.
+- Suspension records the reason on the profile and uses the existing appeal process; the old unsupported seven-day banned_until write has been removed because its expiry semantics were not consistently implemented across account-status checks.
+- Added a race-safe unique pending-report index after preserving legacy duplicate rows as dismissed audit records. The new migration is wired into canonical production setup and is strict/fail-closed.
+- The detail endpoint no longer attempts to join a polymorphic content_id to profiles for every content type. The queue UI now exposes only supported content actions and asks for a reason before a profile suspension.
+- Live database migration execution and end-to-end moderator/appeal validation remain release gates.
