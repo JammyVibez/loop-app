@@ -279,3 +279,194 @@ $$;
 
 REVOKE ALL ON FUNCTION public.join_open_co_loop_session(TEXT, UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.join_open_co_loop_session(TEXT, UUID) TO service_role;
+
+
+-- Atomic direct invitation reservation. A single room-row lock serializes
+-- invitations, accepted direct invites and open-room joins against capacity.
+CREATE OR REPLACE FUNCTION public.create_co_loop_invitation(
+    p_session_id TEXT,
+    p_inviter_id UUID,
+    p_invitee_id UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+    room public.co_loop_sessions%ROWTYPE;
+    inviter_profile public.profiles%ROWTYPE;
+    invitee_profile public.profiles%ROWTYPE;
+    capacity INTEGER;
+    reserved_count INTEGER;
+    invitation_id UUID;
+BEGIN
+    IF p_session_id IS NULL OR BTRIM(p_session_id) = '' OR LENGTH(p_session_id) > 160
+       OR p_inviter_id IS NULL OR p_invitee_id IS NULL THEN
+        RAISE EXCEPTION 'invalid_invitation_input' USING ERRCODE = '22023';
+    END IF;
+
+    IF p_inviter_id = p_invitee_id THEN
+        RAISE EXCEPTION 'cannot_invite_self' USING ERRCODE = '22023';
+    END IF;
+
+    SELECT *
+      INTO room
+      FROM public.co_loop_sessions
+     WHERE session_id = p_session_id
+     FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'co_loop_not_found' USING ERRCODE = 'P0002';
+    END IF;
+    IF room.deleted_at IS NOT NULL THEN
+        RAISE EXCEPTION 'co_loop_deleted' USING ERRCODE = '55000';
+    END IF;
+    IF room.status <> 'active' THEN
+        RAISE EXCEPTION 'co_loop_inactive' USING ERRCODE = '55000';
+    END IF;
+
+    SELECT *
+      INTO inviter_profile
+      FROM public.profiles
+     WHERE id = p_inviter_id
+       AND is_banned IS NOT TRUE
+       AND is_deleted IS NOT TRUE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'co_loop_inviter_unavailable' USING ERRCODE = '42501';
+    END IF;
+
+    SELECT *
+      INTO invitee_profile
+      FROM public.profiles
+     WHERE id = p_invitee_id
+       AND is_banned IS NOT TRUE
+       AND is_deleted IS NOT TRUE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'co_loop_invitee_unavailable' USING ERRCODE = 'P0002';
+    END IF;
+
+    IF room.locked IS TRUE AND room.owner_id IS DISTINCT FROM p_inviter_id THEN
+        RAISE EXCEPTION 'co_loop_locked' USING ERRCODE = '42501';
+    END IF;
+
+    IF room.owner_id IS DISTINCT FROM p_inviter_id
+       AND NOT EXISTS (
+            SELECT 1
+              FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(room.co_authors) = 'array'
+                         THEN room.co_authors ELSE '[]'::jsonb END
+              ) AS author
+             WHERE author->>'id' = p_inviter_id::text
+       )
+       AND NOT EXISTS (
+            SELECT 1
+              FROM public.open_co_loop_participants AS participant
+             WHERE participant.session_id = p_session_id
+               AND participant.user_id = p_inviter_id
+       ) THEN
+        RAISE EXCEPTION 'co_loop_participant_required' USING ERRCODE = '42501';
+    END IF;
+
+    IF room.owner_id = p_invitee_id
+       OR EXISTS (
+            SELECT 1
+              FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(room.co_authors) = 'array'
+                         THEN room.co_authors ELSE '[]'::jsonb END
+              ) AS author
+             WHERE author->>'id' = p_invitee_id::text
+       )
+       OR EXISTS (
+            SELECT 1
+              FROM public.open_co_loop_participants AS participant
+             WHERE participant.session_id = p_session_id
+               AND participant.user_id = p_invitee_id
+       ) THEN
+        RAISE EXCEPTION 'co_loop_invitee_already_participating' USING ERRCODE = '55000';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM public.co_loop_invitations AS invitation
+         WHERE invitation.session_id = p_session_id
+           AND invitation.invitee_id = p_invitee_id
+           AND invitation.status IN ('pending', 'accepted')
+    ) THEN
+        RAISE EXCEPTION 'co_loop_invitation_already_active' USING ERRCODE = '55000';
+    END IF;
+
+    capacity := LEAST(4, GREATEST(2, COALESCE(room.max_collaborators, 4)));
+
+    -- Count the host, current co-authors, open-invite participants and every
+    -- pending/accepted direct invitation as one reserved seat each.
+    SELECT COUNT(*)::INTEGER
+      INTO reserved_count
+      FROM (
+        SELECT room.owner_id::text AS user_id
+         WHERE room.owner_id IS NOT NULL
+        UNION
+        SELECT author->>'id'
+          FROM jsonb_array_elements(
+                CASE WHEN jsonb_typeof(room.co_authors) = 'array'
+                     THEN room.co_authors ELSE '[]'::jsonb END
+          ) AS author
+         WHERE NULLIF(author->>'id', '') IS NOT NULL
+        UNION
+        SELECT participant.user_id::text
+          FROM public.open_co_loop_participants AS participant
+         WHERE participant.session_id = p_session_id
+        UNION
+        SELECT invitation.invitee_id::text
+          FROM public.co_loop_invitations AS invitation
+         WHERE invitation.session_id = p_session_id
+           AND invitation.status IN ('pending', 'accepted')
+      ) AS roster;
+
+    IF reserved_count >= capacity THEN
+        RAISE EXCEPTION 'co_loop_full' USING ERRCODE = '23514';
+    END IF;
+
+    INSERT INTO public.co_loop_invitations (
+        session_id, inviter_id, invitee_id, status, created_at, responded_at
+    )
+    VALUES (p_session_id, p_inviter_id, p_invitee_id, 'pending', NOW(), NULL)
+    ON CONFLICT (session_id, invitee_id)
+    DO UPDATE SET
+        inviter_id = EXCLUDED.inviter_id,
+        status = 'pending',
+        created_at = NOW(),
+        responded_at = NULL
+    RETURNING id INTO invitation_id;
+
+    UPDATE public.co_loop_sessions
+       SET updated_at = NOW()
+     WHERE session_id = p_session_id;
+
+    RETURN JSONB_BUILD_OBJECT(
+        'id', invitation_id,
+        'session_id', p_session_id,
+        'status', 'pending',
+        'capacity', capacity,
+        'reserved_count', reserved_count + 1
+    );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.create_co_loop_invitation(TEXT, UUID, UUID) FROM PUBLIC;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        REVOKE ALL ON FUNCTION public.create_co_loop_invitation(TEXT, UUID, UUID) FROM anon;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+        REVOKE ALL ON FUNCTION public.create_co_loop_invitation(TEXT, UUID, UUID) FROM authenticated;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+        GRANT EXECUTE ON FUNCTION public.create_co_loop_invitation(TEXT, UUID, UUID) TO service_role;
+    END IF;
+END
+$$;

@@ -102,7 +102,7 @@ const files = [
   // open_co_loop_participants table (see /api/co-loop/open-invite).
   "scripts/open-co-loop-invites-schema.sql",
   "scripts/co-loop-versions-schema.sql",
-  "scripts/co-loop-atomic-lifecycle.sql",
+
   "scripts/curated-emojis-schema.sql",
   // Spoiler media: is_spoiler column on loops (see SpoilerMedia component).
   "scripts/add-is-spoiler-column.sql",
@@ -123,6 +123,9 @@ const files = [
   "scripts/community-chat-schema.sql",
   // Account deletion/suspension fields and the private ban appeal lifecycle.
   "scripts/account-status-appeals-schema.sql",
+  // Co-Loop lifecycle functions validate account status and depend on the
+  // session, open-invite and version tables installed earlier in this runner.
+  "scripts/co-loop-atomic-lifecycle.sql",
   // Circle membership functions require the account suspension/deletion columns.
   // Row-locked public/private joins and approvals enforce Circle capacity.
   "scripts/circle-membership-lifecycle.sql",
@@ -236,7 +239,7 @@ function applyFile(file, { strict = false } = {}) {
 for (const file of files) {
   // Verification owns private identity evidence and the admin review function;
   // never report setup success when any part of this security migration fails.
-  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql"].includes(file) })
+  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql", "scripts/co-loop-atomic-lifecycle.sql"].includes(file) })
 }
 
 if (process.argv.includes("--with-seed")) {

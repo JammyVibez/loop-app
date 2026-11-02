@@ -436,3 +436,12 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Added an explicit owner-side access-level choice when inviting a collaborator: editor or viewer. The backend remains authoritative and accepts only those two roles.
 - Membership rows are preserved when collaboration is switched off rather than silently deleted, so owners can re-enable it without losing the roster. The collaboration flag is the active permission gate.
 - Validate on Rust CI and frontend build/verification. Production database checks should include toggling collaboration off and on with existing members.
+
+
+## 38. Co-Loop direct invitation reservation and capacity — 2026-11-02
+
+- Added a row-locked `create_co_loop_invitation` database function. It checks live room status, suspension/deletion state, host/co-author/open-participant inviter authority, room locking, duplicate participation/invitations and a maximum of four seats.
+- Capacity is now reserved atomically for the host, existing co-authors, open-invite participants and pending/accepted direct invitations. Concurrent invitations to different people cannot overbook the same room.
+- Reworked the direct-invite route to use that RPC before sending notifications or DMs. It returns clear conflict/permission responses and releases a pending reservation if every delivery surface fails.
+- Moved the Co-Loop lifecycle migration after the account-status migration because the new SQL function independently checks `profiles.is_banned` and `profiles.is_deleted`. The runner now treats the lifecycle script as a strict migration.
+- Added route tests for the authorization boundary, capacity conflict and failed-delivery reservation cleanup. Verify migration execution against a clean and existing database before release.

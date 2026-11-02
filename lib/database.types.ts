@@ -962,6 +962,14 @@ export interface Database {
           trend_score: number
         }[]
       }
+      create_co_loop_invitation: {
+        Args: {
+          p_session_id: string
+          p_inviter_id: string
+          p_invitee_id: string
+        }
+        Returns: Json
+      }
       review_verification_request: {
         Args: {
           p_request_id: string
