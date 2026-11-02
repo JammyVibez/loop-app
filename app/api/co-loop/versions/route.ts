@@ -7,6 +7,15 @@ export const dynamic = "force-dynamic"
 const MAX_CONTENT = 40_000
 const MAX_VERSIONS_LISTED = 100
 
+function normalizeHashtags(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((tag): tag is string => typeof tag === "string")
+    .map((tag) => tag.trim().replace(/^#/, ""))
+    .filter(Boolean)
+    .slice(0, 20)
+}
+
 function normalizeMediaUrls(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value
