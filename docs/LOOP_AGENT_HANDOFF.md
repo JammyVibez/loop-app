@@ -64,3 +64,9 @@ The success redirect carries the Stripe Checkout Session ID to /premium. LOOP re
 - Added profile-visible progress tests for guests, owners, public profiles, restricted profiles and blocked/inactive profiles.
 - The strict achievement integrity migration now performs an idempotent existing-user eligibility pass after backfilling source counters. Existing qualifying accounts receive each earned reward once, gated by the unique user-achievement row.
 - Live PostgreSQL validation is still required to verify backfill performance, reward ledger consistency and trigger counts.
+
+
+## 67. Achievement visibility route regression coverage — 2026-11-02
+
+- Added route-level tests covering guest/public access, guest/private denial, approved-follower access, bidirectional block denial and suspended-account denial.
+- The profile showcase remains separate from admin-granted Community Awards, preserving the distinction between earned progression milestones and manual recognition.
