@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ProxyImg } from "@/components/ui/proxy-img"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { AddChainToCollectionButton } from "@/components/collections/add-chain-to-collection-button"
-import { ArrowLeft, ArrowUpRight, Download, GitBranch, Lock, MessageCircle, Send, Pencil, Pause, Play, CheckCircle2, Archive } from "lucide-react"
+import { ArrowLeft, ArrowUpRight, Download, GitBranch, Lock, MessageCircle, Send, Pencil, Pause, Play, CheckCircle2, Archive, Search, UserPlus, Trash2 } from "lucide-react"
 
 type Chain = {
   id: string
@@ -135,6 +135,12 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
   const [chainPromptDraft, setChainPromptDraft] = useState("")
   const [savingChain, setSavingChain] = useState(false)
   const [chainSettingsError, setChainSettingsError] = useState("")
+  const [memberSearch, setMemberSearch] = useState("")
+  const [memberSearchResults, setMemberSearchResults] = useState<Array<{ id: string; username: string; display_name: string; avatar_url?: string | null }>>([])
+  const [memberRole, setMemberRole] = useState<"owner" | "collaborator" | "contributor" | "viewer">("contributor")
+  const [memberActionBusy, setMemberActionBusy] = useState<string | null>(null)
+  const [memberActionError, setMemberActionError] = useState("")
+  const [memberSearchLoading, setMemberSearchLoading] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -157,6 +163,47 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    const query = memberSearch.trim()
+    if (!data?.can_manage || query.length < 2) {
+      setMemberSearchResults([])
+      setMemberSearchLoading(false)
+      return
+    }
+
+    let cancelled = false
+    const timeout = window.setTimeout(async () => {
+      setMemberSearchLoading(true)
+      try {
+        const params = new URLSearchParams({ q: query, type: "users", limit: "8" })
+        const response = await fetch("/api/search?" + params.toString(), {
+          headers: getAuthHeader(),
+          cache: "no-store",
+        })
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error || "Could not search for members")
+        const existing = new Set((data.members || []).map((member) => member.user_id))
+        const candidates = Array.isArray(result.users)
+          ? result.users.filter((candidate: any) => (
+              typeof candidate.id === "string"
+              && !existing.has(candidate.id)
+              && candidate.id !== user?.id
+            )).slice(0, 8)
+          : []
+        if (!cancelled) setMemberSearchResults(candidates)
+      } catch {
+        if (!cancelled) setMemberSearchResults([])
+      } finally {
+        if (!cancelled) setMemberSearchLoading(false)
+      }
+    }, 250)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeout)
+    }
+  }, [data?.can_manage, data?.members, getAuthHeader, memberSearch, user?.id])
 
   const loadMoreContributions = async () => {
     if (!data?.contributions_has_more || loadingMore) return
@@ -296,6 +343,50 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
       setChainSettingsError(cause instanceof Error ? cause.message : "Could not update this Chain")
     } finally {
       setSavingChain(false)
+    }
+  }
+
+  const saveChainMember = async (memberUserId: string, role: string) => {
+    setMemberActionBusy(memberUserId)
+    setMemberActionError("")
+    try {
+      const response = await fetch(
+        "/api/v1/chains/" + encodeURIComponent(chainId) + "/members/" + encodeURIComponent(memberUserId),
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({ role }),
+        },
+      )
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.message || result.error || "Could not update Chain membership")
+      setMemberSearch("")
+      setMemberSearchResults([])
+      await load()
+    } catch (cause) {
+      setMemberActionError(cause instanceof Error ? cause.message : "Could not update Chain membership")
+    } finally {
+      setMemberActionBusy(null)
+    }
+  }
+
+  const removeChainMember = async (member: ChainMember) => {
+    if (member.user_id === chain.creator_id) return
+    if (!window.confirm("Remove @" + member.username + " from this Chain?")) return
+    setMemberActionBusy(member.user_id)
+    setMemberActionError("")
+    try {
+      const response = await fetch(
+        "/api/v1/chains/" + encodeURIComponent(chainId) + "/members/" + encodeURIComponent(member.user_id),
+        { method: "DELETE", headers: getAuthHeader() },
+      )
+      const result = response.status === 204 ? null : await response.json()
+      if (!response.ok) throw new Error(result?.message || result?.error || "Could not remove this Chain member")
+      await load()
+    } catch (cause) {
+      setMemberActionError(cause instanceof Error ? cause.message : "Could not remove this Chain member")
+    } finally {
+      setMemberActionBusy(null)
     }
   }
 
@@ -644,6 +735,99 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
                   </form>
                 )}
                 {chainSettingsError && <p role="alert" className="text-xs text-destructive">{chainSettingsError}</p>}
+                <div className="space-y-3 border-t border-border pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold">Collaborators</p>
+                    <span className="text-[10px] text-muted-foreground">{data.members.length} members</span>
+                  </div>
+                  <div className="space-y-2">
+                    {data.members.map((member) => {
+                      const ownerLocked = member.role === "owner" && user?.id !== chain.creator_id
+                      const memberLocked = member.user_id === chain.creator_id || ownerLocked
+                      return (
+                        <div key={member.user_id} className="flex items-center gap-2 rounded-lg border border-border/70 bg-background/70 p-2">
+                          <Avatar className="h-7 w-7">
+                            <AvatarImage src={member.avatar_url || undefined} />
+                            <AvatarFallback>{member.display_name.slice(0, 1).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-medium">{member.display_name}</p>
+                            <p className="truncate text-[10px] text-muted-foreground">@{member.username}</p>
+                          </div>
+                          <select
+                            aria-label={"Role for @" + member.username}
+                            value={member.role}
+                            disabled={memberLocked || memberActionBusy === member.user_id}
+                            onChange={(event) => void saveChainMember(member.user_id, event.target.value)}
+                            className="h-8 max-w-[112px] rounded-md border border-input bg-background px-1.5 text-[10px]"
+                          >
+                            {user?.id === chain.creator_id && <option value="owner">Owner</option>}
+                            <option value="collaborator">Collaborator</option>
+                            <option value="contributor">Contributor</option>
+                            <option value="viewer">Viewer</option>
+                          </select>
+                          {!memberLocked && (
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              aria-label={"Remove @" + member.username}
+                              disabled={memberActionBusy === member.user_id}
+                              onClick={() => void removeChainMember(member)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="space-y-2 rounded-lg border border-dashed border-border p-2">
+                    <p className="text-[11px] font-medium">Add someone to this Chain</p>
+                    <Input
+                      aria-label="Search people to add to this Chain"
+                      placeholder="Search by name or username…"
+                      value={memberSearch}
+                      onChange={(event) => setMemberSearch(event.target.value)}
+                      maxLength={120}
+                    />
+                    <select
+                      aria-label="New Chain member role"
+                      value={memberRole}
+                      onChange={(event) => setMemberRole(event.target.value as typeof memberRole)}
+                      className="h-9 w-full rounded-lg border border-input bg-background px-2 text-xs"
+                    >
+                      {user?.id === chain.creator_id && <option value="owner">Owner</option>}
+                      <option value="collaborator">Collaborator</option>
+                      <option value="contributor">Contributor</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
+                    {memberSearchLoading && <p className="text-[10px] text-muted-foreground">Searching…</p>}
+                    {memberSearchResults.map((candidate) => (
+                      <div key={candidate.id} className="flex items-center gap-2 rounded-md px-1 py-1">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-medium">{candidate.display_name}</p>
+                          <p className="truncate text-[10px] text-muted-foreground">@{candidate.username}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7"
+                          disabled={memberActionBusy === candidate.id}
+                          onClick={() => void saveChainMember(candidate.id, memberRole)}
+                        >
+                          <UserPlus className="h-3 w-3" /> Add
+                        </Button>
+                      </div>
+                    ))}
+                    {memberSearch.trim().length >= 2 && !memberSearchLoading && memberSearchResults.length === 0 && (
+                      <p className="text-[10px] text-muted-foreground">No eligible people found.</p>
+                    )}
+                  </div>
+                  {memberActionError && <p role="alert" className="text-xs text-destructive">{memberActionError}</p>}
+                </div>
               </div>
             )}
             {chain.source_chain_id && <Link href={"/chains/" + chain.source_chain_id} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold transition hover:bg-muted sm:col-span-1"><GitBranch className="h-3.5 w-3.5" /> View original Chain</Link>}
