@@ -13,6 +13,7 @@ use uuid::Uuid;
 
 use crate::{
     auth::{AuthenticatedUser, OptionalAuthenticatedUser},
+    notification_events,
     state::AppState,
 };
 
@@ -1020,7 +1021,7 @@ pub async fn contribute(
         .await
         .map_err(|error| db_error(error, "begin Chain contribution"))?;
     let chain = sqlx::query(
-        "SELECT creator_id, circle_id, contribution_policy, visibility, status FROM chains WHERE id = $1 FOR UPDATE",
+        "SELECT creator_id, circle_id, contribution_policy, visibility, status, title FROM chains WHERE id = $1 FOR UPDATE",
     )
     .bind(chain_id)
     .fetch_optional(&mut *transaction)
@@ -1043,6 +1044,9 @@ pub async fn contribute(
     let status: String = chain
         .try_get("status")
         .map_err(|e| db_error(e, "read Chain status"))?;
+    let chain_title: String = chain
+        .try_get("title")
+        .map_err(|e| db_error(e, "read Chain title"))?;
     if status != "active" {
         return Err(api_error(
             StatusCode::CONFLICT,
@@ -1182,6 +1186,17 @@ pub async fn contribute(
     .execute(&mut *transaction)
     .await
     .map_err(|error| db_error(error, "record Chain contributor"))?;
+
+    notification_events::notify_chain_contribution(
+        &mut transaction,
+        chain_id,
+        row.try_get("id").map_err(|error| db_error(error, "read new contribution id"))?,
+        user.id,
+        &user.display_name,
+        &chain_title,
+    )
+    .await
+    .map_err(|error| db_error(error, "create Chain contribution notifications"))?;
 
     sqlx::query(
         r#"

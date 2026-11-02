@@ -1,5 +1,6 @@
 mod auth;
 mod config;
+mod notification_events;
 mod routes;
 mod state;
 mod storage;
