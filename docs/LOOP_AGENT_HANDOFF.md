@@ -307,3 +307,9 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 ## 18. Verification RPC type contract — 2026-11-02
 
 - Added the new verification review RPC signature to the shared Supabase Database type contract. The admin route is now checked against the migration's argument names and JSON return shape rather than requiring an untyped RPC call.
+## 19. Public profile metadata privacy — 2026-11-02
+
+- Added one shared profile-visibility predicate used by both the profile API and server-rendered profile surfaces. Legacy missing settings remain public; private/follower-only and unknown configured values are treated as restricted.
+- Profile metadata no longer publishes private profiles' bios, profile pictures, verification mark or follower totals through Open Graph previews. Structured ProfilePage JSON-LD is omitted for suspended/deleted accounts and omits private profile signals.
+- Added focused tests for public, unlisted, private, follower-only, legacy and malformed visibility settings.
+- The profile API still provides the limited profile payload according to its existing private/block rules; remaining end-to-end cases for blocked users and content surfaces are still part of the cross-feature privacy test gate.
