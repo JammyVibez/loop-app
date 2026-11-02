@@ -42,6 +42,40 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_content_flags_one_pending_per_reporter
 CREATE INDEX IF NOT EXISTS idx_content_flags_reporter_created
   ON public.content_flags(reporter_id, created_at DESC);
 
+-- Reports contain potentially private allegations and evidence. All reads are
+-- server-mediated, except for moderator-only authenticated realtime SELECT.
+ALTER TABLE public.content_flags ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS content_flags_moderator_select ON public.content_flags;
+CREATE POLICY content_flags_moderator_select
+  ON public.content_flags
+  FOR SELECT
+  USING (
+    auth.uid() IS NOT NULL
+    AND EXISTS (
+      SELECT 1
+      FROM public.profiles AS reviewer
+      WHERE reviewer.id = auth.uid()
+        AND (reviewer.is_admin IS TRUE OR reviewer.is_moderator IS TRUE)
+    )
+  );
+
+REVOKE ALL ON TABLE public.content_flags FROM PUBLIC;
+
+DO $
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON TABLE public.content_flags FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON TABLE public.content_flags FROM authenticated;
+    GRANT SELECT ON TABLE public.content_flags TO authenticated;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.content_flags TO service_role;
+  END IF;
+END
+$;
+
 CREATE OR REPLACE FUNCTION public.review_content_flag(
   p_flag_id UUID,
   p_moderator_id UUID,

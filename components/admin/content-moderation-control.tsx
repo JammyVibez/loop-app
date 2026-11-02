@@ -13,8 +13,6 @@ import { Flag, CheckCircle, XCircle, Eye, User, Calendar, Filter } from "lucide-
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 
-import { createClient } from "@/lib/supabase";
-
 interface ContentFlag {
   id: string;
   content_type: string;
@@ -46,32 +44,16 @@ export function ContentModerationControl() {
   const [suspensionReason, setSuspensionReason] = useState("");
 
   useEffect(() => {
-    fetchContentFlags();
+    void fetchContentFlags()
 
-    // Setup Supabase Realtime for instant moderation reports
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-    );
+    // The browser uses the authenticated moderation API rather than a public
+    // Supabase table subscription. This keeps report evidence behind the
+    // server-side moderator check while still refreshing the queue frequently.
+    const refreshInterval = window.setInterval(() => {
+      void fetchContentFlags()
+    }, 20_000)
 
-    const channel = supabase
-      .channel("realtime:content_flags")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "content_flags" },
-        (payload) => {
-          toast({
-            title: "Real-time Report Update 🚩",
-            description: "A new content report or flag status change occurred.",
-          });
-          fetchContentFlags();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => window.clearInterval(refreshInterval)
   }, [filterStatus]);
 
   const fetchContentFlags = async () => {
