@@ -689,7 +689,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn scheduled_challenges_are_upcoming_not_live() {
         let now = Utc::now();
