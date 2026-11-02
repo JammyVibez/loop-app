@@ -44,8 +44,27 @@ ALTER TABLE public.ban_appeals
   ADD CONSTRAINT ban_appeals_status_check
   CHECK (status IN ('pending', 'approved', 'denied'));
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_ban_appeals_one_per_user
-  ON public.ban_appeals(user_id);
+-- Remove the legacy lifetime-unique constraint so decisions remain auditable.
+-- Only an open appeal is unique per user; a new appeal can follow a prior decision.
+ALTER TABLE public.ban_appeals
+  DROP CONSTRAINT IF EXISTS ban_appeals_user_id_key;
+
+WITH ranked_pending AS (
+  SELECT id,
+    ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at ASC, id ASC) AS duplicate_rank
+  FROM public.ban_appeals
+  WHERE status = 'pending'
+)
+UPDATE public.ban_appeals AS appeal
+SET status = 'denied',
+    admin_notes = COALESCE(NULLIF(appeal.admin_notes, ''), 'Duplicate pending appeal reconciled during schema migration.'),
+    reviewed_at = COALESCE(appeal.reviewed_at, NOW())
+FROM ranked_pending AS ranked
+WHERE ranked.id = appeal.id AND ranked.duplicate_rank > 1;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ban_appeals_one_pending_per_user
+  ON public.ban_appeals(user_id)
+  WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS idx_ban_appeals_status_created
   ON public.ban_appeals(status, created_at DESC);
 

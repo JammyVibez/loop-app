@@ -44,3 +44,19 @@ export function parseBanAppealReview(input: unknown): BanAppealReviewResult {
     },
   }
 }
+
+export type BanAppealSubmissionResult =
+  | { ok: true; value: { reason: string } }
+  | { ok: false; error: string }
+
+export function parseBanAppealSubmission(input: unknown): BanAppealSubmissionResult {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return { ok: false, error: "Request body must be an object" }
+  }
+  const reason = (input as Record<string, unknown>).reason
+  if (typeof reason !== "string") return { ok: false, error: "Appeal reason must be text" }
+  const normalized = reason.trim()
+  if (!normalized) return { ok: false, error: "Appeal reason is required" }
+  if (normalized.length > 2000) return { ok: false, error: "Appeal reason must be 2000 characters or fewer" }
+  return { ok: true, value: { reason: normalized } }
+}
