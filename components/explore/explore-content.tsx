@@ -22,7 +22,7 @@ import { Calendar } from "lucide-react"
 import { Spinner } from "@/components/ui/skeletons"
 import { ExploreSearchResults } from "@/components/explore/explore-search-results"
 
-type ExploreTab = "events" | "recent" | "following" | "community" | "deepest" | "creative" | "hashtags"
+type ExploreTab = "events" | "recent" | "personalized" | "following" | "community" | "deepest" | "creative" | "hashtags"
 
 interface TrendingHashtag {
   tag: string
@@ -87,7 +87,8 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
       }
 
       const sort = tab === "creative" ? "creative"
-        : tab === "following" ? "following"
+        : tab === "personalized" ? "personalized"
+          : tab === "following" ? "following"
           : tab === "community" ? "community"
             : "recent"
       const response = await fetch(`/api/explore/trending?type=loops&sort=${sort}&limit=24`, {
@@ -265,7 +266,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
       </div>
 
       <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as ExploreTab)} className="w-full">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:grid-cols-7">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:grid-cols-8">
           <TabsTrigger value="events" className="rounded-xl">
             <Calendar className="mr-1.5 h-4 w-4 text-cyan-400" />
             Global Events
@@ -273,6 +274,22 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
           <TabsTrigger value="recent" className="rounded-xl">
             <Clock className="mr-1.5 h-4 w-4" />
             Recent
+          </TabsTrigger>
+          {user && (
+            <TabsTrigger value="personalized" className="rounded-xl">
+              <Sparkles className="mr-1.5 h-4 w-4" />
+              For you
+            </TabsTrigger>
+          )}
+          {user && (
+            <TabsTrigger value="following" className="rounded-xl">
+              <Users className="mr-1.5 h-4 w-4" />
+              Following
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="community" className="rounded-xl">
+            <Users className="mr-1.5 h-4 w-4" />
+            From Circles
           </TabsTrigger>
           <TabsTrigger value="deepest" className="rounded-xl">
             <TreePine className="mr-1.5 h-4 w-4" />
@@ -300,6 +317,21 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
           </div>
           {renderLoops(loops, "No recent loops yet")}
         </TabsContent>
+
+        {user && (
+          <TabsContent value="personalized" className="mt-6 space-y-4">
+            <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Sparkles className="h-4 w-4 text-primary" />
+                A feed shaped by your interests
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Recommendations use topic tags from public Loops you have liked or saved. Private posts are never used as signals or shown here. Latest, Following and From Circles remain available whenever you prefer a different view.
+              </p>
+            </div>
+            {renderLoops(loops, "No interest matches yet. Like or save public Loops with topic tags to build this feed.")}
+          </TabsContent>
+        )}
 
         {user && (
           <TabsContent value="following" className="mt-6 space-y-4">
