@@ -2,7 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { circleCreateLimitMessage, getCircleCreateLimit } from "@/lib/circle-limits"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { isProUser } from "@/lib/pro-features"\nimport { filterCirclesForViewer } from "@/lib/circle-membership-state"
+import { isProUser } from "@/lib/pro-features"
+import { filterCirclesForViewer } from "@/lib/circle-membership-state"
 
 function createServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -125,7 +126,11 @@ export async function GET(request: NextRequest) {
       const viewerIsPro = await getViewerProStatus(supabase, user.id)
       return NextResponse.json({
         success: true,
-        circles: filterCirclesForViewer(filterProCircles(circles, viewerIsPro), {\n          viewerId: user.id,\n          viewerIsPro,\n          memberships: membershipMap,\n        }).map((circle) => normalizeCircle(circle, membershipMap)),
+        circles: filterCirclesForViewer(filterProCircles(circles, viewerIsPro), {
+          viewerId: user.id,
+          viewerIsPro,
+          memberships: membershipMap,
+        }).map((circle) => normalizeCircle(circle, membershipMap)),
         hasMore: false,
       })
     }

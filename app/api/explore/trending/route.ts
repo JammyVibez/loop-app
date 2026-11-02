@@ -5,7 +5,8 @@ import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 import { filterPrivateContent, getFollowingIds, getPrivateProfileIds } from "@/lib/privacy"
 import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats" 
 import { getUserFromRequest } from "@/lib/server-auth"
-import { diversifyByAuthor } from "@/lib/discovery-ranking"\nimport { isCirclePubliclyDiscoverable } from "@/lib/circle-membership-state"
+import { diversifyByAuthor } from "@/lib/discovery-ranking"
+import { isCirclePubliclyDiscoverable } from "@/lib/circle-membership-state"
 
 function engagementScore(loop: any) {
   const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats
@@ -203,7 +204,10 @@ export async function GET(request: NextRequest) {
         // 3) Growing circles by real member count (non-premium-only visible to everyone)
         const circleRows = circlesRes.data || []
         const circles = circleRows
-          .filter((c: any) => isCirclePubliclyDiscoverable({\n            isPrivate: c.is_private,\n            isPremiumOnly: c.is_premium_only,\n          }))
+          .filter((c: any) => isCirclePubliclyDiscoverable({
+            isPrivate: c.is_private,
+            isPremiumOnly: c.is_premium_only,
+          }))
           .map((c: any) => ({
             ...c,
             member_count: Number(
