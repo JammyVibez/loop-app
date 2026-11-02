@@ -394,3 +394,12 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Removed a stale email-substring administrator fallback from Pro-only Circle creation. The canonical `profiles.is_admin === true` flag is now required; an email address containing “admin” grants no privilege.
 - Added reusable Circle visibility predicates and regression tests for guest, pending, active, banned, owner, Premium and public-discovery cases.
 - Verify Circle listing, Discover, and all frontend CI checks on the resulting head. Private-resource E2E and database migration validation remain release gates.
+
+
+## 33. Circle visibility query and ownership consistency — 2026-11-02
+
+- Moved private Circle listing constraints into the database query before pagination. Hidden private rows can no longer consume browse pages and starve public Circle results; the old-schema fallback reapplies category, search and visibility filters.
+- Only active, approved or pending membership rows are considered private-list visibility grants. Banned, rejected and departed accounts cannot list a private Circle. Pending applicants may see the locked Circle shell; its private posts, events, rooms and roster remain behind the approved-access gate.
+- Aligned the private Circle access helper and detail endpoint with canonical `owner_id`. A historical `creator_id` no longer grants owner-level access after ownership has transferred.
+- Pro-only Circle creation remains restricted to the canonical `profiles.is_admin === true` value, with no email-string privilege shortcut.
+- Staging tests still need to cover ownership transfer, pending applications, membership revocation, pagination and the legacy-schema fallback.

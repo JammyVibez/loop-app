@@ -87,7 +87,7 @@ export async function checkCirclePrivateAccess(
     return { isPrivate: true, canView: false }
   }
 
-  if (circleRow.owner_id === userId || circleRow.creator_id === userId) {
+  if (circleRow.owner_id === userId) {
     return { isPrivate: true, canView: true }
   }
 

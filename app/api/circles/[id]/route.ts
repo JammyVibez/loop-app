@@ -74,7 +74,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
 
       // Circle owner always has dashboard access even if membership row is missing/stale.
-      if (circle.owner_id === currentUser.id || circle.creator_id === currentUser.id) {
+      if (circle.owner_id === currentUser.id) {
         isMember = true
         userRole = "owner"
         membershipStatus = "active"
