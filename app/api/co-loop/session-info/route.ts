@@ -256,4 +256,3 @@ const session_id = body.session_id || body.sessionId
   }
 }
 
-replace public session info GET

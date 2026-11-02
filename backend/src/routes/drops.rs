@@ -88,7 +88,11 @@ pub async fn list(
 ) -> Result<Json<DropsResponse>, ApiError> {
     let limit = query.limit.unwrap_or(30).clamp(1, 75);
     let offset = query.offset.unwrap_or(0).clamp(0, 1_000_000);
-    let search_filter = query.search.as_deref().map(str::trim).filter(|value| !value.is_empty());
+    let search_filter = query
+        .search
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
     let kind_filter = query
         .kind
         .as_deref()
@@ -175,7 +179,10 @@ pub async fn list(
             item.title.to_lowercase().contains(&needle)
                 || item.description.to_lowercase().contains(&needle)
                 || item.category.to_lowercase().contains(&needle)
-                || item.circle_name.as_deref().is_some_and(|name| name.to_lowercase().contains(&needle))
+                || item
+                    .circle_name
+                    .as_deref()
+                    .is_some_and(|name| name.to_lowercase().contains(&needle))
                 || item.source.to_lowercase().contains(&needle)
         });
     }
@@ -194,7 +201,11 @@ pub async fn list(
     let live_count = items.iter().filter(|item| item.is_live).count();
     let challenge_count = items.iter().filter(|item| item.kind == "challenge").count();
     let event_count = items.len().saturating_sub(challenge_count);
-    let items = items.into_iter().skip(offset as usize).take(limit as usize).collect();
+    let items = items
+        .into_iter()
+        .skip(offset as usize)
+        .take(limit as usize)
+        .collect();
 
     Ok(Json(DropsResponse {
         success: true,
