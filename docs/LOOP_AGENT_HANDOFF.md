@@ -325,3 +325,7 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Added a race-safe unique pending-report index after preserving legacy duplicate rows as dismissed audit records. The new migration is wired into canonical production setup and is strict/fail-closed.
 - The detail endpoint no longer attempts to join a polymorphic content_id to profiles for every content type. The queue UI now exposes only supported content actions and asks for a reason before a profile suspension.
 - Live database migration execution and end-to-end moderator/appeal validation remain release gates.
+## 22. Moderation report privacy and queue refresh — 2026-11-02
+
+- Enabled RLS on content_flags. Public direct access is revoked, authenticated SELECT is allowed only when the viewer's canonical profile is an administrator or moderator, and service-role server routes retain required CRUD access.
+- The moderation panel no longer subscribes with a public-key browser client to report records. It refreshes through the server-authenticated moderator endpoint every 20 seconds and preserves its initial loading state only for the first fetch.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +42,7 @@ export function ContentModerationControl() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [suspendFlag, setSuspendFlag] = useState<ContentFlag | null>(null);
   const [suspensionReason, setSuspensionReason] = useState("");
+  const hasLoadedModerationQueue = useRef(false);
 
   useEffect(() => {
     void fetchContentFlags()
@@ -58,7 +59,7 @@ export function ContentModerationControl() {
 
   const fetchContentFlags = async () => {
     try {
-      setLoading(true);
+      if (!hasLoadedModerationQueue.current) setLoading(true);
       const response = await fetch(`/api/moderation/flags?status=${filterStatus}`, {
         headers: getAuthHeader(),
       });
@@ -77,6 +78,7 @@ export function ContentModerationControl() {
         variant: "destructive",
       });
     } finally {
+      hasLoadedModerationQueue.current = true;
       setLoading(false);
     }
   };
@@ -324,7 +326,7 @@ export function ContentModerationControl() {
           <DialogHeader>
             <DialogTitle>Suspend reported account</DialogTitle>
             <DialogDescription>
-              This suspends the reported profile until an administrator lifts the suspension. The reason is recorded for the account appeal process.
+              This suspends the reported profile until the moderation team lifts the suspension. The reason is recorded for the account appeal process.
             </DialogDescription>
           </DialogHeader>
           <Textarea
