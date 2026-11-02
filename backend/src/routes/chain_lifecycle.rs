@@ -32,7 +32,10 @@ impl IntoResponse for ApiError {
 fn api_error(status: StatusCode, error: &'static str, message: impl Into<String>) -> ApiError {
     ApiError {
         status,
-        body: ApiErrorBody { error, message: message.into() },
+        body: ApiErrorBody {
+            error,
+            message: message.into(),
+        },
     }
 }
 
@@ -101,13 +104,17 @@ pub async fn fork(
     .fetch_optional(&state.database)
     .await
     .map_err(|error| db_error(error, "load source Chain for remix"))?
-    .ok_or_else(|| api_error(
-        StatusCode::NOT_FOUND,
-        "chain_not_found",
-        "This Chain is unavailable or cannot be remixed.",
-    ))?;
+    .ok_or_else(|| {
+        api_error(
+            StatusCode::NOT_FOUND,
+            "chain_not_found",
+            "This Chain is unavailable or cannot be remixed.",
+        )
+    })?;
 
-    let original_title: String = source.try_get("title").map_err(|e| db_error(e, "read source title"))?;
+    let original_title: String = source
+        .try_get("title")
+        .map_err(|e| db_error(e, "read source title"))?;
     let supplied_title = input.title.as_deref().map(str::trim);
     if supplied_title.is_some_and(|value| value.is_empty() || value.chars().count() > 120) {
         return Err(api_error(
@@ -117,19 +124,33 @@ pub async fn fork(
         ));
     }
     let title = supplied_title.map(str::to_owned).unwrap_or_else(|| {
-        format!("Remix: {original_title}").chars().take(120).collect()
+        format!("Remix: {original_title}")
+            .chars()
+            .take(120)
+            .collect()
     });
 
-    let source_visibility: String = source.try_get("visibility").map_err(|e| db_error(e, "read source visibility"))?;
-    let source_circle_id: Option<Uuid> = source.try_get("circle_id").map_err(|e| db_error(e, "read source Circle"))?;
+    let source_visibility: String = source
+        .try_get("visibility")
+        .map_err(|e| db_error(e, "read source visibility"))?;
+    let source_circle_id: Option<Uuid> = source
+        .try_get("circle_id")
+        .map_err(|e| db_error(e, "read source Circle"))?;
     let visibility = match (source_visibility.as_str(), source_circle_id.is_none()) {
         ("public", true) => "public",
         ("unlisted", true) => "unlisted",
         _ => "private",
     };
-    let contribution_policy = if visibility == "private" { "members" } else { "open" };
+    let contribution_policy = if visibility == "private" {
+        "members"
+    } else {
+        "open"
+    };
 
-    let mut transaction = state.database.begin().await
+    let mut transaction = state
+        .database
+        .begin()
+        .await
         .map_err(|error| db_error(error, "begin Chain remix"))?;
     let fork_id: Uuid = sqlx::query_scalar(
         r#"
@@ -144,14 +165,38 @@ pub async fn fork(
     .bind(user.id)
     .bind(chain_id)
     .bind(&title)
-    .bind(source.try_get::<String, _>("description").map_err(|e| db_error(e, "read source description"))?)
-    .bind(source.try_get::<String, _>("prompt").map_err(|e| db_error(e, "read source prompt"))?)
-    .bind(source.try_get::<String, _>("kind").map_err(|e| db_error(e, "read source kind"))?)
-    .bind(source.try_get::<String, _>("category").map_err(|e| db_error(e, "read source category"))?)
+    .bind(
+        source
+            .try_get::<String, _>("description")
+            .map_err(|e| db_error(e, "read source description"))?,
+    )
+    .bind(
+        source
+            .try_get::<String, _>("prompt")
+            .map_err(|e| db_error(e, "read source prompt"))?,
+    )
+    .bind(
+        source
+            .try_get::<String, _>("kind")
+            .map_err(|e| db_error(e, "read source kind"))?,
+    )
+    .bind(
+        source
+            .try_get::<String, _>("category")
+            .map_err(|e| db_error(e, "read source category"))?,
+    )
     .bind(visibility)
     .bind(contribution_policy)
-    .bind(source.try_get::<Option<String>, _>("cover_image_url").map_err(|e| db_error(e, "read source cover"))?)
-    .bind(source.try_get::<Value, _>("metadata").map_err(|e| db_error(e, "read source metadata"))?)
+    .bind(
+        source
+            .try_get::<Option<String>, _>("cover_image_url")
+            .map_err(|e| db_error(e, "read source cover"))?,
+    )
+    .bind(
+        source
+            .try_get::<Value, _>("metadata")
+            .map_err(|e| db_error(e, "read source metadata"))?,
+    )
     .fetch_one(&mut *transaction)
     .await
     .map_err(|error| db_error(error, "create Chain remix"))?;
@@ -219,14 +264,19 @@ pub async fn fork(
     .await
     .map_err(|error| db_error(error, "update remix counters"))?;
 
-    transaction.commit().await
+    transaction
+        .commit()
+        .await
         .map_err(|error| db_error(error, "commit Chain remix"))?;
 
-    Ok((StatusCode::CREATED, Json(ForkChainResponse {
-        id: fork_id,
-        source_chain_id: chain_id,
-        title,
-    })))
+    Ok((
+        StatusCode::CREATED,
+        Json(ForkChainResponse {
+            id: fork_id,
+            source_chain_id: chain_id,
+            title,
+        }),
+    ))
 }
 
 #[derive(Deserialize)]
@@ -255,8 +305,14 @@ pub async fn update_contribution(
             "Provide at least one contribution field to update.",
         ));
     }
-    if input.title.as_ref().is_some_and(|value| value.chars().count() > 120)
-        || input.content.as_ref().is_some_and(|value| value.chars().count() > 8_000)
+    if input
+        .title
+        .as_ref()
+        .is_some_and(|value| value.chars().count() > 120)
+        || input
+            .content
+            .as_ref()
+            .is_some_and(|value| value.chars().count() > 8_000)
     {
         return Err(api_error(
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -265,7 +321,9 @@ pub async fn update_contribution(
         ));
     }
     if let Some(payload) = input.payload.as_ref() {
-        if !payload.is_object() || serde_json::to_vec(payload).map_or(true, |value| value.len() > 64 * 1024) {
+        if !payload.is_object()
+            || serde_json::to_vec(payload).map_or(true, |value| value.len() > 64 * 1024)
+        {
             return Err(api_error(
                 StatusCode::UNPROCESSABLE_ENTITY,
                 "invalid_contribution_payload",
@@ -274,7 +332,10 @@ pub async fn update_contribution(
         }
     }
 
-    let mut transaction = state.database.begin().await
+    let mut transaction = state
+        .database
+        .begin()
+        .await
         .map_err(|error| db_error(error, "begin contribution revision"))?;
     let current = sqlx::query(
         r#"
@@ -292,13 +353,17 @@ pub async fn update_contribution(
     .fetch_optional(&mut *transaction)
     .await
     .map_err(|error| db_error(error, "load contribution for editing"))?
-    .ok_or_else(|| api_error(
-        StatusCode::NOT_FOUND,
-        "contribution_not_found",
-        "This contribution is unavailable.",
-    ))?;
+    .ok_or_else(|| {
+        api_error(
+            StatusCode::NOT_FOUND,
+            "contribution_not_found",
+            "This contribution is unavailable.",
+        )
+    })?;
 
-    let author_id: Uuid = current.try_get("author_id").map_err(|e| db_error(e, "read contribution author"))?;
+    let author_id: Uuid = current
+        .try_get("author_id")
+        .map_err(|e| db_error(e, "read contribution author"))?;
     if author_id != user.id {
         return Err(api_error(
             StatusCode::FORBIDDEN,
@@ -307,16 +372,30 @@ pub async fn update_contribution(
         ));
     }
 
-    let contribution_type: String = current.try_get("contribution_type").map_err(|e| db_error(e, "read contribution type"))?;
-    let old_title: Option<String> = current.try_get("title").map_err(|e| db_error(e, "read contribution title"))?;
-    let old_content: String = current.try_get("content").map_err(|e| db_error(e, "read contribution content"))?;
-    let old_payload: Value = current.try_get("payload").map_err(|e| db_error(e, "read contribution payload"))?;
+    let contribution_type: String = current
+        .try_get("contribution_type")
+        .map_err(|e| db_error(e, "read contribution type"))?;
+    let old_title: Option<String> = current
+        .try_get("title")
+        .map_err(|e| db_error(e, "read contribution title"))?;
+    let old_content: String = current
+        .try_get("content")
+        .map_err(|e| db_error(e, "read contribution content"))?;
+    let old_payload: Value = current
+        .try_get("payload")
+        .map_err(|e| db_error(e, "read contribution payload"))?;
     let next_title = input.title.or(old_title.clone());
     let next_content = input.content.unwrap_or_else(|| old_content.clone());
     let next_payload = input.payload.unwrap_or_else(|| old_payload.clone());
 
-    if matches!(contribution_type.as_str(), "image" | "video" | "audio" | "document" | "link") {
-        let attachment_url = next_payload.get("url").and_then(Value::as_str).map(str::trim);
+    if matches!(
+        contribution_type.as_str(),
+        "image" | "video" | "audio" | "document" | "link"
+    ) {
+        let attachment_url = next_payload
+            .get("url")
+            .and_then(Value::as_str)
+            .map(str::trim);
         if !attachment_url.is_some_and(is_https) {
             return Err(api_error(
                 StatusCode::UNPROCESSABLE_ENTITY,
@@ -376,10 +455,15 @@ pub async fn update_contribution(
         .await
         .map_err(|error| db_error(error, "touch Chain after contribution edit"))?;
 
-    transaction.commit().await
+    transaction
+        .commit()
+        .await
         .map_err(|error| db_error(error, "commit contribution revision"))?;
 
-    Ok(Json(UpdateContributionResponse { success: true, revision_number }))
+    Ok(Json(UpdateContributionResponse {
+        success: true,
+        revision_number,
+    }))
 }
 
 #[derive(Serialize)]
@@ -460,16 +544,31 @@ pub async fn list_revisions(
     .await
     .map_err(|error| db_error(error, "load contribution revisions"))?;
 
-    let revisions = rows.into_iter().map(|row| {
-        Ok(ContributionRevision {
-            id: row.try_get("id").map_err(|e| db_error(e, "read revision id"))?,
-            revision_number: row.try_get("revision_number").map_err(|e| db_error(e, "read revision number"))?,
-            title: row.try_get("title").map_err(|e| db_error(e, "read revision title"))?,
-            content: row.try_get("content").map_err(|e| db_error(e, "read revision content"))?,
-            editor_username: row.try_get("editor_username").map_err(|e| db_error(e, "read revision editor"))?,
-            created_at: row.try_get("created_at").map_err(|e| db_error(e, "read revision timestamp"))?,
+    let revisions = rows
+        .into_iter()
+        .map(|row| {
+            Ok(ContributionRevision {
+                id: row
+                    .try_get("id")
+                    .map_err(|e| db_error(e, "read revision id"))?,
+                revision_number: row
+                    .try_get("revision_number")
+                    .map_err(|e| db_error(e, "read revision number"))?,
+                title: row
+                    .try_get("title")
+                    .map_err(|e| db_error(e, "read revision title"))?,
+                content: row
+                    .try_get("content")
+                    .map_err(|e| db_error(e, "read revision content"))?,
+                editor_username: row
+                    .try_get("editor_username")
+                    .map_err(|e| db_error(e, "read revision editor"))?,
+                created_at: row
+                    .try_get("created_at")
+                    .map_err(|e| db_error(e, "read revision timestamp"))?,
+            })
         })
-    }).collect::<Result<Vec<_>, ApiError>>()?;
+        .collect::<Result<Vec<_>, ApiError>>()?;
 
     Ok(Json(revisions))
 }
