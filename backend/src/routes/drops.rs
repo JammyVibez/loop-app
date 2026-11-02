@@ -207,7 +207,8 @@ pub async fn list(
         if kind_filter != Some("event") {
             append_rows(
                 &mut items,
-                load_circle_challenges(&state.database, &circle_ids, per_source_limit, filters).await?,
+                load_circle_challenges(&state.database, &circle_ids, per_source_limit, filters)
+                    .await?,
                 "challenge",
                 "circle_challenge",
             )?;
@@ -243,7 +244,10 @@ pub async fn list(
     }
 
     items.sort_by(|left, right| match sort {
-        "recent" => right.created_at.cmp(&left.created_at).then_with(|| left.id.cmp(&right.id)),
+        "recent" => right
+            .created_at
+            .cmp(&left.created_at)
+            .then_with(|| left.id.cmp(&right.id)),
         "popular" => right
             .participants_count
             .cmp(&left.participants_count)
@@ -291,7 +295,11 @@ pub async fn list(
     }))
 }
 
-async fn load_global_events(pool: &PgPool, limit: i64, filters: DropFilters<'_>) -> Result<Vec<PgRow>, ApiError> {
+async fn load_global_events(
+    pool: &PgPool,
+    limit: i64,
+    filters: DropFilters<'_>,
+) -> Result<Vec<PgRow>, ApiError> {
     sqlx::query(
         r#"
         SELECT
