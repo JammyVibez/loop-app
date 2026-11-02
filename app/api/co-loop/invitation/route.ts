@@ -103,10 +103,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "This invitation is no longer active" }, { status: 409 })
     }
 
+    let suppliedDeliveryIdMatches =
+      notification?.id === inviteId || message?.id === inviteId
+
+    if (inviteId !== undefined && ledger && inviteId !== ledger.id && !suppliedDeliveryIdMatches) {
+      const [{ data: idNotification, error: idNotificationError }, { data: idMessage, error: idMessageError }] = await Promise.all([
+        supabase
+          .from("notifications")
+          .select("id, data")
+          .eq("id", inviteId)
+          .eq("user_id", user.id)
+          .eq("type", "co_loop_invite")
+          .filter("data->>session_id", "eq", sessionId)
+          .maybeSingle(),
+        supabase
+          .from("messages")
+          .select("id")
+          .eq("id", inviteId)
+          .eq("recipient_id", user.id)
+          .eq("message_type", "co_loop_invite")
+          .like("media_url", `%session=${encodedSessionId}%`)
+          .maybeSingle(),
+      ])
+      if (idNotificationError || idMessageError) {
+        return NextResponse.json({ error: "Could not verify this invitation" }, { status: 500 })
+      }
+      notification = idNotification
+      message = idMessage
+      suppliedDeliveryIdMatches = Boolean(idNotification || idMessage)
+    }
+
     const suppliedIdMatches = inviteId === undefined
-      || notification?.id === inviteId
-      || message?.id === inviteId
       || ledger?.id === inviteId
+      || suppliedDeliveryIdMatches
     if (!suppliedIdMatches) {
       return NextResponse.json({ error: "This invitation was not sent to your account" }, { status: 403 })
     }
