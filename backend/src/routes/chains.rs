@@ -1275,6 +1275,350 @@ pub async fn update(
     Ok(Json(parse_summary(&row)?))
 }
 
+fn valid_chain_member_role(value: &str) -> Option<&'static str> {
+    match value.trim().to_lowercase().as_str() {
+        "collaborator" => Some("collaborator"),
+        "contributor" => Some("contributor"),
+        "viewer" => Some("viewer"),
+        _ => None,
+    }
+}
+
+#[derive(Deserialize)]
+pub struct SetChainMemberInput {
+    role: String,
+}
+
+#[derive(Serialize)]
+pub struct ChainMemberMutationResponse {
+    chain_id: Uuid,
+    user_id: Uuid,
+    role: String,
+}
+
+/// Add or change a Chain collaborator. The creator and assigned Chain owners
+/// are the only people who can manage membership; Circle membership is also
+/// required for Circle-scoped Chains.
+pub async fn set_member(
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
+    Path((chain_id, member_user_id)): Path<(Uuid, Uuid)>,
+    Json(input): Json<SetChainMemberInput>,
+) -> Result<Json<ChainMemberMutationResponse>, ApiError> {
+    let role = valid_chain_member_role(&input.role).ok_or_else(|| {
+        api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_chain_member_role",
+            "Chain member roles must be collaborator, contributor or viewer.",
+        )
+    })?;
+
+    let mut transaction = state
+        .database
+        .begin()
+        .await
+        .map_err(|error| db_error(error, "begin Chain member update"))?;
+    let chain = sqlx::query(
+        "SELECT creator_id, circle_id FROM chains WHERE id = $1 FOR UPDATE",
+    )
+    .bind(chain_id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "load Chain for member update"))?
+    .ok_or_else(|| {
+        api_error(
+            StatusCode::NOT_FOUND,
+            "chain_not_found",
+            "This Chain is unavailable.",
+        )
+    })?;
+    let creator_id: Uuid = chain
+        .try_get("creator_id")
+        .map_err(|error| db_error(error, "read Chain creator"))?;
+    let circle_id: Option<Uuid> = chain
+        .try_get("circle_id")
+        .map_err(|error| db_error(error, "read Chain Circle"))?;
+    let actor_role = sqlx::query_scalar::<_, String>(
+        "SELECT role FROM chain_members WHERE chain_id = $1 AND user_id = $2",
+    )
+    .bind(chain_id)
+    .bind(user.id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "verify Chain manager"))?;
+    let is_creator = creator_id == user.id;
+    if !is_creator && actor_role.as_deref() != Some("owner") {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "chain_manager_required",
+            "Only the Chain creator or an assigned Chain owner can manage members.",
+        ));
+    }
+
+    if let Some(circle_id) = circle_id {
+        let actor_is_circle_member = sqlx::query_scalar::<_, bool>(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM circles AS circle
+                WHERE circle.id = $1 AND (
+                    circle.owner_id = $2
+                    OR EXISTS (
+                        SELECT 1 FROM circle_members AS member
+                        WHERE member.circle_id = circle.id
+                          AND member.user_id = $2
+                          AND member.status IN ('active', 'approved')
+                    )
+                )
+            )
+            "#,
+        )
+        .bind(circle_id)
+        .bind(user.id)
+        .fetch_one(&mut *transaction)
+        .await
+        .map_err(|error| db_error(error, "verify manager Circle membership"))?;
+        if !actor_is_circle_member {
+            return Err(api_error(
+                StatusCode::FORBIDDEN,
+                "circle_membership_required",
+                "Rejoin the Circle before managing its Chain.",
+            ));
+        }
+
+        let target_is_circle_member = sqlx::query_scalar::<_, bool>(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM circles AS circle
+                WHERE circle.id = $1 AND (
+                    circle.owner_id = $2
+                    OR EXISTS (
+                        SELECT 1 FROM circle_members AS member
+                        WHERE member.circle_id = circle.id
+                          AND member.user_id = $2
+                          AND member.status IN ('active', 'approved')
+                    )
+                )
+            )
+            "#,
+        )
+        .bind(circle_id)
+        .bind(member_user_id)
+        .fetch_one(&mut *transaction)
+        .await
+        .map_err(|error| db_error(error, "verify target Circle membership"))?;
+        if !target_is_circle_member {
+            return Err(api_error(
+                StatusCode::FORBIDDEN,
+                "target_circle_membership_required",
+                "Only current Circle members can be added to a Circle-scoped Chain.",
+            ));
+        }
+    }
+
+    if member_user_id == creator_id {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "chain_creator_role_locked",
+            "The Chain creator's ownership cannot be changed here.",
+        ));
+    }
+
+    let target_exists = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS (SELECT 1 FROM profiles WHERE id = $1)",
+    )
+    .bind(member_user_id)
+    .fetch_one(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "verify Chain member account"))?;
+    if !target_exists {
+        return Err(api_error(
+            StatusCode::NOT_FOUND,
+            "chain_member_not_found",
+            "This account is unavailable.",
+        ));
+    }
+
+    let existing_role = sqlx::query_scalar::<_, String>(
+        "SELECT role FROM chain_members WHERE chain_id = $1 AND user_id = $2",
+    )
+    .bind(chain_id)
+    .bind(member_user_id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "load existing Chain member role"))?;
+    if existing_role.as_deref() == Some("owner") && !is_creator {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "chain_owner_role_locked",
+            "Only the original creator can change another assigned owner's role.",
+        ));
+    }
+
+    sqlx::query(
+        r#"
+        INSERT INTO chain_members (chain_id, user_id, role)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (chain_id, user_id)
+        DO UPDATE SET role = EXCLUDED.role
+        "#,
+    )
+    .bind(chain_id)
+    .bind(member_user_id)
+    .bind(role)
+    .execute(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "save Chain member role"))?;
+
+    sqlx::query(
+        "UPDATE chains SET participant_count = (SELECT COUNT(*) FROM chain_members WHERE chain_id = $1), updated_at = NOW() WHERE id = $1",
+    )
+    .bind(chain_id)
+    .execute(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "update Chain member count"))?;
+
+    transaction
+        .commit()
+        .await
+        .map_err(|error| db_error(error, "commit Chain member update"))?;
+
+    Ok(Json(ChainMemberMutationResponse {
+        chain_id,
+        user_id: member_user_id,
+        role: role.to_owned(),
+    }))
+}
+
+/// Remove an invited or contributing member from a Chain. Creator ownership
+/// is permanent; assigned owners can only be removed by the original creator.
+pub async fn remove_member(
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
+    Path((chain_id, member_user_id)): Path<(Uuid, Uuid)>,
+) -> Result<StatusCode, ApiError> {
+    let mut transaction = state
+        .database
+        .begin()
+        .await
+        .map_err(|error| db_error(error, "begin Chain member removal"))?;
+    let chain = sqlx::query(
+        "SELECT creator_id, circle_id FROM chains WHERE id = $1 FOR UPDATE",
+    )
+    .bind(chain_id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "load Chain for member removal"))?
+    .ok_or_else(|| {
+        api_error(
+            StatusCode::NOT_FOUND,
+            "chain_not_found",
+            "This Chain is unavailable.",
+        )
+    })?;
+    let creator_id: Uuid = chain
+        .try_get("creator_id")
+        .map_err(|error| db_error(error, "read Chain creator"))?;
+    let circle_id: Option<Uuid> = chain
+        .try_get("circle_id")
+        .map_err(|error| db_error(error, "read Chain Circle"))?;
+    let actor_role = sqlx::query_scalar::<_, String>(
+        "SELECT role FROM chain_members WHERE chain_id = $1 AND user_id = $2",
+    )
+    .bind(chain_id)
+    .bind(user.id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "verify Chain manager"))?;
+    let is_creator = creator_id == user.id;
+    if !is_creator && actor_role.as_deref() != Some("owner") {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "chain_manager_required",
+            "Only the Chain creator or an assigned Chain owner can manage members.",
+        ));
+    }
+    if member_user_id == creator_id {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "chain_creator_role_locked",
+            "The Chain creator cannot be removed.",
+        ));
+    }
+    if let Some(circle_id) = circle_id {
+        let actor_is_circle_member = sqlx::query_scalar::<_, bool>(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM circles AS circle
+                WHERE circle.id = $1 AND (
+                    circle.owner_id = $2
+                    OR EXISTS (
+                        SELECT 1 FROM circle_members AS member
+                        WHERE member.circle_id = circle.id
+                          AND member.user_id = $2
+                          AND member.status IN ('active', 'approved')
+                    )
+                )
+            )
+            "#,
+        )
+        .bind(circle_id)
+        .bind(user.id)
+        .fetch_one(&mut *transaction)
+        .await
+        .map_err(|error| db_error(error, "verify manager Circle membership"))?;
+        if !actor_is_circle_member {
+            return Err(api_error(
+                StatusCode::FORBIDDEN,
+                "circle_membership_required",
+                "Rejoin the Circle before managing its Chain.",
+            ));
+        }
+    }
+
+    let target_role = sqlx::query_scalar::<_, String>(
+        "SELECT role FROM chain_members WHERE chain_id = $1 AND user_id = $2",
+    )
+    .bind(chain_id)
+    .bind(member_user_id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "load Chain member"))?
+    .ok_or_else(|| {
+        api_error(
+            StatusCode::NOT_FOUND,
+            "chain_member_not_found",
+            "This Chain member was not found.",
+        )
+    })?;
+    if target_role == "owner" && !is_creator {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "chain_owner_role_locked",
+            "Only the original creator can remove another assigned owner.",
+        ));
+    }
+
+    sqlx::query("DELETE FROM chain_members WHERE chain_id = $1 AND user_id = $2")
+        .bind(chain_id)
+        .bind(member_user_id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|error| db_error(error, "remove Chain member"))?;
+    sqlx::query(
+        "UPDATE chains SET participant_count = GREATEST(1, (SELECT COUNT(*) FROM chain_members WHERE chain_id = $1) + 1), updated_at = NOW() WHERE id = $1",
+    )
+    .bind(chain_id)
+    .execute(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "update Chain member count"))?;
+
+    transaction
+        .commit()
+        .await
+        .map_err(|error| db_error(error, "commit Chain member removal"))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
 pub async fn contribute(
     State(state): State<AppState>,
     user: AuthenticatedUser,
