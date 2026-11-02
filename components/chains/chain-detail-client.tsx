@@ -113,6 +113,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
   const [revisionHistory, setRevisionHistory] = useState<Record<string, ContributionRevision[]>>({})
   const [expandedHistory, setExpandedHistory] = useState<string | null>(null)
   const [revisionLoading, setRevisionLoading] = useState<string | null>(null)
+  const [restoringRevisionId, setRestoringRevisionId] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [exportFormat, setExportFormat] = useState<"markdown" | "json">("markdown")
 
@@ -342,6 +343,47 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
       setExpandedHistory(null)
     } finally {
       setRevisionLoading(null)
+    }
+  }
+
+
+  const restoreContributionRevision = async (contributionId: string, revision: ContributionRevision) => {
+    const confirmed = window.confirm(
+      `Restore revision ${revision.revision_number}? The current version will first be saved to history.`,
+    )
+    if (!confirmed) return
+
+    setRestoringRevisionId(revision.id)
+    setError("")
+    try {
+      const response = await fetch(
+        "/api/v1/chains/" + encodeURIComponent(chainId) + "/contributions/" +
+          encodeURIComponent(contributionId) + "/revisions/" + encodeURIComponent(revision.id) + "/restore",
+        {
+          method: "POST",
+          headers: getAuthHeader(),
+        },
+      )
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.message || result.error || "Could not restore this revision")
+
+      await load()
+      const historyResponse = await fetch(
+        "/api/v1/chains/" + encodeURIComponent(chainId) + "/contributions/" +
+          encodeURIComponent(contributionId) + "/revisions",
+        { headers: getAuthHeader(), cache: "no-store" },
+      )
+      const history = await historyResponse.json()
+      if (!historyResponse.ok) throw new Error(history.message || history.error || "Revision restored, but history could not refresh")
+      setRevisionHistory((current) => ({
+        ...current,
+        [contributionId]: Array.isArray(history) ? history : [],
+      }))
+      setExpandedHistory(contributionId)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not restore this revision")
+    } finally {
+      setRestoringRevisionId(null)
     }
   }
 
@@ -721,6 +763,17 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
                                     {typeof revision.payload.file_name === "string" ? revision.payload.file_name : "Open previous attachment"}
                                   </a>
                                 )}
+                                <div className="mt-2 flex justify-end">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => void restoreContributionRevision(contribution.id, revision)}
+                                    disabled={restoringRevisionId !== null}
+                                  >
+                                    {restoringRevisionId === revision.id ? "Restoring…" : "Restore this version"}
+                                  </Button>
+                                </div>
                               </li>
                             ))}
                           </ol>

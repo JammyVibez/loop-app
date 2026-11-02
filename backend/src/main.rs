@@ -97,6 +97,10 @@ async fn main() -> anyhow::Result<()> {
             "/v1/chains/{chain_id}/contributions/{contribution_id}/revisions",
             get(routes::chain_lifecycle::list_revisions),
         )
+        .route(
+            "/v1/chains/{chain_id}/contributions/{contribution_id}/revisions/{revision_id}/restore",
+            post(routes::chain_lifecycle::restore_contribution_revision),
+        )
         .route("/v1/follow-requests", get(routes::follow_requests::list))
         .route(
             "/v1/follow-requests/{request_id}",

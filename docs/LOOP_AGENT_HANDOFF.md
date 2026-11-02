@@ -189,9 +189,9 @@ This is a checkpoint, not a promise that the branch will remain at this SHA. Alw
 - Existing product documents already contain the broad philosophy, core object model, phases and release gates. This file makes that direction easier for a fresh agent to resume.
 
 ### Code and check observations on the observed head
-- Rust formatting, compilation/check and all 26 unit tests passed in the latest Rust workflow; Clippy failed on two collapsible-if lints in `chain_lifecycle.rs` and `drops.rs`.
+- At the checkpoint commit `57fcc1e`, the previous Rust workflow had passed formatting, compilation and all 26 tests, but the new workflow then reported one rustfmt-only blank-line difference in `drops.rs`. The same commit also fixes the two previously reported Clippy lints; verify Clippy again on the next head.
 - Frontend `npm run verify` and production build failed because `Sparkles` was used but not imported in `components/explore/explore-content.tsx`.
-- Chains already have Rust create/list/detail/contribution routes, format-aware payload validation, contribution edit/revision history, fork/remix copying and a client-side Markdown/JSON export flow. Verify the current source before extending; revision restoration and more complete moderation/collaboration/integration remain follow-up work.
+- Chains already have Rust create/list/detail/contribution routes, format-aware payload validation, contribution edit/revision history, fork/remix copying and a client-side Markdown/JSON export flow. This workstream is now adding atomic, author-only revision restoration with current-version preservation and access checks; verify its CI before treating it as complete.
 - Discover already has recent, following, community, creative, hashtag, Chain and event surfaces, plus a personalized feed based on public Loops liked/saved by the viewer and topic tags. It still needs stronger controls, diversity, universal search integration and privacy/edge-case tests.
 - Drops already merges global events, hosted events, Circle events and Circle challenges, with source-level filtering and merged ordering. Verify SQL schema/authorization and cross-source pagination; time/state behavior and filter ordering need robust tests.
 - The PR description also reports Collections, Rust API foundations, Circle event lifecycle, Inbox/group access checks, follow requests and Premium billing/receipt work. Treat each as an implementation claim to audit in source and workflows before marking it production-ready.
@@ -201,3 +201,10 @@ This is a checkpoint, not a promise that the branch will remain at this SHA. Alw
 ## 9. Completion standard
 
 A feature is finished only when its real user journey works, object permissions and privacy boundaries hold, the UI is accessible and responsive, migrations are safe, errors are understandable, and the relevant tests and CI pass on the exact commit. A route, page, design mock, PR description or green type-check alone is not completion.
+
+
+### Follow-up implementation — Chains revision restore
+- Added an author-only revision restore route that locks the contribution, checks current visibility/membership, validates the stored revision, saves the current version as a new immutable revision, restores the chosen version and updates Chain timestamps in one transaction.
+- Contribution edit lookup now checks current Chain access in addition to author identity, preventing an author whose access has been revoked from editing by guessing the object ID.
+- The revision-history UI now exposes an explicit restore action and refreshes both the contribution and history after success.
+- Verify this feature with Rust CI and frontend CI on the exact head. No live collaboration/presence or moderation work is implied by this addition.

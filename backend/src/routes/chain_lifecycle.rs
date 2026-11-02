@@ -425,11 +425,32 @@ pub async fn update_contribution(
         JOIN chains AS chain ON chain.id = contribution.chain_id
         WHERE chain.id = $1 AND contribution.id = $2
           AND contribution.status = 'published'
+          AND contribution.author_id = $3
+          AND (
+              chain.creator_id = $3
+              OR EXISTS (
+                  SELECT 1 FROM chain_members AS member
+                  WHERE member.chain_id = chain.id AND member.user_id = $3
+              )
+              OR (
+                  chain.visibility IN ('public', 'unlisted', 'circle')
+                  AND (
+                      chain.circle_id IS NULL
+                      OR EXISTS (
+                          SELECT 1 FROM circle_members AS member
+                          WHERE member.circle_id = chain.circle_id
+                            AND member.user_id = $3
+                            AND member.status IN ('active', 'approved')
+                      )
+                  )
+              )
+          )
         FOR UPDATE OF contribution
         "#,
     )
     .bind(chain_id)
     .bind(contribution_id)
+    .bind(user.id)
     .fetch_optional(&mut *transaction)
     .await
     .map_err(|error| db_error(error, "load contribution for editing"))?
@@ -653,6 +674,209 @@ pub async fn list_revisions(
         .collect::<Result<Vec<_>, ApiError>>()?;
 
     Ok(Json(revisions))
+}
+
+
+#[derive(Serialize)]
+pub struct RestoreContributionRevisionResponse {
+    success: bool,
+    revision_number: i64,
+    restored_revision_number: i64,
+}
+
+pub async fn restore_contribution_revision(
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
+    Path((chain_id, contribution_id, revision_id)): Path<(Uuid, Uuid, Uuid)>,
+) -> Result<Json<RestoreContributionRevisionResponse>, ApiError> {
+    let mut transaction = state
+        .database
+        .begin()
+        .await
+        .map_err(|error| db_error(error, "begin contribution revision restore"))?;
+
+    let current = sqlx::query(
+        r#"
+        SELECT contribution.author_id, contribution.contribution_type,
+               contribution.title, contribution.content, contribution.payload
+        FROM chain_contributions AS contribution
+        JOIN chains AS chain ON chain.id = contribution.chain_id
+        WHERE chain.id = $1
+          AND contribution.id = $2
+          AND contribution.status = 'published'
+          AND contribution.author_id = $3
+          AND (
+              chain.creator_id = $3
+              OR EXISTS (
+                  SELECT 1 FROM chain_members AS member
+                  WHERE member.chain_id = chain.id AND member.user_id = $3
+              )
+              OR (
+                  chain.visibility IN ('public', 'unlisted', 'circle')
+                  AND (
+                      chain.circle_id IS NULL
+                      OR EXISTS (
+                          SELECT 1 FROM circle_members AS member
+                          WHERE member.circle_id = chain.circle_id
+                            AND member.user_id = $3
+                            AND member.status IN ('active', 'approved')
+                      )
+                  )
+              )
+          )
+        FOR UPDATE OF contribution
+        "#,
+    )
+    .bind(chain_id)
+    .bind(contribution_id)
+    .bind(user.id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "load contribution for revision restore"))?
+    .ok_or_else(|| {
+        api_error(
+            StatusCode::NOT_FOUND,
+            "contribution_not_found",
+            "This contribution is unavailable or you can no longer edit it.",
+        )
+    })?;
+
+    let author_id: Uuid = current
+        .try_get("author_id")
+        .map_err(|error| db_error(error, "read contribution author"))?;
+    if author_id != user.id {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "contribution_restore_denied",
+            "Only the original author can restore a contribution revision.",
+        ));
+    }
+
+    let contribution_type: String = current
+        .try_get("contribution_type")
+        .map_err(|error| db_error(error, "read contribution type"))?;
+    let current_title: Option<String> = current
+        .try_get("title")
+        .map_err(|error| db_error(error, "read current contribution title"))?;
+    let current_content: String = current
+        .try_get("content")
+        .map_err(|error| db_error(error, "read current contribution content"))?;
+    let current_payload: Value = current
+        .try_get("payload")
+        .map_err(|error| db_error(error, "read current contribution payload"))?;
+
+    let selected = sqlx::query(
+        r#"
+        SELECT revision.revision_number, revision.contribution_type,
+               revision.title, revision.content, revision.payload
+        FROM chain_contribution_revisions AS revision
+        WHERE revision.id = $1 AND revision.contribution_id = $2
+        "#,
+    )
+    .bind(revision_id)
+    .bind(contribution_id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "load selected contribution revision"))?
+    .ok_or_else(|| {
+        api_error(
+            StatusCode::NOT_FOUND,
+            "revision_not_found",
+            "That previous version is no longer available.",
+        )
+    })?;
+
+    let restored_revision_number: i64 = selected
+        .try_get("revision_number")
+        .map_err(|error| db_error(error, "read selected revision number"))?;
+    let selected_type: String = selected
+        .try_get("contribution_type")
+        .map_err(|error| db_error(error, "read selected contribution type"))?;
+    let restored_title: Option<String> = selected
+        .try_get("title")
+        .map_err(|error| db_error(error, "read selected revision title"))?;
+    let restored_content: String = selected
+        .try_get("content")
+        .map_err(|error| db_error(error, "read selected revision content"))?;
+    let restored_payload: Value = selected
+        .try_get("payload")
+        .map_err(|error| db_error(error, "read selected revision payload"))?;
+
+    if selected_type != contribution_type {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "revision_format_mismatch",
+            "This previous version no longer matches the contribution format.",
+        ));
+    }
+    validate_edited_contribution(
+        &contribution_type,
+        restored_title.as_deref(),
+        &restored_content,
+        &restored_payload,
+    )
+    .map_err(|(code, message)| api_error(StatusCode::UNPROCESSABLE_ENTITY, code, message))?;
+
+    let revision_number: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(MAX(revision_number), 0) + 1 FROM chain_contribution_revisions WHERE contribution_id = $1",
+    )
+    .bind(contribution_id)
+    .fetch_one(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "allocate restore revision number"))?;
+
+    sqlx::query(
+        r#"
+        INSERT INTO chain_contribution_revisions (
+            contribution_id, editor_id, revision_number, contribution_type,
+            title, content, payload
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        "#,
+    )
+    .bind(contribution_id)
+    .bind(user.id)
+    .bind(revision_number)
+    .bind(&contribution_type)
+    .bind(current_title)
+    .bind(current_content)
+    .bind(current_payload)
+    .execute(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "preserve current version before restore"))?;
+
+    sqlx::query(
+        r#"
+        UPDATE chain_contributions
+        SET title = $3, content = $4, payload = $5, updated_at = NOW()
+        WHERE id = $1 AND chain_id = $2
+        "#,
+    )
+    .bind(contribution_id)
+    .bind(chain_id)
+    .bind(restored_title)
+    .bind(restored_content)
+    .bind(restored_payload)
+    .execute(&mut *transaction)
+    .await
+    .map_err(|error| db_error(error, "restore selected contribution revision"))?;
+
+    sqlx::query("UPDATE chains SET updated_at = NOW() WHERE id = $1")
+        .bind(chain_id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|error| db_error(error, "touch Chain after revision restore"))?;
+
+    transaction
+        .commit()
+        .await
+        .map_err(|error| db_error(error, "commit contribution revision restore"))?;
+
+    Ok(Json(RestoreContributionRevisionResponse {
+        success: true,
+        revision_number,
+        restored_revision_number,
+    }))
 }
 
 #[cfg(test)]
