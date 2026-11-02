@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { checkCoLoopInvitationRevocation } from "@/lib/co-loop-session-access"
+import { canWriteCoLoopSession, checkCoLoopInvitationRevocation } from "@/lib/co-loop-session-access"
 
 export const dynamic = "force-dynamic"
 
@@ -25,7 +25,7 @@ type ActivityAction = (typeof ACTIONS)[number]
 async function isParticipant(supabase: any, sessionId: string, userId: string) {
   const { data: session, error } = await supabase
     .from("co_loop_sessions")
-    .select("owner_id, co_authors, deleted_at")
+    .select("owner_id, co_authors, deleted_at, status")
     .eq("session_id", sessionId)
     .maybeSingle()
 
@@ -33,9 +33,9 @@ async function isParticipant(supabase: any, sessionId: string, userId: string) {
   if (session.deleted_at) return { ok: false, status: "deleted" }
   const revocation = await checkCoLoopInvitationRevocation(supabase, sessionId, userId)
   if (revocation.error || revocation.revoked) return { ok: false, status: "revoked" }
-  if (session.owner_id === userId) return { ok: true, status: session }
+  if (session.owner_id === userId) return { ok: true, status: session, canWrite: canWriteCoLoopSession(session) }
   const inRoster = (Array.isArray(session.co_authors) ? session.co_authors : []).some((c: any) => c?.id === userId)
-  if (inRoster) return { ok: true, status: session }
+  if (inRoster) return { ok: true, status: session, canWrite: canWriteCoLoopSession(session) }
 
   const { data: openJoin } = await supabase
     .from("open_co_loop_participants")
@@ -44,7 +44,7 @@ async function isParticipant(supabase: any, sessionId: string, userId: string) {
     .eq("user_id", userId)
     .maybeSingle()
 
-  return { ok: Boolean(openJoin), status: session }
+  return { ok: Boolean(openJoin), status: session, canWrite: canWriteCoLoopSession(session) }
 }
 
 /** GET – the room's timeline, newest first. */
@@ -110,6 +110,10 @@ export async function POST(request: NextRequest) {
         { error: membership.status === "deleted" ? "This room has been deleted" : "You are not in this room" },
         { status: membership.status === "deleted" ? 410 : membership.status === "missing" ? 404 : 403 }
       )
+    }
+
+    if (!membership.canWrite) {
+      return NextResponse.json({ error: "This Co-Loop is no longer accepting activity" }, { status: 409 })
     }
 
     const { data: profile } = await supabase
