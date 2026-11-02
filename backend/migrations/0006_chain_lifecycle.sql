@@ -29,3 +29,8 @@ CREATE INDEX IF NOT EXISTS idx_chain_contribution_revisions_history
 
 COMMENT ON TABLE public.chain_contribution_revisions IS
     'Immutable snapshots of published Chain contributions before an author edit.';
+
+
+-- Browser clients receive no direct access to the revision ledger. The Rust
+-- API applies the same Chain visibility checks before returning revision data.
+ALTER TABLE public.chain_contribution_revisions ENABLE ROW LEVEL SECURITY;
