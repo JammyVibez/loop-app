@@ -67,6 +67,7 @@ type ChainResponse = {
   chain: Chain
   contributions: Contribution[]
   can_contribute: boolean
+  can_manage: boolean
   contributions_limit: number
   contributions_offset: number
   contributions_has_more: boolean
@@ -526,7 +527,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
     )
   }
 
-  const { chain, contributions, can_contribute: canContribute } = data
+  const { chain, contributions, can_contribute: canContribute, can_manage: canManage } = data
   const requiresAttachment = ["image", "video", "audio", "document"].includes(contributionType)
   const attachmentAccept =
     contributionType === "image" ? "image/*" :
@@ -590,7 +591,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
               <GitBranch className="h-3.5 w-3.5" /> {forking ? "Creating remix…" : "Remix Chain"}
             </Button>
             <AddChainToCollectionButton chainId={chain.id} />
-            {user?.id === chain.creator_id && (
+            {canManage && (
               <div className="col-span-2 space-y-2 rounded-xl border border-border bg-muted/20 p-3 sm:col-span-1">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold">Owner controls</p>
