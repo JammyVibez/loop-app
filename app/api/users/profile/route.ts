@@ -7,7 +7,7 @@ import { isProUser } from "@/lib/pro-features"
 import { maskProfile, profileStatus } from "@/lib/user-status"
 import { applyRealCommentCounts, attachParentAuthors } from "@/lib/loop-stats"
 import { checkBlockStatus } from "@/lib/user-blocks"
-import { isRestrictedProfileVisibility } from "@/lib/profile-privacy"
+import { buildRestrictedProfileView, isRestrictedProfileVisibility } from "@/lib/profile-privacy"
 
 export async function GET(request: NextRequest) {
   try {
@@ -192,45 +192,12 @@ export async function GET(request: NextRequest) {
     // Private profile, or a block in either direction — only expose pfp,
     // cover, name and bio (plus block status so the UI can explain why).
     if (!canViewFull) {
-      const limited = {
-        id: profile.id,
-        username: profile.username,
-        display_name: profile.display_name,
-        avatar_url: profile.avatar_url,
-        video_avatar_url: profile.video_avatar_url,
-        banner_url: profile.banner_url,
-        bio: profile.bio,
-        location: profile.location,
-        website: profile.website,
-        is_verified: profile.is_verified,
-        is_premium: profile.is_premium,
-        is_organization: profile.is_organization,
-        organization_name: profile.organization_name,
-        created_at: profile.created_at,
-        is_private: isPrivate,
-        privacy: {
-          profile_visibility: privacySettings.profile_visibility || "public",
-          message_privacy: privacySettings.message_privacy || "everyone",
-        },
-        is_following: false,
-        is_follower: false,
-        is_self: false,
-        has_pending_follow_request: hasPendingRequest,
-        is_blocked: isBlockedView,
-        block_direction: blockDirection,
-        can_view_full: false,
-        followers_count: followersCount ?? 0,
-        following_count: 0,
-        loops_count: 0,
-        branches_count: 0,
-        comments_count: 0,
-        likes_received: 0,
-        recent_loops: [],
-        recent_branches: [],
-        media_loops: [],
-        active_cosmetics: null,
-        active_effects: [],
-      }
+      const limited = buildRestrictedProfileView(profile as any, {
+        isPrivate,
+        hasPendingRequest,
+        isBlocked: isBlockedView,
+        blockDirection,
+      })
       return NextResponse.json({ success: true, profile: limited, private: isPrivate, blocked: isBlockedView })
     }
 
