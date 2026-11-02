@@ -55,3 +55,8 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_user_created
 
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_status_expiry
     ON public.subscriptions(user_id, status, current_period_end DESC);
+
+-- Subscription state includes customer identifiers and billing metadata.
+-- Only trusted server routes (service_role) should read or write this ledger.
+-- No client-facing policies are defined here by design.
+ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
