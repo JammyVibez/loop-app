@@ -45,6 +45,9 @@ pub struct ListDropsQuery {
     kind: Option<String>,
     category: Option<String>,
     search: Option<String>,
+    live: Option<bool>,
+    upcoming: Option<bool>,
+    sort: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -101,6 +104,28 @@ pub async fn list(
         .category
         .as_deref()
         .filter(|value| !value.trim().is_empty());
+    if search_filter.is_some_and(|value| value.chars().count() > 120) {
+        return Err(api_error(
+            StatusCode::BAD_REQUEST,
+            "drops_search_too_long",
+            "Search terms are limited to 120 characters.",
+        ));
+    }
+    if query.live.unwrap_or(false) && query.upcoming.unwrap_or(false) {
+        return Err(api_error(
+            StatusCode::BAD_REQUEST,
+            "conflicting_drop_filters",
+            "Choose either live or upcoming activity, not both.",
+        ));
+    }
+    let sort = query.sort.as_deref().unwrap_or("recommended").trim();
+    if !matches!(sort, "recommended" | "upcoming" | "popular" | "recent") {
+        return Err(api_error(
+            StatusCode::BAD_REQUEST,
+            "invalid_drop_sort",
+            "Sort must be recommended, upcoming, popular or recent.",
+        ));
+    }
 
     let circle_ids = sqlx::query_scalar::<_, Uuid>(
         r#"
@@ -173,6 +198,13 @@ pub async fn list(
         }
     }
 
+    if query.live.unwrap_or(false) {
+        items.retain(|item| item.is_live);
+    }
+    if query.upcoming.unwrap_or(false) {
+        items.retain(|item| item.status == "upcoming" && !item.is_live);
+    }
+
     if let Some(search) = search_filter {
         let needle = search.to_lowercase();
         items.retain(|item| {
@@ -187,13 +219,24 @@ pub async fn list(
         });
     }
 
-    items.sort_by(|left, right| {
-        let left_live = left.is_live;
-        let right_live = right.is_live;
-        right_live
-            .cmp(&left_live)
+    items.sort_by(|left, right| match sort {
+        "recent" => right.created_at.cmp(&left.created_at),
+        "popular" => right
+            .participants_count
+            .cmp(&left.participants_count)
+            .then_with(|| right.is_live.cmp(&left.is_live))
+            .then_with(|| right.created_at.cmp(&left.created_at)),
+        "upcoming" => right
+            .is_live
+            .cmp(&left.is_live)
+            .then_with(|| left.starts_at.is_none().cmp(&right.starts_at.is_none()))
             .then_with(|| left.starts_at.cmp(&right.starts_at))
-            .then_with(|| right.created_at.cmp(&left.created_at))
+            .then_with(|| right.created_at.cmp(&left.created_at)),
+        _ => right
+            .is_live
+            .cmp(&left.is_live)
+            .then_with(|| left.starts_at.cmp(&right.starts_at))
+            .then_with(|| right.created_at.cmp(&left.created_at)),
     });
 
     let total = items.len();
