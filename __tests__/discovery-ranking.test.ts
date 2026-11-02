@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { diversifyByAuthor } from "@/lib/discovery-ranking"
+import { normalizeLoop } from "@/lib/normalize-loop"
 
 const item = (id: string, author_id: string) => ({ id, author_id })
 
@@ -53,5 +54,28 @@ describe("personalized discovery diversity", () => {
       "same",
       "other",
     ])
+  })
+})
+
+describe("Discover recommendation metadata", () => {
+  it("preserves the explanation when a recommendation is normalized", () => {
+    const normalized = normalizeLoop({
+      id: "loop-1",
+      author_id: "author-1",
+      author: { id: "author-1", username: "creator", display_name: "Creator" },
+      discovery_reason: "Matches your interest in #worldbuilding",
+    })
+
+    expect(normalized.discovery_reason).toBe("Matches your interest in #worldbuilding")
+  })
+
+  it("does not add an explanation to ordinary feed items", () => {
+    const normalized = normalizeLoop({
+      id: "loop-2",
+      author_id: "author-2",
+      author: { id: "author-2", username: "creator", display_name: "Creator" },
+    })
+
+    expect(normalized.discovery_reason).toBeUndefined()
   })
 })
