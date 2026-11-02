@@ -28,12 +28,8 @@ The subscription metadata contains the LOOP profile ID and plan ID. The webhook 
 The success redirect carries the Stripe Checkout Session ID to /premium. LOOP retrieves that session server-side, checks its owner and subscription state, synchronises the subscription ledger, then displays the receipt. A client-side success URL alone never grants Premium.
 
 
-## 61. Atomic, idempotent Premium Coin purchases — 2026-11-02
+## 62. Premium expiry and subscription ledger access on fresh schemas — 2026-11-02
 
-- Replaced the non-atomic profile read/debit/grant and the unsupported `coin_transactions` write with a SECURITY DEFINER database transaction that locks the profile row, validates the canonical monthly/annual cost, checks for an active card subscription, updates the balance and expiry, and writes a single debit to the existing `wallet_transactions` ledger.
-- Added request idempotency using the `Idempotency-Key` header. A repeated key for the same user/plan returns the original purchase state without debiting again; reuse for another transaction fails closed.
-- The migration is ordered after the wallet schema and included in the strict setup list. The function is callable only by the service role.
-- Tightened wallet transaction RLS: public access is revoked and authenticated users can select only their own wallet rows. Only server/service-role routes can write financial ledger records.
-- The activation route now uses `createServerClient` rather than falling back to a public anon key for financial writes, validates plan/method inputs and maps insufficient funds/already-subscribed conflicts.
-- Added route tests for atomic RPC delegation, invalid input, insufficient balances, retry idempotency and authentication.
-- Live PostgreSQL migration, Stripe webhook integration, billing portal configuration and real provider-mode checkout remain release/deployment gates.
+- The base `complete-database-setup.sql` profiles table did not define `premium_expires_at`; the recurring billing migration now creates that column idempotently alongside its grant-source fields.
+- Explicitly revoked direct public/anon/authenticated access to the subscription ledger and granted CRUD only to the server service role. Authenticated users continue to read their own billing state through server-authenticated APIs.
+- Fresh and existing database migration execution remains to be verified against actual PostgreSQL environments.

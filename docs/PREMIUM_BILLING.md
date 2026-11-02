@@ -26,3 +26,8 @@ The subscription metadata contains the LOOP profile ID and plan ID. The webhook 
 ## Checkout confirmation
 
 The success redirect carries the Stripe Checkout Session ID to /premium. LOOP retrieves that session server-side, checks its owner and subscription state, synchronises the subscription ledger, then displays the receipt. A client-side success URL alone never grants Premium.
+
+
+## Fresh-schema compatibility
+
+The Premium billing migration also creates `profiles.premium_expires_at` when the base profile schema did not include it, and explicitly revokes direct browser access to the subscription ledger. Authenticated billing status/receipt APIs read the ledger through the server service role. The setup runner treats the subscription migration as strict.
