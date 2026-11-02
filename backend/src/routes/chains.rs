@@ -1321,16 +1321,16 @@ pub async fn set_member(
         .map_err(|error| db_error(error, "begin Chain member update"))?;
     let chain = sqlx::query("SELECT creator_id, circle_id FROM chains WHERE id = $1 FOR UPDATE")
         .bind(chain_id)
-    .fetch_optional(&mut *transaction)
-    .await
-    .map_err(|error| db_error(error, "load Chain for member update"))?
-    .ok_or_else(|| {
-        api_error(
-            StatusCode::NOT_FOUND,
-            "chain_not_found",
-            "This Chain is unavailable.",
-        )
-    })?;
+        .fetch_optional(&mut *transaction)
+        .await
+        .map_err(|error| db_error(error, "load Chain for member update"))?
+        .ok_or_else(|| {
+            api_error(
+                StatusCode::NOT_FOUND,
+                "chain_not_found",
+                "This Chain is unavailable.",
+            )
+        })?;
     let creator_id: Uuid = chain
         .try_get("creator_id")
         .map_err(|error| db_error(error, "read Chain creator"))?;
@@ -1506,20 +1506,18 @@ pub async fn remove_member(
         .begin()
         .await
         .map_err(|error| db_error(error, "begin Chain member removal"))?;
-    let chain = sqlx::query(
-        "SELECT creator_id, circle_id FROM chains WHERE id = $1 FOR UPDATE",
-    )
-    .bind(chain_id)
-    .fetch_optional(&mut *transaction)
-    .await
-    .map_err(|error| db_error(error, "load Chain for member removal"))?
-    .ok_or_else(|| {
-        api_error(
-            StatusCode::NOT_FOUND,
-            "chain_not_found",
-            "This Chain is unavailable.",
-        )
-    })?;
+    let chain = sqlx::query("SELECT creator_id, circle_id FROM chains WHERE id = $1 FOR UPDATE")
+        .bind(chain_id)
+        .fetch_optional(&mut *transaction)
+        .await
+        .map_err(|error| db_error(error, "load Chain for member removal"))?
+        .ok_or_else(|| {
+            api_error(
+                StatusCode::NOT_FOUND,
+                "chain_not_found",
+                "This Chain is unavailable.",
+            )
+        })?;
     let creator_id: Uuid = chain
         .try_get("creator_id")
         .map_err(|error| db_error(error, "read Chain creator"))?;
