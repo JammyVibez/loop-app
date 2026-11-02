@@ -3,7 +3,7 @@ import { NextRequest } from "next/server"
 
 const mocks = vi.hoisted(() => ({
   getUserFromRequest: vi.fn(),
-  createClient: vi.fn(),
+  createServerClient: vi.fn(),
 }))
 
 vi.mock("@/lib/server-auth", () => ({
@@ -15,16 +15,17 @@ vi.mock("@/lib/circle-access", () => ({
 }))
 
 vi.mock("@/lib/supabase", () => ({
-  createClient: mocks.createClient,
+  createServerClient: mocks.createServerClient,
 }))
 
 beforeEach(() => {
   mocks.getUserFromRequest.mockReset()
   mocks.getUserFromRequest.mockResolvedValue(null)
-  mocks.createClient.mockReset()
-  mocks.createClient.mockImplementation(() => {
+  mocks.createServerClient.mockReset()
+  mocks.createServerClient.mockImplementation(() => {
     throw new Error("Database client must not be created before authentication")
   })
+  vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role")
 })
 
 describe("Circle event write routes", () => {
@@ -39,7 +40,7 @@ describe("Circle event write routes", () => {
     )
 
     expect(response.status).toBe(401)
-    expect(mocks.createClient).not.toHaveBeenCalled()
+    expect(mocks.createServerClient).not.toHaveBeenCalled()
   })
 
   it("rejects an unauthenticated RSVP before creating a database client", async () => {
@@ -53,7 +54,7 @@ describe("Circle event write routes", () => {
     )
 
     expect(response.status).toBe(401)
-    expect(mocks.createClient).not.toHaveBeenCalled()
+    expect(mocks.createServerClient).not.toHaveBeenCalled()
   })
 
   it("rejects unauthenticated RSVP moderation before creating a database client", async () => {
@@ -67,7 +68,7 @@ describe("Circle event write routes", () => {
     )
 
     expect(response.status).toBe(401)
-    expect(mocks.createClient).not.toHaveBeenCalled()
+    expect(mocks.createServerClient).not.toHaveBeenCalled()
   })
 })
 
@@ -94,7 +95,7 @@ describe("Circle event RSVP database contract", () => {
     }
 
     mocks.getUserFromRequest.mockResolvedValue({ id: actorId })
-    mocks.createClient.mockReturnValue({
+    mocks.createServerClient.mockReturnValue({
       rpc,
       from: (table: string) => {
         if (table === "circle_members") {
@@ -171,7 +172,7 @@ describe("Circle event RSVP moderation contract", () => {
       error: null,
     })
     mocks.getUserFromRequest.mockResolvedValue({ id: managerId })
-    mocks.createClient.mockReturnValue({
+    mocks.createServerClient.mockReturnValue({
       rpc,
       from: (table: string) => {
         const query: Record<string, any> = {}

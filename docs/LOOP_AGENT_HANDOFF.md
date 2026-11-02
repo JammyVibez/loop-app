@@ -70,3 +70,10 @@ The success redirect carries the Stripe Checkout Session ID to /premium. LOOP re
 
 - Added route-level tests covering guest/public access, guest/private denial, approved-follower access, bidirectional block denial and suspended-account denial.
 - The profile showcase remains separate from admin-granted Community Awards, preserving the distinction between earned progression milestones and manual recognition.
+
+
+## 68. Circle Events use a server-only database client — 2026-11-02
+
+- Removed the public anon-key/placeholder fallback from Circle event list/manage and participant/RSVP APIs. Both route modules now require `SUPABASE_SERVICE_ROLE_KEY` and use the shared server client; an absent production secret fails closed instead of attempting privileged operations with an anon key.
+- Updated Circle Events route tests to mock the server-only client and provide an explicit test-only service-role key. Existing tests still verify unauthenticated creation/RSVP/moderation stops before any database client is created.
+- The RSVP transaction remains the authority for participant count and event capacity; live PostgreSQL concurrency checks remain a deployment release gate.
