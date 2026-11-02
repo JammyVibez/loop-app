@@ -159,10 +159,17 @@ pub async fn list(
 
     let circle_ids = sqlx::query_scalar::<_, Uuid>(
         r#"
-        SELECT circle_id
-        FROM circle_members
-        WHERE user_id = $1
-          AND status IN ('active', 'approved')
+        SELECT circle.id
+        FROM circles AS circle
+        WHERE circle.is_private IS FALSE
+           OR circle.owner_id = $1
+           OR EXISTS (
+               SELECT 1
+               FROM circle_members AS member
+               WHERE member.circle_id = circle.id
+                 AND member.user_id = $1
+                 AND member.status IN ('active', 'approved')
+           )
         "#,
     )
     .bind(user.id)
@@ -378,13 +385,25 @@ async fn load_hosted_events(
         FROM events AS event
         LEFT JOIN circles AS circle ON circle.id = event.circle_id
         WHERE COALESCE(event.status, 'upcoming') <> 'ended'
-          AND (event.circle_id IS NULL OR EXISTS (
-            SELECT 1
-            FROM circle_members AS member
-            WHERE member.circle_id = event.circle_id
-              AND member.user_id = $1
-              AND member.status IN ('active', 'approved')
-        ))
+          AND (
+            event.circle_id IS NULL
+            OR EXISTS (
+              SELECT 1
+              FROM circles AS circle
+              WHERE circle.id = event.circle_id
+                AND (
+                  circle.is_private IS FALSE
+                  OR circle.owner_id = $1
+                  OR EXISTS (
+                    SELECT 1
+                    FROM circle_members AS member
+                    WHERE member.circle_id = circle.id
+                      AND member.user_id = $1
+                      AND member.status IN ('active', 'approved')
+                  )
+                )
+            )
+          )
           AND (event.is_live = true OR event.end_time IS NULL OR event.end_time >= NOW())
           AND ($3::text IS NULL OR event.title ILIKE $3 OR COALESCE(event.description, '') ILIKE $3 OR COALESCE(event.category, 'General') ILIKE $3 OR COALESCE(circle.name, '') ILIKE $3)
           AND ($4::text IS NULL OR LOWER(COALESCE(event.category, 'General')) = LOWER($4))
@@ -711,5 +730,41 @@ mod tests {
             derive_activity_state("event", "upcoming", false, &starts_at, &ends_at, now),
             (false, "ended")
         );
+    }
+}
+
+
+#[cfg(test)]
+mod drops_visibility_tests {
+    #[test]
+    fn drops_circle_activity_query_includes_public_circles_and_private_owner_members() {
+        let source = include_str!("drops.rs");
+        let circle_discovery_query = source
+            .split("SELECT circle.id")
+            .nth(1)
+            .expect("Circle discovery query must select Circle IDs")
+            .split("#,")
+            .next()
+            .expect("Circle discovery query must be bounded");
+
+        assert!(circle_discovery_query.contains("circle.is_private IS FALSE"));
+        assert!(circle_discovery_query.contains("circle.owner_id = $1"));
+        assert!(circle_discovery_query.contains("member.status IN ('active', 'approved')"));
+    }
+
+    #[test]
+    fn hosted_drop_events_use_the_same_public_or_member_visibility_boundary() {
+        let source = include_str!("drops.rs");
+        let hosted_events = source
+            .split("async fn load_hosted_events")
+            .nth(1)
+            .expect("Hosted event loader must exist")
+            .split("async fn load_circle_events")
+            .next()
+            .expect("Hosted event query must end before Circle events");
+
+        assert!(hosted_events.contains("circle.is_private IS FALSE"));
+        assert!(hosted_events.contains("circle.owner_id = $1"));
+        assert!(hosted_events.contains("member.status IN ('active', 'approved')"));
     }
 }
