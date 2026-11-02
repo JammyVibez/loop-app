@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
-import { ArrowUpRight, Bookmark, GitBranch, Hash, Search, Users } from "lucide-react"
+import { ArrowUpRight, Bookmark, CalendarDays, GitBranch, Hash, Search, Users } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,7 @@ type SocialSearchPayload = {
 }
 type ChainSearchPayload = { chains?: SearchRecord[] }
 type CollectionSearchPayload = SearchRecord[]
+type DropSearchPayload = { items?: SearchRecord[] }
 type SearchResults = {
   loops: SearchRecord[]
   users: SearchRecord[]
@@ -24,6 +25,7 @@ type SearchResults = {
   hashtags: SearchRecord[]
   chains: SearchRecord[]
   collections: SearchRecord[]
+  drops: SearchRecord[]
 }
 
 const EMPTY_RESULTS: SearchResults = {
@@ -33,6 +35,7 @@ const EMPTY_RESULTS: SearchResults = {
   hashtags: [],
   chains: [],
   collections: [],
+  drops: [],
 }
 
 function ResultSection({
@@ -89,7 +92,7 @@ export function ExploreSearchResults({
   query: string
   onClear: () => void
 }) {
-  const { getAuthHeader } = useAuth()
+  const { user, getAuthHeader } = useAuth()
   const [results, setResults] = useState<SearchResults>(EMPTY_RESULTS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -142,10 +145,20 @@ export function ExploreSearchResults({
           if (!response.ok) throw new Error(data.message || data.error || "Collection search failed")
           return data as CollectionSearchPayload
         }),
+        user
+          ? fetch(
+              "/api/v1/drops?" + new URLSearchParams({ search: value, limit: "12", sort: "recent" }),
+              { headers, cache: "no-store", signal: controller.signal },
+            ).then(async (response) => {
+              const data = await response.json()
+              if (!response.ok) throw new Error(data.message || data.error || "Drops search failed")
+              return data as DropSearchPayload
+            })
+          : Promise.resolve({ items: [] } as DropSearchPayload),
       ])
 
       if (!active) return
-      const [social, chains, collections] = requests
+      const [social, chains, collections, drops] = requests
 
       if (requests.every((item) => item.status === "rejected")) {
         const firstError = requests.find((item) => item.status === "rejected")
@@ -163,6 +176,7 @@ export function ExploreSearchResults({
           collections: collections.status === "fulfilled" && Array.isArray(collections.value)
             ? collections.value
             : [],
+          drops: drops.status === "fulfilled" ? drops.value.items || [] : [],
         })
         if (requests.some((item) => item.status === "rejected")) {
           setError("Some result types could not be loaded. Available results are still shown.")
@@ -187,6 +201,7 @@ export function ExploreSearchResults({
     all: Object.values(results).reduce((sum, items) => sum + items.length, 0),
     chains: results.chains.length,
     collections: results.collections.length,
+    drops: results.drops.length,
     circles: results.circles.length,
     users: results.users.length,
     loops: results.loops.length,
@@ -213,6 +228,7 @@ export function ExploreSearchResults({
             ["all", "All"],
             ["chains", "Chains"],
             ["collections", "Collections"],
+            ["drops", "Drops"],
             ["circles", "Circles"],
             ["users", "People"],
             ["loops", "Loops"],
@@ -257,6 +273,16 @@ export function ExploreSearchResults({
                 <ResultCard key={item.id} href={"/chains/" + item.id} title={item.title}
                   description={item.description || item.prompt}
                   meta={(item.contribution_count ?? 0) + " contributions · " + (item.participant_count ?? 0) + " contributors"} />
+              ))}
+            </ResultSection>
+          )}
+
+          {(selectedType === "all" || selectedType === "drops") && results.drops.length > 0 && (
+            <ResultSection title="Drops" icon={<CalendarDays className="h-4 w-4" />}>
+              {results.drops.map((item) => (
+                <ResultCard key={item.source + ":" + item.id} href={item.action_url}
+                  title={item.title} description={item.description}
+                  meta={(item.kind === "challenge" ? "Challenge" : "Event") + " · " + item.category + " · " + (item.participants_count ?? 0) + (item.kind === "challenge" ? " entries" : " participants")} />
               ))}
             </ResultSection>
           )}
