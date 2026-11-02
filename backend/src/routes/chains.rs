@@ -1280,6 +1280,7 @@ fn valid_chain_member_role(value: &str) -> Option<&'static str> {
         "collaborator" => Some("collaborator"),
         "contributor" => Some("contributor"),
         "viewer" => Some("viewer"),
+        "owner" => Some("owner"),
         _ => None,
     }
 }
@@ -1309,7 +1310,7 @@ pub async fn set_member(
         api_error(
             StatusCode::UNPROCESSABLE_ENTITY,
             "invalid_chain_member_role",
-            "Chain member roles must be collaborator, contributor or viewer.",
+            "Chain member roles must be owner, collaborator, contributor or viewer.",
         )
     })?;
 
@@ -1345,6 +1346,13 @@ pub async fn set_member(
     .await
     .map_err(|error| db_error(error, "verify Chain manager"))?;
     let is_creator = creator_id == user.id;
+    if role == "owner" && !is_creator {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "chain_owner_assignment_restricted",
+            "Only the original creator can assign another Chain owner.",
+        ));
+    }
     if !is_creator && actor_role.as_deref() != Some("owner") {
         return Err(api_error(
             StatusCode::FORBIDDEN,
@@ -1602,7 +1610,7 @@ pub async fn remove_member(
         .await
         .map_err(|error| db_error(error, "remove Chain member"))?;
     sqlx::query(
-        "UPDATE chains SET participant_count = GREATEST(1, (SELECT COUNT(*) FROM chain_members WHERE chain_id = $1) + 1), updated_at = NOW() WHERE id = $1",
+        "UPDATE chains SET participant_count = GREATEST(1, (SELECT COUNT(*) FROM chain_members WHERE chain_id = $1)), updated_at = NOW() WHERE id = $1",
     )
     .bind(chain_id)
     .execute(&mut *transaction)
@@ -2159,7 +2167,7 @@ mod tests {
         );
         assert_eq!(valid_chain_member_role("CONTRIBUTOR"), Some("contributor"));
         assert_eq!(valid_chain_member_role("viewer"), Some("viewer"));
-        assert!(valid_chain_member_role("owner").is_none());
+        assert_eq!(valid_chain_member_role("owner"), Some("owner"));
         assert!(valid_chain_member_role("admin").is_none());
         assert!(valid_chain_member_role("").is_none());
     }
