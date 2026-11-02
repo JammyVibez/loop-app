@@ -1121,26 +1121,25 @@ pub async fn remove_member(
         )
     })?;
 
-    let collection =
-        sqlx::query("SELECT owner_id FROM collections WHERE id = $1 FOR UPDATE")
-            .bind(collection_id)
-            .fetch_optional(&mut *transaction)
-            .await
-            .map_err(|error| {
-                tracing::error!(%error, "could not authorize collaborator removal");
-                api_error(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "collection_collaborator_permission_failed",
-                    "Could not authorize this change.",
-                )
-            })?
-            .ok_or_else(|| {
-                api_error(
-                    StatusCode::NOT_FOUND,
-                    "collection_not_found",
-                    "This collection is unavailable.",
-                )
-            })?;
+    let collection = sqlx::query("SELECT owner_id FROM collections WHERE id = $1 FOR UPDATE")
+        .bind(collection_id)
+        .fetch_optional(&mut *transaction)
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "could not authorize collaborator removal");
+            api_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "collection_collaborator_permission_failed",
+                "Could not authorize this change.",
+            )
+        })?
+        .ok_or_else(|| {
+            api_error(
+                StatusCode::NOT_FOUND,
+                "collection_not_found",
+                "This collection is unavailable.",
+            )
+        })?;
 
     let owner_id: Uuid = collection.try_get("owner_id").map_err(internal_db_error)?;
     if owner_id == member_user_id {
