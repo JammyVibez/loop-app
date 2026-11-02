@@ -81,7 +81,10 @@ async fn main() -> anyhow::Result<()> {
             "/v1/chains",
             get(routes::chains::list).post(routes::chains::create),
         )
-        .route("/v1/chains/{chain_id}", get(routes::chains::get))
+        .route(
+            "/v1/chains/{chain_id}",
+            get(routes::chains::get).patch(routes::chains::update),
+        )
         .route(
             "/v1/chains/{chain_id}/contributions",
             post(routes::chains::contribute),
