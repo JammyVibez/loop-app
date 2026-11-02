@@ -369,3 +369,10 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Updated Verification Settings to render the approved public feedback field. This resolves the TypeScript failure without widening disclosure of internal reviewer notes.
 - Added route-level regression coverage to ensure the applicant endpoint selects only the safe review fields and returns the rejection feedback.
 - Verify frontend type-check, tests and production build on the exact resulting PR head. Database-backed verification review and appeal/audit validation remain release gates.
+
+
+## 30. Profile avatar update allowlist — 2026-11-02
+
+- Corrected the profile update allowlist so `avatar_url` and `video_avatar_url` are independently accepted fields. The previous comma-joined string could never match either submitted property, silently blocking both avatar updates.
+- Added route regression coverage proving avatar fields are persisted while privileged fields such as `is_verified` and `is_admin` remain excluded from user-controlled updates.
+- Validate with the frontend verification and production build on the resulting PR head.
