@@ -23,13 +23,25 @@ function canManageEvents(
     || permissions?.can_manage_events === true
 }
 
-function rpcFailure(error: { message?: string } | null, fallback: string) {
+function rpcFailure(error: { code?: string; message?: string } | null, fallback: string) {
   const message = error?.message || fallback
   if (message.includes("circle_event_full")) {
     return NextResponse.json({ error: "This event is full" }, { status: 409 })
   }
   if (message.includes("circle_event_ended")) {
     return NextResponse.json({ error: "This event has already ended" }, { status: 400 })
+  }
+  if (message.includes("circle_event_member_required")) {
+    return NextResponse.json({ error: "An active Circle membership is required" }, { status: 403 })
+  }
+  if (message.includes("circle_event_manager_action_required")) {
+    return NextResponse.json({ error: "You cannot manage this RSVP" }, { status: 403 })
+  }
+  if (message.includes("circle_event_not_found") || error?.code === "P0002") {
+    return NextResponse.json({ error: "Event not found" }, { status: 404 })
+  }
+  if (message.includes("circle_event_invalid_rsvp") || message.includes("circle_event_approval")) {
+    return NextResponse.json({ error: "This RSVP action is not valid for the event" }, { status: 400 })
   }
   console.error("Circle event RSVP operation failed:", message)
   return NextResponse.json({ error: fallback }, { status: 500 })
@@ -150,9 +162,10 @@ export async function POST(
     }
 
     const status = event.requires_approval ? "pending" : "attending"
-    const { data: result, error } = await getSupabase().rpc("set_circle_event_rsvp", {
+    const { data: result, error } = await getSupabase().rpc("set_circle_event_rsvp_authorized", {
       p_event_id: eventId,
       p_user_id: user.id,
+      p_actor_id: user.id,
       p_status: status,
     })
     if (error) return rpcFailure(error, "Could not save your RSVP")
@@ -223,9 +236,10 @@ export async function PATCH(
     if (!pending) return NextResponse.json({ error: "Pending RSVP not found" }, { status: 404 })
 
     const status = action === "approve" ? "attending" : "declined"
-    const { data: result, error } = await getSupabase().rpc("set_circle_event_rsvp", {
+    const { data: result, error } = await getSupabase().rpc("set_circle_event_rsvp_authorized", {
       p_event_id: eventId,
       p_user_id: targetUserId,
+      p_actor_id: user.id,
       p_status: status,
     })
     if (error) return rpcFailure(error, "Could not update the RSVP request")
@@ -273,9 +287,10 @@ export async function DELETE(
     if (existingError) return NextResponse.json({ error: "Could not load your RSVP" }, { status: 500 })
     if (!existing) return NextResponse.json({ success: true, status: null, message: "No RSVP to cancel" })
 
-    const { data: result, error } = await getSupabase().rpc("set_circle_event_rsvp", {
+    const { data: result, error } = await getSupabase().rpc("set_circle_event_rsvp_authorized", {
       p_event_id: eventId,
       p_user_id: user.id,
+      p_actor_id: user.id,
       p_status: "declined",
     })
     if (error) return rpcFailure(error, "Could not cancel your RSVP")

@@ -485,3 +485,12 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - The RPC verifies canonical host ownership, rejects self-removal and non-members, revokes or creates the recipient's durable ledger denial, removes open participation, preserves the order of remaining co-authors, and recalculates the public invite card count within one transaction.
 - Only after the database revoke commits does the API best-effort delete old notification/DM deliveries and broadcast the removal. A delivery failure can no longer leave the kicked participant authorized.
 - Added route coverage for RPC delegation, missing-member conflict and malformed/self targets. PostgreSQL migration integration testing remains a release gate.
+
+
+## 44. Circle Event RSVP authorization is enforced inside PostgreSQL
+
+- Added `set_circle_event_rsvp_authorized`, an event-row-locked RPC that rechecks the target's active Circle membership and account status before granting pending/attending state.
+- For approval-required events, a member can only submit their own pending request. The event organizer or a current Circle event manager must approve a pending RSVP; a removed/demoted manager cannot win a race using a stale API permission check.
+- Direct attendance to events without approval remains self-service for active Circle members. Self-cancellation remains possible after leaving; staff cannot manage another member's RSVP without current event-management permission.
+- The capacity check and denormalized participant_count update remain in the same event-row transaction.
+- Updated all Circle Event RSVP route calls to include actor identity and use the authorized RPC. PostgreSQL integration coverage is still required before release.
