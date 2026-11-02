@@ -85,6 +85,18 @@ async fn main() -> anyhow::Result<()> {
             "/v1/chains/{chain_id}/contributions",
             post(routes::chains::contribute),
         )
+        .route(
+            "/v1/chains/{chain_id}/fork",
+            post(routes::chain_lifecycle::fork),
+        )
+        .route(
+            "/v1/chains/{chain_id}/contributions/{contribution_id}",
+            patch(routes::chain_lifecycle::update_contribution),
+        )
+        .route(
+            "/v1/chains/{chain_id}/contributions/{contribution_id}/revisions",
+            get(routes::chain_lifecycle::list_revisions),
+        )
         .route("/v1/follow-requests", get(routes::follow_requests::list))
         .route(
             "/v1/follow-requests/{request_id}",
