@@ -155,7 +155,13 @@ pub async fn list(
     .bind(limit)
     .bind(offset)
     .bind(query.owner_id)
-    .bind(query.search.as_deref().map(str::trim).filter(|value| !value.is_empty()))
+    .bind(
+        query
+            .search
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty()),
+    )
     .fetch_all(&state.database)
     .await
     .map_err(|error| {
