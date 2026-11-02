@@ -1,79 +1,93 @@
-# LOOP Pro billing setup
+# LOOP Major Redevelopment — Agent Handoff
 
-## Billing model
+> Last reviewed: 2 November 2026. Active work remains on PR #1; this document is the durable continuation brief.
 
-- Card checkout creates a recurring Stripe subscription: monthly plans renew monthly and annual plans renew yearly.
-- Users can cancel or update a card subscription in the Stripe Billing Portal, opened through the authenticated /api/premium/portal route.
-- Loop Coin access remains a separate prepaid pass; it does not auto-renew.
-- Premium status is derived from active or trialing Stripe subscriptions, or a separately active prepaid/admin grant. Cancelling a Stripe subscription does not erase a separate active grant.
+## Active repository and non-negotiable workflow
 
-## Supabase migration
+- Repository: `VireonNoctis/loop-app`
+- Continue only on [PR #1](https://github.com/VireonNoctis/loop-app/pull/1), branch `redesign/experience-platform-foundation`.
+- Do not create another PR, merge this PR, or push directly to `main`.
+- Re-fetch the PR head and its checks before every implementation batch. Build commits from the latest branch head and use a non-forced, expected-SHA ref update.
+- Keep the PR open and draft until the user-facing roadmap, release gates and required checks are genuinely satisfied.
 
-Run scripts/premium-subscriptions-migration.sql against the Supabase project before enabling recurring checkout. It creates or extends the subscription ledger and adds Premium grant-source fields to profiles.
+## Product vision
 
-## Stripe configuration
+**Create together. Discover everything. Connect through shared interests.**
 
-Set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in the server environment. Enable the Stripe Billing Portal in the Stripe dashboard. Configure the webhook endpoint as /api/payments/webhook and subscribe to:
+LOOP is a collaborative creation platform, not another passive feed or follower-count product. Prioritize shared creation, meaningful contributions, useful discovery and communities that build things together.
 
-- checkout.session.completed
-- customer.subscription.created
-- customer.subscription.updated
-- customer.subscription.deleted
-- payment_intent.payment_failed
+Keep one coherent object graph across Loops, Branches, Chains, Circles, Drops, Collections, profiles and conversations. A Chain is a structured collaborative object, not a Loop reply tree. A Circle is a community home, not only a group chat. Co-Loop is live collaboration; Collections preserve and organize useful work.
 
-The subscription metadata contains the LOOP profile ID and plan ID. The webhook verifies Stripe's signature before syncing it. The receipt endpoint independently checks that the Checkout Session belongs to the signed-in user before showing its receipt.
+Aim for a premium, tactile, accessible ecosystem with thoughtful motion and consistent interaction primitives. Do not copy another company's visual identity. Mobile is primary; public web and desktop remain first-class. Respect reduced motion, keyboard/screen-reader access, quiet hours and user-controlled discovery.
 
-## Checkout confirmation
+## Engineering invariants
 
-The success redirect carries the Stripe Checkout Session ID to /premium. LOOP retrieves that session server-side, checks its owner and subscription state, synchronises the subscription ledger, then displays the receipt. A client-side success URL alone never grants Premium.
+- New domain APIs and durable workflows target Rust/Axum + PostgreSQL; media uses private object storage with authorization-aware delivery.
+- Existing Next.js, Better Auth and Supabase routes remain during a staged, tested migration. Do not claim a backend cutover until every dependent path, migration and deployment is verified.
+- Never create a second account/identity store. Resolve the existing Better Auth identity to the canonical profile ID.
+- Authorization, membership, privacy and Premium entitlements must be server-authoritative and fail closed on missing keys, failed lookups or unknown states.
+- Test owner, member, guest, pending, blocked, banned, revoked and stale-session boundaries as applicable.
+- Validate input, bound pagination and payload sizes, rate-limit abuse-prone writes, preserve attribution and use transactions for multi-row lifecycle changes.
+- Keep existing public URLs and deep links stable. Prefer small, reviewable changes and regression tests. Inspect CI failure logs and fix root causes.
+- Premium never buys verification or algorithmic reach. Verification is independent of subscription status.
+- The full Admin Dashboard is the final project area, after user-facing capabilities, moderation, audit events and permission rules are stable.
 
+## Five active user-facing workstreams
 
-## 62. Premium expiry and subscription ledger access on fresh schemas — 2026-11-02
+All five remain **in progress** until their journeys pass the release gates below. A page, route, migration or green CI run alone does not make a workstream complete.
 
-- The base `complete-database-setup.sql` profiles table did not define `premium_expires_at`; the recurring billing migration now creates that column idempotently alongside its grant-source fields.
-- Explicitly revoked direct public/anon/authenticated access to the subscription ledger and granted CRUD only to the server service role. Authenticated users continue to read their own billing state through server-authenticated APIs.
-- Fresh and existing database migration execution remains to be verified against actual PostgreSQL environments.
+### 1. Chains — signature collaborative creation
 
+Existing foundation includes Rust routes for Chain create/list/detail/contributions and lifecycle operations, migrations `0004_chains.sql`, `0005_chain_collections.sql` and `0006_chain_lifecycle.sql`, plus frontend hub/detail surfaces.
 
-## 63. Latest CI fixes — Collection result visibility and deterministic month labels — 2026-11-02
+Finish and verify: format-aware contributions (text, media, lists/rankings, polls and structured payloads); contribution ownership, edits/revisions and attribution history; fork/remix provenance; pause/complete/archive transitions; Circle and member visibility; collection/profile/discovery integration; moderation/reporting, abuse limits and shareable public pages. Verify the full creator/contributor/guest journey against PostgreSQL, not only mocked routes.
 
-- Made the Rust Collection invitation response DTO public because it is returned by a public Axum handler; the API struct fields remain private.
-- Stabilized the creator-revenue month test with an explicit US short-month locale. The test expected the three-letter `Sep` label but `en-GB` emits `Sept` in Node's ICU data; this was a test-fixture locale mismatch, not an analytics calculation error.
+### 2. Circles — the community layer
 
+Existing foundation includes public/private discovery, join/request/cancel/leave paths, approval RPCs, role policy helpers, member management, discussions, Circle Events and activity surfaces.
 
-## 64. Premium retry safety and honest entitlement presentation — 2026-11-02
+Finish and verify: one consistent membership state machine; active-only staff permissions; owner transfer and safe deletion; custom roles/permission overrides; moderation/report/report history; private content and roster denial across every sub-route; notification consistency; space/subcommunity navigation; atomic member counts and event capacity. Audit every route for service-role fallback and fail-open database errors.
 
-- The Premium page now retains an `Idempotency-Key` for a Coin purchase attempt across transient failures and reuses it when the member retries the same plan. The key is cleared only after the server confirms success; choosing a different plan starts a new attempt.
-- The active-Pro summary lists only perks whose entitlement is currently enforced. Unfinished perks are clearly labelled “In development · Not available yet” in the upgrade comparison instead of being presented as already unlocked.
-- Removed the proposed paid algorithmic reach boost entirely; discovery remains relevance-based and transparent, not pay-to-amplify.
-- Removed the unused collaboration flag from the Collection member-removal handler, resolving the Clippy `-D warnings` failure reported in the previous Rust run.
+### 3. Discover and Drops — the interest graph
 
+Existing foundation includes search APIs, user-controlled discovery preferences, diversified recommendations, a Drops aggregation API and dedicated Drops pages.
 
-## 65. Reliable progression and achievement profile privacy — 2026-11-02
+Finish and verify: universal search across people, Loops, Chains, Circles and Collections; public/unlisted/private boundaries in results, counts and previews; category, interest, community, chronological and personalized modes; clear recommendation explanations and mute controls; useful pagination and empty/error states; Drops links to their source event, Circle or Chain. Personalization must remain optional and never be pay-to-amplify.
 
-- Added the previously omitted achievement/stat lifecycle to the planned production setup; the companion integrity migration is committed separately.
-- Achievement profile reads now validate the requested UUID and enforce active-account, block and private/follower visibility boundaries. Public responses select only intended progression counters instead of returning every user_stats column.
-- Added focused visibility policy tests for self, public profiles, approved followers, pending followers, blocked pairs and inactive accounts.
-- PostgreSQL migration execution, event trigger backfill and real database reward idempotency checks remain release gates.
+### 4. Living Profiles and Collections
 
+Existing foundation includes profile privacy, identity/profile pages, earned-achievement showcase, profile customization and collaborative Collections with invitation lifecycle.
 
-## 66. Earned achievements now appear on profiles — 2026-11-02
+Finish and verify: a coherent showcase for interests, Chains, contributions, Circles, projects and Collections; per-surface privacy; blocked-pair and inactive-account behaviour; public previews that expose no restricted data; safe customization on mobile; Collection owner/editor/member permissions, invitation expiry/revocation and consistent source links. Public profile APIs must return deliberate DTOs, not unrestricted profile rows.
 
-- Added an earned-achievement showcase to the profile Awards tab, kept separate from admin-granted Community Awards. It shows level, XP, earned-count progress, tier and earned date, with loading, empty and error states.
-- Achievement data is now readable without login for public profiles, while private profiles still require an approved follower, and inactive/blocked profiles remain hidden. Authenticated self and follower requests continue to use the same visibility policy.
-- Added profile-visible progress tests for guests, owners, public profiles, restricted profiles and blocked/inactive profiles.
-- The strict achievement integrity migration now performs an idempotent existing-user eligibility pass after backfilling source counters. Existing qualifying accounts receive each earned reward once, gated by the unique user-achievement row.
-- Live PostgreSQL validation is still required to verify backfill performance, reward ledger consistency and trigger counts.
+### 5. Connect and Co-Loop
 
+Existing foundation includes DMs/group conversations, member-checked reactions/read receipts, Co-Loop invitations, room controls, text-operation collaboration, presence/chat and version history.
 
-## 67. Achievement visibility route regression coverage — 2026-11-02
+Finish and verify: durable invitations and revocation, active-session authorization for every read/write, permission changes taking effect immediately, conflict/reconnect/offline recovery, autosave and version restore, attribution, source-context links to Chains/Circles/projects, notification/outbox reliability and end-to-end multi-participant tests. Do not treat a realtime channel subscription as authorization.
 
-- Added route-level tests covering guest/public access, guest/private denial, approved-follower access, bidirectional block denial and suspended-account denial.
-- The profile showcase remains separate from admin-granted Community Awards, preserving the distinction between earned progression milestones and manual recognition.
+## Later roadmap — not a reason to start the Admin Dashboard early
 
+- Progression/creator tools: meaningful contribution-based achievements, creator analytics, templates, export and safe licensing/moderation.
+- Premium: recurring billing, webhook lifecycle, server-authoritative benefits, cancellation and owner-bound receipts. Stripe dashboard keys, webhook registration and production database migrations remain deployment tasks; never claim these were applied by repository code alone.
+- Verification: blue mark with public criteria, evidence review, appeal and anti-impersonation controls. Never tie it to Premium.
+- Final phase: full Admin Dashboard, after all user-facing systems and moderation/permission/audit foundations are ready.
 
-## 68. Circle Events use a server-only database client — 2026-11-02
+## Release gates for each workstream
 
-- Removed the public anon-key/placeholder fallback from Circle event list/manage and participant/RSVP APIs. Both route modules now require `SUPABASE_SERVICE_ROLE_KEY` and use the shared server client; an absent production secret fails closed instead of attempting privileged operations with an anon key.
-- Updated Circle Events route tests to mock the server-only client and provide an explicit test-only service-role key. Existing tests still verify unauthenticated creation/RSVP/moderation stops before any database client is created.
-- The RSVP transaction remains the authority for participant count and event capacity; live PostgreSQL concurrency checks remain a deployment release gate.
+1. Main mobile and web journeys work end to end.
+2. Server authorization and privacy are tested for owners, contributors, active members, pending users, guests, blocked pairs and revoked access.
+3. Search, previews, metadata, notifications, exports and deep links do not leak private/unlisted content.
+4. Migrations apply to a clean PostgreSQL database and a representative existing schema; transactional and concurrency behaviour is exercised.
+5. Loading, empty, error, offline, retry and permission-denied states are handled.
+6. Accessibility, keyboard navigation, reduced-motion and responsive layouts are verified.
+7. Pagination, payload limits, rate limiting and performance are reviewed.
+8. Required CI workflows pass on the exact proposed commit.
+
+## Recent implementation notes
+
+- Collections collaboration invitation lifecycle now distinguishes pending/accepted/declined, supports owner cancellation and member response, and withholds private editor access until acceptance.
+- Premium retry uses an idempotency key; the paid algorithmic reach boost was removed.
+- Achievement/profile visibility and earned-achievement showcase tests were added; live PostgreSQL reward/migration checks remain release gates.
+- Circle Events now require the server-only client and use an atomic RSVP lifecycle; real PostgreSQL concurrency checks remain release gates.
+- This batch hardens Circle member APIs and private-Circle access: privileged routes require the server key, public member rosters return only deliberate identity fields, and private access fails closed when infrastructure or lookups fail.

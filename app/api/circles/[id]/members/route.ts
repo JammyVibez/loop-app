@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase"
+import { createServerClient } from "@/lib/supabase"
 import { checkCirclePrivateAccess } from "@/lib/circle-access"
 import { getUserFromRequest } from "@/lib/server-auth"
 import {
@@ -10,11 +10,17 @@ import {
 } from "@/lib/circle-permissions"
 import { syncCircleMemberCount } from "@/lib/circle-lifecycle"
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
+function getCircleMembersClient() {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null
+  return createServerClient()
+}
 
 // Get circle members
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const supabase = getCircleMembersClient()
+    if (!supabase) return NextResponse.json({ error: "Circle member service is unavailable" }, { status: 503 })
+
     const { searchParams } = new URL(request.url)
     const requestedLimit = Number.parseInt(searchParams.get("limit") || "50", 10)
     const requestedOffset = Number.parseInt(searchParams.get("offset") || "0", 10)
@@ -34,8 +40,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     let query = supabase
       .from("circle_members")
       .select(`
-        *,
-        user:profiles(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_premium, last_active, loop_coins, level)
+        id, circle_id, user_id, role, status, custom_title, permissions, joined_at,
+        user:profiles(id, username, display_name, avatar_url, video_avatar_url, is_verified)
       `)
       .eq("circle_id", circleId)
       .in("status", ["active", "approved"])
@@ -73,6 +79,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const supabase = getCircleMembersClient()
+    if (!supabase) return NextResponse.json({ error: "Circle member service is unavailable" }, { status: 503 })
 
     const { id: circleId } = await params
     const body = await request.json().catch(() => null)
@@ -212,6 +220,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const supabase = getCircleMembersClient()
+    if (!supabase) return NextResponse.json({ error: "Circle member service is unavailable" }, { status: 503 })
 
     const { id: circleId } = await params
     const { searchParams } = new URL(request.url)
@@ -279,7 +289,6 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       if (!removed) return NextResponse.json({ error: "Member changed. Refresh and try again." }, { status: 409 })
     }
 
-    const { syncCircleMemberCount } = await import("@/lib/circle-lifecycle")
     const { error: countError } = await syncCircleMemberCount(supabase, circleId)
     if (countError) {
       console.error("Circle member count sync failed after moderation:", countError)
