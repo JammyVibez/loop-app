@@ -200,7 +200,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
           method: "PATCH",
           headers: { "Content-Type": "application/json", ...getAuthHeader() },
           body: JSON.stringify({
-            title: editingTitle.trim() || null,
+            title: editingTitle.trim(),
             content: editingContent,
             payload: contribution.payload,
           }),
