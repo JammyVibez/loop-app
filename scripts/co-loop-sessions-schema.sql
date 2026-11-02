@@ -41,13 +41,13 @@ ALTER TABLE public.co_loop_sessions ENABLE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
+    -- Session drafts, roster metadata and lock state are private. Server routes
+    -- authenticate room participants; no public or authenticated-user policy
+    -- should expose this table through the Supabase REST endpoint.
     DROP POLICY IF EXISTS "Anyone can read co_loop_sessions" ON public.co_loop_sessions;
-    CREATE POLICY "Anyone can read co_loop_sessions" ON public.co_loop_sessions FOR SELECT USING (true);
-
-    -- Writes go through the service-role API routes (/api/co-loop/session-info),
-    -- which authenticate the caller server-side.
     DROP POLICY IF EXISTS "Service role manages co_loop_sessions" ON public.co_loop_sessions;
-    CREATE POLICY "Service role manages co_loop_sessions" ON public.co_loop_sessions FOR ALL USING (true) WITH CHECK (true);
+    CREATE POLICY "Service role manages co_loop_sessions" ON public.co_loop_sessions
+        FOR ALL TO service_role USING (true) WITH CHECK (true);
 END $$;
 
 DO $$

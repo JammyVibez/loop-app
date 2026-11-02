@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { isCoLoopParticipant } from "@/lib/co-loop-session-access"
 
 export const dynamic = "force-dynamic"
 
@@ -147,41 +148,56 @@ export async function PATCH(request: NextRequest) {
     const supabase = createServerClient()
 
     const body = await request.json()
-    const session_id = body.session_id || body.sessionId
+const session_id = body.session_id || body.sessionId
     const status = body.status
     const published_loop_id = body.published_loop_id || body.publishedLoopId || null
     const hasDraft =
       typeof body.draft_title === "string" || typeof body.draft_content === "string"
 
-    if (!session_id) {
-      return NextResponse.json({ error: "session_id is required" }, { status: 400 })
+    if (typeof session_id !== "string" || !session_id.trim() || session_id.length > 160) {
+      return NextResponse.json({ error: "A valid session_id is required" }, { status: 400 })
     }
-    if (!hasDraft && !["active", "published", "ended"].includes(status)) {
+    if (status !== undefined && !["active", "published", "ended"].includes(status)) {
       return NextResponse.json({ error: "A valid status is required" }, { status: 400 })
     }
+    if (!hasDraft && status === undefined && published_loop_id === null) {
+      return NextResponse.json({ error: "No session changes were supplied" }, { status: 400 })
+    }
+    if (typeof body.draft_title === "string" && body.draft_title.length > 500) {
+      return NextResponse.json({ error: "Draft titles cannot exceed 500 characters" }, { status: 400 })
+    }
+    if (typeof body.draft_content === "string" && body.draft_content.length > 40000) {
+      return NextResponse.json({ error: "Draft content cannot exceed 40,000 characters" }, { status: 400 })
+    }
 
-    // While the host has the room locked, nobody else may write the draft or
-    // change session state — the lock is enforced server-side, not just in the UI.
-    const { data: current } = await supabase
+    const { data: current, error: readError } = await supabase
       .from("co_loop_sessions")
-      .select("owner_id, locked, deleted_at")
+      .select("owner_id, co_authors, locked, deleted_at, status")
       .eq("session_id", session_id)
       .maybeSingle()
-    if (current?.deleted_at) {
-      return NextResponse.json({ error: "This room has been deleted" }, { status: 410 })
+    if (readError) {
+      console.error("Co-Loop session access check failed:", readError.message)
+      return NextResponse.json({ error: "Could not verify this room" }, { status: 500 })
     }
-    if (current?.locked && current.owner_id !== callingUser.id) {
+    if (!current) return NextResponse.json({ error: "This room does not exist" }, { status: 404 })
+    if (current.deleted_at) return NextResponse.json({ error: "This room has been deleted" }, { status: 410 })
+    if (!isCoLoopParticipant(current, callingUser.id)) {
+      return NextResponse.json({ error: "You are not a participant in this room" }, { status: 403 })
+    }
+    const isHost = current.owner_id === callingUser.id
+    if (current.locked && !isHost) {
       return NextResponse.json({ error: "The host has locked this room" }, { status: 403 })
     }
-    // Ending or publishing a room is the host's call alone — status is not a
-    // field any collaborator gets to flip.
-    if (status && current && current.owner_id !== callingUser.id) {
-      return NextResponse.json({ error: "Only the host can end this session" }, { status: 403 })
+    if ((status !== undefined || published_loop_id !== null) && !isHost) {
+      return NextResponse.json({ error: "Only the host can change room status or publish it" }, { status: 403 })
+    }
+    if (hasDraft && current.status !== "active" && !isHost) {
+      return NextResponse.json({ error: "This room is no longer accepting draft edits" }, { status: 409 })
     }
 
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
-    if (status) patch.status = status
-    if (published_loop_id) patch.published_loop_id = published_loop_id
+    if (status !== undefined) patch.status = status
+    if (published_loop_id !== null) patch.published_loop_id = published_loop_id
     if (hasDraft) {
       // Autosave of the shared draft — durable so the room can rehydrate it.
       if (typeof body.draft_title === "string") patch.draft_title = body.draft_title.slice(0, 500)
@@ -189,7 +205,7 @@ export async function PATCH(request: NextRequest) {
       patch.draft_updated_at = new Date().toISOString()
     }
 
-    const { error } = await supabase.from("co_loop_sessions").update(patch).eq("session_id", session_id)
+    const { error } = await supabase.from("co_loop_sessions").update(patch).eq("session_id", session_id).eq("owner_id", current.owner_id)
 
     if (error) {
       // Older deployments may not have the draft columns yet.

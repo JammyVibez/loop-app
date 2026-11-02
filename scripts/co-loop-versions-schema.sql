@@ -41,15 +41,12 @@ ALTER TABLE public.co_loop_versions ENABLE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
+    -- Version history can contain unpublished creative work. Keep it private
+    -- behind the authenticated Co-Loop version API.
     DROP POLICY IF EXISTS "Anyone can read co_loop_versions" ON public.co_loop_versions;
-    CREATE POLICY "Anyone can read co_loop_versions" ON public.co_loop_versions
-        FOR SELECT USING (true);
-
-    -- Writes go through the service-role API route (/api/co-loop/versions),
-    -- which authenticates the caller server-side.
     DROP POLICY IF EXISTS "Service role manages co_loop_versions" ON public.co_loop_versions;
     CREATE POLICY "Service role manages co_loop_versions" ON public.co_loop_versions
-        FOR ALL USING (true) WITH CHECK (true);
+        FOR ALL TO service_role USING (true) WITH CHECK (true);
 END $$;
 
 DO $$
