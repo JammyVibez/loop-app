@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
     // private application text. The reviewer endpoint owns those fields.
     const { data: requests, error } = await supabase
       .from("verification_requests")
-      .select("id, verification_type, status, admin_notes, rejection_reason, created_at, reviewed_at")
+      .select("id, verification_type, status, rejection_reason, created_at, reviewed_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
 

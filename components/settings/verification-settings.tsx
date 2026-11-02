@@ -164,7 +164,7 @@ export function VerificationSettings() {
           <p className="flex items-center gap-2 text-sm font-semibold text-red-600">
             <XCircle className="h-4 w-4" /> Previous request wasn't approved
           </p>
-          {latest.rejection_reason && <p className="mt-1 text-xs text-muted-foreground">Reviewer note: {latest.admin_notes}</p>}
+          {latest.rejection_reason && <p className="mt-1 text-xs text-muted-foreground">Reviewer feedback: {latest.rejection_reason}</p>}
           <p className="mt-1 text-xs text-muted-foreground">You can submit a new request below.</p>
         </div>
       )}

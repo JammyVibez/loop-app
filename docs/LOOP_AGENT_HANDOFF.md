@@ -362,3 +362,10 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 
 - Moved the Circle membership lifecycle migration after the account-status migration so its locked functions are installed only after `profiles.is_banned` and `profiles.is_deleted` exist.
 - Circle join and join-review routes now instantiate the server-only Supabase client and return 503 when the service-role key is absent. They no longer fall back to the public anon key for privileged membership mutations.
+
+## 29. Applicant verification feedback privacy correction — 2026-11-02
+
+- Fixed the applicant history projection to return only the user-facing `rejection_reason`; internal `admin_notes` remain confined to the review surface.
+- Updated Verification Settings to render the approved public feedback field. This resolves the TypeScript failure without widening disclosure of internal reviewer notes.
+- Added route-level regression coverage to ensure the applicant endpoint selects only the safe review fields and returns the rejection feedback.
+- Verify frontend type-check, tests and production build on the exact resulting PR head. Database-backed verification review and appeal/audit validation remain release gates.
