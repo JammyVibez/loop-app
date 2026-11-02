@@ -225,6 +225,17 @@ export function ChallengeDetailClient({
   const challenge = data.challenge
   const creator = oneAuthor(challenge.creator)
   const acceptingEntries = data.can_submit
+  const startsAt = challenge.starts_at ? new Date(challenge.starts_at).getTime() : null
+  const endsAt = challenge.ends_at ? new Date(challenge.ends_at).getTime() : null
+  const isUpcoming = challenge.status === "active" && startsAt !== null && startsAt > Date.now()
+  const isEnded = challenge.status !== "active" || (endsAt !== null && endsAt < Date.now())
+  const challengePhase = isEnded
+    ? "Closed"
+    : isUpcoming
+      ? "Upcoming"
+      : acceptingEntries
+        ? "Open for entries"
+        : "Not accepting entries"
   const chainParams = new URLSearchParams({
     circle_id: circleId,
     source_drop_id: challenge.id,
@@ -246,9 +257,7 @@ export function ChallengeDetailClient({
           <CalendarClock className="h-4 w-4" />
           {challenge.challenge_type.replace(/_/g, " ")}
           <span className="text-muted-foreground">·</span>
-          {challenge.status === "active"
-            ? acceptingEntries ? "Open for entries" : "Not accepting entries"
-            : "Closed"}
+          {challengePhase}
         </div>
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{challenge.title}</h1>
         {challenge.description ? (
@@ -259,6 +268,7 @@ export function ChallengeDetailClient({
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           <span>Created by {creator?.display_name || creator?.username || "Circle member"}</span>
           <span>·</span>
+          {challenge.starts_at && <span>Starts {formatDate(challenge.starts_at)}</span>}
           <span>Closes {formatDate(challenge.ends_at)}</span>
         </div>
         <div className="flex flex-wrap items-center gap-3">
