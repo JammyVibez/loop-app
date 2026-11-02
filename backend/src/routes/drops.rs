@@ -149,7 +149,7 @@ pub async fn list(
     let search_pattern = search_filter.map(|value| format!("%{}%", value));
     let filters = DropFilters {
         search: search_pattern.as_deref(),
-        category: category_filter,
+        category: category_filter.filter(|value| !value.eq_ignore_ascii_case("all")),
         live: query.live.unwrap_or(false),
         upcoming: query.upcoming.unwrap_or(false),
         sort,
@@ -243,23 +243,28 @@ pub async fn list(
     }
 
     items.sort_by(|left, right| match sort {
-        "recent" => right.created_at.cmp(&left.created_at),
+        "recent" => right.created_at.cmp(&left.created_at).then_with(|| left.id.cmp(&right.id)),
         "popular" => right
             .participants_count
             .cmp(&left.participants_count)
             .then_with(|| right.is_live.cmp(&left.is_live))
-            .then_with(|| right.created_at.cmp(&left.created_at)),
+            .then_with(|| right.created_at.cmp(&left.created_at))
+            .then_with(|| left.id.cmp(&right.id)),
         "upcoming" => right
             .is_live
             .cmp(&left.is_live)
             .then_with(|| left.starts_at.is_none().cmp(&right.starts_at.is_none()))
+            .then_with(|| left.starts_at.is_none().cmp(&right.starts_at.is_none()))
             .then_with(|| left.starts_at.cmp(&right.starts_at))
-            .then_with(|| right.created_at.cmp(&left.created_at)),
+            .then_with(|| right.created_at.cmp(&left.created_at))
+            .then_with(|| left.id.cmp(&right.id)),
         _ => right
             .is_live
             .cmp(&left.is_live)
+            .then_with(|| left.starts_at.is_none().cmp(&right.starts_at.is_none()))
             .then_with(|| left.starts_at.cmp(&right.starts_at))
-            .then_with(|| right.created_at.cmp(&left.created_at)),
+            .then_with(|| right.created_at.cmp(&left.created_at))
+            .then_with(|| left.id.cmp(&right.id)),
     });
 
     let total = items.len();
@@ -444,10 +449,10 @@ async fn load_circle_events(
           AND (NOT $5::boolean OR (event.starts_at <= NOW() AND (event.ends_at IS NULL OR event.ends_at >= NOW())))
           AND (NOT $6::boolean OR (event.starts_at IS NULL OR event.starts_at > NOW()))
         ORDER BY
-            CASE WHEN $6 = 'recent' THEN event.created_at END DESC NULLS LAST,
-            CASE WHEN $6 = 'popular' THEN COALESCE(event.participant_count, 0) END DESC NULLS LAST,
-            CASE WHEN $6 IN ('recommended', 'upcoming') THEN (event.starts_at <= NOW() AND (event.ends_at IS NULL OR event.ends_at >= NOW()))::int END DESC NULLS LAST,
-            CASE WHEN $6 IN ('recommended', 'upcoming') THEN event.starts_at END ASC NULLS LAST,
+            CASE WHEN $7 = 'recent' THEN event.created_at END DESC NULLS LAST,
+            CASE WHEN $7 = 'popular' THEN COALESCE(event.participant_count, 0) END DESC NULLS LAST,
+            CASE WHEN $7 IN ('recommended', 'upcoming') THEN (event.starts_at <= NOW() AND (event.ends_at IS NULL OR event.ends_at >= NOW()))::int END DESC NULLS LAST,
+            CASE WHEN $7 IN ('recommended', 'upcoming') THEN event.starts_at END ASC NULLS LAST,
             event.created_at DESC, event.id DESC
         LIMIT $2
         "#,
