@@ -981,6 +981,15 @@ export interface Database {
         }
         Returns: Json
       }
+      review_ban_appeal: {
+        Args: {
+          p_appeal_id: string
+          p_reviewer_id: string
+          p_decision: string
+          p_admin_notes?: string | null
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
