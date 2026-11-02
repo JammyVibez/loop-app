@@ -295,10 +295,30 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
         <TabsContent value="recent" className="mt-6 space-y-4">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold">{selectedTab === "following" ? "From people you follow" : "Recent Loops"}</h2>
+            <h2 className="text-xl font-semibold">Recent Loops</h2>
             <Badge variant="secondary">Newest first</Badge>
           </div>
           {renderLoops(loops, "No recent loops yet")}
+        </TabsContent>
+
+        {user && (
+          <TabsContent value="following" className="mt-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-semibold">From people you follow</h2>
+              <Badge variant="secondary">Latest first</Badge>
+            </div>
+            {renderLoops(loops, "No recent public Loops from people you follow yet")}
+          </TabsContent>
+        )}
+
+        <TabsContent value="community" className="mt-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold">From Circles</h2>
+            <Badge variant="secondary">Public community work</Badge>
+          </div>
+          {renderLoops(loops, "No public Circle Loops found yet")}
         </TabsContent>
 
         <TabsContent value="deepest" className="mt-6 space-y-4">
