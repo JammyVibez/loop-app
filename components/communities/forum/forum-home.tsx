@@ -248,7 +248,8 @@ export function ForumHome({ communityId }: { communityId: string }) {
     if (!user) {
       router.push(`/auth?returnTo=/communities/${communityId}`)
       return
-    }    setJoining(true)
+    }
+    setJoining(true)
     try {
       const res = await fetch(`/api/circles/${communityId}/join`, {
         method: "POST",
@@ -497,7 +498,8 @@ export function ForumHome({ communityId }: { communityId: string }) {
                     <p className="mt-0.5 line-clamp-1 text-sm font-semibold text-foreground">{d.prompt}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {d.entrants} {d.entrants === 1 ? "entry" : "entries"} · {d.votes} votes
-                    </p>                  </div>
+                    </p>
+                  </div>
                 </>
               )
               return d.loop_id ? (
@@ -748,7 +750,8 @@ export function ForumHome({ communityId }: { communityId: string }) {
                           {t.replies === 1 ? "reply" : "replies"}
                         </span>
                         <span className="inline-flex items-center gap-1">
-                          <Eye className="h-3 w-3" /> {compact(t.views)}                        </span>
+                          <Eye className="h-3 w-3" /> {compact(t.views)}
+                        </span>
                         {t.tags.slice(0, 3).map((tag) => (
                           <span key={tag} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium">
                             #{tag}
@@ -997,7 +1000,8 @@ function NewThreadSheet({
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Failed to create thread")
       setTitle("")
-      setContent("")      setTags("")
+      setContent("")
+      setTags("")
       setMedia(null)
       setPollOn(false)
       setPollQuestion("")
