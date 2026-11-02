@@ -304,3 +304,6 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 
 - The production database setup runner now treats the verification lifecycle migration as strict. Its statement-by-statement fallback remains available for the other legacy migrations, but any verification migration statement error stops setup instead of being ignored by the generic legacy-schema compatibility rules.
 - This prevents a missing profile relation, failed policy change or missing review function from being reported as a successful verification setup.
+## 18. Verification RPC type contract — 2026-11-02
+
+- Added the new verification review RPC signature to the shared Supabase Database type contract. The admin route is now checked against the migration's argument names and JSON return shape rather than requiring an untyped RPC call.

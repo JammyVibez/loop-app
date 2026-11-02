@@ -962,6 +962,15 @@ export interface Database {
           trend_score: number
         }[]
       }
+      review_verification_request: {
+        Args: {
+          p_request_id: string
+          p_reviewer_id: string
+          p_action: string
+          p_admin_notes?: string | null
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
