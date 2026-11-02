@@ -1318,10 +1318,8 @@ pub async fn set_member(
         .begin()
         .await
         .map_err(|error| db_error(error, "begin Chain member update"))?;
-    let chain = sqlx::query(
-        "SELECT creator_id, circle_id FROM chains WHERE id = $1 FOR UPDATE",
-    )
-    .bind(chain_id)
+    let chain = sqlx::query("SELECT creator_id, circle_id FROM chains WHERE id = $1 FOR UPDATE")
+        .bind(chain_id)
     .fetch_optional(&mut *transaction)
     .await
     .map_err(|error| db_error(error, "load Chain for member update"))?
@@ -1423,13 +1421,12 @@ pub async fn set_member(
         ));
     }
 
-    let target_exists = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS (SELECT 1 FROM profiles WHERE id = $1)",
-    )
-    .bind(member_user_id)
-    .fetch_one(&mut *transaction)
-    .await
-    .map_err(|error| db_error(error, "verify Chain member account"))?;
+    let target_exists =
+        sqlx::query_scalar::<_, bool>("SELECT EXISTS (SELECT 1 FROM profiles WHERE id = $1)")
+            .bind(member_user_id)
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(|error| db_error(error, "verify Chain member account"))?;
     if !target_exists {
         return Err(api_error(
             StatusCode::NOT_FOUND,
@@ -2160,10 +2157,7 @@ mod tests {
             valid_chain_member_role("collaborator"),
             Some("collaborator")
         );
-        assert_eq!(
-            valid_chain_member_role("CONTRIBUTOR"),
-            Some("contributor")
-        );
+        assert_eq!(valid_chain_member_role("CONTRIBUTOR"), Some("contributor"));
         assert_eq!(valid_chain_member_role("viewer"), Some("viewer"));
         assert!(valid_chain_member_role("owner").is_none());
         assert!(valid_chain_member_role("admin").is_none());
