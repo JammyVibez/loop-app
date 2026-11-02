@@ -14,9 +14,9 @@ type SocialSearchPayload = {
   users?: SearchRecord[]
   circles?: SearchRecord[]
   hashtags?: SearchRecord[]
+  chains?: SearchRecord[]
+  collections?: SearchRecord[]
 }
-type ChainSearchPayload = { chains?: SearchRecord[] }
-type CollectionSearchPayload = SearchRecord[]
 type DropSearchPayload = { items?: SearchRecord[] }
 type SearchResults = {
   loops: SearchRecord[]
@@ -126,24 +126,8 @@ export function ExploreSearchResults({
           { headers, cache: "no-store", signal: controller.signal },
         ).then(async (response) => {
           const data = await response.json()
-          if (!response.ok) throw new Error(data.error || "Social search failed")
+          if (!response.ok) throw new Error(data.error || "Universal search failed")
           return data as SocialSearchPayload
-        }),
-        fetch(
-          "/api/v1/chains?" + new URLSearchParams({ search: value, limit: "12", sort: "recent" }),
-          { headers, cache: "no-store", signal: controller.signal },
-        ).then(async (response) => {
-          const data = await response.json()
-          if (!response.ok) throw new Error(data.message || data.error || "Chain search failed")
-          return data as ChainSearchPayload
-        }),
-        fetch(
-          "/api/v1/collections?" + new URLSearchParams({ search: value, limit: "12" }),
-          { headers, cache: "no-store", signal: controller.signal },
-        ).then(async (response) => {
-          const data = await response.json()
-          if (!response.ok) throw new Error(data.message || data.error || "Collection search failed")
-          return data as CollectionSearchPayload
         }),
         user
           ? fetch(
@@ -158,7 +142,7 @@ export function ExploreSearchResults({
       ])
 
       if (!active) return
-      const [social, chains, collections, drops] = requests
+      const [social, drops] = requests
 
       if (requests.every((item) => item.status === "rejected")) {
         const firstError = requests.find((item) => item.status === "rejected")
@@ -172,10 +156,8 @@ export function ExploreSearchResults({
           users: social.status === "fulfilled" ? social.value.users || [] : [],
           circles: social.status === "fulfilled" ? social.value.circles || [] : [],
           hashtags: social.status === "fulfilled" ? social.value.hashtags || [] : [],
-          chains: chains.status === "fulfilled" ? chains.value.chains || [] : [],
-          collections: collections.status === "fulfilled" && Array.isArray(collections.value)
-            ? collections.value
-            : [],
+          chains: social.status === "fulfilled" ? social.value.chains || [] : [],
+          collections: social.status === "fulfilled" ? social.value.collections || [] : [],
           drops: drops.status === "fulfilled" ? drops.value.items || [] : [],
         })
         if (requests.some((item) => item.status === "rejected")) {
@@ -291,7 +273,7 @@ export function ExploreSearchResults({
             <ResultSection title="Collections" icon={<Bookmark className="h-4 w-4" />}>
               {results.collections.map((item) => (
                 <ResultCard key={item.id} href={"/collections/" + item.id} title={item.title}
-                  description={item.description} meta={(item.item_count ?? 0) + " saved items"} />
+                  description={item.description} meta={item.is_collaborative ? "Collaborative collection" : "Public collection"} />
               ))}
             </ResultSection>
           )}

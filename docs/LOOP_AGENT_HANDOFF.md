@@ -99,3 +99,10 @@ Finish and verify: durable invitations and revocation, active-session authorizat
 - Search discovery excludes private/unlisted Chains and Collections, Circle-attached Chains (whose access depends on Circle membership), inactive/archived Chains and objects owned by blocked/restricted profiles. Owner lookup failures fail closed.
 - Added dedicated Chain and Collection result cards and tabs, with stable links to their existing detail pages. Updated the search page description to reflect the broader object graph.
 - Added route-level regression coverage for public-only visibility, Circle-scope exclusion and private/blocked owner filtering. CI on the exact head remains the verification gate.
+
+
+## 70. Explore uses the same universal search contract — 2026-11-02
+
+- Consolidated Explore search to consume the shared `/api/search` response for people, Loops, hashtags, Circles, Chains and Collections; Drops remain on their dedicated endpoint because they are a separately permissioned aggregation.
+- Removed duplicate direct Chain and Collection search calls from the Explore search component, so public visibility and blocked/restricted-owner filtering are consistent between Explore and the dedicated Search page.
+- Extended autocomplete suggestions to include Chains, Collections and Circles, with type-specific icons and concise context labels.
