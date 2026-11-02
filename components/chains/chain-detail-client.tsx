@@ -54,6 +54,9 @@ type ChainResponse = {
   chain: Chain
   contributions: Contribution[]
   can_contribute: boolean
+  contributions_limit: number
+  contributions_offset: number
+  contributions_has_more: boolean
 }
 
 function dateLabel(value: string) {
@@ -87,6 +90,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
   const [attachment, setAttachment] = useState<File | null>(null)
   const attachmentInputRef = useRef<HTMLInputElement>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -109,6 +113,33 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
   useEffect(() => {
     void load()
   }, [load])
+
+  const loadMoreContributions = async () => {
+    if (!data?.contributions_has_more || loadingMore) return
+    setLoadingMore(true)
+    setError("")
+    try {
+      const params = new URLSearchParams({ limit: "40", offset: String(data.contributions.length) })
+      const response = await fetch("/api/v1/chains/" + encodeURIComponent(chainId) + "?" + params.toString(), {
+        headers: getAuthHeader(),
+        cache: "no-store",
+      })
+      const next = await response.json()
+      if (!response.ok) throw new Error(next.message || next.error || "Could not load more contributions")
+      setData((current) => {
+        if (!current) return next
+        const known = new Set(current.contributions.map((item) => item.id))
+        return {
+          ...next,
+          contributions: [...current.contributions, ...next.contributions.filter((item: Contribution) => !known.has(item.id))],
+        }
+      })
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load more contributions")
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   const contribute = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -359,6 +390,13 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
                 </div>
               </article>
             ))}
+          </div>
+        )}
+        {data.contributions_has_more && (
+          <div className="flex justify-center pt-2">
+            <Button variant="outline" onClick={() => void loadMoreContributions()} disabled={loadingMore}>
+              {loadingMore ? "Loading contributions…" : "Load earlier contributions"}
+            </Button>
           </div>
         )}
       </section>

@@ -41,8 +41,10 @@ fn api_error(status: StatusCode, error: &'static str, message: impl Into<String>
 #[derive(Deserialize)]
 pub struct ListDropsQuery {
     limit: Option<i64>,
+    offset: Option<i64>,
     kind: Option<String>,
     category: Option<String>,
+    search: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -71,6 +73,9 @@ pub struct DropsResponse {
     success: bool,
     items: Vec<DropItem>,
     total: usize,
+    limit: i64,
+    offset: i64,
+    has_more: bool,
     live_count: usize,
     challenge_count: usize,
     event_count: usize,
@@ -82,6 +87,8 @@ pub async fn list(
     Query(query): Query<ListDropsQuery>,
 ) -> Result<Json<DropsResponse>, ApiError> {
     let limit = query.limit.unwrap_or(30).clamp(1, 75);
+    let offset = query.offset.unwrap_or(0).clamp(0, 1_000_000);
+    let search_filter = query.search.as_deref().map(str::trim).filter(|value| !value.is_empty());
     let kind_filter = query
         .kind
         .as_deref()
@@ -112,7 +119,7 @@ pub async fn list(
     })?;
 
     let mut items = Vec::new();
-    let per_source_limit = limit.clamp(1, 50);
+    let per_source_limit = (offset + limit).clamp(1, 300);
 
     append_rows(
         &mut items,
@@ -162,6 +169,17 @@ pub async fn list(
         }
     }
 
+    if let Some(search) = search_filter {
+        let needle = search.to_lowercase();
+        items.retain(|item| {
+            item.title.to_lowercase().contains(&needle)
+                || item.description.to_lowercase().contains(&needle)
+                || item.category.to_lowercase().contains(&needle)
+                || item.circle_name.as_deref().is_some_and(|name| name.to_lowercase().contains(&needle))
+                || item.source.to_lowercase().contains(&needle)
+        });
+    }
+
     items.sort_by(|left, right| {
         let left_live = left.is_live;
         let right_live = right.is_live;
@@ -170,16 +188,21 @@ pub async fn list(
             .then_with(|| left.starts_at.cmp(&right.starts_at))
             .then_with(|| right.created_at.cmp(&left.created_at))
     });
-    items.truncate(limit as usize);
 
+    let total = items.len();
+    let has_more = total > (offset + limit) as usize;
     let live_count = items.iter().filter(|item| item.is_live).count();
     let challenge_count = items.iter().filter(|item| item.kind == "challenge").count();
     let event_count = items.len().saturating_sub(challenge_count);
+    let items = items.into_iter().skip(offset as usize).take(limit as usize).collect();
 
     Ok(Json(DropsResponse {
         success: true,
-        total: items.len(),
         items,
+        total,
+        limit,
+        offset,
+        has_more,
         live_count,
         challenge_count,
         event_count,

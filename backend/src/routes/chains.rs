@@ -63,6 +63,7 @@ pub struct ListChainsQuery {
     kind: Option<String>,
     category: Option<String>,
     circle_id: Option<Uuid>,
+    creator_id: Option<Uuid>,
     search: Option<String>,
     sort: Option<String>,
 }
@@ -96,6 +97,7 @@ pub struct ChainsResponse {
     chains: Vec<ChainSummary>,
     limit: i64,
     offset: i64,
+    has_more: bool,
 }
 
 #[derive(Deserialize)]
@@ -135,6 +137,15 @@ pub struct ChainDetailResponse {
     chain: ChainSummary,
     contributions: Vec<ChainContribution>,
     can_contribute: bool,
+    contributions_limit: i64,
+    contributions_offset: i64,
+    contributions_has_more: bool,
+}
+
+#[derive(Deserialize)]
+pub struct ContributionPageQuery {
+    limit: Option<i64>,
+    offset: Option<i64>,
 }
 
 #[derive(Deserialize)]
@@ -383,13 +394,14 @@ pub async fn list(
           AND ($2::text IS NULL OR chain.kind = $2)
           AND ($3::text IS NULL OR chain.category = $3)
           AND ($4::uuid IS NULL OR chain.circle_id = $4)
-          AND ($5::text IS NULL OR chain.title ILIKE '%' || $5 || '%' OR chain.description ILIKE '%' || $5 || '%' OR chain.prompt ILIKE '%' || $5 || '%')
+          AND ($5::uuid IS NULL OR chain.creator_id = $5)
+          AND ($6::text IS NULL OR chain.title ILIKE '%' || $6 || '%' OR chain.description ILIKE '%' || $6 || '%' OR chain.prompt ILIKE '%' || $6 || '%')
         ORDER BY
-          CASE WHEN $6 = 'recent' THEN chain.created_at END DESC,
-          CASE WHEN $6 = 'active' THEN chain.updated_at END DESC,
-          CASE WHEN $6 = 'contributions' THEN chain.contribution_count END DESC,
+          CASE WHEN $7 = 'recent' THEN chain.created_at END DESC,
+          CASE WHEN $7 = 'active' THEN chain.updated_at END DESC,
+          CASE WHEN $7 = 'contributions' THEN chain.contribution_count END DESC,
           chain.updated_at DESC
-        LIMIT $7 OFFSET $8"
+        LIMIT $8 OFFSET $9"
     );
 
     let rows = sqlx::query(&sql)
@@ -397,14 +409,18 @@ pub async fn list(
         .bind(kind)
         .bind(category)
         .bind(query.circle_id)
+        .bind(query.creator_id)
         .bind(search)
         .bind(sort)
-        .bind(limit)
+        .bind(limit + 1)
         .bind(offset)
         .fetch_all(&state.database)
         .await
         .map_err(|error| db_error(error, "list chains"))?;
 
+    let has_more = rows.len() > limit as usize;
+    let mut rows = rows;
+    rows.truncate(limit as usize);
     let chains = rows
         .iter()
         .map(parse_summary)
@@ -413,6 +429,7 @@ pub async fn list(
         chains,
         limit,
         offset,
+        has_more,
     }))
 }
 
@@ -640,7 +657,10 @@ pub async fn get(
     State(state): State<AppState>,
     user: OptionalAuthenticatedUser,
     Path(chain_id): Path<Uuid>,
+    Query(page): Query<ContributionPageQuery>,
 ) -> Result<Json<ChainDetailResponse>, ApiError> {
+    let contribution_limit = page.limit.unwrap_or(40).clamp(1, 100);
+    let contribution_offset = page.offset.unwrap_or(0).clamp(0, 1_000_000);
     let viewer_id = user.0.as_ref().map(|authenticated| authenticated.id);
     let sql = format!(
         "{SUMMARY_SELECT}
@@ -739,14 +759,19 @@ pub async fn get(
         JOIN profiles AS profile ON profile.id = contribution.author_id
         WHERE contribution.chain_id = $1 AND contribution.status = 'published'
         ORDER BY contribution.position ASC
-        LIMIT 100
+        LIMIT $2 OFFSET $3
         "#,
     )
     .bind(chain_id)
+    .bind(contribution_limit + 1)
+    .bind(contribution_offset)
     .fetch_all(&state.database)
     .await
     .map_err(|error| db_error(error, "load Chain contributions"))?;
 
+    let contributions_has_more = rows.len() > contribution_limit as usize;
+    let mut rows = rows;
+    rows.truncate(contribution_limit as usize);
     let contributions = rows
         .into_iter()
         .map(|row| {
@@ -801,6 +826,9 @@ pub async fn get(
         chain,
         contributions,
         can_contribute,
+        contributions_limit: contribution_limit,
+        contributions_offset: contribution_offset,
+        contributions_has_more,
     }))
 }
 

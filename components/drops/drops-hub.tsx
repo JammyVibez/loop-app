@@ -43,6 +43,9 @@ interface DropsResponse {
   success: boolean
   items: DropItem[]
   total: number
+  limit: number
+  offset: number
+  has_more: boolean
   live_count: number
   challenge_count: number
   event_count: number
@@ -170,6 +173,8 @@ export function DropsHub() {
   const [error, setError] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<DropFilter>("all")
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [loadingMore, setLoadingMore] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [joinedCircles, setJoinedCircles] = useState<Array<{ id: string; name: string }>>([])
@@ -183,6 +188,11 @@ export function DropsHub() {
   const [creatingDrop, setCreatingDrop] = useState(false)
   const [createDropError, setCreateDropError] = useState("")
 
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedSearch(search.trim()), 300)
+    return () => window.clearTimeout(timeout)
+  }, [search])
+
   const loadDrops = useCallback(async (silent = false) => {
     if (!user) {
       setResponse(null)
@@ -195,7 +205,9 @@ export function DropsHub() {
     setError(null)
 
     try {
-      const data = await rustApiRequest<DropsResponse>("drops?limit=60", {
+      const params = new URLSearchParams({ limit: "60", offset: "0" })
+      if (debouncedSearch) params.set("search", debouncedSearch)
+      const data = await rustApiRequest<DropsResponse>("drops?" + params.toString(), {
         headers: getAuthHeader(),
         cache: "no-store",
       })
@@ -206,7 +218,28 @@ export function DropsHub() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [getAuthHeader, user])
+  }, [debouncedSearch, getAuthHeader, user])
+
+  const loadMoreDrops = async () => {
+    if (!response?.has_more || loadingMore) return
+    setLoadingMore(true)
+    try {
+      const params = new URLSearchParams({ limit: "60", offset: String(response.items.length) })
+      if (debouncedSearch) params.set("search", debouncedSearch)
+      const page = await rustApiRequest<DropsResponse>("drops?" + params.toString(), {
+        headers: getAuthHeader(),
+        cache: "no-store",
+      })
+      setResponse((current) => current ? {
+        ...page,
+        items: [...current.items, ...page.items.filter((item) => !current.items.some((existing) => existing.id === item.id && existing.source === item.source))],
+      } : page)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load more activity.")
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   useEffect(() => {
     if (!authLoading) void loadDrops()
@@ -307,7 +340,7 @@ export function DropsHub() {
         item.source,
       ].some((value) => value.toLowerCase().includes(query))
     })
-  }, [activeFilter, response?.items, search])
+  }, [activeFilter, response?.items])
 
   if (authLoading || loading) {
     return (
@@ -518,6 +551,14 @@ export function DropsHub() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredItems.map((item) => <DropCard key={`${item.source}:${item.id}`} item={item} />)}
+        </div>
+      )}
+
+      {response?.has_more && !error && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={() => void loadMoreDrops()} disabled={loadingMore}>
+            {loadingMore ? "Loading activity…" : "Load more activity"}
+          </Button>
         </div>
       )}
 

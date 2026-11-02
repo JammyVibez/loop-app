@@ -56,6 +56,8 @@ export function ChainsHub() {
   const searchParams = useSearchParams()
   const requestedCircleId = searchParams.get("circle_id") || ""
   const [chains, setChains] = useState<Chain[]>([])
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [sort, setSort] = useState<"recent" | "active" | "contributions">("recent")
@@ -74,7 +76,7 @@ export function ChainsHub() {
     setLoading(true)
     setError("")
     try {
-      const params = new URLSearchParams({ limit: "36", sort })
+      const params = new URLSearchParams({ limit: "36", offset: "0", sort })
       if (kind !== "all") params.set("kind", kind)
       if (search.trim()) params.set("search", search.trim())
       const response = await fetch("/api/v1/chains?" + params.toString(), {
@@ -84,6 +86,7 @@ export function ChainsHub() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.message || data.error || "Could not load Chains")
       setChains(Array.isArray(data.chains) ? data.chains : [])
+      setHasMore(Boolean(data.has_more))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load Chains")
     } finally {
@@ -127,6 +130,33 @@ export function ChainsHub() {
       cancelled = true
     }
   }, [getAuthHeader, requestedCircleId, user])
+
+  const loadMore = async () => {
+    if (!hasMore || loadingMore) return
+    setLoadingMore(true)
+    setError("")
+    try {
+      const params = new URLSearchParams({ limit: "36", offset: String(chains.length), sort })
+      if (kind !== "all") params.set("kind", kind)
+      if (search.trim()) params.set("search", search.trim())
+      const response = await fetch("/api/v1/chains?" + params.toString(), {
+        headers: getAuthHeader(),
+        cache: "no-store",
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.message || data.error || "Could not load more Chains")
+      const next: Chain[] = Array.isArray(data.chains) ? data.chains : []
+      setChains((current) => {
+        const known = new Set(current.map((chain) => chain.id))
+        return [...current, ...next.filter((chain) => !known.has(chain.id))]
+      })
+      setHasMore(Boolean(data.has_more))
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load more Chains")
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   const createChain = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -310,6 +340,13 @@ export function ChainsHub() {
                 </div>
               </Link>
             ))}
+          </div>
+        )}
+        {hasMore && !loading && (
+          <div className="flex justify-center pt-3">
+            <Button variant="outline" onClick={() => void loadMore()} disabled={loadingMore}>
+              {loadingMore ? "Loading Chains…" : "Load more Chains"}
+            </Button>
           </div>
         )}
       </section>
