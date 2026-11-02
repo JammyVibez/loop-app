@@ -587,3 +587,11 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Added an authenticated invitation inbox endpoint and a Collections hub inbox with Accept/Decline controls. Responses lock the Collection and invitation rows, validate the current pending state, reject suspended/deleted accounts, and notify the owner after recording the decision in the same transaction.
 - Re-inviting a declined member creates a fresh pending invitation; re-inviting an active collaborator updates their access level without removing their existing access. One pending row per (collection, member) is enforced by the composite primary key.
 - Added API route registration and UI handling. Still validate clean/existing PostgreSQL migrations and run Rust/frontend CI on the exact latest PR head.
+
+
+## 57. Owner-side pending Collection invitation management — 2026-11-02
+
+- The Collection owner detail view now lists outstanding invitations, invited username, editor/viewer level and invitation date.
+- Owners can cancel a pending invitation using the existing transactional member-removal endpoint; pending invitations remain excluded from the active collaborator roster and do not grant private Collection access.
+- The Rust detail API returns pending invitation identities only to the canonical Collection owner. Members and public viewers receive an empty pending-invitation list.
+- Re-run Rust/frontend CI and validate owner, invitee and unrelated-viewer responses against PostgreSQL before release.

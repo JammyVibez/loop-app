@@ -80,6 +80,15 @@ pub struct CollectionCollaborator {
 }
 
 #[derive(Serialize)]
+pub struct CollectionPendingInvitation {
+    user_id: Uuid,
+    username: String,
+    display_name: String,
+    role: String,
+    invited_at: DateTime<Utc>,
+}
+
+#[derive(Serialize)]
 pub struct CollectionInvitation {
     collection_id: Uuid,
     title: String,
@@ -128,6 +137,7 @@ pub struct CollectionDetail {
     collection: CollectionSummary,
     items: Vec<CollectionItem>,
     collaborators: Vec<CollectionCollaborator>,
+    pending_invitations: Vec<CollectionPendingInvitation>,
     can_edit: bool,
     can_manage_members: bool,
 }
@@ -585,11 +595,50 @@ pub async fn get(
         Vec::new()
     };
     let can_manage_members = viewer_id == Some(collection.owner_id);
+    let pending_invitations = if can_manage_members && collection.is_collaborative {
+        let rows = sqlx::query(
+            r#"
+            SELECT member.user_id, profile.username, profile.display_name,
+                   member.role, member.invited_at
+            FROM collection_members AS member
+            JOIN profiles AS profile ON profile.id = member.user_id
+            WHERE member.collection_id = $1
+              AND member.status = 'pending'
+            ORDER BY member.invited_at ASC, member.user_id ASC
+            "#,
+        )
+        .bind(collection_id)
+        .fetch_all(&state.database)
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "failed to load pending Collection invitations");
+            api_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "collection_pending_invitations_failed",
+                "Could not load pending invitations.",
+            )
+        })?;
+
+        rows.into_iter()
+            .map(|row| {
+                Ok(CollectionPendingInvitation {
+                    user_id: row.try_get("user_id").map_err(internal_db_error)?,
+                    username: row.try_get("username").map_err(internal_db_error)?,
+                    display_name: row.try_get("display_name").map_err(internal_db_error)?,
+                    role: row.try_get("role").map_err(internal_db_error)?,
+                    invited_at: row.try_get("invited_at").map_err(internal_db_error)?,
+                })
+            })
+            .collect::<Result<Vec<_>, ApiError>>()?
+    } else {
+        Vec::new()
+    };
 
     Ok(Json(CollectionDetail {
         collection,
         items,
         collaborators,
+        pending_invitations,
         can_edit,
         can_manage_members,
     }))

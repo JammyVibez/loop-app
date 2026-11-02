@@ -46,10 +46,19 @@ interface CollectionMemberInvitationResult {
   status: "pending" | "active"
 }
 
+interface CollectionPendingInvitation {
+  user_id: string
+  username: string
+  display_name: string
+  role: "editor" | "viewer"
+  invited_at: string
+}
+
 interface CollectionDetail {
   collection: CollectionSummary
   items: CollectionItem[]
   collaborators: CollectionCollaborator[]
+  pending_invitations: CollectionPendingInvitation[]
   can_edit: boolean
   can_manage_members: boolean
 }
@@ -325,6 +334,36 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
             ) : (
               <p className="text-sm text-muted-foreground">No collaborators yet. Add someone to build this collection together.</p>
             )}
+            {data.can_manage_members && data.pending_invitations.length > 0 ? (
+              <div className="space-y-2 border-t border-border/60 pt-3">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-semibold">Pending invitations</p>
+                  <Badge variant="secondary">{data.pending_invitations.length}</Badge>
+                </div>
+                {data.pending_invitations.map((invitation) => (
+                  <div key={invitation.user_id} className="flex items-center gap-3 rounded-xl bg-muted/30 px-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {invitation.display_name || invitation.username}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        @{invitation.username} · {invitation.role} · sent {new Date(invitation.invited_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Badge variant="outline">Awaiting response</Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={removingCollaborator === invitation.user_id}
+                      onClick={() => void removeCollaborator(invitation.user_id)}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             {data.can_manage_members ? (
               <div className="flex flex-col gap-2 border-t border-border/60 pt-3 sm:flex-row">
                 <Input
