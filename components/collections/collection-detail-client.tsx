@@ -297,6 +297,11 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
       {collection.is_collaborative || (data.can_manage_members && data.pending_invitations.length > 0) ? (
         <Card className="rounded-2xl border-border/70">
           <CardContent className="space-y-4 p-4 sm:p-5">
+            {!collection.is_collaborative && data.can_manage_members ? (
+              <p className="rounded-xl border border-dashed border-border/70 p-3 text-xs text-muted-foreground">
+                Collaboration is paused. Existing members cannot access or edit this collection. You can cancel outstanding invitations here; turn collaboration back on to invite members again.
+              </p>
+            ) : null}
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               <h2 className="font-semibold">Collaborators</h2>
