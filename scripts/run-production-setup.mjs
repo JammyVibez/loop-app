@@ -12,6 +12,9 @@ if (!databaseUrl) {
 const files = [
   "scripts/schema-compat-alignment.sql",
   "scripts/complete-database-setup.sql",
+  // Independent blue identity verification: request lifecycle, privacy and atomic review.
+  // Kept separate from Premium entitlement grants.
+  "scripts/verification-lifecycle.sql",
   // Rust API compatibility foundation: profiles/collections, then Chains,
   // Chain collection targets and contribution revision/remix lineage.
   "backend/migrations/0001_collections.sql",

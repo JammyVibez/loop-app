@@ -18,7 +18,7 @@ interface ExistingRequest {
   id: string | number;
   verification_type: string;
   status: string;
-  admin_notes?: string | null;
+  rejection_reason?: string | null;
   created_at: string;
 }
 
@@ -48,8 +48,7 @@ export function VerificationRequest() {
   const { toast } = useToast()
   const { user, getAuthHeader } = useAuth()
 
-  // Prefill the username from the signed-in profile and load request history +
-  // verified status so the page reflects reality instead of guessing.
+  // Load the authenticated account's verification state and request history.
   useEffect(() => {
     let mounted = true
     async function load() {
@@ -200,10 +199,14 @@ export function VerificationRequest() {
         </div>
       )}
 
-      {!pendingRequest?.status && pendingRequest?.status === "rejected" && null}
+      {!user && (
+        <p className="rounded-xl border bg-muted/40 p-3 text-sm text-muted-foreground">
+          Sign in to request verification.
+        </p>
+      )}
 
-      {/* Request form — hidden while a request is pending or already verified */}
-      {!alreadyVerified && !pendingRequest && (
+      {/* Request form — hidden while signed out, pending or already verified */}
+      {user && !alreadyVerified && !pendingRequest && (
         <Card>
           <CardHeader>
             <CardTitle>Verification Application</CardTitle>
@@ -292,7 +295,7 @@ export function VerificationRequest() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium capitalize">{r.verification_type.replace("_", " ")} verification</p>
                   <p className="text-[11px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</p>
-                  {r.admin_notes && <p className="mt-0.5 text-[11px] text-muted-foreground">Note: {r.admin_notes}</p>}
+                  {r.rejection_reason && <p className="mt-0.5 text-[11px] text-muted-foreground">Note: {r.rejection_reason}</p>}
                 </div>
                 <Badge variant="outline" className="shrink-0 rounded-full text-[10px]">
                   {meta.label}

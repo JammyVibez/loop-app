@@ -22,8 +22,7 @@ interface VerifRequest {
   id: string | number
   verification_type: string
   status: string
-  reason: string | null
-  admin_notes: string | null
+  rejection_reason: string | null
   created_at: string
   reviewed_at: string | null
 }
@@ -165,7 +164,7 @@ export function VerificationSettings() {
           <p className="flex items-center gap-2 text-sm font-semibold text-red-600">
             <XCircle className="h-4 w-4" /> Previous request wasn't approved
           </p>
-          {latest.admin_notes && <p className="mt-1 text-xs text-muted-foreground">Reviewer note: {latest.admin_notes}</p>}
+          {latest.rejection_reason && <p className="mt-1 text-xs text-muted-foreground">Reviewer note: {latest.admin_notes}</p>}
           <p className="mt-1 text-xs text-muted-foreground">You can submit a new request below.</p>
         </div>
       )}
@@ -191,14 +190,9 @@ export function VerificationSettings() {
       )}
 
       {/* Request form */}
-      {profile?.is_verified ? null : pending ? null : (
-        <div className={cn("rounded-2xl border bg-card p-4", !canSubmit && "opacity-90")}>
+      {profile?.is_verified || pending || !user || !profile ? null : (
+        <div className="rounded-2xl border bg-card p-4">
           <p className="mb-3 text-sm font-semibold">Request verification</p>
-          {!canSubmit && user && profile && (
-            <p className="mb-3 rounded-lg bg-muted p-2.5 text-xs text-muted-foreground">
-              A request is already pending or this account is already verified.
-            </p>
-          )}
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label>Verification type</Label>
@@ -244,7 +238,7 @@ export function VerificationSettings() {
                 rows={3}
                 maxLength={2000}
                 value={form.reason}
-                onChange={(e) => setForm((p) => ({ ...p, reason: e.target.value.slice(0, 600) }))}
+                onChange={(e) => setForm((p) => ({ ...p, reason: e.target.value.slice(0, 2000) }))}
                 placeholder="Tell the team who you are and where people follow you."
                 disabled={!canSubmit}
               />
@@ -253,6 +247,8 @@ export function VerificationSettings() {
               <Label htmlFor="vr-docs">Supporting link (optional)</Label>
               <Input
                 id="vr-docs"
+                type="url"
+                maxLength={2048}
                 value={form.documents}
                 onChange={(e) => setForm((p) => ({ ...p, documents: e.target.value }))}
                 placeholder="Link to press page, portfolio, or official site"
