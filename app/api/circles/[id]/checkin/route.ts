@@ -33,12 +33,14 @@ function computeStreak(days: Set<string>) {
 
 async function checkinState(supabase: ReturnType<typeof createServerClient>, circleId: string, userId: string) {
   const since = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()
-  const { data: rows } = await supabase
+  const { data: rows, error } = await supabase
     .from("pro_lounge_checkins")
     .select("checkin_date")
     .eq("circle_id", circleId)
     .eq("user_id", userId)
     .gte("created_at", since)
+
+  if (error) throw new Error("Could not load Circle check-in history")
 
   const days = new Set((rows || []).map((r) => String(r.checkin_date).slice(0, 10)))
   const today = utcDayKey(new Date())

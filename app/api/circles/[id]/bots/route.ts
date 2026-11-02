@@ -11,13 +11,14 @@ async function getUser(request: NextRequest) {
 
 async function getMember(circleId: string, userId: string) {
   const supabase = createServerClient()
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("circle_members")
     .select("role, status")
     .eq("circle_id", circleId)
     .eq("user_id", userId)
     .maybeSingle()
-  return data
+  if (error) throw new Error("Could not verify Circle membership")
+  return data && ["active", "approved"].includes(String(data.status || "")) ? data : null
 }
 
 function canManage(role?: string) {
@@ -41,10 +42,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const user = await getUser(request)
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await params
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json({ error: "Circle bot management is unavailable" }, { status: 503 })
+  }
   const member = await getMember(id, user.id)
   if (!canManage(member?.role)) return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
 
-  const body = await request.json()
+  const body = await request.json().catch(() => ({}))
   const supabase = createServerClient()
   const botType = body.bot_type || "welcome"
   const payload: Record<string, unknown> = {

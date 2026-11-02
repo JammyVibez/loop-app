@@ -115,3 +115,10 @@ Finish and verify: durable invitations and revocation, active-session authorizat
 - Individual Circle post detail no longer exposes pending content to non-staff users; interaction endpoints require active/approved membership.
 - Circle-to-Loop feed sharing uses the server-only client and a current active/approved membership. Private Circles remain ineligible for public feed mirroring.
 - Drops now includes events and challenges from public Circles, plus the viewer's own/private-active-member Circles; private content remains scoped to its owner or active/approved members.
+
+
+## 72. Circle bot and check-in follow-up — 2 November 2026
+
+- Circle bot configuration changes now require an active/approved membership instead of trusting a stale role field. Membership lookup failures are returned as unavailable.
+- Bot-trigger post creation checks a well-formed explicit permission list before allowing non-staff members to create a post.
+- Check-in history lookup failures no longer appear as an empty streak; the route reports the unavailable history rather than presenting a fabricated zero.

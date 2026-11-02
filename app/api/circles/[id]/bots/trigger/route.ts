@@ -40,7 +40,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (triggerType === "moderation" && !isStaff) {
       return NextResponse.json({ error: "Only Circle staff can run moderation bot actions" }, { status: 403 })
     }
-    if (body.save_as_post && !isStaff && !can(membership.permissions, "post.create")) {
+    if (
+      body.save_as_post &&
+      !isStaff &&
+      !(Array.isArray(membership.permissions) && can(membership.permissions, "post.create"))
+    ) {
       return NextResponse.json({ error: "You do not have permission to create Circle posts" }, { status: 403 })
     }
 
