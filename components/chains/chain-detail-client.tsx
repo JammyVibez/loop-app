@@ -86,6 +86,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
   const [content, setContent] = useState("")
   const [title, setTitle] = useState("")
   const [contributionType, setContributionType] = useState("text")
+  const [structuredEntries, setStructuredEntries] = useState("")
   const [parentContributionId, setParentContributionId] = useState<string | null>(null)
   const [attachment, setAttachment] = useState<File | null>(null)
   const attachmentInputRef = useRef<HTMLInputElement>(null)
@@ -165,6 +166,20 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
         payload.mime_type = attachment.type
         payload.size_bytes = attachment.size
         if (uploaded.public_id) payload.public_id = uploaded.public_id
+      } else if (contributionType === "list" || contributionType === "ranking") {
+        const entries = structuredEntries.split("\n").map((entry) => entry.trim()).filter(Boolean)
+        if (entries.length < 2) throw new Error("Add at least two separate entries, one per line.")
+        if (entries.length > 40 || entries.some((entry) => entry.length > 240)) {
+          throw new Error("Use up to 40 entries, with no more than 240 characters per entry.")
+        }
+        payload.items = entries
+      } else if (contributionType === "poll") {
+        const options = structuredEntries.split("\n").map((entry) => entry.trim()).filter(Boolean)
+        if (!content.trim()) throw new Error("Add a question for this poll contribution.")
+        if (options.length < 2 || options.length > 10 || options.some((option) => option.length > 160)) {
+          throw new Error("A poll contribution needs 2 to 10 options, each up to 160 characters.")
+        }
+        payload.options = options
       } else if (contributionType === "link") {
         let parsed: URL
         try {
@@ -192,6 +207,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
       setTitle("")
       setContent("")
       setAttachment(null)
+      setStructuredEntries("")
       if (attachmentInputRef.current) attachmentInputRef.current.value = ""
       setParentContributionId(null)
       await load()
@@ -223,6 +239,11 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
     contributionType === "video" ? "video/*" :
     contributionType === "audio" ? "audio/*" :
     ".pdf,.doc,.docx,.txt,.md,application/pdf,application/msword,text/plain"
+  const contributionDepths = new Map<string, number>()
+  for (const item of [...contributions].sort((left, right) => left.position - right.position)) {
+    const parentDepth = item.parent_contribution_id ? contributionDepths.get(item.parent_contribution_id) : undefined
+    contributionDepths.set(item.id, item.parent_contribution_id ? Math.min(4, (parentDepth ?? -1) + 1) : 0)
+  }
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-24 pt-5 sm:px-6">
       <Link href="/chains" className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"><ArrowLeft className="h-4 w-4" /> All Chains</Link>
@@ -288,6 +309,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
             <div className="grid gap-3 sm:grid-cols-[180px_minmax(0,1fr)]">
               <select aria-label="Contribution type" value={contributionType} onChange={(event) => {
                 setContributionType(event.target.value)
+                setStructuredEntries("")
                 setAttachment(null)
                 if (attachmentInputRef.current) attachmentInputRef.current.value = ""
               }} className="h-10 rounded-lg border border-input bg-background px-3 text-sm">
@@ -322,7 +344,23 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
                 </p>
               </div>
             )}
-            <Textarea value={content} onChange={(event) => setContent(event.target.value)} maxLength={8000} rows={4} placeholder={contributionType === "link" ? "Paste an HTTPS link and add context…" : "Add your part. Give it context so the next person can build on it…"} />
+            <Textarea value={content} onChange={(event) => setContent(event.target.value)} maxLength={8000} rows={4} placeholder={contributionType === "link" ? "Paste an HTTPS link and add context…" : contributionType === "poll" ? "Ask a clear question for this poll…" : "Add your part. Give it context so the next person can build on it…"} />
+            {["list", "ranking", "poll"].includes(contributionType) && (
+              <div className="space-y-2">
+                <label htmlFor="chain-structured-entries" className="text-sm font-medium">
+                  {contributionType === "poll" ? "Poll options" : contributionType === "ranking" ? "Ranked entries" : "List entries"}
+                </label>
+                <Textarea
+                  id="chain-structured-entries"
+                  value={structuredEntries}
+                  onChange={(event) => setStructuredEntries(event.target.value)}
+                  maxLength={10000}
+                  rows={4}
+                  placeholder={contributionType === "poll" ? "One option per line (2–10 options)" : "One entry per line (2–40 entries)"}
+                />
+                <p className="text-[11px] text-muted-foreground">Each line becomes its own structured entry.</p>
+              </div>
+            )}
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <div className="flex justify-end">
               <Button type="submit" disabled={submitting || (!content.trim() && !title.trim() && !attachment) || (requiresAttachment && !attachment)}>
@@ -348,7 +386,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
         ) : (
           <div className="space-y-3">
             {contributions.map((contribution, index) => (
-              <article key={contribution.id} className="relative rounded-2xl border border-border bg-card p-4 sm:p-5">
+              <article key={contribution.id} style={{ marginLeft: `${(contributionDepths.get(contribution.id) || 0) * 18}px` }} className="relative rounded-2xl border border-border bg-card p-4 sm:p-5">
                 {index > 0 && <span className="absolute -top-3 left-7 h-3 w-px bg-border" />}
                 <div className="flex items-start gap-3">
                   <Avatar className="h-9 w-9">
@@ -363,6 +401,24 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
                     </div>
                     {contribution.title && <h3 className="mt-2 font-semibold">{contribution.title}</h3>}
                     {contribution.content && contribution.contribution_type !== "link" && <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{contribution.content}</p>}
+                    {(contribution.contribution_type === "list" || contribution.contribution_type === "ranking") && Array.isArray(contribution.payload.items) && (
+                      <ol className="mt-3 space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+                        {(contribution.payload.items as unknown[]).filter((entry): entry is string => typeof entry === "string").map((entry, entryIndex) => (
+                          <li key={`${contribution.id}:${entryIndex}`} className="flex items-start gap-2 text-sm">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[10px] font-bold text-primary">{contribution.contribution_type === "ranking" ? entryIndex + 1 : "•"}</span>
+                            <span>{entry}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                    {contribution.contribution_type === "poll" && Array.isArray(contribution.payload.options) && (
+                      <div className="mt-3 space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Poll contribution · options</p>
+                        {(contribution.payload.options as unknown[]).filter((option): option is string => typeof option === "string").map((option, optionIndex) => (
+                          <div key={`${contribution.id}:option:${optionIndex}`} className="rounded-lg border border-border bg-background px-3 py-2 text-sm">{option}</div>
+                        ))}
+                      </div>
+                    )}
                     {contribution.contribution_type === "image" && getSecurePayloadUrl(contribution.payload) && (
                       <ProxyImg src={getSecurePayloadUrl(contribution.payload) || ""} alt={contribution.title || "Chain contribution"} className="mt-3 max-h-[420px] w-auto max-w-full rounded-xl object-contain" />
                     )}
@@ -395,7 +451,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
         {data.contributions_has_more && (
           <div className="flex justify-center pt-2">
             <Button variant="outline" onClick={() => void loadMoreContributions()} disabled={loadingMore}>
-              {loadingMore ? "Loading contributions…" : "Load earlier contributions"}
+              {loadingMore ? "Loading contributions…" : "Load more contributions"}
             </Button>
           </div>
         )}
